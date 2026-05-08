@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CalendarCheck2, Dumbbell, ListChecks, User2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { cn } from "@/lib/utils";
@@ -54,6 +55,7 @@ export function Navbar() {
           ) : null}
 
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             {isAuthenticated ? (
               <Button onClick={handleSignOut} variant="outline" size="sm">
                 Sign out
