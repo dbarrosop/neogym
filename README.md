@@ -109,7 +109,7 @@ Backend (from `backend/`):
 
 ## Configuration
 
-The frontend reads three env vars (defaults fine for local dev):
+The frontend reads three env vars. Local dev values live in `frontend/.env`:
 
 ```sh
 # frontend/.env
@@ -118,7 +118,9 @@ VITE_NHOST_REGION=local
 VITE_MCP_URL=http://localhost:3000
 ```
 
-Set `VITE_NHOST_*` to the values from the Nhost dashboard for non-local environments. `VITE_MCP_URL` is the MCP endpoint surfaced on the home page so users can connect their agent — override it to your deployed MCP URL in non-local environments.
+Production build values live in `frontend/.env.production` (committed) and are picked up automatically by `bun run build`. Override any of them on the command line for ad-hoc builds: `VITE_MCP_URL=https://… bun run build`.
+
+`VITE_NHOST_*` point at the Nhost backend; `VITE_MCP_URL` is the MCP endpoint surfaced on the home page so users can connect their agent.
 
 The Auth `clientUrl` and `allowedUrls` are pinned in `backend/nhost/nhost.toml`:
 
