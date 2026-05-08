@@ -1,0 +1,40 @@
+table:
+  name: exercise_levels
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: exerciseLevels
+  custom_root_fields:
+    delete: deleteExerciseLevels
+    delete_by_pk: deleteExerciseLevel
+    insert: insertExerciseLevels
+    insert_one: insertExerciseLevel
+    select: exerciseLevels
+    select_aggregate: exerciseLevelsAggregate
+    select_by_pk: exerciseLevel
+    update: updateExerciseLevels
+    update_by_pk: updateExerciseLevel
+array_relationships:
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: level
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

@@ -1,0 +1,35 @@
+table:
+  name: exercise_secondary_muscle_groups
+  schema: public
+configuration:
+  column_config:
+    exercise_id:
+      custom_name: exerciseId
+    muscle_group:
+      custom_name: muscleGroup
+  custom_column_names:
+    exercise_id: exerciseId
+    muscle_group: muscleGroup
+  custom_name: exerciseSecondaryMuscleGroups
+  custom_root_fields:
+    delete: deleteExerciseSecondaryMuscleGroups
+    delete_by_pk: deleteExerciseSecondaryMuscleGroup
+    insert: insertExerciseSecondaryMuscleGroups
+    insert_one: insertExerciseSecondaryMuscleGroup
+    select: exerciseSecondaryMuscleGroups
+    select_aggregate: exerciseSecondaryMuscleGroupsAggregate
+    select_by_pk: exerciseSecondaryMuscleGroup
+    update: updateExerciseSecondaryMuscleGroups
+    update_by_pk: updateExerciseSecondaryMuscleGroup
+object_relationships:
+  - name: exercise
+    using:
+      foreign_key_constraint_on: exercise_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - exercise_id
+        - muscle_group
+      filter: {}
+      allow_aggregations: true

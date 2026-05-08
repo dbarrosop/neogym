@@ -1,0 +1,40 @@
+table:
+  name: exercise_forces
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: exerciseForces
+  custom_root_fields:
+    delete: deleteExerciseForces
+    delete_by_pk: deleteExerciseForce
+    insert: insertExerciseForces
+    insert_one: insertExerciseForce
+    select: exerciseForces
+    select_aggregate: exerciseForcesAggregate
+    select_by_pk: exerciseForce
+    update: updateExerciseForces
+    update_by_pk: updateExerciseForce
+array_relationships:
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: force
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

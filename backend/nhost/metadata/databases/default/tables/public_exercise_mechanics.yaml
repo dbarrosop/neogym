@@ -1,0 +1,40 @@
+table:
+  name: exercise_mechanics
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: exerciseMechanics
+  custom_root_fields:
+    delete: deleteExerciseMechanics
+    delete_by_pk: deleteExerciseMechanic
+    insert: insertExerciseMechanics
+    insert_one: insertExerciseMechanic
+    select: exerciseMechanics
+    select_aggregate: exerciseMechanicsAggregate
+    select_by_pk: exerciseMechanic
+    update: updateExerciseMechanics
+    update_by_pk: updateExerciseMechanic
+array_relationships:
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: mechanic
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

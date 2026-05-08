@@ -1,0 +1,40 @@
+table:
+  name: exercise_equipments
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: exerciseEquipments
+  custom_root_fields:
+    delete: deleteExerciseEquipments
+    delete_by_pk: deleteExerciseEquipment
+    insert: insertExerciseEquipments
+    insert_one: insertExerciseEquipment
+    select: exerciseEquipments
+    select_aggregate: exerciseEquipmentsAggregate
+    select_by_pk: exerciseEquipment
+    update: updateExerciseEquipments
+    update_by_pk: updateExerciseEquipment
+array_relationships:
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: equipment
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

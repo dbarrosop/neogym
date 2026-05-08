@@ -1,0 +1,187 @@
+table:
+  name: exercises
+  schema: public
+configuration:
+  column_config:
+    category:
+      custom_name: category
+    created_at:
+      custom_name: createdAt
+    double_weight:
+      custom_name: doubleWeight
+    equipment:
+      custom_name: equipment
+    force:
+      custom_name: force
+    id:
+      custom_name: id
+    image_1_file_id:
+      custom_name: image1FileId
+    image_2_file_id:
+      custom_name: image2FileId
+    instructions:
+      custom_name: instructions
+    is_public:
+      custom_name: isPublic
+    level:
+      custom_name: level
+    mechanic:
+      custom_name: mechanic
+    name:
+      custom_name: name
+    primary_muscle_group:
+      custom_name: primaryMuscleGroup
+    slug:
+      custom_name: slug
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    category: category
+    created_at: createdAt
+    double_weight: doubleWeight
+    equipment: equipment
+    force: force
+    id: id
+    image_1_file_id: image1FileId
+    image_2_file_id: image2FileId
+    instructions: instructions
+    is_public: isPublic
+    level: level
+    mechanic: mechanic
+    name: name
+    primary_muscle_group: primaryMuscleGroup
+    slug: slug
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: exercises
+  custom_root_fields:
+    delete: deleteExercises
+    delete_by_pk: deleteExercise
+    insert: insertExercises
+    insert_one: insertExercise
+    select: exercises
+    select_aggregate: exercisesAggregate
+    select_by_pk: exercise
+    update: updateExercises
+    update_by_pk: updateExercise
+object_relationships:
+  - name: image1
+    using:
+      foreign_key_constraint_on: image_1_file_id
+  - name: image2
+    using:
+      foreign_key_constraint_on: image_2_file_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: secondaryMuscleGroups
+    using:
+      foreign_key_constraint_on:
+        column: exercise_id
+        table:
+          name: exercise_secondary_muscle_groups
+          schema: public
+  - name: workoutExercises
+    using:
+      foreign_key_constraint_on:
+        column: exercise_id
+        table:
+          name: workout_exercises
+          schema: public
+  - name: workoutSessionExercises
+    using:
+      foreign_key_constraint_on:
+        column: exercise_id
+        table:
+          name: workout_session_exercises
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - name
+        - primary_muscle_group
+        - double_weight
+        - instructions
+        - level
+        - category
+        - force
+        - mechanic
+        - equipment
+        - image_1_file_id
+        - image_2_file_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - slug
+        - name
+        - primary_muscle_group
+        - double_weight
+        - instructions
+        - level
+        - category
+        - force
+        - mechanic
+        - equipment
+        - image_1_file_id
+        - image_2_file_id
+        - user_id
+        - is_public
+        - created_at
+        - updated_at
+      filter:
+        _or:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: true
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - primary_muscle_group
+        - double_weight
+        - instructions
+        - level
+        - category
+        - force
+        - mechanic
+        - equipment
+        - image_1_file_id
+        - image_2_file_id
+      filter:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false

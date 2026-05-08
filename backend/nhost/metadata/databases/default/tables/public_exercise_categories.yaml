@@ -1,0 +1,40 @@
+table:
+  name: exercise_categories
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: exerciseCategories
+  custom_root_fields:
+    delete: deleteExerciseCategories
+    delete_by_pk: deleteExerciseCategory
+    insert: insertExerciseCategories
+    insert_one: insertExerciseCategory
+    select: exerciseCategories
+    select_aggregate: exerciseCategoriesAggregate
+    select_by_pk: exerciseCategory
+    update: updateExerciseCategories
+    update_by_pk: updateExerciseCategory
+array_relationships:
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: category
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

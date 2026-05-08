@@ -1,0 +1,103 @@
+table:
+  name: workout_exercises
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    exercise_id:
+      custom_name: exerciseId
+    id:
+      custom_name: id
+    position:
+      custom_name: position
+    updated_at:
+      custom_name: updatedAt
+    workout_id:
+      custom_name: workoutId
+  custom_column_names:
+    created_at: createdAt
+    exercise_id: exerciseId
+    id: id
+    position: position
+    updated_at: updatedAt
+    workout_id: workoutId
+  custom_name: workoutExercises
+  custom_root_fields:
+    delete: deleteWorkoutExercises
+    delete_by_pk: deleteWorkoutExercise
+    insert: insertWorkoutExercises
+    insert_one: insertWorkoutExercise
+    select: workoutExercises
+    select_aggregate: workoutExercisesAggregate
+    select_by_pk: workoutExercise
+    update: updateWorkoutExercises
+    update_by_pk: updateWorkoutExercise
+object_relationships:
+  - name: exercise
+    using:
+      foreign_key_constraint_on: exercise_id
+  - name: workout
+    using:
+      foreign_key_constraint_on: workout_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        workout:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+      columns:
+        - workout_id
+        - exercise_id
+        - position
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - workout_id
+        - exercise_id
+        - position
+        - created_at
+        - updated_at
+      filter:
+        workout:
+          _or:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: true
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - position
+      filter:
+        workout:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+      check:
+        workout:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        workout:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false

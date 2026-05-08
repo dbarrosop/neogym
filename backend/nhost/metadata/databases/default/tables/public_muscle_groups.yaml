@@ -1,0 +1,47 @@
+table:
+  name: muscle_groups
+  schema: public
+is_enum: true
+configuration:
+  column_config:
+    comment:
+      custom_name: comment
+    value:
+      custom_name: value
+  custom_column_names:
+    comment: comment
+    value: value
+  custom_name: muscleGroups
+  custom_root_fields:
+    delete: deleteMuscleGroups
+    delete_by_pk: deleteMuscleGroup
+    insert: insertMuscleGroups
+    insert_one: insertMuscleGroup
+    select: muscleGroups
+    select_aggregate: muscleGroupsAggregate
+    select_by_pk: muscleGroup
+    update: updateMuscleGroups
+    update_by_pk: updateMuscleGroup
+array_relationships:
+  - name: exerciseSecondaryMuscleGroups
+    using:
+      foreign_key_constraint_on:
+        column: muscle_group
+        table:
+          name: exercise_secondary_muscle_groups
+          schema: public
+  - name: exercises
+    using:
+      foreign_key_constraint_on:
+        column: primary_muscle_group
+        table:
+          name: exercises
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - comment
+      filter: {}
+      allow_aggregations: true

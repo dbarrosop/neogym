@@ -1,0 +1,27 @@
+# Dependencies
+node_modules
+
+# Builds / generated
+frontend/dist
+frontend/.output
+frontend/.nitro
+frontend/.tanstack
+frontend/.vinxi
+frontend/src/routeTree.gen.ts
+frontend/src/gql
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+backend/.secrets
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.log
+
+# Nhost local data
+backend/.nhost

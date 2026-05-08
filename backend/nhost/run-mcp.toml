@@ -1,0 +1,33 @@
+name = 'mcp'
+command = ['mcp']
+
+[image]
+image = 'nhost/mcp:0.1.0'
+
+[[environment]]
+name = 'MCP_AUTH_URL'
+value = 'https://192-168-1-108.auth.local.nhost.run/v1'
+
+[[environment]]
+name = 'MCP_REALM'
+value = 'https://192-168-1-108.mcp.local.nhost.run'
+
+[[environment]]
+name = 'MCP_GRAPHQL_ENDPOINT'
+value = 'http://hasura-service:8080/v1/graphql'
+
+[[environment]]
+name = 'MCP_INSTRUCTIONS'
+value = '''MCP server for the NeoGym application — use the GraphQL API to read and manage the signed-in user's exercises, workouts, and training sessions.'''
+
+[[ports]]
+port = 3000
+type = 'http'
+publish = true
+
+[resources]
+replicas = 1
+
+[resources.compute]
+cpu = 125
+memory = 256
