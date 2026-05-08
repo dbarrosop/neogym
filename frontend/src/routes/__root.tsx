@@ -10,6 +10,8 @@ import { Navbar } from "@/components/navbar";
 import { PWAUpdatePrompt } from "@/components/pwa-update-prompt";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/nhost/auth-provider";
+import { ThemeProvider } from "@/lib/theme/theme-provider";
+import { themeInitScript } from "@/lib/theme/theme-script";
 import appCss from "@/styles.css?url";
 
 interface RouterContext {
@@ -52,17 +54,21 @@ function RootDocument({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        {/** biome-ignore lint/security/noDangerouslySetInnerHtml: inline theme bootstrap to avoid FOUC; content is a static literal */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>
-            <div className="flex min-h-dvh flex-col">
-              <Navbar />
-              <main className="flex-1">{children}</main>
-            </div>
-            <Toaster richColors position="top-right" />
-            <PWAUpdatePrompt />
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <div className="flex min-h-dvh flex-col">
+                <Navbar />
+                <main className="flex-1">{children}</main>
+              </div>
+              <Toaster richColors position="top-right" />
+              <PWAUpdatePrompt />
+            </AuthProvider>
+          </ThemeProvider>
           {/* <TanStackRouterDevtools position="bottom-right" /> */}
           {/* <ReactQueryDevtools buttonPosition="bottom-left" /> */}
         </QueryClientProvider>
