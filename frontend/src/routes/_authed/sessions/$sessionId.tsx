@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Flame, Hash, Loader2, Plus, Repeat2, Trash2 } from "lucide-react";
+import { Flame, Hash, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
+import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,24 @@ const DeleteSessionMutation = graphql(`
   }
 `);
 
+const InsertSessionExercisesMutation = graphql(`
+  mutation InsertWorkoutSessionExercises(
+    $objs: [workoutSessionExercises_insert_input!]!
+  ) {
+    insertWorkoutSessionExercises(objects: $objs) {
+      affected_rows
+    }
+  }
+`);
+
+const DeleteSessionExerciseMutation = graphql(`
+  mutation DeleteWorkoutSessionExercise($id: uuid!) {
+    deleteWorkoutSessionExercise(id: $id) {
+      id
+    }
+  }
+`);
+
 export const Route = createFileRoute("/_authed/sessions/$sessionId")({
   component: SessionDetailRoute,
 });
@@ -140,6 +159,25 @@ function SessionDetailRoute() {
     onError: (e) => toast.error(`Failed to delete: ${e.message}`),
   });
 
+  const addExercisesMutation = useMutation({
+    mutationFn: (vars: { picks: PickerSelection[]; basePosition: number }) =>
+      gqlRequest(InsertSessionExercisesMutation, {
+        objs: vars.picks.map((p, i) => ({
+          workoutSessionId: sessionId,
+          exerciseId: p.exerciseId,
+          position: vars.basePosition + i + 1,
+        })),
+      }),
+    onSuccess: () => invalidateAll(),
+    onError: (e) => toast.error(`Failed to add: ${e.message}`),
+  });
+
+  const removeExerciseMutation = useMutation({
+    mutationFn: (id: string) => gqlRequest(DeleteSessionExerciseMutation, { id }),
+    onSuccess: () => invalidateAll(),
+    onError: (e) => toast.error(`Failed to remove: ${e.message}`),
+  });
+
   const totals = useMemo(() => {
     if (!session) {
       return { sets: 0, reps: 0, volume: 0 };
@@ -160,6 +198,21 @@ function SessionDetailRoute() {
 
   const [editingDate, setEditingDate] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [confirmingRemoveExercise, setConfirmingRemoveExercise] = useState<{
+    id: string;
+    name: string;
+    setCount: number;
+  } | null>(null);
+
+  const selectedExerciseIds = useMemo(
+    () => new Set(session?.workoutSessionExercises.map((we) => we.exercise.id) ?? []),
+    [session],
+  );
+  const maxPosition = useMemo(() => {
+    const positions = session?.workoutSessionExercises.map((we) => we.position) ?? [];
+    return positions.length > 0 ? Math.max(...positions) : 0;
+  }, [session]);
 
   function renderContent() {
     if (isLoading) {
@@ -216,8 +269,26 @@ function SessionDetailRoute() {
               image2FileId={we.exercise.image2FileId}
               sets={we.workoutSessionSets}
               onMutated={invalidateAll}
+              onRequestRemove={() =>
+                setConfirmingRemoveExercise({
+                  id: we.id,
+                  name: we.exercise.name,
+                  setCount: we.workoutSessionSets.length,
+                })
+              }
             />
           ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full border-dashed"
+            onClick={() => setPickerOpen(true)}
+            disabled={addExercisesMutation.isPending}
+          >
+            <Plus className="h-4 w-4" />
+            Add exercise
+          </Button>
         </div>
 
         <div className="pt-4">
@@ -231,6 +302,61 @@ function SessionDetailRoute() {
             Delete session
           </Button>
         </div>
+
+        <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+          <DialogContent className="md:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Add exercises</DialogTitle>
+              <DialogDescription>
+                Add to this session only. The original workout isn't changed.
+              </DialogDescription>
+            </DialogHeader>
+            <ExercisePicker
+              alreadySelected={selectedExerciseIds}
+              onConfirm={(picks) => {
+                if (picks.length === 0) {
+                  setPickerOpen(false);
+                  return;
+                }
+                addExercisesMutation.mutate(
+                  { picks, basePosition: maxPosition },
+                  { onSuccess: () => setPickerOpen(false) },
+                );
+              }}
+              onCancel={() => setPickerOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+
+        <ConfirmDialog
+          open={!!confirmingRemoveExercise}
+          onOpenChange={(open) => {
+            if (!open) {
+              setConfirmingRemoveExercise(null);
+            }
+          }}
+          title={
+            confirmingRemoveExercise
+              ? `Remove ${confirmingRemoveExercise.name}?`
+              : "Remove exercise?"
+          }
+          description={
+            confirmingRemoveExercise && confirmingRemoveExercise.setCount > 0
+              ? `${confirmingRemoveExercise.setCount} logged set${confirmingRemoveExercise.setCount === 1 ? "" : "s"} will be deleted with it. This can't be undone.`
+              : "It will be removed from this session only."
+          }
+          confirmLabel="Remove"
+          destructive
+          isPending={removeExerciseMutation.isPending}
+          onConfirm={() => {
+            if (!confirmingRemoveExercise) {
+              return;
+            }
+            removeExerciseMutation.mutate(confirmingRemoveExercise.id, {
+              onSuccess: () => setConfirmingRemoveExercise(null),
+            });
+          }}
+        />
 
         <EditDateDialog
           open={editingDate}
@@ -291,6 +417,7 @@ interface ExerciseLogProps {
   image2FileId: string | null | undefined;
   sets: SetRow[];
   onMutated: () => void;
+  onRequestRemove: () => void;
 }
 
 function ExerciseLog({
@@ -303,6 +430,7 @@ function ExerciseLog({
   image2FileId,
   sets,
   onMutated,
+  onRequestRemove,
 }: ExerciseLogProps) {
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; set: SetRow } | null>(
     null,
@@ -377,6 +505,16 @@ function ExerciseLog({
           <p className="text-xs text-muted-foreground">{primaryMuscle}</p>
         </div>
         {doubleWeight ? <Badge variant="outline">Two-handed</Badge> : null}
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          aria-label={`Remove ${exerciseName} from session`}
+          onClick={onRequestRemove}
+        >
+          <X className="h-4 w-4" />
+        </Button>
       </CardHeader>
       <CardContent className="space-y-2 px-3 pb-3">
         {sets.length === 0 ? (
