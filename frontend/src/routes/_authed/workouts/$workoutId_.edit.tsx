@@ -225,7 +225,9 @@ function EditWorkoutRoute() {
             submitLabel="Save changes"
             isSubmitting={saveMutation.isPending}
             onSubmit={(values) => saveMutation.mutate(values)}
-            onCancel={() => navigate({ to: "/workouts/$workoutId", params: { workoutId } })}
+            onCancel={() =>
+              navigate({ to: "/workouts/$workoutId", params: { workoutId }, replace: true })
+            }
             extraActions={
               <Button
                 type="button"

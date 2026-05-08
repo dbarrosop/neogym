@@ -76,7 +76,7 @@ function NewWorkoutRoute() {
               submitLabel="Create workout"
               isSubmitting={createMutation.isPending}
               onSubmit={(values) => createMutation.mutate(values)}
-              onCancel={() => navigate({ to: "/workouts" })}
+              onCancel={() => navigate({ to: "/workouts", replace: true })}
             />
           </CardContent>
         </Card>
