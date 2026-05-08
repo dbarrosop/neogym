@@ -1,7 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Copy, Plug, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/nhost/auth-provider";
+
+const MCP_URL = import.meta.env.VITE_MCP_URL ?? "http://localhost:3000";
 
 export const Route = createFileRoute("/")({
   component: HomeRoute,
@@ -9,6 +14,18 @@ export const Route = createFileRoute("/")({
 
 function HomeRoute() {
   const { isAuthenticated, user } = useAuth();
+  const [copied, setCopied] = useState(false);
+
+  async function copyMcpUrl() {
+    try {
+      await navigator.clipboard.writeText(MCP_URL);
+      setCopied(true);
+      toast.success("MCP URL copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Couldn't copy — copy the URL manually");
+    }
+  }
 
   return (
     <section className="grid-bg relative">
@@ -51,6 +68,58 @@ function HomeRoute() {
             </>
           )}
         </div>
+
+        {isAuthenticated && (
+          <Card className="mt-16 w-full max-w-2xl border-border/60 bg-background/50 text-left backdrop-blur">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-primary/10 text-primary">
+                  <Plug className="h-4 w-4" />
+                </div>
+                <CardTitle>Connect your favorite agent</CardTitle>
+              </div>
+              <CardDescription>
+                NeoGym speaks{" "}
+                <a
+                  href="https://modelcontextprotocol.io"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  MCP
+                </a>
+                . Point Claude, Cursor, or any MCP-compatible agent at the URL below to log workouts
+                and query your training data in natural language.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/40 p-2">
+                <code className="flex-1 truncate px-2 font-mono text-sm text-foreground">
+                  {MCP_URL}
+                </code>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyMcpUrl}
+                  aria-label="Copy MCP URL"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </section>
   );

@@ -28,3 +28,4 @@ backend/.secrets
 # Nhost local data
 backend/.nhost
 
+.review

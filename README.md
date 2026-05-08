@@ -109,15 +109,16 @@ Backend (from `backend/`):
 
 ## Configuration
 
-The frontend reads two env vars (default fine for local dev):
+The frontend reads three env vars (defaults fine for local dev):
 
 ```sh
 # frontend/.env
 VITE_NHOST_SUBDOMAIN=local
 VITE_NHOST_REGION=local
+VITE_MCP_URL=http://localhost:3000
 ```
 
-For non-local environments set them to the values shown in the Nhost dashboard.
+Set `VITE_NHOST_*` to the values from the Nhost dashboard for non-local environments. `VITE_MCP_URL` is the MCP endpoint surfaced on the home page so users can connect their agent — override it to your deployed MCP URL in non-local environments.
 
 The Auth `clientUrl` and `allowedUrls` are pinned in `backend/nhost/nhost.toml`:
 
