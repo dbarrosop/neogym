@@ -63,42 +63,41 @@ function WorkoutDetailRoute() {
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <CardTitle className="text-2xl tracking-tight">{workout.name}</CardTitle>
               {workout.description ? (
                 <p className="text-sm text-muted-foreground">{workout.description}</p>
               ) : null}
             </div>
-            {workout.isPublic ? (
-              <Badge variant="primary">
-                <Globe2 className="h-3 w-3" /> Public
-              </Badge>
-            ) : (
-              <Badge>
-                <User className="h-3 w-3" /> Mine
-              </Badge>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {workout.isPublic ? (
+                <Badge variant="primary">
+                  <Globe2 className="h-3 w-3" /> Public
+                </Badge>
+              ) : (
+                <Badge>
+                  <User className="h-3 w-3" /> Mine
+                </Badge>
+              )}
+              {canEdit ? (
+                <Button asChild size="icon" variant="ghost" aria-label="Edit workout">
+                  <Link to="/workouts/$workoutId/edit" params={{ workoutId: workout.id }}>
+                    <Pencil className="h-4 w-4" />
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">
             {workout.workoutExercises.length} exercise
             {workout.workoutExercises.length === 1 ? "" : "s"}
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button asChild size="lg" className="flex-1">
-              <Link to="/sessions/new" search={{ workoutId: workout.id }}>
-                <Play className="mr-1 h-4 w-4" />
-                Start session
-              </Link>
-            </Button>
-            {canEdit ? (
-              <Button asChild size="lg" variant="outline" className="sm:w-auto">
-                <Link to="/workouts/$workoutId/edit" params={{ workoutId: workout.id }}>
-                  <Pencil className="h-4 w-4" />
-                  Edit
-                </Link>
-              </Button>
-            ) : null}
-          </div>
+          <Button asChild size="lg" className="w-full">
+            <Link to="/sessions/new" search={{ workoutId: workout.id }}>
+              <Play className="h-4 w-4 fill-current" />
+              Start session
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent className="px-2 pt-0 pb-2">
           <ol className="divide-y divide-border/50">
