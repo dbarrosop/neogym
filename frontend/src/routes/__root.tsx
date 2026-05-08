@@ -20,10 +20,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      {
-        name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
-      },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "NeoGym" },
       { name: "description", content: "Modern training, modern stack." },
       { name: "theme-color", content: "#18181b" },
@@ -31,7 +28,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "apple-mobile-web-app-title", content: "NeoGym" },
       {
         name: "apple-mobile-web-app-status-bar-style",
-        content: "black-translucent",
+        content: "black",
       },
     ],
     links: [
