@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Globe2, Pencil, Play, User } from "lucide-react";
 import { BackLink } from "@/components/back-link";
+import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +27,8 @@ const WorkoutDetailQuery = graphql(`
           name
           doubleWeight
           primaryMuscleGroup
+          image1FileId
+          image2FileId
         }
       }
     }
@@ -106,9 +109,16 @@ function WorkoutDetailRoute() {
                   params={{ exerciseId: we.exercise.id }}
                   className="group flex items-center gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
                 >
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                    {idx + 1}
-                  </span>
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
+                    <AlternatingStorageImage
+                      fileIds={[we.exercise.image1FileId, we.exercise.image2FileId]}
+                      alt={we.exercise.name}
+                      className="h-full w-full"
+                    />
+                    <span className="absolute right-0.5 bottom-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-background/90 px-1 text-[10px] font-semibold tabular-nums text-foreground shadow-sm ring-1 ring-border/60">
+                      {idx + 1}
+                    </span>
+                  </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{we.exercise.name}</p>
                     <p className="text-xs text-muted-foreground">

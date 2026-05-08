@@ -4,6 +4,7 @@ import { Flame, Hash, Loader2, Plus, Repeat2, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BackLink } from "@/components/back-link";
+import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -38,6 +39,8 @@ const SessionDetailQuery = graphql(`
           name
           doubleWeight
           primaryMuscleGroup
+          image1FileId
+          image2FileId
         }
         workoutSessionSets(order_by: { setNumber: asc }) {
           id
@@ -209,6 +212,8 @@ function SessionDetailRoute() {
               exerciseName={we.exercise.name}
               primaryMuscle={we.exercise.primaryMuscleGroup}
               doubleWeight={we.exercise.doubleWeight}
+              image1FileId={we.exercise.image1FileId}
+              image2FileId={we.exercise.image2FileId}
               sets={we.workoutSessionSets}
               onMutated={invalidateAll}
             />
@@ -282,6 +287,8 @@ interface ExerciseLogProps {
   exerciseName: string;
   primaryMuscle: string;
   doubleWeight: boolean;
+  image1FileId: string | null | undefined;
+  image2FileId: string | null | undefined;
   sets: SetRow[];
   onMutated: () => void;
 }
@@ -292,6 +299,8 @@ function ExerciseLog({
   exerciseName,
   primaryMuscle,
   doubleWeight,
+  image1FileId,
+  image2FileId,
   sets,
   onMutated,
 }: ExerciseLogProps) {
@@ -345,12 +354,23 @@ function ExerciseLog({
 
   return (
     <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-        <div className="space-y-0.5">
+      <CardHeader className="flex flex-row items-start gap-3 pb-2">
+        <Link
+          to="/exercises/$exerciseId"
+          params={{ exerciseId }}
+          className="block h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted"
+        >
+          <AlternatingStorageImage
+            fileIds={[image1FileId, image2FileId]}
+            alt={exerciseName}
+            className="h-full w-full"
+          />
+        </Link>
+        <div className="min-w-0 flex-1 space-y-0.5">
           <Link
             to="/exercises/$exerciseId"
             params={{ exerciseId }}
-            className="font-medium underline-offset-2 hover:underline"
+            className="block truncate font-medium underline-offset-2 hover:underline"
           >
             {exerciseName}
           </Link>
