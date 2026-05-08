@@ -62,9 +62,12 @@ function NewSessionRoute() {
     mutationFn: (obj: SessionInsertInput) => gqlRequest(StartSessionMutation, { obj }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // Replace so the workout picker doesn't sit on the history stack —
+      // back from the new session should land on /sessions, not the picker.
       navigate({
         to: "/sessions/$sessionId",
         params: { sessionId: res.insertWorkoutSession?.id },
+        replace: true,
       });
     },
     onError: (e) => {
@@ -178,12 +181,13 @@ function NewSessionRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <BackLink fallback="/sessions">Back</BackLink>
-
         <header className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            New session
-          </p>
+          <div className="flex items-center gap-1">
+            <BackLink fallback="/sessions" />
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              New session
+            </p>
+          </div>
           <h1 className="text-2xl font-semibold tracking-tight">Pick a workout</h1>
           <p className="text-sm text-muted-foreground">
             We'll create the session and you can start logging sets right away.

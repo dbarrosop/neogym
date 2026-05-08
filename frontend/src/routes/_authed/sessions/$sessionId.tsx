@@ -131,7 +131,8 @@ function SessionDetailRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
-      navigate({ to: "/sessions" });
+      // Replace — the session no longer exists, so back must skip its detail page.
+      navigate({ to: "/sessions", replace: true });
     },
     onError: (e) => toast.error(`Failed to delete: ${e.message}`),
   });
@@ -256,7 +257,12 @@ function SessionDetailRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <BackLink fallback="/sessions">Back</BackLink>
+        <div className="flex items-center gap-1">
+          <BackLink fallback="/sessions" />
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Session
+          </p>
+        </div>
         {renderContent()}
       </div>
     </section>

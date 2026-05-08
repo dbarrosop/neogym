@@ -40,10 +40,15 @@ function NewWorkoutRoute() {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       const id = res.insertWorkout?.id;
+      // Replace so the (now-submitted) form doesn't sit on the history stack.
       if (id) {
-        navigate({ to: "/workouts/$workoutId", params: { workoutId: id } });
+        navigate({
+          to: "/workouts/$workoutId",
+          params: { workoutId: id },
+          replace: true,
+        });
       } else {
-        navigate({ to: "/workouts" });
+        navigate({ to: "/workouts", replace: true });
       }
       toast.success("Workout created");
     },
@@ -55,12 +60,14 @@ function NewWorkoutRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <BackLink fallback="/workouts">Back</BackLink>
         <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <CardHeader className="pb-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Plans
-            </p>
+            <div className="flex items-center gap-1">
+              <BackLink fallback="/workouts" />
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Plans
+              </p>
+            </div>
             <CardTitle className="text-2xl tracking-tight">New workout</CardTitle>
           </CardHeader>
           <CardContent>
