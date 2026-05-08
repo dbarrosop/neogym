@@ -38,12 +38,7 @@ export function StorageImage({ fileId, alt, className }: StorageImageProps) {
 
   if (!fileId || isError) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center rounded-lg border border-dashed border-border/60 text-muted-foreground",
-          className,
-        )}
-      >
+      <div className={cn("flex items-center justify-center text-muted-foreground", className)}>
         <ImageOff className="h-6 w-6" />
       </div>
     );
@@ -86,12 +81,7 @@ export function AlternatingStorageImage({
 
   if (ids.length === 0) {
     return (
-      <div
-        className={cn(
-          "flex items-center justify-center rounded-lg border border-dashed border-border/60 text-muted-foreground",
-          className,
-        )}
-      >
+      <div className={cn("flex items-center justify-center text-muted-foreground", className)}>
         <ImageOff className="h-6 w-6" />
       </div>
     );
