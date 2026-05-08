@@ -96,7 +96,11 @@ function EditWorkoutRoute() {
   // letting the user fill in a form that will fail on submit.
   useEffect(() => {
     if (!isLoading && workout && !isOwner) {
-      navigate({ to: "/workouts/$workoutId", params: { workoutId } });
+      navigate({
+        to: "/workouts/$workoutId",
+        params: { workoutId },
+        replace: true,
+      });
     }
   }, [isLoading, workout, isOwner, navigate, workoutId]);
 
@@ -171,7 +175,12 @@ function EditWorkoutRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       toast.success("Workout saved");
-      navigate({ to: "/workouts/$workoutId", params: { workoutId } });
+      // Replace so back from the detail page doesn't land in the edit form.
+      navigate({
+        to: "/workouts/$workoutId",
+        params: { workoutId },
+        replace: true,
+      });
     },
     onError: (e) => {
       toast.error(`Failed to save: ${e.message}`);
@@ -183,7 +192,8 @@ function EditWorkoutRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       toast.success("Workout deleted");
-      navigate({ to: "/workouts" });
+      // Replace — the workout no longer exists, so back must skip its edit page.
+      navigate({ to: "/workouts", replace: true });
     },
     onError: (e) => {
       toast.error(`Failed to delete: ${e.message}`);
@@ -207,7 +217,6 @@ function EditWorkoutRoute() {
     return (
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardHeader className="pb-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
           <CardTitle className="text-2xl tracking-tight">{workout.name}</CardTitle>
         </CardHeader>
         <CardContent>
@@ -216,7 +225,9 @@ function EditWorkoutRoute() {
             submitLabel="Save changes"
             isSubmitting={saveMutation.isPending}
             onSubmit={(values) => saveMutation.mutate(values)}
-            onCancel={() => navigate({ to: "/workouts/$workoutId", params: { workoutId } })}
+            onCancel={() =>
+              navigate({ to: "/workouts/$workoutId", params: { workoutId }, replace: true })
+            }
             extraActions={
               <Button
                 type="button"
@@ -238,7 +249,10 @@ function EditWorkoutRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <BackLink fallback="/workouts">Back</BackLink>
+        <div className="flex items-center gap-1">
+          <BackLink fallback="/workouts" />
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
+        </div>
         {renderContent()}
       </div>
 
