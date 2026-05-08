@@ -2,7 +2,7 @@
 deploy-run:
 	nhost run config-deploy \
 		--service-id c6e0751a-b213-458d-9ce5-c6b2d5dafdc2 \
-		--config nhost/run-mcp.toml
+		--config nhost/mcp/run.toml
 
 
 .PHONY: dev-env-up

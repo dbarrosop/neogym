@@ -5,29 +5,8 @@
 		"path": "/auth/oauth2Provider/loginURL"
 	},
 	{
-		"value": "http://localhost:5173/verify",
-		"op": "add",
-		"path": "/auth/redirections/allowedUrls/-"
-	},
-	{
-		"value": "http://localhost:5173/verify",
-		"op": "add",
-		"path": "/auth/redirections/allowedUrls/-"
-	},
-	{
-		"value": "http://localhost:5173/oauth2/login",
-		"op": "add",
-		"path": "/auth/redirections/allowedUrls/-"
-	},
-	{
-		"value": "http://localhost:5173/oauth2/login",
-		"op": "add",
-		"path": "/auth/redirections/allowedUrls/-"
-	},
-	{
 		"value": "http://localhost:5173",
 		"op": "replace",
 		"path": "/auth/redirections/clientUrl"
 	}
 ]
-
