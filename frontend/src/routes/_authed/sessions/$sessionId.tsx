@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { formatMuscle } from "@/lib/utils";
 
 const SessionDetailQuery = graphql(`
   query SessionDetail($id: uuid!) {
@@ -502,7 +503,7 @@ function ExerciseLog({
           >
             {exerciseName}
           </Link>
-          <p className="text-xs text-muted-foreground">{primaryMuscle}</p>
+          <p className="text-xs text-muted-foreground">{formatMuscle(primaryMuscle)}</p>
         </div>
         {doubleWeight ? <Badge variant="outline">Two-handed</Badge> : null}
         <Button

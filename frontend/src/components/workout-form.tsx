@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, formatMuscle } from "@/lib/utils";
 
 export interface WorkoutFormExercise {
   /**
@@ -57,10 +57,6 @@ interface WorkoutFormProps {
   isSubmitting: boolean;
   /** Optional extra controls (e.g. delete button) rendered below submit. */
   extraActions?: React.ReactNode;
-}
-
-function formatMuscle(value: string): string {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function WorkoutForm({

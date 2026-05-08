@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { cn } from "@/lib/utils";
+import { cn, formatMuscle } from "@/lib/utils";
 
 const ExercisePickerQuery = graphql(`
   query ExercisePickerExercises {
@@ -33,10 +33,6 @@ interface ExercisePickerProps {
   onConfirm: (picks: PickerSelection[]) => void;
   onCancel: () => void;
   confirmLabel?: string;
-}
-
-function formatMuscle(value: string): string {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function ExercisePicker({
