@@ -6,11 +6,11 @@ image = 'nhost/mcp:0.1.0'
 
 [[environment]]
 name = 'MCP_AUTH_URL'
-value = 'https://192-168-1-108.auth.local.nhost.run/v1'
+value = 'https://spmqtxqkdoxvtrkrfnnl.auth.eu-central-1.nhost.run/v1'
 
 [[environment]]
 name = 'MCP_REALM'
-value = 'https://192-168-1-108.mcp.local.nhost.run'
+value = 'https://tcruocjehgxmkwzpnshv-3000.svc.eu-central-1.nhost.run'
 
 [[environment]]
 name = 'MCP_GRAPHQL_ENDPOINT'

@@ -88,19 +88,3 @@ An Nhost MCP server (`mcp__nhost__*`) is configured for this repo and exposes to
 Always list resources/roots/templates first to see what's exposed, and confirm which environment (`local` vs cloud) you're operating against before making changes.
 
 **If the MCP server is not available** (the `mcp__nhost__*` tools aren't present in the session), warn the user up front before falling back to manual approaches like `bun run codegen`, hand-written SQL, or editing metadata files directly. They likely want to start it rather than have you work around its absence.
-
-## Gotchas
-
-- **Nhost SDK is v4** (`@nhost/nhost-js@^4.7.0`). The official docs sometimes still show v3 patterns. v4 exports `createClient` from the package root, has `nhost.auth.signInEmailPassword`, `signUpEmailPassword`, `tokenExchange`, `signOut`, and `nhost.getUserSession()`. v3's `HasuraAuthClient` has none of these. If types disagree with docs, trust `node_modules/@nhost/nhost-js/dist/src/`.
-- **Dev port is 5173 (Vite default), bound to 0.0.0.0** so the app is reachable on the LAN. `backend/nhost/nhost.toml` has `clientUrl = http://192.168.1.108:5173` and `allowedUrls` includes both `http://192.168.1.108:5173/verify` and `http://localhost:5173/verify` so verification links work from both desktop and mobile.
-- **Mobile/LAN testing uses Nhost's IP-based magic DNS.** Boot the backend with `nhost --local-subdomain 192-168-1-108 up` (the dashed form of the dev-machine LAN IP) so backend URLs become `https://192-168-1-108.<service>.local.nhost.run` — this DNS pattern resolves to `192.168.1.108`, reachable from any device on the LAN. The frontend SDK reads `VITE_NHOST_SUBDOMAIN=192-168-1-108` from `.env` to match. If the host's IP changes, update `.env`, `nhost.toml`, and the `--local-subdomain` flag in lockstep.
-- **Email verification is on.** Signup sends a link; click it in MailHog (`https://local.mailhog.local.nhost.run`) to land on `/verify` and exchange the PKCE code for a session.
-- **`vite-plugin-react@6` requires `vite@8`**. Don't downgrade Vite without also downgrading the plugin.
-- **`@vitejs/plugin-react`'s `resolve.tsconfigPaths: true` option doesn't exist in vanilla Vite** — that's why path aliases go through `resolve.alias` instead.
-- **GraphQL codegen** needs the backend running and `NHOST_ADMIN_SECRET` exported (default in `codegen.ts` matches the CLI's local secret `nhost-admin-secret`).
-
-## Tasks Claude shouldn't auto-do
-
-- Don't add OAuth providers, password reset, or storage uploads without being asked — they're deliberately out of scope for v1.
-- Don't switch styling stacks (no plain CSS, no css-in-js libraries, no Mantine).
-- Don't move the codegen output anywhere other than `src/gql/`.

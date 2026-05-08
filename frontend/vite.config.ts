@@ -15,5 +15,16 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  plugins: [tailwindcss(), tanstackStart({ srcDirectory: "src" }), viteReact(), nitro()],
+  plugins: [
+    tailwindcss(),
+    tanstackStart({
+      srcDirectory: "src",
+      spa: {
+        enabled: true,
+        prerender: { outputPath: "/index" },
+      },
+    }),
+    viteReact(),
+    nitro(),
+  ],
 });
