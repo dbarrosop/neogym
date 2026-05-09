@@ -47,19 +47,21 @@ function SessionsRoute() {
   });
 
   const grouped = useMemo(() => {
-    const groups: Record<
-      string,
-      typeof data extends { workoutSessions: infer T } ? T : never
-    > = {} as never;
+    type Session = NonNullable<typeof data>["workoutSessions"][number];
+    const groups = new Map<string, Session[]>();
     for (const s of data?.workoutSessions ?? []) {
-      const d = new Date(s.startedAt);
-      const key = d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic key index
-      (groups as any)[key] ??= [];
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic key index
-      (groups as any)[key].push(s);
+      const key = new Date(s.startedAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+      });
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(s);
+      } else {
+        groups.set(key, [s]);
+      }
     }
-    return groups as Record<string, NonNullable<typeof data>["workoutSessions"]>;
+    return groups;
   }, [data]);
 
   function renderContent() {
@@ -86,7 +88,7 @@ function SessionsRoute() {
     }
     return (
       <div className="space-y-6">
-        {Object.entries(grouped).map(([month, sessions]) => (
+        {[...grouped.entries()].map(([month, sessions]) => (
           <div key={month} className="space-y-2">
             <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {month}
