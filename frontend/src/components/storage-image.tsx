@@ -107,6 +107,7 @@ export function AlternatingStorageImage({
           key={id}
           src={fileUrl(id)}
           alt={alt}
+          loading="lazy"
           onLoad={() => handleSettle(id)}
           onError={() => handleSettle(id)}
           className={cn(
