@@ -39,8 +39,7 @@ version = '0.50.1'
 mode = 'disabled'
 
 [auth.redirections]
-clientUrl = 'https://neogym.nhost.app'
-allowedUrls = []
+clientUrl = 'http://localhost:5173'
 
 [auth.signUp]
 enabled = true
@@ -153,7 +152,7 @@ enabled = false
 
 [auth.oauth2Provider]
 enabled = true
-loginURL = 'https://neogym.nhost.app/oauth2/login'
+loginURL = 'http://localhost:5173/oauth2/login'
 
 [auth.oauth2Provider.accessToken]
 expiresIn = 900
@@ -212,3 +211,4 @@ adminPassword = '{{ secrets.GRAFANA_ADMIN_PASSWORD }}'
 enabled = false
 
 [observability.grafana.contacts]
+

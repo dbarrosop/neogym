@@ -1,0 +1,12 @@
+[
+  {
+    "value": "https://spmqtxqkdoxvtrkrfnnl.auth.eu-central-1.nhost.run/v1",
+    "op": "replace",
+    "path": "/environment/0/value"
+  },
+  {
+    "value": "https://tcruocjehgxmkwzpnshv-3000.svc.eu-central-1.nhost.run",
+    "op": "replace",
+    "path": "/environment/1/value"
+  }
+]

@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAuth } from "@/lib/nhost/auth-provider";
+import { isSafeInternalRedirect } from "@/lib/redirect";
 
 const emailSchema = z.object({
   email: z.string().email("Enter a valid email address"),
@@ -51,7 +52,7 @@ function SignInRoute() {
     if (!isAuthenticated) {
       return;
     }
-    if (redirect?.startsWith("/")) {
+    if (redirect && isSafeInternalRedirect(redirect)) {
       window.location.assign(redirect);
       return;
     }

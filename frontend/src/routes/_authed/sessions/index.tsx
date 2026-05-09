@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,9 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 
+const PAGE_SIZE = 25;
+
 const SessionsIndexQuery = graphql(`
-  query SessionsIndex {
-    workoutSessions(order_by: { startedAt: desc }) {
+  query SessionsIndex($limit: Int!, $offset: Int!) {
+    workoutSessions(order_by: { startedAt: desc }, limit: $limit, offset: $offset) {
       id
       startedAt
       workout {
@@ -41,26 +43,39 @@ export const Route = createFileRoute("/_authed/sessions/")({
 });
 
 function SessionsRoute() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["sessions", "index"],
-    queryFn: () => gqlRequest(SessionsIndexQuery),
-  });
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["sessions", "index"],
+      queryFn: ({ pageParam }) =>
+        gqlRequest(SessionsIndexQuery, { limit: PAGE_SIZE, offset: pageParam }),
+      initialPageParam: 0 as number,
+      getNextPageParam: (lastPage, allPages): number | undefined => {
+        if (lastPage.workoutSessions.length < PAGE_SIZE) {
+          return undefined;
+        }
+        return allPages.reduce((acc, p) => acc + p.workoutSessions.length, 0);
+      },
+    });
+
+  const allSessions = useMemo(() => data?.pages.flatMap((p) => p.workoutSessions) ?? [], [data]);
 
   const grouped = useMemo(() => {
-    const groups: Record<
-      string,
-      typeof data extends { workoutSessions: infer T } ? T : never
-    > = {} as never;
-    for (const s of data?.workoutSessions ?? []) {
-      const d = new Date(s.startedAt);
-      const key = d.toLocaleDateString(undefined, { year: "numeric", month: "long" });
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic key index
-      (groups as any)[key] ??= [];
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic key index
-      (groups as any)[key].push(s);
+    type Session = (typeof allSessions)[number];
+    const groups = new Map<string, Session[]>();
+    for (const s of allSessions) {
+      const key = new Date(s.startedAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+      });
+      const existing = groups.get(key);
+      if (existing) {
+        existing.push(s);
+      } else {
+        groups.set(key, [s]);
+      }
     }
-    return groups as Record<string, NonNullable<typeof data>["workoutSessions"]>;
-  }, [data]);
+    return groups;
+  }, [allSessions]);
 
   function renderContent() {
     if (isLoading) {
@@ -69,7 +84,7 @@ function SessionsRoute() {
     if (error) {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
-    if (data?.workoutSessions.length === 0) {
+    if (allSessions.length === 0) {
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center">
@@ -86,7 +101,7 @@ function SessionsRoute() {
     }
     return (
       <div className="space-y-6">
-        {Object.entries(grouped).map(([month, sessions]) => (
+        {[...grouped.entries()].map(([month, sessions]) => (
           <div key={month} className="space-y-2">
             <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {month}
@@ -147,6 +162,25 @@ function SessionsRoute() {
             </ul>
           </div>
         ))}
+        {hasNextPage && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading
+                </>
+              ) : (
+                "Load more"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
