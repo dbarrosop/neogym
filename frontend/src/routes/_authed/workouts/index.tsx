@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Globe2, Plus, User } from "lucide-react";
 import { useMemo, useState } from "react";
+import { stripMarkdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -91,7 +92,9 @@ function WorkoutsRoute() {
                       ) : null}
                     </div>
                     {w.description ? (
-                      <p className="line-clamp-1 text-sm text-muted-foreground">{w.description}</p>
+                      <p className="line-clamp-1 text-sm text-muted-foreground">
+                        {stripMarkdown(w.description)}
+                      </p>
                     ) : null}
                     <p className="text-xs text-muted-foreground">
                       {w.workoutExercises_aggregate.aggregate?.count ?? 0} exercises
