@@ -33,8 +33,12 @@ const ROUTES: Record<string, RouteDef> = {
 
 type Match = { pattern: string; params: Record<string, string> };
 
+// Picks the most-specific match (fewest $param segments) so that ordering of
+// keys in ROUTES doesn't matter — e.g. `/workouts/new` always beats
+// `/workouts/$workoutId` regardless of which is declared first.
 function matchPattern(pathname: string): Match | null {
   const pathParts = pathname.split("/");
+  let best: { match: Match; paramCount: number } | null = null;
   for (const pattern of Object.keys(ROUTES)) {
     const parts = pattern.split("/");
     if (parts.length !== pathParts.length) {
@@ -42,6 +46,7 @@ function matchPattern(pathname: string): Match | null {
     }
     const params: Record<string, string> = {};
     let ok = true;
+    let paramCount = 0;
     for (let i = 0; i < parts.length; i++) {
       const seg = parts[i];
       const got = pathParts[i];
@@ -51,16 +56,20 @@ function matchPattern(pathname: string): Match | null {
       }
       if (seg.startsWith("$")) {
         params[seg.slice(1)] = got;
+        paramCount++;
       } else if (seg !== got) {
         ok = false;
         break;
       }
     }
-    if (ok) {
-      return { pattern, params };
+    if (ok && (best === null || paramCount < best.paramCount)) {
+      best = { match: { pattern, params }, paramCount };
+      if (paramCount === 0) {
+        break;
+      }
     }
   }
-  return null;
+  return best?.match ?? null;
 }
 
 type Crumb = { pattern: string; params: Record<string, string>; label: string };
