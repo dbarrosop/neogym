@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
 const SessionsIndexQuery = graphql(`
   query SessionsIndex($limit: Int!, $offset: Int!) {
@@ -35,11 +35,6 @@ const SessionsIndexQuery = graphql(`
         }
       }
     }
-    workoutSessionsAggregate {
-      aggregate {
-        count
-      }
-    }
   }
 `);
 
@@ -54,10 +49,11 @@ function SessionsRoute() {
       queryFn: ({ pageParam }) =>
         gqlRequest(SessionsIndexQuery, { limit: PAGE_SIZE, offset: pageParam }),
       initialPageParam: 0 as number,
-      getNextPageParam: (_lastPage, allPages): number | undefined => {
-        const fetched = allPages.reduce((acc, p) => acc + p.workoutSessions.length, 0);
-        const total = allPages[0]?.workoutSessionsAggregate.aggregate?.count ?? 0;
-        return fetched < total ? fetched : undefined;
+      getNextPageParam: (lastPage, allPages): number | undefined => {
+        if (lastPage.workoutSessions.length < PAGE_SIZE) {
+          return undefined;
+        }
+        return allPages.reduce((acc, p) => acc + p.workoutSessions.length, 0);
       },
     });
 
