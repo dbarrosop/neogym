@@ -128,7 +128,6 @@ export function Breadcrumbs() {
 function CrumbLabel({ crumb }: { crumb: Crumb }) {
   switch (crumb.pattern) {
     case "/workouts/$workoutId":
-    case "/workouts/$workoutId/edit":
       return <WorkoutName id={crumb.params["workoutId"] ?? ""} fallback={crumb.label} />;
     case "/sessions/$sessionId":
       return <SessionLabel id={crumb.params["sessionId"] ?? ""} fallback={crumb.label} />;
