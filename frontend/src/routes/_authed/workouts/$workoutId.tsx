@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Globe2, Pencil, Play, User } from "lucide-react";
+import { ChevronRight, Globe2, Pencil, Play, Tag, User } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,9 @@ const WorkoutDetailQuery = graphql(`
           image1FileId
           image2FileId
         }
+      }
+      workoutLabels {
+        labelId
       }
     }
   }
@@ -84,6 +87,16 @@ function WorkoutDetailRoute() {
             </div>
           </div>
           {workout.description ? <Markdown>{workout.description}</Markdown> : null}
+          {workout.workoutLabels.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {workout.workoutLabels.map((wl) => (
+                <Badge key={wl.labelId} variant="primary">
+                  <Tag className="h-3 w-3" />
+                  {wl.labelId}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
           <p className="text-xs text-muted-foreground">
             {workout.workoutExercises.length} exercise
             {workout.workoutExercises.length === 1 ? "" : "s"}

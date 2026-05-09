@@ -19,6 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
+import { LabelInput } from "@/components/label-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,6 +48,7 @@ export interface WorkoutFormValues {
   name: string;
   description: string;
   exercises: WorkoutFormExercise[];
+  labels: string[];
 }
 
 interface WorkoutFormProps {
@@ -55,6 +57,8 @@ interface WorkoutFormProps {
   onSubmit: (values: WorkoutFormValues) => void;
   onCancel: () => void;
   isSubmitting: boolean;
+  /** Existing labels owned by the user — used for autocomplete in the label input. */
+  labelSuggestions: string[];
   /** Optional extra controls (e.g. delete button) rendered below submit. */
   extraActions?: React.ReactNode;
 }
@@ -65,11 +69,13 @@ export function WorkoutForm({
   onSubmit,
   onCancel,
   isSubmitting,
+  labelSuggestions,
   extraActions,
 }: WorkoutFormProps) {
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [exercises, setExercises] = useState<WorkoutFormExercise[]>(initialValues.exercises);
+  const [labels, setLabels] = useState<string[]>(initialValues.labels);
   const [pickerOpen, setPickerOpen] = useState(false);
   const nameId = useId();
   const descId = useId();
@@ -120,7 +126,7 @@ export function WorkoutForm({
     if (!canSubmit) {
       return;
     }
-    onSubmit({ name: trimmedName, description: description.trim(), exercises });
+    onSubmit({ name: trimmedName, description: description.trim(), exercises, labels });
   }
 
   return (
@@ -157,6 +163,12 @@ export function WorkoutForm({
             <code className="font-mono">- lists</code>, headings, and more.
           </p>
         </div>
+        <LabelInput
+          value={labels}
+          onChange={setLabels}
+          suggestions={labelSuggestions}
+          disabled={isSubmitting}
+        />
       </div>
 
       <div className="space-y-2">

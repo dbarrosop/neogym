@@ -37,6 +37,12 @@ const EditWorkoutQuery = graphql(`
           doubleWeight
         }
       }
+      workoutLabels {
+        labelId
+      }
+    }
+    labels(order_by: { id: asc }) {
+      id
     }
   }
 `);
@@ -48,6 +54,9 @@ const SaveWorkoutMutation = graphql(`
     $deleteRowIds: [uuid!]!
     $insertRows: [workoutExercises_insert_input!]!
     $positionUpdates: [workoutExercises_updates!]!
+    $labelsToEnsure: [labels_insert_input!]!
+    $deleteLabels: [String!]!
+    $insertLabels: [workoutLabels_insert_input!]!
   ) {
     updateWorkout(pk_columns: { id: $id }, _set: $set) {
       id
@@ -59,6 +68,20 @@ const SaveWorkoutMutation = graphql(`
       affected_rows
     }
     update_workoutExercises_many(updates: $positionUpdates) {
+      affected_rows
+    }
+    insertLabels(
+      objects: $labelsToEnsure
+      on_conflict: { constraint: labels_pkey, update_columns: [] }
+    ) {
+      affected_rows
+    }
+    deleteWorkoutLabels(
+      where: { workoutId: { _eq: $id }, labelId: { _in: $deleteLabels } }
+    ) {
+      affected_rows
+    }
+    insertWorkoutLabels(objects: $insertLabels) {
       affected_rows
     }
   }
@@ -117,6 +140,7 @@ function EditWorkoutRoute() {
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
         doubleWeight: we.exercise.doubleWeight,
       })),
+      labels: workout.workoutLabels.map((wl) => wl.labelId),
     };
   }, [workout]);
 
@@ -160,6 +184,14 @@ function EditWorkoutRoute() {
         }
       });
 
+      const originalLabels = new Set(initialValues.labels);
+      const nextLabels = new Set(values.labels);
+      const deleteLabels = initialValues.labels.filter((l) => !nextLabels.has(l));
+      const insertLabels = values.labels
+        .filter((l) => !originalLabels.has(l))
+        .map((labelId) => ({ workoutId, labelId }));
+      const labelsToEnsure = values.labels.map((id) => ({ id }));
+
       return gqlRequest(SaveWorkoutMutation, {
         id: workoutId,
         set: {
@@ -169,10 +201,14 @@ function EditWorkoutRoute() {
         deleteRowIds,
         insertRows,
         positionUpdates,
+        labelsToEnsure,
+        deleteLabels,
+        insertLabels,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["labels"] });
       toast.success("Workout saved");
       // Replace so back from the detail page doesn't land in the edit form.
       navigate({
@@ -223,6 +259,7 @@ function EditWorkoutRoute() {
             initialValues={initialValues}
             submitLabel="Save changes"
             isSubmitting={saveMutation.isPending}
+            labelSuggestions={(data?.labels ?? []).map((l) => l.id)}
             onSubmit={(values) => saveMutation.mutate(values)}
             onCancel={() =>
               navigate({ to: "/workouts/$workoutId", params: { workoutId }, replace: true })
