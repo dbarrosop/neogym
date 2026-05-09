@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Globe2, Pencil, Play, User } from "lucide-react";
-import { BackLink } from "@/components/back-link";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,8 +103,8 @@ function WorkoutDetailRoute() {
             {workout.workoutExercises.map((we, idx) => (
               <li key={we.id}>
                 <Link
-                  to="/exercises/$exerciseId"
-                  params={{ exerciseId: we.exercise.id }}
+                  to="/workouts/$workoutId/exercises/$exerciseId"
+                  params={{ workoutId, exerciseId: we.exercise.id }}
                   className="group flex items-center gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
                 >
                   <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted">
@@ -138,12 +137,9 @@ function WorkoutDetailRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-1">
-          <BackLink fallback="/workouts" />
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Workout
-          </p>
-        </div>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Workout
+        </p>
         {renderContent()}
       </div>
     </section>

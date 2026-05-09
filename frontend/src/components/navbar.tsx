@@ -1,6 +1,6 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { CalendarCheck2, Dumbbell, ListChecks, User2 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { cn } from "@/lib/utils";
@@ -13,33 +13,27 @@ const NAV_ITEMS = [
 ] as const;
 
 export function Navbar() {
-  const { isAuthenticated, session, nhost } = useAuth();
-  const navigate = useNavigate();
-
-  async function handleSignOut() {
-    if (session?.refreshToken) {
-      try {
-        await nhost.auth.signOut({ refreshToken: session.refreshToken });
-      } catch {
-        // ignore — the local session is cleared regardless
-      }
-    }
-    navigate({ to: "/" });
-  }
+  const { isAuthenticated } = useAuth();
 
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/50">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
+          <Link
+            to="/"
+            aria-label="Home"
+            className="flex shrink-0 items-center gap-2 font-semibold tracking-tight"
+          >
             <span className="grid h-7 w-7 place-items-center rounded-md bg-primary text-primary-foreground">
               <Dumbbell className="h-4 w-4" />
             </span>
-            <span>NeoGym</span>
+            <span className="hidden sm:inline">NeoGym</span>
           </Link>
 
+          <Breadcrumbs />
+
           {isAuthenticated ? (
-            <nav className="hidden items-center gap-1 md:flex">
+            <nav className="hidden shrink-0 items-center gap-1 md:flex">
               {NAV_ITEMS.map(({ to, label, Icon }) => (
                 <Link
                   key={to}
@@ -52,25 +46,16 @@ export function Navbar() {
                 </Link>
               ))}
             </nav>
-          ) : null}
-
-          <div className="flex items-center gap-1">
-            <ThemeToggle />
-            {isAuthenticated ? (
-              <Button onClick={handleSignOut} variant="outline" size="sm">
-                Sign out
+          ) : (
+            <div className="flex shrink-0 items-center gap-2">
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/signin">Sign in</Link>
               </Button>
-            ) : (
-              <>
-                <Button asChild variant="ghost" size="sm">
-                  <Link to="/signin">Sign in</Link>
-                </Button>
-                <Button asChild size="sm">
-                  <Link to="/signup">Get started</Link>
-                </Button>
-              </>
-            )}
-          </div>
+              <Button asChild size="sm">
+                <Link to="/signup">Get started</Link>
+              </Button>
+            </div>
+          )}
         </div>
       </header>
 

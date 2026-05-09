@@ -4,7 +4,6 @@ import { ChevronRight, Globe2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { BackLink } from "@/components/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -188,12 +187,9 @@ function NewSessionRoute() {
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
         <header className="space-y-1">
-          <div className="flex items-center gap-1">
-            <BackLink fallback="/sessions" />
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              New session
-            </p>
-          </div>
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            New session
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight">Pick a workout</h1>
           <p className="text-sm text-muted-foreground">
             We'll create the session and you can start logging sets right away.
