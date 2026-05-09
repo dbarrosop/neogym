@@ -3,7 +3,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Flame, Hash, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BackLink } from "@/components/back-link";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
@@ -261,6 +260,7 @@ function SessionDetailRoute() {
           {session.workoutSessionExercises.map((we) => (
             <ExerciseLog
               key={we.id}
+              sessionId={sessionId}
               workoutSessionExerciseId={we.id}
               exerciseId={we.exercise.id}
               exerciseName={we.exercise.name}
@@ -389,12 +389,9 @@ function SessionDetailRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-1">
-          <BackLink fallback="/sessions" />
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Session
-          </p>
-        </div>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Session
+        </p>
         {renderContent()}
       </div>
     </section>
@@ -409,6 +406,7 @@ interface SetRow {
 }
 
 interface ExerciseLogProps {
+  sessionId: string;
   workoutSessionExerciseId: string;
   exerciseId: string;
   exerciseName: string;
@@ -422,6 +420,7 @@ interface ExerciseLogProps {
 }
 
 function ExerciseLog({
+  sessionId,
   workoutSessionExerciseId,
   exerciseId,
   exerciseName,
@@ -485,8 +484,8 @@ function ExerciseLog({
     <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
       <CardHeader className="flex flex-row items-start gap-3 pb-2">
         <Link
-          to="/exercises/$exerciseId"
-          params={{ exerciseId }}
+          to="/sessions/$sessionId/exercises/$exerciseId"
+          params={{ sessionId, exerciseId }}
           className="block h-12 w-12 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted"
         >
           <AlternatingStorageImage
@@ -497,8 +496,8 @@ function ExerciseLog({
         </Link>
         <div className="min-w-0 flex-1 space-y-0.5">
           <Link
-            to="/exercises/$exerciseId"
-            params={{ exerciseId }}
+            to="/sessions/$sessionId/exercises/$exerciseId"
+            params={{ sessionId, exerciseId }}
             className="block truncate font-medium underline-offset-2 hover:underline"
           >
             {exerciseName}

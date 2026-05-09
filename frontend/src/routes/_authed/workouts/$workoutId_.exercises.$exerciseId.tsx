@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ExerciseDetail } from "@/components/exercise-detail";
 
-export const Route = createFileRoute("/_authed/exercises/$exerciseId")({
-  component: ExerciseDetailRoute,
+export const Route = createFileRoute("/_authed/workouts/$workoutId_/exercises/$exerciseId")({
+  component: WorkoutExerciseRoute,
 });
 
-function ExerciseDetailRoute() {
+function WorkoutExerciseRoute() {
   const { exerciseId } = Route.useParams();
   return <ExerciseDetail exerciseId={exerciseId} />;
 }

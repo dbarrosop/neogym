@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { BackLink } from "@/components/back-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
@@ -62,12 +61,9 @@ function NewWorkoutRoute() {
       <div className="mx-auto max-w-2xl space-y-6">
         <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <CardHeader className="pb-4">
-            <div className="flex items-center gap-1">
-              <BackLink fallback="/workouts" />
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Plans
-              </p>
-            </div>
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Plans
+            </p>
             <CardTitle className="text-2xl tracking-tight">New workout</CardTitle>
           </CardHeader>
           <CardContent>

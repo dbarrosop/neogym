@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -249,10 +248,7 @@ function EditWorkoutRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-1">
-          <BackLink fallback="/workouts" />
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
-        </div>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
         {renderContent()}
       </div>
 

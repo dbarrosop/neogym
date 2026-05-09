@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generatePKCEPair } from "@nhost/nhost-js/auth";
-import { createFileRoute } from "@tanstack/react-router";
-import { Loader2, Pencil } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Loader2, LogOut, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,7 +43,20 @@ export const Route = createFileRoute("/_authed/profile")({
 });
 
 function ProfileRoute() {
-  const { user } = useAuth();
+  const { user, session, nhost } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    if (session?.refreshToken) {
+      try {
+        await nhost.auth.signOut({ refreshToken: session.refreshToken });
+      } catch {
+        // ignore — the local session is cleared regardless
+      }
+    }
+    navigate({ to: "/" });
+  }
+
   if (!user) {
     return null;
   }
@@ -57,7 +71,7 @@ function ProfileRoute() {
 
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 py-12">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl space-y-6">
         <Card className="border-border/60 shadow-xl shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
           <CardHeader className="flex flex-row items-center gap-4 pb-2">
             <Avatar className="h-16 w-16 border border-border/60">
@@ -89,6 +103,23 @@ function ProfileRoute() {
                 day: "numeric",
               })}
             </DetailRow>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg tracking-tight">Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Separator />
+            <DetailRow label="Theme">
+              <ThemeToggle />
+            </DetailRow>
+            <Separator />
+            <Button type="button" onClick={handleSignOut} variant="outline" className="w-full">
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign out
+            </Button>
           </CardContent>
         </Card>
       </div>
