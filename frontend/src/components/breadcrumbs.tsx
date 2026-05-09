@@ -151,7 +151,7 @@ const BreadcrumbWorkoutQuery = graphql(`
 
 function WorkoutName({ id, fallback }: { id: string; fallback: string }) {
   const { data } = useQuery({
-    queryKey: ["breadcrumb", "workout", id],
+    queryKey: ["workouts", "breadcrumb", id],
     queryFn: () => gqlRequest(BreadcrumbWorkoutQuery, { id }),
     enabled: Boolean(id),
     staleTime: 60_000,
@@ -170,7 +170,7 @@ const BreadcrumbExerciseQuery = graphql(`
 
 function ExerciseName({ id, fallback }: { id: string; fallback: string }) {
   const { data } = useQuery({
-    queryKey: ["breadcrumb", "exercise", id],
+    queryKey: ["exercises", "breadcrumb", id],
     queryFn: () => gqlRequest(BreadcrumbExerciseQuery, { id }),
     enabled: Boolean(id),
     staleTime: 60_000,
@@ -193,7 +193,7 @@ const BreadcrumbSessionQuery = graphql(`
 
 function SessionLabel({ id, fallback }: { id: string; fallback: string }) {
   const { data } = useQuery({
-    queryKey: ["breadcrumb", "session", id],
+    queryKey: ["sessions", "breadcrumb", id],
     queryFn: () => gqlRequest(BreadcrumbSessionQuery, { id }),
     enabled: Boolean(id),
     staleTime: 60_000,
