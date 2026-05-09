@@ -1,7 +1,8 @@
+import type { ResultOf } from "@graphql-typed-document-node/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Flame, Hash, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Flame, Hash, History, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { AlternatingStorageImage } from "@/components/storage-image";
@@ -42,6 +43,33 @@ const SessionDetailQuery = graphql(`
           primaryMuscleGroup
           image1FileId
           image2FileId
+        }
+        workoutSessionSets(order_by: { setNumber: asc }) {
+          id
+          setNumber
+          reps
+          weight
+        }
+      }
+    }
+  }
+`);
+
+// Hasura compiles nested array relationships with a lateral join, so `limit: 3`
+// applies *per parent exercise*, not globally — exactly what we want here.
+const PriorSessionsQuery = graphql(`
+  query PriorSessionsPerExercise($exerciseIds: [uuid!]!, $excludeSessionId: uuid!) {
+    exercises(where: { id: { _in: $exerciseIds } }) {
+      id
+      workoutSessionExercises(
+        limit: 3
+        order_by: { workoutSession: { startedAt: desc } }
+        where: { workoutSessionId: { _neq: $excludeSessionId } }
+      ) {
+        id
+        workoutSession {
+          id
+          startedAt
         }
         workoutSessionSets(order_by: { setNumber: asc }) {
           id
@@ -132,6 +160,24 @@ function SessionDetailRoute() {
   });
 
   const session = data?.workoutSession;
+
+  const exerciseIds = useMemo(
+    () => session?.workoutSessionExercises.map((we) => we.exercise.id) ?? [],
+    [session],
+  );
+
+  // Prior history is decorative — silently degrade if it fails so the rest of the page stays usable.
+  const { data: priorData } = useQuery({
+    queryKey: ["sessions", "prior-per-exercise", sessionId, exerciseIds],
+    queryFn: () =>
+      gqlRequest(PriorSessionsQuery, {
+        exerciseIds,
+        excludeSessionId: sessionId,
+      }),
+    enabled: exerciseIds.length > 0,
+  });
+
+  const priorSessionsByExercise = useMemo(() => buildPriorSessionsMap(priorData), [priorData]);
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey });
@@ -269,6 +315,7 @@ function SessionDetailRoute() {
               image1FileId={we.exercise.image1FileId}
               image2FileId={we.exercise.image2FileId}
               sets={we.workoutSessionSets}
+              priorSessions={priorSessionsByExercise.get(we.exercise.id) ?? []}
               onMutated={invalidateAll}
               onRequestRemove={() =>
                 setConfirmingRemoveExercise({
@@ -405,6 +452,12 @@ interface SetRow {
   weight: number | string;
 }
 
+interface PriorEntry {
+  id: string;
+  startedAt: string;
+  sets: { reps: number; weight: number }[];
+}
+
 interface ExerciseLogProps {
   sessionId: string;
   workoutSessionExerciseId: string;
@@ -415,6 +468,7 @@ interface ExerciseLogProps {
   image1FileId: string | null | undefined;
   image2FileId: string | null | undefined;
   sets: SetRow[];
+  priorSessions: PriorEntry[];
   onMutated: () => void;
   onRequestRemove: () => void;
 }
@@ -429,6 +483,7 @@ function ExerciseLog({
   image1FileId,
   image2FileId,
   sets,
+  priorSessions,
   onMutated,
   onRequestRemove,
 }: ExerciseLogProps) {
@@ -546,6 +601,7 @@ function ExerciseLog({
             ))}
           </ul>
         )}
+        <PriorSessionsSummary entries={priorSessions} doubleWeight={doubleWeight} />
         <Button
           type="button"
           variant="outline"
@@ -585,6 +641,85 @@ function ExerciseLog({
       />
     </Card>
   );
+}
+
+function PriorSessionsSummary({
+  entries,
+  doubleWeight,
+}: {
+  entries: PriorEntry[];
+  doubleWeight: boolean;
+}) {
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-1 space-y-1 rounded-md border border-border/40 bg-muted/30 px-2.5 py-2">
+      <p className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        <History className="h-3 w-3" />
+        Recent
+      </p>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-xs tabular-nums text-muted-foreground">
+        {entries.map((entry) => {
+          const hasWeight = entry.sets.some((s) => s.weight > 0);
+          return (
+            <Fragment key={entry.id}>
+              <dt className="text-muted-foreground/70">{formatPriorDate(entry.startedAt)}</dt>
+              <dd className="min-w-0 truncate">
+                {entry.sets.length === 0 ? (
+                  <span className="italic text-muted-foreground/60">no sets</span>
+                ) : (
+                  <>
+                    {entry.sets.map(formatPriorSet).join(", ")}
+                    {doubleWeight && hasWeight ? (
+                      <span className="ml-1 text-muted-foreground/60">/side</span>
+                    ) : null}
+                  </>
+                )}
+              </dd>
+            </Fragment>
+          );
+        })}
+      </dl>
+    </div>
+  );
+}
+
+function buildPriorSessionsMap(
+  data: ResultOf<typeof PriorSessionsQuery> | undefined,
+): Map<string, PriorEntry[]> {
+  const map = new Map<string, PriorEntry[]>();
+  for (const e of data?.exercises ?? []) {
+    map.set(
+      e.id,
+      e.workoutSessionExercises.map((wse) => ({
+        id: wse.id,
+        startedAt: wse.workoutSession.startedAt,
+        sets: wse.workoutSessionSets.map((s) => ({
+          reps: s.reps,
+          weight: Number(s.weight),
+        })),
+      })),
+    );
+  }
+  return map;
+}
+
+function formatPriorDate(iso: string): string {
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+function formatPriorSet(s: { reps: number; weight: number }): string {
+  if (s.weight === 0) {
+    return `${s.reps}×BW`;
+  }
+  return `${s.reps}×${s.weight}kg`;
 }
 
 interface SetDialogProps {
