@@ -75,13 +75,13 @@ function WorkoutsRoute() {
       );
     }
     return (
-      <ul className="space-y-3">
+      <ul className="space-y-2">
         {filtered.map((w) => (
           <li key={w.id}>
             <Link to="/workouts/$workoutId" params={{ workoutId: w.id }} className="group block">
-              <Card className="border-border/60 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
-                <CardContent className="flex items-center justify-between gap-3 py-4">
-                  <div className="min-w-0 space-y-1">
+              <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0 space-y-0.5">
                     <div className="flex items-center gap-2">
                       <h2 className="truncate font-medium">{w.name}</h2>
                       {w.isPublic ? (
@@ -183,11 +183,11 @@ function TabButton({
 
 function WorkoutsSkeleton() {
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {[0, 1, 2, 3].map((i) => (
         <li key={i}>
-          <Card className="border-border/60">
-            <CardContent className="space-y-2 py-4">
+          <Card className="border-border/60 py-0">
+            <CardContent className="space-y-2 px-4 py-3">
               <Skeleton className="h-5 w-40" />
               <Skeleton className="h-4 w-64" />
               <Skeleton className="h-3 w-20" />
