@@ -116,7 +116,7 @@ The frontend reads three env vars. Local dev values live in `frontend/.env`:
 # frontend/.env
 VITE_NHOST_SUBDOMAIN=local
 VITE_NHOST_REGION=local
-VITE_MCP_URL=http://localhost:5173
+VITE_MCP_URL=http://localhost:3000
 ```
 
 Production build values live in `frontend/.env.production` (committed) and are picked up automatically by `bun run build`. Override any of them on the command line for ad-hoc builds: `VITE_MCP_URL=https://… bun run build`.
