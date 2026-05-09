@@ -102,7 +102,8 @@ Backend (from `backend/`):
 │   └── vite.config.ts
 └── backend/
     ├── nhost/
-    │   ├── nhost.toml         # Auth + Hasura config
+    │   ├── nhost.toml         # Auth + Hasura config (local-dev baseline)
+    │   ├── overlays/          # JSON Patch overrides per environment (prod)
     │   ├── metadata/          # Hasura metadata
     │   └── migrations/        # SQL migrations
     └── functions/             # Serverless functions
@@ -123,18 +124,23 @@ Production build values live in `frontend/.env.production` (committed) and are p
 
 `VITE_NHOST_*` point at the Nhost backend; `VITE_MCP_URL` is the MCP endpoint surfaced on the home page so users can connect their agent.
 
-The Auth `clientUrl` and `allowedUrls` are pinned in `backend/nhost/nhost.toml`:
+Auth redirect config is split between local-dev defaults in `backend/nhost/nhost.toml` and production overrides in the project overlay at `backend/nhost/overlays/<project-id>.json`:
 
 ```toml
+# backend/nhost/nhost.toml — local-dev baseline
 [auth.redirections]
-clientUrl = 'https://neogym.nhost.app'
-allowedUrls = [
-  'http://localhost:5173/verify',
-  'https://neogym.nhost.app/verify',
-]
+clientUrl = 'http://localhost:5173'
 ```
 
-`clientUrl` is the production app; `allowedUrls` whitelists the `/verify` redirect target for both local dev and prod. Keep the dev port in `frontend/vite.config.ts` aligned with the localhost entry above.
+```json
+// backend/nhost/overlays/<project-id>.json — production (JSON Patch)
+{ "op": "replace", "path": "/auth/redirections/clientUrl",
+  "value": "https://neogym.nhost.app" }
+{ "op": "add",     "path": "/auth/redirections/allowedUrls",
+  "value": [] }
+```
+
+Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the email-change flow lands back on `/verify` without any extra configuration. Only redirects to a different host/port need to be added to `auth.redirections.allowedUrls` (in both files). Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts`.
 
 ## What's not in v1 (yet)
 
