@@ -4,6 +4,7 @@ import { ChevronRight, Globe2, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { stripMarkdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -160,7 +161,7 @@ function NewSessionRoute() {
                       </div>
                       {w.description ? (
                         <p className="line-clamp-1 text-sm text-muted-foreground">
-                          {w.description}
+                          {stripMarkdown(w.description)}
                         </p>
                       ) : null}
                       <p className="text-xs text-muted-foreground">

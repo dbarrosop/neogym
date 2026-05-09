@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Globe2, Pencil, Play, User } from "lucide-react";
+import { Markdown } from "@/components/markdown";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,12 +63,7 @@ function WorkoutDetailRoute() {
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <CardTitle className="text-2xl tracking-tight">{workout.name}</CardTitle>
-              {workout.description ? (
-                <p className="text-sm text-muted-foreground">{workout.description}</p>
-              ) : null}
-            </div>
+            <CardTitle className="min-w-0 text-2xl tracking-tight">{workout.name}</CardTitle>
             <div className="flex shrink-0 items-center gap-2">
               {workout.isPublic ? (
                 <Badge variant="primary">
@@ -87,6 +83,7 @@ function WorkoutDetailRoute() {
               ) : null}
             </div>
           </div>
+          {workout.description ? <Markdown>{workout.description}</Markdown> : null}
           <p className="text-xs text-muted-foreground">
             {workout.workoutExercises.length} exercise
             {workout.workoutExercises.length === 1 ? "" : "s"}

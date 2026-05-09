@@ -125,10 +125,10 @@ function SessionsRoute() {
                       params={{ sessionId: s.id }}
                       className="group block"
                     >
-                      <Card className="border-border/60 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
-                        <CardContent className="flex items-center justify-between gap-3 py-4">
+                      <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                        <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                           <div className="flex min-w-0 items-center gap-3">
-                            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-muted text-center">
+                            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-muted text-center">
                               <span className="text-xs font-medium uppercase text-muted-foreground">
                                 {date.toLocaleDateString(undefined, { month: "short" })}
                               </span>
@@ -217,9 +217,9 @@ function SessionsSkeleton() {
     <ul className="space-y-2">
       {[0, 1, 2, 3].map((i) => (
         <li key={i}>
-          <Card className="border-border/60">
-            <CardContent className="flex items-center gap-3 py-4">
-              <Skeleton className="h-12 w-12 rounded-lg" />
+          <Card className="border-border/60 py-0">
+            <CardContent className="flex items-center gap-3 px-4 py-3">
+              <Skeleton className="h-11 w-11 rounded-lg" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-40" />
                 <Skeleton className="h-3 w-32" />
