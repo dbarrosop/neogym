@@ -35,13 +35,13 @@ function VerifyRoute() {
       toast.error("Verification failed", {
         description: errorDescription ?? error,
       });
-      navigate({ to: "/signin", replace: true });
+      navigate({ to: "/profile", replace: true });
       return;
     }
 
     if (!code) {
       toast.error("Verification link is missing a code");
-      navigate({ to: "/signin", replace: true });
+      navigate({ to: "/profile", replace: true });
       return;
     }
 
@@ -50,7 +50,7 @@ function VerifyRoute() {
       toast.error("Verification expired", {
         description: "Please retry from the device where you started the request.",
       });
-      navigate({ to: "/signin", replace: true });
+      navigate({ to: "/profile", replace: true });
       return;
     }
 
@@ -69,7 +69,7 @@ function VerifyRoute() {
         toast.error("Couldn't verify that link", {
           description: err instanceof Error ? err.message : "Unexpected error",
         });
-        navigate({ to: "/signin", replace: true });
+        navigate({ to: "/profile", replace: true });
       } finally {
         localStorage.removeItem(PKCE_VERIFIER_STORAGE_KEY);
       }

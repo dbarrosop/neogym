@@ -102,5 +102,7 @@ select_permissions:
         - uploaded_by_user_id
         - metadata
       filter:
-        bucket_id:
-          _eq: exercise_images
+        _or:
+          - _and:
+              - bucket_id:
+                  _eq: exercise_images
