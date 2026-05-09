@@ -166,6 +166,7 @@ function SessionDetailRoute() {
     [session],
   );
 
+  // Prior history is decorative — silently degrade if it fails so the rest of the page stays usable.
   const { data: priorData } = useQuery({
     queryKey: ["sessions", "prior-per-exercise", sessionId, exerciseIds],
     queryFn: () =>
