@@ -1,5 +1,5 @@
 import { ImageOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fileUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -63,11 +63,14 @@ export function AlternatingStorageImage({
   className,
   intervalMs = 2000,
 }: AlternatingStorageImageProps) {
-  const ids = fileIds.filter((id): id is string => !!id);
+  const ids = useMemo(() => fileIds.filter((id): id is string => !!id), [fileIds]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [loadedIds, setLoadedIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  const allLoaded = ids.every((id) => loadedIds.has(id));
 
   useEffect(() => {
-    if (ids.length < 2) {
+    if (ids.length < 2 || !allLoaded) {
       return;
     }
     const handle = setInterval(() => {
@@ -76,7 +79,7 @@ export function AlternatingStorageImage({
     return () => {
       clearInterval(handle);
     };
-  }, [ids.length, intervalMs]);
+  }, [ids.length, intervalMs, allLoaded]);
 
   if (ids.length === 0) {
     return <Fallback className={className} />;
@@ -86,6 +89,17 @@ export function AlternatingStorageImage({
     return <StorageImage fileId={ids[0]} alt={alt} className={className} />;
   }
 
+  const handleLoad = (id: string) => {
+    setLoadedIds((prev) => {
+      if (prev.has(id)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className={cn("relative overflow-hidden", className)}>
       {ids.map((id, i) => (
@@ -93,10 +107,10 @@ export function AlternatingStorageImage({
           key={id}
           src={fileUrl(id)}
           alt={alt}
-          loading="lazy"
+          onLoad={() => handleLoad(id)}
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
-            i === activeIndex ? "block" : "hidden",
+            i === activeIndex ? "opacity-100" : "opacity-0",
           )}
         />
       ))}
