@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight, Plus } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,9 +8,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 
+const PAGE_SIZE = 50;
+
 const SessionsIndexQuery = graphql(`
-  query SessionsIndex {
-    workoutSessions(order_by: { startedAt: desc }) {
+  query SessionsIndex($limit: Int!, $offset: Int!) {
+    workoutSessions(order_by: { startedAt: desc }, limit: $limit, offset: $offset) {
       id
       startedAt
       workout {
@@ -33,6 +35,11 @@ const SessionsIndexQuery = graphql(`
         }
       }
     }
+    workoutSessionsAggregate {
+      aggregate {
+        count
+      }
+    }
   }
 `);
 
@@ -41,15 +48,25 @@ export const Route = createFileRoute("/_authed/sessions/")({
 });
 
 function SessionsRoute() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["sessions", "index"],
-    queryFn: () => gqlRequest(SessionsIndexQuery),
-  });
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    useInfiniteQuery({
+      queryKey: ["sessions", "index"],
+      queryFn: ({ pageParam }) =>
+        gqlRequest(SessionsIndexQuery, { limit: PAGE_SIZE, offset: pageParam }),
+      initialPageParam: 0 as number,
+      getNextPageParam: (_lastPage, allPages): number | undefined => {
+        const fetched = allPages.reduce((acc, p) => acc + p.workoutSessions.length, 0);
+        const total = allPages[0]?.workoutSessionsAggregate.aggregate?.count ?? 0;
+        return fetched < total ? fetched : undefined;
+      },
+    });
+
+  const allSessions = useMemo(() => data?.pages.flatMap((p) => p.workoutSessions) ?? [], [data]);
 
   const grouped = useMemo(() => {
-    type Session = NonNullable<typeof data>["workoutSessions"][number];
+    type Session = (typeof allSessions)[number];
     const groups = new Map<string, Session[]>();
-    for (const s of data?.workoutSessions ?? []) {
+    for (const s of allSessions) {
       const key = new Date(s.startedAt).toLocaleDateString(undefined, {
         year: "numeric",
         month: "long",
@@ -62,7 +79,7 @@ function SessionsRoute() {
       }
     }
     return groups;
-  }, [data]);
+  }, [allSessions]);
 
   function renderContent() {
     if (isLoading) {
@@ -71,7 +88,7 @@ function SessionsRoute() {
     if (error) {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
-    if (data?.workoutSessions.length === 0) {
+    if (allSessions.length === 0) {
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center">
@@ -149,6 +166,25 @@ function SessionsRoute() {
             </ul>
           </div>
         ))}
+        {hasNextPage && (
+          <div className="flex justify-center pt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Loading
+                </>
+              ) : (
+                "Load more"
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
