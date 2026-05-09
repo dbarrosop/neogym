@@ -68,6 +68,25 @@ array_relationships:
           name: exercises
           schema: public
 select_permissions:
+  - role: public
+    permission:
+      columns:
+        - id
+        - name
+        - size
+        - bucket_id
+        - etag
+        - created_at
+        - updated_at
+        - is_uploaded
+        - mime_type
+        - uploaded_by_user_id
+        - metadata
+      filter:
+        _or:
+          - _and:
+              - bucket_id:
+                  _eq: exercise_images
   - role: user
     permission:
       columns:

@@ -1,6 +1,5 @@
 import { nhost } from "./nhost/client";
 
-export async function fetchFileBlob(fileId: string): Promise<Blob> {
-  const res = await nhost.storage.getFile(fileId);
-  return res.body;
+export function fileUrl(fileId: string): string {
+  return `${nhost.storage.baseURL}/files/${fileId}`;
 }

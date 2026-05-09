@@ -1,31 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { ImageOff } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { fetchFileBlob } from "@/lib/storage";
+import { useEffect, useState } from "react";
+import { fileUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
-
-function useFileObjectUrl(fileId: string | null | undefined) {
-  const query = useQuery({
-    queryKey: ["storage", "file", fileId],
-    queryFn: () => fetchFileBlob(fileId as string),
-    enabled: !!fileId,
-    staleTime: 1000 * 60 * 60,
-  });
-
-  const url = useMemo(() => (query.data ? URL.createObjectURL(query.data) : null), [query.data]);
-
-  useEffect(() => {
-    if (!url) {
-      return;
-    }
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [url]);
-
-  return { url, isLoading: query.isLoading, isError: query.isError };
-}
 
 interface StorageImageProps {
   fileId: string | null | undefined;
@@ -34,21 +10,44 @@ interface StorageImageProps {
 }
 
 export function StorageImage({ fileId, alt, className }: StorageImageProps) {
-  const { url, isLoading, isError } = useFileObjectUrl(fileId);
+  if (!fileId) {
+    return <Fallback className={className} />;
+  }
+  return <StorageImageInner key={fileId} fileId={fileId} alt={alt} className={className} />;
+}
 
-  if (!fileId || isError) {
-    return (
-      <div className={cn("flex items-center justify-center text-muted-foreground", className)}>
-        <ImageOff className="h-6 w-6" />
-      </div>
-    );
+function StorageImageInner({
+  fileId,
+  alt,
+  className,
+}: {
+  fileId: string;
+  alt: string;
+  className?: string | undefined;
+}) {
+  const [errored, setErrored] = useState(false);
+
+  if (errored) {
+    return <Fallback className={className} />;
   }
 
-  if (isLoading || !url) {
-    return <Skeleton className={className} />;
-  }
+  return (
+    <img
+      src={fileUrl(fileId)}
+      alt={alt}
+      className={className}
+      loading="lazy"
+      onError={() => setErrored(true)}
+    />
+  );
+}
 
-  return <img src={url} alt={alt} className={className} />;
+function Fallback({ className }: { className?: string | undefined }) {
+  return (
+    <div className={cn("flex items-center justify-center text-muted-foreground", className)}>
+      <ImageOff className="h-6 w-6" />
+    </div>
+  );
 }
 
 interface AlternatingStorageImageProps {
@@ -80,11 +79,7 @@ export function AlternatingStorageImage({
   }, [ids.length, intervalMs]);
 
   if (ids.length === 0) {
-    return (
-      <div className={cn("flex items-center justify-center text-muted-foreground", className)}>
-        <ImageOff className="h-6 w-6" />
-      </div>
-    );
+    return <Fallback className={className} />;
   }
 
   if (ids.length === 1) {
@@ -94,28 +89,17 @@ export function AlternatingStorageImage({
   return (
     <div className={cn("relative overflow-hidden", className)}>
       {ids.map((id, i) => (
-        <Frame key={id} fileId={id} alt={alt} active={i === activeIndex} />
+        <img
+          key={id}
+          src={fileUrl(id)}
+          alt={alt}
+          loading="lazy"
+          className={cn(
+            "absolute inset-0 h-full w-full object-cover",
+            i === activeIndex ? "block" : "hidden",
+          )}
+        />
       ))}
     </div>
-  );
-}
-
-interface FrameProps {
-  fileId: string;
-  alt: string;
-  active: boolean;
-}
-
-function Frame({ fileId, alt, active }: FrameProps) {
-  const { url } = useFileObjectUrl(fileId);
-  if (!url) {
-    return null;
-  }
-  return (
-    <img
-      src={url}
-      alt={alt}
-      className={cn("absolute inset-0 h-full w-full object-cover", active ? "block" : "hidden")}
-    />
   );
 }
