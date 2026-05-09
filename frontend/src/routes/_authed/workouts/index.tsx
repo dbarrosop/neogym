@@ -123,30 +123,30 @@ function WorkoutsRoute() {
               <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                 <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0 space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <h2 className="truncate font-medium">{w.name}</h2>
-                      {w.isPublic ? (
-                        <Badge variant="primary">
-                          <Globe2 className="h-3 w-3" /> Public
-                        </Badge>
-                      ) : null}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h2 className="min-w-0 flex-1 truncate font-medium">{w.name}</h2>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {w.isPublic ? (
+                          <Badge variant="primary">
+                            <Globe2 className="h-3 w-3" /> Public
+                          </Badge>
+                        ) : null}
+                        {w.workoutLabels.map((wl) => (
+                          <Badge key={wl.labelId} variant="primary" className="px-1.5 py-0">
+                            <Tag className="h-2.5 w-2.5" />
+                            {wl.labelId}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
                     {w.description ? (
                       <p className="line-clamp-1 text-sm text-muted-foreground">
                         {stripMarkdown(w.description)}
                       </p>
                     ) : null}
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-0.5">
-                      <span className="text-xs text-muted-foreground">
-                        {w.workoutExercises_aggregate.aggregate?.count ?? 0} exercises
-                      </span>
-                      {w.workoutLabels.map((wl) => (
-                        <Badge key={wl.labelId} variant="primary" className="px-1.5 py-0">
-                          <Tag className="h-2.5 w-2.5" />
-                          {wl.labelId}
-                        </Badge>
-                      ))}
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {w.workoutExercises_aggregate.aggregate?.count ?? 0} exercises
+                    </p>
                   </div>
                   <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
                 </CardContent>
