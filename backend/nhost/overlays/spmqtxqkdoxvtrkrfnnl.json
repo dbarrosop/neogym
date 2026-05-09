@@ -1,0 +1,37 @@
+[
+  {
+    "value": true,
+    "op": "replace",
+    "path": "/auth/misc/concealErrors"
+  },
+  {
+    "value": "https://neogym.nhost.app/oauth2/login",
+    "op": "replace",
+    "path": "/auth/oauth2Provider/loginURL"
+  },
+  {
+    "value": [],
+    "op": "add",
+    "path": "/auth/redirections/allowedUrls"
+  },
+  {
+    "value": "https://neogym.nhost.app",
+    "op": "replace",
+    "path": "/auth/redirections/clientUrl"
+  },
+  {
+    "value": "https://neogym.nhost.app",
+    "op": "replace",
+    "path": "/hasura/settings/corsDomain/0"
+  },
+  {
+    "value": false,
+    "op": "replace",
+    "path": "/hasura/settings/devMode"
+  },
+  {
+    "value": false,
+    "op": "replace",
+    "path": "/hasura/settings/enableConsole"
+  }
+]
