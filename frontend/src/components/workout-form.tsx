@@ -150,8 +150,12 @@ export function WorkoutForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What's this routine for?"
-            rows={3}
+            rows={5}
           />
+          <p className="text-xs text-muted-foreground">
+            Markdown supported — use <code className="font-mono">**bold**</code>,{" "}
+            <code className="font-mono">- lists</code>, headings, and more.
+          </p>
         </div>
       </div>
 
