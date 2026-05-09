@@ -1,0 +1,57 @@
+table:
+  name: workout_labels
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    id:
+      custom_name: id
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    id: id
+    user_id: userId
+  custom_name: workoutLabels
+  custom_root_fields:
+    delete: deleteWorkoutLabels
+    delete_by_pk: deleteWorkoutLabel
+    insert: insertWorkoutLabels
+    insert_one: insertWorkoutLabel
+    select: workoutLabels
+    select_aggregate: workoutLabelsAggregate
+    select_by_pk: workoutLabel
+    update: updateWorkoutLabels
+    update_by_pk: updateWorkoutLabel
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - created_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

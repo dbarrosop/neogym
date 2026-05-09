@@ -7,7 +7,13 @@ import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 
 const CreateWorkoutMutation = graphql(`
-  mutation CreateWorkout($obj: workouts_insert_input!) {
+  mutation CreateWorkout($labelObjs: [workoutLabels_insert_input!]!, $obj: workouts_insert_input!) {
+    insertWorkoutLabels(
+      objects: $labelObjs
+      on_conflict: { constraint: workout_labels_pkey, update_columns: [] }
+    ) {
+      affected_rows
+    }
     insertWorkout(object: $obj) {
       id
     }
@@ -25,6 +31,7 @@ function NewWorkoutRoute() {
   const createMutation = useMutation({
     mutationFn: (values: WorkoutFormValues) =>
       gqlRequest(CreateWorkoutMutation, {
+        labelObjs: values.labels.map((l) => ({ id: l })),
         obj: {
           name: values.name,
           description: values.description || null,
@@ -34,10 +41,14 @@ function NewWorkoutRoute() {
               position: idx + 1,
             })),
           },
+          workoutWorkoutLabels: {
+            data: values.labels.map((l) => ({ labelId: l })),
+          },
         },
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutLabels"] });
       const id = res.insertWorkout?.id;
       // Replace so the (now-submitted) form doesn't sit on the history stack.
       if (id) {
@@ -68,7 +79,7 @@ function NewWorkoutRoute() {
           </CardHeader>
           <CardContent>
             <WorkoutForm
-              initialValues={{ name: "", description: "", exercises: [] }}
+              initialValues={{ name: "", description: "", exercises: [], labels: [] }}
               submitLabel="Create workout"
               isSubmitting={createMutation.isPending}
               onSubmit={(values) => createMutation.mutate(values)}

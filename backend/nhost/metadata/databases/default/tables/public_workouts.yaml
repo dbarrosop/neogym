@@ -55,6 +55,13 @@ array_relationships:
         table:
           name: workout_sessions
           schema: public
+  - name: workoutWorkoutLabels
+    using:
+      foreign_key_constraint_on:
+        column: workout_id
+        table:
+          name: workout_workout_labels
+          schema: public
 insert_permissions:
   - role: user
     permission:

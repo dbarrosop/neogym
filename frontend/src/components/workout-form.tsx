@@ -16,9 +16,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useQuery } from "@tanstack/react-query";
 import { GripVertical, Plus, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +31,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { graphql } from "@/gql";
+import { gqlRequest } from "@/lib/graphql";
 import { cn, formatMuscle } from "@/lib/utils";
+
+const WorkoutFormLabelsQuery = graphql(`
+  query WorkoutFormLabels {
+    workoutLabels(order_by: { id: asc }) {
+      id
+    }
+  }
+`);
 
 export interface WorkoutFormExercise {
   /**
@@ -47,6 +59,7 @@ export interface WorkoutFormValues {
   name: string;
   description: string;
   exercises: WorkoutFormExercise[];
+  labels: string[];
 }
 
 interface WorkoutFormProps {
@@ -70,9 +83,18 @@ export function WorkoutForm({
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [exercises, setExercises] = useState<WorkoutFormExercise[]>(initialValues.exercises);
+  const [labels, setLabels] = useState<string[]>(initialValues.labels);
+  const [labelInput, setLabelInput] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const nameId = useId();
   const descId = useId();
+  const labelListId = useId();
+
+  const { data: labelsData } = useQuery({
+    queryKey: ["workoutLabels", "catalog"],
+    queryFn: () => gqlRequest(WorkoutFormLabelsQuery),
+  });
+  const existingLabels = labelsData?.workoutLabels.map((l) => l.id) ?? [];
 
   const sensors = useSensors(
     // Require a small drag distance before activating so taps still register as
@@ -108,6 +130,20 @@ export function WorkoutForm({
     setPickerOpen(false);
   }
 
+  function addLabel() {
+    const normalized = labelInput.trim().toLowerCase();
+    if (!normalized || labels.includes(normalized)) {
+      setLabelInput("");
+      return;
+    }
+    setLabels((ls) => [...ls, normalized]);
+    setLabelInput("");
+  }
+
+  function removeLabel(label: string) {
+    setLabels((ls) => ls.filter((l) => l !== label));
+  }
+
   const trimmedName = name.trim();
   const canSubmit = trimmedName.length > 0 && !isSubmitting;
   const selectedExerciseIds = useMemo(
@@ -120,7 +156,7 @@ export function WorkoutForm({
     if (!canSubmit) {
       return;
     }
-    onSubmit({ name: trimmedName, description: description.trim(), exercises });
+    onSubmit({ name: trimmedName, description: description.trim(), exercises, labels });
   }
 
   return (
@@ -156,6 +192,63 @@ export function WorkoutForm({
             Markdown supported — use <code className="font-mono">**bold**</code>,{" "}
             <code className="font-mono">- lists</code>, headings, and more.
           </p>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-sm font-medium">
+              Labels
+              <span className="ml-2 text-xs font-normal text-muted-foreground">Optional</span>
+            </h2>
+          </div>
+
+          {labels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {labels.map((l) => (
+                <Badge
+                  key={l}
+                  variant="outline"
+                  className="cursor-pointer gap-1 hover:border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
+                  onClick={() => removeLabel(l)}
+                >
+                  {l}
+                  <X className="h-3 w-3" />
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <datalist id={labelListId}>
+              {existingLabels
+                .filter((l) => !labels.includes(l))
+                .map((l) => (
+                  <option key={l} value={l} />
+                ))}
+            </datalist>
+            <Input
+              list={labelListId}
+              value={labelInput}
+              onChange={(e) => setLabelInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addLabel();
+                }
+              }}
+              placeholder="e.g. push, strength, morning"
+              maxLength={60}
+              disabled={isSubmitting}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addLabel}
+              disabled={isSubmitting || !labelInput.trim()}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 

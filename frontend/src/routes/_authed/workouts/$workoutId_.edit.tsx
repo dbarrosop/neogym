@@ -37,6 +37,9 @@ const EditWorkoutQuery = graphql(`
           doubleWeight
         }
       }
+      workoutWorkoutLabels {
+        labelId
+      }
     }
   }
 `);
@@ -48,6 +51,9 @@ const SaveWorkoutMutation = graphql(`
     $deleteRowIds: [uuid!]!
     $insertRows: [workoutExercises_insert_input!]!
     $positionUpdates: [workoutExercises_updates!]!
+    $labelObjs: [workoutLabels_insert_input!]!
+    $removedLabelIds: [String!]!
+    $addedLabelRows: [workoutWorkoutLabels_insert_input!]!
   ) {
     updateWorkout(pk_columns: { id: $id }, _set: $set) {
       id
@@ -59,6 +65,20 @@ const SaveWorkoutMutation = graphql(`
       affected_rows
     }
     update_workoutExercises_many(updates: $positionUpdates) {
+      affected_rows
+    }
+    insertWorkoutLabels(
+      objects: $labelObjs
+      on_conflict: { constraint: workout_labels_pkey, update_columns: [] }
+    ) {
+      affected_rows
+    }
+    deleteWorkoutWorkoutLabels(
+      where: { workoutId: { _eq: $id }, labelId: { _in: $removedLabelIds } }
+    ) {
+      affected_rows
+    }
+    insertWorkoutWorkoutLabels(objects: $addedLabelRows) {
       affected_rows
     }
   }
@@ -117,6 +137,7 @@ function EditWorkoutRoute() {
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
         doubleWeight: we.exercise.doubleWeight,
       })),
+      labels: workout.workoutWorkoutLabels.map((wl) => wl.labelId),
     };
   }, [workout]);
 
@@ -160,6 +181,11 @@ function EditWorkoutRoute() {
         }
       });
 
+      const originalLabels = new Set(initialValues.labels);
+      const nextLabels = new Set(values.labels);
+      const removedLabelIds = initialValues.labels.filter((l) => !nextLabels.has(l));
+      const addedLabels = values.labels.filter((l) => !originalLabels.has(l));
+
       return gqlRequest(SaveWorkoutMutation, {
         id: workoutId,
         set: {
@@ -169,10 +195,14 @@ function EditWorkoutRoute() {
         deleteRowIds,
         insertRows,
         positionUpdates,
+        labelObjs: addedLabels.map((l) => ({ id: l })),
+        removedLabelIds,
+        addedLabelRows: addedLabels.map((l) => ({ workoutId, labelId: l })),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["workoutLabels"] });
       toast.success("Workout saved");
       // Replace so back from the detail page doesn't land in the edit form.
       navigate({

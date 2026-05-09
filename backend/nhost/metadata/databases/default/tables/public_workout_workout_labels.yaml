@@ -1,0 +1,85 @@
+table:
+  name: workout_workout_labels
+  schema: public
+configuration:
+  column_config:
+    label_id:
+      custom_name: labelId
+    label_user_id:
+      custom_name: labelUserId
+    workout_id:
+      custom_name: workoutId
+  custom_column_names:
+    label_id: labelId
+    label_user_id: labelUserId
+    workout_id: workoutId
+  custom_name: workoutWorkoutLabels
+  custom_root_fields:
+    delete: deleteWorkoutWorkoutLabels
+    delete_by_pk: deleteWorkoutWorkoutLabel
+    insert: insertWorkoutWorkoutLabels
+    insert_one: insertWorkoutWorkoutLabel
+    select: workoutWorkoutLabels
+    select_aggregate: workoutWorkoutLabelsAggregate
+    select_by_pk: workoutWorkoutLabel
+    update: updateWorkoutWorkoutLabels
+    update_by_pk: updateWorkoutWorkoutLabel
+object_relationships:
+  - name: workout
+    using:
+      foreign_key_constraint_on: workout_id
+  - name: workoutLabel
+    using:
+      manual_configuration:
+        remote_table:
+          schema: public
+          name: workout_labels
+        column_mapping:
+          label_user_id: user_id
+          label_id: id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - workout:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: false
+          - label_user_id:
+              _eq: X-Hasura-User-Id
+      set:
+        label_user_id: X-Hasura-User-Id
+      columns:
+        - workout_id
+        - label_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - workout_id
+        - label_id
+        - label_user_id
+      filter:
+        workout:
+          _or:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: true
+      allow_aggregations: true
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        _and:
+          - workout:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: false
+          - label_user_id:
+              _eq: X-Hasura-User-Id

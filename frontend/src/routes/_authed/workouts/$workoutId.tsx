@@ -31,6 +31,9 @@ const WorkoutDetailQuery = graphql(`
           image2FileId
         }
       }
+      workoutWorkoutLabels {
+        labelId
+      }
     }
   }
 `);
@@ -84,6 +87,15 @@ function WorkoutDetailRoute() {
             </div>
           </div>
           {workout.description ? <Markdown>{workout.description}</Markdown> : null}
+          {workout.workoutWorkoutLabels.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {workout.workoutWorkoutLabels.map((wl) => (
+                <Badge key={wl.labelId} variant="outline">
+                  {wl.labelId}
+                </Badge>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             {workout.workoutExercises.length} exercise
             {workout.workoutExercises.length === 1 ? "" : "s"}

@@ -665,6 +665,24 @@ type mutation_root {
     where: workoutExercises_bool_exp!
   ): workoutExercises_mutation_response
   """
+  delete single row from the table: "workout_labels"
+  """
+  deleteWorkoutLabel(id: String!, userId: uuid!): workoutLabels
+  """
+  delete data from the table: "workout_labels"
+  """
+  deleteWorkoutLabels(
+    "filter the rows which have to be deleted"
+    where: workoutLabels_bool_exp!
+  ): workoutLabels_mutation_response
+  """
+  delete data from the table: "workout_workout_labels"
+  """
+  deleteWorkoutWorkoutLabels(
+    "filter the rows which have to be deleted"
+    where: workoutWorkoutLabels_bool_exp!
+  ): workoutWorkoutLabels_mutation_response
+  """
   delete single row from the table: "workout_sessions"
   """
   deleteWorkoutSession(id: uuid!): workoutSessions
@@ -749,6 +767,42 @@ type mutation_root {
     "upsert condition"
     on_conflict: workoutExercises_on_conflict
   ): workoutExercises_mutation_response
+  """
+  insert a single row into the table: "workout_labels"
+  """
+  insertWorkoutLabel(
+    "the row to be inserted"
+    object: workoutLabels_insert_input!,
+    "upsert condition"
+    on_conflict: workoutLabels_on_conflict
+  ): workoutLabels
+  """
+  insert data into the table: "workout_labels"
+  """
+  insertWorkoutLabels(
+    "the rows to be inserted"
+    objects: [workoutLabels_insert_input!]!,
+    "upsert condition"
+    on_conflict: workoutLabels_on_conflict
+  ): workoutLabels_mutation_response
+  """
+  insert a single row into the table: "workout_workout_labels"
+  """
+  insertWorkoutWorkoutLabel(
+    "the row to be inserted"
+    object: workoutWorkoutLabels_insert_input!,
+    "upsert condition"
+    on_conflict: workoutWorkoutLabels_on_conflict
+  ): workoutWorkoutLabels
+  """
+  insert data into the table: "workout_workout_labels"
+  """
+  insertWorkoutWorkoutLabels(
+    "the rows to be inserted"
+    objects: [workoutWorkoutLabels_insert_input!]!,
+    "upsert condition"
+    on_conflict: workoutWorkoutLabels_on_conflict
+  ): workoutWorkoutLabels_mutation_response
   """
   insert a single row into the table: "workout_sessions"
   """
@@ -1281,6 +1335,70 @@ type query_root {
     "filter the rows returned"
     where: workoutExercises_bool_exp
   ): workoutExercises_aggregate!
+  """
+  fetch data from the table: "workout_labels" using primary key columns
+  """
+  workoutLabel(id: String!, userId: uuid!): workoutLabels
+  """
+  fetch data from the table: "workout_labels"
+  """
+  workoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
+  """
+  fetch aggregated fields from the table: "workout_labels"
+  """
+  workoutLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): workoutLabels_aggregate!
+  """
+  fetch data from the table: "workout_workout_labels"
+  """
+  workoutWorkoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutWorkoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutWorkoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutWorkoutLabels_bool_exp
+  ): [workoutWorkoutLabels!]!
+  """
+  fetch aggregated fields from the table: "workout_workout_labels"
+  """
+  workoutWorkoutLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutWorkoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutWorkoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutWorkoutLabels_bool_exp
+  ): workoutWorkoutLabels_aggregate!
   """
   fetch data from the table: "workout_sessions" using primary key columns
   """
@@ -2491,6 +2609,32 @@ type workouts {
     "filter the rows returned"
     where: workoutSessions_bool_exp
   ): workoutSessions_aggregate!
+  "An array relationship"
+  workoutWorkoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutWorkoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutWorkoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutWorkoutLabels_bool_exp
+  ): [workoutWorkoutLabels!]!
+  "An aggregate relationship"
+  workoutWorkoutLabels_aggregate(
+    "distinct select on columns"
+    distinct_on: [workoutWorkoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutWorkoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutWorkoutLabels_bool_exp
+  ): workoutWorkoutLabels_aggregate!
 }
 """
 aggregated selection of "workouts"
@@ -4524,6 +4668,8 @@ input workouts_bool_exp {
   workoutExercises_aggregate: workoutExercises_aggregate_bool_exp
   workoutSessions: workoutSessions_bool_exp
   workoutSessions_aggregate: workoutSessions_aggregate_bool_exp
+  workoutWorkoutLabels: workoutWorkoutLabels_bool_exp
+  workoutWorkoutLabels_aggregate: workoutWorkoutLabels_aggregate_bool_exp
 }
 """
 input type for inserting data into table "workouts"
@@ -4533,6 +4679,7 @@ input workouts_insert_input {
   name: String
   workoutExercises: workoutExercises_arr_rel_insert_input
   workoutSessions: workoutSessions_arr_rel_insert_input
+  workoutWorkoutLabels: workoutWorkoutLabels_arr_rel_insert_input
 }
 """
 input type for inserting object relation for remote table "workouts"
@@ -4563,6 +4710,7 @@ input workouts_order_by {
   userId: order_by
   workoutExercises_aggregate: workoutExercises_aggregate_order_by
   workoutSessions_aggregate: workoutSessions_aggregate_order_by
+  workoutWorkoutLabels_aggregate: workoutWorkoutLabels_aggregate_order_by
 }
 "primary key columns input for table: workouts"
 input workouts_pk_columns_input {
@@ -4599,6 +4747,308 @@ input workouts_updates {
   _set: workouts_set_input
   "filter the rows which have to be updated"
   where: workouts_bool_exp!
+}
+"""
+columns and relationships of "workout_labels"
+"""
+type workoutLabels {
+  createdAt: timestamptz!
+  id: String!
+  userId: uuid!
+}
+"""
+aggregated selection of "workout_labels"
+"""
+type workoutLabels_aggregate {
+  aggregate: workoutLabels_aggregate_fields
+  nodes: [workoutLabels!]!
+}
+"""
+aggregate fields of "workout_labels"
+"""
+type workoutLabels_aggregate_fields {
+  count(columns: [workoutLabels_select_column!], distinct: Boolean): Int!
+  max: workoutLabels_max_fields
+  min: workoutLabels_min_fields
+}
+"aggregate max on columns"
+type workoutLabels_max_fields {
+  createdAt: timestamptz
+  id: String
+  userId: uuid
+}
+"aggregate min on columns"
+type workoutLabels_min_fields {
+  createdAt: timestamptz
+  id: String
+  userId: uuid
+}
+"""
+response of any mutation on the table "workout_labels"
+"""
+type workoutLabels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [workoutLabels!]!
+}
+"""
+unique or primary key constraints on table "workout_labels"
+"""
+enum workoutLabels_constraint {
+  """
+  unique or primary key constraint on columns "user_id", "id"
+  """
+  workout_labels_pkey
+}
+"""
+select columns of table "workout_labels"
+"""
+enum workoutLabels_select_column {
+  "column name"
+  createdAt
+  "column name"
+  id
+  "column name"
+  userId
+}
+"""
+update columns of table "workout_labels"
+"""
+enum workoutLabels_update_column {
+  _PLACEHOLDER
+}
+"""
+Boolean expression to filter rows from the table "workout_labels". All fields are combined with a logical 'AND'.
+"""
+input workoutLabels_bool_exp {
+  _and: [workoutLabels_bool_exp!]
+  _not: workoutLabels_bool_exp
+  _or: [workoutLabels_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  id: String_comparison_exp
+  userId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "workout_labels"
+"""
+input workoutLabels_insert_input {
+  id: String
+}
+"""
+order by max() on columns of table "workout_labels"
+"""
+input workoutLabels_max_order_by {
+  createdAt: order_by
+  id: order_by
+  userId: order_by
+}
+"""
+order by min() on columns of table "workout_labels"
+"""
+input workoutLabels_min_order_by {
+  createdAt: order_by
+  id: order_by
+  userId: order_by
+}
+"""
+on_conflict condition type for table "workout_labels"
+"""
+input workoutLabels_on_conflict {
+  constraint: workoutLabels_constraint!
+  update_columns: [workoutLabels_update_column!]! = []
+  where: workoutLabels_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_labels".
+"""
+input workoutLabels_order_by {
+  createdAt: order_by
+  id: order_by
+  userId: order_by
+}
+"""
+primary key columns input for table: workout_labels
+"""
+input workoutLabels_pk_columns_input {
+  id: String!
+  userId: uuid!
+}
+"""
+columns and relationships of "workout_workout_labels"
+"""
+type workoutWorkoutLabels {
+  labelId: String!
+  labelUserId: uuid!
+  "An object relationship"
+  workout: workouts!
+  workoutId: uuid!
+  "An object relationship"
+  workoutLabel: workoutLabels
+}
+"""
+aggregated selection of "workout_workout_labels"
+"""
+type workoutWorkoutLabels_aggregate {
+  aggregate: workoutWorkoutLabels_aggregate_fields
+  nodes: [workoutWorkoutLabels!]!
+}
+"""
+aggregate fields of "workout_workout_labels"
+"""
+type workoutWorkoutLabels_aggregate_fields {
+  count(columns: [workoutWorkoutLabels_select_column!], distinct: Boolean): Int!
+  max: workoutWorkoutLabels_max_fields
+  min: workoutWorkoutLabels_min_fields
+}
+"aggregate max on columns"
+type workoutWorkoutLabels_max_fields {
+  labelId: String
+  labelUserId: uuid
+  workoutId: uuid
+}
+"aggregate min on columns"
+type workoutWorkoutLabels_min_fields {
+  labelId: String
+  labelUserId: uuid
+  workoutId: uuid
+}
+"""
+response of any mutation on the table "workout_workout_labels"
+"""
+type workoutWorkoutLabels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [workoutWorkoutLabels!]!
+}
+"""
+unique or primary key constraints on table "workout_workout_labels"
+"""
+enum workoutWorkoutLabels_constraint {
+  """
+  unique or primary key constraint on columns "workout_id", "label_id"
+  """
+  workout_workout_labels_pkey
+}
+"""
+select columns of table "workout_workout_labels"
+"""
+enum workoutWorkoutLabels_select_column {
+  "column name"
+  labelId
+  "column name"
+  labelUserId
+  "column name"
+  workoutId
+}
+"""
+update columns of table "workout_workout_labels"
+"""
+enum workoutWorkoutLabels_update_column {
+  _PLACEHOLDER
+}
+"""
+Boolean expression to filter rows from the table "workout_workout_labels". All fields are combined with a logical 'AND'.
+"""
+input workoutWorkoutLabels_bool_exp {
+  _and: [workoutWorkoutLabels_bool_exp!]
+  _not: workoutWorkoutLabels_bool_exp
+  _or: [workoutWorkoutLabels_bool_exp!]
+  labelId: String_comparison_exp
+  labelUserId: uuid_comparison_exp
+  workout: workouts_bool_exp
+  workoutId: uuid_comparison_exp
+  workoutLabel: workoutLabels_bool_exp
+}
+"""
+aggregate bool exp for table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_aggregate_bool_exp {
+  count: workoutWorkoutLabels_aggregate_bool_exp_count
+}
+input workoutWorkoutLabels_aggregate_bool_exp_count {
+  arguments: [workoutWorkoutLabels_select_column!]
+  distinct: Boolean
+  filter: workoutWorkoutLabels_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+aggregate bool exp for table "workout_labels"
+"""
+input workoutLabels_aggregate_bool_exp {
+  count: workoutLabels_aggregate_bool_exp_count
+}
+input workoutLabels_aggregate_bool_exp_count {
+  arguments: [workoutLabels_select_column!]
+  distinct: Boolean
+  filter: workoutLabels_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+input type for inserting array relation for remote table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_arr_rel_insert_input {
+  data: [workoutWorkoutLabels_insert_input!]!
+  "upsert condition"
+  on_conflict: workoutWorkoutLabels_on_conflict
+}
+"""
+input type for inserting data into table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_insert_input {
+  labelId: String
+  workout: workouts_obj_rel_insert_input
+  workoutId: uuid
+}
+"""
+order by max() on columns of table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_max_order_by {
+  labelId: order_by
+  labelUserId: order_by
+  workoutId: order_by
+}
+"""
+order by min() on columns of table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_min_order_by {
+  labelId: order_by
+  labelUserId: order_by
+  workoutId: order_by
+}
+"""
+on_conflict condition type for table "workout_workout_labels"
+"""
+input workoutWorkoutLabels_on_conflict {
+  constraint: workoutWorkoutLabels_constraint!
+  update_columns: [workoutWorkoutLabels_update_column!]! = []
+  where: workoutWorkoutLabels_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_workout_labels".
+"""
+input workoutWorkoutLabels_order_by {
+  labelId: order_by
+  labelUserId: order_by
+  workout: workouts_order_by
+  workoutId: order_by
+  workoutLabel: workoutLabels_order_by
+}
+"""
+primary key columns input for table: workout_workout_labels
+"""
+input workoutWorkoutLabels_pk_columns_input {
+  labelId: String!
+  workoutId: uuid!
+}
+"""
+aggregate order by for workout_workout_labels
+"""
+input workoutWorkoutLabels_aggregate_order_by {
+  count: order_by
+  max: workoutWorkoutLabels_max_order_by
+  min: workoutWorkoutLabels_min_order_by
 }
 "whether this query should be cached (Hasura Cloud only)"
 directive @cached(

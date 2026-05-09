@@ -24,6 +24,9 @@ const WorkoutsIndexQuery = graphql(`
           count
         }
       }
+      workoutWorkoutLabels {
+        labelId
+      }
     }
   }
 `);
@@ -36,18 +39,55 @@ export const Route = createFileRoute("/_authed/workouts/")({
 
 function WorkoutsRoute() {
   const [tab, setTab] = useState<Tab>("mine");
+  const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
   const { data, isLoading, error } = useQuery({
     queryKey: ["workouts", "index"],
     queryFn: () => gqlRequest(WorkoutsIndexQuery),
   });
 
+  const allMyLabels = useMemo(() => {
+    const all = data?.workouts ?? [];
+    const s = new Set<string>();
+    for (const w of all) {
+      if (!w.isPublic) {
+        for (const wl of w.workoutWorkoutLabels) {
+          s.add(wl.labelId);
+        }
+      }
+    }
+    return [...s].sort();
+  }, [data]);
+
   const filtered = useMemo(() => {
     const all = data?.workouts ?? [];
-    return tab === "mine" ? all.filter((w) => !w.isPublic) : all.filter((w) => w.isPublic);
-  }, [data, tab]);
+    const base = tab === "mine" ? all.filter((w) => !w.isPublic) : all.filter((w) => w.isPublic);
+    if (activeLabels.size === 0) {
+      return base;
+    }
+    return base.filter((w) =>
+      [...activeLabels].every((l) => w.workoutWorkoutLabels.some((wl) => wl.labelId === l)),
+    );
+  }, [data, tab, activeLabels]);
 
   const myCount = data?.workouts.filter((w) => !w.isPublic).length ?? 0;
   const publicCount = data?.workouts.filter((w) => w.isPublic).length ?? 0;
+
+  function toggleLabel(label: string) {
+    setActiveLabels((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  }
+
+  function handleTabChange(newTab: Tab) {
+    setTab(newTab);
+    setActiveLabels(new Set());
+  }
 
   function renderContent() {
     if (isLoading) {
@@ -57,13 +97,18 @@ function WorkoutsRoute() {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
     if (filtered.length === 0) {
+      let emptyMsg = "No public templates.";
+      if (tab === "mine") {
+        emptyMsg =
+          activeLabels.size > 0
+            ? "No workouts match the selected labels."
+            : "You haven't created any workouts yet.";
+      }
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
-            <p>
-              {tab === "mine" ? "You haven't created any workouts yet." : "No public templates."}
-            </p>
-            {tab === "mine" ? (
+            <p>{emptyMsg}</p>
+            {tab === "mine" && activeLabels.size === 0 ? (
               <Button asChild size="sm">
                 <Link to="/workouts/new">
                   <Plus className="h-4 w-4" />
@@ -99,6 +144,15 @@ function WorkoutsRoute() {
                     <p className="text-xs text-muted-foreground">
                       {w.workoutExercises_aggregate.aggregate?.count ?? 0} exercises
                     </p>
+                    {w.workoutWorkoutLabels.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-0.5">
+                        {w.workoutWorkoutLabels.map((wl) => (
+                          <Badge key={wl.labelId} variant="outline" className="py-0 text-[11px]">
+                            {wl.labelId}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
                 </CardContent>
@@ -133,15 +187,52 @@ function WorkoutsRoute() {
         </header>
 
         <div className="inline-flex w-full rounded-lg border border-border/60 bg-background/50 p-1 backdrop-blur sm:w-auto">
-          <TabButton active={tab === "mine"} onClick={() => setTab("mine")} count={myCount}>
+          <TabButton
+            active={tab === "mine"}
+            onClick={() => handleTabChange("mine")}
+            count={myCount}
+          >
             <User className="h-4 w-4" />
             Mine
           </TabButton>
-          <TabButton active={tab === "public"} onClick={() => setTab("public")} count={publicCount}>
+          <TabButton
+            active={tab === "public"}
+            onClick={() => handleTabChange("public")}
+            count={publicCount}
+          >
             <Globe2 className="h-4 w-4" />
             Public
           </TabButton>
         </div>
+
+        {tab === "mine" && allMyLabels.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {allMyLabels.map((l) => (
+              <button
+                key={l}
+                type="button"
+                onClick={() => toggleLabel(l)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                  activeLabels.has(l)
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border/60 text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {l}
+              </button>
+            ))}
+            {activeLabels.size > 0 && (
+              <button
+                type="button"
+                onClick={() => setActiveLabels(new Set())}
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        )}
 
         {renderContent()}
       </div>
