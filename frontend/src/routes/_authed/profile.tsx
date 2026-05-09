@@ -1,9 +1,41 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { generatePKCEPair } from "@nhost/nhost-js/auth";
 import { createFileRoute } from "@tanstack/react-router";
-import { BadgeCheck, ShieldAlert } from "lucide-react";
+import { Loader2, Pencil } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/nhost/auth-provider";
+import { PKCE_VERIFIER_STORAGE_KEY } from "@/lib/nhost/pkce";
+
+const changeEmailSchema = z.object({
+  newEmail: z.string().email("Enter a valid email address"),
+});
+
+type ChangeEmailValues = z.infer<typeof changeEmailSchema>;
 
 export const Route = createFileRoute("/_authed/profile")({
   component: ProfileRoute,
@@ -43,17 +75,7 @@ function ProfileRoute() {
             <Separator />
             <DetailRow label="Email">
               <span>{user.email}</span>
-              {user.emailVerified ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                  <BadgeCheck className="h-3.5 w-3.5" />
-                  Verified
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600">
-                  <ShieldAlert className="h-3.5 w-3.5" />
-                  Pending verification
-                </span>
-              )}
+              <ChangeEmailDialog currentEmail={user.email} />
             </DetailRow>
             <DetailRow label="Locale">{user.locale ?? "—"}</DetailRow>
             <DetailRow label="Default role">{user.defaultRole ?? "—"}</DetailRow>
@@ -71,6 +93,120 @@ function ProfileRoute() {
         </Card>
       </div>
     </section>
+  );
+}
+
+function ChangeEmailDialog({ currentEmail }: { currentEmail: string | undefined }) {
+  const { nhost } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+  const form = useForm<ChangeEmailValues>({
+    resolver: zodResolver(changeEmailSchema),
+    defaultValues: { newEmail: "" },
+  });
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      form.reset();
+      setPendingEmail(null);
+    }
+  }
+
+  async function onSubmit({ newEmail }: ChangeEmailValues) {
+    if (newEmail === currentEmail) {
+      form.setError("newEmail", {
+        message: "That's already your email address",
+      });
+      return;
+    }
+    try {
+      const { verifier, challenge } = await generatePKCEPair();
+      localStorage.setItem(PKCE_VERIFIER_STORAGE_KEY, verifier);
+      await nhost.auth.changeUserEmail({
+        newEmail,
+        codeChallenge: challenge,
+        options: { redirectTo: `${window.location.origin}/verify` },
+      });
+      setPendingEmail(newEmail);
+      form.reset();
+    } catch (err) {
+      localStorage.removeItem(PKCE_VERIFIER_STORAGE_KEY);
+      toast.error("Couldn't request the change", {
+        description: err instanceof Error ? err.message : "Unexpected error",
+      });
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-muted-foreground hover:text-foreground"
+          aria-label="Change email"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change email</DialogTitle>
+          <DialogDescription>
+            We'll send a verification link to the new address. Open it on this device to finish the
+            swap.
+          </DialogDescription>
+        </DialogHeader>
+        {pendingEmail ? (
+          <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+            Verification link sent to{" "}
+            <span className="font-medium text-foreground">{pendingEmail}</span>.
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="newEmail"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>New email</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="email"
+                        autoComplete="email"
+                        placeholder="new@example.com"
+                        autoFocus
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Sending
+                    </>
+                  ) : (
+                    "Send verification"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

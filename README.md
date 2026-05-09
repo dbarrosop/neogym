@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend is a self-hosted Nhost stack (Hasura + Auth + Postgres + Storage + Functions) managed via the Nhost CLI. Tooling — `bun` and `biome` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun` and `biome` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
 
 ## Stack
 
@@ -11,7 +11,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 | Framework | TanStack Start (React 19, Vite 8, Nitro) |
 | Routing | TanStack Router (file-based) |
 | Data | TanStack Query + `@nhost/nhost-js` v4 (`nhost.graphql.request`) |
-| Auth | Nhost Auth (email/password, PKCE email verification) |
+| Auth | Nhost Auth (email OTP for sign-in/sign-up; PKCE email-link verification for change-email) |
 | Styling | Tailwind CSS v4 (CSS-first `@theme`) + shadcn/ui |
 | Forms | react-hook-form + zod |
 | Lint/Format | Biome |
@@ -38,15 +38,16 @@ nhost up
 cd frontend
 nix develop ../ --command bun install   # first run only — also compiles biome (~15–25 min on first machine setup)
 nix develop ../ --command bun run dev
-# → http://localhost:3000
+# → http://localhost:5173
 ```
 
 Try the flow:
 
-1. Visit `http://localhost:3000`, click **Get started**
-2. Fill in display name + email + password — you'll see "Check your inbox"
-3. Open MailHog, click the verification link → you land on `/verify` → redirected to `/profile`
-4. Sign out from the navbar, sign back in via `/signin`
+1. Visit `http://localhost:5173`, click **Get started**
+2. Fill in display name + email — you'll see "Check your inbox"
+3. Open MailHog, copy the 6-digit code, paste it into the OTP field → you land on `/profile`
+4. From `/profile`, request an email change — open MailHog, click the verification link → you land on `/verify` → the new email is confirmed and you're redirected back to `/profile`
+5. Sign out from the navbar, sign back in via `/signin` (email → 6-digit code)
 
 ## Available commands
 
@@ -55,7 +56,7 @@ All run from `frontend/` and require `nix develop ../ --command ` as a prefix un
 | Command | What it does |
 |---|---|
 | `bun install` | Install / sync dependencies |
-| `bun run dev` | Start the dev server on `:3000` (HMR + SSR) |
+| `bun run dev` | Start the dev server on `:5173` (HMR + SSR) |
 | `bun run build` | Production build (Vite + Nitro) |
 | `bun run start` | Run the built server (`.output/server/index.mjs`) |
 | `bun run typecheck` | `tsc --noEmit` |
@@ -84,7 +85,7 @@ Backend (from `backend/`):
 │   │   │   ├── index.tsx      # Landing page
 │   │   │   ├── signin.tsx
 │   │   │   ├── signup.tsx
-│   │   │   ├── verify.tsx     # PKCE token exchange
+│   │   │   ├── verify.tsx     # PKCE token exchange (email-change verification)
 │   │   │   ├── _authed.tsx    # Protected layout (redirects unauth users)
 │   │   │   └── _authed/profile.tsx
 │   │   ├── components/
@@ -115,7 +116,7 @@ The frontend reads three env vars. Local dev values live in `frontend/.env`:
 # frontend/.env
 VITE_NHOST_SUBDOMAIN=local
 VITE_NHOST_REGION=local
-VITE_MCP_URL=http://localhost:3000
+VITE_MCP_URL=http://localhost:5173
 ```
 
 Production build values live in `frontend/.env.production` (committed) and are picked up automatically by `bun run build`. Override any of them on the command line for ad-hoc builds: `VITE_MCP_URL=https://… bun run build`.
@@ -126,17 +127,20 @@ The Auth `clientUrl` and `allowedUrls` are pinned in `backend/nhost/nhost.toml`:
 
 ```toml
 [auth.redirections]
-clientUrl = 'http://localhost:3000'
-allowedUrls = ['http://localhost:3000/verify']
+clientUrl = 'https://neogym.nhost.app'
+allowedUrls = [
+  'http://localhost:5173/verify',
+  'https://neogym.nhost.app/verify',
+]
 ```
 
-Keep the dev port in `frontend/vite.config.ts` aligned with `clientUrl`.
+`clientUrl` is the production app; `allowedUrls` whitelists the `/verify` redirect target for both local dev and prod. Keep the dev port in `frontend/vite.config.ts` aligned with the localhost entry above.
 
 ## What's not in v1 (yet)
 
 - OAuth providers (Google, GitHub, etc.)
-- Password reset / change-password
-- Profile edits and avatar uploads
+- Password reset / change-password (no passwords — auth is OTP only)
+- Profile display-name and avatar editing
 - SSR-aware auth via Nhost cookie storage
 - CI / deploy preset (will add when the hosting target is known)
 
