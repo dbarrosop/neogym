@@ -65,12 +65,12 @@ export function AlternatingStorageImage({
 }: AlternatingStorageImageProps) {
   const ids = useMemo(() => fileIds.filter((id): id is string => !!id), [fileIds]);
   const [activeIndex, setActiveIndex] = useState(0);
-  const [loadedIds, setLoadedIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  const allLoaded = ids.every((id) => loadedIds.has(id));
+  const allSettled = ids.every((id) => settledIds.has(id));
 
   useEffect(() => {
-    if (ids.length < 2 || !allLoaded) {
+    if (ids.length < 2 || !allSettled) {
       return;
     }
     const handle = setInterval(() => {
@@ -79,7 +79,7 @@ export function AlternatingStorageImage({
     return () => {
       clearInterval(handle);
     };
-  }, [ids.length, intervalMs, allLoaded]);
+  }, [ids.length, intervalMs, allSettled]);
 
   if (ids.length === 0) {
     return <Fallback className={className} />;
@@ -89,8 +89,8 @@ export function AlternatingStorageImage({
     return <StorageImage fileId={ids[0]} alt={alt} className={className} />;
   }
 
-  const handleLoad = (id: string) => {
-    setLoadedIds((prev) => {
+  const handleSettle = (id: string) => {
+    setSettledIds((prev) => {
       if (prev.has(id)) {
         return prev;
       }
@@ -107,7 +107,8 @@ export function AlternatingStorageImage({
           key={id}
           src={fileUrl(id)}
           alt={alt}
-          onLoad={() => handleLoad(id)}
+          onLoad={() => handleSettle(id)}
+          onError={() => handleSettle(id)}
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
             i === activeIndex ? "opacity-100" : "opacity-0",
