@@ -1,0 +1,90 @@
+table:
+  name: journal_labels
+  schema: public
+configuration:
+  column_config:
+    color:
+      custom_name: color
+    created_at:
+      custom_name: createdAt
+    id:
+      custom_name: id
+    name:
+      custom_name: name
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    color: color
+    created_at: createdAt
+    id: id
+    name: name
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: journalLabels
+  custom_root_fields:
+    delete: deleteJournalLabels
+    delete_by_pk: deleteJournalLabel
+    insert: insertJournalLabels
+    insert_one: insertJournalLabel
+    select: journalLabels
+    select_aggregate: journalLabelsAggregate
+    select_by_pk: journalLabel
+    update: updateJournalLabels
+    update_by_pk: updateJournalLabel
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: journalEntryLabels
+    using:
+      foreign_key_constraint_on:
+        column: label_id
+        table:
+          name: journal_entry_labels
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - name
+        - color
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - name
+        - color
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - color
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

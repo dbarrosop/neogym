@@ -1,0 +1,96 @@
+table:
+  name: journal_entries
+  schema: public
+configuration:
+  column_config:
+    content:
+      custom_name: content
+    created_at:
+      custom_name: createdAt
+    entry_date:
+      custom_name: entryDate
+    id:
+      custom_name: id
+    title:
+      custom_name: title
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    content: content
+    created_at: createdAt
+    entry_date: entryDate
+    id: id
+    title: title
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: journalEntries
+  custom_root_fields:
+    delete: deleteJournalEntries
+    delete_by_pk: deleteJournalEntry
+    insert: insertJournalEntries
+    insert_one: insertJournalEntry
+    select: journalEntries
+    select_aggregate: journalEntriesAggregate
+    select_by_pk: journalEntry
+    update: updateJournalEntries
+    update_by_pk: updateJournalEntry
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: journalEntryLabels
+    using:
+      foreign_key_constraint_on:
+        column: entry_id
+        table:
+          name: journal_entry_labels
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - entry_date
+        - title
+        - content
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - entry_date
+        - title
+        - content
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - entry_date
+        - title
+        - content
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

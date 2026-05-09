@@ -1,0 +1,94 @@
+table:
+  name: body_metrics
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    fat_pct:
+      custom_name: fatPct
+    id:
+      custom_name: id
+    measured_on:
+      custom_name: measuredOn
+    notes:
+      custom_name: notes
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+    weight_kg:
+      custom_name: weightKg
+  custom_column_names:
+    created_at: createdAt
+    fat_pct: fatPct
+    id: id
+    measured_on: measuredOn
+    notes: notes
+    updated_at: updatedAt
+    user_id: userId
+    weight_kg: weightKg
+  custom_name: bodyMetrics
+  custom_root_fields:
+    delete: deleteBodyMetrics
+    delete_by_pk: deleteBodyMetric
+    insert: insertBodyMetrics
+    insert_one: insertBodyMetric
+    select: bodyMetrics
+    select_aggregate: bodyMetricsAggregate
+    select_by_pk: bodyMetric
+    update: updateBodyMetrics
+    update_by_pk: updateBodyMetric
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - measured_on
+        - weight_kg
+        - fat_pct
+        - notes
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - measured_on
+        - weight_kg
+        - fat_pct
+        - notes
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - measured_on
+        - weight_kg
+        - fat_pct
+        - notes
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
