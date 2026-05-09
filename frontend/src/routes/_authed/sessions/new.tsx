@@ -62,13 +62,19 @@ function NewSessionRoute() {
     mutationFn: (obj: SessionInsertInput) => gqlRequest(StartSessionMutation, { obj }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      const id = res.insertWorkoutSession?.id;
       // Replace so the workout picker doesn't sit on the history stack —
       // back from the new session should land on /sessions, not the picker.
-      navigate({
-        to: "/sessions/$sessionId",
-        params: { sessionId: res.insertWorkoutSession?.id },
-        replace: true,
-      });
+      if (id) {
+        navigate({
+          to: "/sessions/$sessionId",
+          params: { sessionId: id },
+          replace: true,
+        });
+      } else {
+        toast.error("Session created but the server didn't return an id");
+        navigate({ to: "/sessions", replace: true });
+      }
     },
     onError: (e) => {
       setPendingWorkoutId(null);
