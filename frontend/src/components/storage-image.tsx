@@ -1,5 +1,5 @@
 import { ImageOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fileUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
@@ -63,11 +63,14 @@ export function AlternatingStorageImage({
   className,
   intervalMs = 2000,
 }: AlternatingStorageImageProps) {
-  const ids = fileIds.filter((id): id is string => !!id);
+  const ids = useMemo(() => fileIds.filter((id): id is string => !!id), [fileIds]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  const allSettled = ids.every((id) => settledIds.has(id));
 
   useEffect(() => {
-    if (ids.length < 2) {
+    if (ids.length < 2 || !allSettled) {
       return;
     }
     const handle = setInterval(() => {
@@ -76,7 +79,7 @@ export function AlternatingStorageImage({
     return () => {
       clearInterval(handle);
     };
-  }, [ids.length, intervalMs]);
+  }, [ids.length, intervalMs, allSettled]);
 
   if (ids.length === 0) {
     return <Fallback className={className} />;
@@ -86,6 +89,17 @@ export function AlternatingStorageImage({
     return <StorageImage fileId={ids[0]} alt={alt} className={className} />;
   }
 
+  const handleSettle = (id: string) => {
+    setSettledIds((prev) => {
+      if (prev.has(id)) {
+        return prev;
+      }
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className={cn("relative overflow-hidden", className)}>
       {ids.map((id, i) => (
@@ -94,9 +108,11 @@ export function AlternatingStorageImage({
           src={fileUrl(id)}
           alt={alt}
           loading="lazy"
+          onLoad={() => handleSettle(id)}
+          onError={() => handleSettle(id)}
           className={cn(
             "absolute inset-0 h-full w-full object-cover",
-            i === activeIndex ? "block" : "hidden",
+            i === activeIndex ? "opacity-100" : "opacity-0",
           )}
         />
       ))}
