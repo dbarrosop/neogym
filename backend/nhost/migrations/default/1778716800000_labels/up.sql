@@ -35,9 +35,9 @@ INSERT INTO public.labels (name, is_public) VALUES
   ('push',       true),
   ('pull',       true),
   ('legs',       true),
-  ('upper_body', true),
-  ('lower_body', true),
-  ('full_body',  true);
+  ('upper body', true),
+  ('lower body', true),
+  ('full body',  true);
 
 -- =====================================================================
 -- workout_labels (workout ↔ label association)
