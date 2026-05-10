@@ -56,7 +56,7 @@ function SignInRoute() {
       window.location.assign(redirect);
       return;
     }
-    navigate({ to: "/profile" });
+    navigate({ to: "/" });
   }, [isAuthenticated, navigate, redirect]);
 
   async function onRequestCode(values: EmailValues) {
@@ -81,7 +81,7 @@ function SignInRoute() {
         otp: code,
       });
       if (response.body?.session) {
-        navigate({ to: "/profile" });
+        navigate({ to: "/" });
       } else {
         toast.error("Sign in failed", {
           description: "We couldn't verify that code. Try again.",
