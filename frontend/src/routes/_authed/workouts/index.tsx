@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Globe2, Plus, Tag, User } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,15 +39,24 @@ const WorkoutsIndexQuery = graphql(`
   }
 `);
 
-type Visibility = "mine" | "public";
+const visibilityValues = ["mine", "public"] as const;
+type Visibility = (typeof visibilityValues)[number];
+
+const workoutsSearchSchema = z.object({
+  visibility: z.enum(visibilityValues).optional(),
+  labels: z.array(z.string()).optional(),
+});
 
 export const Route = createFileRoute("/_authed/workouts/")({
+  validateSearch: workoutsSearchSchema,
   component: WorkoutsRoute,
 });
 
 function WorkoutsRoute() {
-  const [visibility, setVisibility] = useState<Visibility | null>(null);
-  const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
+  const searchParams = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const visibility: Visibility | null = searchParams.visibility ?? null;
+  const activeLabels = useMemo(() => new Set(searchParams.labels ?? []), [searchParams.labels]);
   const { data, isLoading, error } = useQuery({
     queryKey: ["workouts", "index"],
     queryFn: () => gqlRequest(WorkoutsIndexQuery),
@@ -79,24 +89,30 @@ function WorkoutsRoute() {
   const isFiltered = visibility !== null || activeLabels.size > 0;
 
   function toggleVisibility(next: Visibility) {
-    setVisibility((cur) => (cur === next ? null : next));
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        visibility: prev.visibility === next ? undefined : next,
+      }),
+      replace: true,
+    });
   }
 
   function toggleLabel(label: string) {
-    setActiveLabels((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) {
-        next.delete(label);
-      } else {
-        next.add(label);
-      }
-      return next;
+    navigate({
+      search: (prev) => {
+        const current = prev.labels ?? [];
+        const next = current.includes(label)
+          ? current.filter((l) => l !== label)
+          : [...current, label];
+        return { ...prev, labels: next.length === 0 ? undefined : next };
+      },
+      replace: true,
     });
   }
 
   function clearAll() {
-    setVisibility(null);
-    setActiveLabels(new Set());
+    navigate({ search: {}, replace: true });
   }
 
   function renderContent() {

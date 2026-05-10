@@ -276,6 +276,11 @@ function ExercisesRoute() {
         </Card>
       );
     }
+    if (search.trim() !== "") {
+      // Fuzzy search ranks by relevance; grouping by muscle would bucket the
+      // best match alphabetically and hide it under unrelated groups.
+      return <FlatResults exercises={filteredExercises} />;
+    }
     return <GroupedResults exercises={filteredExercises} />;
   }
 
@@ -582,7 +587,21 @@ function GroupedResults({ exercises }: { exercises: Exercise[] }) {
   );
 }
 
-function ExerciseRow({ exercise }: { exercise: Exercise }) {
+function FlatResults({ exercises }: { exercises: Exercise[] }) {
+  return (
+    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <CardContent className="px-2 py-2">
+        <ul className="divide-y divide-border/50">
+          {exercises.map((ex) => (
+            <ExerciseRow key={ex.id} exercise={ex} showMuscle />
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?: boolean }) {
   const VisibilityIcon = exercise.isPublic ? Globe2 : User;
   return (
     <li>
@@ -601,6 +620,11 @@ function ExerciseRow({ exercise }: { exercise: Exercise }) {
             )}
             aria-label={exercise.isPublic ? "Public" : "Mine"}
           />
+          {showMuscle ? (
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {formatEnumValue(exercise.primaryMuscleGroup)}
+            </span>
+          ) : null}
           {exercise.doubleWeight ? (
             <Badge variant="outline" className="hidden sm:inline-flex">
               Two-handed
