@@ -3,10 +3,118 @@ schema {
   mutation: mutation_root
   subscription: subscription_root
 }
+scalar date
 scalar jsonb
 scalar numeric
 scalar timestamptz
 scalar uuid
+"""
+columns and relationships of "body_measurements"
+"""
+type bodyMeasurements {
+  bodyFatPct: numeric
+  createdAt: timestamptz!
+  id: uuid!
+  measuredOn: date!
+  notes: String
+  updatedAt: timestamptz!
+  userId: uuid!
+  weightKg: numeric
+}
+"""
+aggregated selection of "body_measurements"
+"""
+type bodyMeasurements_aggregate {
+  aggregate: bodyMeasurements_aggregate_fields
+  nodes: [bodyMeasurements!]!
+}
+"""
+aggregate fields of "body_measurements"
+"""
+type bodyMeasurements_aggregate_fields {
+  avg: bodyMeasurements_avg_fields
+  count(columns: [bodyMeasurements_select_column!], distinct: Boolean): Int!
+  max: bodyMeasurements_max_fields
+  min: bodyMeasurements_min_fields
+  stddev: bodyMeasurements_stddev_fields
+  stddev_pop: bodyMeasurements_stddev_pop_fields
+  stddev_samp: bodyMeasurements_stddev_samp_fields
+  sum: bodyMeasurements_sum_fields
+  var_pop: bodyMeasurements_var_pop_fields
+  var_samp: bodyMeasurements_var_samp_fields
+  variance: bodyMeasurements_variance_fields
+}
+"aggregate avg on columns"
+type bodyMeasurements_avg_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate max on columns"
+type bodyMeasurements_max_fields {
+  bodyFatPct: numeric
+  createdAt: timestamptz
+  id: uuid
+  measuredOn: date
+  notes: String
+  updatedAt: timestamptz
+  userId: uuid
+  weightKg: numeric
+}
+"aggregate min on columns"
+type bodyMeasurements_min_fields {
+  bodyFatPct: numeric
+  createdAt: timestamptz
+  id: uuid
+  measuredOn: date
+  notes: String
+  updatedAt: timestamptz
+  userId: uuid
+  weightKg: numeric
+}
+"""
+response of any mutation on the table "body_measurements"
+"""
+type bodyMeasurements_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [bodyMeasurements!]!
+}
+"aggregate stddev on columns"
+type bodyMeasurements_stddev_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate stddev_pop on columns"
+type bodyMeasurements_stddev_pop_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate stddev_samp on columns"
+type bodyMeasurements_stddev_samp_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate sum on columns"
+type bodyMeasurements_sum_fields {
+  bodyFatPct: numeric
+  weightKg: numeric
+}
+"aggregate var_pop on columns"
+type bodyMeasurements_var_pop_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate var_samp on columns"
+type bodyMeasurements_var_samp_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
+"aggregate variance on columns"
+type bodyMeasurements_variance_fields {
+  bodyFatPct: Float
+  weightKg: Float
+}
 """
 columns and relationships of "exercise_categories"
 """
@@ -553,6 +661,212 @@ type files {
   uploadedByUserId: uuid
 }
 """
+columns and relationships of "journal_entries"
+"""
+type journalEntries {
+  body: String!
+  createdAt: timestamptz!
+  entryDate: date!
+  id: uuid!
+  "An array relationship"
+  journalEntryLabels(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): [journalEntryLabels!]!
+  "An aggregate relationship"
+  journalEntryLabels_aggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): journalEntryLabels_aggregate!
+  title: String
+  updatedAt: timestamptz!
+  userId: uuid!
+}
+"""
+aggregated selection of "journal_entries"
+"""
+type journalEntries_aggregate {
+  aggregate: journalEntries_aggregate_fields
+  nodes: [journalEntries!]!
+}
+"""
+aggregate fields of "journal_entries"
+"""
+type journalEntries_aggregate_fields {
+  count(columns: [journalEntries_select_column!], distinct: Boolean): Int!
+  max: journalEntries_max_fields
+  min: journalEntries_min_fields
+}
+"aggregate max on columns"
+type journalEntries_max_fields {
+  body: String
+  createdAt: timestamptz
+  entryDate: date
+  id: uuid
+  title: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"aggregate min on columns"
+type journalEntries_min_fields {
+  body: String
+  createdAt: timestamptz
+  entryDate: date
+  id: uuid
+  title: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"""
+response of any mutation on the table "journal_entries"
+"""
+type journalEntries_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [journalEntries!]!
+}
+"""
+columns and relationships of "journal_entry_labels"
+"""
+type journalEntryLabels {
+  createdAt: timestamptz!
+  "An object relationship"
+  journalEntry: journalEntries!
+  journalEntryId: uuid!
+  "An object relationship"
+  label: journalLabels!
+  labelId: uuid!
+}
+"""
+aggregated selection of "journal_entry_labels"
+"""
+type journalEntryLabels_aggregate {
+  aggregate: journalEntryLabels_aggregate_fields
+  nodes: [journalEntryLabels!]!
+}
+"""
+aggregate fields of "journal_entry_labels"
+"""
+type journalEntryLabels_aggregate_fields {
+  count(columns: [journalEntryLabels_select_column!], distinct: Boolean): Int!
+  max: journalEntryLabels_max_fields
+  min: journalEntryLabels_min_fields
+}
+"aggregate max on columns"
+type journalEntryLabels_max_fields {
+  createdAt: timestamptz
+  journalEntryId: uuid
+  labelId: uuid
+}
+"aggregate min on columns"
+type journalEntryLabels_min_fields {
+  createdAt: timestamptz
+  journalEntryId: uuid
+  labelId: uuid
+}
+"""
+response of any mutation on the table "journal_entry_labels"
+"""
+type journalEntryLabels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [journalEntryLabels!]!
+}
+"""
+columns and relationships of "journal_labels"
+"""
+type journalLabels {
+  createdAt: timestamptz!
+  id: uuid!
+  "An array relationship"
+  journalEntryLabels(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): [journalEntryLabels!]!
+  "An aggregate relationship"
+  journalEntryLabels_aggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): journalEntryLabels_aggregate!
+  name: String!
+  updatedAt: timestamptz!
+  userId: uuid!
+}
+"""
+aggregated selection of "journal_labels"
+"""
+type journalLabels_aggregate {
+  aggregate: journalLabels_aggregate_fields
+  nodes: [journalLabels!]!
+}
+"""
+aggregate fields of "journal_labels"
+"""
+type journalLabels_aggregate_fields {
+  count(columns: [journalLabels_select_column!], distinct: Boolean): Int!
+  max: journalLabels_max_fields
+  min: journalLabels_min_fields
+}
+"aggregate max on columns"
+type journalLabels_max_fields {
+  createdAt: timestamptz
+  id: uuid
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"aggregate min on columns"
+type journalLabels_min_fields {
+  createdAt: timestamptz
+  id: uuid
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"""
+response of any mutation on the table "journal_labels"
+"""
+type journalLabels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [journalLabels!]!
+}
+"""
 columns and relationships of "labels"
 """
 type labels {
@@ -716,6 +1030,17 @@ type muscleGroups_min_fields {
 "mutation root"
 type mutation_root {
   """
+  delete single row from the table: "body_measurements"
+  """
+  deleteBodyMeasurement(id: uuid!): bodyMeasurements
+  """
+  delete data from the table: "body_measurements"
+  """
+  deleteBodyMeasurements(
+    "filter the rows which have to be deleted"
+    where: bodyMeasurements_bool_exp!
+  ): bodyMeasurements_mutation_response
+  """
   delete single row from the table: "exercises"
   """
   deleteExercise(id: uuid!): exercises
@@ -726,6 +1051,39 @@ type mutation_root {
     "filter the rows which have to be deleted"
     where: exercises_bool_exp!
   ): exercises_mutation_response
+  """
+  delete data from the table: "journal_entries"
+  """
+  deleteJournalEntries(
+    "filter the rows which have to be deleted"
+    where: journalEntries_bool_exp!
+  ): journalEntries_mutation_response
+  """
+  delete single row from the table: "journal_entries"
+  """
+  deleteJournalEntry(id: uuid!): journalEntries
+  """
+  delete single row from the table: "journal_entry_labels"
+  """
+  deleteJournalEntryLabel(journalEntryId: uuid!, labelId: uuid!): journalEntryLabels
+  """
+  delete data from the table: "journal_entry_labels"
+  """
+  deleteJournalEntryLabels(
+    "filter the rows which have to be deleted"
+    where: journalEntryLabels_bool_exp!
+  ): journalEntryLabels_mutation_response
+  """
+  delete single row from the table: "journal_labels"
+  """
+  deleteJournalLabel(id: uuid!): journalLabels
+  """
+  delete data from the table: "journal_labels"
+  """
+  deleteJournalLabels(
+    "filter the rows which have to be deleted"
+    where: journalLabels_bool_exp!
+  ): journalLabels_mutation_response
   """
   delete single row from the table: "labels"
   """
@@ -804,6 +1162,24 @@ type mutation_root {
     where: workouts_bool_exp!
   ): workouts_mutation_response
   """
+  insert a single row into the table: "body_measurements"
+  """
+  insertBodyMeasurement(
+    "the row to be inserted"
+    object: bodyMeasurements_insert_input!,
+    "upsert condition"
+    on_conflict: bodyMeasurements_on_conflict
+  ): bodyMeasurements
+  """
+  insert data into the table: "body_measurements"
+  """
+  insertBodyMeasurements(
+    "the rows to be inserted"
+    objects: [bodyMeasurements_insert_input!]!,
+    "upsert condition"
+    on_conflict: bodyMeasurements_on_conflict
+  ): bodyMeasurements_mutation_response
+  """
   insert a single row into the table: "exercises"
   """
   insertExercise(
@@ -821,6 +1197,60 @@ type mutation_root {
     "upsert condition"
     on_conflict: exercises_on_conflict
   ): exercises_mutation_response
+  """
+  insert data into the table: "journal_entries"
+  """
+  insertJournalEntries(
+    "the rows to be inserted"
+    objects: [journalEntries_insert_input!]!,
+    "upsert condition"
+    on_conflict: journalEntries_on_conflict
+  ): journalEntries_mutation_response
+  """
+  insert a single row into the table: "journal_entries"
+  """
+  insertJournalEntry(
+    "the row to be inserted"
+    object: journalEntries_insert_input!,
+    "upsert condition"
+    on_conflict: journalEntries_on_conflict
+  ): journalEntries
+  """
+  insert a single row into the table: "journal_entry_labels"
+  """
+  insertJournalEntryLabel(
+    "the row to be inserted"
+    object: journalEntryLabels_insert_input!,
+    "upsert condition"
+    on_conflict: journalEntryLabels_on_conflict
+  ): journalEntryLabels
+  """
+  insert data into the table: "journal_entry_labels"
+  """
+  insertJournalEntryLabels(
+    "the rows to be inserted"
+    objects: [journalEntryLabels_insert_input!]!,
+    "upsert condition"
+    on_conflict: journalEntryLabels_on_conflict
+  ): journalEntryLabels_mutation_response
+  """
+  insert a single row into the table: "journal_labels"
+  """
+  insertJournalLabel(
+    "the row to be inserted"
+    object: journalLabels_insert_input!,
+    "upsert condition"
+    on_conflict: journalLabels_on_conflict
+  ): journalLabels
+  """
+  insert data into the table: "journal_labels"
+  """
+  insertJournalLabels(
+    "the rows to be inserted"
+    objects: [journalLabels_insert_input!]!,
+    "upsert condition"
+    on_conflict: journalLabels_on_conflict
+  ): journalLabels_mutation_response
   """
   insert a single row into the table: "labels"
   """
@@ -948,6 +1378,25 @@ type mutation_root {
     on_conflict: workouts_on_conflict
   ): workouts_mutation_response
   """
+  update single row of the table: "body_measurements"
+  """
+  updateBodyMeasurement(
+    "increments the numeric columns with given value of the filtered values"
+    _inc: bodyMeasurements_inc_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: bodyMeasurements_set_input,pk_columns: bodyMeasurements_pk_columns_input!  ): bodyMeasurements
+  """
+  update data of the table: "body_measurements"
+  """
+  updateBodyMeasurements(
+    "increments the numeric columns with given value of the filtered values"
+    _inc: bodyMeasurements_inc_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: bodyMeasurements_set_input,
+    "filter the rows which have to be updated"
+    where: bodyMeasurements_bool_exp!
+  ): bodyMeasurements_mutation_response
+  """
   update single row of the table: "exercises"
   """
   updateExercise(
@@ -962,6 +1411,36 @@ type mutation_root {
     "filter the rows which have to be updated"
     where: exercises_bool_exp!
   ): exercises_mutation_response
+  """
+  update data of the table: "journal_entries"
+  """
+  updateJournalEntries(
+    "sets the columns of the filtered rows to the given values"
+    _set: journalEntries_set_input,
+    "filter the rows which have to be updated"
+    where: journalEntries_bool_exp!
+  ): journalEntries_mutation_response
+  """
+  update single row of the table: "journal_entries"
+  """
+  updateJournalEntry(
+    "sets the columns of the filtered rows to the given values"
+    _set: journalEntries_set_input,pk_columns: journalEntries_pk_columns_input!  ): journalEntries
+  """
+  update single row of the table: "journal_labels"
+  """
+  updateJournalLabel(
+    "sets the columns of the filtered rows to the given values"
+    _set: journalLabels_set_input,pk_columns: journalLabels_pk_columns_input!  ): journalLabels
+  """
+  update data of the table: "journal_labels"
+  """
+  updateJournalLabels(
+    "sets the columns of the filtered rows to the given values"
+    _set: journalLabels_set_input,
+    "filter the rows which have to be updated"
+    where: journalLabels_bool_exp!
+  ): journalLabels_mutation_response
   """
   update single row of the table: "labels"
   """
@@ -1065,12 +1544,33 @@ type mutation_root {
     where: workouts_bool_exp!
   ): workouts_mutation_response
   """
+  update multiples rows of table: "body_measurements"
+  """
+  update_bodyMeasurements_many(
+    "updates to execute, in order"
+    updates: [bodyMeasurements_updates!]!
+  ): [bodyMeasurements_mutation_response]
+  """
   update multiples rows of table: "exercises"
   """
   update_exercises_many(
     "updates to execute, in order"
     updates: [exercises_updates!]!
   ): [exercises_mutation_response]
+  """
+  update multiples rows of table: "journal_entries"
+  """
+  update_journalEntries_many(
+    "updates to execute, in order"
+    updates: [journalEntries_updates!]!
+  ): [journalEntries_mutation_response]
+  """
+  update multiples rows of table: "journal_labels"
+  """
+  update_journalLabels_many(
+    "updates to execute, in order"
+    updates: [journalLabels_updates!]!
+  ): [journalLabels_mutation_response]
   """
   update multiples rows of table: "labels"
   """
@@ -1115,6 +1615,40 @@ type mutation_root {
   ): [workouts_mutation_response]
 }
 type query_root {
+  """
+  fetch data from the table: "body_measurements" using primary key columns
+  """
+  bodyMeasurement(id: uuid!): bodyMeasurements
+  """
+  fetch data from the table: "body_measurements"
+  """
+  bodyMeasurements(
+    "distinct select on columns"
+    distinct_on: [bodyMeasurements_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [bodyMeasurements_order_by!],
+    "filter the rows returned"
+    where: bodyMeasurements_bool_exp
+  ): [bodyMeasurements!]!
+  """
+  fetch aggregated fields from the table: "body_measurements"
+  """
+  bodyMeasurementsAggregate(
+    "distinct select on columns"
+    distinct_on: [bodyMeasurements_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [bodyMeasurements_order_by!],
+    "filter the rows returned"
+    where: bodyMeasurements_bool_exp
+  ): bodyMeasurements_aggregate!
   """
   fetch data from the table: "exercises" using primary key columns
   """
@@ -1368,6 +1902,106 @@ type query_root {
     "filter the rows returned"
     where: files_bool_exp
   ): [files!]!
+  """
+  fetch data from the table: "journal_entries"
+  """
+  journalEntries(
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): [journalEntries!]!
+  """
+  fetch aggregated fields from the table: "journal_entries"
+  """
+  journalEntriesAggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): journalEntries_aggregate!
+  """
+  fetch data from the table: "journal_entries" using primary key columns
+  """
+  journalEntry(id: uuid!): journalEntries
+  """
+  fetch data from the table: "journal_entry_labels" using primary key columns
+  """
+  journalEntryLabel(journalEntryId: uuid!, labelId: uuid!): journalEntryLabels
+  "An array relationship"
+  journalEntryLabels(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): [journalEntryLabels!]!
+  """
+  fetch aggregated fields from the table: "journal_entry_labels"
+  """
+  journalEntryLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): journalEntryLabels_aggregate!
+  """
+  fetch data from the table: "journal_labels" using primary key columns
+  """
+  journalLabel(id: uuid!): journalLabels
+  """
+  fetch data from the table: "journal_labels"
+  """
+  journalLabels(
+    "distinct select on columns"
+    distinct_on: [journalLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalLabels_order_by!],
+    "filter the rows returned"
+    where: journalLabels_bool_exp
+  ): [journalLabels!]!
+  """
+  fetch aggregated fields from the table: "journal_labels"
+  """
+  journalLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [journalLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalLabels_order_by!],
+    "filter the rows returned"
+    where: journalLabels_bool_exp
+  ): journalLabels_aggregate!
   """
   fetch data from the table: "labels" using primary key columns
   """
@@ -1632,6 +2266,51 @@ type query_root {
   ): workouts_aggregate!
 }
 type subscription_root {
+  """
+  fetch data from the table: "body_measurements" using primary key columns
+  """
+  bodyMeasurement(id: uuid!): bodyMeasurements
+  """
+  fetch data from the table: "body_measurements"
+  """
+  bodyMeasurements(
+    "distinct select on columns"
+    distinct_on: [bodyMeasurements_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [bodyMeasurements_order_by!],
+    "filter the rows returned"
+    where: bodyMeasurements_bool_exp
+  ): [bodyMeasurements!]!
+  """
+  fetch aggregated fields from the table: "body_measurements"
+  """
+  bodyMeasurementsAggregate(
+    "distinct select on columns"
+    distinct_on: [bodyMeasurements_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [bodyMeasurements_order_by!],
+    "filter the rows returned"
+    where: bodyMeasurements_bool_exp
+  ): bodyMeasurements_aggregate!
+  """
+  fetch data from the table in a streaming manner: "body_measurements"
+  """
+  bodyMeasurements_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [bodyMeasurements_stream_cursor_input]!,
+    "filter the rows returned"
+    where: bodyMeasurements_bool_exp
+  ): [bodyMeasurements!]!
   """
   fetch data from the table: "exercises" using primary key columns
   """
@@ -1973,6 +2652,139 @@ type subscription_root {
     "filter the rows returned"
     where: files_bool_exp
   ): [files!]!
+  """
+  fetch data from the table: "journal_entries"
+  """
+  journalEntries(
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): [journalEntries!]!
+  """
+  fetch aggregated fields from the table: "journal_entries"
+  """
+  journalEntriesAggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): journalEntries_aggregate!
+  """
+  fetch data from the table in a streaming manner: "journal_entries"
+  """
+  journalEntries_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [journalEntries_stream_cursor_input]!,
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): [journalEntries!]!
+  """
+  fetch data from the table: "journal_entries" using primary key columns
+  """
+  journalEntry(id: uuid!): journalEntries
+  """
+  fetch data from the table: "journal_entry_labels" using primary key columns
+  """
+  journalEntryLabel(journalEntryId: uuid!, labelId: uuid!): journalEntryLabels
+  "An array relationship"
+  journalEntryLabels(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): [journalEntryLabels!]!
+  """
+  fetch aggregated fields from the table: "journal_entry_labels"
+  """
+  journalEntryLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [journalEntryLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntryLabels_order_by!],
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): journalEntryLabels_aggregate!
+  """
+  fetch data from the table in a streaming manner: "journal_entry_labels"
+  """
+  journalEntryLabels_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [journalEntryLabels_stream_cursor_input]!,
+    "filter the rows returned"
+    where: journalEntryLabels_bool_exp
+  ): [journalEntryLabels!]!
+  """
+  fetch data from the table: "journal_labels" using primary key columns
+  """
+  journalLabel(id: uuid!): journalLabels
+  """
+  fetch data from the table: "journal_labels"
+  """
+  journalLabels(
+    "distinct select on columns"
+    distinct_on: [journalLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalLabels_order_by!],
+    "filter the rows returned"
+    where: journalLabels_bool_exp
+  ): [journalLabels!]!
+  """
+  fetch aggregated fields from the table: "journal_labels"
+  """
+  journalLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [journalLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalLabels_order_by!],
+    "filter the rows returned"
+    where: journalLabels_bool_exp
+  ): journalLabels_aggregate!
+  """
+  fetch data from the table in a streaming manner: "journal_labels"
+  """
+  journalLabels_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [journalLabels_stream_cursor_input]!,
+    "filter the rows returned"
+    where: journalLabels_bool_exp
+  ): [journalLabels!]!
   """
   fetch data from the table: "labels" using primary key columns
   """
@@ -2919,6 +3731,53 @@ type workouts_mutation_response {
   "data from the rows affected by the mutation"
   returning: [workouts!]!
 }
+"""
+unique or primary key constraints on table "body_measurements"
+"""
+enum bodyMeasurements_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  body_measurements_pkey
+  """
+  unique or primary key constraint on columns "measured_on", "user_id"
+  """
+  body_measurements_user_date_key
+}
+"""
+select columns of table "body_measurements"
+"""
+enum bodyMeasurements_select_column {
+  "column name"
+  bodyFatPct
+  "column name"
+  createdAt
+  "column name"
+  id
+  "column name"
+  measuredOn
+  "column name"
+  notes
+  "column name"
+  updatedAt
+  "column name"
+  userId
+  "column name"
+  weightKg
+}
+"""
+update columns of table "body_measurements"
+"""
+enum bodyMeasurements_update_column {
+  "column name"
+  bodyFatPct
+  "column name"
+  measuredOn
+  "column name"
+  notes
+  "column name"
+  weightKg
+}
 "ordering argument of a cursor"
 enum cursor_ordering {
   "ascending ordering of the cursor"
@@ -3144,6 +4003,107 @@ enum files_select_column {
   updatedAt
   "column name"
   uploadedByUserId
+}
+"""
+unique or primary key constraints on table "journal_entries"
+"""
+enum journalEntries_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  journal_entries_pkey
+}
+"""
+select columns of table "journal_entries"
+"""
+enum journalEntries_select_column {
+  "column name"
+  body
+  "column name"
+  createdAt
+  "column name"
+  entryDate
+  "column name"
+  id
+  "column name"
+  title
+  "column name"
+  updatedAt
+  "column name"
+  userId
+}
+"""
+update columns of table "journal_entries"
+"""
+enum journalEntries_update_column {
+  "column name"
+  body
+  "column name"
+  entryDate
+  "column name"
+  title
+}
+"""
+unique or primary key constraints on table "journal_entry_labels"
+"""
+enum journalEntryLabels_constraint {
+  """
+  unique or primary key constraint on columns "label_id", "journal_entry_id"
+  """
+  journal_entry_labels_pkey
+}
+"""
+select columns of table "journal_entry_labels"
+"""
+enum journalEntryLabels_select_column {
+  "column name"
+  createdAt
+  "column name"
+  journalEntryId
+  "column name"
+  labelId
+}
+"""
+placeholder for update columns of table "journal_entry_labels" (current role has no relevant permissions)
+"""
+enum journalEntryLabels_update_column {
+  "placeholder (do not use)"
+  _PLACEHOLDER
+}
+"""
+unique or primary key constraints on table "journal_labels"
+"""
+enum journalLabels_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  journal_labels_pkey
+  """
+  unique or primary key constraint on columns "user_id", "name"
+  """
+  journal_labels_user_name_key
+}
+"""
+select columns of table "journal_labels"
+"""
+enum journalLabels_select_column {
+  "column name"
+  createdAt
+  "column name"
+  id
+  "column name"
+  name
+  "column name"
+  updatedAt
+  "column name"
+  userId
+}
+"""
+update columns of table "journal_labels"
+"""
+enum journalLabels_update_column {
+  "column name"
+  name
 }
 """
 unique or primary key constraints on table "labels"
@@ -3526,6 +4486,114 @@ input String_comparison_exp {
   _regex: String
   "does the column match the given SQL regular expression"
   _similar: String
+}
+"""
+Boolean expression to filter rows from the table "body_measurements". All fields are combined with a logical 'AND'.
+"""
+input bodyMeasurements_bool_exp {
+  _and: [bodyMeasurements_bool_exp!]
+  _not: bodyMeasurements_bool_exp
+  _or: [bodyMeasurements_bool_exp!]
+  bodyFatPct: numeric_comparison_exp
+  createdAt: timestamptz_comparison_exp
+  id: uuid_comparison_exp
+  measuredOn: date_comparison_exp
+  notes: String_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+  weightKg: numeric_comparison_exp
+}
+"""
+input type for incrementing numeric columns in table "body_measurements"
+"""
+input bodyMeasurements_inc_input {
+  bodyFatPct: numeric
+  weightKg: numeric
+}
+"""
+input type for inserting data into table "body_measurements"
+"""
+input bodyMeasurements_insert_input {
+  bodyFatPct: numeric
+  measuredOn: date
+  notes: String
+  weightKg: numeric
+}
+"""
+on_conflict condition type for table "body_measurements"
+"""
+input bodyMeasurements_on_conflict {
+  constraint: bodyMeasurements_constraint!
+  update_columns: [bodyMeasurements_update_column!]! = []
+  where: bodyMeasurements_bool_exp
+}
+"""
+Ordering options when selecting data from "body_measurements".
+"""
+input bodyMeasurements_order_by {
+  bodyFatPct: order_by
+  createdAt: order_by
+  id: order_by
+  measuredOn: order_by
+  notes: order_by
+  updatedAt: order_by
+  userId: order_by
+  weightKg: order_by
+}
+"primary key columns input for table: body_measurements"
+input bodyMeasurements_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "body_measurements"
+"""
+input bodyMeasurements_set_input {
+  bodyFatPct: numeric
+  measuredOn: date
+  notes: String
+  weightKg: numeric
+}
+"""
+Streaming cursor of the table "bodyMeasurements"
+"""
+input bodyMeasurements_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: bodyMeasurements_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input bodyMeasurements_stream_cursor_value_input {
+  bodyFatPct: numeric
+  createdAt: timestamptz
+  id: uuid
+  measuredOn: date
+  notes: String
+  updatedAt: timestamptz
+  userId: uuid
+  weightKg: numeric
+}
+input bodyMeasurements_updates {
+  "increments the numeric columns with given value of the filtered values"
+  _inc: bodyMeasurements_inc_input
+  "sets the columns of the filtered rows to the given values"
+  _set: bodyMeasurements_set_input
+  "filter the rows which have to be updated"
+  where: bodyMeasurements_bool_exp!
+}
+"""
+Boolean expression to compare columns of type "date". All fields are combined with logical 'AND'.
+"""
+input date_comparison_exp {
+  _eq: date
+  _gt: date
+  _gte: date
+  _in: [date!]
+  _is_null: Boolean
+  _lt: date
+  _lte: date
+  _neq: date
+  _nin: [date!]
 }
 """
 Boolean expression to filter rows from the table "exercise_categories". All fields are combined with a logical 'AND'.
@@ -4080,6 +5148,276 @@ input files_stream_cursor_value_input {
   size: Int
   updatedAt: timestamptz
   uploadedByUserId: uuid
+}
+"""
+Boolean expression to filter rows from the table "journal_entries". All fields are combined with a logical 'AND'.
+"""
+input journalEntries_bool_exp {
+  _and: [journalEntries_bool_exp!]
+  _not: journalEntries_bool_exp
+  _or: [journalEntries_bool_exp!]
+  body: String_comparison_exp
+  createdAt: timestamptz_comparison_exp
+  entryDate: date_comparison_exp
+  id: uuid_comparison_exp
+  journalEntryLabels: journalEntryLabels_bool_exp
+  journalEntryLabels_aggregate: journalEntryLabels_aggregate_bool_exp
+  title: String_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "journal_entries"
+"""
+input journalEntries_insert_input {
+  body: String
+  entryDate: date
+  journalEntryLabels: journalEntryLabels_arr_rel_insert_input
+  title: String
+}
+"""
+input type for inserting object relation for remote table "journal_entries"
+"""
+input journalEntries_obj_rel_insert_input {
+  data: journalEntries_insert_input!
+  "upsert condition"
+  on_conflict: journalEntries_on_conflict
+}
+"""
+on_conflict condition type for table "journal_entries"
+"""
+input journalEntries_on_conflict {
+  constraint: journalEntries_constraint!
+  update_columns: [journalEntries_update_column!]! = []
+  where: journalEntries_bool_exp
+}
+"""
+Ordering options when selecting data from "journal_entries".
+"""
+input journalEntries_order_by {
+  body: order_by
+  createdAt: order_by
+  entryDate: order_by
+  id: order_by
+  journalEntryLabels_aggregate: journalEntryLabels_aggregate_order_by
+  title: order_by
+  updatedAt: order_by
+  userId: order_by
+}
+"primary key columns input for table: journal_entries"
+input journalEntries_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "journal_entries"
+"""
+input journalEntries_set_input {
+  body: String
+  entryDate: date
+  title: String
+}
+"""
+Streaming cursor of the table "journalEntries"
+"""
+input journalEntries_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: journalEntries_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input journalEntries_stream_cursor_value_input {
+  body: String
+  createdAt: timestamptz
+  entryDate: date
+  id: uuid
+  title: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+input journalEntries_updates {
+  "sets the columns of the filtered rows to the given values"
+  _set: journalEntries_set_input
+  "filter the rows which have to be updated"
+  where: journalEntries_bool_exp!
+}
+input journalEntryLabels_aggregate_bool_exp {
+  count: journalEntryLabels_aggregate_bool_exp_count
+}
+input journalEntryLabels_aggregate_bool_exp_count {
+  arguments: [journalEntryLabels_select_column!]
+  distinct: Boolean
+  filter: journalEntryLabels_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+order by aggregate values of table "journal_entry_labels"
+"""
+input journalEntryLabels_aggregate_order_by {
+  count: order_by
+  max: journalEntryLabels_max_order_by
+  min: journalEntryLabels_min_order_by
+}
+"""
+input type for inserting array relation for remote table "journal_entry_labels"
+"""
+input journalEntryLabels_arr_rel_insert_input {
+  data: [journalEntryLabels_insert_input!]!
+  "upsert condition"
+  on_conflict: journalEntryLabels_on_conflict
+}
+"""
+Boolean expression to filter rows from the table "journal_entry_labels". All fields are combined with a logical 'AND'.
+"""
+input journalEntryLabels_bool_exp {
+  _and: [journalEntryLabels_bool_exp!]
+  _not: journalEntryLabels_bool_exp
+  _or: [journalEntryLabels_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  journalEntry: journalEntries_bool_exp
+  journalEntryId: uuid_comparison_exp
+  label: journalLabels_bool_exp
+  labelId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "journal_entry_labels"
+"""
+input journalEntryLabels_insert_input {
+  journalEntry: journalEntries_obj_rel_insert_input
+  journalEntryId: uuid
+  label: journalLabels_obj_rel_insert_input
+  labelId: uuid
+}
+"""
+order by max() on columns of table "journal_entry_labels"
+"""
+input journalEntryLabels_max_order_by {
+  createdAt: order_by
+  journalEntryId: order_by
+  labelId: order_by
+}
+"""
+order by min() on columns of table "journal_entry_labels"
+"""
+input journalEntryLabels_min_order_by {
+  createdAt: order_by
+  journalEntryId: order_by
+  labelId: order_by
+}
+"""
+on_conflict condition type for table "journal_entry_labels"
+"""
+input journalEntryLabels_on_conflict {
+  constraint: journalEntryLabels_constraint!
+  update_columns: [journalEntryLabels_update_column!]! = []
+  where: journalEntryLabels_bool_exp
+}
+"""
+Ordering options when selecting data from "journal_entry_labels".
+"""
+input journalEntryLabels_order_by {
+  createdAt: order_by
+  journalEntry: journalEntries_order_by
+  journalEntryId: order_by
+  label: journalLabels_order_by
+  labelId: order_by
+}
+"""
+Streaming cursor of the table "journalEntryLabels"
+"""
+input journalEntryLabels_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: journalEntryLabels_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input journalEntryLabels_stream_cursor_value_input {
+  createdAt: timestamptz
+  journalEntryId: uuid
+  labelId: uuid
+}
+"""
+Boolean expression to filter rows from the table "journal_labels". All fields are combined with a logical 'AND'.
+"""
+input journalLabels_bool_exp {
+  _and: [journalLabels_bool_exp!]
+  _not: journalLabels_bool_exp
+  _or: [journalLabels_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  id: uuid_comparison_exp
+  journalEntryLabels: journalEntryLabels_bool_exp
+  journalEntryLabels_aggregate: journalEntryLabels_aggregate_bool_exp
+  name: String_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "journal_labels"
+"""
+input journalLabels_insert_input {
+  journalEntryLabels: journalEntryLabels_arr_rel_insert_input
+  name: String
+}
+"""
+input type for inserting object relation for remote table "journal_labels"
+"""
+input journalLabels_obj_rel_insert_input {
+  data: journalLabels_insert_input!
+  "upsert condition"
+  on_conflict: journalLabels_on_conflict
+}
+"""
+on_conflict condition type for table "journal_labels"
+"""
+input journalLabels_on_conflict {
+  constraint: journalLabels_constraint!
+  update_columns: [journalLabels_update_column!]! = []
+  where: journalLabels_bool_exp
+}
+"""
+Ordering options when selecting data from "journal_labels".
+"""
+input journalLabels_order_by {
+  createdAt: order_by
+  id: order_by
+  journalEntryLabels_aggregate: journalEntryLabels_aggregate_order_by
+  name: order_by
+  updatedAt: order_by
+  userId: order_by
+}
+"primary key columns input for table: journal_labels"
+input journalLabels_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "journal_labels"
+"""
+input journalLabels_set_input {
+  name: String
+}
+"""
+Streaming cursor of the table "journalLabels"
+"""
+input journalLabels_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: journalLabels_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input journalLabels_stream_cursor_value_input {
+  createdAt: timestamptz
+  id: uuid
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+input journalLabels_updates {
+  "sets the columns of the filtered rows to the given values"
+  _set: journalLabels_set_input
+  "filter the rows which have to be updated"
+  where: journalLabels_bool_exp!
 }
 input jsonb_cast_exp {
   String: String_comparison_exp

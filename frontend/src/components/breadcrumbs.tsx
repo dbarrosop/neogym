@@ -28,6 +28,14 @@ const ROUTES: Record<string, RouteDef> = {
     label: "Exercise",
     parent: "/sessions/$sessionId",
   },
+  "/body": { label: "Body", parent: null },
+  "/body/new": { label: "New", parent: "/body" },
+  "/body/$id": { label: "Measurement", parent: "/body" },
+  "/body/$id/edit": { label: "Edit", parent: "/body/$id" },
+  "/journal": { label: "Journal", parent: null },
+  "/journal/new": { label: "New", parent: "/journal" },
+  "/journal/$id": { label: "Entry", parent: "/journal" },
+  "/journal/$id/edit": { label: "Edit", parent: "/journal/$id" },
   "/profile": { label: "Profile", parent: null },
 };
 
@@ -144,6 +152,10 @@ function CrumbLabel({ crumb }: { crumb: Crumb }) {
     case "/workouts/$workoutId/exercises/$exerciseId":
     case "/sessions/$sessionId/exercises/$exerciseId":
       return <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />;
+    case "/body/$id":
+      return <BodyMeasurementLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />;
+    case "/journal/$id":
+      return <JournalEntryLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />;
     default:
       return <>{crumb.label}</>;
   }
@@ -216,4 +228,64 @@ function SessionLabel({ id, fallback }: { id: string; fallback: string }) {
     day: "numeric",
   });
   return <>{session.workout?.name ? `${session.workout.name} · ${date}` : date}</>;
+}
+
+const BreadcrumbBodyMeasurementQuery = graphql(`
+  query BreadcrumbBodyMeasurement($id: uuid!) {
+    bodyMeasurement(id: $id) {
+      id
+      measuredOn
+    }
+  }
+`);
+
+function BodyMeasurementLabel({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["body_measurements", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbBodyMeasurementQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  const m = data?.bodyMeasurement;
+  if (!m) {
+    return <>{fallback}</>;
+  }
+  return <>{formatDateOnly(m.measuredOn)}</>;
+}
+
+const BreadcrumbJournalEntryQuery = graphql(`
+  query BreadcrumbJournalEntry($id: uuid!) {
+    journalEntry(id: $id) {
+      id
+      entryDate
+      title
+    }
+  }
+`);
+
+function JournalEntryLabel({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["journal_entries", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbJournalEntryQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  const e = data?.journalEntry;
+  if (!e) {
+    return <>{fallback}</>;
+  }
+  return <>{e.title ?? formatDateOnly(e.entryDate)}</>;
+}
+
+// `entry_date` / `measured_on` are naive dates (YYYY-MM-DD); parse as local
+// to avoid the UTC drift that `new Date(iso)` introduces near midnight.
+function formatDateOnly(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) {
+    return iso;
+  }
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
 }
