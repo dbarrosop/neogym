@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { todayLocalISO } from "@/components/body-measurement-form";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { graphql } from "@/gql";
 import { JournalLabels_Constraint } from "@/gql/graphql";
+import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 const JournalLabelsForFormQuery = graphql(`

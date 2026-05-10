@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 const BodyMeasurementByIdQuery = graphql(`
@@ -51,7 +52,7 @@ function BodyMeasurementDetailRoute() {
                 Measurement
               </p>
               <CardTitle className="text-2xl tabular-nums tracking-tight">
-                {formatDate(m.measuredOn)}
+                {formatDateLong(m.measuredOn)}
               </CardTitle>
             </div>
             <Button asChild size="icon" variant="ghost" aria-label="Edit measurement">
@@ -107,19 +108,6 @@ function Stat({ label, value }: { label: string; value: string }) {
       <dd className="text-xl font-medium tabular-nums">{value}</dd>
     </div>
   );
-}
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) {
-    return iso;
-  }
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function DetailSkeleton() {

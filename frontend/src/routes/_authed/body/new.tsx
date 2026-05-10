@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import {
   BodyMeasurementForm,
   type BodyMeasurementFormValues,
-  todayLocalISO,
 } from "@/components/body-measurement-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { graphql } from "@/gql";
+import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 const InsertBodyMeasurementMutation = graphql(`

@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { JournalEntries_Bool_Exp } from "@/gql/graphql";
+import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { cn } from "@/lib/utils";
 
@@ -161,7 +162,7 @@ function JournalRoute() {
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-baseline gap-2">
                           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-                            {formatDate(e.entryDate)}
+                            {formatDateLong(e.entryDate)}
                           </p>
                           {e.title ? (
                             <h2 className="min-w-0 truncate text-sm font-medium">{e.title}</h2>
@@ -290,19 +291,6 @@ function FilterPill({
       {children}
     </button>
   );
-}
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) {
-    return iso;
-  }
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function JournalSkeleton() {

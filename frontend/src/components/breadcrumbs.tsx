@@ -3,6 +3,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 import { Fragment } from "react";
 import { graphql } from "@/gql";
+import { formatDateShort } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 type RouteDef = { label: string; parent: string | null };
@@ -250,7 +251,7 @@ function BodyMeasurementLabel({ id, fallback }: { id: string; fallback: string }
   if (!m) {
     return <>{fallback}</>;
   }
-  return <>{formatDateOnly(m.measuredOn)}</>;
+  return <>{formatDateShort(m.measuredOn)}</>;
 }
 
 const BreadcrumbJournalEntryQuery = graphql(`
@@ -274,18 +275,5 @@ function JournalEntryLabel({ id, fallback }: { id: string; fallback: string }) {
   if (!e) {
     return <>{fallback}</>;
   }
-  return <>{e.title ?? formatDateOnly(e.entryDate)}</>;
-}
-
-// `entry_date` / `measured_on` are naive dates (YYYY-MM-DD); parse as local
-// to avoid the UTC drift that `new Date(iso)` introduces near midnight.
-function formatDateOnly(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) {
-    return iso;
-  }
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
+  return <>{e.title ?? formatDateShort(e.entryDate)}</>;
 }

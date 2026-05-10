@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { formatDateLong, parseDateOnly } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 const BodyMeasurementsQuery = graphql(`
@@ -35,9 +36,14 @@ function BodyRoute() {
 
   const chartPoints = useMemo<BodyMetricsPoint[]>(() => {
     return [...measurements]
-      .sort((a, b) => new Date(a.measuredOn).getTime() - new Date(b.measuredOn).getTime())
-      .map((m) => ({
-        date: new Date(m.measuredOn).getTime(),
+      .map((m) => {
+        const date = parseDateOnly(m.measuredOn);
+        return date ? { measurement: m, time: date.getTime() } : null;
+      })
+      .filter((x): x is { measurement: (typeof measurements)[number]; time: number } => x !== null)
+      .sort((a, b) => a.time - b.time)
+      .map(({ measurement: m, time }) => ({
+        date: time,
         weightKg: m.weightKg !== null && m.weightKg !== undefined ? Number(m.weightKg) : null,
         bodyFatPct:
           m.bodyFatPct !== null && m.bodyFatPct !== undefined ? Number(m.bodyFatPct) : null,
@@ -92,7 +98,9 @@ function BodyRoute() {
                 <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                   <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0 space-y-0.5">
-                      <p className="text-sm font-medium tabular-nums">{formatDate(m.measuredOn)}</p>
+                      <p className="text-sm font-medium tabular-nums">
+                        {formatDateLong(m.measuredOn)}
+                      </p>
                       <p className="text-xs text-muted-foreground tabular-nums">
                         {formatValues(m.weightKg, m.bodyFatPct)}
                       </p>
@@ -135,20 +143,6 @@ function BodyRoute() {
       </div>
     </section>
   );
-}
-
-function formatDate(iso: string): string {
-  // Date inputs are naive (YYYY-MM-DD); parse as local to avoid TZ shifts.
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) {
-    return iso;
-  }
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatValues(

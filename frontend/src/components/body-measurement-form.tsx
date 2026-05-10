@@ -21,12 +21,13 @@ interface BodyMeasurementFormProps {
 
 const NUMERIC = /^\d{0,3}(\.\d{0,2})?$/;
 
-export function todayLocalISO(): string {
-  // en-CA locale yields YYYY-MM-DD using the user's local timezone, which is
-  // what <input type="date"> expects. Avoids the UTC drift that
-  // toISOString().slice(0,10) introduces near midnight.
-  return new Date().toLocaleDateString("en-CA");
-}
+// Mirror the DB CHECK constraints in
+// backend/nhost/migrations/default/1790000000000_body_measurements/up.sql so
+// the user gets inline feedback rather than a generic Hasura error toast.
+const WEIGHT_MIN = 0;
+const WEIGHT_MAX = 500;
+const FAT_MIN = 0;
+const FAT_MAX = 100;
 
 export function BodyMeasurementForm({
   initialValues,
@@ -64,6 +65,20 @@ export function BodyMeasurementForm({
     if (!hasValue) {
       setError("Enter a weight, a body-fat %, or both.");
       return;
+    }
+    if (trimmedWeight) {
+      const w = Number(trimmedWeight);
+      if (!Number.isFinite(w) || w <= WEIGHT_MIN || w >= WEIGHT_MAX) {
+        setError(`Weight must be greater than 0 and less than ${WEIGHT_MAX} kg.`);
+        return;
+      }
+    }
+    if (trimmedFat) {
+      const f = Number(trimmedFat);
+      if (!Number.isFinite(f) || f < FAT_MIN || f > FAT_MAX) {
+        setError(`Body fat must be between ${FAT_MIN} and ${FAT_MAX} %.`);
+        return;
+      }
     }
     setError(null);
     onSubmit({

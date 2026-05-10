@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
 const JournalEntryByIdQuery = graphql(`
@@ -55,7 +56,7 @@ function JournalEntryDetailRoute() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-                {formatDate(entry.entryDate)}
+                {formatDateLong(entry.entryDate)}
               </p>
               <CardTitle className="text-2xl tracking-tight">
                 {entry.title ?? "Untitled entry"}
@@ -90,19 +91,6 @@ function JournalEntryDetailRoute() {
       <div className="mx-auto max-w-2xl space-y-6">{renderContent()}</div>
     </section>
   );
-}
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  if (!y || !m || !d) {
-    return iso;
-  }
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function DetailSkeleton() {
