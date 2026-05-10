@@ -19,7 +19,7 @@ CREATE TABLE public.body_measurements (
   CONSTRAINT body_measurements_weight_kg_range_check
     CHECK (weight_kg IS NULL OR (weight_kg > 0 AND weight_kg < 500)),
   CONSTRAINT body_measurements_body_fat_pct_range_check
-    CHECK (body_fat_pct IS NULL OR (body_fat_pct >= 0 AND body_fat_pct <= 100))
+    CHECK (body_fat_pct IS NULL OR (body_fat_pct >= 0 AND body_fat_pct < 100))
 );
 CREATE INDEX body_measurements_user_date_idx
   ON public.body_measurements(user_id, measured_on DESC);

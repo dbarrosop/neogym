@@ -4,8 +4,8 @@ SET check_function_bodies = false;
 -- Roughly weekly weigh-ins for the seeded test user across the same window
 -- as the seeded workout sessions (2025-09 through 2026-05). Tells a "cut →
 -- lean bulk" arc: starts heavier, drops to mid-15% bf by Feb, then slow
--- recomp through spring. A few entries are weight-only so the chart shows
--- gaps in the body-fat line.
+-- recomp through spring. A few entries are weight-only — body-fat readings
+-- are optional and the trend chart bridges across the missing points.
 INSERT INTO public.body_measurements (id, user_id, measured_on, weight_kg, body_fat_pct, notes) VALUES
   (gen_random_uuid(), 'f26ac88d-4dcd-48e8-a0ae-b4248918bc1c', '2025-09-04', 83.2, 22.0, 'First weigh-in. Starting the cut.'),
   (gen_random_uuid(), 'f26ac88d-4dcd-48e8-a0ae-b4248918bc1c', '2025-09-11', 82.7, 21.6, NULL),

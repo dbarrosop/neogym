@@ -75,8 +75,8 @@ export function BodyMeasurementForm({
     }
     if (trimmedFat) {
       const f = Number(trimmedFat);
-      if (!Number.isFinite(f) || f < FAT_MIN || f > FAT_MAX) {
-        setError(`Body fat must be between ${FAT_MIN} and ${FAT_MAX} %.`);
+      if (!Number.isFinite(f) || f < FAT_MIN || f >= FAT_MAX) {
+        setError(`Body fat must be at least ${FAT_MIN} % and less than ${FAT_MAX} %.`);
         return;
       }
     }
