@@ -44,7 +44,7 @@ function SignUpRoute() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate({ to: "/profile" });
+      navigate({ to: "/" });
     }
   }, [isAuthenticated, navigate]);
 
@@ -73,7 +73,7 @@ function SignUpRoute() {
         otp: code,
       });
       if (response.body?.session) {
-        navigate({ to: "/profile" });
+        navigate({ to: "/" });
       } else {
         toast.error("Verification failed", {
           description: "We couldn't verify that code. Try again.",
