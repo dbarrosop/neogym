@@ -108,7 +108,7 @@ function EditWorkoutRoute() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["workouts", "detail", workoutId],
+    queryKey: ["workouts", "edit", workoutId],
     queryFn: () => gqlRequest(EditWorkoutQuery, { id: workoutId }),
   });
 
