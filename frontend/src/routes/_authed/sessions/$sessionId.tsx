@@ -2,7 +2,7 @@ import type { ResultOf } from "@graphql-typed-document-node/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Flame, Hash, History, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type SyntheticEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { AlternatingStorageImage } from "@/components/storage-image";
@@ -774,7 +774,7 @@ function SetDialog({
 
   const submitLabel = mode === "edit" ? "Save" : "Log set";
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: SyntheticEvent) {
     e.preventDefault();
     const w = Number(weight);
     const r = Number(reps);
