@@ -33,6 +33,10 @@ const WorkoutDetailQuery = graphql(`
       }
       workoutLabels {
         labelId
+        label {
+          id
+          name
+        }
       }
     }
   }
@@ -92,7 +96,7 @@ function WorkoutDetailRoute() {
               {workout.workoutLabels.map((wl) => (
                 <Badge key={wl.labelId} variant="primary">
                   <Tag className="h-3 w-3" />
-                  {wl.labelId}
+                  {wl.label.name}
                 </Badge>
               ))}
             </div>

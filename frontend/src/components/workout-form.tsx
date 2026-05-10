@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
-import { LabelInput } from "@/components/label-input";
+import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,7 +48,7 @@ export interface WorkoutFormValues {
   name: string;
   description: string;
   exercises: WorkoutFormExercise[];
-  labels: string[];
+  labels: LabelSelection[];
 }
 
 interface WorkoutFormProps {
@@ -57,8 +57,8 @@ interface WorkoutFormProps {
   onSubmit: (values: WorkoutFormValues) => void;
   onCancel: () => void;
   isSubmitting: boolean;
-  /** Existing labels owned by the user — used for autocomplete in the label input. */
-  labelSuggestions: string[];
+  /** Labels visible to the user (own + public) — fed to the LabelInput autocomplete. */
+  labelSuggestions: LabelSuggestion[];
   /** Optional extra controls (e.g. delete button) rendered below submit. */
   extraActions?: React.ReactNode;
 }
@@ -75,7 +75,7 @@ export function WorkoutForm({
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [exercises, setExercises] = useState<WorkoutFormExercise[]>(initialValues.exercises);
-  const [labels, setLabels] = useState<string[]>(initialValues.labels);
+  const [labels, setLabels] = useState<LabelSelection[]>(initialValues.labels);
   const [pickerOpen, setPickerOpen] = useState(false);
   const nameId = useId();
   const descId = useId();

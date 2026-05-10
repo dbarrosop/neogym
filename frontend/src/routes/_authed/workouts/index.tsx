@@ -26,10 +26,15 @@ const WorkoutsIndexQuery = graphql(`
       }
       workoutLabels {
         labelId
+        label {
+          id
+          name
+        }
       }
     }
-    labels(order_by: { id: asc }) {
+    labels(order_by: { name: asc }) {
       id
+      name
     }
   }
 `);
@@ -48,7 +53,7 @@ function WorkoutsRoute() {
     queryFn: () => gqlRequest(WorkoutsIndexQuery),
   });
 
-  const allLabels = useMemo(() => (data?.labels ?? []).map((l) => l.id), [data]);
+  const allLabels = useMemo(() => data?.labels ?? [], [data]);
 
   const filtered = useMemo(() => {
     const all = data?.workouts ?? [];
@@ -139,7 +144,7 @@ function WorkoutsRoute() {
                         {w.workoutLabels.map((wl) => (
                           <Badge key={wl.labelId} variant="primary" className="px-1.5 py-0">
                             <Tag className="h-2.5 w-2.5" />
-                            {wl.labelId}
+                            {wl.label.name}
                           </Badge>
                         ))}
                       </div>
@@ -210,12 +215,12 @@ function WorkoutsRoute() {
               Filter
             </span>
             {allLabels.map((label) => {
-              const active = activeLabels.has(label);
+              const active = activeLabels.has(label.id);
               return (
                 <button
-                  key={label}
+                  key={label.id}
                   type="button"
-                  onClick={() => toggleLabel(label)}
+                  onClick={() => toggleLabel(label.id)}
                   className={cn(
                     "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
                     active
@@ -224,7 +229,7 @@ function WorkoutsRoute() {
                   )}
                 >
                   <Tag className="h-3 w-3" />
-                  {label}
+                  {label.name}
                 </button>
               );
             })}

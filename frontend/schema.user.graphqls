@@ -557,8 +557,9 @@ columns and relationships of "labels"
 """
 type labels {
   createdAt: timestamptz!
-  id: String!
+  id: uuid!
   isPublic: Boolean!
+  name: String!
   updatedAt: timestamptz!
   userId: uuid
   "An array relationship"
@@ -606,14 +607,16 @@ type labels_aggregate_fields {
 "aggregate max on columns"
 type labels_max_fields {
   createdAt: timestamptz
-  id: String
+  id: uuid
+  name: String
   updatedAt: timestamptz
   userId: uuid
 }
 "aggregate min on columns"
 type labels_min_fields {
   createdAt: timestamptz
-  id: String
+  id: uuid
+  name: String
   updatedAt: timestamptz
   userId: uuid
 }
@@ -726,7 +729,7 @@ type mutation_root {
   """
   delete single row from the table: "labels"
   """
-  deleteLabel(id: String!): labels
+  deleteLabel(id: uuid!): labels
   """
   delete data from the table: "labels"
   """
@@ -752,7 +755,7 @@ type mutation_root {
   """
   delete single row from the table: "workout_labels"
   """
-  deleteWorkoutLabel(labelId: String!, workoutId: uuid!): workoutLabels
+  deleteWorkoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
   """
   delete data from the table: "workout_labels"
   """
@@ -1346,7 +1349,7 @@ type query_root {
   """
   fetch data from the table: "labels" using primary key columns
   """
-  label(id: String!): labels
+  label(id: uuid!): labels
   """
   fetch data from the table: "labels"
   """
@@ -1450,7 +1453,7 @@ type query_root {
   """
   fetch data from the table: "workout_labels" using primary key columns
   """
-  workoutLabel(labelId: String!, workoutId: uuid!): workoutLabels
+  workoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
   "An array relationship"
   workoutLabels(
     "distinct select on columns"
@@ -1951,7 +1954,7 @@ type subscription_root {
   """
   fetch data from the table: "labels" using primary key columns
   """
-  label(id: String!): labels
+  label(id: uuid!): labels
   """
   fetch data from the table: "labels"
   """
@@ -2088,7 +2091,7 @@ type subscription_root {
   """
   fetch data from the table: "workout_labels" using primary key columns
   """
-  workoutLabel(labelId: String!, workoutId: uuid!): workoutLabels
+  workoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
   "An array relationship"
   workoutLabels(
     "distinct select on columns"
@@ -2403,7 +2406,7 @@ type workoutLabels {
   createdAt: timestamptz!
   "An object relationship"
   label: labels!
-  labelId: String!
+  labelId: uuid!
   "An object relationship"
   workout: workouts!
   workoutId: uuid!
@@ -2426,13 +2429,13 @@ type workoutLabels_aggregate_fields {
 "aggregate max on columns"
 type workoutLabels_max_fields {
   createdAt: timestamptz
-  labelId: String
+  labelId: uuid
   workoutId: uuid
 }
 "aggregate min on columns"
 type workoutLabels_min_fields {
   createdAt: timestamptz
-  labelId: String
+  labelId: uuid
   workoutId: uuid
 }
 """
@@ -3132,6 +3135,14 @@ enum labels_constraint {
   unique or primary key constraint on columns "id"
   """
   labels_pkey
+  """
+  unique or primary key constraint on columns "name"
+  """
+  labels_public_name_key
+  """
+  unique or primary key constraint on columns "user_id", "name"
+  """
+  labels_user_name_key
 }
 """
 select columns of table "labels"
@@ -3143,6 +3154,8 @@ enum labels_select_column {
   id
   "column name"
   isPublic
+  "column name"
+  name
   "column name"
   updatedAt
   "column name"
@@ -4094,8 +4107,9 @@ input labels_bool_exp {
   _not: labels_bool_exp
   _or: [labels_bool_exp!]
   createdAt: timestamptz_comparison_exp
-  id: String_comparison_exp
+  id: uuid_comparison_exp
   isPublic: Boolean_comparison_exp
+  name: String_comparison_exp
   updatedAt: timestamptz_comparison_exp
   userId: uuid_comparison_exp
   workoutLabels: workoutLabels_bool_exp
@@ -4105,7 +4119,7 @@ input labels_bool_exp {
 input type for inserting data into table "labels"
 """
 input labels_insert_input {
-  id: String
+  name: String
   workoutLabels: workoutLabels_arr_rel_insert_input
 }
 """
@@ -4131,6 +4145,7 @@ input labels_order_by {
   createdAt: order_by
   id: order_by
   isPublic: order_by
+  name: order_by
   updatedAt: order_by
   userId: order_by
   workoutLabels_aggregate: workoutLabels_aggregate_order_by
@@ -4147,8 +4162,9 @@ input labels_stream_cursor_input {
 "Initial value of the column from where the streaming should start"
 input labels_stream_cursor_value_input {
   createdAt: timestamptz
-  id: String
+  id: uuid
   isPublic: Boolean
+  name: String
   updatedAt: timestamptz
   userId: uuid
 }
@@ -4467,7 +4483,7 @@ input workoutLabels_bool_exp {
   _or: [workoutLabels_bool_exp!]
   createdAt: timestamptz_comparison_exp
   label: labels_bool_exp
-  labelId: String_comparison_exp
+  labelId: uuid_comparison_exp
   workout: workouts_bool_exp
   workoutId: uuid_comparison_exp
 }
@@ -4476,7 +4492,7 @@ input type for inserting data into table "workout_labels"
 """
 input workoutLabels_insert_input {
   label: labels_obj_rel_insert_input
-  labelId: String
+  labelId: uuid
   workout: workouts_obj_rel_insert_input
   workoutId: uuid
 }
@@ -4526,7 +4542,7 @@ input workoutLabels_stream_cursor_input {
 "Initial value of the column from where the streaming should start"
 input workoutLabels_stream_cursor_value_input {
   createdAt: timestamptz
-  labelId: String
+  labelId: uuid
   workoutId: uuid
 }
 input workoutSessionExercises_aggregate_bool_exp {

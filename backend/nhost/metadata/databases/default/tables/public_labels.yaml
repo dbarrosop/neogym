@@ -9,6 +9,8 @@ configuration:
       custom_name: id
     is_public:
       custom_name: isPublic
+    name:
+      custom_name: name
     updated_at:
       custom_name: updatedAt
     user_id:
@@ -17,6 +19,7 @@ configuration:
     created_at: createdAt
     id: id
     is_public: isPublic
+    name: name
     updated_at: updatedAt
     user_id: userId
   custom_name: labels
@@ -54,12 +57,13 @@ insert_permissions:
       set:
         user_id: X-Hasura-User-Id
       columns:
-        - id
+        - name
 select_permissions:
   - role: user
     permission:
       columns:
         - id
+        - name
         - user_id
         - is_public
         - created_at
