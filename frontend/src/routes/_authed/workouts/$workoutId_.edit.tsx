@@ -3,7 +3,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { LabelSelection } from "@/components/label-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -49,17 +48,6 @@ const EditWorkoutQuery = graphql(`
     labels(order_by: { name: asc }) {
       id
       name
-    }
-  }
-`);
-
-const InsertNewLabelsMutation = graphql(`
-  mutation EditWorkoutInsertNewLabels($objects: [labels_insert_input!]!) {
-    insertLabels(objects: $objects) {
-      returning {
-        id
-        name
-      }
     }
   }
 `);
@@ -158,7 +146,7 @@ function EditWorkoutRoute() {
   }, [workout]);
 
   const saveMutation = useMutation({
-    mutationFn: async (values: WorkoutFormValues) => {
+    mutationFn: (values: WorkoutFormValues) => {
       if (!initialValues) {
         throw new Error("Workout not loaded");
       }
@@ -197,36 +185,18 @@ function EditWorkoutRoute() {
         }
       });
 
-      // Insert any brand-new label names first so we can reference them by id
-      // when wiring up workoutLabels — labels.id is a uuid, decoupled from name.
-      const newLabelNames = values.labels.filter((l) => !l.id).map((l) => l.name);
-      const newLabelIdsByName = new Map<string, string>();
-      if (newLabelNames.length > 0) {
-        const insertRes = await gqlRequest(InsertNewLabelsMutation, {
-          objects: newLabelNames.map((name) => ({ name })),
-        });
-        for (const row of insertRes.insertLabels?.returning ?? []) {
-          newLabelIdsByName.set(row.name, row.id);
-        }
-      }
-
-      const resolveLabelId = (l: LabelSelection): string => {
-        const id = l.id ?? newLabelIdsByName.get(l.name);
-        if (!id) {
-          throw new Error(`Failed to resolve label "${l.name}"`);
-        }
-        return id;
-      };
-
-      const originalIds = new Set(initialValues.labels.map((l) => l.id ?? ""));
-      const nextIds = new Set(values.labels.map(resolveLabelId));
-      const deleteLabelIds = initialValues.labels
-        .map((l) => l.id)
-        .filter((id): id is string => Boolean(id) && !nextIds.has(id as string));
+      const originalIds = new Set(
+        initialValues.labels.map((l) => l.id).filter((id): id is string => Boolean(id)),
+      );
+      const nextIds = new Set(
+        values.labels.map((l) => l.id).filter((id): id is string => Boolean(id)),
+      );
+      const deleteLabelIds = [...originalIds].filter((id) => !nextIds.has(id));
       const insertLabels = values.labels
-        .map(resolveLabelId)
-        .filter((id) => !originalIds.has(id))
-        .map((labelId) => ({ workoutId, labelId }));
+        .filter((l) => !l.id || !originalIds.has(l.id))
+        .map((l) =>
+          l.id ? { workoutId, labelId: l.id } : { workoutId, label: { data: { name: l.name } } },
+        );
 
       return gqlRequest(SaveWorkoutMutation, {
         id: workoutId,

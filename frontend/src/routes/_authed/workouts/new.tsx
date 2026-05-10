@@ -15,17 +15,6 @@ const NewWorkoutLabelsQuery = graphql(`
   }
 `);
 
-const InsertNewLabelsMutation = graphql(`
-  mutation InsertNewLabels($objects: [labels_insert_input!]!) {
-    insertLabels(objects: $objects) {
-      returning {
-        id
-        name
-      }
-    }
-  }
-`);
-
 const CreateWorkoutMutation = graphql(`
   mutation CreateWorkout($obj: workouts_insert_input!) {
     insertWorkout(object: $obj) {
@@ -48,24 +37,8 @@ function NewWorkoutRoute() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (values: WorkoutFormValues) => {
-      const newLabelNames = values.labels.filter((l) => !l.id).map((l) => l.name);
-      const newLabelIdsByName = new Map<string, string>();
-      if (newLabelNames.length > 0) {
-        const insertRes = await gqlRequest(InsertNewLabelsMutation, {
-          objects: newLabelNames.map((name) => ({ name })),
-        });
-        for (const row of insertRes.insertLabels?.returning ?? []) {
-          newLabelIdsByName.set(row.name, row.id);
-        }
-      }
-
-      const labelIds = values.labels.map((l) => l.id ?? newLabelIdsByName.get(l.name));
-      if (labelIds.some((id) => !id)) {
-        throw new Error("Failed to resolve label ids");
-      }
-
-      return gqlRequest(CreateWorkoutMutation, {
+    mutationFn: (values: WorkoutFormValues) =>
+      gqlRequest(CreateWorkoutMutation, {
         obj: {
           name: values.name,
           description: values.description || null,
@@ -76,11 +49,12 @@ function NewWorkoutRoute() {
             })),
           },
           workoutLabels: {
-            data: (labelIds as string[]).map((labelId) => ({ labelId })),
+            data: values.labels.map((l) =>
+              l.id ? { labelId: l.id } : { label: { data: { name: l.name } } },
+            ),
           },
         },
-      });
-    },
+      }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       queryClient.invalidateQueries({ queryKey: ["labels"] });
