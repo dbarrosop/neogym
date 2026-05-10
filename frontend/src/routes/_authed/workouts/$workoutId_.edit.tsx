@@ -81,7 +81,10 @@ const SaveWorkoutMutation = graphql(`
     ) {
       affected_rows
     }
-    insertWorkoutLabels(objects: $insertLabels) {
+    insertWorkoutLabels(
+      objects: $insertLabels
+      on_conflict: { constraint: workout_labels_pkey, update_columns: [] }
+    ) {
       affected_rows
     }
   }
