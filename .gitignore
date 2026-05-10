@@ -8,7 +8,6 @@ frontend/.nitro
 frontend/.tanstack
 frontend/.vinxi
 frontend/src/routeTree.gen.ts
-frontend/src/gql
 
 # Env / secrets
 .env
