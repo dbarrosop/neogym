@@ -226,7 +226,6 @@ function EditWorkoutRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
       queryClient.invalidateQueries({ queryKey: ["labels"] });
-      toast.success("Workout saved");
       // Replace so back from the detail page doesn't land in the edit form.
       navigate({
         to: "/workouts/$workoutId",
@@ -243,7 +242,6 @@ function EditWorkoutRoute() {
     mutationFn: () => gqlRequest(DeleteWorkoutMutation, { id: workoutId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
-      toast.success("Workout deleted");
       // Replace — the workout no longer exists, so back must skip its edit page.
       navigate({ to: "/workouts", replace: true });
     },

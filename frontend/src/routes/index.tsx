@@ -20,7 +20,6 @@ function HomeRoute() {
     try {
       await navigator.clipboard.writeText(MCP_URL);
       setCopied(true);
-      toast.success("MCP URL copied to clipboard");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Couldn't copy — copy the URL manually");
