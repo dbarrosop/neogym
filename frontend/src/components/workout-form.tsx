@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
 import { Button } from "@/components/ui/button";
@@ -121,7 +121,7 @@ export function WorkoutForm({
     [exercises],
   );
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) {
       return;
