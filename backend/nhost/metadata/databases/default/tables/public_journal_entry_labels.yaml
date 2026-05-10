@@ -1,0 +1,66 @@
+table:
+  name: journal_entry_labels
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    journal_entry_id:
+      custom_name: journalEntryId
+    label_id:
+      custom_name: labelId
+  custom_column_names:
+    created_at: createdAt
+    journal_entry_id: journalEntryId
+    label_id: labelId
+  custom_name: journalEntryLabels
+  custom_root_fields:
+    delete: deleteJournalEntryLabels
+    delete_by_pk: deleteJournalEntryLabel
+    insert: insertJournalEntryLabels
+    insert_one: insertJournalEntryLabel
+    select: journalEntryLabels
+    select_aggregate: journalEntryLabelsAggregate
+    select_by_pk: journalEntryLabel
+    update: updateJournalEntryLabels
+    update_by_pk: updateJournalEntryLabel
+object_relationships:
+  - name: journalEntry
+    using:
+      foreign_key_constraint_on: journal_entry_id
+  - name: label
+    using:
+      foreign_key_constraint_on: label_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - journalEntry:
+              user_id:
+                _eq: X-Hasura-User-Id
+          - label:
+              user_id:
+                _eq: X-Hasura-User-Id
+      columns:
+        - journal_entry_id
+        - label_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - journal_entry_id
+        - label_id
+        - created_at
+      filter:
+        journalEntry:
+          user_id:
+            _eq: X-Hasura-User-Id
+      allow_aggregations: true
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        journalEntry:
+          user_id:
+            _eq: X-Hasura-User-Id

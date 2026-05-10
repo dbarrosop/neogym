@@ -1,14 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarCheck2, Dumbbell, ListChecks, User2 } from "lucide-react";
+import { CalendarCheck2, Dumbbell, ListChecks, NotebookPen, Scale, User2 } from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { to: "/exercises", label: "Exercises", Icon: Dumbbell },
   { to: "/workouts", label: "Workouts", Icon: ListChecks },
   { to: "/sessions", label: "Sessions", Icon: CalendarCheck2 },
+  { to: "/body", label: "Body", Icon: Scale },
+  { to: "/journal", label: "Journal", Icon: NotebookPen },
+  { to: "/exercises", label: "Exercises", Icon: Dumbbell },
   { to: "/profile", label: "Profile", Icon: User2 },
 ] as const;
 
