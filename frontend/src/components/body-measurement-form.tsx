@@ -19,7 +19,7 @@ interface BodyMeasurementFormProps {
   extraActions?: React.ReactNode;
 }
 
-const NUMERIC = /^\d{0,3}(\.\d{0,2})?$/;
+const NUMERIC = /^\d{0,3}([.,]\d{0,2})?$/;
 
 // Mirror the DB CHECK constraints in
 // backend/nhost/migrations/default/1790000000000_body_measurements/up.sql so
@@ -66,15 +66,17 @@ export function BodyMeasurementForm({
       setError("Enter a weight, a body-fat %, or both.");
       return;
     }
+    const normalizedWeight = trimmedWeight.replace(",", ".");
+    const normalizedFat = trimmedFat.replace(",", ".");
     if (trimmedWeight) {
-      const w = Number(trimmedWeight);
+      const w = Number(normalizedWeight);
       if (!Number.isFinite(w) || w <= WEIGHT_MIN || w >= WEIGHT_MAX) {
         setError(`Weight must be greater than 0 and less than ${WEIGHT_MAX} kg.`);
         return;
       }
     }
     if (trimmedFat) {
-      const f = Number(trimmedFat);
+      const f = Number(normalizedFat);
       if (!Number.isFinite(f) || f < FAT_MIN || f >= FAT_MAX) {
         setError(`Body fat must be at least ${FAT_MIN} % and less than ${FAT_MAX} %.`);
         return;
@@ -83,8 +85,8 @@ export function BodyMeasurementForm({
     setError(null);
     onSubmit({
       measuredOn,
-      weightKg: trimmedWeight,
-      bodyFatPct: trimmedFat,
+      weightKg: normalizedWeight,
+      bodyFatPct: normalizedFat,
       notes: notes.trim(),
     });
   }

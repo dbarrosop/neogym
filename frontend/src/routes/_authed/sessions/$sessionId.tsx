@@ -776,7 +776,7 @@ function SetDialog({
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    const w = Number(weight);
+    const w = Number(weight.replace(",", "."));
     const r = Number(reps);
     if (!Number.isFinite(w) || w < 0) {
       toast.error("Weight must be a number ≥ 0");
@@ -809,10 +809,9 @@ function SetDialog({
               <Input
                 id="set-weight"
                 ref={weightInputRef}
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.5"
-                min="0"
+                pattern="[0-9]*[.,]?[0-9]*"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 className="text-right tabular-nums"
