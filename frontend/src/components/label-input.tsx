@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 export const LABEL_MAX_LEN = 64;
 
 export function normalizeLabel(raw: string): string {
-  return raw.trim().replace(/\s+/g, " ");
+  return raw.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
 interface LabelInputProps {
