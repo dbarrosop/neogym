@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { ChevronDown, ChevronRight, Dumbbell, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,7 @@ const ExercisesIndexQuery = graphql(`
       category
       equipment
       level
+      isPublic
       secondaryMuscleGroups {
         muscleGroup
       }
@@ -29,12 +30,16 @@ const ExercisesIndexQuery = graphql(`
   }
 `);
 
+const visibilityValues = ["mine", "public"] as const;
+type Visibility = (typeof visibilityValues)[number];
+
 const exercisesSearchSchema = z.object({
   q: z.string().optional(),
   muscle: z.string().optional(),
   category: z.string().optional(),
   equipment: z.string().optional(),
   level: z.string().optional(),
+  visibility: z.enum(visibilityValues).optional(),
 });
 
 export const Route = createFileRoute("/_authed/exercises/")({
@@ -50,6 +55,7 @@ type Exercise = {
   category?: string | null;
   equipment?: string | null;
   level?: string | null;
+  isPublic: boolean;
   secondaryMuscleGroups: Array<{ muscleGroup: string }>;
 };
 
@@ -72,6 +78,7 @@ function formatEnumValue(value: string): string {
 function matchesFilters(
   ex: Exercise,
   filters: Filters,
+  visibility: Visibility | null,
   searchMatchIds: Set<string> | null,
 ): boolean {
   if (filters.muscle) {
@@ -89,6 +96,12 @@ function matchesFilters(
     return false;
   }
   if (filters.level && ex.level !== filters.level) {
+    return false;
+  }
+  if (visibility === "mine" && ex.isPublic) {
+    return false;
+  }
+  if (visibility === "public" && !ex.isPublic) {
     return false;
   }
   if (searchMatchIds && !searchMatchIds.has(ex.id)) {
@@ -113,6 +126,7 @@ function getExerciseValuesForColumn(ex: Exercise, key: FilterKey): string[] {
 function computeOptions(
   exercises: Exercise[],
   filters: Filters,
+  visibility: Visibility | null,
   searchMatchIds: Set<string> | null,
   columnKey: FilterKey,
 ): Array<{ value: string; count: number }> {
@@ -122,7 +136,7 @@ function computeOptions(
   const otherFilters: Filters = { ...filters, [columnKey]: null };
   const counts = new Map<string, number>();
   for (const ex of exercises) {
-    if (!matchesFilters(ex, otherFilters, searchMatchIds)) {
+    if (!matchesFilters(ex, otherFilters, visibility, searchMatchIds)) {
       continue;
     }
     const seen = new Set<string>();
@@ -153,6 +167,7 @@ function ExercisesRoute() {
     }),
     [searchParams.muscle, searchParams.category, searchParams.equipment, searchParams.level],
   );
+  const visibility: Visibility | null = searchParams.visibility ?? null;
   const search = searchParams.q ?? "";
 
   const { data, isLoading, error } = useQuery({
@@ -161,7 +176,8 @@ function ExercisesRoute() {
   });
 
   const exercises = useMemo<Exercise[]>(() => data?.exercises ?? [], [data]);
-  const isFiltered = search.trim() !== "" || Object.values(filters).some((v) => v !== null);
+  const isFiltered =
+    search.trim() !== "" || visibility !== null || Object.values(filters).some((v) => v !== null);
 
   const fuse = useMemo(
     () =>
@@ -194,7 +210,9 @@ function ExercisesRoute() {
   );
 
   const filteredExercises = useMemo(() => {
-    const matched = exercises.filter((ex) => matchesFilters(ex, filters, searchMatchIds));
+    const matched = exercises.filter((ex) =>
+      matchesFilters(ex, filters, visibility, searchMatchIds),
+    );
     if (searchScores) {
       // Fuzzy match: rank by score (lower = better) so the closest hits float up.
       return matched.slice().sort((a, b) => {
@@ -204,7 +222,7 @@ function ExercisesRoute() {
       });
     }
     return matched;
-  }, [exercises, filters, searchMatchIds, searchScores]);
+  }, [exercises, filters, visibility, searchMatchIds, searchScores]);
 
   function setFilter(key: FilterKey, value: string | null) {
     navigate({
@@ -212,6 +230,13 @@ function ExercisesRoute() {
       replace: true,
     });
     setActivePanel(null);
+  }
+
+  function setVisibility(value: Visibility | null) {
+    navigate({
+      search: (prev) => ({ ...prev, visibility: value ?? undefined }),
+      replace: true,
+    });
   }
 
   function setSearchText(value: string) {
@@ -251,9 +276,6 @@ function ExercisesRoute() {
         </Card>
       );
     }
-    if (isFiltered) {
-      return <FlatResults exercises={filteredExercises} />;
-    }
     return <GroupedResults exercises={filteredExercises} />;
   }
 
@@ -274,6 +296,8 @@ function ExercisesRoute() {
           <SearchBar value={search} onChange={setSearchText} />
           <FilterStrip
             filters={filters}
+            visibility={visibility}
+            onVisibilityChange={setVisibility}
             activePanel={activePanel}
             onToggle={(key) => setActivePanel((cur) => (cur === key ? null : key))}
             onClear={(key) => setFilter(key, null)}
@@ -329,6 +353,8 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 
 interface FilterStripProps {
   filters: Filters;
+  visibility: Visibility | null;
+  onVisibilityChange: (value: Visibility | null) => void;
   activePanel: FilterKey | null;
   onToggle: (key: FilterKey) => void;
   onClear: (key: FilterKey) => void;
@@ -339,6 +365,8 @@ interface FilterStripProps {
 
 function FilterStrip({
   filters,
+  visibility,
+  onVisibilityChange,
   activePanel,
   onToggle,
   onClear,
@@ -348,6 +376,18 @@ function FilterStrip({
 }: FilterStripProps) {
   return (
     <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <VisibilityPill
+          value="mine"
+          active={visibility === "mine"}
+          onClick={() => onVisibilityChange(visibility === "mine" ? null : "mine")}
+        />
+        <VisibilityPill
+          value="public"
+          active={visibility === "public"}
+          onClick={() => onVisibilityChange(visibility === "public" ? null : "public")}
+        />
+      </div>
       <div className="grid grid-cols-4 gap-1.5">
         {COLUMN_ORDER.map((key) => (
           <FilterColumnHeader
@@ -362,12 +402,40 @@ function FilterStrip({
       </div>
       {activePanel ? (
         <FilterPanel
-          options={computeOptions(exercises, filters, searchMatchIds, activePanel)}
+          options={computeOptions(exercises, filters, visibility, searchMatchIds, activePanel)}
           selected={filters[activePanel]}
           onSelect={(value) => onSelect(activePanel, value)}
         />
       ) : null}
     </div>
+  );
+}
+
+function VisibilityPill({
+  value,
+  active,
+  onClick,
+}: {
+  value: Visibility;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const label = value === "mine" ? "Mine" : "Public";
+  const Icon = value === "mine" ? User : Globe2;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+        active
+          ? "border-primary/40 bg-primary/15 text-primary"
+          : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
   );
 }
 
@@ -514,21 +582,8 @@ function GroupedResults({ exercises }: { exercises: Exercise[] }) {
   );
 }
 
-function FlatResults({ exercises }: { exercises: Exercise[] }) {
-  return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <CardContent className="px-2 py-2">
-        <ul className="divide-y divide-border/50">
-          {exercises.map((ex) => (
-            <ExerciseRow key={ex.id} exercise={ex} showMuscle />
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
-  );
-}
-
-function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?: boolean }) {
+function ExerciseRow({ exercise }: { exercise: Exercise }) {
+  const VisibilityIcon = exercise.isPublic ? Globe2 : User;
   return (
     <li>
       <Link
@@ -539,11 +594,13 @@ function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?
         <span className="flex min-w-0 items-center gap-3">
           <Dumbbell className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 truncate text-sm font-medium">{exercise.name}</span>
-          {showMuscle ? (
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              {formatEnumValue(exercise.primaryMuscleGroup)}
-            </span>
-          ) : null}
+          <VisibilityIcon
+            className={cn(
+              "h-3 w-3 shrink-0",
+              exercise.isPublic ? "text-primary/70" : "text-muted-foreground/60",
+            )}
+            aria-label={exercise.isPublic ? "Public" : "Mine"}
+          />
           {exercise.doubleWeight ? (
             <Badge variant="outline" className="hidden sm:inline-flex">
               Two-handed

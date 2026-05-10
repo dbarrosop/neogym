@@ -80,7 +80,6 @@ function NewWorkoutRoute() {
       } else {
         navigate({ to: "/workouts", replace: true });
       }
-      toast.success("Workout created");
     },
     onError: (e) => {
       toast.error(`Failed to create: ${e.message}`);

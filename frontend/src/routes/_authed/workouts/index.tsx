@@ -18,7 +18,6 @@ const WorkoutsIndexQuery = graphql(`
       name
       description
       isPublic
-      userId
       workoutExercises_aggregate {
         aggregate {
           count
@@ -39,14 +38,14 @@ const WorkoutsIndexQuery = graphql(`
   }
 `);
 
-type Tab = "mine" | "public";
+type Visibility = "mine" | "public";
 
 export const Route = createFileRoute("/_authed/workouts/")({
   component: WorkoutsRoute,
 });
 
 function WorkoutsRoute() {
-  const [tab, setTab] = useState<Tab>("mine");
+  const [visibility, setVisibility] = useState<Visibility | null>(null);
   const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
   const { data, isLoading, error } = useQuery({
     queryKey: ["workouts", "index"],
@@ -56,29 +55,31 @@ function WorkoutsRoute() {
   const allLabels = useMemo(() => data?.labels ?? [], [data]);
 
   const filtered = useMemo(() => {
-    const all = data?.workouts ?? [];
-    const byTab = tab === "mine" ? all.filter((w) => !w.isPublic) : all.filter((w) => w.isPublic);
-    if (activeLabels.size === 0) {
-      return byTab;
+    let result = data?.workouts ?? [];
+    if (visibility === "mine") {
+      result = result.filter((w) => !w.isPublic);
+    } else if (visibility === "public") {
+      result = result.filter((w) => w.isPublic);
     }
-    return byTab.filter((w) => {
-      const ids = new Set(w.workoutLabels.map((wl) => wl.labelId));
-      // require all selected labels to be present (AND filter)
-      for (const l of activeLabels) {
-        if (!ids.has(l)) {
-          return false;
+    if (activeLabels.size > 0) {
+      result = result.filter((w) => {
+        const ids = new Set(w.workoutLabels.map((wl) => wl.labelId));
+        // require all selected labels to be present (AND filter)
+        for (const l of activeLabels) {
+          if (!ids.has(l)) {
+            return false;
+          }
         }
-      }
-      return true;
-    });
-  }, [data, tab, activeLabels]);
+        return true;
+      });
+    }
+    return result;
+  }, [data, visibility, activeLabels]);
 
-  const myCount = data?.workouts.filter((w) => !w.isPublic).length ?? 0;
-  const publicCount = data?.workouts.filter((w) => w.isPublic).length ?? 0;
+  const isFiltered = visibility !== null || activeLabels.size > 0;
 
-  function handleTabChange(next: Tab) {
-    setTab(next);
-    setActiveLabels(new Set());
+  function toggleVisibility(next: Visibility) {
+    setVisibility((cur) => (cur === next ? null : next));
   }
 
   function toggleLabel(label: string) {
@@ -93,6 +94,11 @@ function WorkoutsRoute() {
     });
   }
 
+  function clearAll() {
+    setVisibility(null);
+    setActiveLabels(new Set());
+  }
+
   function renderContent() {
     if (isLoading) {
       return <WorkoutsSkeleton />;
@@ -101,26 +107,21 @@ function WorkoutsRoute() {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
     if (filtered.length === 0) {
-      let emptyMsg: string;
-      if (activeLabels.size > 0) {
-        emptyMsg = "No workouts match the selected labels.";
-      } else if (tab === "mine") {
-        emptyMsg = "You haven't created any workouts yet.";
-      } else {
-        emptyMsg = "No public templates.";
-      }
+      const emptyMsg = isFiltered
+        ? "No workouts match the selected filters."
+        : "You haven't created any workouts yet.";
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
             <p>{emptyMsg}</p>
-            {tab === "mine" && activeLabels.size === 0 ? (
+            {isFiltered ? null : (
               <Button asChild size="sm">
                 <Link to="/workouts/new">
                   <Plus className="h-4 w-4" />
                   Create your first workout
                 </Link>
               </Button>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       );
@@ -137,10 +138,14 @@ function WorkoutsRoute() {
                       <h2 className="min-w-0 flex-1 truncate font-medium">{w.name}</h2>
                       <div className="flex shrink-0 items-center gap-1">
                         {w.isPublic ? (
-                          <Badge variant="primary">
-                            <Globe2 className="h-3 w-3" /> Public
+                          <Badge variant="primary" className="px-1.5 py-0">
+                            <Globe2 className="h-2.5 w-2.5" /> Public
                           </Badge>
-                        ) : null}
+                        ) : (
+                          <Badge variant="outline" className="px-1.5 py-0">
+                            <User className="h-2.5 w-2.5" /> Mine
+                          </Badge>
+                        )}
                         {w.workoutLabels.map((wl) => (
                           <Badge key={wl.labelId} variant="primary" className="px-1.5 py-0">
                             <Tag className="h-2.5 w-2.5" />
@@ -190,60 +195,44 @@ function WorkoutsRoute() {
           </Button>
         </header>
 
-        <div className="inline-flex w-full rounded-lg border border-border/60 bg-background/50 p-1 backdrop-blur sm:w-auto">
-          <TabButton
-            active={tab === "mine"}
-            onClick={() => handleTabChange("mine")}
-            count={myCount}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Filter
+          </span>
+          <FilterPill
+            active={visibility === "mine"}
+            onClick={() => toggleVisibility("mine")}
+            icon={<User className="h-3 w-3" />}
           >
-            <User className="h-4 w-4" />
             Mine
-          </TabButton>
-          <TabButton
-            active={tab === "public"}
-            onClick={() => handleTabChange("public")}
-            count={publicCount}
+          </FilterPill>
+          <FilterPill
+            active={visibility === "public"}
+            onClick={() => toggleVisibility("public")}
+            icon={<Globe2 className="h-3 w-3" />}
           >
-            <Globe2 className="h-4 w-4" />
             Public
-          </TabButton>
+          </FilterPill>
+          {allLabels.map((label) => (
+            <FilterPill
+              key={label.id}
+              active={activeLabels.has(label.id)}
+              onClick={() => toggleLabel(label.id)}
+              icon={<Tag className="h-3 w-3" />}
+            >
+              {label.name}
+            </FilterPill>
+          ))}
+          {isFiltered ? (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          ) : null}
         </div>
-
-        {tab === "mine" && allLabels.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Filter
-            </span>
-            {allLabels.map((label) => {
-              const active = activeLabels.has(label.id);
-              return (
-                <button
-                  key={label.id}
-                  type="button"
-                  onClick={() => toggleLabel(label.id)}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
-                    active
-                      ? "border-primary/40 bg-primary/15 text-primary"
-                      : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
-                  )}
-                >
-                  <Tag className="h-3 w-3" />
-                  {label.name}
-                </button>
-              );
-            })}
-            {activeLabels.size > 0 ? (
-              <button
-                type="button"
-                onClick={() => setActiveLabels(new Set())}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-        ) : null}
 
         {renderContent()}
       </div>
@@ -251,15 +240,15 @@ function WorkoutsRoute() {
   );
 }
 
-function TabButton({
+function FilterPill({
   active,
   onClick,
-  count,
+  icon,
   children,
 }: {
   active: boolean;
   onClick: () => void;
-  count: number;
+  icon: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -267,21 +256,14 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:flex-none",
+        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
         active
-          ? "bg-foreground text-background shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
+          ? "border-primary/40 bg-primary/15 text-primary"
+          : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
       )}
     >
+      {icon}
       {children}
-      <span
-        className={cn(
-          "rounded-full px-1.5 py-0.5 text-xs font-medium",
-          active ? "bg-background/20 text-background" : "bg-muted text-muted-foreground",
-        )}
-      >
-        {count}
-      </span>
     </button>
   );
 }
