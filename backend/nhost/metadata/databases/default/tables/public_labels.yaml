@@ -81,8 +81,8 @@ update_permissions:
       columns:
         - name
       filter:
-        id:
-          _is_null: true
+        user_id:
+          _eq: X-Hasura-User-Id
       check: null
 delete_permissions:
   - role: user
@@ -91,5 +91,3 @@ delete_permissions:
         _and:
           - user_id:
               _eq: X-Hasura-User-Id
-          - is_public:
-              _eq: false
