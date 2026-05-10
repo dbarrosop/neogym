@@ -35,12 +35,19 @@ insert_permissions:
   - role: user
     permission:
       check:
-        workout:
-          _and:
-            - user_id:
-                _eq: X-Hasura-User-Id
-            - is_public:
-                _eq: false
+        _and:
+          - workout:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: false
+          - label:
+              _or:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: true
       columns:
         - workout_id
         - label_id
