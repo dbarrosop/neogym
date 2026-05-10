@@ -553,6 +553,83 @@ type files {
   uploadedByUserId: uuid
 }
 """
+columns and relationships of "labels"
+"""
+type labels {
+  createdAt: timestamptz!
+  id: uuid!
+  isPublic: Boolean!
+  name: String!
+  updatedAt: timestamptz!
+  userId: uuid
+  "An array relationship"
+  workoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
+  "An aggregate relationship"
+  workoutLabels_aggregate(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): workoutLabels_aggregate!
+}
+"""
+aggregated selection of "labels"
+"""
+type labels_aggregate {
+  aggregate: labels_aggregate_fields
+  nodes: [labels!]!
+}
+"""
+aggregate fields of "labels"
+"""
+type labels_aggregate_fields {
+  count(columns: [labels_select_column!], distinct: Boolean): Int!
+  max: labels_max_fields
+  min: labels_min_fields
+}
+"aggregate max on columns"
+type labels_max_fields {
+  createdAt: timestamptz
+  id: uuid
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"aggregate min on columns"
+type labels_min_fields {
+  createdAt: timestamptz
+  id: uuid
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+"""
+response of any mutation on the table "labels"
+"""
+type labels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [labels!]!
+}
+"""
 columns and relationships of "muscle_groups"
 """
 type muscleGroups {
@@ -650,6 +727,17 @@ type mutation_root {
     where: exercises_bool_exp!
   ): exercises_mutation_response
   """
+  delete single row from the table: "labels"
+  """
+  deleteLabel(id: uuid!): labels
+  """
+  delete data from the table: "labels"
+  """
+  deleteLabels(
+    "filter the rows which have to be deleted"
+    where: labels_bool_exp!
+  ): labels_mutation_response
+  """
   delete single row from the table: "workouts"
   """
   deleteWorkout(id: uuid!): workouts
@@ -664,6 +752,17 @@ type mutation_root {
     "filter the rows which have to be deleted"
     where: workoutExercises_bool_exp!
   ): workoutExercises_mutation_response
+  """
+  delete single row from the table: "workout_labels"
+  """
+  deleteWorkoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
+  """
+  delete data from the table: "workout_labels"
+  """
+  deleteWorkoutLabels(
+    "filter the rows which have to be deleted"
+    where: workoutLabels_bool_exp!
+  ): workoutLabels_mutation_response
   """
   delete single row from the table: "workout_sessions"
   """
@@ -723,6 +822,24 @@ type mutation_root {
     on_conflict: exercises_on_conflict
   ): exercises_mutation_response
   """
+  insert a single row into the table: "labels"
+  """
+  insertLabel(
+    "the row to be inserted"
+    object: labels_insert_input!,
+    "upsert condition"
+    on_conflict: labels_on_conflict
+  ): labels
+  """
+  insert data into the table: "labels"
+  """
+  insertLabels(
+    "the rows to be inserted"
+    objects: [labels_insert_input!]!,
+    "upsert condition"
+    on_conflict: labels_on_conflict
+  ): labels_mutation_response
+  """
   insert a single row into the table: "workouts"
   """
   insertWorkout(
@@ -749,6 +866,24 @@ type mutation_root {
     "upsert condition"
     on_conflict: workoutExercises_on_conflict
   ): workoutExercises_mutation_response
+  """
+  insert a single row into the table: "workout_labels"
+  """
+  insertWorkoutLabel(
+    "the row to be inserted"
+    object: workoutLabels_insert_input!,
+    "upsert condition"
+    on_conflict: workoutLabels_on_conflict
+  ): workoutLabels
+  """
+  insert data into the table: "workout_labels"
+  """
+  insertWorkoutLabels(
+    "the rows to be inserted"
+    objects: [workoutLabels_insert_input!]!,
+    "upsert condition"
+    on_conflict: workoutLabels_on_conflict
+  ): workoutLabels_mutation_response
   """
   insert a single row into the table: "workout_sessions"
   """
@@ -827,6 +962,21 @@ type mutation_root {
     "filter the rows which have to be updated"
     where: exercises_bool_exp!
   ): exercises_mutation_response
+  """
+  update single row of the table: "labels"
+  """
+  updateLabel(
+    "sets the columns of the filtered rows to the given values"
+    _set: labels_set_input,pk_columns: labels_pk_columns_input!  ): labels
+  """
+  update data of the table: "labels"
+  """
+  updateLabels(
+    "sets the columns of the filtered rows to the given values"
+    _set: labels_set_input,
+    "filter the rows which have to be updated"
+    where: labels_bool_exp!
+  ): labels_mutation_response
   """
   update single row of the table: "workouts"
   """
@@ -921,6 +1071,13 @@ type mutation_root {
     "updates to execute, in order"
     updates: [exercises_updates!]!
   ): [exercises_mutation_response]
+  """
+  update multiples rows of table: "labels"
+  """
+  update_labels_many(
+    "updates to execute, in order"
+    updates: [labels_updates!]!
+  ): [labels_mutation_response]
   """
   update multiples rows of table: "workout_exercises"
   """
@@ -1212,6 +1369,40 @@ type query_root {
     where: files_bool_exp
   ): [files!]!
   """
+  fetch data from the table: "labels" using primary key columns
+  """
+  label(id: uuid!): labels
+  """
+  fetch data from the table: "labels"
+  """
+  labels(
+    "distinct select on columns"
+    distinct_on: [labels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [labels_order_by!],
+    "filter the rows returned"
+    where: labels_bool_exp
+  ): [labels!]!
+  """
+  fetch aggregated fields from the table: "labels"
+  """
+  labelsAggregate(
+    "distinct select on columns"
+    distinct_on: [labels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [labels_order_by!],
+    "filter the rows returned"
+    where: labels_bool_exp
+  ): labels_aggregate!
+  """
   fetch data from the table: "muscle_groups" using primary key columns
   """
   muscleGroup(value: String!): muscleGroups
@@ -1281,6 +1472,38 @@ type query_root {
     "filter the rows returned"
     where: workoutExercises_bool_exp
   ): workoutExercises_aggregate!
+  """
+  fetch data from the table: "workout_labels" using primary key columns
+  """
+  workoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
+  "An array relationship"
+  workoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
+  """
+  fetch aggregated fields from the table: "workout_labels"
+  """
+  workoutLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): workoutLabels_aggregate!
   """
   fetch data from the table: "workout_sessions" using primary key columns
   """
@@ -1751,6 +1974,51 @@ type subscription_root {
     where: files_bool_exp
   ): [files!]!
   """
+  fetch data from the table: "labels" using primary key columns
+  """
+  label(id: uuid!): labels
+  """
+  fetch data from the table: "labels"
+  """
+  labels(
+    "distinct select on columns"
+    distinct_on: [labels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [labels_order_by!],
+    "filter the rows returned"
+    where: labels_bool_exp
+  ): [labels!]!
+  """
+  fetch aggregated fields from the table: "labels"
+  """
+  labelsAggregate(
+    "distinct select on columns"
+    distinct_on: [labels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [labels_order_by!],
+    "filter the rows returned"
+    where: labels_bool_exp
+  ): labels_aggregate!
+  """
+  fetch data from the table in a streaming manner: "labels"
+  """
+  labels_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [labels_stream_cursor_input]!,
+    "filter the rows returned"
+    where: labels_bool_exp
+  ): [labels!]!
+  """
   fetch data from the table: "muscle_groups" using primary key columns
   """
   muscleGroup(value: String!): muscleGroups
@@ -1842,6 +2110,49 @@ type subscription_root {
     "filter the rows returned"
     where: workoutExercises_bool_exp
   ): [workoutExercises!]!
+  """
+  fetch data from the table: "workout_labels" using primary key columns
+  """
+  workoutLabel(labelId: uuid!, workoutId: uuid!): workoutLabels
+  "An array relationship"
+  workoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
+  """
+  fetch aggregated fields from the table: "workout_labels"
+  """
+  workoutLabelsAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): workoutLabels_aggregate!
+  """
+  fetch data from the table in a streaming manner: "workout_labels"
+  """
+  workoutLabels_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [workoutLabels_stream_cursor_input]!,
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
   """
   fetch data from the table: "workout_sessions" using primary key columns
   """
@@ -2109,6 +2420,54 @@ type workoutExercises_var_samp_fields {
 "aggregate variance on columns"
 type workoutExercises_variance_fields {
   position: Float
+}
+"""
+columns and relationships of "workout_labels"
+"""
+type workoutLabels {
+  createdAt: timestamptz!
+  "An object relationship"
+  label: labels!
+  labelId: uuid!
+  "An object relationship"
+  workout: workouts!
+  workoutId: uuid!
+}
+"""
+aggregated selection of "workout_labels"
+"""
+type workoutLabels_aggregate {
+  aggregate: workoutLabels_aggregate_fields
+  nodes: [workoutLabels!]!
+}
+"""
+aggregate fields of "workout_labels"
+"""
+type workoutLabels_aggregate_fields {
+  count(columns: [workoutLabels_select_column!], distinct: Boolean): Int!
+  max: workoutLabels_max_fields
+  min: workoutLabels_min_fields
+}
+"aggregate max on columns"
+type workoutLabels_max_fields {
+  createdAt: timestamptz
+  labelId: uuid
+  workoutId: uuid
+}
+"aggregate min on columns"
+type workoutLabels_min_fields {
+  createdAt: timestamptz
+  labelId: uuid
+  workoutId: uuid
+}
+"""
+response of any mutation on the table "workout_labels"
+"""
+type workoutLabels_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [workoutLabels!]!
 }
 """
 columns and relationships of "workout_session_exercises"
@@ -2466,6 +2825,32 @@ type workouts {
     where: workoutExercises_bool_exp
   ): workoutExercises_aggregate!
   "An array relationship"
+  workoutLabels(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): [workoutLabels!]!
+  "An aggregate relationship"
+  workoutLabels_aggregate(
+    "distinct select on columns"
+    distinct_on: [workoutLabels_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutLabels_order_by!],
+    "filter the rows returned"
+    where: workoutLabels_bool_exp
+  ): workoutLabels_aggregate!
+  "An array relationship"
   workoutSessions(
     "distinct select on columns"
     distinct_on: [workoutSessions_select_column!],
@@ -2641,10 +3026,6 @@ enum exercises_constraint {
   """
   exercises_pkey
   """
-  unique or primary key constraint on columns "name"
-  """
-  exercises_public_name_uq
-  """
   unique or primary key constraint on columns "slug"
   """
   exercises_slug_key
@@ -2764,6 +3145,43 @@ enum files_select_column {
   "column name"
   uploadedByUserId
 }
+"""
+unique or primary key constraints on table "labels"
+"""
+enum labels_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  labels_pkey
+  """
+  unique or primary key constraint on columns "user_id", "name"
+  """
+  labels_user_name_key
+}
+"""
+select columns of table "labels"
+"""
+enum labels_select_column {
+  "column name"
+  createdAt
+  "column name"
+  id
+  "column name"
+  isPublic
+  "column name"
+  name
+  "column name"
+  updatedAt
+  "column name"
+  userId
+}
+"""
+update columns of table "labels"
+"""
+enum labels_update_column {
+  "column name"
+  name
+}
 enum muscleGroups_enum {
   abdominals
   abductors
@@ -2843,6 +3261,33 @@ update columns of table "workout_exercises"
 enum workoutExercises_update_column {
   "column name"
   position
+}
+"""
+unique or primary key constraints on table "workout_labels"
+"""
+enum workoutLabels_constraint {
+  """
+  unique or primary key constraint on columns "workout_id", "label_id"
+  """
+  workout_labels_pkey
+}
+"""
+select columns of table "workout_labels"
+"""
+enum workoutLabels_select_column {
+  "column name"
+  createdAt
+  "column name"
+  labelId
+  "column name"
+  workoutId
+}
+"""
+placeholder for update columns of table "workout_labels" (current role has no relevant permissions)
+"""
+enum workoutLabels_update_column {
+  "placeholder (do not use)"
+  _PLACEHOLDER
 }
 """
 unique or primary key constraints on table "workout_session_exercises"
@@ -2969,10 +3414,6 @@ enum workouts_constraint {
   unique or primary key constraint on columns "id"
   """
   workouts_pkey
-  """
-  unique or primary key constraint on columns "name"
-  """
-  workouts_public_name_uq
   """
   unique or primary key constraint on columns "user_id", "name"
   """
@@ -3669,6 +4110,91 @@ input jsonb_comparison_exp {
   _nin: [jsonb!]
 }
 """
+Boolean expression to filter rows from the table "labels". All fields are combined with a logical 'AND'.
+"""
+input labels_bool_exp {
+  _and: [labels_bool_exp!]
+  _not: labels_bool_exp
+  _or: [labels_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  id: uuid_comparison_exp
+  isPublic: Boolean_comparison_exp
+  name: String_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+  workoutLabels: workoutLabels_bool_exp
+  workoutLabels_aggregate: workoutLabels_aggregate_bool_exp
+}
+"""
+input type for inserting data into table "labels"
+"""
+input labels_insert_input {
+  name: String
+  workoutLabels: workoutLabels_arr_rel_insert_input
+}
+"""
+input type for inserting object relation for remote table "labels"
+"""
+input labels_obj_rel_insert_input {
+  data: labels_insert_input!
+  "upsert condition"
+  on_conflict: labels_on_conflict
+}
+"""
+on_conflict condition type for table "labels"
+"""
+input labels_on_conflict {
+  constraint: labels_constraint!
+  update_columns: [labels_update_column!]! = []
+  where: labels_bool_exp
+}
+"""
+Ordering options when selecting data from "labels".
+"""
+input labels_order_by {
+  createdAt: order_by
+  id: order_by
+  isPublic: order_by
+  name: order_by
+  updatedAt: order_by
+  userId: order_by
+  workoutLabels_aggregate: workoutLabels_aggregate_order_by
+}
+"primary key columns input for table: labels"
+input labels_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "labels"
+"""
+input labels_set_input {
+  name: String
+}
+"""
+Streaming cursor of the table "labels"
+"""
+input labels_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: labels_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input labels_stream_cursor_value_input {
+  createdAt: timestamptz
+  id: uuid
+  isPublic: Boolean
+  name: String
+  updatedAt: timestamptz
+  userId: uuid
+}
+input labels_updates {
+  "sets the columns of the filtered rows to the given values"
+  _set: labels_set_input
+  "filter the rows which have to be updated"
+  where: labels_bool_exp!
+}
+"""
 Boolean expression to filter rows from the table "muscle_groups". All fields are combined with a logical 'AND'.
 """
 input muscleGroups_bool_exp {
@@ -3948,6 +4474,102 @@ order by variance() on columns of table "workout_exercises"
 """
 input workoutExercises_variance_order_by {
   position: order_by
+}
+input workoutLabels_aggregate_bool_exp {
+  count: workoutLabels_aggregate_bool_exp_count
+}
+input workoutLabels_aggregate_bool_exp_count {
+  arguments: [workoutLabels_select_column!]
+  distinct: Boolean
+  filter: workoutLabels_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+order by aggregate values of table "workout_labels"
+"""
+input workoutLabels_aggregate_order_by {
+  count: order_by
+  max: workoutLabels_max_order_by
+  min: workoutLabels_min_order_by
+}
+"""
+input type for inserting array relation for remote table "workout_labels"
+"""
+input workoutLabels_arr_rel_insert_input {
+  data: [workoutLabels_insert_input!]!
+  "upsert condition"
+  on_conflict: workoutLabels_on_conflict
+}
+"""
+Boolean expression to filter rows from the table "workout_labels". All fields are combined with a logical 'AND'.
+"""
+input workoutLabels_bool_exp {
+  _and: [workoutLabels_bool_exp!]
+  _not: workoutLabels_bool_exp
+  _or: [workoutLabels_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  label: labels_bool_exp
+  labelId: uuid_comparison_exp
+  workout: workouts_bool_exp
+  workoutId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "workout_labels"
+"""
+input workoutLabels_insert_input {
+  label: labels_obj_rel_insert_input
+  labelId: uuid
+  workout: workouts_obj_rel_insert_input
+  workoutId: uuid
+}
+"""
+order by max() on columns of table "workout_labels"
+"""
+input workoutLabels_max_order_by {
+  createdAt: order_by
+  labelId: order_by
+  workoutId: order_by
+}
+"""
+order by min() on columns of table "workout_labels"
+"""
+input workoutLabels_min_order_by {
+  createdAt: order_by
+  labelId: order_by
+  workoutId: order_by
+}
+"""
+on_conflict condition type for table "workout_labels"
+"""
+input workoutLabels_on_conflict {
+  constraint: workoutLabels_constraint!
+  update_columns: [workoutLabels_update_column!]! = []
+  where: workoutLabels_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_labels".
+"""
+input workoutLabels_order_by {
+  createdAt: order_by
+  label: labels_order_by
+  labelId: order_by
+  workout: workouts_order_by
+  workoutId: order_by
+}
+"""
+Streaming cursor of the table "workoutLabels"
+"""
+input workoutLabels_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: workoutLabels_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input workoutLabels_stream_cursor_value_input {
+  createdAt: timestamptz
+  labelId: uuid
+  workoutId: uuid
 }
 input workoutSessionExercises_aggregate_bool_exp {
   count: workoutSessionExercises_aggregate_bool_exp_count
@@ -4522,6 +5144,8 @@ input workouts_bool_exp {
   userId: uuid_comparison_exp
   workoutExercises: workoutExercises_bool_exp
   workoutExercises_aggregate: workoutExercises_aggregate_bool_exp
+  workoutLabels: workoutLabels_bool_exp
+  workoutLabels_aggregate: workoutLabels_aggregate_bool_exp
   workoutSessions: workoutSessions_bool_exp
   workoutSessions_aggregate: workoutSessions_aggregate_bool_exp
 }
@@ -4532,6 +5156,7 @@ input workouts_insert_input {
   description: String
   name: String
   workoutExercises: workoutExercises_arr_rel_insert_input
+  workoutLabels: workoutLabels_arr_rel_insert_input
   workoutSessions: workoutSessions_arr_rel_insert_input
 }
 """
@@ -4562,6 +5187,7 @@ input workouts_order_by {
   updatedAt: order_by
   userId: order_by
   workoutExercises_aggregate: workoutExercises_aggregate_order_by
+  workoutLabels_aggregate: workoutLabels_aggregate_order_by
   workoutSessions_aggregate: workoutSessions_aggregate_order_by
 }
 "primary key columns input for table: workouts"

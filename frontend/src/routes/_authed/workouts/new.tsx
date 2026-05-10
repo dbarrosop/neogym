@@ -1,10 +1,20 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
+import { Labels_Constraint } from "@/gql/graphql";
 import { gqlRequest } from "@/lib/graphql";
+
+const NewWorkoutLabelsQuery = graphql(`
+  query NewWorkoutLabels {
+    labels(order_by: { name: asc }) {
+      id
+      name
+    }
+  }
+`);
 
 const CreateWorkoutMutation = graphql(`
   mutation CreateWorkout($obj: workouts_insert_input!) {
@@ -22,6 +32,11 @@ function NewWorkoutRoute() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const { data: labelsData } = useQuery({
+    queryKey: ["labels", "all"],
+    queryFn: () => gqlRequest(NewWorkoutLabelsQuery),
+  });
+
   const createMutation = useMutation({
     mutationFn: (values: WorkoutFormValues) =>
       gqlRequest(CreateWorkoutMutation, {
@@ -34,10 +49,26 @@ function NewWorkoutRoute() {
               position: idx + 1,
             })),
           },
+          workoutLabels: {
+            data: values.labels.map((l) =>
+              l.id
+                ? { labelId: l.id }
+                : {
+                    label: {
+                      data: { name: l.name },
+                      on_conflict: {
+                        constraint: Labels_Constraint.LabelsUserNameKey,
+                        update_columns: [],
+                      },
+                    },
+                  },
+            ),
+          },
         },
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["labels"] });
       const id = res.insertWorkout?.id;
       // Replace so the (now-submitted) form doesn't sit on the history stack.
       if (id) {
@@ -68,9 +99,10 @@ function NewWorkoutRoute() {
           </CardHeader>
           <CardContent>
             <WorkoutForm
-              initialValues={{ name: "", description: "", exercises: [] }}
+              initialValues={{ name: "", description: "", exercises: [], labels: [] }}
               submitLabel="Create workout"
               isSubmitting={createMutation.isPending}
+              labelSuggestions={labelsData?.labels ?? []}
               onSubmit={(values) => createMutation.mutate(values)}
               onCancel={() => navigate({ to: "/workouts", replace: true })}
             />

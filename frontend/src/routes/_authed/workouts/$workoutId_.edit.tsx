@@ -16,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
+import { Labels_Constraint } from "@/gql/graphql";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 
@@ -37,6 +38,17 @@ const EditWorkoutQuery = graphql(`
           doubleWeight
         }
       }
+      workoutLabels {
+        labelId
+        label {
+          id
+          name
+        }
+      }
+    }
+    labels(order_by: { name: asc }) {
+      id
+      name
     }
   }
 `);
@@ -48,6 +60,8 @@ const SaveWorkoutMutation = graphql(`
     $deleteRowIds: [uuid!]!
     $insertRows: [workoutExercises_insert_input!]!
     $positionUpdates: [workoutExercises_updates!]!
+    $deleteLabelIds: [uuid!]!
+    $insertLabels: [workoutLabels_insert_input!]!
   ) {
     updateWorkout(pk_columns: { id: $id }, _set: $set) {
       id
@@ -59,6 +73,17 @@ const SaveWorkoutMutation = graphql(`
       affected_rows
     }
     update_workoutExercises_many(updates: $positionUpdates) {
+      affected_rows
+    }
+    deleteWorkoutLabels(
+      where: { workoutId: { _eq: $id }, labelId: { _in: $deleteLabelIds } }
+    ) {
+      affected_rows
+    }
+    insertWorkoutLabels(
+      objects: $insertLabels
+      on_conflict: { constraint: workout_labels_pkey, update_columns: [] }
+    ) {
       affected_rows
     }
   }
@@ -84,7 +109,7 @@ function EditWorkoutRoute() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["workouts", "detail", workoutId],
+    queryKey: ["workouts", "edit", workoutId],
     queryFn: () => gqlRequest(EditWorkoutQuery, { id: workoutId }),
   });
 
@@ -117,13 +142,14 @@ function EditWorkoutRoute() {
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
         doubleWeight: we.exercise.doubleWeight,
       })),
+      labels: workout.workoutLabels.map((wl) => ({ id: wl.label.id, name: wl.label.name })),
     };
   }, [workout]);
 
   const saveMutation = useMutation({
     mutationFn: (values: WorkoutFormValues) => {
       if (!initialValues) {
-        return Promise.reject(new Error("Workout not loaded"));
+        throw new Error("Workout not loaded");
       }
 
       const originalRowIds = new Set(initialValues.exercises.map((e) => e.rowId));
@@ -160,6 +186,30 @@ function EditWorkoutRoute() {
         }
       });
 
+      const originalIds = new Set(
+        initialValues.labels.map((l) => l.id).filter((id): id is string => Boolean(id)),
+      );
+      const nextIds = new Set(
+        values.labels.map((l) => l.id).filter((id): id is string => Boolean(id)),
+      );
+      const deleteLabelIds = [...originalIds].filter((id) => !nextIds.has(id));
+      const insertLabels = values.labels
+        .filter((l) => !l.id || !originalIds.has(l.id))
+        .map((l) =>
+          l.id
+            ? { workoutId, labelId: l.id }
+            : {
+                workoutId,
+                label: {
+                  data: { name: l.name },
+                  on_conflict: {
+                    constraint: Labels_Constraint.LabelsUserNameKey,
+                    update_columns: [],
+                  },
+                },
+              },
+        );
+
       return gqlRequest(SaveWorkoutMutation, {
         id: workoutId,
         set: {
@@ -169,10 +219,13 @@ function EditWorkoutRoute() {
         deleteRowIds,
         insertRows,
         positionUpdates,
+        deleteLabelIds,
+        insertLabels,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workouts"] });
+      queryClient.invalidateQueries({ queryKey: ["labels"] });
       toast.success("Workout saved");
       // Replace so back from the detail page doesn't land in the edit form.
       navigate({
@@ -223,6 +276,7 @@ function EditWorkoutRoute() {
             initialValues={initialValues}
             submitLabel="Save changes"
             isSubmitting={saveMutation.isPending}
+            labelSuggestions={data?.labels ?? []}
             onSubmit={(values) => saveMutation.mutate(values)}
             onCancel={() =>
               navigate({ to: "/workouts/$workoutId", params: { workoutId }, replace: true })

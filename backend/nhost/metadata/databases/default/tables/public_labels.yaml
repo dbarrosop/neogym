@@ -1,12 +1,10 @@
 table:
-  name: workouts
+  name: labels
   schema: public
 configuration:
   column_config:
     created_at:
       custom_name: createdAt
-    description:
-      custom_name: description
     id:
       custom_name: id
     is_public:
@@ -19,48 +17,33 @@ configuration:
       custom_name: userId
   custom_column_names:
     created_at: createdAt
-    description: description
     id: id
     is_public: isPublic
     name: name
     updated_at: updatedAt
     user_id: userId
-  custom_name: workouts
+  custom_name: labels
   custom_root_fields:
-    delete: deleteWorkouts
-    delete_by_pk: deleteWorkout
-    insert: insertWorkouts
-    insert_one: insertWorkout
-    select: workouts
-    select_aggregate: workoutsAggregate
-    select_by_pk: workout
-    update: updateWorkouts
-    update_by_pk: updateWorkout
+    delete: deleteLabels
+    delete_by_pk: deleteLabel
+    insert: insertLabels
+    insert_one: insertLabel
+    select: labels
+    select_aggregate: labelsAggregate
+    select_by_pk: label
+    update: updateLabels
+    update_by_pk: updateLabel
 object_relationships:
   - name: user
     using:
       foreign_key_constraint_on: user_id
 array_relationships:
-  - name: workoutExercises
-    using:
-      foreign_key_constraint_on:
-        column: workout_id
-        table:
-          name: workout_exercises
-          schema: public
   - name: workoutLabels
     using:
       foreign_key_constraint_on:
-        column: workout_id
+        column: label_id
         table:
           name: workout_labels
-          schema: public
-  - name: workoutSessions
-    using:
-      foreign_key_constraint_on:
-        column: workout_id
-        table:
-          name: workout_sessions
           schema: public
 insert_permissions:
   - role: user
@@ -75,14 +58,12 @@ insert_permissions:
         user_id: X-Hasura-User-Id
       columns:
         - name
-        - description
 select_permissions:
   - role: user
     permission:
       columns:
         - id
         - name
-        - description
         - user_id
         - is_public
         - created_at
@@ -99,19 +80,10 @@ update_permissions:
     permission:
       columns:
         - name
-        - description
       filter:
-        _and:
-          - user_id:
-              _eq: X-Hasura-User-Id
-          - is_public:
-              _eq: false
-      check:
-        _and:
-          - user_id:
-              _eq: X-Hasura-User-Id
-          - is_public:
-              _eq: false
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
 delete_permissions:
   - role: user
     permission:
@@ -119,5 +91,3 @@ delete_permissions:
         _and:
           - user_id:
               _eq: X-Hasura-User-Id
-          - is_public:
-              _eq: false

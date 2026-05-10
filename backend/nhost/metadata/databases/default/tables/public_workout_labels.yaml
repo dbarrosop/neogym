@@ -1,0 +1,78 @@
+table:
+  name: workout_labels
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    label_id:
+      custom_name: labelId
+    workout_id:
+      custom_name: workoutId
+  custom_column_names:
+    created_at: createdAt
+    label_id: labelId
+    workout_id: workoutId
+  custom_name: workoutLabels
+  custom_root_fields:
+    delete: deleteWorkoutLabels
+    delete_by_pk: deleteWorkoutLabel
+    insert: insertWorkoutLabels
+    insert_one: insertWorkoutLabel
+    select: workoutLabels
+    select_aggregate: workoutLabelsAggregate
+    select_by_pk: workoutLabel
+    update: updateWorkoutLabels
+    update_by_pk: updateWorkoutLabel
+object_relationships:
+  - name: label
+    using:
+      foreign_key_constraint_on: label_id
+  - name: workout
+    using:
+      foreign_key_constraint_on: workout_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - workout:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: false
+          - label:
+              _or:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: true
+      columns:
+        - workout_id
+        - label_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - workout_id
+        - label_id
+        - created_at
+      filter:
+        workout:
+          _or:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: true
+      allow_aggregations: true
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        workout:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
