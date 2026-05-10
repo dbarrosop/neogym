@@ -3026,10 +3026,6 @@ enum exercises_constraint {
   """
   exercises_pkey
   """
-  unique or primary key constraint on columns "name"
-  """
-  exercises_public_name_uq
-  """
   unique or primary key constraint on columns "slug"
   """
   exercises_slug_key
@@ -3157,10 +3153,6 @@ enum labels_constraint {
   unique or primary key constraint on columns "id"
   """
   labels_pkey
-  """
-  unique or primary key constraint on columns "name"
-  """
-  labels_public_name_key
   """
   unique or primary key constraint on columns "user_id", "name"
   """
@@ -3422,10 +3414,6 @@ enum workouts_constraint {
   unique or primary key constraint on columns "id"
   """
   workouts_pkey
-  """
-  unique or primary key constraint on columns "name"
-  """
-  workouts_public_name_uq
   """
   unique or primary key constraint on columns "user_id", "name"
   """

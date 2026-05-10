@@ -83,6 +83,7 @@ update_permissions:
       filter:
         id:
           _is_null: true
+      check: null
 delete_permissions:
   - role: user
     permission:

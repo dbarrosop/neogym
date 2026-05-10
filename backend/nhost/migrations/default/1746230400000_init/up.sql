@@ -106,7 +106,11 @@ CREATE TABLE public.exercises (
   CONSTRAINT exercises_visibility_check CHECK (
     (is_public = true  AND user_id IS NULL) OR
     (is_public = false AND user_id IS NOT NULL)
-  )
+  ),
+  -- Real UNIQUE constraint (not a partial index) so Hasura's `on_conflict`
+  -- accepts it. NULLS NOT DISTINCT makes (NULL, name) rows collide, which is
+  -- what we want for public catalog rows (user_id IS NULL).
+  CONSTRAINT exercises_user_name_uq UNIQUE NULLS NOT DISTINCT (user_id, name)
 );
 CREATE INDEX exercises_primary_muscle_group_idx ON public.exercises(primary_muscle_group);
 CREATE INDEX exercises_user_id_idx              ON public.exercises(user_id);
@@ -115,12 +119,6 @@ CREATE INDEX exercises_category_idx             ON public.exercises(category);
 CREATE INDEX exercises_force_idx                ON public.exercises(force);
 CREATE INDEX exercises_mechanic_idx             ON public.exercises(mechanic);
 CREATE INDEX exercises_equipment_idx            ON public.exercises(equipment);
-CREATE UNIQUE INDEX exercises_user_name_uq
-  ON public.exercises (user_id, name)
-  WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX exercises_public_name_uq
-  ON public.exercises (name)
-  WHERE user_id IS NULL;
 
 CREATE TRIGGER set_public_exercises_updated_at
 BEFORE UPDATE ON public.exercises
@@ -153,15 +151,11 @@ CREATE TABLE public.workouts (
   CONSTRAINT workouts_visibility_check CHECK (
     (is_public = true  AND user_id IS NULL) OR
     (is_public = false AND user_id IS NOT NULL)
-  )
+  ),
+  -- See exercises_user_name_uq above for the NULLS NOT DISTINCT rationale.
+  CONSTRAINT workouts_user_name_uq UNIQUE NULLS NOT DISTINCT (user_id, name)
 );
 CREATE INDEX workouts_user_id_idx ON public.workouts(user_id);
-CREATE UNIQUE INDEX workouts_user_name_uq
-  ON public.workouts (user_id, name)
-  WHERE user_id IS NOT NULL;
-CREATE UNIQUE INDEX workouts_public_name_uq
-  ON public.workouts (name)
-  WHERE user_id IS NULL;
 
 CREATE TRIGGER set_public_workouts_updated_at
 BEFORE UPDATE ON public.workouts

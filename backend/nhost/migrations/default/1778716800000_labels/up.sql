@@ -17,13 +17,14 @@ CREATE TABLE public.labels (
   CONSTRAINT labels_visibility_check CHECK (
     (is_public = true  AND user_id IS NULL) OR
     (is_public = false AND user_id IS NOT NULL)
-  )
+  ),
+  -- Real UNIQUE constraint (not a partial index) so Hasura's `on_conflict`
+  -- accepts it — the frontend's create-on-the-fly label flow targets this
+  -- constraint. NULLS NOT DISTINCT makes (NULL, name) rows collide, which is
+  -- what we want for the public seed labels (user_id IS NULL).
+  CONSTRAINT labels_user_name_key UNIQUE NULLS NOT DISTINCT (user_id, name)
 );
 CREATE INDEX labels_user_id_idx ON public.labels(user_id);
-CREATE UNIQUE INDEX labels_user_name_key
-  ON public.labels(user_id, name) WHERE is_public = false;
-CREATE UNIQUE INDEX labels_public_name_key
-  ON public.labels(name) WHERE is_public = true;
 
 CREATE TRIGGER set_public_labels_updated_at
 BEFORE UPDATE ON public.labels
