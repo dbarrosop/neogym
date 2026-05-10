@@ -71,6 +71,11 @@ function WorkoutsRoute() {
   const myCount = data?.workouts.filter((w) => !w.isPublic).length ?? 0;
   const publicCount = data?.workouts.filter((w) => w.isPublic).length ?? 0;
 
+  function handleTabChange(next: Tab) {
+    setTab(next);
+    setActiveLabels(new Set());
+  }
+
   function toggleLabel(label: string) {
     setActiveLabels((prev) => {
       const next = new Set(prev);
@@ -181,11 +186,19 @@ function WorkoutsRoute() {
         </header>
 
         <div className="inline-flex w-full rounded-lg border border-border/60 bg-background/50 p-1 backdrop-blur sm:w-auto">
-          <TabButton active={tab === "mine"} onClick={() => setTab("mine")} count={myCount}>
+          <TabButton
+            active={tab === "mine"}
+            onClick={() => handleTabChange("mine")}
+            count={myCount}
+          >
             <User className="h-4 w-4" />
             Mine
           </TabButton>
-          <TabButton active={tab === "public"} onClick={() => setTab("public")} count={publicCount}>
+          <TabButton
+            active={tab === "public"}
+            onClick={() => handleTabChange("public")}
+            count={publicCount}
+          >
             <Globe2 className="h-4 w-4" />
             Public
           </TabButton>
