@@ -7,6 +7,7 @@ frontend/.output
 frontend/.nitro
 frontend/.tanstack
 frontend/.vinxi
+frontend/src/routeTree.gen.ts
 
 # Env / secrets
 .env
