@@ -963,6 +963,21 @@ type mutation_root {
     where: exercises_bool_exp!
   ): exercises_mutation_response
   """
+  update single row of the table: "labels"
+  """
+  updateLabel(
+    "sets the columns of the filtered rows to the given values"
+    _set: labels_set_input,pk_columns: labels_pk_columns_input!  ): labels
+  """
+  update data of the table: "labels"
+  """
+  updateLabels(
+    "sets the columns of the filtered rows to the given values"
+    _set: labels_set_input,
+    "filter the rows which have to be updated"
+    where: labels_bool_exp!
+  ): labels_mutation_response
+  """
   update single row of the table: "workouts"
   """
   updateWorkout(
@@ -1056,6 +1071,13 @@ type mutation_root {
     "updates to execute, in order"
     updates: [exercises_updates!]!
   ): [exercises_mutation_response]
+  """
+  update multiples rows of table: "labels"
+  """
+  update_labels_many(
+    "updates to execute, in order"
+    updates: [labels_updates!]!
+  ): [labels_mutation_response]
   """
   update multiples rows of table: "workout_exercises"
   """
@@ -3162,11 +3184,11 @@ enum labels_select_column {
   userId
 }
 """
-placeholder for update columns of table "labels" (current role has no relevant permissions)
+update columns of table "labels"
 """
 enum labels_update_column {
-  "placeholder (do not use)"
-  _PLACEHOLDER
+  "column name"
+  name
 }
 enum muscleGroups_enum {
   abdominals
@@ -4150,6 +4172,16 @@ input labels_order_by {
   userId: order_by
   workoutLabels_aggregate: workoutLabels_aggregate_order_by
 }
+"primary key columns input for table: labels"
+input labels_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "labels"
+"""
+input labels_set_input {
+  name: String
+}
 """
 Streaming cursor of the table "labels"
 """
@@ -4167,6 +4199,12 @@ input labels_stream_cursor_value_input {
   name: String
   updatedAt: timestamptz
   userId: uuid
+}
+input labels_updates {
+  "sets the columns of the filtered rows to the given values"
+  _set: labels_set_input
+  "filter the rows which have to be updated"
+  where: labels_bool_exp!
 }
 """
 Boolean expression to filter rows from the table "muscle_groups". All fields are combined with a logical 'AND'.

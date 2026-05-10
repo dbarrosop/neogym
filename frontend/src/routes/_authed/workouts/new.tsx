@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
+import { Labels_Constraint } from "@/gql/graphql";
 import { gqlRequest } from "@/lib/graphql";
 
 const NewWorkoutLabelsQuery = graphql(`
@@ -50,7 +51,17 @@ function NewWorkoutRoute() {
           },
           workoutLabels: {
             data: values.labels.map((l) =>
-              l.id ? { labelId: l.id } : { label: { data: { name: l.name } } },
+              l.id
+                ? { labelId: l.id }
+                : {
+                    label: {
+                      data: { name: l.name },
+                      on_conflict: {
+                        constraint: Labels_Constraint.LabelsUserNameKey,
+                        update_columns: [],
+                      },
+                    },
+                  },
             ),
           },
         },

@@ -16,6 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
+import { Labels_Constraint } from "@/gql/graphql";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 
@@ -195,7 +196,18 @@ function EditWorkoutRoute() {
       const insertLabels = values.labels
         .filter((l) => !l.id || !originalIds.has(l.id))
         .map((l) =>
-          l.id ? { workoutId, labelId: l.id } : { workoutId, label: { data: { name: l.name } } },
+          l.id
+            ? { workoutId, labelId: l.id }
+            : {
+                workoutId,
+                label: {
+                  data: { name: l.name },
+                  on_conflict: {
+                    constraint: Labels_Constraint.LabelsUserNameKey,
+                    update_columns: [],
+                  },
+                },
+              },
         );
 
       return gqlRequest(SaveWorkoutMutation, {
