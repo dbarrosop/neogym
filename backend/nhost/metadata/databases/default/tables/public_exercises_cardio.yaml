@@ -7,6 +7,8 @@ configuration:
       custom_name: createdAt
     exercise_id:
       custom_name: exerciseId
+    kind:
+      custom_name: kind
     metrics_schema:
       custom_name: metricsSchema
     updated_at:
@@ -14,6 +16,7 @@ configuration:
   custom_column_names:
     created_at: createdAt
     exercise_id: exerciseId
+    kind: kind
     metrics_schema: metricsSchema
     updated_at: updatedAt
   custom_name: exercisesCardio
@@ -30,7 +33,9 @@ configuration:
 object_relationships:
   - name: exercise
     using:
-      foreign_key_constraint_on: exercise_id
+      foreign_key_constraint_on:
+        - exercise_id
+        - kind
 insert_permissions:
   - role: user
     permission:

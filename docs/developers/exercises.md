@@ -49,6 +49,8 @@ A strength exercise has `kind = 'strength'` and a matching row in the `exercises
 
 When used in a session, entries are stored in `workout_session_strength_sets`: `(set_number, reps, weight)`, with `reps >= 0` and `weight >= 0`. There are no database-level constraints linking the catalog metadata (level, force, mechanic, etc.) to the data logged in a session — those columns are catalog-only.
 
+`exercises_strength.kind` is pinned to `'strength'` via `DEFAULT + CHECK` and composite-FK'd to `exercises(id, kind)`, mirroring `exercises_cardio` (see below). This is what makes the "exactly one matching sidecar, determined by kind" invariant structural rather than aspirational — see "How the strength/cardio split is enforced structurally" further down.
+
 Hasura exposes the sidecar as an `object_relationship` on `exercises` named `strength`, so the frontend reads as `exercise.strength?.doubleWeight`. For a cardio exercise the relationship resolves to `null`.
 
 ## Cardio exercises
@@ -59,13 +61,18 @@ A cardio exercise is one where `category = 'cardio'` (and therefore `kind = 'car
 
 ```sql
 CREATE TABLE exercises_cardio (
-  exercise_id    uuid PRIMARY KEY REFERENCES exercises(id) ON DELETE CASCADE,
+  exercise_id    uuid PRIMARY KEY,
+  kind           text NOT NULL DEFAULT 'cardio' CHECK (kind = 'cardio'),
   metrics_schema jsonb NOT NULL CHECK (jsonschema_is_valid(metrics_schema::json)),
   ...
+  FOREIGN KEY (exercise_id, kind) REFERENCES exercises(id, kind)
+    ON UPDATE CASCADE ON DELETE CASCADE
 );
 ```
 
-PK = FK, 1:1 with `exercises`. A row in `exercises_cardio` is what makes an exercise "configured for cardio logging" — without it the per-entry trigger raises `22023`. Class-table-inheritance pattern: `exercises` is the base, `exercises_cardio` is the cardio-only subtype.
+PK = `exercise_id`, 1:1 with `exercises`. A row in `exercises_cardio` is what makes an exercise "configured for cardio logging" — without it the per-entry trigger raises `22023`. Class-table-inheritance pattern: `exercises` is the base, `exercises_cardio` is the cardio-only subtype.
+
+`exercises_strength` mirrors this exactly: `kind` pinned to `'strength'` via `DEFAULT + CHECK`, composite-FK to `exercises(id, kind)` `ON UPDATE CASCADE ON DELETE CASCADE`. So the same pinned-kind trick that protects the WSE entry tables (see "How the strength/cardio split is enforced structurally" below) also protects the sidecars: if anyone flips `exercises.category` on an exercise that already has a sidecar, the cascade recomputes `exercises.kind`, propagates to the sidecar's `kind`, and the CHECK rejects — rolling back the whole transaction rather than leaving a wrong-kind sidecar attached.
 
 Hasura exposes this as an `object_relationship` on `exercises` named `cardio`, so the frontend reads the schema as `exercise.cardio?.metricsSchema`. For a strength exercise the relationship resolves to `null`.
 
@@ -113,24 +120,34 @@ Public/built-in cardio exercises are admin-managed via SQL migration + seed.
 There is **no runtime guard** for "is this exercise cardio?" at the entry-write level — it's a foreign-key violation, not a trigger raise. The pattern is the textbook discriminated-FK approach to exclusive subtypes:
 
 ```
-exercises (id PK, kind GENERATED, UNIQUE (id, kind))
-   ▲
-   │ composite FK (exercise_id, kind) — kind on child is trigger-synced from parent
-   │
-workout_session_exercises (id PK, kind, UNIQUE (id, kind))
-   ▲                                          ▲
-   │ composite FK                              │ composite FK
-   │ (workout_session_exercise_id,             │ (workout_session_exercise_id,
-   │  parent_kind = 'strength')                │  parent_kind = 'cardio')
-   │                                          │
-workout_session_strength_sets                 workout_session_cardio_entries
+                exercises_strength                       exercises_cardio
+                (exercise_id PK,                         (exercise_id PK,
+                 kind = 'strength' DEFAULT+CHECK)         kind = 'cardio' DEFAULT+CHECK)
+                          ▲                                       ▲
+                          │ composite FK (exercise_id, kind)      │ composite FK (exercise_id, kind)
+                          │                                       │
+                          └──────────────┐         ┌──────────────┘
+                                         │         │
+                                exercises (id PK, kind GENERATED, UNIQUE (id, kind))
+                                         ▲
+                                         │ composite FK (exercise_id, kind) — kind on child is trigger-synced from parent
+                                         │
+                          workout_session_exercises (id PK, kind, UNIQUE (id, kind))
+                                  ▲                                      ▲
+                                  │ composite FK                         │ composite FK
+                                  │ (workout_session_exercise_id,        │ (workout_session_exercise_id,
+                                  │  parent_kind = 'strength')           │  parent_kind = 'cardio')
+                                  │                                      │
+                          workout_session_strength_sets         workout_session_cardio_entries
 ```
 
-Each child table pins its discriminator via `DEFAULT '<value>' CHECK (parent_kind = '<value>')`. The discriminator column is a real, physical column whose only job is to participate in the composite FK — clients can omit it on insert (the DEFAULT fills it) and cannot bypass it (the CHECK rejects any other value, and even if they could, the composite FK would still require it to match the parent's `kind`).
+Each child table — the WSE entry tables **and the sidecars** — pins its discriminator via `DEFAULT '<value>' CHECK (kind = '<value>')`. The discriminator column is a real, physical column whose only job is to participate in the composite FK — clients can omit it on insert (the DEFAULT fills it) and cannot bypass it (the CHECK rejects any other value, and even if they could, the composite FK would still require it to match the parent's `kind`).
 
-On the parent side (`workout_exercises`, `workout_session_exercises`), `kind` is auto-populated by a `BEFORE INSERT OR UPDATE OF exercise_id` trigger that copies from the referenced `exercises.kind`. Clients can omit `kind` and the trigger fills it; clients that send a wrong value get it overwritten before the FK check runs, so a wrong kind can never make it past the trigger.
+On the WSE side (`workout_exercises`, `workout_session_exercises`), `kind` is auto-populated by a `BEFORE INSERT OR UPDATE OF exercise_id` trigger that copies from the referenced `exercises.kind`. Clients can omit `kind` and the trigger fills it; clients that send a wrong value get it overwritten before the FK check runs, so a wrong kind can never make it past the trigger.
 
 The end result: a strength set whose parent session-exercise is cardio is an **FK violation** (SQLSTATE `23503`), and vice versa. The check is declarative, in the Postgres catalog, no plpgsql in the hot path.
+
+The same FK chain also protects the catalog itself against a stray `exercises.category` flip. When `category` changes, the GENERATED `kind` column recomputes, and `ON UPDATE CASCADE` propagates the new value into every child's discriminator column. The pinned `CHECK (kind = '<old kind>')` on the sidecars rejects the update; the pinned `CHECK (parent_kind = '<old kind>')` on the WSE entry tables does the same. Either way, the whole transaction rolls back — a kind-changing flip on an exercise that has a sidecar attached (which every exercise does) fails atomically. Same-kind flips within the strength group (e.g. `strength` → `powerlifting`) don't change `kind`, don't cascade, and succeed.
 
 ## Cardio-shape validation (the one remaining trigger)
 

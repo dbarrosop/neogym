@@ -64,7 +64,9 @@ object_relationships:
   - name: cardio
     using:
       foreign_key_constraint_on:
-        column: exercise_id
+        columns:
+          - exercise_id
+          - kind
         table:
           name: exercises_cardio
           schema: public
@@ -77,7 +79,9 @@ object_relationships:
   - name: strength
     using:
       foreign_key_constraint_on:
-        column: exercise_id
+        columns:
+          - exercise_id
+          - kind
         table:
           name: exercises_strength
           schema: public

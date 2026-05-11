@@ -7,16 +7,28 @@
 --     └─ exercises_cardio      ← metrics_schema
 --
 -- Every exercise has exactly one matching sidecar row, determined by `kind`.
+-- The invariant is enforced structurally: each sidecar pins a `kind` column to
+-- its kind via DEFAULT + CHECK, and composite-FKs to `exercises(id, kind)`.
+-- An `exercises.category` flip recomputes `exercises.kind`; ON UPDATE CASCADE
+-- propagates into the sidecar's `kind`, which the pinned CHECK rejects — so
+-- the whole transaction rolls back rather than leaving a wrong-kind sidecar
+-- attached. Same trick used on workout_session_strength_sets.parent_kind /
+-- workout_session_cardio_entries.parent_kind.
+--
 -- Adding a future kind (yoga, mobility, …) is a new sidecar with no changes
 -- to the base or existing kinds.
 
 CREATE TABLE public.exercises_strength (
-  exercise_id    uuid PRIMARY KEY REFERENCES public.exercises(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  exercise_id    uuid PRIMARY KEY,
+  kind           text NOT NULL DEFAULT 'strength' CHECK (kind = 'strength'),
   double_weight  boolean NOT NULL DEFAULT false,
   force          text REFERENCES public.exercise_forces(value)    ON UPDATE CASCADE ON DELETE RESTRICT,
   mechanic       text REFERENCES public.exercise_mechanics(value) ON UPDATE CASCADE ON DELETE RESTRICT,
   created_at     timestamptz NOT NULL DEFAULT now(),
-  updated_at     timestamptz NOT NULL DEFAULT now()
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT exercises_strength_exercise_id_kind_fk
+    FOREIGN KEY (exercise_id, kind) REFERENCES public.exercises(id, kind)
+    ON UPDATE CASCADE ON DELETE CASCADE
 );
 
 CREATE TRIGGER set_public_exercises_strength_updated_at
@@ -47,3 +59,18 @@ ALTER TABLE public.exercises
   DROP COLUMN double_weight,
   DROP COLUMN force,
   DROP COLUMN mechanic;
+
+-- Retrofit exercises_cardio with the same pinned-kind composite-FK pattern.
+-- exercises_cardio was created in migration 1790000410000 *before* `kind`
+-- existed on exercises (that column lands in 1790000415000), so it only got a
+-- single-column FK on exercise_id. That asymmetry left a hole: a category
+-- flip on a private exercise with no WSE children would silently succeed and
+-- leave a stale cardio sidecar attached to a now-strength exercise (or vice
+-- versa). The DEFAULT + CHECK + composite FK closes it symmetrically with
+-- exercises_strength above.
+ALTER TABLE public.exercises_cardio
+  ADD COLUMN kind text NOT NULL DEFAULT 'cardio' CHECK (kind = 'cardio'),
+  DROP CONSTRAINT exercises_cardio_exercise_id_fkey,
+  ADD CONSTRAINT exercises_cardio_exercise_id_kind_fk
+    FOREIGN KEY (exercise_id, kind) REFERENCES public.exercises(id, kind)
+    ON UPDATE CASCADE ON DELETE CASCADE;

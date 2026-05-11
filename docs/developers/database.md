@@ -30,14 +30,16 @@ erDiagram
     }
 
     EXERCISES_STRENGTH {
-        uuid exercise_id PK "FK exercises CASCADE; 1:1, present iff kind=strength"
+        uuid exercise_id PK "composite FK with kind; 1:1, present iff kind=strength"
+        text kind "DEFAULT strength CHECK = strength"
         boolean double_weight
         text force FK "exercise_forces (nullable)"
         text mechanic FK "exercise_mechanics (nullable)"
     }
 
     EXERCISES_CARDIO {
-        uuid exercise_id PK "FK exercises CASCADE; 1:1, present iff kind=cardio"
+        uuid exercise_id PK "composite FK with kind; 1:1, present iff kind=cardio"
+        text kind "DEFAULT cardio CHECK = cardio"
         jsonb metrics_schema "CHECK jsonschema_is_valid"
     }
 
@@ -93,8 +95,8 @@ erDiagram
     USERS ||--o{ WORKOUTS                        : "owns (private)"
     USERS ||--o{ WORKOUT_SESSIONS                : "owns"
 
-    EXERCISES ||--o| EXERCISES_STRENGTH          : "strength sidecar (1:1, PK=FK)"
-    EXERCISES ||--o| EXERCISES_CARDIO            : "cardio sidecar (1:1, PK=FK)"
+    EXERCISES ||--o| EXERCISES_STRENGTH          : "composite FK (id, kind); kind pinned to strength"
+    EXERCISES ||--o| EXERCISES_CARDIO            : "composite FK (id, kind); kind pinned to cardio"
     EXERCISES ||--o{ WORKOUT_EXERCISES           : "composite FK (id, kind)"
     EXERCISES ||--o{ WORKOUT_SESSION_EXERCISES   : "composite FK (id, kind)"
 
@@ -124,7 +126,9 @@ The split between strength and cardio logging is enforced **structurally**, not 
 
 5. `workout_session_strength_sets.parent_kind` is pinned: `DEFAULT 'strength' CHECK (parent_kind = 'strength')`. `workout_session_cardio_entries.parent_kind` is pinned to `'cardio'` the same way. Each has a composite FK on `(workout_session_exercise_id, parent_kind) → workout_session_exercises(id, kind)`.
 
-Net effect: a strength set whose parent session-exercise is cardio is an **FK violation** (SQLSTATE `23503`). A cardio entry on a strength parent is the mirror violation. No trigger, no runtime check — declarative, in the Postgres catalog. See [`exercises.md`](exercises.md) for the full reasoning and [`backend/tests/kind-enforcement.test.ts`](../../backend/tests/kind-enforcement.test.ts) for the integration tests that prove it.
+6. The sidecars repeat the pinned-kind pattern at the **catalog** level: `exercises_strength.kind` is `DEFAULT 'strength' CHECK (kind = 'strength')`, `exercises_cardio.kind` is `DEFAULT 'cardio' CHECK (kind = 'cardio')`, both with composite FK on `(exercise_id, kind) → exercises(id, kind) ON UPDATE CASCADE`. So a category flip that would change `exercises.kind` cascades into the sidecar's `kind`, the pinned CHECK rejects, and the whole transaction rolls back — the "exactly one sidecar per exercise, determined by kind" invariant is structural, not aspirational.
+
+Net effect: a strength set whose parent session-exercise is cardio is an **FK violation** (SQLSTATE `23503`). A cardio entry on a strength parent is the mirror violation. A kind-changing `exercises.category` flip on an exercise with a sidecar attached (which every exercise has) is a CHECK violation. No trigger, no runtime check — declarative, in the Postgres catalog. See [`exercises.md`](exercises.md) for the full reasoning and [`backend/tests/kind-enforcement.test.ts`](../../backend/tests/kind-enforcement.test.ts) for the integration tests that prove it.
 
 ### Cardio metrics-schema validation
 

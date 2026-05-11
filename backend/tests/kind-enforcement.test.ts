@@ -502,6 +502,14 @@ describe("user-role permissions", () => {
 //      pinning it to a single literal. So step 3's CASCADE update violates the
 //      CHECK and the whole transaction rolls back.
 //
+// The sidecars (exercises_strength, exercises_cardio) repeat the same trick at
+// the catalog level: each has a `kind` column DEFAULT'd to its kind with a
+// CHECK pinning it, composite-FK'd to exercises(id, kind). So even when an
+// exercise has no WSE children, a category flip still cascades into the
+// sidecar's `kind` and the CHECK rejects — closing the asymmetry that would
+// otherwise let a private exercise end up with the wrong-kind sidecar attached
+// (or with both sidecars). The "sidecar-only" describe block below covers it.
+//
 // If anyone ever relaxes the CHECK to `parent_kind IN (...)` or drops one of
 // the ON UPDATE CASCADE clauses, this guarantee silently disappears — and a
 // strength session with logged sets could be flipped to cardio without
@@ -546,11 +554,17 @@ describe("category-flip cascade integrity", () => {
     // Hasura maps check-constraint failures triggered by an UPDATE to
     // `permission-error` rather than `constraint-violation` (catch-all for
     // "row-policy violated"). Both are acceptable — what we really want to
-    // assert is that the CHECK on parent_kind is what blocked it.
+    // assert is that one of the pinned-kind CHECKs in the cascade chain is
+    // what blocked it. PG fires the cascade actions in alphabetical order of
+    // FK constraint name, so `exercises_strength` (constraint name starts
+    // with "e") fires before `workout_session_strength_sets` ("w"). Accept
+    // either failure path — both are correct enforcement; what matters is
+    // that the whole transaction rolls back, asserted by the catalog check
+    // below.
     const code = res.errors![0].extensions?.code;
     expect(["constraint-violation", "permission-error"]).toContain(code as string);
-    expect(res.errors![0].message.toLowerCase()).toContain("parent_kind");
-    expect(res.errors![0].message).toContain("workout_session_strength_sets");
+    expect(res.errors![0].message.toLowerCase()).toMatch(/parent_kind|kind/);
+    expect(res.errors![0].message).toMatch(/workout_session_strength_sets|exercises_strength/);
 
     // Verify the catalog wasn't mutated — the whole tx rolled back.
     const after = await gql<{ exercise: { category: string; kind: string } }>(
@@ -594,8 +608,10 @@ describe("category-flip cascade integrity", () => {
     expect(res.errors).toBeDefined();
     const code = res.errors![0].extensions?.code;
     expect(["constraint-violation", "permission-error"]).toContain(code as string);
-    expect(res.errors![0].message.toLowerCase()).toContain("parent_kind");
-    expect(res.errors![0].message).toContain("workout_session_cardio_entries");
+    // Same alphabetical-order caveat as the strength→cardio test above:
+    // `exercises_cardio` fires before `workout_session_cardio_entries`.
+    expect(res.errors![0].message.toLowerCase()).toMatch(/parent_kind|kind/);
+    expect(res.errors![0].message).toMatch(/workout_session_cardio_entries|exercises_cardio/);
 
     // Verify the catalog wasn't mutated.
     const after = await gql<{ exercise: { category: string; kind: string } }>(
@@ -603,5 +619,156 @@ describe("category-flip cascade integrity", () => {
       { id: CARDIO_EXERCISE_ID },
     );
     expect(after.data!.exercise).toEqual({ category: "cardio", kind: "cardio" });
+  });
+});
+
+// Sidecar-only cascade integrity.
+//
+// The describe block above always anchors a WSE child before flipping, so the
+// cascade chain hits the WSE → strength-set / cardio-entry CHECK first and the
+// sidecar guard never gets a turn. The tests here isolate the sidecar guard
+// itself: a fresh private exercise with a matching sidecar row and no WSE
+// children. Without the sidecar's pinned-kind CHECK + composite FK (added to
+// migration 1790000440000), this flip would silently succeed and leave the
+// wrong-kind sidecar attached to the exercise.
+describe("category-flip cascade integrity (sidecars)", () => {
+  test("flipping a strength exercise to cardio with only an exercises_strength sidecar → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    const slug = `test_sidecar_strength_flip_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `
+      mutation MakeExercise($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Sidecar flip strength test",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner,
+          category: strength,
+          equipment: body_only,
+          isPublic: false,
+          userId: $userId
+        }) { id }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      // The 1790000440000 backfill only runs at migration time; a fresh
+      // exercise doesn't get a sidecar automatically, so insert it manually.
+      const sidecar = await gql<{ insertExerciseStrength: { exerciseId: string; kind: string } }>(
+        `
+        mutation MakeSidecar($id: uuid!) {
+          insertExerciseStrength(object: { exerciseId: $id }) { exerciseId kind }
+        }
+      `,
+        { id: exerciseId },
+      );
+      expect(sidecar.errors).toBeUndefined();
+      expect(sidecar.data!.insertExerciseStrength.kind).toBe("strength");
+
+      // Flip category. exercises.kind recomputes to 'cardio', CASCADE updates
+      // exercises_strength.kind, the pinned CHECK (kind = 'strength') rejects.
+      const res = await gql(
+        `
+        mutation FlipPrivateStrengthToCardio($id: uuid!) {
+          updateExercise(pk_columns: { id: $id }, _set: { category: cardio }) { id kind }
+        }
+      `,
+        { id: exerciseId },
+      );
+      expect(res.errors).toBeDefined();
+      const code = res.errors![0].extensions?.code;
+      expect(["constraint-violation", "permission-error"]).toContain(code as string);
+      expect(res.errors![0].message.toLowerCase()).toContain("kind");
+      expect(res.errors![0].message).toContain("exercises_strength");
+
+      // Verify the catalog wasn't mutated — the whole tx rolled back.
+      const after = await gql<{ exercise: { category: string; kind: string } }>(
+        `query Verify($id: uuid!) { exercise(id: $id) { category kind } }`,
+        { id: exerciseId },
+      );
+      expect(after.data!.exercise).toEqual({ category: "strength", kind: "strength" });
+    } finally {
+      // Cleanup. Deleting the exercise cascades into the sidecar.
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
+  });
+
+  test("flipping a cardio exercise to strength with only an exercises_cardio sidecar → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    const slug = `test_sidecar_cardio_flip_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `
+      mutation MakeExercise($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Sidecar flip cardio test",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner,
+          category: cardio,
+          equipment: body_only,
+          isPublic: false,
+          userId: $userId
+        }) { id }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const sidecar = await gql<{ insertExerciseCardio: { exerciseId: string; kind: string } }>(
+        `
+        mutation MakeSidecar($id: uuid!) {
+          insertExerciseCardio(object: {
+            exerciseId: $id,
+            metricsSchema: {
+              type: "object",
+              additionalProperties: false,
+              properties: { duration_s: { type: "integer", minimum: 0 } },
+              required: ["duration_s"]
+            }
+          }) { exerciseId kind }
+        }
+      `,
+        { id: exerciseId },
+      );
+      expect(sidecar.errors).toBeUndefined();
+      expect(sidecar.data!.insertExerciseCardio.kind).toBe("cardio");
+
+      // Mirror direction: cardio → strength. Same cascade into
+      // exercises_cardio.kind, same CHECK pinned to 'cardio'.
+      const res = await gql(
+        `
+        mutation FlipPrivateCardioToStrength($id: uuid!) {
+          updateExercise(pk_columns: { id: $id }, _set: { category: strength }) { id kind }
+        }
+      `,
+        { id: exerciseId },
+      );
+      expect(res.errors).toBeDefined();
+      const code = res.errors![0].extensions?.code;
+      expect(["constraint-violation", "permission-error"]).toContain(code as string);
+      expect(res.errors![0].message.toLowerCase()).toContain("kind");
+      expect(res.errors![0].message).toContain("exercises_cardio");
+
+      const after = await gql<{ exercise: { category: string; kind: string } }>(
+        `query Verify($id: uuid!) { exercise(id: $id) { category kind } }`,
+        { id: exerciseId },
+      );
+      expect(after.data!.exercise).toEqual({ category: "cardio", kind: "cardio" });
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
   });
 });

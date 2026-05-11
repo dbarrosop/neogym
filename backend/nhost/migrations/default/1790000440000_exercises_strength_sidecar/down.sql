@@ -1,3 +1,12 @@
+-- Revert the exercises_cardio retrofit first, restoring the single-column FK
+-- that the table was originally created with in migration 1790000410000.
+ALTER TABLE public.exercises_cardio
+  DROP CONSTRAINT IF EXISTS exercises_cardio_exercise_id_kind_fk,
+  DROP COLUMN IF EXISTS kind,
+  ADD CONSTRAINT exercises_cardio_exercise_id_fkey
+    FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
+    ON UPDATE CASCADE ON DELETE CASCADE;
+
 ALTER TABLE public.exercises
   ADD COLUMN double_weight boolean NOT NULL DEFAULT false,
   ADD COLUMN force         text REFERENCES public.exercise_forces(value)    ON UPDATE CASCADE ON DELETE RESTRICT,

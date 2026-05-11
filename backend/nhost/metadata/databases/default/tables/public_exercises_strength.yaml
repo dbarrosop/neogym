@@ -11,6 +11,8 @@ configuration:
       custom_name: exerciseId
     force:
       custom_name: force
+    kind:
+      custom_name: kind
     mechanic:
       custom_name: mechanic
     updated_at:
@@ -20,6 +22,7 @@ configuration:
     double_weight: doubleWeight
     exercise_id: exerciseId
     force: force
+    kind: kind
     mechanic: mechanic
     updated_at: updatedAt
   custom_name: exercisesStrength
@@ -36,7 +39,9 @@ configuration:
 object_relationships:
   - name: exercise
     using:
-      foreign_key_constraint_on: exercise_id
+      foreign_key_constraint_on:
+        - exercise_id
+        - kind
 insert_permissions:
   - role: user
     permission:
