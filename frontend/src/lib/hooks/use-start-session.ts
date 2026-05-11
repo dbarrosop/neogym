@@ -46,6 +46,10 @@ export function useStartSession() {
     },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      // The exercise detail page renders this session in its history list;
+      // matches the invalidation pattern in sessions/$sessionId.tsx so the
+      // "started from exercise" flow stays consistent with in-session edits.
+      queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
       const id = res.insertWorkoutSession?.id;
       if (id) {
         navigate({ to: "/sessions/$sessionId", params: { sessionId: id } });
