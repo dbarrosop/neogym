@@ -16,7 +16,6 @@ export interface CardioMetricPropertySchema {
   minimum?: number;
   maximum?: number;
   exclusiveMaximum?: number;
-  exclusiveMinimum?: number;
   "x-label"?: string;
   "x-unit"?: string;
   "x-format"?: MetricFormat;
