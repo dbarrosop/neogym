@@ -13,4 +13,9 @@ UPDATE public.exercises e
 CREATE INDEX IF NOT EXISTS exercises_force_idx    ON public.exercises(force);
 CREATE INDEX IF NOT EXISTS exercises_mechanic_idx ON public.exercises(mechanic);
 
+-- DROP TABLE drops the strength-sidecar indexes implicitly, but being explicit
+-- keeps the down migration symmetric with the up.
+DROP INDEX IF EXISTS public.exercises_strength_force_idx;
+DROP INDEX IF EXISTS public.exercises_strength_mechanic_idx;
+
 DROP TABLE IF EXISTS public.exercises_strength;

@@ -25,6 +25,13 @@ FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
 COMMENT ON TRIGGER set_public_exercises_strength_updated_at ON public.exercises_strength
 IS 'trigger to set value of column "updated_at" to current timestamp on row update';
 
+-- Carry over the indexes that previously lived on exercises(force) and
+-- exercises(mechanic). The parent FK lookup tables are tiny, so the FK-check
+-- speedup is negligible — but any faceted listing by force/mechanic on the
+-- exercise catalog would otherwise regress to a seq scan.
+CREATE INDEX exercises_strength_force_idx    ON public.exercises_strength(force);
+CREATE INDEX exercises_strength_mechanic_idx ON public.exercises_strength(mechanic);
+
 -- Backfill from existing strength rows (everything that isn't cardio).
 INSERT INTO public.exercises_strength (exercise_id, double_weight, force, mechanic)
 SELECT id, double_weight, force, mechanic

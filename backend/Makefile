@@ -22,4 +22,4 @@ dev-env-down:
 
 .PHONY: test
 test:
-	cd tests && bun test
+	cd tests && bun install && bun test
