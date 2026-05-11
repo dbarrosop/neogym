@@ -180,6 +180,63 @@ export function secondsToDurationParts(totalSeconds: number): {
   };
 }
 
+export type CardioFieldState = string | { h: string; m: string; s: string };
+
+export function seedFieldStates(
+  specs: CardioMetricSpec[],
+  seed: CardioMetrics | null,
+): Record<string, CardioFieldState> {
+  const next: Record<string, CardioFieldState> = {};
+  for (const spec of specs) {
+    const v = seed?.[spec.key];
+    const numericValue = typeof v === "number" ? v : null;
+    if (spec.format === "duration_seconds") {
+      next[spec.key] = seedDurationField(spec, numericValue ?? 0);
+    } else {
+      next[spec.key] = numericValue === null ? "" : String(numericValue);
+    }
+  }
+  return next;
+}
+
+function seedDurationField(
+  spec: CardioMetricSpec,
+  totalSeconds: number,
+): { h: string; m: string; s: string } {
+  const parts = secondsToDurationParts(totalSeconds);
+  const showH = (spec.maximum ?? Number.POSITIVE_INFINITY) >= 3600;
+  return {
+    h: showH && parts.h > 0 ? String(parts.h) : "",
+    m: parts.m > 0 ? String(parts.m) : "",
+    s: parts.s > 0 ? String(parts.s) : "",
+  };
+}
+
+export function parseField(
+  spec: CardioMetricSpec,
+  raw: CardioFieldState | undefined,
+): number | "empty" | "invalid" {
+  if (spec.format === "duration_seconds") {
+    const parts = (raw as { h: string; m: string; s: string } | undefined) ?? {
+      h: "",
+      m: "",
+      s: "",
+    };
+    if (!parts.h && !parts.m && !parts.s) {
+      return "empty";
+    }
+    const seconds = durationPartsToSeconds(parts);
+    return seconds === null ? "invalid" : seconds;
+  }
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text) {
+    return "empty";
+  }
+  const wantsInteger = spec.format === "integer" || spec.format === "average";
+  const parsed = wantsInteger ? parseIntegerInput(text) : parseDecimalInput(text);
+  return parsed === null ? "invalid" : parsed;
+}
+
 export function buildZodSchemaFromMetricsSchema(
   schema: CardioMetricsSchema,
 ): z.ZodType<CardioMetrics> {

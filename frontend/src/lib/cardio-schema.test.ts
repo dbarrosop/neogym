@@ -9,8 +9,10 @@ import {
   formatSecondsAsDuration,
   iterateMetrics,
   parseDecimalInput,
+  parseField,
   parseIntegerInput,
   secondsToDurationParts,
+  seedFieldStates,
 } from "./cardio-schema";
 
 const runningSchema: CardioMetricsSchema = {
@@ -177,6 +179,92 @@ describe("durationPartsToSeconds + secondsToDurationParts", () => {
 
   it("returns null for invalid", () => {
     expect(durationPartsToSeconds({ h: "1", m: "abc", s: "0" })).toBeNull();
+  });
+});
+
+const shortDurationSchema: CardioMetricsSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    duration_s: {
+      type: "integer",
+      minimum: 0,
+      maximum: 3599,
+      "x-label": "Duration",
+      "x-format": "duration_seconds",
+    },
+  },
+  required: ["duration_s"],
+};
+
+describe("seedFieldStates", () => {
+  it("returns empty placeholders when no seed is given (add-mode, no previousMetrics)", () => {
+    const specs = iterateMetrics(runningSchema);
+    const state = seedFieldStates(specs, null);
+    expect(state["distance_km"]).toBe("");
+    expect(state["duration_s"]).toEqual({ h: "", m: "", s: "" });
+    expect(state["avg_hr_bpm"]).toBe("");
+  });
+
+  it("seeds non-duration fields from numeric values (edit-mode initialMetrics)", () => {
+    const specs = iterateMetrics(runningSchema);
+    const state = seedFieldStates(specs, {
+      distance_km: 5.42,
+      duration_s: 3723,
+      avg_hr_bpm: 165,
+    });
+    expect(state["distance_km"]).toBe("5.42");
+    expect(state["avg_hr_bpm"]).toBe("165");
+    expect(state["duration_s"]).toEqual({ h: "1", m: "2", s: "3" });
+  });
+
+  it("hides the h component when the duration spec's maximum < 3600", () => {
+    const specs = iterateMetrics(shortDurationSchema);
+    // 4000s would otherwise be 1h6m40s; with showH=false the hours roll off.
+    const state = seedFieldStates(specs, { duration_s: 4000 });
+    expect(state["duration_s"]).toEqual({ h: "", m: "6", s: "40" });
+  });
+});
+
+describe("parseField", () => {
+  const specs = iterateMetrics(runningSchema);
+  const distance = specs.find((s) => s.key === "distance_km");
+  const duration = specs.find((s) => s.key === "duration_s");
+  const hr = specs.find((s) => s.key === "avg_hr_bpm");
+
+  if (!distance || !duration || !hr) {
+    throw new Error("missing specs in fixture");
+  }
+
+  it("returns 'empty' for a missing/blank scalar field", () => {
+    expect(parseField(distance, undefined)).toBe("empty");
+    expect(parseField(distance, "")).toBe("empty");
+    expect(parseField(distance, "   ")).toBe("empty");
+  });
+
+  it("returns 'empty' when every duration component is blank", () => {
+    expect(parseField(duration, { h: "", m: "", s: "" })).toBe("empty");
+    expect(parseField(duration, undefined)).toBe("empty");
+  });
+
+  it("returns 'invalid' for a non-integer in an integer-like field", () => {
+    expect(parseField(hr, "1.5")).toBe("invalid");
+  });
+
+  it("accepts decimal with comma in a decimal field", () => {
+    expect(parseField(distance, "5,42")).toBe(5.42);
+  });
+
+  it("honours only m/s when the h component is empty (maximum < 3600 case)", () => {
+    const shortSpec = iterateMetrics(shortDurationSchema)[0];
+    if (!shortSpec) {
+      throw new Error("missing short-duration spec");
+    }
+    expect(parseField(shortSpec, { h: "", m: "2", s: "5" })).toBe(125);
+  });
+
+  it("parses a full h/m/s duration to total seconds", () => {
+    expect(parseField(duration, { h: "1", m: "2", s: "3" })).toBe(3723);
   });
 });
 

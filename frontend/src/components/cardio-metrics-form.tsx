@@ -14,17 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   buildZodSchemaFromMetricsSchema,
+  type CardioFieldState,
   type CardioMetricSpec,
   type CardioMetrics,
   type CardioMetricsSchema,
-  durationPartsToSeconds,
   iterateMetrics,
-  parseDecimalInput,
-  parseIntegerInput,
-  secondsToDurationParts,
+  parseField,
+  seedFieldStates,
 } from "@/lib/cardio-schema";
-
-type FieldState = string | { h: string; m: string; s: string };
 
 interface CardioMetricsFormProps {
   open: boolean;
@@ -57,7 +54,7 @@ export function CardioMetricsForm({
 }: CardioMetricsFormProps) {
   const specs = useMemo(() => iterateMetrics(schema), [schema]);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
-  const [values, setValues] = useState<Record<string, FieldState>>({});
+  const [values, setValues] = useState<Record<string, CardioFieldState>>({});
   const submitLabel = mode === "edit" ? "Save" : "Log entry";
 
   useEffect(() => {
@@ -158,65 +155,10 @@ export function CardioMetricsForm({
   );
 }
 
-function seedFieldStates(
-  specs: CardioMetricSpec[],
-  seed: CardioMetrics | null,
-): Record<string, FieldState> {
-  const next: Record<string, FieldState> = {};
-  for (const spec of specs) {
-    const v = seed?.[spec.key];
-    const numericValue = typeof v === "number" ? v : null;
-    if (spec.format === "duration_seconds") {
-      next[spec.key] = seedDurationField(spec, numericValue ?? 0);
-    } else {
-      next[spec.key] = numericValue === null ? "" : String(numericValue);
-    }
-  }
-  return next;
-}
-
-function seedDurationField(
-  spec: CardioMetricSpec,
-  totalSeconds: number,
-): { h: string; m: string; s: string } {
-  const parts = secondsToDurationParts(totalSeconds);
-  const showH = (spec.maximum ?? Number.POSITIVE_INFINITY) >= 3600;
-  return {
-    h: showH && parts.h > 0 ? String(parts.h) : "",
-    m: parts.m > 0 ? String(parts.m) : "",
-    s: parts.s > 0 ? String(parts.s) : "",
-  };
-}
-
-function parseField(
-  spec: CardioMetricSpec,
-  raw: FieldState | undefined,
-): number | "empty" | "invalid" {
-  if (spec.format === "duration_seconds") {
-    const parts = (raw as { h: string; m: string; s: string } | undefined) ?? {
-      h: "",
-      m: "",
-      s: "",
-    };
-    if (!parts.h && !parts.m && !parts.s) {
-      return "empty";
-    }
-    const seconds = durationPartsToSeconds(parts);
-    return seconds === null ? "invalid" : seconds;
-  }
-  const text = typeof raw === "string" ? raw.trim() : "";
-  if (!text) {
-    return "empty";
-  }
-  const wantsInteger = spec.format === "integer" || spec.format === "average";
-  const parsed = wantsInteger ? parseIntegerInput(text) : parseDecimalInput(text);
-  return parsed === null ? "invalid" : parsed;
-}
-
 interface MetricInputProps {
   spec: CardioMetricSpec;
-  value: FieldState | undefined;
-  onChange: (next: FieldState) => void;
+  value: CardioFieldState | undefined;
+  onChange: (next: CardioFieldState) => void;
   inputRef?: React.RefObject<HTMLInputElement | null> | undefined;
 }
 
