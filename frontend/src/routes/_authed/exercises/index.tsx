@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { ChevronDown, ChevronRight, Dumbbell, Globe2, User, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { SearchBar } from "@/components/search-bar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
@@ -298,7 +298,7 @@ function ExercisesRoute() {
         </header>
 
         <div className="space-y-3">
-          <SearchBar value={search} onChange={setSearchText} placeholder="Search exercises…" />
+          <SearchBar value={search} onChange={setSearchText} />
           <FilterStrip
             filters={filters}
             visibility={visibility}
@@ -329,6 +329,30 @@ function ExercisesRoute() {
         {renderResults()}
       </div>
     </section>
+  );
+}
+
+function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search exercises…"
+        className="pr-9 pl-9"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange("")}
+          className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+          aria-label="Clear search"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

@@ -4,7 +4,6 @@ import { ChevronRight, Loader2, Plus, Tag } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
-import { SearchBar } from "@/components/search-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +12,6 @@ import { graphql } from "@/gql";
 import type { JournalEntries_Bool_Exp } from "@/gql/graphql";
 import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
-import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -41,24 +39,6 @@ const JournalEntriesQuery = graphql(`
   }
 `);
 
-const SearchJournalEntriesQuery = graphql(`
-  query SearchJournalEntries($query: String!, $limit: Int!, $offset: Int!) {
-    searchJournalEntries(args: { query: $query }, limit: $limit, offset: $offset) {
-      id
-      entryDate
-      title
-      body
-      journalEntryLabels {
-        labelId
-        label {
-          id
-          name
-        }
-      }
-    }
-  }
-`);
-
 const JournalLabelsFilterQuery = graphql(`
   query JournalLabelsFilter {
     journalLabels(order_by: { name: asc }) {
@@ -69,7 +49,6 @@ const JournalLabelsFilterQuery = graphql(`
 `);
 
 const journalSearchSchema = z.object({
-  q: z.string().optional(),
   labels: z.array(z.string()).optional(),
 });
 
@@ -83,10 +62,7 @@ function JournalRoute() {
   const navigate = Route.useNavigate();
   const activeLabels = useMemo(() => searchParams.labels ?? [], [searchParams.labels]);
   const activeLabelSet = useMemo(() => new Set(activeLabels), [activeLabels]);
-  const query = searchParams.q ?? "";
-  const debouncedQuery = useDebouncedValue(query, 250).trim();
-  const isSearching = debouncedQuery.length > 0;
-  const isFiltered = isSearching || activeLabels.length > 0;
+  const isFiltered = activeLabels.length > 0;
 
   const where = useMemo<JournalEntries_Bool_Exp | undefined>(() => {
     if (activeLabels.length === 0) {
@@ -111,24 +87,13 @@ function JournalRoute() {
 
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: isSearching
-        ? ["journal_entries", "search", debouncedQuery]
-        : ["journal_entries", "index", activeLabels],
-      queryFn: async ({ pageParam }) => {
-        if (isSearching) {
-          const res = await gqlRequest(SearchJournalEntriesQuery, {
-            query: debouncedQuery,
-            limit: PAGE_SIZE,
-            offset: pageParam,
-          });
-          return { journalEntries: res.searchJournalEntries };
-        }
-        return gqlRequest(JournalEntriesQuery, {
+      queryKey: ["journal_entries", "index", activeLabels],
+      queryFn: ({ pageParam }) =>
+        gqlRequest(JournalEntriesQuery, {
           limit: PAGE_SIZE,
           offset: pageParam,
           ...(where ? { where } : {}),
-        });
-      },
+        }),
       initialPageParam: 0 as number,
       getNextPageParam: (lastPage, allPages): number | undefined => {
         if (lastPage.journalEntries.length < PAGE_SIZE) {
@@ -139,13 +104,6 @@ function JournalRoute() {
     });
 
   const entries = useMemo(() => data?.pages.flatMap((p) => p.journalEntries) ?? [], [data]);
-
-  function setSearchText(value: string) {
-    navigate({
-      search: (prev) => ({ ...prev, q: value === "" ? undefined : value }),
-      replace: true,
-    });
-  }
 
   function toggleLabel(label: string) {
     navigate({
@@ -172,14 +130,9 @@ function JournalRoute() {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
     if (entries.length === 0) {
-      let emptyMsg: string;
-      if (isSearching) {
-        emptyMsg = `No entries match “${debouncedQuery}”.`;
-      } else if (isFiltered) {
-        emptyMsg = "No entries match the selected labels.";
-      } else {
-        emptyMsg = "No journal entries yet.";
-      }
+      const emptyMsg = isFiltered
+        ? "No entries match the selected labels."
+        : "No journal entries yet.";
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
@@ -282,9 +235,7 @@ function JournalRoute() {
           </Button>
         </header>
 
-        <SearchBar value={query} onChange={setSearchText} placeholder="Search entries…" />
-
-        {!isSearching && allLabels.length > 0 ? (
+        {allLabels.length > 0 ? (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Filter
@@ -299,7 +250,7 @@ function JournalRoute() {
                 {label.name}
               </FilterPill>
             ))}
-            {activeLabels.length > 0 ? (
+            {isFiltered ? (
               <button
                 type="button"
                 onClick={clearAll}

@@ -2151,82 +2151,6 @@ type query_root {
     where: muscleGroups_bool_exp
   ): muscleGroups_aggregate!
   """
-  execute function "search_journal_entries" which returns "journal_entries"
-  """
-  searchJournalEntries(
-    """
-    input parameters for function "searchJournalEntries"
-    """
-    args: searchJournalEntries_args!,
-    "distinct select on columns"
-    distinct_on: [journalEntries_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [journalEntries_order_by!],
-    "filter the rows returned"
-    where: journalEntries_bool_exp
-  ): [journalEntries!]!
-  """
-  execute function "search_journal_entries" and query aggregates on result of table type "journal_entries"
-  """
-  searchJournalEntriesAggregate(
-    """
-    input parameters for function "searchJournalEntriesAggregate"
-    """
-    args: searchJournalEntries_args!,
-    "distinct select on columns"
-    distinct_on: [journalEntries_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [journalEntries_order_by!],
-    "filter the rows returned"
-    where: journalEntries_bool_exp
-  ): journalEntries_aggregate!
-  """
-  execute function "search_workouts" which returns "workouts"
-  """
-  searchWorkouts(
-    """
-    input parameters for function "searchWorkouts"
-    """
-    args: searchWorkouts_args!,
-    "distinct select on columns"
-    distinct_on: [workouts_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [workouts_order_by!],
-    "filter the rows returned"
-    where: workouts_bool_exp
-  ): [workouts!]!
-  """
-  execute function "search_workouts" and query aggregates on result of table type "workouts"
-  """
-  searchWorkoutsAggregate(
-    """
-    input parameters for function "searchWorkoutsAggregate"
-    """
-    args: searchWorkouts_args!,
-    "distinct select on columns"
-    distinct_on: [workouts_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [workouts_order_by!],
-    "filter the rows returned"
-    where: workouts_bool_exp
-  ): workouts_aggregate!
-  """
   fetch data from the table: "workouts" using primary key columns
   """
   workout(id: uuid!): workouts
@@ -3063,82 +2987,6 @@ type subscription_root {
     "filter the rows returned"
     where: muscleGroups_bool_exp
   ): [muscleGroups!]!
-  """
-  execute function "search_journal_entries" which returns "journal_entries"
-  """
-  searchJournalEntries(
-    """
-    input parameters for function "searchJournalEntries"
-    """
-    args: searchJournalEntries_args!,
-    "distinct select on columns"
-    distinct_on: [journalEntries_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [journalEntries_order_by!],
-    "filter the rows returned"
-    where: journalEntries_bool_exp
-  ): [journalEntries!]!
-  """
-  execute function "search_journal_entries" and query aggregates on result of table type "journal_entries"
-  """
-  searchJournalEntriesAggregate(
-    """
-    input parameters for function "searchJournalEntriesAggregate"
-    """
-    args: searchJournalEntries_args!,
-    "distinct select on columns"
-    distinct_on: [journalEntries_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [journalEntries_order_by!],
-    "filter the rows returned"
-    where: journalEntries_bool_exp
-  ): journalEntries_aggregate!
-  """
-  execute function "search_workouts" which returns "workouts"
-  """
-  searchWorkouts(
-    """
-    input parameters for function "searchWorkouts"
-    """
-    args: searchWorkouts_args!,
-    "distinct select on columns"
-    distinct_on: [workouts_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [workouts_order_by!],
-    "filter the rows returned"
-    where: workouts_bool_exp
-  ): [workouts!]!
-  """
-  execute function "search_workouts" and query aggregates on result of table type "workouts"
-  """
-  searchWorkoutsAggregate(
-    """
-    input parameters for function "searchWorkoutsAggregate"
-    """
-    args: searchWorkouts_args!,
-    "distinct select on columns"
-    distinct_on: [workouts_select_column!],
-    "limit the number of rows returned"
-    limit: Int,
-    "skip the first n rows. Use only with order_by"
-    offset: Int,
-    "sort the rows by one or more columns"
-    order_by: [workouts_order_by!],
-    "filter the rows returned"
-    where: workouts_bool_exp
-  ): workouts_aggregate!
   """
   fetch data from the table: "workouts" using primary key columns
   """
@@ -4118,6 +3966,9 @@ type workouts {
     where: workoutSessions_bool_exp
   ): workoutSessions_aggregate!
 }
+"""
+aggregated selection of "workouts"
+"""
 type workouts_aggregate {
   aggregate: workouts_aggregate_fields
   nodes: [workouts!]!
@@ -6063,12 +5914,6 @@ input numeric_comparison_exp {
   _lte: numeric
   _neq: numeric
   _nin: [numeric!]
-}
-input searchJournalEntries_args {
-  query: String
-}
-input searchWorkouts_args {
-  query: String
 }
 """
 Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'.
