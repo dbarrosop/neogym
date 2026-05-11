@@ -46,8 +46,6 @@ insert_permissions:
                 _eq: X-Hasura-User-Id
             - is_public:
                 _eq: false
-            - kind:
-                _eq: cardio
       columns:
         - exercise_id
         - metrics_schema
@@ -56,6 +54,7 @@ select_permissions:
     permission:
       columns:
         - exercise_id
+        - kind
         - metrics_schema
         - created_at
         - updated_at
@@ -80,16 +79,6 @@ update_permissions:
             - is_public:
                 _eq: false
       check:
-        exercise:
-          _and:
-            - user_id:
-                _eq: X-Hasura-User-Id
-            - is_public:
-                _eq: false
-delete_permissions:
-  - role: user
-    permission:
-      filter:
         exercise:
           _and:
             - user_id:

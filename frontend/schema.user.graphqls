@@ -551,6 +551,7 @@ type exercisesCardio {
   "An object relationship"
   exercise: exercises!
   exerciseId: uuid!
+  kind: String!
   """
   JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
   """
@@ -579,12 +580,14 @@ type exercisesCardio_aggregate_fields {
 type exercisesCardio_max_fields {
   createdAt: timestamptz
   exerciseId: uuid
+  kind: String
   updatedAt: timestamptz
 }
 "aggregate min on columns"
 type exercisesCardio_min_fields {
   createdAt: timestamptz
   exerciseId: uuid
+  kind: String
   updatedAt: timestamptz
 }
 """
@@ -606,6 +609,7 @@ type exercisesStrength {
   exercise: exercises!
   exerciseId: uuid!
   force: exerciseForces_enum
+  kind: String!
   mechanic: exerciseMechanics_enum
   updatedAt: timestamptz!
 }
@@ -628,12 +632,14 @@ type exercisesStrength_aggregate_fields {
 type exercisesStrength_max_fields {
   createdAt: timestamptz
   exerciseId: uuid
+  kind: String
   updatedAt: timestamptz
 }
 "aggregate min on columns"
 type exercisesStrength_min_fields {
   createdAt: timestamptz
   exerciseId: uuid
+  kind: String
   updatedAt: timestamptz
 }
 """
@@ -1151,34 +1157,12 @@ type mutation_root {
   """
   deleteExercise(id: uuid!): exercises
   """
-  delete single row from the table: "exercises_cardio"
-  """
-  deleteExerciseCardio(exerciseId: uuid!): exercisesCardio
-  """
-  delete single row from the table: "exercises_strength"
-  """
-  deleteExerciseStrength(exerciseId: uuid!): exercisesStrength
-  """
   delete data from the table: "exercises"
   """
   deleteExercises(
     "filter the rows which have to be deleted"
     where: exercises_bool_exp!
   ): exercises_mutation_response
-  """
-  delete data from the table: "exercises_cardio"
-  """
-  deleteExercisesCardio(
-    "filter the rows which have to be deleted"
-    where: exercisesCardio_bool_exp!
-  ): exercisesCardio_mutation_response
-  """
-  delete data from the table: "exercises_strength"
-  """
-  deleteExercisesStrength(
-    "filter the rows which have to be deleted"
-    where: exercisesStrength_bool_exp!
-  ): exercisesStrength_mutation_response
   """
   delete data from the table: "journal_entries"
   """
@@ -4554,6 +4538,8 @@ enum exercisesCardio_select_column {
   "column name"
   exerciseId
   "column name"
+  kind
+  "column name"
   metricsSchema
   "column name"
   updatedAt
@@ -4586,6 +4572,8 @@ enum exercisesStrength_select_column {
   exerciseId
   "column name"
   force
+  "column name"
+  kind
   "column name"
   mechanic
   "column name"
@@ -5669,6 +5657,7 @@ input exercisesCardio_bool_exp {
   createdAt: timestamptz_comparison_exp
   exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
+  kind: String_comparison_exp
   metricsSchema: jsonb_comparison_exp
   updatedAt: timestamptz_comparison_exp
 }
@@ -5727,6 +5716,7 @@ input exercisesCardio_order_by {
   createdAt: order_by
   exercise: exercises_order_by
   exerciseId: order_by
+  kind: order_by
   metricsSchema: order_by
   updatedAt: order_by
 }
@@ -5763,6 +5753,7 @@ input exercisesCardio_stream_cursor_input {
 input exercisesCardio_stream_cursor_value_input {
   createdAt: timestamptz
   exerciseId: uuid
+  kind: String
   """
   JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
   """
@@ -5828,6 +5819,7 @@ input exercisesStrength_bool_exp {
   exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
   force: exerciseForces_enum_comparison_exp
+  kind: String_comparison_exp
   mechanic: exerciseMechanics_enum_comparison_exp
   updatedAt: timestamptz_comparison_exp
 }
@@ -5847,6 +5839,7 @@ order by max() on columns of table "exercises_strength"
 input exercisesStrength_max_order_by {
   createdAt: order_by
   exerciseId: order_by
+  kind: order_by
   updatedAt: order_by
 }
 """
@@ -5855,6 +5848,7 @@ order by min() on columns of table "exercises_strength"
 input exercisesStrength_min_order_by {
   createdAt: order_by
   exerciseId: order_by
+  kind: order_by
   updatedAt: order_by
 }
 """
@@ -5882,6 +5876,7 @@ input exercisesStrength_order_by {
   exercise: exercises_order_by
   exerciseId: order_by
   force: order_by
+  kind: order_by
   mechanic: order_by
   updatedAt: order_by
 }
@@ -5912,6 +5907,7 @@ input exercisesStrength_stream_cursor_value_input {
   doubleWeight: Boolean
   exerciseId: uuid
   force: exerciseForces_enum
+  kind: String
   mechanic: exerciseMechanics_enum
   updatedAt: timestamptz
 }

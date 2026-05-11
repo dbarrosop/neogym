@@ -1221,6 +1221,7 @@ export type ExercisesCardio = {
   /** An object relationship */
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
+  kind: Scalars['String']['output'];
   /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema: Scalars['jsonb']['output'];
   updatedAt: Scalars['timestamptz']['output'];
@@ -1268,6 +1269,7 @@ export type ExercisesCardio_Bool_Exp = {
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
+  kind?: InputMaybe<String_Comparison_Exp>;
   metricsSchema?: InputMaybe<Jsonb_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
 };
@@ -1309,6 +1311,7 @@ export type ExercisesCardio_Max_Fields = {
   __typename?: 'exercisesCardio_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1317,6 +1320,7 @@ export type ExercisesCardio_Min_Fields = {
   __typename?: 'exercisesCardio_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1348,6 +1352,7 @@ export type ExercisesCardio_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  kind?: InputMaybe<Order_By>;
   metricsSchema?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1369,6 +1374,8 @@ export enum ExercisesCardio_Select_Column {
   CreatedAt = 'createdAt',
   /** column name */
   ExerciseId = 'exerciseId',
+  /** column name */
+  Kind = 'kind',
   /** column name */
   MetricsSchema = 'metricsSchema',
   /** column name */
@@ -1393,6 +1400,7 @@ export type ExercisesCardio_Stream_Cursor_Input = {
 export type ExercisesCardio_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  kind?: InputMaybe<Scalars['String']['input']>;
   /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -1430,6 +1438,7 @@ export type ExercisesStrength = {
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
   force?: Maybe<ExerciseForces_Enum>;
+  kind: Scalars['String']['output'];
   mechanic?: Maybe<ExerciseMechanics_Enum>;
   updatedAt: Scalars['timestamptz']['output'];
 };
@@ -1500,6 +1509,7 @@ export type ExercisesStrength_Bool_Exp = {
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
   force?: InputMaybe<ExerciseForces_Enum_Comparison_Exp>;
+  kind?: InputMaybe<String_Comparison_Exp>;
   mechanic?: InputMaybe<ExerciseMechanics_Enum_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
 };
@@ -1524,6 +1534,7 @@ export type ExercisesStrength_Max_Fields = {
   __typename?: 'exercisesStrength_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1531,6 +1542,7 @@ export type ExercisesStrength_Max_Fields = {
 export type ExercisesStrength_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  kind?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
 
@@ -1539,6 +1551,7 @@ export type ExercisesStrength_Min_Fields = {
   __typename?: 'exercisesStrength_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1546,6 +1559,7 @@ export type ExercisesStrength_Min_Fields = {
 export type ExercisesStrength_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  kind?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
 
@@ -1579,6 +1593,7 @@ export type ExercisesStrength_Order_By = {
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   force?: InputMaybe<Order_By>;
+  kind?: InputMaybe<Order_By>;
   mechanic?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1598,6 +1613,8 @@ export enum ExercisesStrength_Select_Column {
   ExerciseId = 'exerciseId',
   /** column name */
   Force = 'force',
+  /** column name */
+  Kind = 'kind',
   /** column name */
   Mechanic = 'mechanic',
   /** column name */
@@ -1637,6 +1654,7 @@ export type ExercisesStrength_Stream_Cursor_Value_Input = {
   doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
   force?: InputMaybe<ExerciseForces_Enum>;
+  kind?: InputMaybe<Scalars['String']['input']>;
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
 };
@@ -3128,16 +3146,8 @@ export type Mutation_Root = {
   deleteBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
   /** delete single row from the table: "exercises" */
   deleteExercise?: Maybe<Exercises>;
-  /** delete single row from the table: "exercises_cardio" */
-  deleteExerciseCardio?: Maybe<ExercisesCardio>;
-  /** delete single row from the table: "exercises_strength" */
-  deleteExerciseStrength?: Maybe<ExercisesStrength>;
   /** delete data from the table: "exercises" */
   deleteExercises?: Maybe<Exercises_Mutation_Response>;
-  /** delete data from the table: "exercises_cardio" */
-  deleteExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
-  /** delete data from the table: "exercises_strength" */
-  deleteExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
   /** delete data from the table: "journal_entries" */
   deleteJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** delete single row from the table: "journal_entries" */
@@ -3342,32 +3352,8 @@ export type Mutation_RootDeleteExerciseArgs = {
 
 
 /** mutation root */
-export type Mutation_RootDeleteExerciseCardioArgs = {
-  exerciseId: Scalars['uuid']['input'];
-};
-
-
-/** mutation root */
-export type Mutation_RootDeleteExerciseStrengthArgs = {
-  exerciseId: Scalars['uuid']['input'];
-};
-
-
-/** mutation root */
 export type Mutation_RootDeleteExercisesArgs = {
   where: Exercises_Bool_Exp;
-};
-
-
-/** mutation root */
-export type Mutation_RootDeleteExercisesCardioArgs = {
-  where: ExercisesCardio_Bool_Exp;
-};
-
-
-/** mutation root */
-export type Mutation_RootDeleteExercisesStrengthArgs = {
-  where: ExercisesStrength_Bool_Exp;
 };
 
 

@@ -52,8 +52,6 @@ insert_permissions:
                 _eq: X-Hasura-User-Id
             - is_public:
                 _eq: false
-            - kind:
-                _eq: strength
       columns:
         - exercise_id
         - double_weight
@@ -64,6 +62,7 @@ select_permissions:
     permission:
       columns:
         - exercise_id
+        - kind
         - double_weight
         - force
         - mechanic
@@ -92,16 +91,6 @@ update_permissions:
             - is_public:
                 _eq: false
       check:
-        exercise:
-          _and:
-            - user_id:
-                _eq: X-Hasura-User-Id
-            - is_public:
-                _eq: false
-delete_permissions:
-  - role: user
-    permission:
-      filter:
         exercise:
           _and:
             - user_id:
