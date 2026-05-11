@@ -1,3 +1,4 @@
+import type { ResultOf } from "@graphql-typed-document-node/core";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ChevronRight, History, Loader2, Play, TrendingUp } from "lucide-react";
@@ -24,7 +25,6 @@ import {
   aggregationForFormat,
   asCardioMetricsSchema,
   type CardioMetricSpec,
-  type CardioMetrics,
   type CardioMetricsSchema,
   formatMetricValue,
   iterateMetrics,
@@ -285,21 +285,12 @@ function ExerciseInstructions({ instructions }: { instructions: string[] }) {
   );
 }
 
+type ExerciseHistoryEntry = NonNullable<
+  ResultOf<typeof ExerciseDetailQuery>["exercise"]
+>["workoutSessionExercises"][number];
+
 interface ExerciseHistoryProps {
-  entries: Array<{
-    id: string;
-    workoutSession: {
-      id: string;
-      startedAt: string;
-      workout?: { id: string; name: string } | null;
-    };
-    workoutSessionSets: Array<{
-      id: string;
-      setNumber: number;
-      reps: number;
-      weight: number | string;
-    }>;
-  }>;
+  entries: ExerciseHistoryEntry[];
   doubleWeight: boolean;
   exerciseName: string;
 }
@@ -392,7 +383,7 @@ interface ProgressPoint {
 }
 
 function buildProgressPoints(
-  entries: ExerciseHistoryProps["entries"],
+  entries: ExerciseHistoryEntry[],
   doubleWeight: boolean,
 ): ProgressPoint[] {
   const points: ProgressPoint[] = [];
@@ -681,19 +672,13 @@ interface CardioPoint {
 }
 
 function buildCardioProgressPoints(
-  entries: ExerciseHistoryProps["entries"] & {
-    [k: number]: { workoutSessionCardioEntries: Array<{ metrics: unknown }> };
-  },
+  entries: ExerciseHistoryEntry[],
   primary: CardioMetricSpec,
 ): CardioPoint[] {
   const aggregation = aggregationForFormat(primary.format);
   const points: CardioPoint[] = [];
   for (const entry of entries) {
-    const cardioEntries = (
-      entry as unknown as {
-        workoutSessionCardioEntries: Array<{ metrics: CardioMetrics | null }>;
-      }
-    ).workoutSessionCardioEntries;
+    const cardioEntries = entry.workoutSessionCardioEntries;
     if (!cardioEntries || cardioEntries.length === 0) {
       continue;
     }
@@ -871,7 +856,7 @@ function CardioTrendTooltip({
 }
 
 interface CardioHistoryProps {
-  entries: ExerciseHistoryProps["entries"];
+  entries: ExerciseHistoryEntry[];
   schema: CardioMetricsSchema;
   exerciseName: string;
 }
@@ -892,16 +877,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
       ) : (
         <ul className="space-y-2">
           {entries.map((entry) => {
-            const cardioEntries =
-              (
-                entry as unknown as {
-                  workoutSessionCardioEntries: Array<{
-                    id: string;
-                    entryNumber: number;
-                    metrics: CardioMetrics | null;
-                  }>;
-                }
-              ).workoutSessionCardioEntries ?? [];
+            const cardioEntries = entry.workoutSessionCardioEntries ?? [];
             const date = new Date(entry.workoutSession.startedAt);
             return (
               <li key={entry.id}>
