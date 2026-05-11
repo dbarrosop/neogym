@@ -481,3 +481,127 @@ describe("user-role permissions", () => {
     expect(["permission-error", "constraint-violation"]).toContain(code as string);
   });
 });
+
+// Cascade-integrity tests.
+//
+// The composite-FK design rests on a subtle chain when `exercises.category` is
+// flipped:
+//
+//   1. exercises.kind is a GENERATED STORED column derived from category.
+//      Updating category recomputes kind.
+//   2. workout_exercises(exercise_id, kind) and
+//      workout_session_exercises(exercise_id, kind) composite-FK to
+//      exercises(id, kind) with ON UPDATE CASCADE — so their `kind` column
+//      follows the parent.
+//   3. workout_session_strength_sets(workout_session_exercise_id, parent_kind)
+//      and workout_session_cardio_entries(workout_session_exercise_id,
+//      parent_kind) composite-FK to workout_session_exercises(id, kind) with
+//      ON UPDATE CASCADE — so when the WSE.kind changes, the children's
+//      parent_kind would have to follow.
+//   4. But parent_kind has DEFAULT '<kind>' + CHECK (parent_kind = '<kind>'),
+//      pinning it to a single literal. So step 3's CASCADE update violates the
+//      CHECK and the whole transaction rolls back.
+//
+// If anyone ever relaxes the CHECK to `parent_kind IN (...)` or drops one of
+// the ON UPDATE CASCADE clauses, this guarantee silently disappears — and a
+// strength session with logged sets could be flipped to cardio without
+// invalidating those sets. These tests fail fast in that scenario.
+//
+// The cascade only fires if the WSE actually has a child row, so each test
+// inserts a child first, then attempts the flip.
+describe("category-flip cascade integrity", () => {
+  test("flipping a strength exercise to cardio with logged sets → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    // Anchor a strength set to the strength WSE so the cascade reaches the
+    // pinned parent_kind CHECK.
+    const setRes = await gql<{ insertWorkoutSessionStrengthSet: { id: string } }>(
+      `
+      mutation AnchorStrengthSet($wseId: uuid!) {
+        insertWorkoutSessionStrengthSet(object: {
+          workoutSessionExerciseId: $wseId,
+          setNumber: 81, reps: 5, weight: "50.00"
+        }) { id }
+      }
+    `,
+      { wseId: strengthWseId },
+    );
+    expect(setRes.errors).toBeUndefined();
+
+    // Attempt the category flip. exercises.kind recomputes to 'cardio',
+    // CASCADE updates workout_session_exercises.kind, which CASCADEs into
+    // workout_session_strength_sets.parent_kind — that's where the CHECK
+    // pinning parent_kind = 'strength' rejects the update.
+    const res = await gql(
+      `
+      mutation FlipStrengthToCardio($id: uuid!) {
+        updateExercise(pk_columns: { id: $id }, _set: { category: cardio }) {
+          id category kind
+        }
+      }
+    `,
+      { id: STRENGTH_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    // Hasura maps check-constraint failures triggered by an UPDATE to
+    // `permission-error` rather than `constraint-violation` (catch-all for
+    // "row-policy violated"). Both are acceptable — what we really want to
+    // assert is that the CHECK on parent_kind is what blocked it.
+    const code = res.errors![0].extensions?.code;
+    expect(["constraint-violation", "permission-error"]).toContain(code as string);
+    expect(res.errors![0].message.toLowerCase()).toContain("parent_kind");
+    expect(res.errors![0].message).toContain("workout_session_strength_sets");
+
+    // Verify the catalog wasn't mutated — the whole tx rolled back.
+    const after = await gql<{ exercise: { category: string; kind: string } }>(
+      `query Verify($id: uuid!) { exercise(id: $id) { category kind } }`,
+      { id: STRENGTH_EXERCISE_ID },
+    );
+    expect(after.data!.exercise).toEqual({ category: "powerlifting", kind: "strength" });
+  });
+
+  test("flipping a cardio exercise to strength with logged entries → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    // Anchor a cardio entry to the cardio WSE.
+    const entryRes = await gql<{ insertWorkoutSessionCardioEntry: { id: string } }>(
+      `
+      mutation AnchorCardioEntry($wseId: uuid!) {
+        insertWorkoutSessionCardioEntry(object: {
+          workoutSessionExerciseId: $wseId,
+          entryNumber: 81,
+          metrics: { duration_s: 1200 }
+        }) { id }
+      }
+    `,
+      { wseId: cardioWseId },
+    );
+    expect(entryRes.errors).toBeUndefined();
+
+    // Mirror direction: cardio → strength. Same cascade chain into
+    // workout_session_cardio_entries.parent_kind, same CHECK pinned to
+    // 'cardio'.
+    const res = await gql(
+      `
+      mutation FlipCardioToStrength($id: uuid!) {
+        updateExercise(pk_columns: { id: $id }, _set: { category: strength }) {
+          id category kind
+        }
+      }
+    `,
+      { id: CARDIO_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    const code = res.errors![0].extensions?.code;
+    expect(["constraint-violation", "permission-error"]).toContain(code as string);
+    expect(res.errors![0].message.toLowerCase()).toContain("parent_kind");
+    expect(res.errors![0].message).toContain("workout_session_cardio_entries");
+
+    // Verify the catalog wasn't mutated.
+    const after = await gql<{ exercise: { category: string; kind: string } }>(
+      `query Verify($id: uuid!) { exercise(id: $id) { category kind } }`,
+      { id: CARDIO_EXERCISE_ID },
+    );
+    expect(after.data!.exercise).toEqual({ category: "cardio", kind: "cardio" });
+  });
+});
