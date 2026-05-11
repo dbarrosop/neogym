@@ -67,7 +67,7 @@ JOIN public.exercises e ON e.slug = v.slug AND e.is_public = true;
 --   Fat Loss             — full-body lifting + conditioning + cardio finishers.
 --   Functional Fitness   — compound movements, loaded carries, athletic work.
 --
--- Same conventions as 1790000440000_public_cardio_workouts: user_id IS NULL,
+-- Same conventions as the cardio workouts above: user_id IS NULL,
 -- is_public = true, fixed UUIDs, and workout_exercises inserted via a JOIN
 -- on exercises.slug so missing catalog rows don't FK-fail (the workout is
 -- created empty and populates the next time the catalog seed runs).

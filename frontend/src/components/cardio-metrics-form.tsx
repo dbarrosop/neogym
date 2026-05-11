@@ -208,7 +208,8 @@ function parseField(
   if (!text) {
     return "empty";
   }
-  const parsed = spec.format === "integer" ? parseIntegerInput(text) : parseDecimalInput(text);
+  const wantsInteger = spec.format === "integer" || spec.format === "average";
+  const parsed = wantsInteger ? parseIntegerInput(text) : parseDecimalInput(text);
   return parsed === null ? "invalid" : parsed;
 }
 
@@ -283,6 +284,7 @@ function MetricInput({ spec, value, onChange, inputRef }: MetricInputProps) {
 
   const text = typeof value === "string" ? value : "";
   const id = `metric-${spec.key}`;
+  const isIntegerLike = spec.format === "integer" || spec.format === "average";
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="text-xs">
@@ -293,10 +295,10 @@ function MetricInput({ spec, value, onChange, inputRef }: MetricInputProps) {
       <Input
         id={id}
         ref={inputRef}
-        type={spec.format === "integer" ? "number" : "text"}
-        inputMode={spec.format === "integer" ? "numeric" : "decimal"}
-        pattern={spec.format === "integer" ? undefined : "[0-9]*[.,]?[0-9]*"}
-        step={spec.format === "integer" ? "1" : undefined}
+        type={isIntegerLike ? "number" : "text"}
+        inputMode={isIntegerLike ? "numeric" : "decimal"}
+        pattern={isIntegerLike ? undefined : "[0-9]*[.,]?[0-9]*"}
+        step={isIntegerLike ? "1" : undefined}
         min={spec.minimum === undefined ? undefined : String(spec.minimum)}
         value={text}
         onChange={(e) => onChange(e.target.value)}

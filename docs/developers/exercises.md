@@ -41,13 +41,14 @@ A JSON Schema describing one entry's `metrics` jsonb. The schema is standard JSO
 | ------------ | ----------- | ------------------------------------------------------------------------------------ |
 | `x-label`    | string      | The property key itself (e.g., `"distance_km"`).                                     |
 | `x-unit`     | string      | No suffix.                                                                           |
-| `x-format`   | enum        | Inferred from `type`: `"integer"` → `"integer"`, everything else → `"decimal"`. There is no way to infer `"duration_seconds"` — set it explicitly when wanted. |
+| `x-format`   | enum        | Inferred from `type`: `"integer"` → `"integer"`, everything else → `"decimal"`. `"duration_seconds"` and `"average"` cannot be inferred — set them explicitly when wanted. |
 | `x-order`    | integer     | `0` (specs with the same order are kept in object insertion order).                  |
 
 The `x-format` value controls:
 
-- Input mode in `cardio-metrics-form.tsx` (`integer`/`numeric` keyboard vs `decimal` keyboard with comma/dot acceptance; `duration_seconds` renders a 3-field h/m/s input).
-- Display formatting in `formatMetricValue()` — integers and decimals get the unit suffix, durations render as `m:ss` / `h:mm:ss` with no unit.
+- Input mode in `cardio-metrics-form.tsx` (`integer`/`numeric` keyboard vs `decimal` keyboard with comma/dot acceptance; `duration_seconds` renders a 3-field h/m/s input; `average` uses the same numeric keyboard as `integer`).
+- Display formatting in `formatMetricValue()` — `integer` and `average` render without decimals with the unit suffix, `decimal` allows up to two fractional digits, `duration_seconds` renders as `m:ss` / `h:mm:ss` with no unit.
+- Aggregation across entries on `/exercises/$id` (the per-session trend chart). `integer`, `decimal`, and `duration_seconds` are **summed** within a session (4×400m intervals total 1.6 km of `distance_km`); `average` is **averaged** (avg HR across the four intervals, not their sum, which would be meaningless). The caption under the headline number flips between "total across entries" and "average across entries" accordingly. See `aggregationForFormat()` in `cardio-schema.ts`.
 
 The schema also controls `required` (top-level JSON Schema), `minimum`, `maximum`, and `exclusiveMaximum`, all enforced both on the client (zod via `buildZodSchemaFromMetricsSchema`) and on the server (via the `pg_jsonschema` trigger).
 
@@ -55,13 +56,13 @@ The schema also controls `required` (top-level JSON Schema), `minimum`, `maximum
 
 The migration backfills three templates onto the public cardio exercises. They're the only shapes used today:
 
-- **running** (Bicycling, Treadmill, Elliptical, Rowing, Walking, Skating, ...): `distance_km` (decimal, optional), `duration_s` (duration, required), `calories_kcal` (integer, optional), `avg_hr_bpm` (integer, optional).
+- **running** (Bicycling, Treadmill, Elliptical, Rowing, Walking, Skating, ...): `distance_km` (decimal, optional), `duration_s` (duration, required), `calories_kcal` (integer, optional), `avg_hr_bpm` (average, optional — averaged, not summed, across entries in a session).
 - **stairs** (Stairmaster, Step_Mill): `duration_s` (required), `floors`, `steps`, `calories_kcal`.
 - **interval** (Rope_Jumping, Prowler_Sprint): `duration_s` (required), `rounds`, `calories_kcal`.
 
 ### Public cardio workout templates
 
-Migration `1790000440000_public_cardio_workouts/up.sql` ships four public workouts built from these cardio exercises (Indoor Triathlon, Duathlon, Cardio Pentathlon, Brick Workout). For the full list of public workouts — cardio plus the strength/fat-loss/functional programs — see [`sessions.md` → "Public workout templates"](sessions.md#public-workout-templates).
+Seed `backend/nhost/seeds/default/1778716800004_public_workouts.sql` ships four public workouts built from these cardio exercises (Indoor Triathlon, Duathlon, Cardio Pentathlon, Brick Workout). The same seed file also defines the strength/fat-loss/functional 3-day programs — they're all `user_id IS NULL, is_public = true`, with `workout_exercises` inserted via a `JOIN` on `exercises.slug` so a missing catalog row leaves the workout empty rather than failing the FK.
 
 ### Who can author schemas
 
@@ -123,7 +124,7 @@ workout_session_cardio_entries (
 )
 ```
 
-The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; the UI handles that as a retry case (see `frontend/src/routes/_authed/sessions/$sessionId.tsx`, `CardioExerciseLog`).
+The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/sessions/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
 
 Multiple entries per session are a real use case — see the seeded "4×400m intervals" session, which logs the same `workout_session_exercise` four times.
 
@@ -132,7 +133,7 @@ Multiple entries per session are a real use case — see the seeded "4×400m int
 To add a new `x-format` (e.g., `"pace_min_per_km"`):
 
 1. Pick a new value and use it consistently in `metrics_schema` documents.
-2. Add the discriminator to `MetricFormat` in `frontend/src/lib/cardio-schema.ts`.
+2. Add the discriminator to `MetricFormat` in `frontend/src/lib/cardio-schema.ts`. Decide whether it's summable or sample-style (e.g. pace is a sample) and extend `aggregationForFormat()` if needed.
 3. Handle it in `formatMetricValue()`, `parseField()` / the input renderer in `cardio-metrics-form.tsx`, and `buildZodSchemaFromMetricsSchema()`.
 4. Add tests in `cardio-schema.test.ts`.
 5. Author/backfill the schemas via SQL migration. No DB-side change is needed — `x-format` is a custom annotation, transparent to `pg_jsonschema`.

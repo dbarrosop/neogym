@@ -17,7 +17,7 @@ UPDATE public.exercises SET metrics_schema = $$
     "calories_kcal": { "type": "integer", "minimum": 0, "maximum": 10000,
                        "x-label": "Calories", "x-unit": "kcal", "x-format": "integer",          "x-order": 3 },
     "avg_hr_bpm":    { "type": "integer", "minimum": 0, "maximum": 300,
-                       "x-label": "Avg HR",   "x-unit": "bpm",  "x-format": "integer",          "x-order": 4 }
+                       "x-label": "Avg HR",   "x-unit": "bpm",  "x-format": "average",          "x-order": 4 }
   },
   "required": ["duration_s"]
 }
@@ -90,4 +90,4 @@ ALTER TABLE public.exercises
   );
 
 COMMENT ON COLUMN public.exercises.metrics_schema IS
-  'JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order.';
+  'JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.';

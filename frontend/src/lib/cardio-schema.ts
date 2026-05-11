@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-export type MetricFormat = "integer" | "decimal" | "duration_seconds";
+// "average" marks a metric whose values are already an average over the entry
+// (e.g. avg heart rate over a 30 min run). It displays like an integer but is
+// averaged — not summed — when aggregating across entries in a session.
+export type MetricFormat = "integer" | "decimal" | "duration_seconds" | "average";
+
+export type MetricAggregation = "sum" | "average";
+
+export function aggregationForFormat(format: MetricFormat): MetricAggregation {
+  return format === "average" ? "average" : "sum";
+}
 
 export interface CardioMetricPropertySchema {
   type?: "integer" | "number";
@@ -99,6 +108,7 @@ export function formatMetricValue(
     case "duration_seconds":
       return formatSecondsAsDuration(value);
     case "integer":
+    case "average":
       return INT_FORMAT.format(value) + (spec.unit ? ` ${spec.unit}` : "");
     default:
       return NUMBER_FORMAT.format(value) + (spec.unit ? ` ${spec.unit}` : "");
@@ -176,7 +186,7 @@ export function buildZodSchemaFromMetricsSchema(
   const shape: Record<string, z.ZodTypeAny> = {};
   for (const spec of iterateMetrics(schema)) {
     let field: z.ZodTypeAny =
-      spec.format === "integer" || spec.format === "duration_seconds"
+      spec.format === "integer" || spec.format === "duration_seconds" || spec.format === "average"
         ? z.number().int()
         : z.number();
     if (spec.minimum !== undefined) {

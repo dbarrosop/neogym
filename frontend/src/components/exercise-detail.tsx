@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { graphql } from "@/gql";
 import {
+  aggregationForFormat,
   asCardioMetricsSchema,
   type CardioMetricSpec,
   type CardioMetrics,
@@ -685,6 +686,7 @@ function buildCardioProgressPoints(
   },
   primary: CardioMetricSpec,
 ): CardioPoint[] {
+  const aggregation = aggregationForFormat(primary.format);
   const points: CardioPoint[] = [];
   for (const entry of entries) {
     const cardioEntries = (
@@ -696,20 +698,20 @@ function buildCardioProgressPoints(
       continue;
     }
     let total = 0;
-    let saw = false;
+    let seen = 0;
     for (const e of cardioEntries) {
       const v = e.metrics?.[primary.key];
       if (typeof v === "number" && Number.isFinite(v)) {
         total += v;
-        saw = true;
+        seen += 1;
       }
     }
-    if (!saw) {
+    if (seen === 0) {
       continue;
     }
     points.push({
       date: new Date(entry.workoutSession.startedAt).getTime(),
-      value: total,
+      value: aggregation === "average" ? total / seen : total,
     });
   }
   return points.sort((a, b) => a.date - b.date);
@@ -738,6 +740,8 @@ function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: C
     }
   }
   const tone = deltaToneClass(delta);
+  const aggregation = aggregationForFormat(primary.format);
+  const caption = aggregation === "average" ? "average across entries" : "total across entries";
   return (
     <section className="space-y-3">
       <p className="text-muted-foreground text-right text-xs">
@@ -759,7 +763,7 @@ function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: C
           <CardTitle className="text-xl tabular-nums">
             {formatMetricValue(latest, primary)}
           </CardTitle>
-          <p className="text-muted-foreground/80 text-[11px]">total across entries</p>
+          <p className="text-muted-foreground/80 text-[11px]">{caption}</p>
         </CardHeader>
         <CardContent className="pt-0">
           {points.length >= 2 ? (

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  aggregationForFormat,
   asCardioMetricsSchema,
   buildZodSchemaFromMetricsSchema,
   type CardioMetricsSchema,
@@ -40,7 +41,7 @@ const runningSchema: CardioMetricsSchema = {
       maximum: 300,
       "x-label": "Avg HR",
       "x-unit": "bpm",
-      "x-format": "integer",
+      "x-format": "average",
       "x-order": 4,
     },
   },
@@ -123,12 +124,23 @@ describe("formatMetricValue", () => {
     expect(formatMetricValue(5.42, distance)).toBe("5.42 km");
   });
 
-  it("formats integers with unit", () => {
+  it("formats 'average' metrics like integers with unit", () => {
+    expect(hr.format).toBe("average");
     expect(formatMetricValue(165, hr)).toBe("165 bpm");
+    expect(formatMetricValue(165.7, hr)).toBe("166 bpm");
   });
 
   it("formats duration without trailing unit", () => {
     expect(formatMetricValue(125, duration)).toBe("2:05");
+  });
+});
+
+describe("aggregationForFormat", () => {
+  it("returns 'average' only for 'average' format; everything else sums", () => {
+    expect(aggregationForFormat("average")).toBe("average");
+    expect(aggregationForFormat("integer")).toBe("sum");
+    expect(aggregationForFormat("decimal")).toBe("sum");
+    expect(aggregationForFormat("duration_seconds")).toBe("sum");
   });
 });
 
