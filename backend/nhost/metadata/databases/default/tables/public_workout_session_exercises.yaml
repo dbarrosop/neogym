@@ -9,6 +9,8 @@ configuration:
       custom_name: exerciseId
     id:
       custom_name: id
+    kind:
+      custom_name: kind
     position:
       custom_name: position
     updated_at:
@@ -19,6 +21,7 @@ configuration:
     created_at: createdAt
     exercise_id: exerciseId
     id: id
+    kind: kind
     position: position
     updated_at: updatedAt
     workout_session_id: workoutSessionId
@@ -36,7 +39,9 @@ configuration:
 object_relationships:
   - name: exercise
     using:
-      foreign_key_constraint_on: exercise_id
+      foreign_key_constraint_on:
+        - exercise_id
+        - kind
   - name: workoutSession
     using:
       foreign_key_constraint_on: workout_session_id
@@ -44,14 +49,18 @@ array_relationships:
   - name: workoutSessionCardioEntries
     using:
       foreign_key_constraint_on:
-        column: workout_session_exercise_id
+        columns:
+          - workout_session_exercise_id
+          - parent_kind
         table:
           name: workout_session_cardio_entries
           schema: public
   - name: workoutSessionSets
     using:
       foreign_key_constraint_on:
-        column: workout_session_exercise_id
+        columns:
+          - workout_session_exercise_id
+          - parent_kind
         table:
           name: workout_session_sets
           schema: public
@@ -73,6 +82,7 @@ select_permissions:
         - id
         - workout_session_id
         - exercise_id
+        - kind
         - position
         - created_at
         - updated_at

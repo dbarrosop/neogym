@@ -49,12 +49,14 @@ const SessionDetailQuery = graphql(`
         exercise {
           id
           name
-          category
+          kind
           doubleWeight
           primaryMuscleGroup
           image1FileId
           image2FileId
-          metricsSchema
+          cardio {
+            metricsSchema
+          }
         }
         workoutSessionSets(order_by: { setNumber: asc }) {
           id
@@ -282,7 +284,7 @@ function SessionDetailRoute() {
     let reps = 0;
     let volume = 0;
     for (const e of session.workoutSessionExercises) {
-      if (e.exercise.category === "cardio") {
+      if (e.exercise.kind === "cardio") {
         continue;
       }
       const m = e.exercise.doubleWeight ? 2 : 1;
@@ -550,8 +552,8 @@ function ExerciseRow({
   onMutated,
   onConfirmRemove,
 }: ExerciseRowProps) {
-  const isCardio = we.exercise.category === "cardio";
-  const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.metricsSchema) : null;
+  const isCardio = we.exercise.kind === "cardio";
+  const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.cardio?.metricsSchema) : null;
   const entryCount = isCardio
     ? we.workoutSessionCardioEntries.length
     : we.workoutSessionSets.length;

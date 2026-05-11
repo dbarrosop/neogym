@@ -1,0 +1,11 @@
+{
+  "name": "neogym-backend-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  }
+}

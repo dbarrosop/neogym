@@ -174,7 +174,11 @@ function MetricInput({ spec, value, onChange, inputRef }: MetricInputProps) {
       m: "",
       s: "",
     };
-    const showH = (spec.maximum ?? Number.POSITIVE_INFINITY) >= 3600;
+    // Only show the hours field when the cap actually exceeds 1 hour. For the
+    // interval template (max=3600s) the min/sec pair covers the whole range,
+    // and exposing an h field invites the obvious off-by-one of typing the
+    // intended minutes into the hours slot.
+    const showH = (spec.maximum ?? Number.POSITIVE_INFINITY) > 3600;
     const id = `metric-${spec.key}`;
     return (
       <div className="col-span-2 space-y-1.5">

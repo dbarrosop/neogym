@@ -11,6 +11,8 @@ configuration:
       custom_name: id
     metrics:
       custom_name: metrics
+    parent_kind:
+      custom_name: parentKind
     updated_at:
       custom_name: updatedAt
     workout_session_exercise_id:
@@ -20,6 +22,7 @@ configuration:
     entry_number: entryNumber
     id: id
     metrics: metrics
+    parent_kind: parentKind
     updated_at: updatedAt
     workout_session_exercise_id: workoutSessionExerciseId
   custom_name: workoutSessionCardioEntries
@@ -36,7 +39,9 @@ configuration:
 object_relationships:
   - name: workoutSessionExercise
     using:
-      foreign_key_constraint_on: workout_session_exercise_id
+      foreign_key_constraint_on:
+        - workout_session_exercise_id
+        - parent_kind
 insert_permissions:
   - role: user
     permission:

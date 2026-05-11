@@ -19,6 +19,7 @@
 - "!include public_exercise_mechanics.yaml"
 - "!include public_exercise_secondary_muscle_groups.yaml"
 - "!include public_exercises.yaml"
+- "!include public_exercises_cardio.yaml"
 - "!include public_journal_entries.yaml"
 - "!include public_journal_entry_labels.yaml"
 - "!include public_journal_labels.yaml"

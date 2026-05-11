@@ -441,7 +441,9 @@ type exerciseSecondaryMuscleGroups_min_fields {
 columns and relationships of "exercises"
 """
 type exercises {
-  category: exerciseCategories_enum
+  "An object relationship"
+  cardio: exercisesCardio
+  category: exerciseCategories_enum!
   createdAt: timestamptz!
   doubleWeight: Boolean!
   equipment: exerciseEquipments_enum
@@ -455,15 +457,9 @@ type exercises {
   image2FileId: uuid
   instructions: [String!]!
   isPublic: Boolean!
+  kind: String
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema(
-    "JSON select path"
-    path: String
-  ): jsonb
   name: String!
   primaryMuscleGroup: muscleGroups_enum!
   "An array relationship"
@@ -549,6 +545,59 @@ type exercises {
   ): workoutSessionExercises_aggregate!
 }
 """
+columns and relationships of "exercises_cardio"
+"""
+type exercisesCardio {
+  createdAt: timestamptz!
+  "An object relationship"
+  exercise: exercises!
+  exerciseId: uuid!
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema(
+    "JSON select path"
+    path: String
+  ): jsonb!
+  updatedAt: timestamptz!
+}
+"""
+aggregated selection of "exercises_cardio"
+"""
+type exercisesCardio_aggregate {
+  aggregate: exercisesCardio_aggregate_fields
+  nodes: [exercisesCardio!]!
+}
+"""
+aggregate fields of "exercises_cardio"
+"""
+type exercisesCardio_aggregate_fields {
+  count(columns: [exercisesCardio_select_column!], distinct: Boolean): Int!
+  max: exercisesCardio_max_fields
+  min: exercisesCardio_min_fields
+}
+"aggregate max on columns"
+type exercisesCardio_max_fields {
+  createdAt: timestamptz
+  exerciseId: uuid
+  updatedAt: timestamptz
+}
+"aggregate min on columns"
+type exercisesCardio_min_fields {
+  createdAt: timestamptz
+  exerciseId: uuid
+  updatedAt: timestamptz
+}
+"""
+response of any mutation on the table "exercises_cardio"
+"""
+type exercisesCardio_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [exercisesCardio!]!
+}
+"""
 aggregated selection of "exercises"
 """
 type exercises_aggregate {
@@ -570,6 +619,7 @@ type exercises_max_fields {
   image1FileId: uuid
   image2FileId: uuid
   instructions: [String!]
+  kind: String
   name: String
   slug: String
   updatedAt: timestamptz
@@ -582,6 +632,7 @@ type exercises_min_fields {
   image1FileId: uuid
   image2FileId: uuid
   instructions: [String!]
+  kind: String
   name: String
   slug: String
   updatedAt: timestamptz
@@ -1052,12 +1103,23 @@ type mutation_root {
   """
   deleteExercise(id: uuid!): exercises
   """
+  delete single row from the table: "exercises_cardio"
+  """
+  deleteExerciseCardio(exerciseId: uuid!): exercisesCardio
+  """
   delete data from the table: "exercises"
   """
   deleteExercises(
     "filter the rows which have to be deleted"
     where: exercises_bool_exp!
   ): exercises_mutation_response
+  """
+  delete data from the table: "exercises_cardio"
+  """
+  deleteExercisesCardio(
+    "filter the rows which have to be deleted"
+    where: exercisesCardio_bool_exp!
+  ): exercisesCardio_mutation_response
   """
   delete data from the table: "journal_entries"
   """
@@ -1207,6 +1269,15 @@ type mutation_root {
     on_conflict: exercises_on_conflict
   ): exercises
   """
+  insert a single row into the table: "exercises_cardio"
+  """
+  insertExerciseCardio(
+    "the row to be inserted"
+    object: exercisesCardio_insert_input!,
+    "upsert condition"
+    on_conflict: exercisesCardio_on_conflict
+  ): exercisesCardio
+  """
   insert data into the table: "exercises"
   """
   insertExercises(
@@ -1215,6 +1286,15 @@ type mutation_root {
     "upsert condition"
     on_conflict: exercises_on_conflict
   ): exercises_mutation_response
+  """
+  insert data into the table: "exercises_cardio"
+  """
+  insertExercisesCardio(
+    "the rows to be inserted"
+    objects: [exercisesCardio_insert_input!]!,
+    "upsert condition"
+    on_conflict: exercisesCardio_on_conflict
+  ): exercisesCardio_mutation_response
   """
   insert data into the table: "journal_entries"
   """
@@ -1436,37 +1516,52 @@ type mutation_root {
   update single row of the table: "exercises"
   """
   updateExercise(
-    "append existing jsonb value of filtered columns with new jsonb value"
-    _append: exercises_append_input,
-    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
-    _delete_at_path: exercises_delete_at_path_input,
-    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
-    _delete_elem: exercises_delete_elem_input,
-    "delete key/value pair or string element. key/value pairs are matched based on their key value"
-    _delete_key: exercises_delete_key_input,
-    "prepend existing jsonb value of filtered columns with new jsonb value"
-    _prepend: exercises_prepend_input,
     "sets the columns of the filtered rows to the given values"
     _set: exercises_set_input,pk_columns: exercises_pk_columns_input!  ): exercises
+  """
+  update single row of the table: "exercises_cardio"
+  """
+  updateExerciseCardio(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: exercisesCardio_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: exercisesCardio_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: exercisesCardio_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: exercisesCardio_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: exercisesCardio_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: exercisesCardio_set_input,pk_columns: exercisesCardio_pk_columns_input!  ): exercisesCardio
   """
   update data of the table: "exercises"
   """
   updateExercises(
-    "append existing jsonb value of filtered columns with new jsonb value"
-    _append: exercises_append_input,
-    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
-    _delete_at_path: exercises_delete_at_path_input,
-    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
-    _delete_elem: exercises_delete_elem_input,
-    "delete key/value pair or string element. key/value pairs are matched based on their key value"
-    _delete_key: exercises_delete_key_input,
-    "prepend existing jsonb value of filtered columns with new jsonb value"
-    _prepend: exercises_prepend_input,
     "sets the columns of the filtered rows to the given values"
     _set: exercises_set_input,
     "filter the rows which have to be updated"
     where: exercises_bool_exp!
   ): exercises_mutation_response
+  """
+  update data of the table: "exercises_cardio"
+  """
+  updateExercisesCardio(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: exercisesCardio_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: exercisesCardio_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: exercisesCardio_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: exercisesCardio_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: exercisesCardio_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: exercisesCardio_set_input,
+    "filter the rows which have to be updated"
+    where: exercisesCardio_bool_exp!
+  ): exercisesCardio_mutation_response
   """
   update data of the table: "journal_entries"
   """
@@ -1646,6 +1741,13 @@ type mutation_root {
     updates: [bodyMeasurements_updates!]!
   ): [bodyMeasurements_mutation_response]
   """
+  update multiples rows of table: "exercises_cardio"
+  """
+  update_exercisesCardio_many(
+    "updates to execute, in order"
+    updates: [exercisesCardio_updates!]!
+  ): [exercisesCardio_mutation_response]
+  """
   update multiples rows of table: "exercises"
   """
   update_exercises_many(
@@ -1755,6 +1857,10 @@ type query_root {
   fetch data from the table: "exercises" using primary key columns
   """
   exercise(id: uuid!): exercises
+  """
+  fetch data from the table: "exercises_cardio" using primary key columns
+  """
+  exerciseCardio(exerciseId: uuid!): exercisesCardio
   """
   fetch data from the table: "exercise_categories"
   """
@@ -1985,6 +2091,36 @@ type query_root {
     "filter the rows returned"
     where: exercises_bool_exp
   ): exercises_aggregate!
+  """
+  fetch data from the table: "exercises_cardio"
+  """
+  exercisesCardio(
+    "distinct select on columns"
+    distinct_on: [exercisesCardio_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesCardio_order_by!],
+    "filter the rows returned"
+    where: exercisesCardio_bool_exp
+  ): [exercisesCardio!]!
+  """
+  fetch aggregated fields from the table: "exercises_cardio"
+  """
+  exercisesCardioAggregate(
+    "distinct select on columns"
+    distinct_on: [exercisesCardio_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesCardio_order_by!],
+    "filter the rows returned"
+    where: exercisesCardio_bool_exp
+  ): exercisesCardio_aggregate!
   """
   fetch data from the table: "storage.files" using primary key columns
   """
@@ -2450,6 +2586,10 @@ type subscription_root {
   """
   exercise(id: uuid!): exercises
   """
+  fetch data from the table: "exercises_cardio" using primary key columns
+  """
+  exerciseCardio(exerciseId: uuid!): exercisesCardio
+  """
   fetch data from the table: "exercise_categories"
   """
   exerciseCategories(
@@ -2745,6 +2885,47 @@ type subscription_root {
     "filter the rows returned"
     where: exercises_bool_exp
   ): exercises_aggregate!
+  """
+  fetch data from the table: "exercises_cardio"
+  """
+  exercisesCardio(
+    "distinct select on columns"
+    distinct_on: [exercisesCardio_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesCardio_order_by!],
+    "filter the rows returned"
+    where: exercisesCardio_bool_exp
+  ): [exercisesCardio!]!
+  """
+  fetch aggregated fields from the table: "exercises_cardio"
+  """
+  exercisesCardioAggregate(
+    "distinct select on columns"
+    distinct_on: [exercisesCardio_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesCardio_order_by!],
+    "filter the rows returned"
+    where: exercisesCardio_bool_exp
+  ): exercisesCardio_aggregate!
+  """
+  fetch data from the table in a streaming manner: "exercises_cardio"
+  """
+  exercisesCardio_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [exercisesCardio_stream_cursor_input]!,
+    "filter the rows returned"
+    where: exercisesCardio_bool_exp
+  ): [exercisesCardio!]!
   """
   fetch data from the table in a streaming manner: "exercises"
   """
@@ -3322,6 +3503,7 @@ type workoutExercises {
   exercise: exercises!
   exerciseId: uuid!
   id: uuid!
+  kind: String!
   position: Int!
   updatedAt: timestamptz!
   "An object relationship"
@@ -3360,6 +3542,7 @@ type workoutExercises_max_fields {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutId: uuid
@@ -3369,6 +3552,7 @@ type workoutExercises_min_fields {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutId: uuid
@@ -3563,6 +3747,7 @@ type workoutSessionExercises {
   exercise: exercises!
   exerciseId: uuid!
   id: uuid!
+  kind: String!
   position: Int!
   updatedAt: timestamptz!
   "An object relationship"
@@ -3653,6 +3838,7 @@ type workoutSessionExercises_max_fields {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutSessionId: uuid
@@ -3662,6 +3848,7 @@ type workoutSessionExercises_min_fields {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutSessionId: uuid
@@ -4176,9 +4363,42 @@ enum exerciseSecondaryMuscleGroups_select_column {
   muscleGroup
 }
 """
+unique or primary key constraints on table "exercises_cardio"
+"""
+enum exercisesCardio_constraint {
+  """
+  unique or primary key constraint on columns "exercise_id"
+  """
+  exercises_cardio_pkey
+}
+"""
+select columns of table "exercises_cardio"
+"""
+enum exercisesCardio_select_column {
+  "column name"
+  createdAt
+  "column name"
+  exerciseId
+  "column name"
+  metricsSchema
+  "column name"
+  updatedAt
+}
+"""
+update columns of table "exercises_cardio"
+"""
+enum exercisesCardio_update_column {
+  "column name"
+  metricsSchema
+}
+"""
 unique or primary key constraints on table "exercises"
 """
 enum exercises_constraint {
+  """
+  unique or primary key constraint on columns "id", "kind"
+  """
+  exercises_id_kind_uq
   """
   unique or primary key constraint on columns "id"
   """
@@ -4217,11 +4437,11 @@ enum exercises_select_column {
   "column name"
   isPublic
   "column name"
+  kind
+  "column name"
   level
   "column name"
   mechanic
-  "column name"
-  metricsSchema
   "column name"
   name
   "column name"
@@ -4273,8 +4493,6 @@ enum exercises_update_column {
   level
   "column name"
   mechanic
-  "column name"
-  metricsSchema
   "column name"
   name
   "column name"
@@ -4512,6 +4730,8 @@ enum workoutExercises_select_column {
   "column name"
   id
   "column name"
+  kind
+  "column name"
   position
   "column name"
   updatedAt
@@ -4596,6 +4816,10 @@ unique or primary key constraints on table "workout_session_exercises"
 """
 enum workoutSessionExercises_constraint {
   """
+  unique or primary key constraint on columns "id", "kind"
+  """
+  workout_session_exercises_id_kind_uq
+  """
   unique or primary key constraint on columns "id"
   """
   workout_session_exercises_pkey
@@ -4614,6 +4838,8 @@ enum workoutSessionExercises_select_column {
   exerciseId
   "column name"
   id
+  "column name"
+  kind
   "column name"
   position
   "column name"
@@ -5217,6 +5443,139 @@ input exerciseSecondaryMuscleGroups_stream_cursor_value_input {
   exerciseId: uuid
   muscleGroup: muscleGroups_enum
 }
+"append existing jsonb value of filtered columns with new jsonb value"
+input exercisesCardio_append_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
+"""
+Boolean expression to filter rows from the table "exercises_cardio". All fields are combined with a logical 'AND'.
+"""
+input exercisesCardio_bool_exp {
+  _and: [exercisesCardio_bool_exp!]
+  _not: exercisesCardio_bool_exp
+  _or: [exercisesCardio_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  exercise: exercises_bool_exp
+  exerciseId: uuid_comparison_exp
+  metricsSchema: jsonb_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+}
+"delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+input exercisesCardio_delete_at_path_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: [String!]
+}
+"delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+input exercisesCardio_delete_elem_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: Int
+}
+"delete key/value pair or string element. key/value pairs are matched based on their key value"
+input exercisesCardio_delete_key_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: String
+}
+"""
+input type for inserting data into table "exercises_cardio"
+"""
+input exercisesCardio_insert_input {
+  exercise: exercises_obj_rel_insert_input
+  exerciseId: uuid
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
+"""
+input type for inserting object relation for remote table "exercises_cardio"
+"""
+input exercisesCardio_obj_rel_insert_input {
+  data: exercisesCardio_insert_input!
+  "upsert condition"
+  on_conflict: exercisesCardio_on_conflict
+}
+"""
+on_conflict condition type for table "exercises_cardio"
+"""
+input exercisesCardio_on_conflict {
+  constraint: exercisesCardio_constraint!
+  update_columns: [exercisesCardio_update_column!]! = []
+  where: exercisesCardio_bool_exp
+}
+"""
+Ordering options when selecting data from "exercises_cardio".
+"""
+input exercisesCardio_order_by {
+  createdAt: order_by
+  exercise: exercises_order_by
+  exerciseId: order_by
+  metricsSchema: order_by
+  updatedAt: order_by
+}
+"primary key columns input for table: exercises_cardio"
+input exercisesCardio_pk_columns_input {
+  exerciseId: uuid!
+}
+"prepend existing jsonb value of filtered columns with new jsonb value"
+input exercisesCardio_prepend_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
+"""
+input type for updating data in table "exercises_cardio"
+"""
+input exercisesCardio_set_input {
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
+"""
+Streaming cursor of the table "exercisesCardio"
+"""
+input exercisesCardio_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: exercisesCardio_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input exercisesCardio_stream_cursor_value_input {
+  createdAt: timestamptz
+  exerciseId: uuid
+  """
+  JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+  updatedAt: timestamptz
+}
+input exercisesCardio_updates {
+  "append existing jsonb value of filtered columns with new jsonb value"
+  _append: exercisesCardio_append_input
+  "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+  _delete_at_path: exercisesCardio_delete_at_path_input
+  "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+  _delete_elem: exercisesCardio_delete_elem_input
+  "delete key/value pair or string element. key/value pairs are matched based on their key value"
+  _delete_key: exercisesCardio_delete_key_input
+  "prepend existing jsonb value of filtered columns with new jsonb value"
+  _prepend: exercisesCardio_prepend_input
+  "sets the columns of the filtered rows to the given values"
+  _set: exercisesCardio_set_input
+  "filter the rows which have to be updated"
+  where: exercisesCardio_bool_exp!
+}
 input exercises_aggregate_bool_exp {
   bool_and: exercises_aggregate_bool_exp_bool_and
   bool_or: exercises_aggregate_bool_exp_bool_or
@@ -5248,13 +5607,6 @@ input exercises_aggregate_order_by {
   max: exercises_max_order_by
   min: exercises_min_order_by
 }
-"append existing jsonb value of filtered columns with new jsonb value"
-input exercises_append_input {
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: jsonb
-}
 """
 Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'.
 """
@@ -5262,6 +5614,7 @@ input exercises_bool_exp {
   _and: [exercises_bool_exp!]
   _not: exercises_bool_exp
   _or: [exercises_bool_exp!]
+  cardio: exercisesCardio_bool_exp
   category: exerciseCategories_enum_comparison_exp
   createdAt: timestamptz_comparison_exp
   doubleWeight: Boolean_comparison_exp
@@ -5274,9 +5627,9 @@ input exercises_bool_exp {
   image2FileId: uuid_comparison_exp
   instructions: String_array_comparison_exp
   isPublic: Boolean_comparison_exp
+  kind: String_comparison_exp
   level: exerciseLevels_enum_comparison_exp
   mechanic: exerciseMechanics_enum_comparison_exp
-  metricsSchema: jsonb_comparison_exp
   name: String_comparison_exp
   primaryMuscleGroup: muscleGroups_enum_comparison_exp
   secondaryMuscleGroups: exerciseSecondaryMuscleGroups_bool_exp
@@ -5289,31 +5642,11 @@ input exercises_bool_exp {
   workoutSessionExercises: workoutSessionExercises_bool_exp
   workoutSessionExercises_aggregate: workoutSessionExercises_aggregate_bool_exp
 }
-"delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
-input exercises_delete_at_path_input {
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: [String!]
-}
-"delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
-input exercises_delete_elem_input {
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: Int
-}
-"delete key/value pair or string element. key/value pairs are matched based on their key value"
-input exercises_delete_key_input {
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: String
-}
 """
 input type for inserting data into table "exercises"
 """
 input exercises_insert_input {
+  cardio: exercisesCardio_obj_rel_insert_input
   category: exerciseCategories_enum
   doubleWeight: Boolean
   equipment: exerciseEquipments_enum
@@ -5323,10 +5656,6 @@ input exercises_insert_input {
   instructions: [String!]
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
   workoutExercises: workoutExercises_arr_rel_insert_input
@@ -5341,6 +5670,7 @@ input exercises_max_order_by {
   image1FileId: order_by
   image2FileId: order_by
   instructions: order_by
+  kind: order_by
   name: order_by
   slug: order_by
   updatedAt: order_by
@@ -5355,6 +5685,7 @@ input exercises_min_order_by {
   image1FileId: order_by
   image2FileId: order_by
   instructions: order_by
+  kind: order_by
   name: order_by
   slug: order_by
   updatedAt: order_by
@@ -5380,6 +5711,7 @@ input exercises_on_conflict {
 Ordering options when selecting data from "exercises".
 """
 input exercises_order_by {
+  cardio: exercisesCardio_order_by
   category: order_by
   createdAt: order_by
   doubleWeight: order_by
@@ -5392,9 +5724,9 @@ input exercises_order_by {
   image2FileId: order_by
   instructions: order_by
   isPublic: order_by
+  kind: order_by
   level: order_by
   mechanic: order_by
-  metricsSchema: order_by
   name: order_by
   primaryMuscleGroup: order_by
   secondaryMuscleGroups_aggregate: exerciseSecondaryMuscleGroups_aggregate_order_by
@@ -5407,13 +5739,6 @@ input exercises_order_by {
 "primary key columns input for table: exercises"
 input exercises_pk_columns_input {
   id: uuid!
-}
-"prepend existing jsonb value of filtered columns with new jsonb value"
-input exercises_prepend_input {
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: jsonb
 }
 """
 input type for updating data in table "exercises"
@@ -5428,10 +5753,6 @@ input exercises_set_input {
   instructions: [String!]
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
 }
@@ -5456,12 +5777,9 @@ input exercises_stream_cursor_value_input {
   image2FileId: uuid
   instructions: [String!]
   isPublic: Boolean
+  kind: String
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  """
-  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
-  """
-  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
   slug: String
@@ -5469,16 +5787,6 @@ input exercises_stream_cursor_value_input {
   userId: uuid
 }
 input exercises_updates {
-  "append existing jsonb value of filtered columns with new jsonb value"
-  _append: exercises_append_input
-  "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
-  _delete_at_path: exercises_delete_at_path_input
-  "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
-  _delete_elem: exercises_delete_elem_input
-  "delete key/value pair or string element. key/value pairs are matched based on their key value"
-  _delete_key: exercises_delete_key_input
-  "prepend existing jsonb value of filtered columns with new jsonb value"
-  _prepend: exercises_prepend_input
   "sets the columns of the filtered rows to the given values"
   _set: exercises_set_input
   "filter the rows which have to be updated"
@@ -6070,6 +6378,7 @@ input workoutExercises_bool_exp {
   exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
   id: uuid_comparison_exp
+  kind: String_comparison_exp
   position: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   workout: workouts_bool_exp
@@ -6098,6 +6407,7 @@ input workoutExercises_max_order_by {
   createdAt: order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workoutId: order_by
@@ -6109,6 +6419,7 @@ input workoutExercises_min_order_by {
   createdAt: order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workoutId: order_by
@@ -6129,6 +6440,7 @@ input workoutExercises_order_by {
   exercise: exercises_order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workout: workouts_order_by
@@ -6176,6 +6488,7 @@ input workoutExercises_stream_cursor_value_input {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutId: uuid
@@ -6576,6 +6889,7 @@ input workoutSessionExercises_bool_exp {
   exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
   id: uuid_comparison_exp
+  kind: String_comparison_exp
   position: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   workoutSession: workoutSessions_bool_exp
@@ -6610,6 +6924,7 @@ input workoutSessionExercises_max_order_by {
   createdAt: order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workoutSessionId: order_by
@@ -6621,6 +6936,7 @@ input workoutSessionExercises_min_order_by {
   createdAt: order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workoutSessionId: order_by
@@ -6649,6 +6965,7 @@ input workoutSessionExercises_order_by {
   exercise: exercises_order_by
   exerciseId: order_by
   id: order_by
+  kind: order_by
   position: order_by
   updatedAt: order_by
   workoutSession: workoutSessions_order_by
@@ -6698,6 +7015,7 @@ input workoutSessionExercises_stream_cursor_value_input {
   createdAt: timestamptz
   exerciseId: uuid
   id: uuid
+  kind: String
   position: Int
   updatedAt: timestamptz
   workoutSessionId: uuid

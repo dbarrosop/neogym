@@ -8,16 +8,21 @@ This document is the source of truth for how the session data model behaves. If 
 
 ```
 workouts (template, optional)
-  └─ workout_exercises (ordered list, template only)
+  └─ workout_exercises (ordered list, template only; kind synced from parent exercise)
 
 workout_sessions  ◄── workout_id is NULLABLE (ad-hoc) or → workouts.id
-  └─ workout_session_exercises (ordered list, owned by the session)
-       ├─ workout_session_sets           (strength: set_number, reps, weight)
-       └─ workout_session_cardio_entries (cardio:   entry_number, metrics jsonb)
+  └─ workout_session_exercises (ordered list, owned by the session; kind synced from parent exercise)
+       │
+       │  composite FKs on (workout_session_exercise_id, parent_kind) enforce
+       │  the strength/cardio split — see exercises.md for the full pattern.
+       │
+       ├─ workout_session_sets           (parent_kind = 'strength' — set_number, reps, weight)
+       └─ workout_session_cardio_entries (parent_kind = 'cardio'   — entry_number, metrics jsonb)
 ```
 
 Key files:
-- Tables: `backend/nhost/migrations/default/1746230400000_init/up.sql` (sessions, set entries) and `1790000420000_workout_session_cardio_entries/up.sql` (cardio entries).
+- Tables: `backend/nhost/migrations/default/1746230400000_init/up.sql` (sessions, strength sets), `1790000420000_workout_session_cardio_entries/up.sql` (cardio entries), `1790000425000_workout_session_sets_parent_kind/up.sql` (strength-side composite FK).
+- `kind` discriminator and trigger on `workout_*_exercises`: `1790000415000_exercises_kind_composite/up.sql`.
 - Nullable `workout_id`: `1790000430000_workout_sessions_nullable_workout/up.sql`.
 - Hasura permissions: `backend/nhost/metadata/databases/default/tables/public_workout_sessions.yaml` and `public_workout_session_*.yaml`.
 - Frontend creation: `frontend/src/lib/hooks/use-start-session.ts`.
@@ -41,7 +46,7 @@ startSession.mutate({
 });
 ```
 
-The mutation inserts the `workout_sessions` row **and** seeds the session's exercise list in a single round-trip via Hasura's nested `workoutSessionExercises: { data: [...] }`.
+The mutation inserts the `workout_sessions` row **and** seeds the session's exercise list in a single round-trip via Hasura's nested `workoutSessionExercises: { data: [...] }`. The `kind` column on each `workout_session_exercise` is auto-populated by the `sync_public_workout_session_exercises_kind` trigger — the frontend doesn't pass it.
 
 ### 2. Ad-hoc (no workout)
 
@@ -87,24 +92,24 @@ Until that changes, treat workout deletion as destructive of session history. Th
 - **Insert:** `user_id = X-Hasura-User-Id` AND (`workout_id IS NULL` OR `workout.user_id = X-Hasura-User-Id` OR `workout.is_public = true`). `user_id` is auto-set via `set:`.
 - **Select / Update / Delete:** scoped to `user_id = X-Hasura-User-Id`. Update additionally enforces the same `workout_id` rule on the new value, so a user cannot reassign their session to someone else's private workout.
 
-`workout_session_exercises` and `workout_session_cardio_entries`: both scope all CRUD to the owning user via the `workoutSession.user_id = X-Hasura-User-Id` filter (transitively through relationships). This means the FK chain `cardio_entry → workout_session_exercise → workout_session → user` is the security boundary — there's no separate `user_id` column on the children.
+`workout_session_exercises`, `workout_session_sets`, and `workout_session_cardio_entries`: scope all CRUD to the owning user via the `workoutSession.user_id = X-Hasura-User-Id` filter (transitively through relationships). This means the FK chain `entry → workout_session_exercise → workout_session → user` is the security boundary — there's no separate `user_id` column on the children.
+
+The user-role insert permission columns deliberately exclude the discriminator columns (`workout_session_exercises.kind`, `workout_session_sets.parent_kind`, `workout_session_cardio_entries.parent_kind`): on session-exercises a trigger populates `kind` from the parent exercise, and on children the CHECK + DEFAULT keep `parent_kind` pinned to the right value. Clients pass `exercise_id` (and `workout_session_exercise_id` for children) and the discriminator falls out structurally.
 
 ## Strength vs cardio at the session-exercise level
 
-`workout_session_exercises` has **no `category` column of its own**. The exercise's category determines what the UI renders:
+`workout_session_exercises.kind` is the binary discriminator (`'strength' | 'cardio'`), auto-synced from `exercises.kind` by a trigger. The UI branches on it directly:
 
-- `exercise.category = 'cardio'` → render the `CardioExerciseLog` row (uses `workout_session_cardio_entries`).
-- Anything else (or null) → render the strength `ExerciseLog` row (uses `workout_session_sets`).
+- `exercise.kind === 'cardio'` → render the `CardioExerciseLog` row (uses `workout_session_cardio_entries`, reading the per-exercise schema from `exercise.cardio.metricsSchema`).
+- Otherwise → render the strength `ExerciseLog` row (uses `workout_session_sets`).
 
-This is a UI-side branch in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **It is enforced by the database only for cardio entries** (via the trigger described in `exercises.md`) — strength sets have no such trigger, so technically the DB would let you insert a `workout_session_set` for a cardio exercise. The UI never does this; if you're writing data through the GraphQL API directly, you are responsible for matching the exercise category.
+This branch is in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
 
 ### Why `workout_session_exercises.exercise_id` is immutable for the user role
 
 The `update_permissions.columns` list for the `user` role on `workout_session_exercises` is just `position` — `exercise_id` is **not** updatable. Inserts and deletes are allowed; reordering is allowed; re-pointing an existing row at a different exercise is not.
 
-This closes a category-mismatch loophole. If `exercise_id` were updatable, a user (or any tool acting as the user role) could swap a `workout_session_exercises` row from a cardio exercise to a strength one (or vice versa). The `validate_workout_session_cardio_entry()` trigger described in `exercises.md` only fires on `INSERT OR UPDATE OF (metrics, workout_session_exercise_id)` on the children — a parent `exercise_id` swap doesn't touch child rows, so existing `workout_session_cardio_entries` or `workout_session_sets` would silently be stranded under a row whose category is now the other one. The UI's `isCardio = exercise.category === "cardio"` branch would then either hide or reject those entries.
-
-To switch an exercise within a session: delete the `workout_session_exercises` row (which cascades to its children) and insert a new one. This matches the Add/Remove UX in `/sessions/$sessionId`.
+This closes a kind-mismatch loophole. If `exercise_id` were updatable, swapping it would change `kind` (the sync trigger fires on `UPDATE OF exercise_id`), but the children (sets/cardio entries) attached to that session-exercise would still have their old `parent_kind`. The composite FK would then fail the update — not silently bad, but a confusing error path. By keeping `exercise_id` immutable for users, the only way to switch which exercise a row points at is delete + insert, which cascades to the children. This matches the Add/Remove UX in `/sessions/$sessionId`.
 
 ## Display names
 

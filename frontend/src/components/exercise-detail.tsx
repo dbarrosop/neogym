@@ -44,11 +44,14 @@ const ExerciseDetailQuery = graphql(`
       doubleWeight
       level
       category
+      kind
       equipment
       force
       mechanic
       primaryMuscleGroup
-      metricsSchema
+      cardio {
+        metricsSchema
+      }
       secondaryMuscleGroups {
         muscleGroup
       }
@@ -100,8 +103,8 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
   );
 
   const cardioSchema = useMemo(
-    () => asCardioMetricsSchema(data?.exercise?.metricsSchema),
-    [data?.exercise?.metricsSchema],
+    () => asCardioMetricsSchema(data?.exercise?.cardio?.metricsSchema),
+    [data?.exercise?.cardio?.metricsSchema],
   );
 
   const cardioPrimary = useMemo<CardioMetricSpec | null>(
@@ -125,7 +128,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
       return <p className="text-sm text-muted-foreground">Exercise not found.</p>;
     }
     const exercise = data.exercise;
-    const isCardio = exercise.category === "cardio" && cardioSchema && cardioPrimary;
+    const isCardio = exercise.kind === "cardio" && cardioSchema && cardioPrimary;
     return (
       <>
         <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">

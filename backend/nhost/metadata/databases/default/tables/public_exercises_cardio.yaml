@@ -1,5 +1,5 @@
 table:
-  name: workout_exercises
+  name: exercises_cardio
   schema: public
 configuration:
   column_config:
@@ -7,71 +7,55 @@ configuration:
       custom_name: createdAt
     exercise_id:
       custom_name: exerciseId
-    id:
-      custom_name: id
-    kind:
-      custom_name: kind
-    position:
-      custom_name: position
+    metrics_schema:
+      custom_name: metricsSchema
     updated_at:
       custom_name: updatedAt
-    workout_id:
-      custom_name: workoutId
   custom_column_names:
     created_at: createdAt
     exercise_id: exerciseId
-    id: id
-    kind: kind
-    position: position
+    metrics_schema: metricsSchema
     updated_at: updatedAt
-    workout_id: workoutId
-  custom_name: workoutExercises
+  custom_name: exercisesCardio
   custom_root_fields:
-    delete: deleteWorkoutExercises
-    delete_by_pk: deleteWorkoutExercise
-    insert: insertWorkoutExercises
-    insert_one: insertWorkoutExercise
-    select: workoutExercises
-    select_aggregate: workoutExercisesAggregate
-    select_by_pk: workoutExercise
-    update: updateWorkoutExercises
-    update_by_pk: updateWorkoutExercise
+    delete: deleteExercisesCardio
+    delete_by_pk: deleteExerciseCardio
+    insert: insertExercisesCardio
+    insert_one: insertExerciseCardio
+    select: exercisesCardio
+    select_aggregate: exercisesCardioAggregate
+    select_by_pk: exerciseCardio
+    update: updateExercisesCardio
+    update_by_pk: updateExerciseCardio
 object_relationships:
   - name: exercise
     using:
-      foreign_key_constraint_on:
-        - exercise_id
-        - kind
-  - name: workout
-    using:
-      foreign_key_constraint_on: workout_id
+      foreign_key_constraint_on: exercise_id
 insert_permissions:
   - role: user
     permission:
       check:
-        workout:
+        exercise:
           _and:
             - user_id:
                 _eq: X-Hasura-User-Id
             - is_public:
                 _eq: false
+            - category:
+                _eq: cardio
       columns:
-        - workout_id
         - exercise_id
-        - position
+        - metrics_schema
 select_permissions:
   - role: user
     permission:
       columns:
-        - id
-        - workout_id
         - exercise_id
-        - kind
-        - position
+        - metrics_schema
         - created_at
         - updated_at
       filter:
-        workout:
+        exercise:
           _or:
             - user_id:
                 _eq: X-Hasura-User-Id
@@ -82,16 +66,16 @@ update_permissions:
   - role: user
     permission:
       columns:
-        - position
+        - metrics_schema
       filter:
-        workout:
+        exercise:
           _and:
             - user_id:
                 _eq: X-Hasura-User-Id
             - is_public:
                 _eq: false
       check:
-        workout:
+        exercise:
           _and:
             - user_id:
                 _eq: X-Hasura-User-Id
@@ -101,7 +85,7 @@ delete_permissions:
   - role: user
     permission:
       filter:
-        workout:
+        exercise:
           _and:
             - user_id:
                 _eq: X-Hasura-User-Id

@@ -7,6 +7,8 @@ configuration:
       custom_name: createdAt
     id:
       custom_name: id
+    parent_kind:
+      custom_name: parentKind
     reps:
       custom_name: reps
     set_number:
@@ -20,6 +22,7 @@ configuration:
   custom_column_names:
     created_at: createdAt
     id: id
+    parent_kind: parentKind
     reps: reps
     set_number: setNumber
     updated_at: updatedAt
@@ -39,7 +42,9 @@ configuration:
 object_relationships:
   - name: workoutSessionExercise
     using:
-      foreign_key_constraint_on: workout_session_exercise_id
+      foreign_key_constraint_on:
+        - workout_session_exercise_id
+        - parent_kind
 insert_permissions:
   - role: user
     permission:
