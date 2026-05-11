@@ -10,11 +10,6 @@
     "path": "/auth/oauth2Provider/loginURL"
   },
   {
-    "value": [],
-    "op": "add",
-    "path": "/auth/redirections/allowedUrls"
-  },
-  {
     "value": "https://neogym.nhost.app",
     "op": "replace",
     "path": "/auth/redirections/clientUrl"
@@ -33,5 +28,12 @@
     "value": false,
     "op": "replace",
     "path": "/hasura/settings/enableConsole"
+  },
+  {
+    "value": {
+      "retention": 7
+    },
+    "op": "add",
+    "path": "/postgres/pitr"
   }
 ]
