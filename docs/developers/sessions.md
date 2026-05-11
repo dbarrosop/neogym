@@ -16,12 +16,12 @@ workout_sessions  ◄── workout_id is NULLABLE (ad-hoc) or → workouts.id
        │  composite FKs on (workout_session_exercise_id, parent_kind) enforce
        │  the strength/cardio split — see exercises.md for the full pattern.
        │
-       ├─ workout_session_sets           (parent_kind = 'strength' — set_number, reps, weight)
-       └─ workout_session_cardio_entries (parent_kind = 'cardio'   — entry_number, metrics jsonb)
+       ├─ workout_session_strength_sets   (parent_kind = 'strength' — set_number, reps, weight)
+       └─ workout_session_cardio_entries  (parent_kind = 'cardio'   — entry_number, metrics jsonb)
 ```
 
 Key files:
-- Tables: `backend/nhost/migrations/default/1746230400000_init/up.sql` (sessions, strength sets), `1790000420000_workout_session_cardio_entries/up.sql` (cardio entries), `1790000425000_workout_session_sets_parent_kind/up.sql` (strength-side composite FK).
+- Tables: `backend/nhost/migrations/default/1746230400000_init/up.sql` (sessions, strength sets — originally named `workout_session_sets`), `1790000420000_workout_session_cardio_entries/up.sql` (cardio entries), `1790000425000_workout_session_sets_parent_kind/up.sql` (strength-side composite FK), `1790000450000_rename_workout_session_strength_sets/up.sql` (renames `workout_session_sets` → `workout_session_strength_sets`).
 - `kind` discriminator and trigger on `workout_*_exercises`: `1790000415000_exercises_kind_composite/up.sql`.
 - Nullable `workout_id`: `1790000430000_workout_sessions_nullable_workout/up.sql`.
 - Hasura permissions: `backend/nhost/metadata/databases/default/tables/public_workout_sessions.yaml` and `public_workout_session_*.yaml`.
@@ -94,14 +94,14 @@ Until that changes, treat workout deletion as destructive of session history. Th
 
 `workout_session_exercises`, `workout_session_sets`, and `workout_session_cardio_entries`: scope all CRUD to the owning user via the `workoutSession.user_id = X-Hasura-User-Id` filter (transitively through relationships). This means the FK chain `entry → workout_session_exercise → workout_session → user` is the security boundary — there's no separate `user_id` column on the children.
 
-The user-role insert permission columns deliberately exclude the discriminator columns (`workout_session_exercises.kind`, `workout_session_sets.parent_kind`, `workout_session_cardio_entries.parent_kind`): on session-exercises a trigger populates `kind` from the parent exercise, and on children the CHECK + DEFAULT keep `parent_kind` pinned to the right value. Clients pass `exercise_id` (and `workout_session_exercise_id` for children) and the discriminator falls out structurally.
+The user-role insert permission columns deliberately exclude the discriminator columns (`workout_session_exercises.kind`, `workout_session_strength_sets.parent_kind`, `workout_session_cardio_entries.parent_kind`): on session-exercises a trigger populates `kind` from the parent exercise, and on children the CHECK + DEFAULT keep `parent_kind` pinned to the right value. Clients pass `exercise_id` (and `workout_session_exercise_id` for children) and the discriminator falls out structurally.
 
 ## Strength vs cardio at the session-exercise level
 
 `workout_session_exercises.kind` is the binary discriminator (`'strength' | 'cardio'`), auto-synced from `exercises.kind` by a trigger. The UI branches on it directly:
 
 - `exercise.kind === 'cardio'` → render the `CardioExerciseLog` row (uses `workout_session_cardio_entries`, reading the per-exercise schema from `exercise.cardio.metricsSchema`).
-- Otherwise → render the strength `ExerciseLog` row (uses `workout_session_sets`).
+- Otherwise → render the strength `ExerciseLog` row (uses `workout_session_strength_sets`, reading `exercise.strength?.doubleWeight` for the per-side multiplier).
 
 This branch is in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
 
@@ -127,7 +127,7 @@ The session detail page supports:
 
 - Updating `started_at` (free-form datetime edit).
 - Adding/removing `workout_session_exercises`.
-- Adding/updating/removing `workout_session_sets` (strength).
+- Adding/updating/removing `workout_session_strength_sets` (strength).
 - Adding/updating/removing `workout_session_cardio_entries` (cardio).
 - Deleting the entire session.
 

@@ -1,18 +1,28 @@
 # Exercises
 
-An **exercise** (`public.exercises`) is the catalog row that backs everything in a session. Each row is either a public/built-in entry (`is_public = true, user_id IS NULL`) or a user-owned custom entry (`is_public = false, user_id = <uuid>`). The `exercises_visibility_check` constraint enforces this dichotomy — there is no third state.
+An **exercise** is class-table-inherited across three Postgres tables:
 
-This document covers the exercise model, the strength/cardio `kind` discriminator that drives logging behavior, and the cardio metrics-schema mechanism. If something here disagrees with the schema, the schema wins.
+```
+exercises                  ← base catalog row, columns shared by every kind
+  ├─ exercises_strength    ← strength-only catalog metadata (double_weight, force, mechanic)
+  └─ exercises_cardio      ← cardio-only catalog metadata (metrics_schema JSON Schema)
+```
+
+Every exercise has a row in `exercises` plus exactly one matching sidecar row, determined by `kind`. Each row is either a public/built-in entry (`is_public = true, user_id IS NULL`) or a user-owned custom entry (`is_public = false, user_id = <uuid>`). The `exercises_visibility_check` constraint enforces this dichotomy — there is no third state.
+
+This document covers the catalog shape, the strength/cardio `kind` discriminator that drives logging behavior, and the cardio metrics-schema mechanism. If something here disagrees with the schema, the schema wins.
 
 ## Where to look
 
-- Table: `backend/nhost/migrations/default/1746230400000_init/up.sql` (lines around `CREATE TABLE public.exercises`).
+- Base table: `backend/nhost/migrations/default/1746230400000_init/up.sql` (`CREATE TABLE public.exercises`).
 - `kind` discriminator + composite FK pattern + sync trigger: `1790000415000_exercises_kind_composite/up.sql`.
 - `exercises_cardio` sidecar (per-exercise JSON Schema): `1790000410000_exercise_metrics_schema/up.sql`.
+- `exercises_strength` sidecar (double_weight, force, mechanic): `1790000440000_exercises_strength_sidecar/up.sql`.
 - Cardio-entries table + shape-validation trigger: `1790000420000_workout_session_cardio_entries/up.sql`.
 - Strength-sets composite FK (mirror of cardio): `1790000425000_workout_session_sets_parent_kind/up.sql`.
+- Strength-sets rename: `1790000450000_rename_workout_session_strength_sets/up.sql`.
 - `pg_jsonschema` extension: `1790000400000_pg_jsonschema_extension/up.sql`.
-- Hasura metadata: `backend/nhost/metadata/databases/default/tables/public_exercises.yaml`, `public_exercises_cardio.yaml`.
+- Hasura metadata: `backend/nhost/metadata/databases/default/tables/public_exercises.yaml`, `public_exercises_strength.yaml`, `public_exercises_cardio.yaml`.
 - Frontend schema/format library: `frontend/src/lib/cardio-schema.ts` (with `cardio-schema.test.ts`).
 
 ## The `category` and `kind` fields
@@ -31,9 +41,15 @@ This kind is what participates in the composite-FK enforcement of the strength/c
 
 ## Strength exercises (the default, six of the seven categories)
 
-A strength exercise has `kind = 'strength'`. When used in a session, entries are stored in `workout_session_sets`: `(set_number, reps, weight)`, with `reps >= 0` and `weight >= 0`. `exercises.double_weight` is a per-exercise hint (e.g., dumbbell rows where the displayed weight is per-hand vs total) — pure UI metadata.
+A strength exercise has `kind = 'strength'` and a matching row in the `exercises_strength` sidecar carrying:
 
-There are no database-level constraints linking the exercise's other metadata columns (level, force, mechanic, etc.) to the data logged in a session. Those columns are catalog-only.
+- `double_weight` — per-exercise hint (e.g., dumbbell rows where the displayed weight is per-hand vs total). Pure UI metadata, multiplies session volume by 2 when set.
+- `force` (push/pull/static) — catalog metadata, FK to `exercise_forces`.
+- `mechanic` (compound/isolation) — catalog metadata, FK to `exercise_mechanics`.
+
+When used in a session, entries are stored in `workout_session_strength_sets`: `(set_number, reps, weight)`, with `reps >= 0` and `weight >= 0`. There are no database-level constraints linking the catalog metadata (level, force, mechanic, etc.) to the data logged in a session — those columns are catalog-only.
+
+Hasura exposes the sidecar as an `object_relationship` on `exercises` named `strength`, so the frontend reads as `exercise.strength?.doubleWeight`. For a cardio exercise the relationship resolves to `null`.
 
 ## Cardio exercises
 
@@ -159,6 +175,8 @@ workout_session_cardio_entries (
 The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/sessions/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
 
 Multiple entries per session are a real use case — see the seeded "4×400m intervals" session, which logs the same `workout_session_exercise` four times.
+
+The strength-side equivalent is `workout_session_strength_sets`, with the same composite-FK shape but `parent_kind = 'strength'` and `(set_number, reps, weight)` columns instead of jsonb metrics.
 
 ## Adding a new metric format or template
 

@@ -644,30 +644,30 @@ export type ExerciseForces = {
   __typename?: 'exerciseForces';
   comment?: Maybe<Scalars['String']['output']>;
   /** An array relationship */
-  exercises: Array<Exercises>;
+  exercisesStrength: Array<ExercisesStrength>;
   /** An aggregate relationship */
-  exercises_aggregate: Exercises_Aggregate;
+  exercisesStrength_aggregate: ExercisesStrength_Aggregate;
   value: Scalars['String']['output'];
 };
 
 
 /** columns and relationships of "exercise_forces" */
-export type ExerciseForcesExercisesArgs = {
-  distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
+export type ExerciseForcesExercisesStrengthArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<Exercises_Order_By>>;
-  where?: InputMaybe<Exercises_Bool_Exp>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 
 /** columns and relationships of "exercise_forces" */
-export type ExerciseForcesExercises_AggregateArgs = {
-  distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
+export type ExerciseForcesExercisesStrength_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<Exercises_Order_By>>;
-  where?: InputMaybe<Exercises_Bool_Exp>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 /** aggregated selection of "exercise_forces" */
@@ -698,8 +698,8 @@ export type ExerciseForces_Bool_Exp = {
   _not?: InputMaybe<ExerciseForces_Bool_Exp>;
   _or?: InputMaybe<Array<ExerciseForces_Bool_Exp>>;
   comment?: InputMaybe<String_Comparison_Exp>;
-  exercises?: InputMaybe<Exercises_Bool_Exp>;
-  exercises_aggregate?: InputMaybe<Exercises_Aggregate_Bool_Exp>;
+  exercisesStrength?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  exercisesStrength_aggregate?: InputMaybe<ExercisesStrength_Aggregate_Bool_Exp>;
   value?: InputMaybe<String_Comparison_Exp>;
 };
 
@@ -735,7 +735,7 @@ export type ExerciseForces_Min_Fields = {
 /** Ordering options when selecting data from "exercise_forces". */
 export type ExerciseForces_Order_By = {
   comment?: InputMaybe<Order_By>;
-  exercises_aggregate?: InputMaybe<Exercises_Aggregate_Order_By>;
+  exercisesStrength_aggregate?: InputMaybe<ExercisesStrength_Aggregate_Order_By>;
   value?: InputMaybe<Order_By>;
 };
 
@@ -888,30 +888,30 @@ export type ExerciseMechanics = {
   __typename?: 'exerciseMechanics';
   comment?: Maybe<Scalars['String']['output']>;
   /** An array relationship */
-  exercises: Array<Exercises>;
+  exercisesStrength: Array<ExercisesStrength>;
   /** An aggregate relationship */
-  exercises_aggregate: Exercises_Aggregate;
+  exercisesStrength_aggregate: ExercisesStrength_Aggregate;
   value: Scalars['String']['output'];
 };
 
 
 /** columns and relationships of "exercise_mechanics" */
-export type ExerciseMechanicsExercisesArgs = {
-  distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
+export type ExerciseMechanicsExercisesStrengthArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<Exercises_Order_By>>;
-  where?: InputMaybe<Exercises_Bool_Exp>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 
 /** columns and relationships of "exercise_mechanics" */
-export type ExerciseMechanicsExercises_AggregateArgs = {
-  distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
+export type ExerciseMechanicsExercisesStrength_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<Exercises_Order_By>>;
-  where?: InputMaybe<Exercises_Bool_Exp>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 /** aggregated selection of "exercise_mechanics" */
@@ -942,8 +942,8 @@ export type ExerciseMechanics_Bool_Exp = {
   _not?: InputMaybe<ExerciseMechanics_Bool_Exp>;
   _or?: InputMaybe<Array<ExerciseMechanics_Bool_Exp>>;
   comment?: InputMaybe<String_Comparison_Exp>;
-  exercises?: InputMaybe<Exercises_Bool_Exp>;
-  exercises_aggregate?: InputMaybe<Exercises_Aggregate_Bool_Exp>;
+  exercisesStrength?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  exercisesStrength_aggregate?: InputMaybe<ExercisesStrength_Aggregate_Bool_Exp>;
   value?: InputMaybe<String_Comparison_Exp>;
 };
 
@@ -978,7 +978,7 @@ export type ExerciseMechanics_Min_Fields = {
 /** Ordering options when selecting data from "exercise_mechanics". */
 export type ExerciseMechanics_Order_By = {
   comment?: InputMaybe<Order_By>;
-  exercises_aggregate?: InputMaybe<Exercises_Aggregate_Order_By>;
+  exercisesStrength_aggregate?: InputMaybe<ExercisesStrength_Aggregate_Order_By>;
   value?: InputMaybe<Order_By>;
 };
 
@@ -1121,9 +1121,7 @@ export type Exercises = {
   cardio?: Maybe<ExercisesCardio>;
   category: ExerciseCategories_Enum;
   createdAt: Scalars['timestamptz']['output'];
-  doubleWeight: Scalars['Boolean']['output'];
   equipment?: Maybe<ExerciseEquipments_Enum>;
-  force?: Maybe<ExerciseForces_Enum>;
   id: Scalars['uuid']['output'];
   /** An object relationship */
   image1?: Maybe<Files>;
@@ -1135,7 +1133,6 @@ export type Exercises = {
   isPublic: Scalars['Boolean']['output'];
   kind?: Maybe<Scalars['String']['output']>;
   level?: Maybe<ExerciseLevels_Enum>;
-  mechanic?: Maybe<ExerciseMechanics_Enum>;
   name: Scalars['String']['output'];
   primaryMuscleGroup: MuscleGroups_Enum;
   /** An array relationship */
@@ -1143,6 +1140,8 @@ export type Exercises = {
   /** An aggregate relationship */
   secondaryMuscleGroups_aggregate: ExerciseSecondaryMuscleGroups_Aggregate;
   slug?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  strength?: Maybe<ExercisesStrength>;
   updatedAt: Scalars['timestamptz']['output'];
   userId?: Maybe<Scalars['uuid']['output']>;
   /** An array relationship */
@@ -1422,6 +1421,243 @@ export type ExercisesCardio_Updates = {
   where: ExercisesCardio_Bool_Exp;
 };
 
+/** columns and relationships of "exercises_strength" */
+export type ExercisesStrength = {
+  __typename?: 'exercisesStrength';
+  createdAt: Scalars['timestamptz']['output'];
+  doubleWeight: Scalars['Boolean']['output'];
+  /** An object relationship */
+  exercise: Exercises;
+  exerciseId: Scalars['uuid']['output'];
+  force?: Maybe<ExerciseForces_Enum>;
+  mechanic?: Maybe<ExerciseMechanics_Enum>;
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+/** aggregated selection of "exercises_strength" */
+export type ExercisesStrength_Aggregate = {
+  __typename?: 'exercisesStrength_aggregate';
+  aggregate?: Maybe<ExercisesStrength_Aggregate_Fields>;
+  nodes: Array<ExercisesStrength>;
+};
+
+export type ExercisesStrength_Aggregate_Bool_Exp = {
+  bool_and?: InputMaybe<ExercisesStrength_Aggregate_Bool_Exp_Bool_And>;
+  bool_or?: InputMaybe<ExercisesStrength_Aggregate_Bool_Exp_Bool_Or>;
+  count?: InputMaybe<ExercisesStrength_Aggregate_Bool_Exp_Count>;
+};
+
+export type ExercisesStrength_Aggregate_Bool_Exp_Bool_And = {
+  arguments: ExercisesStrength_Select_Column_ExercisesStrength_Aggregate_Bool_Exp_Bool_And_Arguments_Columns;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  predicate: Boolean_Comparison_Exp;
+};
+
+export type ExercisesStrength_Aggregate_Bool_Exp_Bool_Or = {
+  arguments: ExercisesStrength_Select_Column_ExercisesStrength_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  predicate: Boolean_Comparison_Exp;
+};
+
+export type ExercisesStrength_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "exercises_strength" */
+export type ExercisesStrength_Aggregate_Fields = {
+  __typename?: 'exercisesStrength_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<ExercisesStrength_Max_Fields>;
+  min?: Maybe<ExercisesStrength_Min_Fields>;
+};
+
+
+/** aggregate fields of "exercises_strength" */
+export type ExercisesStrength_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "exercises_strength" */
+export type ExercisesStrength_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<ExercisesStrength_Max_Order_By>;
+  min?: InputMaybe<ExercisesStrength_Min_Order_By>;
+};
+
+/** Boolean expression to filter rows from the table "exercises_strength". All fields are combined with a logical 'AND'. */
+export type ExercisesStrength_Bool_Exp = {
+  _and?: InputMaybe<Array<ExercisesStrength_Bool_Exp>>;
+  _not?: InputMaybe<ExercisesStrength_Bool_Exp>;
+  _or?: InputMaybe<Array<ExercisesStrength_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  doubleWeight?: InputMaybe<Boolean_Comparison_Exp>;
+  exercise?: InputMaybe<Exercises_Bool_Exp>;
+  exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
+  force?: InputMaybe<ExerciseForces_Enum_Comparison_Exp>;
+  mechanic?: InputMaybe<ExerciseMechanics_Enum_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "exercises_strength" */
+export enum ExercisesStrength_Constraint {
+  /** unique or primary key constraint on columns "exercise_id" */
+  ExercisesStrengthPkey = 'exercises_strength_pkey'
+}
+
+/** input type for inserting data into table "exercises_strength" */
+export type ExercisesStrength_Insert_Input = {
+  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
+  exercise?: InputMaybe<Exercises_Obj_Rel_Insert_Input>;
+  exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  force?: InputMaybe<ExerciseForces_Enum>;
+  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
+};
+
+/** aggregate max on columns */
+export type ExercisesStrength_Max_Fields = {
+  __typename?: 'exercisesStrength_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  exerciseId?: Maybe<Scalars['uuid']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by max() on columns of table "exercises_strength" */
+export type ExercisesStrength_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  exerciseId?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type ExercisesStrength_Min_Fields = {
+  __typename?: 'exercisesStrength_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  exerciseId?: Maybe<Scalars['uuid']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by min() on columns of table "exercises_strength" */
+export type ExercisesStrength_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  exerciseId?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "exercises_strength" */
+export type ExercisesStrength_Mutation_Response = {
+  __typename?: 'exercisesStrength_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<ExercisesStrength>;
+};
+
+/** input type for inserting object relation for remote table "exercises_strength" */
+export type ExercisesStrength_Obj_Rel_Insert_Input = {
+  data: ExercisesStrength_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<ExercisesStrength_On_Conflict>;
+};
+
+/** on_conflict condition type for table "exercises_strength" */
+export type ExercisesStrength_On_Conflict = {
+  constraint: ExercisesStrength_Constraint;
+  update_columns?: Array<ExercisesStrength_Update_Column>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "exercises_strength". */
+export type ExercisesStrength_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  doubleWeight?: InputMaybe<Order_By>;
+  exercise?: InputMaybe<Exercises_Order_By>;
+  exerciseId?: InputMaybe<Order_By>;
+  force?: InputMaybe<Order_By>;
+  mechanic?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: exercises_strength */
+export type ExercisesStrength_Pk_Columns_Input = {
+  exerciseId: Scalars['uuid']['input'];
+};
+
+/** select columns of table "exercises_strength" */
+export enum ExercisesStrength_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  DoubleWeight = 'doubleWeight',
+  /** column name */
+  ExerciseId = 'exerciseId',
+  /** column name */
+  Force = 'force',
+  /** column name */
+  Mechanic = 'mechanic',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** select "exercisesStrength_aggregate_bool_exp_bool_and_arguments_columns" columns of table "exercises_strength" */
+export enum ExercisesStrength_Select_Column_ExercisesStrength_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
+  /** column name */
+  DoubleWeight = 'doubleWeight'
+}
+
+/** select "exercisesStrength_aggregate_bool_exp_bool_or_arguments_columns" columns of table "exercises_strength" */
+export enum ExercisesStrength_Select_Column_ExercisesStrength_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
+  /** column name */
+  DoubleWeight = 'doubleWeight'
+}
+
+/** input type for updating data in table "exercises_strength" */
+export type ExercisesStrength_Set_Input = {
+  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
+  force?: InputMaybe<ExerciseForces_Enum>;
+  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
+};
+
+/** Streaming cursor of the table "exercisesStrength" */
+export type ExercisesStrength_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: ExercisesStrength_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type ExercisesStrength_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
+  exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  force?: InputMaybe<ExerciseForces_Enum>;
+  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** update columns of table "exercises_strength" */
+export enum ExercisesStrength_Update_Column {
+  /** column name */
+  DoubleWeight = 'doubleWeight',
+  /** column name */
+  Force = 'force',
+  /** column name */
+  Mechanic = 'mechanic'
+}
+
+export type ExercisesStrength_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<ExercisesStrength_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: ExercisesStrength_Bool_Exp;
+};
+
 /** aggregated selection of "exercises" */
 export type Exercises_Aggregate = {
   __typename?: 'exercises_aggregate';
@@ -1486,9 +1722,7 @@ export type Exercises_Bool_Exp = {
   cardio?: InputMaybe<ExercisesCardio_Bool_Exp>;
   category?: InputMaybe<ExerciseCategories_Enum_Comparison_Exp>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
-  doubleWeight?: InputMaybe<Boolean_Comparison_Exp>;
   equipment?: InputMaybe<ExerciseEquipments_Enum_Comparison_Exp>;
-  force?: InputMaybe<ExerciseForces_Enum_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   image1?: InputMaybe<Files_Bool_Exp>;
   image1FileId?: InputMaybe<Uuid_Comparison_Exp>;
@@ -1498,12 +1732,12 @@ export type Exercises_Bool_Exp = {
   isPublic?: InputMaybe<Boolean_Comparison_Exp>;
   kind?: InputMaybe<String_Comparison_Exp>;
   level?: InputMaybe<ExerciseLevels_Enum_Comparison_Exp>;
-  mechanic?: InputMaybe<ExerciseMechanics_Enum_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum_Comparison_Exp>;
   secondaryMuscleGroups?: InputMaybe<ExerciseSecondaryMuscleGroups_Bool_Exp>;
   secondaryMuscleGroups_aggregate?: InputMaybe<ExerciseSecondaryMuscleGroups_Aggregate_Bool_Exp>;
   slug?: InputMaybe<String_Comparison_Exp>;
+  strength?: InputMaybe<ExercisesStrength_Bool_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   userId?: InputMaybe<Uuid_Comparison_Exp>;
   workoutExercises?: InputMaybe<WorkoutExercises_Bool_Exp>;
@@ -1528,16 +1762,14 @@ export enum Exercises_Constraint {
 export type Exercises_Insert_Input = {
   cardio?: InputMaybe<ExercisesCardio_Obj_Rel_Insert_Input>;
   category?: InputMaybe<ExerciseCategories_Enum>;
-  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   equipment?: InputMaybe<ExerciseEquipments_Enum>;
-  force?: InputMaybe<ExerciseForces_Enum>;
   image1FileId?: InputMaybe<Scalars['uuid']['input']>;
   image2FileId?: InputMaybe<Scalars['uuid']['input']>;
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   level?: InputMaybe<ExerciseLevels_Enum>;
-  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
+  strength?: InputMaybe<ExercisesStrength_Obj_Rel_Insert_Input>;
   workoutExercises?: InputMaybe<WorkoutExercises_Arr_Rel_Insert_Input>;
   workoutSessionExercises?: InputMaybe<WorkoutSessionExercises_Arr_Rel_Insert_Input>;
 };
@@ -1628,9 +1860,7 @@ export type Exercises_Order_By = {
   cardio?: InputMaybe<ExercisesCardio_Order_By>;
   category?: InputMaybe<Order_By>;
   createdAt?: InputMaybe<Order_By>;
-  doubleWeight?: InputMaybe<Order_By>;
   equipment?: InputMaybe<Order_By>;
-  force?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   image1?: InputMaybe<Files_Order_By>;
   image1FileId?: InputMaybe<Order_By>;
@@ -1640,11 +1870,11 @@ export type Exercises_Order_By = {
   isPublic?: InputMaybe<Order_By>;
   kind?: InputMaybe<Order_By>;
   level?: InputMaybe<Order_By>;
-  mechanic?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   primaryMuscleGroup?: InputMaybe<Order_By>;
   secondaryMuscleGroups_aggregate?: InputMaybe<ExerciseSecondaryMuscleGroups_Aggregate_Order_By>;
   slug?: InputMaybe<Order_By>;
+  strength?: InputMaybe<ExercisesStrength_Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
   workoutExercises_aggregate?: InputMaybe<WorkoutExercises_Aggregate_Order_By>;
@@ -1663,11 +1893,7 @@ export enum Exercises_Select_Column {
   /** column name */
   CreatedAt = 'createdAt',
   /** column name */
-  DoubleWeight = 'doubleWeight',
-  /** column name */
   Equipment = 'equipment',
-  /** column name */
-  Force = 'force',
   /** column name */
   Id = 'id',
   /** column name */
@@ -1683,8 +1909,6 @@ export enum Exercises_Select_Column {
   /** column name */
   Level = 'level',
   /** column name */
-  Mechanic = 'mechanic',
-  /** column name */
   Name = 'name',
   /** column name */
   PrimaryMuscleGroup = 'primaryMuscleGroup',
@@ -1699,15 +1923,11 @@ export enum Exercises_Select_Column {
 /** select "exercises_aggregate_bool_exp_bool_and_arguments_columns" columns of table "exercises" */
 export enum Exercises_Select_Column_Exercises_Aggregate_Bool_Exp_Bool_And_Arguments_Columns {
   /** column name */
-  DoubleWeight = 'doubleWeight',
-  /** column name */
   IsPublic = 'isPublic'
 }
 
 /** select "exercises_aggregate_bool_exp_bool_or_arguments_columns" columns of table "exercises" */
 export enum Exercises_Select_Column_Exercises_Aggregate_Bool_Exp_Bool_Or_Arguments_Columns {
-  /** column name */
-  DoubleWeight = 'doubleWeight',
   /** column name */
   IsPublic = 'isPublic'
 }
@@ -1715,14 +1935,11 @@ export enum Exercises_Select_Column_Exercises_Aggregate_Bool_Exp_Bool_Or_Argumen
 /** input type for updating data in table "exercises" */
 export type Exercises_Set_Input = {
   category?: InputMaybe<ExerciseCategories_Enum>;
-  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   equipment?: InputMaybe<ExerciseEquipments_Enum>;
-  force?: InputMaybe<ExerciseForces_Enum>;
   image1FileId?: InputMaybe<Scalars['uuid']['input']>;
   image2FileId?: InputMaybe<Scalars['uuid']['input']>;
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   level?: InputMaybe<ExerciseLevels_Enum>;
-  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
 };
@@ -1739,9 +1956,7 @@ export type Exercises_Stream_Cursor_Input = {
 export type Exercises_Stream_Cursor_Value_Input = {
   category?: InputMaybe<ExerciseCategories_Enum>;
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
-  doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   equipment?: InputMaybe<ExerciseEquipments_Enum>;
-  force?: InputMaybe<ExerciseForces_Enum>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   image1FileId?: InputMaybe<Scalars['uuid']['input']>;
   image2FileId?: InputMaybe<Scalars['uuid']['input']>;
@@ -1749,7 +1964,6 @@ export type Exercises_Stream_Cursor_Value_Input = {
   isPublic?: InputMaybe<Scalars['Boolean']['input']>;
   kind?: InputMaybe<Scalars['String']['input']>;
   level?: InputMaybe<ExerciseLevels_Enum>;
-  mechanic?: InputMaybe<ExerciseMechanics_Enum>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
   slug?: InputMaybe<Scalars['String']['input']>;
@@ -1762,11 +1976,7 @@ export enum Exercises_Update_Column {
   /** column name */
   Category = 'category',
   /** column name */
-  DoubleWeight = 'doubleWeight',
-  /** column name */
   Equipment = 'equipment',
-  /** column name */
-  Force = 'force',
   /** column name */
   Image1FileId = 'image1FileId',
   /** column name */
@@ -1775,8 +1985,6 @@ export enum Exercises_Update_Column {
   Instructions = 'instructions',
   /** column name */
   Level = 'level',
-  /** column name */
-  Mechanic = 'mechanic',
   /** column name */
   Name = 'name',
   /** column name */
@@ -2922,10 +3130,14 @@ export type Mutation_Root = {
   deleteExercise?: Maybe<Exercises>;
   /** delete single row from the table: "exercises_cardio" */
   deleteExerciseCardio?: Maybe<ExercisesCardio>;
+  /** delete single row from the table: "exercises_strength" */
+  deleteExerciseStrength?: Maybe<ExercisesStrength>;
   /** delete data from the table: "exercises" */
   deleteExercises?: Maybe<Exercises_Mutation_Response>;
   /** delete data from the table: "exercises_cardio" */
   deleteExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
+  /** delete data from the table: "exercises_strength" */
+  deleteExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
   /** delete data from the table: "journal_entries" */
   deleteJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** delete single row from the table: "journal_entries" */
@@ -2962,10 +3174,10 @@ export type Mutation_Root = {
   deleteWorkoutSessionExercise?: Maybe<WorkoutSessionExercises>;
   /** delete data from the table: "workout_session_exercises" */
   deleteWorkoutSessionExercises?: Maybe<WorkoutSessionExercises_Mutation_Response>;
-  /** delete single row from the table: "workout_session_sets" */
-  deleteWorkoutSessionSet?: Maybe<WorkoutSessionSets>;
-  /** delete data from the table: "workout_session_sets" */
-  deleteWorkoutSessionSets?: Maybe<WorkoutSessionSets_Mutation_Response>;
+  /** delete single row from the table: "workout_session_strength_sets" */
+  deleteWorkoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
+  /** delete data from the table: "workout_session_strength_sets" */
+  deleteWorkoutSessionStrengthSets?: Maybe<WorkoutSessionStrengthSets_Mutation_Response>;
   /** delete data from the table: "workout_sessions" */
   deleteWorkoutSessions?: Maybe<WorkoutSessions_Mutation_Response>;
   /** delete data from the table: "workouts" */
@@ -2978,10 +3190,14 @@ export type Mutation_Root = {
   insertExercise?: Maybe<Exercises>;
   /** insert a single row into the table: "exercises_cardio" */
   insertExerciseCardio?: Maybe<ExercisesCardio>;
+  /** insert a single row into the table: "exercises_strength" */
+  insertExerciseStrength?: Maybe<ExercisesStrength>;
   /** insert data into the table: "exercises" */
   insertExercises?: Maybe<Exercises_Mutation_Response>;
   /** insert data into the table: "exercises_cardio" */
   insertExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
+  /** insert data into the table: "exercises_strength" */
+  insertExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
   /** insert data into the table: "journal_entries" */
   insertJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** insert a single row into the table: "journal_entries" */
@@ -3018,10 +3234,10 @@ export type Mutation_Root = {
   insertWorkoutSessionExercise?: Maybe<WorkoutSessionExercises>;
   /** insert data into the table: "workout_session_exercises" */
   insertWorkoutSessionExercises?: Maybe<WorkoutSessionExercises_Mutation_Response>;
-  /** insert a single row into the table: "workout_session_sets" */
-  insertWorkoutSessionSet?: Maybe<WorkoutSessionSets>;
-  /** insert data into the table: "workout_session_sets" */
-  insertWorkoutSessionSets?: Maybe<WorkoutSessionSets_Mutation_Response>;
+  /** insert a single row into the table: "workout_session_strength_sets" */
+  insertWorkoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
+  /** insert data into the table: "workout_session_strength_sets" */
+  insertWorkoutSessionStrengthSets?: Maybe<WorkoutSessionStrengthSets_Mutation_Response>;
   /** insert data into the table: "workout_sessions" */
   insertWorkoutSessions?: Maybe<WorkoutSessions_Mutation_Response>;
   /** insert data into the table: "workouts" */
@@ -3034,10 +3250,14 @@ export type Mutation_Root = {
   updateExercise?: Maybe<Exercises>;
   /** update single row of the table: "exercises_cardio" */
   updateExerciseCardio?: Maybe<ExercisesCardio>;
+  /** update single row of the table: "exercises_strength" */
+  updateExerciseStrength?: Maybe<ExercisesStrength>;
   /** update data of the table: "exercises" */
   updateExercises?: Maybe<Exercises_Mutation_Response>;
   /** update data of the table: "exercises_cardio" */
   updateExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
+  /** update data of the table: "exercises_strength" */
+  updateExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
   /** update data of the table: "journal_entries" */
   updateJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** update single row of the table: "journal_entries" */
@@ -3066,10 +3286,10 @@ export type Mutation_Root = {
   updateWorkoutSessionExercise?: Maybe<WorkoutSessionExercises>;
   /** update data of the table: "workout_session_exercises" */
   updateWorkoutSessionExercises?: Maybe<WorkoutSessionExercises_Mutation_Response>;
-  /** update single row of the table: "workout_session_sets" */
-  updateWorkoutSessionSet?: Maybe<WorkoutSessionSets>;
-  /** update data of the table: "workout_session_sets" */
-  updateWorkoutSessionSets?: Maybe<WorkoutSessionSets_Mutation_Response>;
+  /** update single row of the table: "workout_session_strength_sets" */
+  updateWorkoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
+  /** update data of the table: "workout_session_strength_sets" */
+  updateWorkoutSessionStrengthSets?: Maybe<WorkoutSessionStrengthSets_Mutation_Response>;
   /** update data of the table: "workout_sessions" */
   updateWorkoutSessions?: Maybe<WorkoutSessions_Mutation_Response>;
   /** update data of the table: "workouts" */
@@ -3078,6 +3298,8 @@ export type Mutation_Root = {
   update_bodyMeasurements_many?: Maybe<Array<Maybe<BodyMeasurements_Mutation_Response>>>;
   /** update multiples rows of table: "exercises_cardio" */
   update_exercisesCardio_many?: Maybe<Array<Maybe<ExercisesCardio_Mutation_Response>>>;
+  /** update multiples rows of table: "exercises_strength" */
+  update_exercisesStrength_many?: Maybe<Array<Maybe<ExercisesStrength_Mutation_Response>>>;
   /** update multiples rows of table: "exercises" */
   update_exercises_many?: Maybe<Array<Maybe<Exercises_Mutation_Response>>>;
   /** update multiples rows of table: "journal_entries" */
@@ -3092,8 +3314,8 @@ export type Mutation_Root = {
   update_workoutSessionCardioEntries_many?: Maybe<Array<Maybe<WorkoutSessionCardioEntries_Mutation_Response>>>;
   /** update multiples rows of table: "workout_session_exercises" */
   update_workoutSessionExercises_many?: Maybe<Array<Maybe<WorkoutSessionExercises_Mutation_Response>>>;
-  /** update multiples rows of table: "workout_session_sets" */
-  update_workoutSessionSets_many?: Maybe<Array<Maybe<WorkoutSessionSets_Mutation_Response>>>;
+  /** update multiples rows of table: "workout_session_strength_sets" */
+  update_workoutSessionStrengthSets_many?: Maybe<Array<Maybe<WorkoutSessionStrengthSets_Mutation_Response>>>;
   /** update multiples rows of table: "workout_sessions" */
   update_workoutSessions_many?: Maybe<Array<Maybe<WorkoutSessions_Mutation_Response>>>;
   /** update multiples rows of table: "workouts" */
@@ -3126,6 +3348,12 @@ export type Mutation_RootDeleteExerciseCardioArgs = {
 
 
 /** mutation root */
+export type Mutation_RootDeleteExerciseStrengthArgs = {
+  exerciseId: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
 export type Mutation_RootDeleteExercisesArgs = {
   where: Exercises_Bool_Exp;
 };
@@ -3134,6 +3362,12 @@ export type Mutation_RootDeleteExercisesArgs = {
 /** mutation root */
 export type Mutation_RootDeleteExercisesCardioArgs = {
   where: ExercisesCardio_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteExercisesStrengthArgs = {
+  where: ExercisesStrength_Bool_Exp;
 };
 
 
@@ -3248,14 +3482,14 @@ export type Mutation_RootDeleteWorkoutSessionExercisesArgs = {
 
 
 /** mutation root */
-export type Mutation_RootDeleteWorkoutSessionSetArgs = {
+export type Mutation_RootDeleteWorkoutSessionStrengthSetArgs = {
   id: Scalars['uuid']['input'];
 };
 
 
 /** mutation root */
-export type Mutation_RootDeleteWorkoutSessionSetsArgs = {
-  where: WorkoutSessionSets_Bool_Exp;
+export type Mutation_RootDeleteWorkoutSessionStrengthSetsArgs = {
+  where: WorkoutSessionStrengthSets_Bool_Exp;
 };
 
 
@@ -3300,6 +3534,13 @@ export type Mutation_RootInsertExerciseCardioArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsertExerciseStrengthArgs = {
+  object: ExercisesStrength_Insert_Input;
+  on_conflict?: InputMaybe<ExercisesStrength_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsertExercisesArgs = {
   objects: Array<Exercises_Insert_Input>;
   on_conflict?: InputMaybe<Exercises_On_Conflict>;
@@ -3310,6 +3551,13 @@ export type Mutation_RootInsertExercisesArgs = {
 export type Mutation_RootInsertExercisesCardioArgs = {
   objects: Array<ExercisesCardio_Insert_Input>;
   on_conflict?: InputMaybe<ExercisesCardio_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertExercisesStrengthArgs = {
+  objects: Array<ExercisesStrength_Insert_Input>;
+  on_conflict?: InputMaybe<ExercisesStrength_On_Conflict>;
 };
 
 
@@ -3440,16 +3688,16 @@ export type Mutation_RootInsertWorkoutSessionExercisesArgs = {
 
 
 /** mutation root */
-export type Mutation_RootInsertWorkoutSessionSetArgs = {
-  object: WorkoutSessionSets_Insert_Input;
-  on_conflict?: InputMaybe<WorkoutSessionSets_On_Conflict>;
+export type Mutation_RootInsertWorkoutSessionStrengthSetArgs = {
+  object: WorkoutSessionStrengthSets_Insert_Input;
+  on_conflict?: InputMaybe<WorkoutSessionStrengthSets_On_Conflict>;
 };
 
 
 /** mutation root */
-export type Mutation_RootInsertWorkoutSessionSetsArgs = {
-  objects: Array<WorkoutSessionSets_Insert_Input>;
-  on_conflict?: InputMaybe<WorkoutSessionSets_On_Conflict>;
+export type Mutation_RootInsertWorkoutSessionStrengthSetsArgs = {
+  objects: Array<WorkoutSessionStrengthSets_Insert_Input>;
+  on_conflict?: InputMaybe<WorkoutSessionStrengthSets_On_Conflict>;
 };
 
 
@@ -3503,6 +3751,13 @@ export type Mutation_RootUpdateExerciseCardioArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateExerciseStrengthArgs = {
+  _set?: InputMaybe<ExercisesStrength_Set_Input>;
+  pk_columns: ExercisesStrength_Pk_Columns_Input;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateExercisesArgs = {
   _set?: InputMaybe<Exercises_Set_Input>;
   where: Exercises_Bool_Exp;
@@ -3518,6 +3773,13 @@ export type Mutation_RootUpdateExercisesCardioArgs = {
   _prepend?: InputMaybe<ExercisesCardio_Prepend_Input>;
   _set?: InputMaybe<ExercisesCardio_Set_Input>;
   where: ExercisesCardio_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateExercisesStrengthArgs = {
+  _set?: InputMaybe<ExercisesStrength_Set_Input>;
+  where: ExercisesStrength_Bool_Exp;
 };
 
 
@@ -3636,18 +3898,18 @@ export type Mutation_RootUpdateWorkoutSessionExercisesArgs = {
 
 
 /** mutation root */
-export type Mutation_RootUpdateWorkoutSessionSetArgs = {
-  _inc?: InputMaybe<WorkoutSessionSets_Inc_Input>;
-  _set?: InputMaybe<WorkoutSessionSets_Set_Input>;
-  pk_columns: WorkoutSessionSets_Pk_Columns_Input;
+export type Mutation_RootUpdateWorkoutSessionStrengthSetArgs = {
+  _inc?: InputMaybe<WorkoutSessionStrengthSets_Inc_Input>;
+  _set?: InputMaybe<WorkoutSessionStrengthSets_Set_Input>;
+  pk_columns: WorkoutSessionStrengthSets_Pk_Columns_Input;
 };
 
 
 /** mutation root */
-export type Mutation_RootUpdateWorkoutSessionSetsArgs = {
-  _inc?: InputMaybe<WorkoutSessionSets_Inc_Input>;
-  _set?: InputMaybe<WorkoutSessionSets_Set_Input>;
-  where: WorkoutSessionSets_Bool_Exp;
+export type Mutation_RootUpdateWorkoutSessionStrengthSetsArgs = {
+  _inc?: InputMaybe<WorkoutSessionStrengthSets_Inc_Input>;
+  _set?: InputMaybe<WorkoutSessionStrengthSets_Set_Input>;
+  where: WorkoutSessionStrengthSets_Bool_Exp;
 };
 
 
@@ -3674,6 +3936,12 @@ export type Mutation_RootUpdate_BodyMeasurements_ManyArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_ExercisesCardio_ManyArgs = {
   updates: Array<ExercisesCardio_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_ExercisesStrength_ManyArgs = {
+  updates: Array<ExercisesStrength_Updates>;
 };
 
 
@@ -3720,8 +3988,8 @@ export type Mutation_RootUpdate_WorkoutSessionExercises_ManyArgs = {
 
 
 /** mutation root */
-export type Mutation_RootUpdate_WorkoutSessionSets_ManyArgs = {
-  updates: Array<WorkoutSessionSets_Updates>;
+export type Mutation_RootUpdate_WorkoutSessionStrengthSets_ManyArgs = {
+  updates: Array<WorkoutSessionStrengthSets_Updates>;
 };
 
 
@@ -3813,6 +4081,8 @@ export type Query_Root = {
   exerciseSecondaryMuscleGroups: Array<ExerciseSecondaryMuscleGroups>;
   /** fetch aggregated fields from the table: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroupsAggregate: ExerciseSecondaryMuscleGroups_Aggregate;
+  /** fetch data from the table: "exercises_strength" using primary key columns */
+  exerciseStrength?: Maybe<ExercisesStrength>;
   /** An array relationship */
   exercises: Array<Exercises>;
   /** fetch aggregated fields from the table: "exercises" */
@@ -3821,6 +4091,10 @@ export type Query_Root = {
   exercisesCardio: Array<ExercisesCardio>;
   /** fetch aggregated fields from the table: "exercises_cardio" */
   exercisesCardioAggregate: ExercisesCardio_Aggregate;
+  /** An array relationship */
+  exercisesStrength: Array<ExercisesStrength>;
+  /** fetch aggregated fields from the table: "exercises_strength" */
+  exercisesStrengthAggregate: ExercisesStrength_Aggregate;
   /** fetch data from the table: "storage.files" using primary key columns */
   file?: Maybe<Files>;
   /** fetch data from the table: "storage.files" */
@@ -3883,12 +4157,12 @@ export type Query_Root = {
   workoutSessionExercises: Array<WorkoutSessionExercises>;
   /** fetch aggregated fields from the table: "workout_session_exercises" */
   workoutSessionExercisesAggregate: WorkoutSessionExercises_Aggregate;
-  /** fetch data from the table: "workout_session_sets" using primary key columns */
-  workoutSessionSet?: Maybe<WorkoutSessionSets>;
+  /** fetch data from the table: "workout_session_strength_sets" using primary key columns */
+  workoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
   /** An array relationship */
-  workoutSessionSets: Array<WorkoutSessionSets>;
-  /** fetch aggregated fields from the table: "workout_session_sets" */
-  workoutSessionSetsAggregate: WorkoutSessionSets_Aggregate;
+  workoutSessionStrengthSets: Array<WorkoutSessionStrengthSets>;
+  /** fetch aggregated fields from the table: "workout_session_strength_sets" */
+  workoutSessionStrengthSetsAggregate: WorkoutSessionStrengthSets_Aggregate;
   /** An array relationship */
   workoutSessions: Array<WorkoutSessions>;
   /** fetch aggregated fields from the table: "workout_sessions" */
@@ -4072,6 +4346,11 @@ export type Query_RootExerciseSecondaryMuscleGroupsAggregateArgs = {
 };
 
 
+export type Query_RootExerciseStrengthArgs = {
+  exerciseId: Scalars['uuid']['input'];
+};
+
+
 export type Query_RootExercisesArgs = {
   distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -4105,6 +4384,24 @@ export type Query_RootExercisesCardioAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<ExercisesCardio_Order_By>>;
   where?: InputMaybe<ExercisesCardio_Bool_Exp>;
+};
+
+
+export type Query_RootExercisesStrengthArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
+};
+
+
+export type Query_RootExercisesStrengthAggregateArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 
@@ -4341,26 +4638,26 @@ export type Query_RootWorkoutSessionExercisesAggregateArgs = {
 };
 
 
-export type Query_RootWorkoutSessionSetArgs = {
+export type Query_RootWorkoutSessionStrengthSetArgs = {
   id: Scalars['uuid']['input'];
 };
 
 
-export type Query_RootWorkoutSessionSetsArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type Query_RootWorkoutSessionStrengthSetsArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
-export type Query_RootWorkoutSessionSetsAggregateArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type Query_RootWorkoutSessionStrengthSetsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
@@ -4461,6 +4758,8 @@ export type Subscription_Root = {
   exerciseSecondaryMuscleGroupsAggregate: ExerciseSecondaryMuscleGroups_Aggregate;
   /** fetch data from the table in a streaming manner: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroups_stream: Array<ExerciseSecondaryMuscleGroups>;
+  /** fetch data from the table: "exercises_strength" using primary key columns */
+  exerciseStrength?: Maybe<ExercisesStrength>;
   /** An array relationship */
   exercises: Array<Exercises>;
   /** fetch aggregated fields from the table: "exercises" */
@@ -4471,6 +4770,12 @@ export type Subscription_Root = {
   exercisesCardioAggregate: ExercisesCardio_Aggregate;
   /** fetch data from the table in a streaming manner: "exercises_cardio" */
   exercisesCardio_stream: Array<ExercisesCardio>;
+  /** An array relationship */
+  exercisesStrength: Array<ExercisesStrength>;
+  /** fetch aggregated fields from the table: "exercises_strength" */
+  exercisesStrengthAggregate: ExercisesStrength_Aggregate;
+  /** fetch data from the table in a streaming manner: "exercises_strength" */
+  exercisesStrength_stream: Array<ExercisesStrength>;
   /** fetch data from the table in a streaming manner: "exercises" */
   exercises_stream: Array<Exercises>;
   /** fetch data from the table: "storage.files" using primary key columns */
@@ -4555,14 +4860,14 @@ export type Subscription_Root = {
   workoutSessionExercisesAggregate: WorkoutSessionExercises_Aggregate;
   /** fetch data from the table in a streaming manner: "workout_session_exercises" */
   workoutSessionExercises_stream: Array<WorkoutSessionExercises>;
-  /** fetch data from the table: "workout_session_sets" using primary key columns */
-  workoutSessionSet?: Maybe<WorkoutSessionSets>;
+  /** fetch data from the table: "workout_session_strength_sets" using primary key columns */
+  workoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
   /** An array relationship */
-  workoutSessionSets: Array<WorkoutSessionSets>;
-  /** fetch aggregated fields from the table: "workout_session_sets" */
-  workoutSessionSetsAggregate: WorkoutSessionSets_Aggregate;
-  /** fetch data from the table in a streaming manner: "workout_session_sets" */
-  workoutSessionSets_stream: Array<WorkoutSessionSets>;
+  workoutSessionStrengthSets: Array<WorkoutSessionStrengthSets>;
+  /** fetch aggregated fields from the table: "workout_session_strength_sets" */
+  workoutSessionStrengthSetsAggregate: WorkoutSessionStrengthSets_Aggregate;
+  /** fetch data from the table in a streaming manner: "workout_session_strength_sets" */
+  workoutSessionStrengthSets_stream: Array<WorkoutSessionStrengthSets>;
   /** An array relationship */
   workoutSessions: Array<WorkoutSessions>;
   /** fetch aggregated fields from the table: "workout_sessions" */
@@ -4799,6 +5104,11 @@ export type Subscription_RootExerciseSecondaryMuscleGroups_StreamArgs = {
 };
 
 
+export type Subscription_RootExerciseStrengthArgs = {
+  exerciseId: Scalars['uuid']['input'];
+};
+
+
 export type Subscription_RootExercisesArgs = {
   distinct_on?: InputMaybe<Array<Exercises_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -4839,6 +5149,31 @@ export type Subscription_RootExercisesCardio_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<ExercisesCardio_Stream_Cursor_Input>>;
   where?: InputMaybe<ExercisesCardio_Bool_Exp>;
+};
+
+
+export type Subscription_RootExercisesStrengthArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
+};
+
+
+export type Subscription_RootExercisesStrengthAggregateArgs = {
+  distinct_on?: InputMaybe<Array<ExercisesStrength_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExercisesStrength_Order_By>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
+};
+
+
+export type Subscription_RootExercisesStrength_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<ExercisesStrength_Stream_Cursor_Input>>;
+  where?: InputMaybe<ExercisesStrength_Bool_Exp>;
 };
 
 
@@ -5152,33 +5487,33 @@ export type Subscription_RootWorkoutSessionExercises_StreamArgs = {
 };
 
 
-export type Subscription_RootWorkoutSessionSetArgs = {
+export type Subscription_RootWorkoutSessionStrengthSetArgs = {
   id: Scalars['uuid']['input'];
 };
 
 
-export type Subscription_RootWorkoutSessionSetsArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type Subscription_RootWorkoutSessionStrengthSetsArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
-export type Subscription_RootWorkoutSessionSetsAggregateArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type Subscription_RootWorkoutSessionStrengthSetsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
-export type Subscription_RootWorkoutSessionSets_StreamArgs = {
+export type Subscription_RootWorkoutSessionStrengthSets_StreamArgs = {
   batch_size: Scalars['Int']['input'];
-  cursor: Array<InputMaybe<WorkoutSessionSets_Stream_Cursor_Input>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  cursor: Array<InputMaybe<WorkoutSessionStrengthSets_Stream_Cursor_Input>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
@@ -6156,9 +6491,9 @@ export type WorkoutSessionExercises = {
   workoutSessionCardioEntries_aggregate: WorkoutSessionCardioEntries_Aggregate;
   workoutSessionId: Scalars['uuid']['output'];
   /** An array relationship */
-  workoutSessionSets: Array<WorkoutSessionSets>;
+  workoutSessionStrengthSets: Array<WorkoutSessionStrengthSets>;
   /** An aggregate relationship */
-  workoutSessionSets_aggregate: WorkoutSessionSets_Aggregate;
+  workoutSessionStrengthSets_aggregate: WorkoutSessionStrengthSets_Aggregate;
 };
 
 
@@ -6183,22 +6518,22 @@ export type WorkoutSessionExercisesWorkoutSessionCardioEntries_AggregateArgs = {
 
 
 /** columns and relationships of "workout_session_exercises" */
-export type WorkoutSessionExercisesWorkoutSessionSetsArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type WorkoutSessionExercisesWorkoutSessionStrengthSetsArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 
 /** columns and relationships of "workout_session_exercises" */
-export type WorkoutSessionExercisesWorkoutSessionSets_AggregateArgs = {
-  distinct_on?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type WorkoutSessionExercisesWorkoutSessionStrengthSets_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
-  order_by?: InputMaybe<Array<WorkoutSessionSets_Order_By>>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  order_by?: InputMaybe<Array<WorkoutSessionStrengthSets_Order_By>>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
 /** aggregated selection of "workout_session_exercises" */
@@ -6291,8 +6626,8 @@ export type WorkoutSessionExercises_Bool_Exp = {
   workoutSessionCardioEntries?: InputMaybe<WorkoutSessionCardioEntries_Bool_Exp>;
   workoutSessionCardioEntries_aggregate?: InputMaybe<WorkoutSessionCardioEntries_Aggregate_Bool_Exp>;
   workoutSessionId?: InputMaybe<Uuid_Comparison_Exp>;
-  workoutSessionSets?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
-  workoutSessionSets_aggregate?: InputMaybe<WorkoutSessionSets_Aggregate_Bool_Exp>;
+  workoutSessionStrengthSets?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
+  workoutSessionStrengthSets_aggregate?: InputMaybe<WorkoutSessionStrengthSets_Aggregate_Bool_Exp>;
 };
 
 /** unique or primary key constraints on table "workout_session_exercises" */
@@ -6318,7 +6653,7 @@ export type WorkoutSessionExercises_Insert_Input = {
   workoutSession?: InputMaybe<WorkoutSessions_Obj_Rel_Insert_Input>;
   workoutSessionCardioEntries?: InputMaybe<WorkoutSessionCardioEntries_Arr_Rel_Insert_Input>;
   workoutSessionId?: InputMaybe<Scalars['uuid']['input']>;
-  workoutSessionSets?: InputMaybe<WorkoutSessionSets_Arr_Rel_Insert_Input>;
+  workoutSessionStrengthSets?: InputMaybe<WorkoutSessionStrengthSets_Arr_Rel_Insert_Input>;
 };
 
 /** aggregate max on columns */
@@ -6402,7 +6737,7 @@ export type WorkoutSessionExercises_Order_By = {
   workoutSession?: InputMaybe<WorkoutSessions_Order_By>;
   workoutSessionCardioEntries_aggregate?: InputMaybe<WorkoutSessionCardioEntries_Aggregate_Order_By>;
   workoutSessionId?: InputMaybe<Order_By>;
-  workoutSessionSets_aggregate?: InputMaybe<WorkoutSessionSets_Aggregate_Order_By>;
+  workoutSessionStrengthSets_aggregate?: InputMaybe<WorkoutSessionStrengthSets_Aggregate_Order_By>;
 };
 
 /** primary key columns input for table: workout_session_exercises */
@@ -6544,9 +6879,9 @@ export type WorkoutSessionExercises_Variance_Order_By = {
   position?: InputMaybe<Order_By>;
 };
 
-/** columns and relationships of "workout_session_sets" */
-export type WorkoutSessionSets = {
-  __typename?: 'workoutSessionSets';
+/** columns and relationships of "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets = {
+  __typename?: 'workoutSessionStrengthSets';
   createdAt: Scalars['timestamptz']['output'];
   id: Scalars['uuid']['output'];
   reps: Scalars['Int']['output'];
@@ -6558,89 +6893,89 @@ export type WorkoutSessionSets = {
   workoutSessionExerciseId: Scalars['uuid']['output'];
 };
 
-/** aggregated selection of "workout_session_sets" */
-export type WorkoutSessionSets_Aggregate = {
-  __typename?: 'workoutSessionSets_aggregate';
-  aggregate?: Maybe<WorkoutSessionSets_Aggregate_Fields>;
-  nodes: Array<WorkoutSessionSets>;
+/** aggregated selection of "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Aggregate = {
+  __typename?: 'workoutSessionStrengthSets_aggregate';
+  aggregate?: Maybe<WorkoutSessionStrengthSets_Aggregate_Fields>;
+  nodes: Array<WorkoutSessionStrengthSets>;
 };
 
-export type WorkoutSessionSets_Aggregate_Bool_Exp = {
-  count?: InputMaybe<WorkoutSessionSets_Aggregate_Bool_Exp_Count>;
+export type WorkoutSessionStrengthSets_Aggregate_Bool_Exp = {
+  count?: InputMaybe<WorkoutSessionStrengthSets_Aggregate_Bool_Exp_Count>;
 };
 
-export type WorkoutSessionSets_Aggregate_Bool_Exp_Count = {
-  arguments?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+export type WorkoutSessionStrengthSets_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   distinct?: InputMaybe<Scalars['Boolean']['input']>;
-  filter?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+  filter?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
   predicate: Int_Comparison_Exp;
 };
 
-/** aggregate fields of "workout_session_sets" */
-export type WorkoutSessionSets_Aggregate_Fields = {
-  __typename?: 'workoutSessionSets_aggregate_fields';
-  avg?: Maybe<WorkoutSessionSets_Avg_Fields>;
+/** aggregate fields of "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Aggregate_Fields = {
+  __typename?: 'workoutSessionStrengthSets_aggregate_fields';
+  avg?: Maybe<WorkoutSessionStrengthSets_Avg_Fields>;
   count: Scalars['Int']['output'];
-  max?: Maybe<WorkoutSessionSets_Max_Fields>;
-  min?: Maybe<WorkoutSessionSets_Min_Fields>;
-  stddev?: Maybe<WorkoutSessionSets_Stddev_Fields>;
-  stddev_pop?: Maybe<WorkoutSessionSets_Stddev_Pop_Fields>;
-  stddev_samp?: Maybe<WorkoutSessionSets_Stddev_Samp_Fields>;
-  sum?: Maybe<WorkoutSessionSets_Sum_Fields>;
-  var_pop?: Maybe<WorkoutSessionSets_Var_Pop_Fields>;
-  var_samp?: Maybe<WorkoutSessionSets_Var_Samp_Fields>;
-  variance?: Maybe<WorkoutSessionSets_Variance_Fields>;
+  max?: Maybe<WorkoutSessionStrengthSets_Max_Fields>;
+  min?: Maybe<WorkoutSessionStrengthSets_Min_Fields>;
+  stddev?: Maybe<WorkoutSessionStrengthSets_Stddev_Fields>;
+  stddev_pop?: Maybe<WorkoutSessionStrengthSets_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<WorkoutSessionStrengthSets_Stddev_Samp_Fields>;
+  sum?: Maybe<WorkoutSessionStrengthSets_Sum_Fields>;
+  var_pop?: Maybe<WorkoutSessionStrengthSets_Var_Pop_Fields>;
+  var_samp?: Maybe<WorkoutSessionStrengthSets_Var_Samp_Fields>;
+  variance?: Maybe<WorkoutSessionStrengthSets_Variance_Fields>;
 };
 
 
-/** aggregate fields of "workout_session_sets" */
-export type WorkoutSessionSets_Aggregate_FieldsCountArgs = {
-  columns?: InputMaybe<Array<WorkoutSessionSets_Select_Column>>;
+/** aggregate fields of "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<WorkoutSessionStrengthSets_Select_Column>>;
   distinct?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
-/** order by aggregate values of table "workout_session_sets" */
-export type WorkoutSessionSets_Aggregate_Order_By = {
-  avg?: InputMaybe<WorkoutSessionSets_Avg_Order_By>;
+/** order by aggregate values of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Aggregate_Order_By = {
+  avg?: InputMaybe<WorkoutSessionStrengthSets_Avg_Order_By>;
   count?: InputMaybe<Order_By>;
-  max?: InputMaybe<WorkoutSessionSets_Max_Order_By>;
-  min?: InputMaybe<WorkoutSessionSets_Min_Order_By>;
-  stddev?: InputMaybe<WorkoutSessionSets_Stddev_Order_By>;
-  stddev_pop?: InputMaybe<WorkoutSessionSets_Stddev_Pop_Order_By>;
-  stddev_samp?: InputMaybe<WorkoutSessionSets_Stddev_Samp_Order_By>;
-  sum?: InputMaybe<WorkoutSessionSets_Sum_Order_By>;
-  var_pop?: InputMaybe<WorkoutSessionSets_Var_Pop_Order_By>;
-  var_samp?: InputMaybe<WorkoutSessionSets_Var_Samp_Order_By>;
-  variance?: InputMaybe<WorkoutSessionSets_Variance_Order_By>;
+  max?: InputMaybe<WorkoutSessionStrengthSets_Max_Order_By>;
+  min?: InputMaybe<WorkoutSessionStrengthSets_Min_Order_By>;
+  stddev?: InputMaybe<WorkoutSessionStrengthSets_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<WorkoutSessionStrengthSets_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<WorkoutSessionStrengthSets_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<WorkoutSessionStrengthSets_Sum_Order_By>;
+  var_pop?: InputMaybe<WorkoutSessionStrengthSets_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<WorkoutSessionStrengthSets_Var_Samp_Order_By>;
+  variance?: InputMaybe<WorkoutSessionStrengthSets_Variance_Order_By>;
 };
 
-/** input type for inserting array relation for remote table "workout_session_sets" */
-export type WorkoutSessionSets_Arr_Rel_Insert_Input = {
-  data: Array<WorkoutSessionSets_Insert_Input>;
+/** input type for inserting array relation for remote table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Arr_Rel_Insert_Input = {
+  data: Array<WorkoutSessionStrengthSets_Insert_Input>;
   /** upsert condition */
-  on_conflict?: InputMaybe<WorkoutSessionSets_On_Conflict>;
+  on_conflict?: InputMaybe<WorkoutSessionStrengthSets_On_Conflict>;
 };
 
 /** aggregate avg on columns */
-export type WorkoutSessionSets_Avg_Fields = {
-  __typename?: 'workoutSessionSets_avg_fields';
+export type WorkoutSessionStrengthSets_Avg_Fields = {
+  __typename?: 'workoutSessionStrengthSets_avg_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by avg() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Avg_Order_By = {
+/** order by avg() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Avg_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
-/** Boolean expression to filter rows from the table "workout_session_sets". All fields are combined with a logical 'AND'. */
-export type WorkoutSessionSets_Bool_Exp = {
-  _and?: InputMaybe<Array<WorkoutSessionSets_Bool_Exp>>;
-  _not?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
-  _or?: InputMaybe<Array<WorkoutSessionSets_Bool_Exp>>;
+/** Boolean expression to filter rows from the table "workout_session_strength_sets". All fields are combined with a logical 'AND'. */
+export type WorkoutSessionStrengthSets_Bool_Exp = {
+  _and?: InputMaybe<Array<WorkoutSessionStrengthSets_Bool_Exp>>;
+  _not?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
+  _or?: InputMaybe<Array<WorkoutSessionStrengthSets_Bool_Exp>>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   reps?: InputMaybe<Int_Comparison_Exp>;
@@ -6651,23 +6986,23 @@ export type WorkoutSessionSets_Bool_Exp = {
   workoutSessionExerciseId?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
-/** unique or primary key constraints on table "workout_session_sets" */
-export enum WorkoutSessionSets_Constraint {
+/** unique or primary key constraints on table "workout_session_strength_sets" */
+export enum WorkoutSessionStrengthSets_Constraint {
   /** unique or primary key constraint on columns "id" */
-  WorkoutSessionSetsPkey = 'workout_session_sets_pkey',
+  WorkoutSessionStrengthSetsPkey = 'workout_session_strength_sets_pkey',
   /** unique or primary key constraint on columns "workout_session_exercise_id", "set_number" */
-  WorkoutSessionSetsWorkoutSessionExerciseIdSetNumberKey = 'workout_session_sets_workout_session_exercise_id_set_number_key'
+  WorkoutSessionStrengthSetsWseIdSetNumberKey = 'workout_session_strength_sets_wse_id_set_number_key'
 }
 
-/** input type for incrementing numeric columns in table "workout_session_sets" */
-export type WorkoutSessionSets_Inc_Input = {
+/** input type for incrementing numeric columns in table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Inc_Input = {
   reps?: InputMaybe<Scalars['Int']['input']>;
   setNumber?: InputMaybe<Scalars['Int']['input']>;
   weight?: InputMaybe<Scalars['numeric']['input']>;
 };
 
-/** input type for inserting data into table "workout_session_sets" */
-export type WorkoutSessionSets_Insert_Input = {
+/** input type for inserting data into table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Insert_Input = {
   reps?: InputMaybe<Scalars['Int']['input']>;
   setNumber?: InputMaybe<Scalars['Int']['input']>;
   weight?: InputMaybe<Scalars['numeric']['input']>;
@@ -6676,8 +7011,8 @@ export type WorkoutSessionSets_Insert_Input = {
 };
 
 /** aggregate max on columns */
-export type WorkoutSessionSets_Max_Fields = {
-  __typename?: 'workoutSessionSets_max_fields';
+export type WorkoutSessionStrengthSets_Max_Fields = {
+  __typename?: 'workoutSessionStrengthSets_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   reps?: Maybe<Scalars['Int']['output']>;
@@ -6687,8 +7022,8 @@ export type WorkoutSessionSets_Max_Fields = {
   workoutSessionExerciseId?: Maybe<Scalars['uuid']['output']>;
 };
 
-/** order by max() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Max_Order_By = {
+/** order by max() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   reps?: InputMaybe<Order_By>;
@@ -6699,8 +7034,8 @@ export type WorkoutSessionSets_Max_Order_By = {
 };
 
 /** aggregate min on columns */
-export type WorkoutSessionSets_Min_Fields = {
-  __typename?: 'workoutSessionSets_min_fields';
+export type WorkoutSessionStrengthSets_Min_Fields = {
+  __typename?: 'workoutSessionStrengthSets_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
   reps?: Maybe<Scalars['Int']['output']>;
@@ -6710,8 +7045,8 @@ export type WorkoutSessionSets_Min_Fields = {
   workoutSessionExerciseId?: Maybe<Scalars['uuid']['output']>;
 };
 
-/** order by min() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Min_Order_By = {
+/** order by min() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   reps?: InputMaybe<Order_By>;
@@ -6721,24 +7056,24 @@ export type WorkoutSessionSets_Min_Order_By = {
   workoutSessionExerciseId?: InputMaybe<Order_By>;
 };
 
-/** response of any mutation on the table "workout_session_sets" */
-export type WorkoutSessionSets_Mutation_Response = {
-  __typename?: 'workoutSessionSets_mutation_response';
+/** response of any mutation on the table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Mutation_Response = {
+  __typename?: 'workoutSessionStrengthSets_mutation_response';
   /** number of rows affected by the mutation */
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
-  returning: Array<WorkoutSessionSets>;
+  returning: Array<WorkoutSessionStrengthSets>;
 };
 
-/** on_conflict condition type for table "workout_session_sets" */
-export type WorkoutSessionSets_On_Conflict = {
-  constraint: WorkoutSessionSets_Constraint;
-  update_columns?: Array<WorkoutSessionSets_Update_Column>;
-  where?: InputMaybe<WorkoutSessionSets_Bool_Exp>;
+/** on_conflict condition type for table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_On_Conflict = {
+  constraint: WorkoutSessionStrengthSets_Constraint;
+  update_columns?: Array<WorkoutSessionStrengthSets_Update_Column>;
+  where?: InputMaybe<WorkoutSessionStrengthSets_Bool_Exp>;
 };
 
-/** Ordering options when selecting data from "workout_session_sets". */
-export type WorkoutSessionSets_Order_By = {
+/** Ordering options when selecting data from "workout_session_strength_sets". */
+export type WorkoutSessionStrengthSets_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   reps?: InputMaybe<Order_By>;
@@ -6749,13 +7084,13 @@ export type WorkoutSessionSets_Order_By = {
   workoutSessionExerciseId?: InputMaybe<Order_By>;
 };
 
-/** primary key columns input for table: workout_session_sets */
-export type WorkoutSessionSets_Pk_Columns_Input = {
+/** primary key columns input for table: workout_session_strength_sets */
+export type WorkoutSessionStrengthSets_Pk_Columns_Input = {
   id: Scalars['uuid']['input'];
 };
 
-/** select columns of table "workout_session_sets" */
-export enum WorkoutSessionSets_Select_Column {
+/** select columns of table "workout_session_strength_sets" */
+export enum WorkoutSessionStrengthSets_Select_Column {
   /** column name */
   CreatedAt = 'createdAt',
   /** column name */
@@ -6772,68 +7107,68 @@ export enum WorkoutSessionSets_Select_Column {
   WorkoutSessionExerciseId = 'workoutSessionExerciseId'
 }
 
-/** input type for updating data in table "workout_session_sets" */
-export type WorkoutSessionSets_Set_Input = {
+/** input type for updating data in table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Set_Input = {
   reps?: InputMaybe<Scalars['Int']['input']>;
   setNumber?: InputMaybe<Scalars['Int']['input']>;
   weight?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate stddev on columns */
-export type WorkoutSessionSets_Stddev_Fields = {
-  __typename?: 'workoutSessionSets_stddev_fields';
+export type WorkoutSessionStrengthSets_Stddev_Fields = {
+  __typename?: 'workoutSessionStrengthSets_stddev_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by stddev() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Stddev_Order_By = {
+/** order by stddev() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Stddev_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
 /** aggregate stddev_pop on columns */
-export type WorkoutSessionSets_Stddev_Pop_Fields = {
-  __typename?: 'workoutSessionSets_stddev_pop_fields';
+export type WorkoutSessionStrengthSets_Stddev_Pop_Fields = {
+  __typename?: 'workoutSessionStrengthSets_stddev_pop_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by stddev_pop() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Stddev_Pop_Order_By = {
+/** order by stddev_pop() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Stddev_Pop_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
 /** aggregate stddev_samp on columns */
-export type WorkoutSessionSets_Stddev_Samp_Fields = {
-  __typename?: 'workoutSessionSets_stddev_samp_fields';
+export type WorkoutSessionStrengthSets_Stddev_Samp_Fields = {
+  __typename?: 'workoutSessionStrengthSets_stddev_samp_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by stddev_samp() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Stddev_Samp_Order_By = {
+/** order by stddev_samp() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Stddev_Samp_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
-/** Streaming cursor of the table "workoutSessionSets" */
-export type WorkoutSessionSets_Stream_Cursor_Input = {
+/** Streaming cursor of the table "workoutSessionStrengthSets" */
+export type WorkoutSessionStrengthSets_Stream_Cursor_Input = {
   /** Stream column input with initial value */
-  initial_value: WorkoutSessionSets_Stream_Cursor_Value_Input;
+  initial_value: WorkoutSessionStrengthSets_Stream_Cursor_Value_Input;
   /** cursor ordering */
   ordering?: InputMaybe<Cursor_Ordering>;
 };
 
 /** Initial value of the column from where the streaming should start */
-export type WorkoutSessionSets_Stream_Cursor_Value_Input = {
+export type WorkoutSessionStrengthSets_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   reps?: InputMaybe<Scalars['Int']['input']>;
@@ -6844,22 +7179,22 @@ export type WorkoutSessionSets_Stream_Cursor_Value_Input = {
 };
 
 /** aggregate sum on columns */
-export type WorkoutSessionSets_Sum_Fields = {
-  __typename?: 'workoutSessionSets_sum_fields';
+export type WorkoutSessionStrengthSets_Sum_Fields = {
+  __typename?: 'workoutSessionStrengthSets_sum_fields';
   reps?: Maybe<Scalars['Int']['output']>;
   setNumber?: Maybe<Scalars['Int']['output']>;
   weight?: Maybe<Scalars['numeric']['output']>;
 };
 
-/** order by sum() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Sum_Order_By = {
+/** order by sum() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Sum_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
-/** update columns of table "workout_session_sets" */
-export enum WorkoutSessionSets_Update_Column {
+/** update columns of table "workout_session_strength_sets" */
+export enum WorkoutSessionStrengthSets_Update_Column {
   /** column name */
   Reps = 'reps',
   /** column name */
@@ -6868,55 +7203,55 @@ export enum WorkoutSessionSets_Update_Column {
   Weight = 'weight'
 }
 
-export type WorkoutSessionSets_Updates = {
+export type WorkoutSessionStrengthSets_Updates = {
   /** increments the numeric columns with given value of the filtered values */
-  _inc?: InputMaybe<WorkoutSessionSets_Inc_Input>;
+  _inc?: InputMaybe<WorkoutSessionStrengthSets_Inc_Input>;
   /** sets the columns of the filtered rows to the given values */
-  _set?: InputMaybe<WorkoutSessionSets_Set_Input>;
+  _set?: InputMaybe<WorkoutSessionStrengthSets_Set_Input>;
   /** filter the rows which have to be updated */
-  where: WorkoutSessionSets_Bool_Exp;
+  where: WorkoutSessionStrengthSets_Bool_Exp;
 };
 
 /** aggregate var_pop on columns */
-export type WorkoutSessionSets_Var_Pop_Fields = {
-  __typename?: 'workoutSessionSets_var_pop_fields';
+export type WorkoutSessionStrengthSets_Var_Pop_Fields = {
+  __typename?: 'workoutSessionStrengthSets_var_pop_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by var_pop() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Var_Pop_Order_By = {
+/** order by var_pop() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Var_Pop_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
 /** aggregate var_samp on columns */
-export type WorkoutSessionSets_Var_Samp_Fields = {
-  __typename?: 'workoutSessionSets_var_samp_fields';
+export type WorkoutSessionStrengthSets_Var_Samp_Fields = {
+  __typename?: 'workoutSessionStrengthSets_var_samp_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by var_samp() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Var_Samp_Order_By = {
+/** order by var_samp() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Var_Samp_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
 };
 
 /** aggregate variance on columns */
-export type WorkoutSessionSets_Variance_Fields = {
-  __typename?: 'workoutSessionSets_variance_fields';
+export type WorkoutSessionStrengthSets_Variance_Fields = {
+  __typename?: 'workoutSessionStrengthSets_variance_fields';
   reps?: Maybe<Scalars['Float']['output']>;
   setNumber?: Maybe<Scalars['Float']['output']>;
   weight?: Maybe<Scalars['Float']['output']>;
 };
 
-/** order by variance() on columns of table "workout_session_sets" */
-export type WorkoutSessionSets_Variance_Order_By = {
+/** order by variance() on columns of table "workout_session_strength_sets" */
+export type WorkoutSessionStrengthSets_Variance_Order_By = {
   reps?: InputMaybe<Order_By>;
   setNumber?: InputMaybe<Order_By>;
   weight?: InputMaybe<Order_By>;
@@ -7478,12 +7813,12 @@ export type ExerciseDetailQueryVariables = Exact<{
 }>;
 
 
-export type ExerciseDetailQuery = { __typename?: 'query_root', exercise?: { __typename?: 'exercises', id: any, name: string, instructions: Array<string>, image1FileId?: any | null, image2FileId?: any | null, doubleWeight: boolean, level?: ExerciseLevels_Enum | null, category: ExerciseCategories_Enum, kind?: string | null, equipment?: ExerciseEquipments_Enum | null, force?: ExerciseForces_Enum | null, mechanic?: ExerciseMechanics_Enum | null, primaryMuscleGroup: MuscleGroups_Enum, cardio?: { __typename?: 'exercisesCardio', metricsSchema: any } | null, secondaryMuscleGroups: Array<{ __typename?: 'exerciseSecondaryMuscleGroups', muscleGroup: MuscleGroups_Enum }>, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, workoutSession: { __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null }, workoutSessionSets: Array<{ __typename?: 'workoutSessionSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> } | null };
+export type ExerciseDetailQuery = { __typename?: 'query_root', exercise?: { __typename?: 'exercises', id: any, name: string, instructions: Array<string>, image1FileId?: any | null, image2FileId?: any | null, level?: ExerciseLevels_Enum | null, category: ExerciseCategories_Enum, kind?: string | null, equipment?: ExerciseEquipments_Enum | null, primaryMuscleGroup: MuscleGroups_Enum, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean, force?: ExerciseForces_Enum | null, mechanic?: ExerciseMechanics_Enum | null } | null, cardio?: { __typename?: 'exercisesCardio', metricsSchema: any } | null, secondaryMuscleGroups: Array<{ __typename?: 'exerciseSecondaryMuscleGroups', muscleGroup: MuscleGroups_Enum }>, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, workoutSession: { __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null }, workoutSessionStrengthSets: Array<{ __typename?: 'workoutSessionStrengthSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> } | null };
 
 export type ExercisePickerExercisesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ExercisePickerExercisesQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, doubleWeight: boolean }> };
+export type ExercisePickerExercisesQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean } | null }> };
 
 export type StartSessionMutationVariables = Exact<{
   obj: WorkoutSessions_Insert_Input;
@@ -7536,7 +7871,7 @@ export type InsertBodyMeasurementMutation = { __typename?: 'mutation_root', inse
 export type ExercisesIndexQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ExercisesIndexQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, name: string, doubleWeight: boolean, primaryMuscleGroup: MuscleGroups_Enum, category: ExerciseCategories_Enum, equipment?: ExerciseEquipments_Enum | null, level?: ExerciseLevels_Enum | null, isPublic: boolean, secondaryMuscleGroups: Array<{ __typename?: 'exerciseSecondaryMuscleGroups', muscleGroup: MuscleGroups_Enum }> }> };
+export type ExercisesIndexQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, category: ExerciseCategories_Enum, equipment?: ExerciseEquipments_Enum | null, level?: ExerciseLevels_Enum | null, isPublic: boolean, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean } | null, secondaryMuscleGroups: Array<{ __typename?: 'exerciseSecondaryMuscleGroups', muscleGroup: MuscleGroups_Enum }> }> };
 
 export type JournalEntryByIdQueryVariables = Exact<{
   id: Scalars['uuid']['input'];
@@ -7600,7 +7935,7 @@ export type SessionDetailQueryVariables = Exact<{
 }>;
 
 
-export type SessionDetailQuery = { __typename?: 'query_root', workoutSession?: { __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, kind?: string | null, doubleWeight: boolean, primaryMuscleGroup: MuscleGroups_Enum, image1FileId?: any | null, image2FileId?: any | null, cardio?: { __typename?: 'exercisesCardio', metricsSchema: any } | null }, workoutSessionSets: Array<{ __typename?: 'workoutSessionSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> } | null };
+export type SessionDetailQuery = { __typename?: 'query_root', workoutSession?: { __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, kind?: string | null, primaryMuscleGroup: MuscleGroups_Enum, image1FileId?: any | null, image2FileId?: any | null, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean } | null, cardio?: { __typename?: 'exercisesCardio', metricsSchema: any } | null }, workoutSessionStrengthSets: Array<{ __typename?: 'workoutSessionStrengthSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> } | null };
 
 export type PriorSessionsPerExerciseQueryVariables = Exact<{
   exerciseIds: Array<Scalars['uuid']['input']> | Scalars['uuid']['input'];
@@ -7608,29 +7943,29 @@ export type PriorSessionsPerExerciseQueryVariables = Exact<{
 }>;
 
 
-export type PriorSessionsPerExerciseQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, workoutSession: { __typename?: 'workoutSessions', id: any, startedAt: any }, workoutSessionSets: Array<{ __typename?: 'workoutSessionSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> }> };
+export type PriorSessionsPerExerciseQuery = { __typename?: 'query_root', exercises: Array<{ __typename?: 'exercises', id: any, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', id: any, workoutSession: { __typename?: 'workoutSessions', id: any, startedAt: any }, workoutSessionStrengthSets: Array<{ __typename?: 'workoutSessionStrengthSets', id: any, setNumber: number, reps: number, weight: any }>, workoutSessionCardioEntries: Array<{ __typename?: 'workoutSessionCardioEntries', id: any, entryNumber: number, metrics: any }> }> }> };
 
-export type InsertWorkoutSessionSetMutationVariables = Exact<{
-  obj: WorkoutSessionSets_Insert_Input;
+export type InsertWorkoutSessionStrengthSetMutationVariables = Exact<{
+  obj: WorkoutSessionStrengthSets_Insert_Input;
 }>;
 
 
-export type InsertWorkoutSessionSetMutation = { __typename?: 'mutation_root', insertWorkoutSessionSet?: { __typename?: 'workoutSessionSets', id: any } | null };
+export type InsertWorkoutSessionStrengthSetMutation = { __typename?: 'mutation_root', insertWorkoutSessionStrengthSet?: { __typename?: 'workoutSessionStrengthSets', id: any } | null };
 
-export type UpdateWorkoutSessionSetMutationVariables = Exact<{
+export type UpdateWorkoutSessionStrengthSetMutationVariables = Exact<{
   id: Scalars['uuid']['input'];
-  set: WorkoutSessionSets_Set_Input;
+  set: WorkoutSessionStrengthSets_Set_Input;
 }>;
 
 
-export type UpdateWorkoutSessionSetMutation = { __typename?: 'mutation_root', updateWorkoutSessionSet?: { __typename?: 'workoutSessionSets', id: any } | null };
+export type UpdateWorkoutSessionStrengthSetMutation = { __typename?: 'mutation_root', updateWorkoutSessionStrengthSet?: { __typename?: 'workoutSessionStrengthSets', id: any } | null };
 
-export type DeleteWorkoutSessionSetMutationVariables = Exact<{
+export type DeleteWorkoutSessionStrengthSetMutationVariables = Exact<{
   id: Scalars['uuid']['input'];
 }>;
 
 
-export type DeleteWorkoutSessionSetMutation = { __typename?: 'mutation_root', deleteWorkoutSessionSet?: { __typename?: 'workoutSessionSets', id: any } | null };
+export type DeleteWorkoutSessionStrengthSetMutation = { __typename?: 'mutation_root', deleteWorkoutSessionStrengthSet?: { __typename?: 'workoutSessionStrengthSets', id: any } | null };
 
 export type InsertWorkoutSessionCardioEntryMutationVariables = Exact<{
   obj: WorkoutSessionCardioEntries_Insert_Input;
@@ -7689,21 +8024,21 @@ export type SessionsIndexQueryVariables = Exact<{
 }>;
 
 
-export type SessionsIndexQuery = { __typename?: 'query_root', workoutSessions: Array<{ __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null, workoutSessionExercises_aggregate: { __typename?: 'workoutSessionExercises_aggregate', aggregate?: { __typename?: 'workoutSessionExercises_aggregate_fields', count: number } | null }, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', exercise: { __typename?: 'exercises', id: any, name: string }, workoutSessionSets_aggregate: { __typename?: 'workoutSessionSets_aggregate', aggregate?: { __typename?: 'workoutSessionSets_aggregate_fields', count: number, sum?: { __typename?: 'workoutSessionSets_sum_fields', reps?: number | null } | null } | null }, workoutSessionCardioEntries_aggregate: { __typename?: 'workoutSessionCardioEntries_aggregate', aggregate?: { __typename?: 'workoutSessionCardioEntries_aggregate_fields', count: number } | null } }> }> };
+export type SessionsIndexQuery = { __typename?: 'query_root', workoutSessions: Array<{ __typename?: 'workoutSessions', id: any, startedAt: any, workout?: { __typename?: 'workouts', id: any, name: string } | null, workoutSessionExercises_aggregate: { __typename?: 'workoutSessionExercises_aggregate', aggregate?: { __typename?: 'workoutSessionExercises_aggregate_fields', count: number } | null }, workoutSessionExercises: Array<{ __typename?: 'workoutSessionExercises', exercise: { __typename?: 'exercises', id: any, name: string }, workoutSessionStrengthSets_aggregate: { __typename?: 'workoutSessionStrengthSets_aggregate', aggregate?: { __typename?: 'workoutSessionStrengthSets_aggregate_fields', count: number, sum?: { __typename?: 'workoutSessionStrengthSets_sum_fields', reps?: number | null } | null } | null }, workoutSessionCardioEntries_aggregate: { __typename?: 'workoutSessionCardioEntries_aggregate', aggregate?: { __typename?: 'workoutSessionCardioEntries_aggregate_fields', count: number } | null } }> }> };
 
 export type WorkoutDetailQueryVariables = Exact<{
   id: Scalars['uuid']['input'];
 }>;
 
 
-export type WorkoutDetailQuery = { __typename?: 'query_root', workout?: { __typename?: 'workouts', id: any, name: string, description?: string | null, isPublic: boolean, userId?: any | null, workoutExercises: Array<{ __typename?: 'workoutExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, doubleWeight: boolean, primaryMuscleGroup: MuscleGroups_Enum, image1FileId?: any | null, image2FileId?: any | null } }>, workoutLabels: Array<{ __typename?: 'workoutLabels', labelId: any, label: { __typename?: 'labels', id: any, name: string } }> } | null };
+export type WorkoutDetailQuery = { __typename?: 'query_root', workout?: { __typename?: 'workouts', id: any, name: string, description?: string | null, isPublic: boolean, userId?: any | null, workoutExercises: Array<{ __typename?: 'workoutExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, image1FileId?: any | null, image2FileId?: any | null, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean } | null } }>, workoutLabels: Array<{ __typename?: 'workoutLabels', labelId: any, label: { __typename?: 'labels', id: any, name: string } }> } | null };
 
 export type EditWorkoutQueryVariables = Exact<{
   id: Scalars['uuid']['input'];
 }>;
 
 
-export type EditWorkoutQuery = { __typename?: 'query_root', workout?: { __typename?: 'workouts', id: any, name: string, description?: string | null, isPublic: boolean, userId?: any | null, workoutExercises: Array<{ __typename?: 'workoutExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, doubleWeight: boolean } }>, workoutLabels: Array<{ __typename?: 'workoutLabels', labelId: any, label: { __typename?: 'labels', id: any, name: string } }> } | null, labels: Array<{ __typename?: 'labels', id: any, name: string }> };
+export type EditWorkoutQuery = { __typename?: 'query_root', workout?: { __typename?: 'workouts', id: any, name: string, description?: string | null, isPublic: boolean, userId?: any | null, workoutExercises: Array<{ __typename?: 'workoutExercises', id: any, position: number, exercise: { __typename?: 'exercises', id: any, name: string, primaryMuscleGroup: MuscleGroups_Enum, strength?: { __typename?: 'exercisesStrength', doubleWeight: boolean } | null } }>, workoutLabels: Array<{ __typename?: 'workoutLabels', labelId: any, label: { __typename?: 'labels', id: any, name: string } }> } | null, labels: Array<{ __typename?: 'labels', id: any, name: string }> };
 
 export type SaveWorkoutMutationVariables = Exact<{
   id: Scalars['uuid']['input'];
@@ -7748,8 +8083,8 @@ export const BreadcrumbExerciseDocument = {"kind":"Document","definitions":[{"ki
 export const BreadcrumbSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]} as unknown as DocumentNode<BreadcrumbSessionQuery, BreadcrumbSessionQueryVariables>;
 export const BreadcrumbBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"measuredOn"}}]}}]}}]} as unknown as DocumentNode<BreadcrumbBodyMeasurementQuery, BreadcrumbBodyMeasurementQueryVariables>;
 export const BreadcrumbJournalEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbJournalEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryDate"}},{"kind":"Field","name":{"kind":"Name","value":"title"}}]}}]}}]} as unknown as DocumentNode<BreadcrumbJournalEntryQuery, BreadcrumbJournalEntryQueryVariables>;
-export const ExerciseDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExerciseDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercise"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"instructions"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"equipment"}},{"kind":"Field","name":{"kind":"Name","value":"force"}},{"kind":"Field","name":{"kind":"Name","value":"mechanic"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"cardio"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metricsSchema"}}]}},{"kind":"Field","name":{"kind":"Name","value":"secondaryMuscleGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"muscleGroup"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ExerciseDetailQuery, ExerciseDetailQueryVariables>;
-export const ExercisePickerExercisesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExercisePickerExercises"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}}]}}]} as unknown as DocumentNode<ExercisePickerExercisesQuery, ExercisePickerExercisesQueryVariables>;
+export const ExerciseDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExerciseDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercise"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"instructions"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"equipment"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}},{"kind":"Field","name":{"kind":"Name","value":"force"}},{"kind":"Field","name":{"kind":"Name","value":"mechanic"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cardio"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metricsSchema"}}]}},{"kind":"Field","name":{"kind":"Name","value":"secondaryMuscleGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"muscleGroup"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionStrengthSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<ExerciseDetailQuery, ExerciseDetailQueryVariables>;
+export const ExercisePickerExercisesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExercisePickerExercises"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}}]}}]}}]} as unknown as DocumentNode<ExercisePickerExercisesQuery, ExercisePickerExercisesQueryVariables>;
 export const StartSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"StartSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessions_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<StartSessionMutation, StartSessionMutationVariables>;
 export const BodyMeasurementByIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BodyMeasurementById"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"measuredOn"}},{"kind":"Field","name":{"kind":"Name","value":"weightKg"}},{"kind":"Field","name":{"kind":"Name","value":"bodyFatPct"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<BodyMeasurementByIdQuery, BodyMeasurementByIdQueryVariables>;
 export const EditBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"measuredOn"}},{"kind":"Field","name":{"kind":"Name","value":"weightKg"}},{"kind":"Field","name":{"kind":"Name","value":"bodyFatPct"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}}]}}]}}]} as unknown as DocumentNode<EditBodyMeasurementQuery, EditBodyMeasurementQueryVariables>;
@@ -7757,7 +8092,7 @@ export const UpdateBodyMeasurementDocument = {"kind":"Document","definitions":[{
 export const DeleteBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteBodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteBodyMeasurementMutation, DeleteBodyMeasurementMutationVariables>;
 export const BodyMeasurementsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BodyMeasurements"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bodyMeasurements"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"measuredOn"},"value":{"kind":"EnumValue","value":"desc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"measuredOn"}},{"kind":"Field","name":{"kind":"Name","value":"weightKg"}},{"kind":"Field","name":{"kind":"Name","value":"bodyFatPct"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}}]}}]}}]} as unknown as DocumentNode<BodyMeasurementsQuery, BodyMeasurementsQueryVariables>;
 export const InsertBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"bodyMeasurements_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertBodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertBodyMeasurementMutation, InsertBodyMeasurementMutationVariables>;
-export const ExercisesIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExercisesIndex"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"equipment"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"secondaryMuscleGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"muscleGroup"}}]}}]}}]}}]} as unknown as DocumentNode<ExercisesIndexQuery, ExercisesIndexQueryVariables>;
+export const ExercisesIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExercisesIndex"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"equipment"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"secondaryMuscleGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"muscleGroup"}}]}}]}}]}}]} as unknown as DocumentNode<ExercisesIndexQuery, ExercisesIndexQueryVariables>;
 export const JournalEntryByIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"JournalEntryById"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryDate"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"journalEntryLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]} as unknown as DocumentNode<JournalEntryByIdQuery, JournalEntryByIdQueryVariables>;
 export const EditJournalEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditJournalEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryDate"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"journalEntryLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"journalLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<EditJournalEntryQuery, EditJournalEntryQueryVariables>;
 export const SaveJournalEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SaveJournalEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"journalEntries_set_input"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"deleteLabelIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"insertLabels"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"journalEntryLabels_insert_input"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateJournalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"deleteJournalEntryLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"journalEntryId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"labelId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"deleteLabelIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"insertJournalEntryLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"insertLabels"}}},{"kind":"Argument","name":{"kind":"Name","value":"on_conflict"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"constraint"},"value":{"kind":"EnumValue","value":"journal_entry_labels_pkey"}},{"kind":"ObjectField","name":{"kind":"Name","value":"update_columns"},"value":{"kind":"ListValue","values":[]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}}]}}]} as unknown as DocumentNode<SaveJournalEntryMutation, SaveJournalEntryMutationVariables>;
@@ -7766,11 +8101,11 @@ export const JournalEntriesDocument = {"kind":"Document","definitions":[{"kind":
 export const JournalLabelsFilterDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"JournalLabelsFilter"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<JournalLabelsFilterQuery, JournalLabelsFilterQueryVariables>;
 export const JournalLabelsForFormDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"JournalLabelsForForm"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<JournalLabelsForFormQuery, JournalLabelsForFormQueryVariables>;
 export const InsertJournalEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertJournalEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"journalEntries_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertJournalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertJournalEntryMutation, InsertJournalEntryMutationVariables>;
-export const SessionDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SessionDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}},{"kind":"Field","name":{"kind":"Name","value":"cardio"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metricsSchema"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<SessionDetailQuery, SessionDetailQueryVariables>;
-export const PriorSessionsPerExerciseDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PriorSessionsPerExercise"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"exerciseIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"excludeSessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"exerciseIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"3"}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"workoutSession"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"startedAt"},"value":{"kind":"EnumValue","value":"desc"}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"workoutSessionId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_neq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"excludeSessionId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<PriorSessionsPerExerciseQuery, PriorSessionsPerExerciseQueryVariables>;
-export const InsertWorkoutSessionSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertWorkoutSessionSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionSets_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSessionSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertWorkoutSessionSetMutation, InsertWorkoutSessionSetMutationVariables>;
-export const UpdateWorkoutSessionSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateWorkoutSessionSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionSets_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWorkoutSessionSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateWorkoutSessionSetMutation, UpdateWorkoutSessionSetMutationVariables>;
-export const DeleteWorkoutSessionSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkoutSessionSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutSessionSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutSessionSetMutation, DeleteWorkoutSessionSetMutationVariables>;
+export const SessionDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SessionDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"cardio"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"metricsSchema"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionStrengthSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<SessionDetailQuery, SessionDetailQueryVariables>;
+export const PriorSessionsPerExerciseDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"PriorSessionsPerExercise"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"exerciseIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"excludeSessionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"exerciseIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"3"}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"workoutSession"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"startedAt"},"value":{"kind":"EnumValue","value":"desc"}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"workoutSessionId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_neq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"excludeSessionId"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"workoutSession"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionStrengthSets"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"setNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"setNumber"}},{"kind":"Field","name":{"kind":"Name","value":"reps"}},{"kind":"Field","name":{"kind":"Name","value":"weight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"entryNumber"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryNumber"}},{"kind":"Field","name":{"kind":"Name","value":"metrics"}}]}}]}}]}}]}}]} as unknown as DocumentNode<PriorSessionsPerExerciseQuery, PriorSessionsPerExerciseQueryVariables>;
+export const InsertWorkoutSessionStrengthSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertWorkoutSessionStrengthSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionStrengthSets_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSessionStrengthSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertWorkoutSessionStrengthSetMutation, InsertWorkoutSessionStrengthSetMutationVariables>;
+export const UpdateWorkoutSessionStrengthSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateWorkoutSessionStrengthSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionStrengthSets_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWorkoutSessionStrengthSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateWorkoutSessionStrengthSetMutation, UpdateWorkoutSessionStrengthSetMutationVariables>;
+export const DeleteWorkoutSessionStrengthSetDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkoutSessionStrengthSet"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutSessionStrengthSet"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutSessionStrengthSetMutation, DeleteWorkoutSessionStrengthSetMutationVariables>;
 export const InsertWorkoutSessionCardioEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertWorkoutSessionCardioEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionCardioEntries_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSessionCardioEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertWorkoutSessionCardioEntryMutation, InsertWorkoutSessionCardioEntryMutationVariables>;
 export const UpdateWorkoutSessionCardioEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateWorkoutSessionCardioEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionCardioEntries_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWorkoutSessionCardioEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateWorkoutSessionCardioEntryMutation, UpdateWorkoutSessionCardioEntryMutationVariables>;
 export const DeleteWorkoutSessionCardioEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkoutSessionCardioEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutSessionCardioEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutSessionCardioEntryMutation, DeleteWorkoutSessionCardioEntryMutationVariables>;
@@ -7778,9 +8113,9 @@ export const UpdateSessionStartedAtDocument = {"kind":"Document","definitions":[
 export const DeleteWorkoutSessionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkoutSession"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutSession"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutSessionMutation, DeleteWorkoutSessionMutationVariables>;
 export const InsertWorkoutSessionExercisesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertWorkoutSessionExercises"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"objs"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutSessionExercises_insert_input"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"objs"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}}]}}]} as unknown as DocumentNode<InsertWorkoutSessionExercisesMutation, InsertWorkoutSessionExercisesMutationVariables>;
 export const DeleteWorkoutSessionExerciseDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkoutSessionExercise"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutSessionExercise"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutSessionExerciseMutation, DeleteWorkoutSessionExerciseMutationVariables>;
-export const SessionsIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SessionsIndex"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workoutSessions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"startedAt"},"value":{"kind":"EnumValue","value":"desc"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionSets_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"sum"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reps"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<SessionsIndexQuery, SessionsIndexQueryVariables>;
-export const WorkoutDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"WorkoutDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]} as unknown as DocumentNode<WorkoutDetailQuery, WorkoutDetailQueryVariables>;
-export const EditWorkoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditWorkout"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"labels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<EditWorkoutQuery, EditWorkoutQueryVariables>;
+export const SessionsIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"SessionsIndex"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workoutSessions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"startedAt"},"value":{"kind":"EnumValue","value":"desc"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"startedAt"}},{"kind":"Field","name":{"kind":"Name","value":"workout"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionStrengthSets_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}},{"kind":"Field","name":{"kind":"Name","value":"sum"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"reps"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutSessionCardioEntries_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<SessionsIndexQuery, SessionsIndexQueryVariables>;
+export const WorkoutDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"WorkoutDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"image1FileId"}},{"kind":"Field","name":{"kind":"Name","value":"image2FileId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]} as unknown as DocumentNode<WorkoutDetailQuery, WorkoutDetailQueryVariables>;
+export const EditWorkoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditWorkout"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"exercise"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"labels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<EditWorkoutQuery, EditWorkoutQueryVariables>;
 export const SaveWorkoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"SaveWorkout"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workouts_set_input"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"deleteRowIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"insertRows"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutExercises_insert_input"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"positionUpdates"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutExercises_updates"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"deleteLabelIds"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"insertLabels"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"workoutLabels_insert_input"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWorkout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}},{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"deleteRowIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutExercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"insertRows"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"update_workoutExercises_many"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"updates"},"value":{"kind":"Variable","name":{"kind":"Name","value":"positionUpdates"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"deleteWorkoutLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"workoutId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"ObjectField","name":{"kind":"Name","value":"labelId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"deleteLabelIds"}}}]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}},{"kind":"Field","name":{"kind":"Name","value":"insertWorkoutLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"objects"},"value":{"kind":"Variable","name":{"kind":"Name","value":"insertLabels"}}},{"kind":"Argument","name":{"kind":"Name","value":"on_conflict"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"constraint"},"value":{"kind":"EnumValue","value":"workout_labels_pkey"}},{"kind":"ObjectField","name":{"kind":"Name","value":"update_columns"},"value":{"kind":"ListValue","values":[]}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affected_rows"}}]}}]}}]} as unknown as DocumentNode<SaveWorkoutMutation, SaveWorkoutMutationVariables>;
 export const DeleteWorkoutDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWorkout"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWorkout"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkoutMutation, DeleteWorkoutMutationVariables>;
 export const WorkoutsIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"WorkoutsIndex"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workouts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"isPublic"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"workoutExercises_aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aggregate"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"count"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"workoutLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"labels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<WorkoutsIndexQuery, WorkoutsIndexQueryVariables>;

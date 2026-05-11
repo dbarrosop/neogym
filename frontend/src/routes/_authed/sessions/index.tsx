@@ -30,7 +30,7 @@ const SessionsIndexQuery = graphql(`
           id
           name
         }
-        workoutSessionSets_aggregate {
+        workoutSessionStrengthSets_aggregate {
           aggregate {
             count
             sum {
@@ -124,7 +124,7 @@ function SessionsRoute() {
             <ul className="space-y-2">
               {sessions.map((s) => {
                 const totalSets = s.workoutSessionExercises.reduce(
-                  (acc, e) => acc + (e.workoutSessionSets_aggregate.aggregate?.count ?? 0),
+                  (acc, e) => acc + (e.workoutSessionStrengthSets_aggregate.aggregate?.count ?? 0),
                   0,
                 );
                 const totalCardioEntries = s.workoutSessionExercises.reduce(

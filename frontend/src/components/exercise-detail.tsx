@@ -41,14 +41,16 @@ const ExerciseDetailQuery = graphql(`
       instructions
       image1FileId
       image2FileId
-      doubleWeight
       level
       category
       kind
       equipment
-      force
-      mechanic
       primaryMuscleGroup
+      strength {
+        doubleWeight
+        force
+        mechanic
+      }
       cardio {
         metricsSchema
       }
@@ -65,7 +67,7 @@ const ExerciseDetailQuery = graphql(`
             name
           }
         }
-        workoutSessionSets(order_by: { setNumber: asc }) {
+        workoutSessionStrengthSets(order_by: { setNumber: asc }) {
           id
           setNumber
           reps
@@ -98,8 +100,8 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
   }, [data]);
 
   const progressPoints = useMemo(
-    () => buildProgressPoints(history, data?.exercise?.doubleWeight ?? false),
-    [history, data?.exercise?.doubleWeight],
+    () => buildProgressPoints(history, data?.exercise?.strength?.doubleWeight ?? false),
+    [history, data?.exercise?.strength?.doubleWeight],
   );
 
   const cardioSchema = useMemo(
@@ -144,7 +146,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
               {exercise.secondaryMuscleGroups.map((s) => (
                 <Badge key={s.muscleGroup}>{s.muscleGroup}</Badge>
               ))}
-              {exercise.doubleWeight ? <Badge variant="outline">Two-handed</Badge> : null}
+              {exercise.strength?.doubleWeight ? <Badge variant="outline">Two-handed</Badge> : null}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -172,12 +174,12 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
               level={exercise.level}
               category={exercise.category}
               equipment={exercise.equipment}
-              force={exercise.force}
-              mechanic={exercise.mechanic}
+              force={exercise.strength?.force ?? null}
+              mechanic={exercise.strength?.mechanic ?? null}
             />
             <ExerciseInstructions instructions={exercise.instructions} />
 
-            {exercise.doubleWeight ? (
+            {exercise.strength?.doubleWeight ? (
               <div className="rounded-md border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
                 <strong className="font-medium text-foreground">Two-handed:</strong> the recorded
                 weight is per side; total volume doubles when calculating session totals.
@@ -202,7 +204,10 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
             {isCardio && cardioPrimary ? (
               <CardioProgress points={cardioPoints} primary={cardioPrimary} />
             ) : (
-              <ExerciseProgress points={progressPoints} doubleWeight={exercise.doubleWeight} />
+              <ExerciseProgress
+                points={progressPoints}
+                doubleWeight={exercise.strength?.doubleWeight ?? false}
+              />
             )}
           </TabsContent>
 
@@ -212,7 +217,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
             ) : (
               <ExerciseHistory
                 entries={history}
-                doubleWeight={exercise.doubleWeight}
+                doubleWeight={exercise.strength?.doubleWeight ?? false}
                 exerciseName={exercise.name}
               />
             )}
@@ -315,8 +320,8 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
         <ul className="space-y-2">
           {entries.map((entry) => {
             const date = new Date(entry.workoutSession.startedAt);
-            const totalReps = entry.workoutSessionSets.reduce((acc, s) => acc + s.reps, 0);
-            const topWeight = entry.workoutSessionSets.reduce(
+            const totalReps = entry.workoutSessionStrengthSets.reduce((acc, s) => acc + s.reps, 0);
+            const topWeight = entry.workoutSessionStrengthSets.reduce(
               (acc, s) => Math.max(acc, Number(s.weight)),
               0,
             );
@@ -342,7 +347,7 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
                               year: "numeric",
                             })}
                             {" · "}
-                            {entry.workoutSessionSets.length} sets · {totalReps} reps
+                            {entry.workoutSessionStrengthSets.length} sets · {totalReps} reps
                             {topWeight > 0
                               ? ` · top ${topWeight}${doubleWeight ? "/side" : ""} kg`
                               : ""}
@@ -350,9 +355,9 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
                         </div>
                         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
                       </div>
-                      {entry.workoutSessionSets.length > 0 ? (
+                      {entry.workoutSessionStrengthSets.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {entry.workoutSessionSets.map((s) => (
+                          {entry.workoutSessionStrengthSets.map((s) => (
                             <span
                               key={s.id}
                               className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-xs tabular-nums"
@@ -391,12 +396,12 @@ function buildProgressPoints(
 ): ProgressPoint[] {
   const points: ProgressPoint[] = [];
   for (const entry of entries) {
-    if (entry.workoutSessionSets.length === 0) {
+    if (entry.workoutSessionStrengthSets.length === 0) {
       continue;
     }
     let volume = 0;
     let oneRm = 0;
-    for (const set of entry.workoutSessionSets) {
+    for (const set of entry.workoutSessionStrengthSets) {
       if (set.reps <= 0) {
         continue;
       }

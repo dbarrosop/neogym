@@ -1,5 +1,5 @@
 table:
-  name: workout_session_sets
+  name: workout_session_strength_sets
   schema: public
 configuration:
   column_config:
@@ -28,17 +28,17 @@ configuration:
     updated_at: updatedAt
     weight: weight
     workout_session_exercise_id: workoutSessionExerciseId
-  custom_name: workoutSessionSets
+  custom_name: workoutSessionStrengthSets
   custom_root_fields:
-    delete: deleteWorkoutSessionSets
-    delete_by_pk: deleteWorkoutSessionSet
-    insert: insertWorkoutSessionSets
-    insert_one: insertWorkoutSessionSet
-    select: workoutSessionSets
-    select_aggregate: workoutSessionSetsAggregate
-    select_by_pk: workoutSessionSet
-    update: updateWorkoutSessionSets
-    update_by_pk: updateWorkoutSessionSet
+    delete: deleteWorkoutSessionStrengthSets
+    delete_by_pk: deleteWorkoutSessionStrengthSet
+    insert: insertWorkoutSessionStrengthSets
+    insert_one: insertWorkoutSessionStrengthSet
+    select: workoutSessionStrengthSets
+    select_aggregate: workoutSessionStrengthSetsAggregate
+    select_by_pk: workoutSessionStrengthSet
+    update: updateWorkoutSessionStrengthSets
+    update_by_pk: updateWorkoutSessionStrengthSet
 object_relationships:
   - name: workoutSessionExercise
     using:

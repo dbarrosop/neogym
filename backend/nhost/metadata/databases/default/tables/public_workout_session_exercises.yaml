@@ -55,14 +55,14 @@ array_relationships:
         table:
           name: workout_session_cardio_entries
           schema: public
-  - name: workoutSessionSets
+  - name: workoutSessionStrengthSets
     using:
       foreign_key_constraint_on:
         columns:
           - workout_session_exercise_id
           - parent_kind
         table:
-          name: workout_session_sets
+          name: workout_session_strength_sets
           schema: public
 insert_permissions:
   - role: user

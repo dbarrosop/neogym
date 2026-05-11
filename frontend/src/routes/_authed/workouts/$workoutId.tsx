@@ -26,7 +26,7 @@ const WorkoutDetailQuery = graphql(`
         exercise {
           id
           name
-          doubleWeight
+          strength { doubleWeight }
           primaryMuscleGroup
           image1FileId
           image2FileId
@@ -153,7 +153,7 @@ function WorkoutDetailRoute() {
                     <p className="truncate text-sm font-medium">{we.exercise.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {we.exercise.primaryMuscleGroup}
-                      {we.exercise.doubleWeight ? " · two-handed" : ""}
+                      {we.exercise.strength?.doubleWeight ? " · two-handed" : ""}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />

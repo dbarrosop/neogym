@@ -50,15 +50,17 @@ const SessionDetailQuery = graphql(`
           id
           name
           kind
-          doubleWeight
           primaryMuscleGroup
           image1FileId
           image2FileId
+          strength {
+            doubleWeight
+          }
           cardio {
             metricsSchema
           }
         }
-        workoutSessionSets(order_by: { setNumber: asc }) {
+        workoutSessionStrengthSets(order_by: { setNumber: asc }) {
           id
           setNumber
           reps
@@ -90,7 +92,7 @@ const PriorSessionsQuery = graphql(`
           id
           startedAt
         }
-        workoutSessionSets(order_by: { setNumber: asc }) {
+        workoutSessionStrengthSets(order_by: { setNumber: asc }) {
           id
           setNumber
           reps
@@ -107,27 +109,27 @@ const PriorSessionsQuery = graphql(`
 `);
 
 const InsertSetMutation = graphql(`
-  mutation InsertWorkoutSessionSet($obj: workoutSessionSets_insert_input!) {
-    insertWorkoutSessionSet(object: $obj) {
+  mutation InsertWorkoutSessionStrengthSet($obj: workoutSessionStrengthSets_insert_input!) {
+    insertWorkoutSessionStrengthSet(object: $obj) {
       id
     }
   }
 `);
 
 const UpdateSetMutation = graphql(`
-  mutation UpdateWorkoutSessionSet(
+  mutation UpdateWorkoutSessionStrengthSet(
     $id: uuid!
-    $set: workoutSessionSets_set_input!
+    $set: workoutSessionStrengthSets_set_input!
   ) {
-    updateWorkoutSessionSet(pk_columns: { id: $id }, _set: $set) {
+    updateWorkoutSessionStrengthSet(pk_columns: { id: $id }, _set: $set) {
       id
     }
   }
 `);
 
 const DeleteSetMutation = graphql(`
-  mutation DeleteWorkoutSessionSet($id: uuid!) {
-    deleteWorkoutSessionSet(id: $id) {
+  mutation DeleteWorkoutSessionStrengthSet($id: uuid!) {
+    deleteWorkoutSessionStrengthSet(id: $id) {
       id
     }
   }
@@ -287,8 +289,8 @@ function SessionDetailRoute() {
       if (e.exercise.kind === "cardio") {
         continue;
       }
-      const m = e.exercise.doubleWeight ? 2 : 1;
-      for (const s of e.workoutSessionSets) {
+      const m = e.exercise.strength?.doubleWeight ? 2 : 1;
+      for (const s of e.workoutSessionStrengthSets) {
         sets += 1;
         reps += s.reps;
         volume += s.reps * Number(s.weight) * m;
@@ -556,7 +558,7 @@ function ExerciseRow({
   const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.cardio?.metricsSchema) : null;
   const entryCount = isCardio
     ? we.workoutSessionCardioEntries.length
-    : we.workoutSessionSets.length;
+    : we.workoutSessionStrengthSets.length;
   const onRequestRemove = () =>
     onConfirmRemove({ id: we.id, name: we.exercise.name, setCount: entryCount });
 
@@ -589,10 +591,10 @@ function ExerciseRow({
       exerciseId={we.exercise.id}
       exerciseName={we.exercise.name}
       primaryMuscle={we.exercise.primaryMuscleGroup}
-      doubleWeight={we.exercise.doubleWeight}
+      doubleWeight={we.exercise.strength?.doubleWeight ?? false}
       image1FileId={we.exercise.image1FileId}
       image2FileId={we.exercise.image2FileId}
-      sets={we.workoutSessionSets}
+      sets={we.workoutSessionStrengthSets}
       priorSessions={priorSessionsByExercise.get(we.exercise.id) ?? []}
       onMutated={onMutated}
       onRequestRemove={onRequestRemove}
@@ -822,7 +824,7 @@ function buildPriorSessionsMap(
       e.workoutSessionExercises.map((wse) => ({
         id: wse.id,
         startedAt: wse.workoutSession.startedAt,
-        sets: wse.workoutSessionSets.map((s) => ({
+        sets: wse.workoutSessionStrengthSets.map((s) => ({
           reps: s.reps,
           weight: Number(s.weight),
         })),

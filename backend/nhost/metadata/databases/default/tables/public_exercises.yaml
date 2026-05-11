@@ -7,12 +7,8 @@ configuration:
       custom_name: category
     created_at:
       custom_name: createdAt
-    double_weight:
-      custom_name: doubleWeight
     equipment:
       custom_name: equipment
-    force:
-      custom_name: force
     id:
       custom_name: id
     image_1_file_id:
@@ -27,8 +23,6 @@ configuration:
       custom_name: kind
     level:
       custom_name: level
-    mechanic:
-      custom_name: mechanic
     name:
       custom_name: name
     primary_muscle_group:
@@ -42,9 +36,7 @@ configuration:
   custom_column_names:
     category: category
     created_at: createdAt
-    double_weight: doubleWeight
     equipment: equipment
-    force: force
     id: id
     image_1_file_id: image1FileId
     image_2_file_id: image2FileId
@@ -52,7 +44,6 @@ configuration:
     is_public: isPublic
     kind: kind
     level: level
-    mechanic: mechanic
     name: name
     primary_muscle_group: primaryMuscleGroup
     slug: slug
@@ -83,6 +74,13 @@ object_relationships:
   - name: image2
     using:
       foreign_key_constraint_on: image_2_file_id
+  - name: strength
+    using:
+      foreign_key_constraint_on:
+        column: exercise_id
+        table:
+          name: exercises_strength
+          schema: public
   - name: user
     using:
       foreign_key_constraint_on: user_id
@@ -126,12 +124,9 @@ insert_permissions:
       columns:
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
-        - force
-        - mechanic
         - equipment
         - image_1_file_id
         - image_2_file_id
@@ -143,13 +138,10 @@ select_permissions:
         - slug
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
         - kind
-        - force
-        - mechanic
         - equipment
         - image_1_file_id
         - image_2_file_id
@@ -170,12 +162,9 @@ update_permissions:
       columns:
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
-        - force
-        - mechanic
         - equipment
         - image_1_file_id
         - image_2_file_id

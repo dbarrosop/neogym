@@ -21,19 +21,23 @@ erDiagram
         text category FK "exercise_categories"
         text kind "GENERATED: cardio iff category=cardio, else strength"
         text primary_muscle_group FK "muscle_groups"
-        boolean double_weight
         boolean is_public
         uuid user_id FK "auth.users; NULL iff is_public"
         text level FK "exercise_levels (nullable)"
-        text force FK "exercise_forces (nullable)"
-        text mechanic FK "exercise_mechanics (nullable)"
         text equipment FK "exercise_equipments (nullable)"
         uuid image_1_file_id FK "storage.files (nullable)"
         uuid image_2_file_id FK "storage.files (nullable)"
     }
 
+    EXERCISES_STRENGTH {
+        uuid exercise_id PK "FK exercises CASCADE; 1:1, present iff kind=strength"
+        boolean double_weight
+        text force FK "exercise_forces (nullable)"
+        text mechanic FK "exercise_mechanics (nullable)"
+    }
+
     EXERCISES_CARDIO {
-        uuid exercise_id PK "FK exercises CASCADE; 1:1"
+        uuid exercise_id PK "FK exercises CASCADE; 1:1, present iff kind=cardio"
         jsonb metrics_schema "CHECK jsonschema_is_valid"
     }
 
@@ -68,7 +72,7 @@ erDiagram
         integer position "UNIQUE(workout_session_id, position) DEFERRABLE"
     }
 
-    WORKOUT_SESSION_SETS {
+    WORKOUT_SESSION_STRENGTH_SETS {
         uuid id PK
         uuid workout_session_exercise_id FK "composite FK with parent_kind"
         text parent_kind "DEFAULT strength CHECK = strength"
@@ -89,6 +93,7 @@ erDiagram
     USERS ||--o{ WORKOUTS                        : "owns (private)"
     USERS ||--o{ WORKOUT_SESSIONS                : "owns"
 
+    EXERCISES ||--o| EXERCISES_STRENGTH          : "strength sidecar (1:1, PK=FK)"
     EXERCISES ||--o| EXERCISES_CARDIO            : "cardio sidecar (1:1, PK=FK)"
     EXERCISES ||--o{ WORKOUT_EXERCISES           : "composite FK (id, kind)"
     EXERCISES ||--o{ WORKOUT_SESSION_EXERCISES   : "composite FK (id, kind)"
@@ -97,7 +102,7 @@ erDiagram
     WORKOUTS  ||--o{ WORKOUT_SESSIONS            : "template link (nullable; CASCADE)"
 
     WORKOUT_SESSIONS          ||--o{ WORKOUT_SESSION_EXERCISES        : "ordered list"
-    WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_SETS             : "composite FK; parent_kind='strength'"
+    WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_STRENGTH_SETS    : "composite FK; parent_kind='strength'"
     WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_CARDIO_ENTRIES   : "composite FK; parent_kind='cardio'"
 ```
 
@@ -117,7 +122,7 @@ The split between strength and cardio logging is enforced **structurally**, not 
 
 4. `workout_session_exercises` also has `UNIQUE (id, kind)` for the same reason.
 
-5. `workout_session_sets.parent_kind` is pinned: `DEFAULT 'strength' CHECK (parent_kind = 'strength')`. `workout_session_cardio_entries.parent_kind` is pinned to `'cardio'` the same way. Each has a composite FK on `(workout_session_exercise_id, parent_kind) → workout_session_exercises(id, kind)`.
+5. `workout_session_strength_sets.parent_kind` is pinned: `DEFAULT 'strength' CHECK (parent_kind = 'strength')`. `workout_session_cardio_entries.parent_kind` is pinned to `'cardio'` the same way. Each has a composite FK on `(workout_session_exercise_id, parent_kind) → workout_session_exercises(id, kind)`.
 
 Net effect: a strength set whose parent session-exercise is cardio is an **FK violation** (SQLSTATE `23503`). A cardio entry on a strength parent is the mirror violation. No trigger, no runtime check — declarative, in the Postgres catalog. See [`exercises.md`](exercises.md) for the full reasoning and [`backend/tests/kind-enforcement.test.ts`](../../backend/tests/kind-enforcement.test.ts) for the integration tests that prove it.
 
@@ -125,7 +130,7 @@ Net effect: a strength set whose parent session-exercise is cardio is an **FK vi
 
 The composite FK enforces *which* sets/entries can attach to *which* parent. A separate `BEFORE INSERT OR UPDATE OF (metrics, workout_session_exercise_id)` trigger on `workout_session_cardio_entries` validates the *shape* of the `metrics` jsonb against the parent exercise's `exercises_cardio.metrics_schema` using `pg_jsonschema`. If the parent isn't cardio the trigger noops and lets the FK speak; if the parent is cardio but lacks a sidecar it raises `22023`; if the metrics don't match the schema it raises `23514` with the validation errors joined into the message.
 
-There is no symmetric trigger on `workout_session_sets` — strength sets have a fixed columnar shape (reps, weight), so there's nothing per-exercise to validate.
+There is no symmetric trigger on `workout_session_strength_sets` — strength sets have a fixed columnar shape (reps, weight), so there's nothing per-exercise to validate.
 
 ## Catalog enums and join tables
 
@@ -133,7 +138,8 @@ These are the small reference tables the catalog rows point at.
 
 ```mermaid
 erDiagram
-    EXERCISES { uuid id PK }
+    EXERCISES          { uuid id PK }
+    EXERCISES_STRENGTH { uuid exercise_id PK }
 
     EXERCISE_CATEGORIES         { text value PK }
     EXERCISE_LEVELS             { text value PK }
@@ -151,16 +157,16 @@ erDiagram
 
     EXERCISE_CATEGORIES ||--o{ EXERCISES                         : "category"
     EXERCISE_LEVELS     ||--o{ EXERCISES                         : "level"
-    EXERCISE_FORCES     ||--o{ EXERCISES                         : "force"
-    EXERCISE_MECHANICS  ||--o{ EXERCISES                         : "mechanic"
     EXERCISE_EQUIPMENTS ||--o{ EXERCISES                         : "equipment"
     MUSCLE_GROUPS       ||--o{ EXERCISES                         : "primary_muscle_group"
+    EXERCISE_FORCES     ||--o{ EXERCISES_STRENGTH                : "force"
+    EXERCISE_MECHANICS  ||--o{ EXERCISES_STRENGTH                : "mechanic"
     EXERCISES           ||--o{ EXERCISE_SECONDARY_MUSCLE_GROUPS  : "association"
     MUSCLE_GROUPS       ||--o{ EXERCISE_SECONDARY_MUSCLE_GROUPS  : "association"
     STORAGE_FILES       ||--o{ EXERCISES                         : "image_1_file_id / image_2_file_id"
 ```
 
-All seven enum tables are seeded in the init migration; only the value column exists. They're FKed for referential integrity, not for any computed behavior. The `exercise_categories` enum is what the `kind` GENERATED column reads when deriving cardio-vs-strength.
+All seven enum tables are seeded in the init migration; only the value column exists. They're FKed for referential integrity, not for any computed behavior. The `exercise_categories` enum is what the `kind` GENERATED column reads when deriving cardio-vs-strength. `exercise_forces` and `exercise_mechanics` are referenced from the **`exercises_strength` sidecar** rather than the base — cardio rows don't have either.
 
 `exercise_secondary_muscle_groups` is a pure association table (no timestamps, no id — composite PK `(exercise_id, muscle_group)`).
 

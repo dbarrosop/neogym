@@ -9,9 +9,9 @@
 //      for cardio exercises and to null for strength exercises.
 //   3. `workout_session_exercises.kind` is auto-populated by the sync trigger
 //      from the parent exercise's kind on insert.
-//   4. A `workout_session_set` cannot attach to a cardio session-exercise (FK
-//      violation on composite `(workout_session_exercise_id, parent_kind)` →
-//      `workout_session_exercises(id, kind)`).
+//   4. A `workout_session_strength_set` cannot attach to a cardio session-
+//      exercise (FK violation on composite `(workout_session_exercise_id,
+//      parent_kind)` → `workout_session_exercises(id, kind)`).
 //   5. A `workout_session_cardio_entry` cannot attach to a strength session-
 //      exercise (same composite FK, mirror direction).
 //   6. A cardio entry with invalid metrics shape is rejected by the
@@ -191,7 +191,7 @@ describe("composite-FK enforcement", () => {
     const res = await gql(
       `
       mutation BadStrengthSet($wseId: uuid!) {
-        insertWorkoutSessionSet(object: {
+        insertWorkoutSessionStrengthSet(object: {
           workoutSessionExerciseId: $wseId,
           setNumber: 1, reps: 10, weight: "50.00"
         }) { id }
@@ -314,11 +314,11 @@ describe("cardio metrics-schema validation", () => {
   test("valid strength set inserts successfully", async () => {
     if (!hasuraReachable) return;
     const res = await gql<{
-      insertWorkoutSessionSet: { id: string; setNumber: number };
+      insertWorkoutSessionStrengthSet: { id: string; setNumber: number };
     }>(
       `
       mutation GoodStrengthSet($wseId: uuid!) {
-        insertWorkoutSessionSet(object: {
+        insertWorkoutSessionStrengthSet(object: {
           workoutSessionExerciseId: $wseId,
           setNumber: 21, reps: 8, weight: "100.00"
         }) { id setNumber }
@@ -327,6 +327,6 @@ describe("cardio metrics-schema validation", () => {
       { wseId: strengthWseId },
     );
     expect(res.errors).toBeUndefined();
-    expect(res.data!.insertWorkoutSessionSet.setNumber).toBe(21);
+    expect(res.data!.insertWorkoutSessionStrengthSet.setNumber).toBe(21);
   });
 });

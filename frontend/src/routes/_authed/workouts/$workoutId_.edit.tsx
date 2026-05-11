@@ -35,7 +35,7 @@ const EditWorkoutQuery = graphql(`
           id
           name
           primaryMuscleGroup
-          doubleWeight
+          strength { doubleWeight }
         }
       }
       workoutLabels {
@@ -140,7 +140,7 @@ function EditWorkoutRoute() {
         exerciseId: we.exercise.id,
         name: we.exercise.name,
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
-        doubleWeight: we.exercise.doubleWeight,
+        doubleWeight: we.exercise.strength?.doubleWeight ?? false,
       })),
       labels: workout.workoutLabels.map((wl) => ({ id: wl.label.id, name: wl.label.name })),
     };

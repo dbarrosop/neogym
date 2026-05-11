@@ -237,31 +237,31 @@ columns and relationships of "exercise_forces"
 type exerciseForces {
   comment: String
   "An array relationship"
-  exercises(
+  exercisesStrength(
     "distinct select on columns"
-    distinct_on: [exercises_select_column!],
+    distinct_on: [exercisesStrength_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [exercises_order_by!],
+    order_by: [exercisesStrength_order_by!],
     "filter the rows returned"
-    where: exercises_bool_exp
-  ): [exercises!]!
+    where: exercisesStrength_bool_exp
+  ): [exercisesStrength!]!
   "An aggregate relationship"
-  exercises_aggregate(
+  exercisesStrength_aggregate(
     "distinct select on columns"
-    distinct_on: [exercises_select_column!],
+    distinct_on: [exercisesStrength_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [exercises_order_by!],
+    order_by: [exercisesStrength_order_by!],
     "filter the rows returned"
-    where: exercises_bool_exp
-  ): exercises_aggregate!
+    where: exercisesStrength_bool_exp
+  ): exercisesStrength_aggregate!
   value: String!
 }
 """
@@ -353,31 +353,31 @@ columns and relationships of "exercise_mechanics"
 type exerciseMechanics {
   comment: String
   "An array relationship"
-  exercises(
+  exercisesStrength(
     "distinct select on columns"
-    distinct_on: [exercises_select_column!],
+    distinct_on: [exercisesStrength_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [exercises_order_by!],
+    order_by: [exercisesStrength_order_by!],
     "filter the rows returned"
-    where: exercises_bool_exp
-  ): [exercises!]!
+    where: exercisesStrength_bool_exp
+  ): [exercisesStrength!]!
   "An aggregate relationship"
-  exercises_aggregate(
+  exercisesStrength_aggregate(
     "distinct select on columns"
-    distinct_on: [exercises_select_column!],
+    distinct_on: [exercisesStrength_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [exercises_order_by!],
+    order_by: [exercisesStrength_order_by!],
     "filter the rows returned"
-    where: exercises_bool_exp
-  ): exercises_aggregate!
+    where: exercisesStrength_bool_exp
+  ): exercisesStrength_aggregate!
   value: String!
 }
 """
@@ -445,9 +445,7 @@ type exercises {
   cardio: exercisesCardio
   category: exerciseCategories_enum!
   createdAt: timestamptz!
-  doubleWeight: Boolean!
   equipment: exerciseEquipments_enum
-  force: exerciseForces_enum
   id: uuid!
   "An object relationship"
   image1: files
@@ -459,7 +457,6 @@ type exercises {
   isPublic: Boolean!
   kind: String
   level: exerciseLevels_enum
-  mechanic: exerciseMechanics_enum
   name: String!
   primaryMuscleGroup: muscleGroups_enum!
   "An array relationship"
@@ -489,6 +486,8 @@ type exercises {
     where: exerciseSecondaryMuscleGroups_bool_exp
   ): exerciseSecondaryMuscleGroups_aggregate!
   slug: String
+  "An object relationship"
+  strength: exercisesStrength
   updatedAt: timestamptz!
   userId: uuid
   "An array relationship"
@@ -596,6 +595,55 @@ type exercisesCardio_mutation_response {
   affected_rows: Int!
   "data from the rows affected by the mutation"
   returning: [exercisesCardio!]!
+}
+"""
+columns and relationships of "exercises_strength"
+"""
+type exercisesStrength {
+  createdAt: timestamptz!
+  doubleWeight: Boolean!
+  "An object relationship"
+  exercise: exercises!
+  exerciseId: uuid!
+  force: exerciseForces_enum
+  mechanic: exerciseMechanics_enum
+  updatedAt: timestamptz!
+}
+"""
+aggregated selection of "exercises_strength"
+"""
+type exercisesStrength_aggregate {
+  aggregate: exercisesStrength_aggregate_fields
+  nodes: [exercisesStrength!]!
+}
+"""
+aggregate fields of "exercises_strength"
+"""
+type exercisesStrength_aggregate_fields {
+  count(columns: [exercisesStrength_select_column!], distinct: Boolean): Int!
+  max: exercisesStrength_max_fields
+  min: exercisesStrength_min_fields
+}
+"aggregate max on columns"
+type exercisesStrength_max_fields {
+  createdAt: timestamptz
+  exerciseId: uuid
+  updatedAt: timestamptz
+}
+"aggregate min on columns"
+type exercisesStrength_min_fields {
+  createdAt: timestamptz
+  exerciseId: uuid
+  updatedAt: timestamptz
+}
+"""
+response of any mutation on the table "exercises_strength"
+"""
+type exercisesStrength_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [exercisesStrength!]!
 }
 """
 aggregated selection of "exercises"
@@ -1107,6 +1155,10 @@ type mutation_root {
   """
   deleteExerciseCardio(exerciseId: uuid!): exercisesCardio
   """
+  delete single row from the table: "exercises_strength"
+  """
+  deleteExerciseStrength(exerciseId: uuid!): exercisesStrength
+  """
   delete data from the table: "exercises"
   """
   deleteExercises(
@@ -1120,6 +1172,13 @@ type mutation_root {
     "filter the rows which have to be deleted"
     where: exercisesCardio_bool_exp!
   ): exercisesCardio_mutation_response
+  """
+  delete data from the table: "exercises_strength"
+  """
+  deleteExercisesStrength(
+    "filter the rows which have to be deleted"
+    where: exercisesStrength_bool_exp!
+  ): exercisesStrength_mutation_response
   """
   delete data from the table: "journal_entries"
   """
@@ -1217,16 +1276,16 @@ type mutation_root {
     where: workoutSessionExercises_bool_exp!
   ): workoutSessionExercises_mutation_response
   """
-  delete single row from the table: "workout_session_sets"
+  delete single row from the table: "workout_session_strength_sets"
   """
-  deleteWorkoutSessionSet(id: uuid!): workoutSessionSets
+  deleteWorkoutSessionStrengthSet(id: uuid!): workoutSessionStrengthSets
   """
-  delete data from the table: "workout_session_sets"
+  delete data from the table: "workout_session_strength_sets"
   """
-  deleteWorkoutSessionSets(
+  deleteWorkoutSessionStrengthSets(
     "filter the rows which have to be deleted"
-    where: workoutSessionSets_bool_exp!
-  ): workoutSessionSets_mutation_response
+    where: workoutSessionStrengthSets_bool_exp!
+  ): workoutSessionStrengthSets_mutation_response
   """
   delete data from the table: "workout_sessions"
   """
@@ -1278,6 +1337,15 @@ type mutation_root {
     on_conflict: exercisesCardio_on_conflict
   ): exercisesCardio
   """
+  insert a single row into the table: "exercises_strength"
+  """
+  insertExerciseStrength(
+    "the row to be inserted"
+    object: exercisesStrength_insert_input!,
+    "upsert condition"
+    on_conflict: exercisesStrength_on_conflict
+  ): exercisesStrength
+  """
   insert data into the table: "exercises"
   """
   insertExercises(
@@ -1295,6 +1363,15 @@ type mutation_root {
     "upsert condition"
     on_conflict: exercisesCardio_on_conflict
   ): exercisesCardio_mutation_response
+  """
+  insert data into the table: "exercises_strength"
+  """
+  insertExercisesStrength(
+    "the rows to be inserted"
+    objects: [exercisesStrength_insert_input!]!,
+    "upsert condition"
+    on_conflict: exercisesStrength_on_conflict
+  ): exercisesStrength_mutation_response
   """
   insert data into the table: "journal_entries"
   """
@@ -1458,23 +1535,23 @@ type mutation_root {
     on_conflict: workoutSessionExercises_on_conflict
   ): workoutSessionExercises_mutation_response
   """
-  insert a single row into the table: "workout_session_sets"
+  insert a single row into the table: "workout_session_strength_sets"
   """
-  insertWorkoutSessionSet(
+  insertWorkoutSessionStrengthSet(
     "the row to be inserted"
-    object: workoutSessionSets_insert_input!,
+    object: workoutSessionStrengthSets_insert_input!,
     "upsert condition"
-    on_conflict: workoutSessionSets_on_conflict
-  ): workoutSessionSets
+    on_conflict: workoutSessionStrengthSets_on_conflict
+  ): workoutSessionStrengthSets
   """
-  insert data into the table: "workout_session_sets"
+  insert data into the table: "workout_session_strength_sets"
   """
-  insertWorkoutSessionSets(
+  insertWorkoutSessionStrengthSets(
     "the rows to be inserted"
-    objects: [workoutSessionSets_insert_input!]!,
+    objects: [workoutSessionStrengthSets_insert_input!]!,
     "upsert condition"
-    on_conflict: workoutSessionSets_on_conflict
-  ): workoutSessionSets_mutation_response
+    on_conflict: workoutSessionStrengthSets_on_conflict
+  ): workoutSessionStrengthSets_mutation_response
   """
   insert data into the table: "workout_sessions"
   """
@@ -1535,6 +1612,12 @@ type mutation_root {
     "sets the columns of the filtered rows to the given values"
     _set: exercisesCardio_set_input,pk_columns: exercisesCardio_pk_columns_input!  ): exercisesCardio
   """
+  update single row of the table: "exercises_strength"
+  """
+  updateExerciseStrength(
+    "sets the columns of the filtered rows to the given values"
+    _set: exercisesStrength_set_input,pk_columns: exercisesStrength_pk_columns_input!  ): exercisesStrength
+  """
   update data of the table: "exercises"
   """
   updateExercises(
@@ -1562,6 +1645,15 @@ type mutation_root {
     "filter the rows which have to be updated"
     where: exercisesCardio_bool_exp!
   ): exercisesCardio_mutation_response
+  """
+  update data of the table: "exercises_strength"
+  """
+  updateExercisesStrength(
+    "sets the columns of the filtered rows to the given values"
+    _set: exercisesStrength_set_input,
+    "filter the rows which have to be updated"
+    where: exercisesStrength_bool_exp!
+  ): exercisesStrength_mutation_response
   """
   update data of the table: "journal_entries"
   """
@@ -1697,24 +1789,24 @@ type mutation_root {
     where: workoutSessionExercises_bool_exp!
   ): workoutSessionExercises_mutation_response
   """
-  update single row of the table: "workout_session_sets"
+  update single row of the table: "workout_session_strength_sets"
   """
-  updateWorkoutSessionSet(
+  updateWorkoutSessionStrengthSet(
     "increments the numeric columns with given value of the filtered values"
-    _inc: workoutSessionSets_inc_input,
+    _inc: workoutSessionStrengthSets_inc_input,
     "sets the columns of the filtered rows to the given values"
-    _set: workoutSessionSets_set_input,pk_columns: workoutSessionSets_pk_columns_input!  ): workoutSessionSets
+    _set: workoutSessionStrengthSets_set_input,pk_columns: workoutSessionStrengthSets_pk_columns_input!  ): workoutSessionStrengthSets
   """
-  update data of the table: "workout_session_sets"
+  update data of the table: "workout_session_strength_sets"
   """
-  updateWorkoutSessionSets(
+  updateWorkoutSessionStrengthSets(
     "increments the numeric columns with given value of the filtered values"
-    _inc: workoutSessionSets_inc_input,
+    _inc: workoutSessionStrengthSets_inc_input,
     "sets the columns of the filtered rows to the given values"
-    _set: workoutSessionSets_set_input,
+    _set: workoutSessionStrengthSets_set_input,
     "filter the rows which have to be updated"
-    where: workoutSessionSets_bool_exp!
-  ): workoutSessionSets_mutation_response
+    where: workoutSessionStrengthSets_bool_exp!
+  ): workoutSessionStrengthSets_mutation_response
   """
   update data of the table: "workout_sessions"
   """
@@ -1747,6 +1839,13 @@ type mutation_root {
     "updates to execute, in order"
     updates: [exercisesCardio_updates!]!
   ): [exercisesCardio_mutation_response]
+  """
+  update multiples rows of table: "exercises_strength"
+  """
+  update_exercisesStrength_many(
+    "updates to execute, in order"
+    updates: [exercisesStrength_updates!]!
+  ): [exercisesStrength_mutation_response]
   """
   update multiples rows of table: "exercises"
   """
@@ -1797,12 +1896,12 @@ type mutation_root {
     updates: [workoutSessionExercises_updates!]!
   ): [workoutSessionExercises_mutation_response]
   """
-  update multiples rows of table: "workout_session_sets"
+  update multiples rows of table: "workout_session_strength_sets"
   """
-  update_workoutSessionSets_many(
+  update_workoutSessionStrengthSets_many(
     "updates to execute, in order"
-    updates: [workoutSessionSets_updates!]!
-  ): [workoutSessionSets_mutation_response]
+    updates: [workoutSessionStrengthSets_updates!]!
+  ): [workoutSessionStrengthSets_mutation_response]
   """
   update multiples rows of table: "workout_sessions"
   """
@@ -2063,6 +2162,10 @@ type query_root {
     "filter the rows returned"
     where: exerciseSecondaryMuscleGroups_bool_exp
   ): exerciseSecondaryMuscleGroups_aggregate!
+  """
+  fetch data from the table: "exercises_strength" using primary key columns
+  """
+  exerciseStrength(exerciseId: uuid!): exercisesStrength
   "An array relationship"
   exercises(
     "distinct select on columns"
@@ -2121,6 +2224,34 @@ type query_root {
     "filter the rows returned"
     where: exercisesCardio_bool_exp
   ): exercisesCardio_aggregate!
+  "An array relationship"
+  exercisesStrength(
+    "distinct select on columns"
+    distinct_on: [exercisesStrength_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesStrength_order_by!],
+    "filter the rows returned"
+    where: exercisesStrength_bool_exp
+  ): [exercisesStrength!]!
+  """
+  fetch aggregated fields from the table: "exercises_strength"
+  """
+  exercisesStrengthAggregate(
+    "distinct select on columns"
+    distinct_on: [exercisesStrength_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesStrength_order_by!],
+    "filter the rows returned"
+    where: exercisesStrength_bool_exp
+  ): exercisesStrength_aggregate!
   """
   fetch data from the table: "storage.files" using primary key columns
   """
@@ -2445,37 +2576,37 @@ type query_root {
     where: workoutSessionExercises_bool_exp
   ): workoutSessionExercises_aggregate!
   """
-  fetch data from the table: "workout_session_sets" using primary key columns
+  fetch data from the table: "workout_session_strength_sets" using primary key columns
   """
-  workoutSessionSet(id: uuid!): workoutSessionSets
+  workoutSessionStrengthSet(id: uuid!): workoutSessionStrengthSets
   "An array relationship"
-  workoutSessionSets(
+  workoutSessionStrengthSets(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): [workoutSessionSets!]!
+    where: workoutSessionStrengthSets_bool_exp
+  ): [workoutSessionStrengthSets!]!
   """
-  fetch aggregated fields from the table: "workout_session_sets"
+  fetch aggregated fields from the table: "workout_session_strength_sets"
   """
-  workoutSessionSetsAggregate(
+  workoutSessionStrengthSetsAggregate(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): workoutSessionSets_aggregate!
+    where: workoutSessionStrengthSets_bool_exp
+  ): workoutSessionStrengthSets_aggregate!
   "An array relationship"
   workoutSessions(
     "distinct select on columns"
@@ -2857,6 +2988,10 @@ type subscription_root {
     "filter the rows returned"
     where: exerciseSecondaryMuscleGroups_bool_exp
   ): [exerciseSecondaryMuscleGroups!]!
+  """
+  fetch data from the table: "exercises_strength" using primary key columns
+  """
+  exerciseStrength(exerciseId: uuid!): exercisesStrength
   "An array relationship"
   exercises(
     "distinct select on columns"
@@ -2926,6 +3061,45 @@ type subscription_root {
     "filter the rows returned"
     where: exercisesCardio_bool_exp
   ): [exercisesCardio!]!
+  "An array relationship"
+  exercisesStrength(
+    "distinct select on columns"
+    distinct_on: [exercisesStrength_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesStrength_order_by!],
+    "filter the rows returned"
+    where: exercisesStrength_bool_exp
+  ): [exercisesStrength!]!
+  """
+  fetch aggregated fields from the table: "exercises_strength"
+  """
+  exercisesStrengthAggregate(
+    "distinct select on columns"
+    distinct_on: [exercisesStrength_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [exercisesStrength_order_by!],
+    "filter the rows returned"
+    where: exercisesStrength_bool_exp
+  ): exercisesStrength_aggregate!
+  """
+  fetch data from the table in a streaming manner: "exercises_strength"
+  """
+  exercisesStrength_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [exercisesStrength_stream_cursor_input]!,
+    "filter the rows returned"
+    where: exercisesStrength_bool_exp
+  ): [exercisesStrength!]!
   """
   fetch data from the table in a streaming manner: "exercises"
   """
@@ -3371,48 +3545,48 @@ type subscription_root {
     where: workoutSessionExercises_bool_exp
   ): [workoutSessionExercises!]!
   """
-  fetch data from the table: "workout_session_sets" using primary key columns
+  fetch data from the table: "workout_session_strength_sets" using primary key columns
   """
-  workoutSessionSet(id: uuid!): workoutSessionSets
+  workoutSessionStrengthSet(id: uuid!): workoutSessionStrengthSets
   "An array relationship"
-  workoutSessionSets(
+  workoutSessionStrengthSets(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): [workoutSessionSets!]!
+    where: workoutSessionStrengthSets_bool_exp
+  ): [workoutSessionStrengthSets!]!
   """
-  fetch aggregated fields from the table: "workout_session_sets"
+  fetch aggregated fields from the table: "workout_session_strength_sets"
   """
-  workoutSessionSetsAggregate(
+  workoutSessionStrengthSetsAggregate(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): workoutSessionSets_aggregate!
+    where: workoutSessionStrengthSets_bool_exp
+  ): workoutSessionStrengthSets_aggregate!
   """
-  fetch data from the table in a streaming manner: "workout_session_sets"
+  fetch data from the table in a streaming manner: "workout_session_strength_sets"
   """
-  workoutSessionSets_stream(
+  workoutSessionStrengthSets_stream(
     "maximum number of rows returned in a single batch"
     batch_size: Int!,
     "cursor to stream the results returned by the query"
-    cursor: [workoutSessionSets_stream_cursor_input]!,
+    cursor: [workoutSessionStrengthSets_stream_cursor_input]!,
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): [workoutSessionSets!]!
+    where: workoutSessionStrengthSets_bool_exp
+  ): [workoutSessionStrengthSets!]!
   "An array relationship"
   workoutSessions(
     "distinct select on columns"
@@ -3780,31 +3954,31 @@ type workoutSessionExercises {
   ): workoutSessionCardioEntries_aggregate!
   workoutSessionId: uuid!
   "An array relationship"
-  workoutSessionSets(
+  workoutSessionStrengthSets(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): [workoutSessionSets!]!
+    where: workoutSessionStrengthSets_bool_exp
+  ): [workoutSessionStrengthSets!]!
   "An aggregate relationship"
-  workoutSessionSets_aggregate(
+  workoutSessionStrengthSets_aggregate(
     "distinct select on columns"
-    distinct_on: [workoutSessionSets_select_column!],
+    distinct_on: [workoutSessionStrengthSets_select_column!],
     "limit the number of rows returned"
     limit: Int,
     "skip the first n rows. Use only with order_by"
     offset: Int,
     "sort the rows by one or more columns"
-    order_by: [workoutSessionSets_order_by!],
+    order_by: [workoutSessionStrengthSets_order_by!],
     "filter the rows returned"
-    where: workoutSessionSets_bool_exp
-  ): workoutSessionSets_aggregate!
+    where: workoutSessionStrengthSets_bool_exp
+  ): workoutSessionStrengthSets_aggregate!
 }
 """
 aggregated selection of "workout_session_exercises"
@@ -3891,9 +4065,9 @@ type workoutSessionExercises_variance_fields {
   position: Float
 }
 """
-columns and relationships of "workout_session_sets"
+columns and relationships of "workout_session_strength_sets"
 """
-type workoutSessionSets {
+type workoutSessionStrengthSets {
   createdAt: timestamptz!
   id: uuid!
   reps: Int!
@@ -3905,36 +4079,36 @@ type workoutSessionSets {
   workoutSessionExerciseId: uuid!
 }
 """
-aggregated selection of "workout_session_sets"
+aggregated selection of "workout_session_strength_sets"
 """
-type workoutSessionSets_aggregate {
-  aggregate: workoutSessionSets_aggregate_fields
-  nodes: [workoutSessionSets!]!
+type workoutSessionStrengthSets_aggregate {
+  aggregate: workoutSessionStrengthSets_aggregate_fields
+  nodes: [workoutSessionStrengthSets!]!
 }
 """
-aggregate fields of "workout_session_sets"
+aggregate fields of "workout_session_strength_sets"
 """
-type workoutSessionSets_aggregate_fields {
-  avg: workoutSessionSets_avg_fields
-  count(columns: [workoutSessionSets_select_column!], distinct: Boolean): Int!
-  max: workoutSessionSets_max_fields
-  min: workoutSessionSets_min_fields
-  stddev: workoutSessionSets_stddev_fields
-  stddev_pop: workoutSessionSets_stddev_pop_fields
-  stddev_samp: workoutSessionSets_stddev_samp_fields
-  sum: workoutSessionSets_sum_fields
-  var_pop: workoutSessionSets_var_pop_fields
-  var_samp: workoutSessionSets_var_samp_fields
-  variance: workoutSessionSets_variance_fields
+type workoutSessionStrengthSets_aggregate_fields {
+  avg: workoutSessionStrengthSets_avg_fields
+  count(columns: [workoutSessionStrengthSets_select_column!], distinct: Boolean): Int!
+  max: workoutSessionStrengthSets_max_fields
+  min: workoutSessionStrengthSets_min_fields
+  stddev: workoutSessionStrengthSets_stddev_fields
+  stddev_pop: workoutSessionStrengthSets_stddev_pop_fields
+  stddev_samp: workoutSessionStrengthSets_stddev_samp_fields
+  sum: workoutSessionStrengthSets_sum_fields
+  var_pop: workoutSessionStrengthSets_var_pop_fields
+  var_samp: workoutSessionStrengthSets_var_samp_fields
+  variance: workoutSessionStrengthSets_variance_fields
 }
 "aggregate avg on columns"
-type workoutSessionSets_avg_fields {
+type workoutSessionStrengthSets_avg_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate max on columns"
-type workoutSessionSets_max_fields {
+type workoutSessionStrengthSets_max_fields {
   createdAt: timestamptz
   id: uuid
   reps: Int
@@ -3944,7 +4118,7 @@ type workoutSessionSets_max_fields {
   workoutSessionExerciseId: uuid
 }
 "aggregate min on columns"
-type workoutSessionSets_min_fields {
+type workoutSessionStrengthSets_min_fields {
   createdAt: timestamptz
   id: uuid
   reps: Int
@@ -3954,52 +4128,52 @@ type workoutSessionSets_min_fields {
   workoutSessionExerciseId: uuid
 }
 """
-response of any mutation on the table "workout_session_sets"
+response of any mutation on the table "workout_session_strength_sets"
 """
-type workoutSessionSets_mutation_response {
+type workoutSessionStrengthSets_mutation_response {
   "number of rows affected by the mutation"
   affected_rows: Int!
   "data from the rows affected by the mutation"
-  returning: [workoutSessionSets!]!
+  returning: [workoutSessionStrengthSets!]!
 }
 "aggregate stddev on columns"
-type workoutSessionSets_stddev_fields {
+type workoutSessionStrengthSets_stddev_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate stddev_pop on columns"
-type workoutSessionSets_stddev_pop_fields {
+type workoutSessionStrengthSets_stddev_pop_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate stddev_samp on columns"
-type workoutSessionSets_stddev_samp_fields {
+type workoutSessionStrengthSets_stddev_samp_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate sum on columns"
-type workoutSessionSets_sum_fields {
+type workoutSessionStrengthSets_sum_fields {
   reps: Int
   setNumber: Int
   weight: numeric
 }
 "aggregate var_pop on columns"
-type workoutSessionSets_var_pop_fields {
+type workoutSessionStrengthSets_var_pop_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate var_samp on columns"
-type workoutSessionSets_var_samp_fields {
+type workoutSessionStrengthSets_var_samp_fields {
   reps: Float
   setNumber: Float
   weight: Float
 }
 "aggregate variance on columns"
-type workoutSessionSets_variance_fields {
+type workoutSessionStrengthSets_variance_fields {
   reps: Float
   setNumber: Float
   weight: Float
@@ -4392,6 +4566,57 @@ enum exercisesCardio_update_column {
   metricsSchema
 }
 """
+unique or primary key constraints on table "exercises_strength"
+"""
+enum exercisesStrength_constraint {
+  """
+  unique or primary key constraint on columns "exercise_id"
+  """
+  exercises_strength_pkey
+}
+"""
+select columns of table "exercises_strength"
+"""
+enum exercisesStrength_select_column {
+  "column name"
+  createdAt
+  "column name"
+  doubleWeight
+  "column name"
+  exerciseId
+  "column name"
+  force
+  "column name"
+  mechanic
+  "column name"
+  updatedAt
+}
+"""
+select "exercisesStrength_aggregate_bool_exp_bool_and_arguments_columns" columns of table "exercises_strength"
+"""
+enum exercisesStrength_select_column_exercisesStrength_aggregate_bool_exp_bool_and_arguments_columns {
+  "column name"
+  doubleWeight
+}
+"""
+select "exercisesStrength_aggregate_bool_exp_bool_or_arguments_columns" columns of table "exercises_strength"
+"""
+enum exercisesStrength_select_column_exercisesStrength_aggregate_bool_exp_bool_or_arguments_columns {
+  "column name"
+  doubleWeight
+}
+"""
+update columns of table "exercises_strength"
+"""
+enum exercisesStrength_update_column {
+  "column name"
+  doubleWeight
+  "column name"
+  force
+  "column name"
+  mechanic
+}
+"""
 unique or primary key constraints on table "exercises"
 """
 enum exercises_constraint {
@@ -4421,11 +4646,7 @@ enum exercises_select_column {
   "column name"
   createdAt
   "column name"
-  doubleWeight
-  "column name"
   equipment
-  "column name"
-  force
   "column name"
   id
   "column name"
@@ -4440,8 +4661,6 @@ enum exercises_select_column {
   kind
   "column name"
   level
-  "column name"
-  mechanic
   "column name"
   name
   "column name"
@@ -4458,16 +4677,12 @@ select "exercises_aggregate_bool_exp_bool_and_arguments_columns" columns of tabl
 """
 enum exercises_select_column_exercises_aggregate_bool_exp_bool_and_arguments_columns {
   "column name"
-  doubleWeight
-  "column name"
   isPublic
 }
 """
 select "exercises_aggregate_bool_exp_bool_or_arguments_columns" columns of table "exercises"
 """
 enum exercises_select_column_exercises_aggregate_bool_exp_bool_or_arguments_columns {
-  "column name"
-  doubleWeight
   "column name"
   isPublic
 }
@@ -4478,11 +4693,7 @@ enum exercises_update_column {
   "column name"
   category
   "column name"
-  doubleWeight
-  "column name"
   equipment
-  "column name"
-  force
   "column name"
   image1FileId
   "column name"
@@ -4491,8 +4702,6 @@ enum exercises_update_column {
   instructions
   "column name"
   level
-  "column name"
-  mechanic
   "column name"
   name
   "column name"
@@ -4855,22 +5064,22 @@ enum workoutSessionExercises_update_column {
   position
 }
 """
-unique or primary key constraints on table "workout_session_sets"
+unique or primary key constraints on table "workout_session_strength_sets"
 """
-enum workoutSessionSets_constraint {
+enum workoutSessionStrengthSets_constraint {
   """
   unique or primary key constraint on columns "id"
   """
-  workout_session_sets_pkey
+  workout_session_strength_sets_pkey
   """
   unique or primary key constraint on columns "workout_session_exercise_id", "set_number"
   """
-  workout_session_sets_workout_session_exercise_id_set_number_key
+  workout_session_strength_sets_wse_id_set_number_key
 }
 """
-select columns of table "workout_session_sets"
+select columns of table "workout_session_strength_sets"
 """
-enum workoutSessionSets_select_column {
+enum workoutSessionStrengthSets_select_column {
   "column name"
   createdAt
   "column name"
@@ -4887,9 +5096,9 @@ enum workoutSessionSets_select_column {
   workoutSessionExerciseId
 }
 """
-update columns of table "workout_session_sets"
+update columns of table "workout_session_strength_sets"
 """
-enum workoutSessionSets_update_column {
+enum workoutSessionStrengthSets_update_column {
   "column name"
   reps
   "column name"
@@ -5257,8 +5466,8 @@ input exerciseForces_bool_exp {
   _not: exerciseForces_bool_exp
   _or: [exerciseForces_bool_exp!]
   comment: String_comparison_exp
-  exercises: exercises_bool_exp
-  exercises_aggregate: exercises_aggregate_bool_exp
+  exercisesStrength: exercisesStrength_bool_exp
+  exercisesStrength_aggregate: exercisesStrength_aggregate_bool_exp
   value: String_comparison_exp
 }
 """
@@ -5276,7 +5485,7 @@ Ordering options when selecting data from "exercise_forces".
 """
 input exerciseForces_order_by {
   comment: order_by
-  exercises_aggregate: exercises_aggregate_order_by
+  exercisesStrength_aggregate: exercisesStrength_aggregate_order_by
   value: order_by
 }
 """
@@ -5345,8 +5554,8 @@ input exerciseMechanics_bool_exp {
   _not: exerciseMechanics_bool_exp
   _or: [exerciseMechanics_bool_exp!]
   comment: String_comparison_exp
-  exercises: exercises_bool_exp
-  exercises_aggregate: exercises_aggregate_bool_exp
+  exercisesStrength: exercisesStrength_bool_exp
+  exercisesStrength_aggregate: exercisesStrength_aggregate_bool_exp
   value: String_comparison_exp
 }
 """
@@ -5364,7 +5573,7 @@ Ordering options when selecting data from "exercise_mechanics".
 """
 input exerciseMechanics_order_by {
   comment: order_by
-  exercises_aggregate: exercises_aggregate_order_by
+  exercisesStrength_aggregate: exercisesStrength_aggregate_order_by
   value: order_by
 }
 """
@@ -5576,6 +5785,142 @@ input exercisesCardio_updates {
   "filter the rows which have to be updated"
   where: exercisesCardio_bool_exp!
 }
+input exercisesStrength_aggregate_bool_exp {
+  bool_and: exercisesStrength_aggregate_bool_exp_bool_and
+  bool_or: exercisesStrength_aggregate_bool_exp_bool_or
+  count: exercisesStrength_aggregate_bool_exp_count
+}
+input exercisesStrength_aggregate_bool_exp_bool_and {
+  arguments: exercisesStrength_select_column_exercisesStrength_aggregate_bool_exp_bool_and_arguments_columns!
+  distinct: Boolean
+  filter: exercisesStrength_bool_exp
+  predicate: Boolean_comparison_exp!
+}
+input exercisesStrength_aggregate_bool_exp_bool_or {
+  arguments: exercisesStrength_select_column_exercisesStrength_aggregate_bool_exp_bool_or_arguments_columns!
+  distinct: Boolean
+  filter: exercisesStrength_bool_exp
+  predicate: Boolean_comparison_exp!
+}
+input exercisesStrength_aggregate_bool_exp_count {
+  arguments: [exercisesStrength_select_column!]
+  distinct: Boolean
+  filter: exercisesStrength_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+order by aggregate values of table "exercises_strength"
+"""
+input exercisesStrength_aggregate_order_by {
+  count: order_by
+  max: exercisesStrength_max_order_by
+  min: exercisesStrength_min_order_by
+}
+"""
+Boolean expression to filter rows from the table "exercises_strength". All fields are combined with a logical 'AND'.
+"""
+input exercisesStrength_bool_exp {
+  _and: [exercisesStrength_bool_exp!]
+  _not: exercisesStrength_bool_exp
+  _or: [exercisesStrength_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  doubleWeight: Boolean_comparison_exp
+  exercise: exercises_bool_exp
+  exerciseId: uuid_comparison_exp
+  force: exerciseForces_enum_comparison_exp
+  mechanic: exerciseMechanics_enum_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+}
+"""
+input type for inserting data into table "exercises_strength"
+"""
+input exercisesStrength_insert_input {
+  doubleWeight: Boolean
+  exercise: exercises_obj_rel_insert_input
+  exerciseId: uuid
+  force: exerciseForces_enum
+  mechanic: exerciseMechanics_enum
+}
+"""
+order by max() on columns of table "exercises_strength"
+"""
+input exercisesStrength_max_order_by {
+  createdAt: order_by
+  exerciseId: order_by
+  updatedAt: order_by
+}
+"""
+order by min() on columns of table "exercises_strength"
+"""
+input exercisesStrength_min_order_by {
+  createdAt: order_by
+  exerciseId: order_by
+  updatedAt: order_by
+}
+"""
+input type for inserting object relation for remote table "exercises_strength"
+"""
+input exercisesStrength_obj_rel_insert_input {
+  data: exercisesStrength_insert_input!
+  "upsert condition"
+  on_conflict: exercisesStrength_on_conflict
+}
+"""
+on_conflict condition type for table "exercises_strength"
+"""
+input exercisesStrength_on_conflict {
+  constraint: exercisesStrength_constraint!
+  update_columns: [exercisesStrength_update_column!]! = []
+  where: exercisesStrength_bool_exp
+}
+"""
+Ordering options when selecting data from "exercises_strength".
+"""
+input exercisesStrength_order_by {
+  createdAt: order_by
+  doubleWeight: order_by
+  exercise: exercises_order_by
+  exerciseId: order_by
+  force: order_by
+  mechanic: order_by
+  updatedAt: order_by
+}
+"primary key columns input for table: exercises_strength"
+input exercisesStrength_pk_columns_input {
+  exerciseId: uuid!
+}
+"""
+input type for updating data in table "exercises_strength"
+"""
+input exercisesStrength_set_input {
+  doubleWeight: Boolean
+  force: exerciseForces_enum
+  mechanic: exerciseMechanics_enum
+}
+"""
+Streaming cursor of the table "exercisesStrength"
+"""
+input exercisesStrength_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: exercisesStrength_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input exercisesStrength_stream_cursor_value_input {
+  createdAt: timestamptz
+  doubleWeight: Boolean
+  exerciseId: uuid
+  force: exerciseForces_enum
+  mechanic: exerciseMechanics_enum
+  updatedAt: timestamptz
+}
+input exercisesStrength_updates {
+  "sets the columns of the filtered rows to the given values"
+  _set: exercisesStrength_set_input
+  "filter the rows which have to be updated"
+  where: exercisesStrength_bool_exp!
+}
 input exercises_aggregate_bool_exp {
   bool_and: exercises_aggregate_bool_exp_bool_and
   bool_or: exercises_aggregate_bool_exp_bool_or
@@ -5617,9 +5962,7 @@ input exercises_bool_exp {
   cardio: exercisesCardio_bool_exp
   category: exerciseCategories_enum_comparison_exp
   createdAt: timestamptz_comparison_exp
-  doubleWeight: Boolean_comparison_exp
   equipment: exerciseEquipments_enum_comparison_exp
-  force: exerciseForces_enum_comparison_exp
   id: uuid_comparison_exp
   image1: files_bool_exp
   image1FileId: uuid_comparison_exp
@@ -5629,12 +5972,12 @@ input exercises_bool_exp {
   isPublic: Boolean_comparison_exp
   kind: String_comparison_exp
   level: exerciseLevels_enum_comparison_exp
-  mechanic: exerciseMechanics_enum_comparison_exp
   name: String_comparison_exp
   primaryMuscleGroup: muscleGroups_enum_comparison_exp
   secondaryMuscleGroups: exerciseSecondaryMuscleGroups_bool_exp
   secondaryMuscleGroups_aggregate: exerciseSecondaryMuscleGroups_aggregate_bool_exp
   slug: String_comparison_exp
+  strength: exercisesStrength_bool_exp
   updatedAt: timestamptz_comparison_exp
   userId: uuid_comparison_exp
   workoutExercises: workoutExercises_bool_exp
@@ -5648,16 +5991,14 @@ input type for inserting data into table "exercises"
 input exercises_insert_input {
   cardio: exercisesCardio_obj_rel_insert_input
   category: exerciseCategories_enum
-  doubleWeight: Boolean
   equipment: exerciseEquipments_enum
-  force: exerciseForces_enum
   image1FileId: uuid
   image2FileId: uuid
   instructions: [String!]
   level: exerciseLevels_enum
-  mechanic: exerciseMechanics_enum
   name: String
   primaryMuscleGroup: muscleGroups_enum
+  strength: exercisesStrength_obj_rel_insert_input
   workoutExercises: workoutExercises_arr_rel_insert_input
   workoutSessionExercises: workoutSessionExercises_arr_rel_insert_input
 }
@@ -5714,9 +6055,7 @@ input exercises_order_by {
   cardio: exercisesCardio_order_by
   category: order_by
   createdAt: order_by
-  doubleWeight: order_by
   equipment: order_by
-  force: order_by
   id: order_by
   image1: files_order_by
   image1FileId: order_by
@@ -5726,11 +6065,11 @@ input exercises_order_by {
   isPublic: order_by
   kind: order_by
   level: order_by
-  mechanic: order_by
   name: order_by
   primaryMuscleGroup: order_by
   secondaryMuscleGroups_aggregate: exerciseSecondaryMuscleGroups_aggregate_order_by
   slug: order_by
+  strength: exercisesStrength_order_by
   updatedAt: order_by
   userId: order_by
   workoutExercises_aggregate: workoutExercises_aggregate_order_by
@@ -5745,14 +6084,11 @@ input type for updating data in table "exercises"
 """
 input exercises_set_input {
   category: exerciseCategories_enum
-  doubleWeight: Boolean
   equipment: exerciseEquipments_enum
-  force: exerciseForces_enum
   image1FileId: uuid
   image2FileId: uuid
   instructions: [String!]
   level: exerciseLevels_enum
-  mechanic: exerciseMechanics_enum
   name: String
   primaryMuscleGroup: muscleGroups_enum
 }
@@ -5769,9 +6105,7 @@ input exercises_stream_cursor_input {
 input exercises_stream_cursor_value_input {
   category: exerciseCategories_enum
   createdAt: timestamptz
-  doubleWeight: Boolean
   equipment: exerciseEquipments_enum
-  force: exerciseForces_enum
   id: uuid
   image1FileId: uuid
   image2FileId: uuid
@@ -5779,7 +6113,6 @@ input exercises_stream_cursor_value_input {
   isPublic: Boolean
   kind: String
   level: exerciseLevels_enum
-  mechanic: exerciseMechanics_enum
   name: String
   primaryMuscleGroup: muscleGroups_enum
   slug: String
@@ -6896,8 +7229,8 @@ input workoutSessionExercises_bool_exp {
   workoutSessionCardioEntries: workoutSessionCardioEntries_bool_exp
   workoutSessionCardioEntries_aggregate: workoutSessionCardioEntries_aggregate_bool_exp
   workoutSessionId: uuid_comparison_exp
-  workoutSessionSets: workoutSessionSets_bool_exp
-  workoutSessionSets_aggregate: workoutSessionSets_aggregate_bool_exp
+  workoutSessionStrengthSets: workoutSessionStrengthSets_bool_exp
+  workoutSessionStrengthSets_aggregate: workoutSessionStrengthSets_aggregate_bool_exp
 }
 """
 input type for incrementing numeric columns in table "workout_session_exercises"
@@ -6915,7 +7248,7 @@ input workoutSessionExercises_insert_input {
   workoutSession: workoutSessions_obj_rel_insert_input
   workoutSessionCardioEntries: workoutSessionCardioEntries_arr_rel_insert_input
   workoutSessionId: uuid
-  workoutSessionSets: workoutSessionSets_arr_rel_insert_input
+  workoutSessionStrengthSets: workoutSessionStrengthSets_arr_rel_insert_input
 }
 """
 order by max() on columns of table "workout_session_exercises"
@@ -6971,7 +7304,7 @@ input workoutSessionExercises_order_by {
   workoutSession: workoutSessions_order_by
   workoutSessionCardioEntries_aggregate: workoutSessionCardioEntries_aggregate_order_by
   workoutSessionId: order_by
-  workoutSessionSets_aggregate: workoutSessionSets_aggregate_order_by
+  workoutSessionStrengthSets_aggregate: workoutSessionStrengthSets_aggregate_order_by
 }
 "primary key columns input for table: workout_session_exercises"
 input workoutSessionExercises_pk_columns_input {
@@ -7052,54 +7385,54 @@ order by variance() on columns of table "workout_session_exercises"
 input workoutSessionExercises_variance_order_by {
   position: order_by
 }
-input workoutSessionSets_aggregate_bool_exp {
-  count: workoutSessionSets_aggregate_bool_exp_count
+input workoutSessionStrengthSets_aggregate_bool_exp {
+  count: workoutSessionStrengthSets_aggregate_bool_exp_count
 }
-input workoutSessionSets_aggregate_bool_exp_count {
-  arguments: [workoutSessionSets_select_column!]
+input workoutSessionStrengthSets_aggregate_bool_exp_count {
+  arguments: [workoutSessionStrengthSets_select_column!]
   distinct: Boolean
-  filter: workoutSessionSets_bool_exp
+  filter: workoutSessionStrengthSets_bool_exp
   predicate: Int_comparison_exp!
 }
 """
-order by aggregate values of table "workout_session_sets"
+order by aggregate values of table "workout_session_strength_sets"
 """
-input workoutSessionSets_aggregate_order_by {
-  avg: workoutSessionSets_avg_order_by
+input workoutSessionStrengthSets_aggregate_order_by {
+  avg: workoutSessionStrengthSets_avg_order_by
   count: order_by
-  max: workoutSessionSets_max_order_by
-  min: workoutSessionSets_min_order_by
-  stddev: workoutSessionSets_stddev_order_by
-  stddev_pop: workoutSessionSets_stddev_pop_order_by
-  stddev_samp: workoutSessionSets_stddev_samp_order_by
-  sum: workoutSessionSets_sum_order_by
-  var_pop: workoutSessionSets_var_pop_order_by
-  var_samp: workoutSessionSets_var_samp_order_by
-  variance: workoutSessionSets_variance_order_by
+  max: workoutSessionStrengthSets_max_order_by
+  min: workoutSessionStrengthSets_min_order_by
+  stddev: workoutSessionStrengthSets_stddev_order_by
+  stddev_pop: workoutSessionStrengthSets_stddev_pop_order_by
+  stddev_samp: workoutSessionStrengthSets_stddev_samp_order_by
+  sum: workoutSessionStrengthSets_sum_order_by
+  var_pop: workoutSessionStrengthSets_var_pop_order_by
+  var_samp: workoutSessionStrengthSets_var_samp_order_by
+  variance: workoutSessionStrengthSets_variance_order_by
 }
 """
-input type for inserting array relation for remote table "workout_session_sets"
+input type for inserting array relation for remote table "workout_session_strength_sets"
 """
-input workoutSessionSets_arr_rel_insert_input {
-  data: [workoutSessionSets_insert_input!]!
+input workoutSessionStrengthSets_arr_rel_insert_input {
+  data: [workoutSessionStrengthSets_insert_input!]!
   "upsert condition"
-  on_conflict: workoutSessionSets_on_conflict
+  on_conflict: workoutSessionStrengthSets_on_conflict
 }
 """
-order by avg() on columns of table "workout_session_sets"
+order by avg() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_avg_order_by {
+input workoutSessionStrengthSets_avg_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-Boolean expression to filter rows from the table "workout_session_sets". All fields are combined with a logical 'AND'.
+Boolean expression to filter rows from the table "workout_session_strength_sets". All fields are combined with a logical 'AND'.
 """
-input workoutSessionSets_bool_exp {
-  _and: [workoutSessionSets_bool_exp!]
-  _not: workoutSessionSets_bool_exp
-  _or: [workoutSessionSets_bool_exp!]
+input workoutSessionStrengthSets_bool_exp {
+  _and: [workoutSessionStrengthSets_bool_exp!]
+  _not: workoutSessionStrengthSets_bool_exp
+  _or: [workoutSessionStrengthSets_bool_exp!]
   createdAt: timestamptz_comparison_exp
   id: uuid_comparison_exp
   reps: Int_comparison_exp
@@ -7110,17 +7443,17 @@ input workoutSessionSets_bool_exp {
   workoutSessionExerciseId: uuid_comparison_exp
 }
 """
-input type for incrementing numeric columns in table "workout_session_sets"
+input type for incrementing numeric columns in table "workout_session_strength_sets"
 """
-input workoutSessionSets_inc_input {
+input workoutSessionStrengthSets_inc_input {
   reps: Int
   setNumber: Int
   weight: numeric
 }
 """
-input type for inserting data into table "workout_session_sets"
+input type for inserting data into table "workout_session_strength_sets"
 """
-input workoutSessionSets_insert_input {
+input workoutSessionStrengthSets_insert_input {
   reps: Int
   setNumber: Int
   weight: numeric
@@ -7128,9 +7461,9 @@ input workoutSessionSets_insert_input {
   workoutSessionExerciseId: uuid
 }
 """
-order by max() on columns of table "workout_session_sets"
+order by max() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_max_order_by {
+input workoutSessionStrengthSets_max_order_by {
   createdAt: order_by
   id: order_by
   reps: order_by
@@ -7140,9 +7473,9 @@ input workoutSessionSets_max_order_by {
   workoutSessionExerciseId: order_by
 }
 """
-order by min() on columns of table "workout_session_sets"
+order by min() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_min_order_by {
+input workoutSessionStrengthSets_min_order_by {
   createdAt: order_by
   id: order_by
   reps: order_by
@@ -7152,17 +7485,17 @@ input workoutSessionSets_min_order_by {
   workoutSessionExerciseId: order_by
 }
 """
-on_conflict condition type for table "workout_session_sets"
+on_conflict condition type for table "workout_session_strength_sets"
 """
-input workoutSessionSets_on_conflict {
-  constraint: workoutSessionSets_constraint!
-  update_columns: [workoutSessionSets_update_column!]! = []
-  where: workoutSessionSets_bool_exp
+input workoutSessionStrengthSets_on_conflict {
+  constraint: workoutSessionStrengthSets_constraint!
+  update_columns: [workoutSessionStrengthSets_update_column!]! = []
+  where: workoutSessionStrengthSets_bool_exp
 }
 """
-Ordering options when selecting data from "workout_session_sets".
+Ordering options when selecting data from "workout_session_strength_sets".
 """
-input workoutSessionSets_order_by {
+input workoutSessionStrengthSets_order_by {
   createdAt: order_by
   id: order_by
   reps: order_by
@@ -7172,53 +7505,53 @@ input workoutSessionSets_order_by {
   workoutSessionExercise: workoutSessionExercises_order_by
   workoutSessionExerciseId: order_by
 }
-"primary key columns input for table: workout_session_sets"
-input workoutSessionSets_pk_columns_input {
+"primary key columns input for table: workout_session_strength_sets"
+input workoutSessionStrengthSets_pk_columns_input {
   id: uuid!
 }
 """
-input type for updating data in table "workout_session_sets"
+input type for updating data in table "workout_session_strength_sets"
 """
-input workoutSessionSets_set_input {
+input workoutSessionStrengthSets_set_input {
   reps: Int
   setNumber: Int
   weight: numeric
 }
 """
-order by stddev() on columns of table "workout_session_sets"
+order by stddev() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_stddev_order_by {
+input workoutSessionStrengthSets_stddev_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-order by stddev_pop() on columns of table "workout_session_sets"
+order by stddev_pop() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_stddev_pop_order_by {
+input workoutSessionStrengthSets_stddev_pop_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-order by stddev_samp() on columns of table "workout_session_sets"
+order by stddev_samp() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_stddev_samp_order_by {
+input workoutSessionStrengthSets_stddev_samp_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-Streaming cursor of the table "workoutSessionSets"
+Streaming cursor of the table "workoutSessionStrengthSets"
 """
-input workoutSessionSets_stream_cursor_input {
+input workoutSessionStrengthSets_stream_cursor_input {
   "Stream column input with initial value"
-  initial_value: workoutSessionSets_stream_cursor_value_input!
+  initial_value: workoutSessionStrengthSets_stream_cursor_value_input!
   "cursor ordering"
   ordering: cursor_ordering
 }
 "Initial value of the column from where the streaming should start"
-input workoutSessionSets_stream_cursor_value_input {
+input workoutSessionStrengthSets_stream_cursor_value_input {
   createdAt: timestamptz
   id: uuid
   reps: Int
@@ -7228,41 +7561,41 @@ input workoutSessionSets_stream_cursor_value_input {
   workoutSessionExerciseId: uuid
 }
 """
-order by sum() on columns of table "workout_session_sets"
+order by sum() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_sum_order_by {
+input workoutSessionStrengthSets_sum_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
-input workoutSessionSets_updates {
+input workoutSessionStrengthSets_updates {
   "increments the numeric columns with given value of the filtered values"
-  _inc: workoutSessionSets_inc_input
+  _inc: workoutSessionStrengthSets_inc_input
   "sets the columns of the filtered rows to the given values"
-  _set: workoutSessionSets_set_input
+  _set: workoutSessionStrengthSets_set_input
   "filter the rows which have to be updated"
-  where: workoutSessionSets_bool_exp!
+  where: workoutSessionStrengthSets_bool_exp!
 }
 """
-order by var_pop() on columns of table "workout_session_sets"
+order by var_pop() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_var_pop_order_by {
+input workoutSessionStrengthSets_var_pop_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-order by var_samp() on columns of table "workout_session_sets"
+order by var_samp() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_var_samp_order_by {
+input workoutSessionStrengthSets_var_samp_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by
 }
 """
-order by variance() on columns of table "workout_session_sets"
+order by variance() on columns of table "workout_session_strength_sets"
 """
-input workoutSessionSets_variance_order_by {
+input workoutSessionStrengthSets_variance_order_by {
   reps: order_by
   setNumber: order_by
   weight: order_by

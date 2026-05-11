@@ -1,0 +1,16 @@
+ALTER TABLE public.workout_session_strength_sets
+  RENAME CONSTRAINT workout_session_strength_sets_wse_id_kind_fk
+  TO workout_session_sets_workout_session_exercise_id_kind_fk;
+
+ALTER TABLE public.workout_session_strength_sets
+  RENAME CONSTRAINT workout_session_strength_sets_wse_id_set_number_key
+  TO workout_session_sets_workout_session_exercise_id_set_number_key;
+
+ALTER TABLE public.workout_session_strength_sets
+  RENAME CONSTRAINT workout_session_strength_sets_pkey
+  TO workout_session_sets_pkey;
+
+ALTER TRIGGER set_public_workout_session_strength_sets_updated_at ON public.workout_session_strength_sets
+  RENAME TO set_public_workout_session_sets_updated_at;
+
+ALTER TABLE public.workout_session_strength_sets RENAME TO workout_session_sets;
