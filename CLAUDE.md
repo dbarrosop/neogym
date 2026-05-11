@@ -71,8 +71,24 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 From `backend/`:
 - `make dev-env-up` — boot Hasura + Auth + Postgres + MailHog locally and apply seeds (wraps `nhost up --apply-seeds`)
 - `make dev-env-down` — stop and remove volumes (wraps `nhost down --volumes`) — destroys the local DB, so the next `dev-env-up` is a clean apply of migrations + seeds. Use after editing migrations to make sure a fresh run picks them up.
-- `make test` — run backend integration tests under `backend/tests/` (admin-secret GraphQL queries that exercise composite-FK enforcement, the kind-sync trigger, and `pg_jsonschema` validation against the live local Hasura). Requires `dev-env-up` first.
+- `make test` — run backend integration tests under `backend/tests/` against the live local Hasura. Requires `dev-env-up` first. The Makefile target runs `bun install && bun test` so dependencies are resolved on a fresh clone.
 - `nhost config validate` — sanity-check `nhost.toml` after edits
+
+### Backend tests — the rule
+
+**Always run `make test` after a backend change**, the same way `bun run check` is the gate for frontend changes. "Backend change" means anything under `backend/nhost/migrations/`, `backend/nhost/metadata/`, `backend/nhost/seeds/`, or `backend/nhost.toml`. Don't report the task done until the tests pass.
+
+**Add new tests when you change the backend in a way that's already covered by the suite, or when you introduce a new invariant.** The current suite is one file — `backend/tests/kind-enforcement.test.ts` — organized into describes by concern:
+
+- **kind discriminator** — that `exercises.kind` is generated correctly from `category`, the sidecar relationships resolve, and the sync trigger on `workout_session_exercises` populates `kind` from the parent exercise.
+- **composite-FK enforcement** — that strength sets can't attach to cardio session-exercises (and vice versa), and that the sync trigger can't be bypassed by a client passing a wrong `kind`.
+- **cardio metrics-schema validation** — that `pg_jsonschema` rejects malformed cardio metrics and accepts valid ones; that valid strength sets / cardio entries insert cleanly.
+- **user-role permissions** — that the FK chain `child → workout_session_exercise → workout_session → user` is enforced as a security boundary: foreign users can't insert or read into another user's session, and `kind` is excluded from the user-role insert allowlist on WSE. Uses the `gqlAsUser(userId, query, vars)` helper to forge `x-hasura-role: user` + `x-hasura-user-id`.
+- **category-flip cascade integrity** — that flipping `exercises.category` between cardio and strength fails when child rows exist (the pinned `parent_kind` CHECK rejects the cascade). This is the hardest invariant to spot from the code alone, so when you touch the kind discriminator, composite FKs, or `parent_kind` CHECKs, **add or extend a test in this describe block**.
+
+When adding tests, follow the existing patterns: the `gql(...)` helper for admin-level checks, `gqlAsUser(userId, ...)` for user-role assertions, and self-contained fixtures (each test inserts what it needs with unique `setNumber`/`entryNumber` values — don't depend on test ordering). `hasuraReachable` is set in `beforeAll`; every test starts with `if (!hasuraReachable) return;` so the suite skips cleanly when the stack is down. **If you add a new permission, FK, trigger, or CHECK that encodes a security or integrity invariant, write the corresponding negative test** — the metadata YAMLs and migrations are the rules; the tests are the proof.
+
+A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-reload YAML changes. After editing under `backend/nhost/metadata/`, either restart with `make dev-env-down && make dev-env-up` (destroys local data), or push the change through Hasura's metadata API (`pg_drop_*_permission` + `pg_create_*_permission`, or `replace_metadata`). For schema-only changes via run_sql, use the v2 query endpoint. Then re-run `make test` and frontend `bun run codegen` if user-role visibility changed.
 
 ## Conventions
 
