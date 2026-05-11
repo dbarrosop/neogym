@@ -131,6 +131,45 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
     }
     const exercise = data.exercise;
     const isCardio = exercise.kind === "cardio" && cardioSchema && cardioPrimary;
+    // Cardio exercise without a usable metrics schema: the progress/history
+    // tabs would otherwise silently render the strength views (which select
+    // workoutSessionStrengthSets — always empty for a cardio exercise). Show a
+    // clear placeholder instead.
+    const cardioSchemaMissing = exercise.kind === "cardio" && !isCardio;
+
+    function renderProgressTab() {
+      if (isCardio && cardioPrimary) {
+        return <CardioProgress points={cardioPoints} primary={cardioPrimary} />;
+      }
+      if (cardioSchemaMissing) {
+        return <CardioSchemaMissingNotice />;
+      }
+      return (
+        <ExerciseProgress
+          points={progressPoints}
+          doubleWeight={exercise.strength?.doubleWeight ?? false}
+        />
+      );
+    }
+
+    function renderHistoryTab() {
+      if (isCardio && cardioSchema) {
+        return (
+          <CardioHistory entries={history} schema={cardioSchema} exerciseName={exercise.name} />
+        );
+      }
+      if (cardioSchemaMissing) {
+        return <CardioSchemaMissingNotice />;
+      }
+      return (
+        <ExerciseHistory
+          entries={history}
+          doubleWeight={exercise.strength?.doubleWeight ?? false}
+          exerciseName={exercise.name}
+        />
+      );
+    }
+
     return (
       <>
         <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -200,28 +239,9 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="progress">
-            {isCardio && cardioPrimary ? (
-              <CardioProgress points={cardioPoints} primary={cardioPrimary} />
-            ) : (
-              <ExerciseProgress
-                points={progressPoints}
-                doubleWeight={exercise.strength?.doubleWeight ?? false}
-              />
-            )}
-          </TabsContent>
+          <TabsContent value="progress">{renderProgressTab()}</TabsContent>
 
-          <TabsContent value="history">
-            {isCardio && cardioSchema ? (
-              <CardioHistory entries={history} schema={cardioSchema} exerciseName={exercise.name} />
-            ) : (
-              <ExerciseHistory
-                entries={history}
-                doubleWeight={exercise.strength?.doubleWeight ?? false}
-                exerciseName={exercise.name}
-              />
-            )}
-          </TabsContent>
+          <TabsContent value="history">{renderHistoryTab()}</TabsContent>
         </Tabs>
       </>
     );
@@ -708,6 +728,17 @@ function buildCardioProgressPoints(
     });
   }
   return points.sort((a, b) => a.date - b.date);
+}
+
+function CardioSchemaMissingNotice() {
+  return (
+    <Card className="border-border/60 border-dashed">
+      <CardContent className="text-muted-foreground py-6 text-center text-sm">
+        This cardio exercise is missing its metrics schema, so there's nothing to show here. An
+        admin needs to configure it before sessions can record entries.
+      </CardContent>
+    </Card>
+  );
 }
 
 function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: CardioMetricSpec }) {

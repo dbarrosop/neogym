@@ -218,11 +218,37 @@ describe("seedFieldStates", () => {
     expect(state["duration_s"]).toEqual({ h: "1", m: "2", s: "3" });
   });
 
-  it("hides the h component when the duration spec's maximum < 3600", () => {
+  it("folds the h component into m when the duration spec hides hours", () => {
     const specs = iterateMetrics(shortDurationSchema);
-    // 4000s would otherwise be 1h6m40s; with showH=false the hours roll off.
+    // 4000s would otherwise split into 1h6m40s; with the hours input hidden
+    // the value is preserved as m=66, s=40 (instead of silently truncating to
+    // 6m40s, which would corrupt the stored value on a no-op edit). A value
+    // that overshoots the cap is then surfaced by zod validation on save.
     const state = seedFieldStates(specs, { duration_s: 4000 });
-    expect(state["duration_s"]).toEqual({ h: "", m: "6", s: "40" });
+    expect(state["duration_s"]).toEqual({ h: "", m: "66", s: "40" });
+  });
+
+  it("hides the h component at the maximum: 3600 boundary (matches MetricInput)", () => {
+    // The interval template caps duration at 3600s exactly; the form's input
+    // shows only m/s in that case, so the seeder must agree — otherwise a
+    // stored 3600s value would populate a hidden hours field and subsequent
+    // edits could silently overshoot the cap.
+    const boundarySchema: CardioMetricsSchema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        duration_s: {
+          type: "integer",
+          minimum: 0,
+          maximum: 3600,
+          "x-format": "duration_seconds",
+        },
+      },
+      required: ["duration_s"],
+    };
+    const specs = iterateMetrics(boundarySchema);
+    const state = seedFieldStates(specs, { duration_s: 3600 });
+    expect(state["duration_s"]).toEqual({ h: "", m: "60", s: "" });
   });
 });
 

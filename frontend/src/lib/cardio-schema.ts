@@ -179,6 +179,14 @@ export function secondsToDurationParts(totalSeconds: number): {
   };
 }
 
+// Hours input is shown only when the cap actually exceeds 1 hour. At exactly
+// 3600s (the interval template) min+sec cover the whole range; exposing h then
+// invites typing the intended minutes into the hours slot. Shared between the
+// seeder and the input so the two can't drift at the boundary.
+export function shouldShowHoursInput(spec: Pick<CardioMetricSpec, "maximum">): boolean {
+  return (spec.maximum ?? Number.POSITIVE_INFINITY) > 3600;
+}
+
 export type CardioFieldState = string | { h: string; m: string; s: string };
 
 export function seedFieldStates(
@@ -202,10 +210,24 @@ function seedDurationField(
   spec: CardioMetricSpec,
   totalSeconds: number,
 ): { h: string; m: string; s: string } {
+  if (!shouldShowHoursInput(spec)) {
+    // The hours input is hidden, so the form represents the duration as
+    // (m, s) with m allowed to exceed 60. Folding hours into m avoids the
+    // boundary bug where a stored 3600s value would otherwise split into
+    // h=1/m=0/s=0, then hide h, and seed the visible inputs as all empty —
+    // a silent edit of that entry would save 0s instead of 3600s.
+    const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
+    const m = Math.floor(safe / 60);
+    const s = safe % 60;
+    return {
+      h: "",
+      m: m > 0 ? String(m) : "",
+      s: s > 0 ? String(s) : "",
+    };
+  }
   const parts = secondsToDurationParts(totalSeconds);
-  const showH = (spec.maximum ?? Number.POSITIVE_INFINITY) >= 3600;
   return {
-    h: showH && parts.h > 0 ? String(parts.h) : "",
+    h: parts.h > 0 ? String(parts.h) : "",
     m: parts.m > 0 ? String(parts.m) : "",
     s: parts.s > 0 ? String(parts.s) : "",
   };

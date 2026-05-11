@@ -584,6 +584,23 @@ function ExerciseRow({
       />
     );
   }
+  // Cardio exercise with a missing/malformed metrics schema. Falling through to
+  // <ExerciseLog> would render a strength UI whose "Add set" insert FK-fails
+  // (parent_kind='strength' cannot attach to a cardio session-exercise). Show a
+  // friendly placeholder + the remove control instead.
+  if (isCardio) {
+    return (
+      <CardioMissingSchema
+        sessionId={sessionId}
+        exerciseId={we.exercise.id}
+        exerciseName={we.exercise.name}
+        primaryMuscle={we.exercise.primaryMuscleGroup}
+        image1FileId={we.exercise.image1FileId}
+        image2FileId={we.exercise.image2FileId}
+        onRequestRemove={onRequestRemove}
+      />
+    );
+  }
   return (
     <ExerciseLog
       sessionId={sessionId}
@@ -599,6 +616,71 @@ function ExerciseRow({
       onMutated={onMutated}
       onRequestRemove={onRequestRemove}
     />
+  );
+}
+
+interface CardioMissingSchemaProps {
+  sessionId: string;
+  exerciseId: string;
+  exerciseName: string;
+  primaryMuscle: string;
+  image1FileId: string | null | undefined;
+  image2FileId: string | null | undefined;
+  onRequestRemove: () => void;
+}
+
+function CardioMissingSchema({
+  sessionId,
+  exerciseId,
+  exerciseName,
+  primaryMuscle,
+  image1FileId,
+  image2FileId,
+  onRequestRemove,
+}: CardioMissingSchemaProps) {
+  return (
+    <Card className="border-border/60 supports-[backdrop-filter]:bg-card/80 backdrop-blur">
+      <CardHeader className="flex flex-row items-start gap-3 pb-2">
+        <Link
+          to="/sessions/$sessionId/exercises/$exerciseId"
+          params={{ sessionId, exerciseId }}
+          className="border-border/60 bg-muted block h-12 w-12 shrink-0 overflow-hidden rounded-md border"
+        >
+          <AlternatingStorageImage
+            fileIds={[image1FileId, image2FileId]}
+            alt={exerciseName}
+            className="h-full w-full"
+          />
+        </Link>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <Link
+            to="/sessions/$sessionId/exercises/$exerciseId"
+            params={{ sessionId, exerciseId }}
+            className="block truncate font-medium underline-offset-2 hover:underline"
+          >
+            {exerciseName}
+          </Link>
+          <p className="text-muted-foreground text-xs">{formatMuscle(primaryMuscle)}</p>
+        </div>
+        <Badge variant="outline">Cardio</Badge>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+          aria-label={`Remove ${exerciseName} from session`}
+          onClick={onRequestRemove}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="px-3 pb-3">
+        <p className="text-muted-foreground rounded-md border border-dashed border-border/40 bg-muted/30 px-3 py-2 text-xs">
+          This cardio exercise is missing its metrics schema, so entries can't be logged here. An
+          admin needs to configure it before this exercise can be used.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
