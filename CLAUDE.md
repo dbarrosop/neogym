@@ -22,11 +22,21 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 │   │   ├── lib/nhost/        # client + AuthProvider
 │   │   └── lib/utils.ts      # cn() helper
 │   ├── biome.json, codegen.ts, components.json, vite.config.ts
-└── backend/           # Nhost CLI project — Hasura + Auth + Storage + Functions
-    ├── nhost/nhost.toml       # auth/Hasura config
-    ├── nhost/metadata/        # Hasura metadata
-    └── nhost/migrations/      # SQL migrations
+├── backend/           # Nhost CLI project — Hasura + Auth + Storage + Functions
+│   ├── nhost/nhost.toml       # auth/Hasura config
+│   ├── nhost/metadata/        # Hasura metadata
+│   └── nhost/migrations/      # SQL migrations
+└── docs/developers/   # Domain-model docs — read before touching sessions/exercises
 ```
+
+## Domain docs
+
+Before changing anything in the sessions or exercises data model, read the matching doc — they cover invariants that are not obvious from the schema alone:
+
+- [`docs/developers/sessions.md`](docs/developers/sessions.md) — sessions are containers with an ordered exercise list. `workout_id` is **nullable** (ad-hoc sessions) and is a *template link*, not a contract: nothing enforces that the session's exercises match the workout's, and the `workout_id` can be changed or cleared after creation. Workout deletion still cascades to sessions (FK `ON DELETE CASCADE` from the init migration was not changed when the column became nullable).
+- [`docs/developers/exercises.md`](docs/developers/exercises.md) — `category = 'cardio'` exercises carry a `metrics_schema` JSON Schema (with custom `x-label`/`x-unit`/`x-format`/`x-order` annotation keys); a CHECK enforces "cardio ⇔ schema present", and a `BEFORE INSERT/UPDATE` trigger on `workout_session_cardio_entries` validates entries against that schema using `pg_jsonschema`. Strength exercises have no equivalent trigger — the strength/cardio branch is UI-side, keyed on `exercise.category`.
+
+**Keep these docs and CLAUDE.md in sync with the code in the same change.** When you make a change, ask: does anything I wrote here or in `docs/developers/` still read true after this? If the change touches the domain model (schema, migrations, Hasura permissions, the `metrics_schema` contract, session lifecycle, the strength/cardio branch, auth flow, the codegen pipeline, PWA build config, navigation conventions, toolchain) — update the matching doc and/or CLAUDE.md section as part of the same commit, not as a follow-up. Don't write "TODO: update docs" or leave doc drift for later. If you're unsure whether a doc statement is still accurate after your change, re-read it; stale claims here are worse than no claims, because future sessions act on them.
 
 ## Toolchain
 

@@ -124,6 +124,7 @@ insert_permissions:
         - equipment
         - image_1_file_id
         - image_2_file_id
+        - metrics_schema
 select_permissions:
   - role: user
     permission:
@@ -168,6 +169,7 @@ update_permissions:
         - equipment
         - image_1_file_id
         - image_2_file_id
+        - metrics_schema
       filter:
         _and:
           - user_id:

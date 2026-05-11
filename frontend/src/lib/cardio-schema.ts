@@ -3,14 +3,14 @@ import { z } from "zod";
 export type MetricFormat = "integer" | "decimal" | "duration_seconds";
 
 export interface CardioMetricPropertySchema {
-  type: "integer" | "number";
+  type?: "integer" | "number";
   minimum?: number;
   maximum?: number;
   exclusiveMaximum?: number;
   exclusiveMinimum?: number;
-  "x-label": string;
+  "x-label"?: string;
   "x-unit"?: string;
-  "x-format": MetricFormat;
+  "x-format"?: MetricFormat;
   "x-order"?: number;
 }
 
@@ -52,9 +52,9 @@ export function iterateMetrics(schema: CardioMetricsSchema): CardioMetricSpec[] 
   const indexed = entries.map(([key, prop], index) => {
     const spec: CardioMetricSpec = {
       key,
-      label: prop["x-label"],
+      label: prop["x-label"] ?? key,
       unit: prop["x-unit"] ?? "",
-      format: prop["x-format"],
+      format: prop["x-format"] ?? (prop.type === "integer" ? "integer" : "decimal"),
       required: required.has(key),
       order: prop["x-order"] ?? 0,
     };
@@ -100,7 +100,7 @@ export function formatMetricValue(
       return formatSecondsAsDuration(value);
     case "integer":
       return INT_FORMAT.format(value) + (spec.unit ? ` ${spec.unit}` : "");
-    case "decimal":
+    default:
       return NUMBER_FORMAT.format(value) + (spec.unit ? ` ${spec.unit}` : "");
   }
 }

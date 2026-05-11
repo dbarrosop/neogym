@@ -70,6 +70,25 @@ describe("iterateMetrics", () => {
     expect(specs.find((s) => s.key === "duration_s")?.required).toBe(true);
     expect(specs.find((s) => s.key === "distance_km")?.required).toBe(false);
   });
+
+  it("falls back when x-* annotations are missing", () => {
+    const bare: CardioMetricsSchema = {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        reps: { type: "integer" },
+        weight_kg: { type: "number" },
+        anything: {},
+      },
+    };
+    const specs = iterateMetrics(bare);
+    const reps = specs.find((s) => s.key === "reps");
+    const weight = specs.find((s) => s.key === "weight_kg");
+    const anything = specs.find((s) => s.key === "anything");
+    expect(reps).toMatchObject({ label: "reps", unit: "", format: "integer", required: false });
+    expect(weight).toMatchObject({ label: "weight_kg", format: "decimal" });
+    expect(anything).toMatchObject({ format: "decimal" });
+  });
 });
 
 describe("formatSecondsAsDuration", () => {
