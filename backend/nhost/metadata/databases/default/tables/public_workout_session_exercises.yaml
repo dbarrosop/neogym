@@ -85,7 +85,6 @@ update_permissions:
   - role: user
     permission:
       columns:
-        - exercise_id
         - position
       filter:
         workoutSession:

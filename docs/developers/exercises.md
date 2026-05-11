@@ -103,6 +103,8 @@ A CHECK constraint cannot do this because it can't sub-select another row; the t
 
 The trigger fires only when `metrics` or `workout_session_exercise_id` is touched. Updating only `entry_number` skips validation, which is correct (the payload and its parent schema didn't change).
 
+It also does **not** fire when a parent `workout_session_exercises.exercise_id` is re-pointed to a different exercise — the children aren't touched, so the trigger is blind to that path. The Hasura metadata closes that loophole instead: the user role's `update_permissions.columns` on `workout_session_exercises` is restricted to `position` (see `sessions.md` → "Why `workout_session_exercises.exercise_id` is immutable for the user role"). Changing which exercise a `workout_session_exercises` row points at requires delete + insert, which cascades to the children.
+
 ### The `pg_jsonschema` extension
 
 Validation depends on the `pg_jsonschema` extension (`CREATE EXTENSION IF NOT EXISTS pg_jsonschema`, installed as the `postgres` role in migration `1790000400000_...`).

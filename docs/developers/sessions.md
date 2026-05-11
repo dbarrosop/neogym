@@ -98,6 +98,14 @@ Until that changes, treat workout deletion as destructive of session history. Th
 
 This is a UI-side branch in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **It is enforced by the database only for cardio entries** (via the trigger described in `exercises.md`) — strength sets have no such trigger, so technically the DB would let you insert a `workout_session_set` for a cardio exercise. The UI never does this; if you're writing data through the GraphQL API directly, you are responsible for matching the exercise category.
 
+### Why `workout_session_exercises.exercise_id` is immutable for the user role
+
+The `update_permissions.columns` list for the `user` role on `workout_session_exercises` is just `position` — `exercise_id` is **not** updatable. Inserts and deletes are allowed; reordering is allowed; re-pointing an existing row at a different exercise is not.
+
+This closes a category-mismatch loophole. If `exercise_id` were updatable, a user (or any tool acting as the user role) could swap a `workout_session_exercises` row from a cardio exercise to a strength one (or vice versa). The `validate_workout_session_cardio_entry()` trigger described in `exercises.md` only fires on `INSERT OR UPDATE OF (metrics, workout_session_exercise_id)` on the children — a parent `exercise_id` swap doesn't touch child rows, so existing `workout_session_cardio_entries` or `workout_session_sets` would silently be stranded under a row whose category is now the other one. The UI's `isCardio = exercise.category === "cardio"` branch would then either hide or reject those entries.
+
+To switch an exercise within a session: delete the `workout_session_exercises` row (which cascades to its children) and insert a new one. This matches the Add/Remove UX in `/sessions/$sessionId`.
+
 ## Display names
 
 Sessions don't carry a name field. The label shown in the UI is computed by `sessionDisplayName()`:
@@ -118,4 +126,4 @@ The session detail page supports:
 - Adding/updating/removing `workout_session_cardio_entries` (cardio).
 - Deleting the entire session.
 
-Reordering `workout_session_exercises` is not currently exposed in the UI but is permitted by the schema (`position` is updatable and the `(workout_session_id, position)` uniqueness is `DEFERRABLE INITIALLY DEFERRED`).
+Reordering `workout_session_exercises` is not currently exposed in the UI but is permitted by the schema (`position` is updatable and the `(workout_session_id, position)` uniqueness is `DEFERRABLE INITIALLY DEFERRED`). `position` is the **only** column the user role can update on `workout_session_exercises` — `exercise_id` is immutable post-insert (see "Why `workout_session_exercises.exercise_id` is immutable for the user role" above). To change which exercise a row points at, delete it and add a new one.
