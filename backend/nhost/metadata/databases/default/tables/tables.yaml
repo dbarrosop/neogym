@@ -26,6 +26,7 @@
 - "!include public_muscle_groups.yaml"
 - "!include public_workout_exercises.yaml"
 - "!include public_workout_labels.yaml"
+- "!include public_workout_session_cardio_entries.yaml"
 - "!include public_workout_session_exercises.yaml"
 - "!include public_workout_session_sets.yaml"
 - "!include public_workout_sessions.yaml"

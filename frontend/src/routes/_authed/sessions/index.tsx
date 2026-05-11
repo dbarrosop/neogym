@@ -1,12 +1,13 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight, Loader2, Plus } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2 } from "lucide-react";
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { sessionDisplayName } from "@/lib/sessions";
 
 const PAGE_SIZE = 25;
 
@@ -24,13 +25,22 @@ const SessionsIndexQuery = graphql(`
           count
         }
       }
-      workoutSessionExercises {
+      workoutSessionExercises(order_by: { position: asc }) {
+        exercise {
+          id
+          name
+        }
         workoutSessionSets_aggregate {
           aggregate {
             count
             sum {
               reps
             }
+          }
+        }
+        workoutSessionCardioEntries_aggregate {
+          aggregate {
+            count
           }
         }
       }
@@ -87,14 +97,19 @@ function SessionsRoute() {
     if (allSessions.length === 0) {
       return (
         <Card className="border-border/60 border-dashed">
-          <CardContent className="space-y-3 py-10 text-center">
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-            <Button asChild size="sm">
-              <Link to="/sessions/new">
-                <Plus className="mr-1 h-4 w-4" />
-                Log your first session
-              </Link>
-            </Button>
+          <CardContent className="space-y-2 py-10 text-center text-sm text-muted-foreground">
+            <p>No sessions yet.</p>
+            <p>
+              Pick a{" "}
+              <Link to="/workouts" className="underline-offset-2 hover:underline">
+                workout
+              </Link>{" "}
+              or open an{" "}
+              <Link to="/exercises" className="underline-offset-2 hover:underline">
+                exercise
+              </Link>{" "}
+              and tap <span className="font-medium text-foreground">Start session</span>.
+            </p>
           </CardContent>
         </Card>
       );
@@ -112,10 +127,11 @@ function SessionsRoute() {
                   (acc, e) => acc + (e.workoutSessionSets_aggregate.aggregate?.count ?? 0),
                   0,
                 );
-                const totalReps = s.workoutSessionExercises.reduce(
-                  (acc, e) => acc + (e.workoutSessionSets_aggregate.aggregate?.sum?.reps ?? 0),
+                const totalCardioEntries = s.workoutSessionExercises.reduce(
+                  (acc, e) => acc + (e.workoutSessionCardioEntries_aggregate.aggregate?.count ?? 0),
                   0,
                 );
+                const totalEntries = totalSets + totalCardioEntries;
                 const exerciseCount = s.workoutSessionExercises_aggregate.aggregate?.count ?? 0;
                 const date = new Date(s.startedAt);
                 return (
@@ -138,7 +154,12 @@ function SessionsRoute() {
                             </div>
                             <div className="min-w-0 space-y-0.5">
                               <p className="truncate font-medium">
-                                {s.workout?.name ?? "Ad-hoc session"}
+                                {sessionDisplayName({
+                                  workoutName: s.workout?.name,
+                                  exerciseNames: s.workoutSessionExercises.map(
+                                    (e) => e.exercise.name,
+                                  ),
+                                })}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {date.toLocaleDateString(undefined, {
@@ -148,7 +169,8 @@ function SessionsRoute() {
                                 })}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {exerciseCount} exercises · {totalSets} sets · {totalReps} reps
+                                {exerciseCount} exercise{exerciseCount === 1 ? "" : "s"} ·{" "}
+                                {totalEntries} entr{totalEntries === 1 ? "y" : "ies"}
                               </p>
                             </div>
                           </div>
@@ -188,23 +210,22 @@ function SessionsRoute() {
   return (
     <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
       <div className="mx-auto max-w-3xl space-y-6">
-        <header className="flex items-end justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              History
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">Sessions</h1>
-            <p className="text-sm text-muted-foreground">
-              Every session you've logged, newest first.
-            </p>
-          </div>
-          <Button asChild size="sm">
-            <Link to="/sessions/new">
-              <Plus className="mr-1 h-4 w-4" />
-              <span className="hidden sm:inline">Log session</span>
-              <span className="sm:hidden">Log</span>
-            </Link>
-          </Button>
+        <header className="space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            History
+          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">Sessions</h1>
+          <p className="text-sm text-muted-foreground">
+            Every session you've logged, newest first. To start a new one, pick a{" "}
+            <Link to="/workouts" className="underline-offset-2 hover:underline">
+              workout
+            </Link>{" "}
+            or open an{" "}
+            <Link to="/exercises" className="underline-offset-2 hover:underline">
+              exercise
+            </Link>{" "}
+            and tap <span className="font-medium text-foreground">Start session</span>.
+          </p>
         </header>
         {renderContent()}
       </div>

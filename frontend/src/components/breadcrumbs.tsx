@@ -23,7 +23,6 @@ const ROUTES: Record<string, RouteDef> = {
     parent: "/workouts/$workoutId",
   },
   "/sessions": { label: "Sessions", parent: null },
-  "/sessions/new": { label: "New", parent: "/sessions" },
   "/sessions/$sessionId": { label: "Session", parent: "/sessions" },
   "/sessions/$sessionId/exercises/$exerciseId": {
     label: "Exercise",

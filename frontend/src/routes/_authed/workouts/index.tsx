@@ -4,12 +4,14 @@ import { ChevronRight, Globe2, Plus, Tag, User } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
+import { SearchBar } from "@/components/search-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 import { cn } from "@/lib/utils";
 
 const WorkoutsIndexQuery = graphql(`
@@ -39,10 +41,34 @@ const WorkoutsIndexQuery = graphql(`
   }
 `);
 
+const SearchWorkoutsQuery = graphql(`
+  query SearchWorkouts($query: String!) {
+    searchWorkouts(args: { query: $query }) {
+      id
+      name
+      description
+      isPublic
+      workoutExercises_aggregate {
+        aggregate {
+          count
+        }
+      }
+      workoutLabels {
+        labelId
+        label {
+          id
+          name
+        }
+      }
+    }
+  }
+`);
+
 const visibilityValues = ["mine", "public"] as const;
 type Visibility = (typeof visibilityValues)[number];
 
 const workoutsSearchSchema = z.object({
+  q: z.string().optional(),
   visibility: z.enum(visibilityValues).optional(),
   labels: z.array(z.string()).optional(),
 });
@@ -57,15 +83,32 @@ function WorkoutsRoute() {
   const navigate = Route.useNavigate();
   const visibility: Visibility | null = searchParams.visibility ?? null;
   const activeLabels = useMemo(() => new Set(searchParams.labels ?? []), [searchParams.labels]);
-  const { data, isLoading, error } = useQuery({
+  const query = searchParams.q ?? "";
+  const debouncedQuery = useDebouncedValue(query, 250).trim();
+  const isSearching = debouncedQuery.length > 0;
+
+  const indexQuery = useQuery({
     queryKey: ["workouts", "index"],
     queryFn: () => gqlRequest(WorkoutsIndexQuery),
   });
 
-  const allLabels = useMemo(() => data?.labels ?? [], [data]);
+  const searchResultsQuery = useQuery({
+    queryKey: ["workouts", "search", debouncedQuery],
+    queryFn: () => gqlRequest(SearchWorkoutsQuery, { query: debouncedQuery }),
+    enabled: isSearching,
+  });
+
+  const allLabels = useMemo(() => indexQuery.data?.labels ?? [], [indexQuery.data]);
+
+  const workouts = useMemo(() => {
+    if (isSearching) {
+      return searchResultsQuery.data?.searchWorkouts ?? [];
+    }
+    return indexQuery.data?.workouts ?? [];
+  }, [isSearching, searchResultsQuery.data, indexQuery.data]);
 
   const filtered = useMemo(() => {
-    let result = data?.workouts ?? [];
+    let result = workouts;
     if (visibility === "mine") {
       result = result.filter((w) => !w.isPublic);
     } else if (visibility === "public") {
@@ -84,9 +127,18 @@ function WorkoutsRoute() {
       });
     }
     return result;
-  }, [data, visibility, activeLabels]);
+  }, [workouts, visibility, activeLabels]);
 
-  const isFiltered = visibility !== null || activeLabels.size > 0;
+  const isFiltered = isSearching || visibility !== null || activeLabels.size > 0;
+  const isLoading = isSearching ? searchResultsQuery.isLoading : indexQuery.isLoading;
+  const error = isSearching ? searchResultsQuery.error : indexQuery.error;
+
+  function setSearchText(value: string) {
+    navigate({
+      search: (prev) => ({ ...prev, q: value === "" ? undefined : value }),
+      replace: true,
+    });
+  }
 
   function toggleVisibility(next: Visibility) {
     navigate({
@@ -123,9 +175,14 @@ function WorkoutsRoute() {
       return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
     }
     if (filtered.length === 0) {
-      const emptyMsg = isFiltered
-        ? "No workouts match the selected filters."
-        : "You haven't created any workouts yet.";
+      let emptyMsg: string;
+      if (isSearching) {
+        emptyMsg = `No workouts match “${debouncedQuery}”.`;
+      } else if (isFiltered) {
+        emptyMsg = "No workouts match the selected filters.";
+      } else {
+        emptyMsg = "You haven't created any workouts yet.";
+      }
       return (
         <Card className="border-border/60 border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
@@ -210,6 +267,8 @@ function WorkoutsRoute() {
             </Link>
           </Button>
         </header>
+
+        <SearchBar value={query} onChange={setSearchText} placeholder="Search workouts…" />
 
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

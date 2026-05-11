@@ -27,6 +27,8 @@ configuration:
       custom_name: level
     mechanic:
       custom_name: mechanic
+    metrics_schema:
+      custom_name: metricsSchema
     name:
       custom_name: name
     primary_muscle_group:
@@ -50,6 +52,7 @@ configuration:
     is_public: isPublic
     level: level
     mechanic: mechanic
+    metrics_schema: metricsSchema
     name: name
     primary_muscle_group: primaryMuscleGroup
     slug: slug
@@ -138,6 +141,7 @@ select_permissions:
         - equipment
         - image_1_file_id
         - image_2_file_id
+        - metrics_schema
         - user_id
         - is_public
         - created_at

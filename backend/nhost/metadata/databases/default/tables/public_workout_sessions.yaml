@@ -55,12 +55,15 @@ insert_permissions:
         _and:
           - user_id:
               _eq: X-Hasura-User-Id
-          - workout:
-              _or:
-                - user_id:
-                    _eq: X-Hasura-User-Id
-                - is_public:
-                    _eq: true
+          - _or:
+              - workout_id:
+                  _is_null: true
+              - workout:
+                  _or:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - is_public:
+                        _eq: true
       set:
         user_id: X-Hasura-User-Id
       columns:
@@ -93,12 +96,15 @@ update_permissions:
         _and:
           - user_id:
               _eq: X-Hasura-User-Id
-          - workout:
-              _or:
-                - user_id:
-                    _eq: X-Hasura-User-Id
-                - is_public:
-                    _eq: true
+          - _or:
+              - workout_id:
+                  _is_null: true
+              - workout:
+                  _or:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - is_public:
+                        _eq: true
 delete_permissions:
   - role: user
     permission:

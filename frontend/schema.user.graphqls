@@ -457,6 +457,11 @@ type exercises {
   isPublic: Boolean!
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
+  "JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order."
+  metricsSchema(
+    "JSON select path"
+    path: String
+  ): jsonb
   name: String!
   primaryMuscleGroup: muscleGroups_enum!
   "An array relationship"
@@ -1126,6 +1131,17 @@ type mutation_root {
   """
   deleteWorkoutSession(id: uuid!): workoutSessions
   """
+  delete data from the table: "workout_session_cardio_entries"
+  """
+  deleteWorkoutSessionCardioEntries(
+    "filter the rows which have to be deleted"
+    where: workoutSessionCardioEntries_bool_exp!
+  ): workoutSessionCardioEntries_mutation_response
+  """
+  delete single row from the table: "workout_session_cardio_entries"
+  """
+  deleteWorkoutSessionCardioEntry(id: uuid!): workoutSessionCardioEntries
+  """
   delete single row from the table: "workout_session_exercises"
   """
   deleteWorkoutSessionExercise(id: uuid!): workoutSessionExercises
@@ -1324,6 +1340,24 @@ type mutation_root {
     on_conflict: workoutSessions_on_conflict
   ): workoutSessions
   """
+  insert data into the table: "workout_session_cardio_entries"
+  """
+  insertWorkoutSessionCardioEntries(
+    "the rows to be inserted"
+    objects: [workoutSessionCardioEntries_insert_input!]!,
+    "upsert condition"
+    on_conflict: workoutSessionCardioEntries_on_conflict
+  ): workoutSessionCardioEntries_mutation_response
+  """
+  insert a single row into the table: "workout_session_cardio_entries"
+  """
+  insertWorkoutSessionCardioEntry(
+    "the row to be inserted"
+    object: workoutSessionCardioEntries_insert_input!,
+    "upsert condition"
+    on_conflict: workoutSessionCardioEntries_on_conflict
+  ): workoutSessionCardioEntries
+  """
   insert a single row into the table: "workout_session_exercises"
   """
   insertWorkoutSessionExercise(
@@ -1488,6 +1522,45 @@ type mutation_root {
     "sets the columns of the filtered rows to the given values"
     _set: workoutSessions_set_input,pk_columns: workoutSessions_pk_columns_input!  ): workoutSessions
   """
+  update data of the table: "workout_session_cardio_entries"
+  """
+  updateWorkoutSessionCardioEntries(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: workoutSessionCardioEntries_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: workoutSessionCardioEntries_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: workoutSessionCardioEntries_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: workoutSessionCardioEntries_delete_key_input,
+    "increments the numeric columns with given value of the filtered values"
+    _inc: workoutSessionCardioEntries_inc_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: workoutSessionCardioEntries_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: workoutSessionCardioEntries_set_input,
+    "filter the rows which have to be updated"
+    where: workoutSessionCardioEntries_bool_exp!
+  ): workoutSessionCardioEntries_mutation_response
+  """
+  update single row of the table: "workout_session_cardio_entries"
+  """
+  updateWorkoutSessionCardioEntry(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: workoutSessionCardioEntries_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: workoutSessionCardioEntries_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: workoutSessionCardioEntries_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: workoutSessionCardioEntries_delete_key_input,
+    "increments the numeric columns with given value of the filtered values"
+    _inc: workoutSessionCardioEntries_inc_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: workoutSessionCardioEntries_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: workoutSessionCardioEntries_set_input,pk_columns: workoutSessionCardioEntries_pk_columns_input!  ): workoutSessionCardioEntries
+  """
   update single row of the table: "workout_session_exercises"
   """
   updateWorkoutSessionExercise(
@@ -1585,6 +1658,13 @@ type mutation_root {
     "updates to execute, in order"
     updates: [workoutExercises_updates!]!
   ): [workoutExercises_mutation_response]
+  """
+  update multiples rows of table: "workout_session_cardio_entries"
+  """
+  update_workoutSessionCardioEntries_many(
+    "updates to execute, in order"
+    updates: [workoutSessionCardioEntries_updates!]!
+  ): [workoutSessionCardioEntries_mutation_response]
   """
   update multiples rows of table: "workout_session_exercises"
   """
@@ -2071,6 +2151,82 @@ type query_root {
     where: muscleGroups_bool_exp
   ): muscleGroups_aggregate!
   """
+  execute function "search_journal_entries" which returns "journal_entries"
+  """
+  searchJournalEntries(
+    """
+    input parameters for function "searchJournalEntries"
+    """
+    args: searchJournalEntries_args!,
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): [journalEntries!]!
+  """
+  execute function "search_journal_entries" and query aggregates on result of table type "journal_entries"
+  """
+  searchJournalEntriesAggregate(
+    """
+    input parameters for function "searchJournalEntriesAggregate"
+    """
+    args: searchJournalEntries_args!,
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): journalEntries_aggregate!
+  """
+  execute function "search_workouts" which returns "workouts"
+  """
+  searchWorkouts(
+    """
+    input parameters for function "searchWorkouts"
+    """
+    args: searchWorkouts_args!,
+    "distinct select on columns"
+    distinct_on: [workouts_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workouts_order_by!],
+    "filter the rows returned"
+    where: workouts_bool_exp
+  ): [workouts!]!
+  """
+  execute function "search_workouts" and query aggregates on result of table type "workouts"
+  """
+  searchWorkoutsAggregate(
+    """
+    input parameters for function "searchWorkoutsAggregate"
+    """
+    args: searchWorkouts_args!,
+    "distinct select on columns"
+    distinct_on: [workouts_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workouts_order_by!],
+    "filter the rows returned"
+    where: workouts_bool_exp
+  ): workouts_aggregate!
+  """
   fetch data from the table: "workouts" using primary key columns
   """
   workout(id: uuid!): workouts
@@ -2142,6 +2298,38 @@ type query_root {
   fetch data from the table: "workout_sessions" using primary key columns
   """
   workoutSession(id: uuid!): workoutSessions
+  "An array relationship"
+  workoutSessionCardioEntries(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): [workoutSessionCardioEntries!]!
+  """
+  fetch aggregated fields from the table: "workout_session_cardio_entries"
+  """
+  workoutSessionCardioEntriesAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): workoutSessionCardioEntries_aggregate!
+  """
+  fetch data from the table: "workout_session_cardio_entries" using primary key columns
+  """
+  workoutSessionCardioEntry(id: uuid!): workoutSessionCardioEntries
   """
   fetch data from the table: "workout_session_exercises" using primary key columns
   """
@@ -2876,6 +3064,82 @@ type subscription_root {
     where: muscleGroups_bool_exp
   ): [muscleGroups!]!
   """
+  execute function "search_journal_entries" which returns "journal_entries"
+  """
+  searchJournalEntries(
+    """
+    input parameters for function "searchJournalEntries"
+    """
+    args: searchJournalEntries_args!,
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): [journalEntries!]!
+  """
+  execute function "search_journal_entries" and query aggregates on result of table type "journal_entries"
+  """
+  searchJournalEntriesAggregate(
+    """
+    input parameters for function "searchJournalEntriesAggregate"
+    """
+    args: searchJournalEntries_args!,
+    "distinct select on columns"
+    distinct_on: [journalEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [journalEntries_order_by!],
+    "filter the rows returned"
+    where: journalEntries_bool_exp
+  ): journalEntries_aggregate!
+  """
+  execute function "search_workouts" which returns "workouts"
+  """
+  searchWorkouts(
+    """
+    input parameters for function "searchWorkouts"
+    """
+    args: searchWorkouts_args!,
+    "distinct select on columns"
+    distinct_on: [workouts_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workouts_order_by!],
+    "filter the rows returned"
+    where: workouts_bool_exp
+  ): [workouts!]!
+  """
+  execute function "search_workouts" and query aggregates on result of table type "workouts"
+  """
+  searchWorkoutsAggregate(
+    """
+    input parameters for function "searchWorkoutsAggregate"
+    """
+    args: searchWorkouts_args!,
+    "distinct select on columns"
+    distinct_on: [workouts_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workouts_order_by!],
+    "filter the rows returned"
+    where: workouts_bool_exp
+  ): workouts_aggregate!
+  """
   fetch data from the table: "workouts" using primary key columns
   """
   workout(id: uuid!): workouts
@@ -2969,6 +3233,49 @@ type subscription_root {
   fetch data from the table: "workout_sessions" using primary key columns
   """
   workoutSession(id: uuid!): workoutSessions
+  "An array relationship"
+  workoutSessionCardioEntries(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): [workoutSessionCardioEntries!]!
+  """
+  fetch aggregated fields from the table: "workout_session_cardio_entries"
+  """
+  workoutSessionCardioEntriesAggregate(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): workoutSessionCardioEntries_aggregate!
+  """
+  fetch data from the table in a streaming manner: "workout_session_cardio_entries"
+  """
+  workoutSessionCardioEntries_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [workoutSessionCardioEntries_stream_cursor_input]!,
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): [workoutSessionCardioEntries!]!
+  """
+  fetch data from the table: "workout_session_cardio_entries" using primary key columns
+  """
+  workoutSessionCardioEntry(id: uuid!): workoutSessionCardioEntries
   """
   fetch data from the table: "workout_session_exercises" using primary key columns
   """
@@ -3282,6 +3589,102 @@ type workoutLabels_mutation_response {
   returning: [workoutLabels!]!
 }
 """
+columns and relationships of "workout_session_cardio_entries"
+"""
+type workoutSessionCardioEntries {
+  createdAt: timestamptz!
+  entryNumber: Int!
+  id: uuid!
+  metrics(
+    "JSON select path"
+    path: String
+  ): jsonb!
+  updatedAt: timestamptz!
+  "An object relationship"
+  workoutSessionExercise: workoutSessionExercises!
+  workoutSessionExerciseId: uuid!
+}
+"""
+aggregated selection of "workout_session_cardio_entries"
+"""
+type workoutSessionCardioEntries_aggregate {
+  aggregate: workoutSessionCardioEntries_aggregate_fields
+  nodes: [workoutSessionCardioEntries!]!
+}
+"""
+aggregate fields of "workout_session_cardio_entries"
+"""
+type workoutSessionCardioEntries_aggregate_fields {
+  avg: workoutSessionCardioEntries_avg_fields
+  count(columns: [workoutSessionCardioEntries_select_column!], distinct: Boolean): Int!
+  max: workoutSessionCardioEntries_max_fields
+  min: workoutSessionCardioEntries_min_fields
+  stddev: workoutSessionCardioEntries_stddev_fields
+  stddev_pop: workoutSessionCardioEntries_stddev_pop_fields
+  stddev_samp: workoutSessionCardioEntries_stddev_samp_fields
+  sum: workoutSessionCardioEntries_sum_fields
+  var_pop: workoutSessionCardioEntries_var_pop_fields
+  var_samp: workoutSessionCardioEntries_var_samp_fields
+  variance: workoutSessionCardioEntries_variance_fields
+}
+"aggregate avg on columns"
+type workoutSessionCardioEntries_avg_fields {
+  entryNumber: Float
+}
+"aggregate max on columns"
+type workoutSessionCardioEntries_max_fields {
+  createdAt: timestamptz
+  entryNumber: Int
+  id: uuid
+  updatedAt: timestamptz
+  workoutSessionExerciseId: uuid
+}
+"aggregate min on columns"
+type workoutSessionCardioEntries_min_fields {
+  createdAt: timestamptz
+  entryNumber: Int
+  id: uuid
+  updatedAt: timestamptz
+  workoutSessionExerciseId: uuid
+}
+"""
+response of any mutation on the table "workout_session_cardio_entries"
+"""
+type workoutSessionCardioEntries_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [workoutSessionCardioEntries!]!
+}
+"aggregate stddev on columns"
+type workoutSessionCardioEntries_stddev_fields {
+  entryNumber: Float
+}
+"aggregate stddev_pop on columns"
+type workoutSessionCardioEntries_stddev_pop_fields {
+  entryNumber: Float
+}
+"aggregate stddev_samp on columns"
+type workoutSessionCardioEntries_stddev_samp_fields {
+  entryNumber: Float
+}
+"aggregate sum on columns"
+type workoutSessionCardioEntries_sum_fields {
+  entryNumber: Int
+}
+"aggregate var_pop on columns"
+type workoutSessionCardioEntries_var_pop_fields {
+  entryNumber: Float
+}
+"aggregate var_samp on columns"
+type workoutSessionCardioEntries_var_samp_fields {
+  entryNumber: Float
+}
+"aggregate variance on columns"
+type workoutSessionCardioEntries_variance_fields {
+  entryNumber: Float
+}
+"""
 columns and relationships of "workout_session_exercises"
 """
 type workoutSessionExercises {
@@ -3294,6 +3697,32 @@ type workoutSessionExercises {
   updatedAt: timestamptz!
   "An object relationship"
   workoutSession: workoutSessions!
+  "An array relationship"
+  workoutSessionCardioEntries(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): [workoutSessionCardioEntries!]!
+  "An aggregate relationship"
+  workoutSessionCardioEntries_aggregate(
+    "distinct select on columns"
+    distinct_on: [workoutSessionCardioEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutSessionCardioEntries_order_by!],
+    "filter the rows returned"
+    where: workoutSessionCardioEntries_bool_exp
+  ): workoutSessionCardioEntries_aggregate!
   workoutSessionId: uuid!
   "An array relationship"
   workoutSessionSets(
@@ -3528,8 +3957,8 @@ type workoutSessions {
   updatedAt: timestamptz!
   userId: uuid!
   "An object relationship"
-  workout: workouts!
-  workoutId: uuid!
+  workout: workouts
+  workoutId: uuid
   "An array relationship"
   workoutSessionExercises(
     "distinct select on columns"
@@ -3689,9 +4118,6 @@ type workouts {
     where: workoutSessions_bool_exp
   ): workoutSessions_aggregate!
 }
-"""
-aggregated selection of "workouts"
-"""
 type workouts_aggregate {
   aggregate: workouts_aggregate_fields
   nodes: [workouts!]!
@@ -3921,6 +4347,8 @@ enum exercises_select_column {
   level
   "column name"
   mechanic
+  "column name"
+  metricsSchema
   "column name"
   name
   "column name"
@@ -4248,6 +4676,45 @@ placeholder for update columns of table "workout_labels" (current role has no re
 enum workoutLabels_update_column {
   "placeholder (do not use)"
   _PLACEHOLDER
+}
+"""
+unique or primary key constraints on table "workout_session_cardio_entries"
+"""
+enum workoutSessionCardioEntries_constraint {
+  """
+  unique or primary key constraint on columns "workout_session_exercise_id", "entry_number"
+  """
+  workout_session_cardio_entrie_workout_session_exercise_id_e_key
+  """
+  unique or primary key constraint on columns "id"
+  """
+  workout_session_cardio_entries_pkey
+}
+"""
+select columns of table "workout_session_cardio_entries"
+"""
+enum workoutSessionCardioEntries_select_column {
+  "column name"
+  createdAt
+  "column name"
+  entryNumber
+  "column name"
+  id
+  "column name"
+  metrics
+  "column name"
+  updatedAt
+  "column name"
+  workoutSessionExerciseId
+}
+"""
+update columns of table "workout_session_cardio_entries"
+"""
+enum workoutSessionCardioEntries_update_column {
+  "column name"
+  entryNumber
+  "column name"
+  metrics
 }
 """
 unique or primary key constraints on table "workout_session_exercises"
@@ -4929,6 +5396,7 @@ input exercises_bool_exp {
   isPublic: Boolean_comparison_exp
   level: exerciseLevels_enum_comparison_exp
   mechanic: exerciseMechanics_enum_comparison_exp
+  metricsSchema: jsonb_comparison_exp
   name: String_comparison_exp
   primaryMuscleGroup: muscleGroups_enum_comparison_exp
   secondaryMuscleGroups: exerciseSecondaryMuscleGroups_bool_exp
@@ -5021,6 +5489,7 @@ input exercises_order_by {
   isPublic: order_by
   level: order_by
   mechanic: order_by
+  metricsSchema: order_by
   name: order_by
   primaryMuscleGroup: order_by
   secondaryMuscleGroups_aggregate: exerciseSecondaryMuscleGroups_aggregate_order_by
@@ -5073,6 +5542,8 @@ input exercises_stream_cursor_value_input {
   isPublic: Boolean
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
+  "JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order."
+  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
   slug: String
@@ -5593,6 +6064,12 @@ input numeric_comparison_exp {
   _neq: numeric
   _nin: [numeric!]
 }
+input searchJournalEntries_args {
+  query: String
+}
+input searchWorkouts_args {
+  query: String
+}
 """
 Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'.
 """
@@ -5909,6 +6386,224 @@ input workoutLabels_stream_cursor_value_input {
   labelId: uuid
   workoutId: uuid
 }
+input workoutSessionCardioEntries_aggregate_bool_exp {
+  count: workoutSessionCardioEntries_aggregate_bool_exp_count
+}
+input workoutSessionCardioEntries_aggregate_bool_exp_count {
+  arguments: [workoutSessionCardioEntries_select_column!]
+  distinct: Boolean
+  filter: workoutSessionCardioEntries_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+order by aggregate values of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_aggregate_order_by {
+  avg: workoutSessionCardioEntries_avg_order_by
+  count: order_by
+  max: workoutSessionCardioEntries_max_order_by
+  min: workoutSessionCardioEntries_min_order_by
+  stddev: workoutSessionCardioEntries_stddev_order_by
+  stddev_pop: workoutSessionCardioEntries_stddev_pop_order_by
+  stddev_samp: workoutSessionCardioEntries_stddev_samp_order_by
+  sum: workoutSessionCardioEntries_sum_order_by
+  var_pop: workoutSessionCardioEntries_var_pop_order_by
+  var_samp: workoutSessionCardioEntries_var_samp_order_by
+  variance: workoutSessionCardioEntries_variance_order_by
+}
+"append existing jsonb value of filtered columns with new jsonb value"
+input workoutSessionCardioEntries_append_input {
+  metrics: jsonb
+}
+"""
+input type for inserting array relation for remote table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_arr_rel_insert_input {
+  data: [workoutSessionCardioEntries_insert_input!]!
+  "upsert condition"
+  on_conflict: workoutSessionCardioEntries_on_conflict
+}
+"""
+order by avg() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_avg_order_by {
+  entryNumber: order_by
+}
+"""
+Boolean expression to filter rows from the table "workout_session_cardio_entries". All fields are combined with a logical 'AND'.
+"""
+input workoutSessionCardioEntries_bool_exp {
+  _and: [workoutSessionCardioEntries_bool_exp!]
+  _not: workoutSessionCardioEntries_bool_exp
+  _or: [workoutSessionCardioEntries_bool_exp!]
+  createdAt: timestamptz_comparison_exp
+  entryNumber: Int_comparison_exp
+  id: uuid_comparison_exp
+  metrics: jsonb_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  workoutSessionExercise: workoutSessionExercises_bool_exp
+  workoutSessionExerciseId: uuid_comparison_exp
+}
+"delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+input workoutSessionCardioEntries_delete_at_path_input {
+  metrics: [String!]
+}
+"delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+input workoutSessionCardioEntries_delete_elem_input {
+  metrics: Int
+}
+"delete key/value pair or string element. key/value pairs are matched based on their key value"
+input workoutSessionCardioEntries_delete_key_input {
+  metrics: String
+}
+"""
+input type for incrementing numeric columns in table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_inc_input {
+  entryNumber: Int
+}
+"""
+input type for inserting data into table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_insert_input {
+  entryNumber: Int
+  metrics: jsonb
+  workoutSessionExercise: workoutSessionExercises_obj_rel_insert_input
+  workoutSessionExerciseId: uuid
+}
+"""
+order by max() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_max_order_by {
+  createdAt: order_by
+  entryNumber: order_by
+  id: order_by
+  updatedAt: order_by
+  workoutSessionExerciseId: order_by
+}
+"""
+order by min() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_min_order_by {
+  createdAt: order_by
+  entryNumber: order_by
+  id: order_by
+  updatedAt: order_by
+  workoutSessionExerciseId: order_by
+}
+"""
+on_conflict condition type for table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_on_conflict {
+  constraint: workoutSessionCardioEntries_constraint!
+  update_columns: [workoutSessionCardioEntries_update_column!]! = []
+  where: workoutSessionCardioEntries_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_session_cardio_entries".
+"""
+input workoutSessionCardioEntries_order_by {
+  createdAt: order_by
+  entryNumber: order_by
+  id: order_by
+  metrics: order_by
+  updatedAt: order_by
+  workoutSessionExercise: workoutSessionExercises_order_by
+  workoutSessionExerciseId: order_by
+}
+"primary key columns input for table: workout_session_cardio_entries"
+input workoutSessionCardioEntries_pk_columns_input {
+  id: uuid!
+}
+"prepend existing jsonb value of filtered columns with new jsonb value"
+input workoutSessionCardioEntries_prepend_input {
+  metrics: jsonb
+}
+"""
+input type for updating data in table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_set_input {
+  entryNumber: Int
+  metrics: jsonb
+}
+"""
+order by stddev() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_stddev_order_by {
+  entryNumber: order_by
+}
+"""
+order by stddev_pop() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_stddev_pop_order_by {
+  entryNumber: order_by
+}
+"""
+order by stddev_samp() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_stddev_samp_order_by {
+  entryNumber: order_by
+}
+"""
+Streaming cursor of the table "workoutSessionCardioEntries"
+"""
+input workoutSessionCardioEntries_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: workoutSessionCardioEntries_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input workoutSessionCardioEntries_stream_cursor_value_input {
+  createdAt: timestamptz
+  entryNumber: Int
+  id: uuid
+  metrics: jsonb
+  updatedAt: timestamptz
+  workoutSessionExerciseId: uuid
+}
+"""
+order by sum() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_sum_order_by {
+  entryNumber: order_by
+}
+input workoutSessionCardioEntries_updates {
+  "append existing jsonb value of filtered columns with new jsonb value"
+  _append: workoutSessionCardioEntries_append_input
+  "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+  _delete_at_path: workoutSessionCardioEntries_delete_at_path_input
+  "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+  _delete_elem: workoutSessionCardioEntries_delete_elem_input
+  "delete key/value pair or string element. key/value pairs are matched based on their key value"
+  _delete_key: workoutSessionCardioEntries_delete_key_input
+  "increments the numeric columns with given value of the filtered values"
+  _inc: workoutSessionCardioEntries_inc_input
+  "prepend existing jsonb value of filtered columns with new jsonb value"
+  _prepend: workoutSessionCardioEntries_prepend_input
+  "sets the columns of the filtered rows to the given values"
+  _set: workoutSessionCardioEntries_set_input
+  "filter the rows which have to be updated"
+  where: workoutSessionCardioEntries_bool_exp!
+}
+"""
+order by var_pop() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_var_pop_order_by {
+  entryNumber: order_by
+}
+"""
+order by var_samp() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_var_samp_order_by {
+  entryNumber: order_by
+}
+"""
+order by variance() on columns of table "workout_session_cardio_entries"
+"""
+input workoutSessionCardioEntries_variance_order_by {
+  entryNumber: order_by
+}
 input workoutSessionExercises_aggregate_bool_exp {
   count: workoutSessionExercises_aggregate_bool_exp_count
 }
@@ -5962,6 +6657,8 @@ input workoutSessionExercises_bool_exp {
   position: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   workoutSession: workoutSessions_bool_exp
+  workoutSessionCardioEntries: workoutSessionCardioEntries_bool_exp
+  workoutSessionCardioEntries_aggregate: workoutSessionCardioEntries_aggregate_bool_exp
   workoutSessionId: uuid_comparison_exp
   workoutSessionSets: workoutSessionSets_bool_exp
   workoutSessionSets_aggregate: workoutSessionSets_aggregate_bool_exp
@@ -5980,6 +6677,7 @@ input workoutSessionExercises_insert_input {
   exerciseId: uuid
   position: Int
   workoutSession: workoutSessions_obj_rel_insert_input
+  workoutSessionCardioEntries: workoutSessionCardioEntries_arr_rel_insert_input
   workoutSessionId: uuid
   workoutSessionSets: workoutSessionSets_arr_rel_insert_input
 }
@@ -6032,6 +6730,7 @@ input workoutSessionExercises_order_by {
   position: order_by
   updatedAt: order_by
   workoutSession: workoutSessions_order_by
+  workoutSessionCardioEntries_aggregate: workoutSessionCardioEntries_aggregate_order_by
   workoutSessionId: order_by
   workoutSessionSets_aggregate: workoutSessionSets_aggregate_order_by
 }

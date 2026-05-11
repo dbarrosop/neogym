@@ -4,6 +4,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Flame, Hash, History, Loader2, Plus, Repeat2, Trash2, X } from "lucide-react";
 import { Fragment, type SubmitEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { CardioEntriesList } from "@/components/cardio-entries-list";
+import { CardioMetricsForm } from "@/components/cardio-metrics-form";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +23,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import {
+  asCardioMetricsSchema,
+  type CardioMetrics,
+  type CardioMetricsSchema,
+  formatMetricValue,
+  iterateMetrics,
+} from "@/lib/cardio-schema";
 import { gqlRequest } from "@/lib/graphql";
+import { sessionDisplayName } from "@/lib/sessions";
 import { formatMuscle } from "@/lib/utils";
 
 const SessionDetailQuery = graphql(`
@@ -39,16 +49,23 @@ const SessionDetailQuery = graphql(`
         exercise {
           id
           name
+          category
           doubleWeight
           primaryMuscleGroup
           image1FileId
           image2FileId
+          metricsSchema
         }
         workoutSessionSets(order_by: { setNumber: asc }) {
           id
           setNumber
           reps
           weight
+        }
+        workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+          id
+          entryNumber
+          metrics
         }
       }
     }
@@ -77,6 +94,11 @@ const PriorSessionsQuery = graphql(`
           reps
           weight
         }
+        workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+          id
+          entryNumber
+          metrics
+        }
       }
     }
   }
@@ -104,6 +126,33 @@ const UpdateSetMutation = graphql(`
 const DeleteSetMutation = graphql(`
   mutation DeleteWorkoutSessionSet($id: uuid!) {
     deleteWorkoutSessionSet(id: $id) {
+      id
+    }
+  }
+`);
+
+const InsertCardioEntryMutation = graphql(`
+  mutation InsertWorkoutSessionCardioEntry($obj: workoutSessionCardioEntries_insert_input!) {
+    insertWorkoutSessionCardioEntry(object: $obj) {
+      id
+    }
+  }
+`);
+
+const UpdateCardioEntryMutation = graphql(`
+  mutation UpdateWorkoutSessionCardioEntry(
+    $id: uuid!
+    $set: workoutSessionCardioEntries_set_input!
+  ) {
+    updateWorkoutSessionCardioEntry(pk_columns: { id: $id }, _set: $set) {
+      id
+    }
+  }
+`);
+
+const DeleteCardioEntryMutation = graphql(`
+  mutation DeleteWorkoutSessionCardioEntry($id: uuid!) {
+    deleteWorkoutSessionCardioEntry(id: $id) {
       id
     }
   }
@@ -178,6 +227,7 @@ function SessionDetailRoute() {
   });
 
   const priorSessionsByExercise = useMemo(() => buildPriorSessionsMap(priorData), [priorData]);
+  const priorCardioByExercise = useMemo(() => buildPriorCardioMap(priorData), [priorData]);
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey });
@@ -232,6 +282,9 @@ function SessionDetailRoute() {
     let reps = 0;
     let volume = 0;
     for (const e of session.workoutSessionExercises) {
+      if (e.exercise.category === "cardio") {
+        continue;
+      }
       const m = e.exercise.doubleWeight ? 2 : 1;
       for (const s of e.workoutSessionSets) {
         sets += 1;
@@ -274,7 +327,10 @@ function SessionDetailRoute() {
       <>
         <header className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {session.workout?.name ?? "Ad-hoc session"}
+            {sessionDisplayName({
+              workoutName: session.workout?.name,
+              exerciseNames: session.workoutSessionExercises.map((we) => we.exercise.name),
+            })}
           </h1>
           <button
             type="button"
@@ -304,26 +360,14 @@ function SessionDetailRoute() {
 
         <div className="space-y-3">
           {session.workoutSessionExercises.map((we) => (
-            <ExerciseLog
+            <ExerciseRow
               key={we.id}
               sessionId={sessionId}
-              workoutSessionExerciseId={we.id}
-              exerciseId={we.exercise.id}
-              exerciseName={we.exercise.name}
-              primaryMuscle={we.exercise.primaryMuscleGroup}
-              doubleWeight={we.exercise.doubleWeight}
-              image1FileId={we.exercise.image1FileId}
-              image2FileId={we.exercise.image2FileId}
-              sets={we.workoutSessionSets}
-              priorSessions={priorSessionsByExercise.get(we.exercise.id) ?? []}
+              we={we}
+              priorSessionsByExercise={priorSessionsByExercise}
+              priorCardioByExercise={priorCardioByExercise}
               onMutated={invalidateAll}
-              onRequestRemove={() =>
-                setConfirmingRemoveExercise({
-                  id: we.id,
-                  name: we.exercise.name,
-                  setCount: we.workoutSessionSets.length,
-                })
-              }
+              onConfirmRemove={setConfirmingRemoveExercise}
             />
           ))}
 
@@ -458,6 +502,18 @@ interface PriorEntry {
   sets: { reps: number; weight: number }[];
 }
 
+interface CardioEntryRow {
+  id: string;
+  entryNumber: number;
+  metrics: CardioMetrics;
+}
+
+interface PriorCardioEntry {
+  id: string;
+  startedAt: string;
+  entries: { entryNumber: number; metrics: CardioMetrics }[];
+}
+
 interface ExerciseLogProps {
   sessionId: string;
   workoutSessionExerciseId: string;
@@ -471,6 +527,75 @@ interface ExerciseLogProps {
   priorSessions: PriorEntry[];
   onMutated: () => void;
   onRequestRemove: () => void;
+}
+
+type SessionExerciseRow = NonNullable<
+  ResultOf<typeof SessionDetailQuery>["workoutSession"]
+>["workoutSessionExercises"][number];
+
+interface ExerciseRowProps {
+  sessionId: string;
+  we: SessionExerciseRow;
+  priorSessionsByExercise: Map<string, PriorEntry[]>;
+  priorCardioByExercise: Map<string, PriorCardioEntry[]>;
+  onMutated: () => void;
+  onConfirmRemove: (info: { id: string; name: string; setCount: number }) => void;
+}
+
+function ExerciseRow({
+  sessionId,
+  we,
+  priorSessionsByExercise,
+  priorCardioByExercise,
+  onMutated,
+  onConfirmRemove,
+}: ExerciseRowProps) {
+  const isCardio = we.exercise.category === "cardio";
+  const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.metricsSchema) : null;
+  const entryCount = isCardio
+    ? we.workoutSessionCardioEntries.length
+    : we.workoutSessionSets.length;
+  const onRequestRemove = () =>
+    onConfirmRemove({ id: we.id, name: we.exercise.name, setCount: entryCount });
+
+  if (isCardio && cardioSchema) {
+    return (
+      <CardioExerciseLog
+        sessionId={sessionId}
+        workoutSessionExerciseId={we.id}
+        exerciseId={we.exercise.id}
+        exerciseName={we.exercise.name}
+        primaryMuscle={we.exercise.primaryMuscleGroup}
+        image1FileId={we.exercise.image1FileId}
+        image2FileId={we.exercise.image2FileId}
+        schema={cardioSchema}
+        entries={we.workoutSessionCardioEntries.map((e) => ({
+          id: e.id,
+          entryNumber: e.entryNumber,
+          metrics: (e.metrics ?? {}) as CardioMetrics,
+        }))}
+        priorEntries={priorCardioByExercise.get(we.exercise.id) ?? []}
+        onMutated={onMutated}
+        onRequestRemove={onRequestRemove}
+      />
+    );
+  }
+  return (
+    <ExerciseLog
+      sessionId={sessionId}
+      workoutSessionExerciseId={we.id}
+      exerciseId={we.exercise.id}
+      exerciseName={we.exercise.name}
+      primaryMuscle={we.exercise.primaryMuscleGroup}
+      doubleWeight={we.exercise.doubleWeight}
+      image1FileId={we.exercise.image1FileId}
+      image2FileId={we.exercise.image2FileId}
+      sets={we.workoutSessionSets}
+      priorSessions={priorSessionsByExercise.get(we.exercise.id) ?? []}
+      onMutated={onMutated}
+      onRequestRemove={onRequestRemove}
+    />
+  );
 }
 
 function ExerciseLog({
@@ -698,6 +823,26 @@ function buildPriorSessionsMap(
         sets: wse.workoutSessionSets.map((s) => ({
           reps: s.reps,
           weight: Number(s.weight),
+        })),
+      })),
+    );
+  }
+  return map;
+}
+
+function buildPriorCardioMap(
+  data: ResultOf<typeof PriorSessionsQuery> | undefined,
+): Map<string, PriorCardioEntry[]> {
+  const map = new Map<string, PriorCardioEntry[]>();
+  for (const e of data?.exercises ?? []) {
+    map.set(
+      e.id,
+      e.workoutSessionExercises.map((wse) => ({
+        id: wse.id,
+        startedAt: wse.workoutSession.startedAt,
+        entries: wse.workoutSessionCardioEntries.map((entry) => ({
+          entryNumber: entry.entryNumber,
+          metrics: (entry.metrics ?? {}) as CardioMetrics,
         })),
       })),
     );
@@ -1047,5 +1192,208 @@ function DetailSkeleton() {
         ))}
       </div>
     </>
+  );
+}
+
+interface CardioExerciseLogProps {
+  sessionId: string;
+  workoutSessionExerciseId: string;
+  exerciseId: string;
+  exerciseName: string;
+  primaryMuscle: string;
+  image1FileId: string | null | undefined;
+  image2FileId: string | null | undefined;
+  schema: CardioMetricsSchema;
+  entries: CardioEntryRow[];
+  priorEntries: PriorCardioEntry[];
+  onMutated: () => void;
+  onRequestRemove: () => void;
+}
+
+function CardioExerciseLog({
+  sessionId,
+  workoutSessionExerciseId,
+  exerciseId,
+  exerciseName,
+  primaryMuscle,
+  image1FileId,
+  image2FileId,
+  schema,
+  entries,
+  priorEntries,
+  onMutated,
+  onRequestRemove,
+}: CardioExerciseLogProps) {
+  const [dialog, setDialog] = useState<
+    { mode: "add" } | { mode: "edit"; entry: CardioEntryRow } | null
+  >(null);
+
+  const insertMutation = useMutation({
+    mutationFn: (vars: { entryNumber: number; metrics: CardioMetrics }) =>
+      gqlRequest(InsertCardioEntryMutation, {
+        obj: {
+          workoutSessionExerciseId,
+          entryNumber: vars.entryNumber,
+          metrics: vars.metrics,
+        },
+      }),
+    onSuccess: () => {
+      onMutated();
+      setDialog(null);
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (vars: { id: string; metrics: CardioMetrics }) =>
+      gqlRequest(UpdateCardioEntryMutation, {
+        id: vars.id,
+        set: { metrics: vars.metrics },
+      }),
+    onSuccess: () => {
+      onMutated();
+      setDialog(null);
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => gqlRequest(DeleteCardioEntryMutation, { id }),
+    onSuccess: () => {
+      onMutated();
+      setDialog(null);
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const isPending =
+    insertMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+
+  const lastEntry = entries[entries.length - 1];
+  const previousMetrics = lastEntry?.metrics ?? null;
+  const nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+
+  return (
+    <Card className="border-border/60 supports-[backdrop-filter]:bg-card/80 backdrop-blur">
+      <CardHeader className="flex flex-row items-start gap-3 pb-2">
+        <Link
+          to="/sessions/$sessionId/exercises/$exerciseId"
+          params={{ sessionId, exerciseId }}
+          className="border-border/60 bg-muted block h-12 w-12 shrink-0 overflow-hidden rounded-md border"
+        >
+          <AlternatingStorageImage
+            fileIds={[image1FileId, image2FileId]}
+            alt={exerciseName}
+            className="h-full w-full"
+          />
+        </Link>
+        <div className="min-w-0 flex-1 space-y-0.5">
+          <Link
+            to="/sessions/$sessionId/exercises/$exerciseId"
+            params={{ sessionId, exerciseId }}
+            className="block truncate font-medium underline-offset-2 hover:underline"
+          >
+            {exerciseName}
+          </Link>
+          <p className="text-muted-foreground text-xs">{formatMuscle(primaryMuscle)}</p>
+        </div>
+        <Badge variant="outline">Cardio</Badge>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8 shrink-0"
+          aria-label={`Remove ${exerciseName} from session`}
+          onClick={onRequestRemove}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-2 px-3 pb-3">
+        <CardioEntriesList
+          entries={entries}
+          schema={schema}
+          onSelect={(entry) => setDialog({ mode: "edit", entry })}
+        />
+        <CardioPriorSummary entries={priorEntries} schema={schema} />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => setDialog({ mode: "add" })}
+          disabled={isPending}
+        >
+          <Plus className="mr-1 h-4 w-4" />
+          Add entry
+        </Button>
+      </CardContent>
+
+      <CardioMetricsForm
+        open={!!dialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+          }
+        }}
+        mode={dialog?.mode ?? "add"}
+        schema={schema}
+        exerciseName={exerciseName}
+        nextEntryNumber={nextEntryNumber}
+        editingEntryNumber={dialog?.mode === "edit" ? dialog.entry.entryNumber : null}
+        initialMetrics={dialog?.mode === "edit" ? dialog.entry.metrics : null}
+        previousMetrics={previousMetrics}
+        isPending={isPending}
+        onSubmit={(metrics) => {
+          if (dialog?.mode === "edit") {
+            updateMutation.mutate({ id: dialog.entry.id, metrics });
+          } else {
+            insertMutation.mutate({ entryNumber: nextEntryNumber, metrics });
+          }
+        }}
+        {...(dialog?.mode === "edit"
+          ? { onDelete: () => deleteMutation.mutate(dialog.entry.id) }
+          : {})}
+      />
+    </Card>
+  );
+}
+
+function CardioPriorSummary({
+  entries,
+  schema,
+}: {
+  entries: PriorCardioEntry[];
+  schema: CardioMetricsSchema;
+}) {
+  const filtered = entries.filter((e) => e.entries.length > 0);
+  if (filtered.length === 0) {
+    return null;
+  }
+  const specs = iterateMetrics(schema);
+  const primary = specs[0];
+  if (!primary) {
+    return null;
+  }
+  return (
+    <div className="border-border/40 bg-muted/30 mt-1 space-y-1 rounded-md border px-2.5 py-2">
+      <p className="text-muted-foreground/70 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider">
+        <History className="h-3 w-3" />
+        Recent
+      </p>
+      <dl className="text-muted-foreground grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-xs tabular-nums">
+        {filtered.map((entry) => {
+          const summary = entry.entries
+            .map((e) => formatMetricValue(e.metrics[primary.key], primary))
+            .join(", ");
+          return (
+            <Fragment key={entry.id}>
+              <dt className="text-muted-foreground/70">{formatPriorDate(entry.startedAt)}</dt>
+              <dd className="min-w-0 truncate">{summary}</dd>
+            </Fragment>
+          );
+        })}
+      </dl>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, History, TrendingUp } from "lucide-react";
+import { ChevronRight, History, Loader2, Play, TrendingUp } from "lucide-react";
 import { useMemo } from "react";
 import {
   Area,
@@ -14,12 +14,22 @@ import {
 } from "recharts";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { graphql } from "@/gql";
+import {
+  asCardioMetricsSchema,
+  type CardioMetricSpec,
+  type CardioMetrics,
+  type CardioMetricsSchema,
+  formatMetricValue,
+  iterateMetrics,
+} from "@/lib/cardio-schema";
 import { gqlRequest } from "@/lib/graphql";
+import { useStartSession } from "@/lib/hooks/use-start-session";
 import { cn } from "@/lib/utils";
 
 const ExerciseDetailQuery = graphql(`
@@ -37,6 +47,7 @@ const ExerciseDetailQuery = graphql(`
       force
       mechanic
       primaryMuscleGroup
+      metricsSchema
       secondaryMuscleGroups {
         muscleGroup
       }
@@ -56,6 +67,11 @@ const ExerciseDetailQuery = graphql(`
           reps
           weight
         }
+        workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+          id
+          entryNumber
+          metrics
+        }
       }
     }
   }
@@ -66,6 +82,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
     queryKey: ["exercises", "detail", exerciseId],
     queryFn: () => gqlRequest(ExerciseDetailQuery, { id: exerciseId }),
   });
+  const startSession = useStartSession();
 
   const history = useMemo(() => {
     const wse = data?.exercise?.workoutSessionExercises ?? [];
@@ -81,6 +98,21 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
     [history, data?.exercise?.doubleWeight],
   );
 
+  const cardioSchema = useMemo(
+    () => asCardioMetricsSchema(data?.exercise?.metricsSchema),
+    [data?.exercise?.metricsSchema],
+  );
+
+  const cardioPrimary = useMemo<CardioMetricSpec | null>(
+    () => (cardioSchema ? (iterateMetrics(cardioSchema)[0] ?? null) : null),
+    [cardioSchema],
+  );
+
+  const cardioPoints = useMemo(
+    () => (cardioPrimary ? buildCardioProgressPoints(history, cardioPrimary) : []),
+    [history, cardioPrimary],
+  );
+
   function renderContent() {
     if (isLoading) {
       return <DetailSkeleton />;
@@ -92,6 +124,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
       return <p className="text-sm text-muted-foreground">Exercise not found.</p>;
     }
     const exercise = data.exercise;
+    const isCardio = exercise.category === "cardio" && cardioSchema && cardioPrimary;
     return (
       <>
         <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -111,6 +144,20 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            <Button
+              type="button"
+              size="lg"
+              className="w-full"
+              disabled={startSession.isPending}
+              onClick={() => startSession.mutate({ exerciseId: exercise.id })}
+            >
+              {startSession.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Play className="h-4 w-4 fill-current" />
+              )}
+              Start session
+            </Button>
             <Separator />
             <AlternatingStorageImage
               fileIds={[exercise.image1FileId, exercise.image2FileId]}
@@ -148,11 +195,23 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
           </TabsList>
 
           <TabsContent value="progress">
-            <ExerciseProgress points={progressPoints} doubleWeight={exercise.doubleWeight} />
+            {isCardio && cardioPrimary ? (
+              <CardioProgress points={cardioPoints} primary={cardioPrimary} />
+            ) : (
+              <ExerciseProgress points={progressPoints} doubleWeight={exercise.doubleWeight} />
+            )}
           </TabsContent>
 
           <TabsContent value="history">
-            <ExerciseHistory entries={history} doubleWeight={exercise.doubleWeight} />
+            {isCardio && cardioSchema ? (
+              <CardioHistory entries={history} schema={cardioSchema} exerciseName={exercise.name} />
+            ) : (
+              <ExerciseHistory
+                entries={history}
+                doubleWeight={exercise.doubleWeight}
+                exerciseName={exercise.name}
+              />
+            )}
           </TabsContent>
         </Tabs>
       </>
@@ -231,7 +290,7 @@ interface ExerciseHistoryProps {
     workoutSession: {
       id: string;
       startedAt: string;
-      workout: { id: string; name: string } | null;
+      workout?: { id: string; name: string } | null;
     };
     workoutSessionSets: Array<{
       id: string;
@@ -241,9 +300,10 @@ interface ExerciseHistoryProps {
     }>;
   }>;
   doubleWeight: boolean;
+  exerciseName: string;
 }
 
-function ExerciseHistory({ entries, doubleWeight }: ExerciseHistoryProps) {
+function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistoryProps) {
   return (
     <section className="space-y-3">
       <p className="text-right text-xs text-muted-foreground">
@@ -277,7 +337,7 @@ function ExerciseHistory({ entries, doubleWeight }: ExerciseHistoryProps) {
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 space-y-0.5">
                           <p className="text-sm font-medium">
-                            {entry.workoutSession.workout?.name ?? "Ad-hoc session"}
+                            {entry.workoutSession.workout?.name ?? exerciseName}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {date.toLocaleDateString(undefined, {
@@ -611,5 +671,293 @@ function DetailSkeleton() {
         <Skeleton className="h-4 w-2/3" />
       </CardContent>
     </Card>
+  );
+}
+
+interface CardioPoint {
+  date: number;
+  value: number;
+}
+
+function buildCardioProgressPoints(
+  entries: ExerciseHistoryProps["entries"] & {
+    [k: number]: { workoutSessionCardioEntries: Array<{ metrics: unknown }> };
+  },
+  primary: CardioMetricSpec,
+): CardioPoint[] {
+  const points: CardioPoint[] = [];
+  for (const entry of entries) {
+    const cardioEntries = (
+      entry as unknown as {
+        workoutSessionCardioEntries: Array<{ metrics: CardioMetrics | null }>;
+      }
+    ).workoutSessionCardioEntries;
+    if (!cardioEntries || cardioEntries.length === 0) {
+      continue;
+    }
+    let total = 0;
+    let saw = false;
+    for (const e of cardioEntries) {
+      const v = e.metrics?.[primary.key];
+      if (typeof v === "number" && Number.isFinite(v)) {
+        total += v;
+        saw = true;
+      }
+    }
+    if (!saw) {
+      continue;
+    }
+    points.push({
+      date: new Date(entry.workoutSession.startedAt).getTime(),
+      value: total,
+    });
+  }
+  return points.sort((a, b) => a.date - b.date);
+}
+
+function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: CardioMetricSpec }) {
+  if (points.length === 0) {
+    return (
+      <Card className="border-border/60 border-dashed">
+        <CardContent className="text-muted-foreground py-6 text-center text-sm">
+          Log a session to start tracking progress.
+        </CardContent>
+      </Card>
+    );
+  }
+  const last = points.at(-1);
+  const prev = points.length > 1 ? points.at(-2) : undefined;
+  const latest = last ? last.value : 0;
+  const previous = prev ? prev.value : null;
+  let deltaPct: number | null = null;
+  let delta: number | null = null;
+  if (previous !== null) {
+    delta = latest - previous;
+    if (previous !== 0) {
+      deltaPct = (delta / previous) * 100;
+    }
+  }
+  const tone = deltaToneClass(delta);
+  return (
+    <section className="space-y-3">
+      <p className="text-muted-foreground text-right text-xs">
+        {points.length} session{points.length === 1 ? "" : "s"}
+      </p>
+      <Card className="border-border/60 supports-[backdrop-filter]:bg-card/80 backdrop-blur">
+        <CardHeader className="space-y-1 pb-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
+              {primary.label} per session
+            </p>
+            {deltaPct === null ? null : (
+              <span className={cn("text-xs tabular-nums", tone)}>
+                {deltaPct > 0 ? "+" : ""}
+                {deltaPct.toFixed(1)}%
+              </span>
+            )}
+          </div>
+          <CardTitle className="text-xl tabular-nums">
+            {formatMetricValue(latest, primary)}
+          </CardTitle>
+          <p className="text-muted-foreground/80 text-[11px]">total across entries</p>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {points.length >= 2 ? (
+            <CardioTrendChart points={points} primary={primary} />
+          ) : (
+            <p className="text-muted-foreground py-4 text-center text-xs">
+              Log another session to see a trend.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function CardioTrendChart({
+  points,
+  primary,
+}: {
+  points: CardioPoint[];
+  primary: CardioMetricSpec;
+}) {
+  const formatTick = (value: number) =>
+    new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const color = "var(--color-chart-1)";
+  const gradientId = "cardio-progress";
+  return (
+    <div className="h-32 w-full">
+      <ResponsiveContainer>
+        <AreaChart data={points} margin={{ top: 6, right: 6, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
+          <XAxis
+            dataKey="date"
+            type="number"
+            scale="time"
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={formatTick}
+            tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={32}
+            interval="preserveStartEnd"
+            height={20}
+          />
+          <YAxis hide domain={["auto", "auto"]} />
+          <Tooltip
+            cursor={{ stroke: color, strokeOpacity: 0.5, strokeDasharray: "3 3" }}
+            content={<CardioTrendTooltip primary={primary} />}
+          />
+          <Area
+            type="monotone"
+            dataKey="value"
+            stroke={color}
+            strokeWidth={2}
+            fill={`url(#${gradientId})`}
+            dot={false}
+            activeDot={{
+              r: 3.5,
+              fill: color,
+              stroke: "var(--color-background)",
+              strokeWidth: 2,
+            }}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function CardioTrendTooltip({
+  active,
+  payload,
+  primary,
+}: Partial<TooltipContentProps<number, string>> & { primary: CardioMetricSpec }) {
+  if (!active || !payload || payload.length === 0) {
+    return null;
+  }
+  const point = payload[0]?.payload as CardioPoint | undefined;
+  if (!point) {
+    return null;
+  }
+  return (
+    <div className="border-border/60 bg-popover/95 rounded-md border px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+      <p className="text-muted-foreground">
+        {new Date(point.date).toLocaleDateString(undefined, {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}
+      </p>
+      <p className="font-medium tabular-nums">
+        <span className="text-muted-foreground">{primary.label}: </span>
+        {formatMetricValue(point.value, primary)}
+      </p>
+    </div>
+  );
+}
+
+interface CardioHistoryProps {
+  entries: ExerciseHistoryProps["entries"];
+  schema: CardioMetricsSchema;
+  exerciseName: string;
+}
+
+function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
+  const specs = iterateMetrics(schema);
+  return (
+    <section className="space-y-3">
+      <p className="text-muted-foreground text-right text-xs">
+        {entries.length} session{entries.length === 1 ? "" : "s"}
+      </p>
+      {entries.length === 0 ? (
+        <Card className="border-border/60 border-dashed">
+          <CardContent className="text-muted-foreground py-6 text-center text-sm">
+            You haven't logged this exercise yet.
+          </CardContent>
+        </Card>
+      ) : (
+        <ul className="space-y-2">
+          {entries.map((entry) => {
+            const cardioEntries =
+              (
+                entry as unknown as {
+                  workoutSessionCardioEntries: Array<{
+                    id: string;
+                    entryNumber: number;
+                    metrics: CardioMetrics | null;
+                  }>;
+                }
+              ).workoutSessionCardioEntries ?? [];
+            const date = new Date(entry.workoutSession.startedAt);
+            return (
+              <li key={entry.id}>
+                <Link
+                  to="/sessions/$sessionId"
+                  params={{ sessionId: entry.workoutSession.id }}
+                  className="group block"
+                >
+                  <Card className="border-border/60 group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80 backdrop-blur transition-colors">
+                    <CardContent className="space-y-3 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 space-y-0.5">
+                          <p className="text-sm font-medium">
+                            {entry.workoutSession.workout?.name ?? exerciseName}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {date.toLocaleDateString(undefined, {
+                              weekday: "short",
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                            {" · "}
+                            {cardioEntries.length} entr
+                            {cardioEntries.length === 1 ? "y" : "ies"}
+                          </p>
+                        </div>
+                        <ChevronRight className="text-muted-foreground/50 group-hover:text-foreground h-4 w-4 shrink-0 transition-colors" />
+                      </div>
+                      {cardioEntries.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {cardioEntries.map((e) => (
+                            <span
+                              key={e.id}
+                              className="border-border/50 bg-muted/40 inline-flex items-baseline gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums"
+                            >
+                              <span className="text-muted-foreground">{e.entryNumber}.</span>
+                              {specs.map((spec) => {
+                                const v = e.metrics?.[spec.key];
+                                if (v === undefined || v === null) {
+                                  return null;
+                                }
+                                return (
+                                  <span key={spec.key} className="font-medium">
+                                    {formatMetricValue(v, spec)}
+                                  </span>
+                                );
+                              })}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </CardContent>
+                  </Card>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

@@ -41,6 +41,13 @@ object_relationships:
     using:
       foreign_key_constraint_on: workout_session_id
 array_relationships:
+  - name: workoutSessionCardioEntries
+    using:
+      foreign_key_constraint_on:
+        column: workout_session_exercise_id
+        table:
+          name: workout_session_cardio_entries
+          schema: public
   - name: workoutSessionSets
     using:
       foreign_key_constraint_on:
