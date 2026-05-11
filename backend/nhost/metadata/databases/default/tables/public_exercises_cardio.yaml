@@ -41,7 +41,7 @@ insert_permissions:
                 _eq: X-Hasura-User-Id
             - is_public:
                 _eq: false
-            - category:
+            - kind:
                 _eq: cardio
       columns:
         - exercise_id
