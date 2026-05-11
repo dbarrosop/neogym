@@ -1133,7 +1133,7 @@ export type Exercises = {
   isPublic: Scalars['Boolean']['output'];
   level?: Maybe<ExerciseLevels_Enum>;
   mechanic?: Maybe<ExerciseMechanics_Enum>;
-  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order. */
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: Maybe<Scalars['jsonb']['output']>;
   name: Scalars['String']['output'];
   primaryMuscleGroup: MuscleGroups_Enum;
@@ -1276,6 +1276,12 @@ export type Exercises_Aggregate_Order_By = {
   min?: InputMaybe<Exercises_Min_Order_By>;
 };
 
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type Exercises_Append_Input = {
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
 /** Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'. */
 export type Exercises_Bool_Exp = {
   _and?: InputMaybe<Array<Exercises_Bool_Exp>>;
@@ -1319,6 +1325,24 @@ export enum Exercises_Constraint {
   ExercisesUserNameUq = 'exercises_user_name_uq'
 }
 
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type Exercises_Delete_At_Path_Input = {
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type Exercises_Delete_Elem_Input = {
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type Exercises_Delete_Key_Input = {
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['String']['input']>;
+};
+
 /** input type for inserting data into table "exercises" */
 export type Exercises_Insert_Input = {
   category?: InputMaybe<ExerciseCategories_Enum>;
@@ -1330,6 +1354,8 @@ export type Exercises_Insert_Input = {
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   level?: InputMaybe<ExerciseLevels_Enum>;
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
   workoutExercises?: InputMaybe<WorkoutExercises_Arr_Rel_Insert_Input>;
@@ -1445,6 +1471,12 @@ export type Exercises_Pk_Columns_Input = {
   id: Scalars['uuid']['input'];
 };
 
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type Exercises_Prepend_Input = {
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
 /** select columns of table "exercises" */
 export enum Exercises_Select_Column {
   /** column name */
@@ -1512,6 +1544,8 @@ export type Exercises_Set_Input = {
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   level?: InputMaybe<ExerciseLevels_Enum>;
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
 };
@@ -1538,7 +1572,7 @@ export type Exercises_Stream_Cursor_Value_Input = {
   isPublic?: InputMaybe<Scalars['Boolean']['input']>;
   level?: InputMaybe<ExerciseLevels_Enum>;
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
-  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order. */
+  /** JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
@@ -1568,12 +1602,24 @@ export enum Exercises_Update_Column {
   /** column name */
   Mechanic = 'mechanic',
   /** column name */
+  MetricsSchema = 'metricsSchema',
+  /** column name */
   Name = 'name',
   /** column name */
   PrimaryMuscleGroup = 'primaryMuscleGroup'
 }
 
 export type Exercises_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<Exercises_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<Exercises_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<Exercises_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<Exercises_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<Exercises_Prepend_Input>;
   /** sets the columns of the filtered rows to the given values */
   _set?: InputMaybe<Exercises_Set_Input>;
   /** filter the rows which have to be updated */
@@ -3235,6 +3281,11 @@ export type Mutation_RootUpdateBodyMeasurementsArgs = {
 
 /** mutation root */
 export type Mutation_RootUpdateExerciseArgs = {
+  _append?: InputMaybe<Exercises_Append_Input>;
+  _delete_at_path?: InputMaybe<Exercises_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Exercises_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Exercises_Delete_Key_Input>;
+  _prepend?: InputMaybe<Exercises_Prepend_Input>;
   _set?: InputMaybe<Exercises_Set_Input>;
   pk_columns: Exercises_Pk_Columns_Input;
 };
@@ -3242,6 +3293,11 @@ export type Mutation_RootUpdateExerciseArgs = {
 
 /** mutation root */
 export type Mutation_RootUpdateExercisesArgs = {
+  _append?: InputMaybe<Exercises_Append_Input>;
+  _delete_at_path?: InputMaybe<Exercises_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<Exercises_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<Exercises_Delete_Key_Input>;
+  _prepend?: InputMaybe<Exercises_Prepend_Input>;
   _set?: InputMaybe<Exercises_Set_Input>;
   where: Exercises_Bool_Exp;
 };
@@ -6062,7 +6118,6 @@ export enum WorkoutSessionExercises_Select_Column {
 
 /** input type for updating data in table "workout_session_exercises" */
 export type WorkoutSessionExercises_Set_Input = {
-  exerciseId?: InputMaybe<Scalars['uuid']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -6130,8 +6185,6 @@ export type WorkoutSessionExercises_Sum_Order_By = {
 
 /** update columns of table "workout_session_exercises" */
 export enum WorkoutSessionExercises_Update_Column {
-  /** column name */
-  ExerciseId = 'exerciseId',
   /** column name */
   Position = 'position'
 }

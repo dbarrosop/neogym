@@ -457,7 +457,9 @@ type exercises {
   isPublic: Boolean!
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  "JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order."
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
   metricsSchema(
     "JSON select path"
     path: String
@@ -1434,12 +1436,32 @@ type mutation_root {
   update single row of the table: "exercises"
   """
   updateExercise(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: exercises_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: exercises_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: exercises_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: exercises_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: exercises_prepend_input,
     "sets the columns of the filtered rows to the given values"
     _set: exercises_set_input,pk_columns: exercises_pk_columns_input!  ): exercises
   """
   update data of the table: "exercises"
   """
   updateExercises(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: exercises_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: exercises_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: exercises_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: exercises_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: exercises_prepend_input,
     "sets the columns of the filtered rows to the given values"
     _set: exercises_set_input,
     "filter the rows which have to be updated"
@@ -4252,6 +4274,8 @@ enum exercises_update_column {
   "column name"
   mechanic
   "column name"
+  metricsSchema
+  "column name"
   name
   "column name"
   primaryMuscleGroup
@@ -4601,8 +4625,6 @@ enum workoutSessionExercises_select_column {
 update columns of table "workout_session_exercises"
 """
 enum workoutSessionExercises_update_column {
-  "column name"
-  exerciseId
   "column name"
   position
 }
@@ -5226,6 +5248,13 @@ input exercises_aggregate_order_by {
   max: exercises_max_order_by
   min: exercises_min_order_by
 }
+"append existing jsonb value of filtered columns with new jsonb value"
+input exercises_append_input {
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
 """
 Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'.
 """
@@ -5260,6 +5289,27 @@ input exercises_bool_exp {
   workoutSessionExercises: workoutSessionExercises_bool_exp
   workoutSessionExercises_aggregate: workoutSessionExercises_aggregate_bool_exp
 }
+"delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+input exercises_delete_at_path_input {
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: [String!]
+}
+"delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+input exercises_delete_elem_input {
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: Int
+}
+"delete key/value pair or string element. key/value pairs are matched based on their key value"
+input exercises_delete_key_input {
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: String
+}
 """
 input type for inserting data into table "exercises"
 """
@@ -5273,6 +5323,10 @@ input exercises_insert_input {
   instructions: [String!]
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
   workoutExercises: workoutExercises_arr_rel_insert_input
@@ -5354,6 +5408,13 @@ input exercises_order_by {
 input exercises_pk_columns_input {
   id: uuid!
 }
+"prepend existing jsonb value of filtered columns with new jsonb value"
+input exercises_prepend_input {
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
+}
 """
 input type for updating data in table "exercises"
 """
@@ -5367,6 +5428,10 @@ input exercises_set_input {
   instructions: [String!]
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
+  metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
 }
@@ -5393,7 +5458,9 @@ input exercises_stream_cursor_value_input {
   isPublic: Boolean
   level: exerciseLevels_enum
   mechanic: exerciseMechanics_enum
-  "JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds), x-order."
+  """
+  JSON Schema describing the per-entry metrics shape for cardio exercises. NULL for non-cardio. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.
+  """
   metricsSchema: jsonb
   name: String
   primaryMuscleGroup: muscleGroups_enum
@@ -5402,6 +5469,16 @@ input exercises_stream_cursor_value_input {
   userId: uuid
 }
 input exercises_updates {
+  "append existing jsonb value of filtered columns with new jsonb value"
+  _append: exercises_append_input
+  "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+  _delete_at_path: exercises_delete_at_path_input
+  "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+  _delete_elem: exercises_delete_elem_input
+  "delete key/value pair or string element. key/value pairs are matched based on their key value"
+  _delete_key: exercises_delete_key_input
+  "prepend existing jsonb value of filtered columns with new jsonb value"
+  _prepend: exercises_prepend_input
   "sets the columns of the filtered rows to the given values"
   _set: exercises_set_input
   "filter the rows which have to be updated"
@@ -6587,7 +6664,6 @@ input workoutSessionExercises_pk_columns_input {
 input type for updating data in table "workout_session_exercises"
 """
 input workoutSessionExercises_set_input {
-  exerciseId: uuid
   position: Int
 }
 """
