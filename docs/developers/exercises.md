@@ -35,7 +35,7 @@ This document covers the catalog shape, the strength/cardio `kind` discriminator
 kind text GENERATED ALWAYS AS (CASE category WHEN 'cardio' THEN 'cardio' ELSE 'strength' END) STORED
 ```
 
-The split: `kind = 'cardio'` exercises log into `workout_session_cardio_entries` (jsonb metrics validated against a per-exercise JSON Schema). Everything else — `kind = 'strength'` — logs into `workout_session_sets` (reps + weight). The frontend branches on `exercise.kind === 'cardio'`, **not** `category`.
+The split: `kind = 'cardio'` exercises log into `workout_session_cardio_entries` (jsonb metrics validated against a per-exercise JSON Schema). Everything else — `kind = 'strength'` — logs into `workout_session_strength_sets` (reps + weight). The frontend branches on `exercise.kind === 'cardio'`, **not** `category`.
 
 This kind is what participates in the composite-FK enforcement of the strength/cardio split (see "How the split is enforced structurally" below). `category` cannot serve that role directly because seven non-cardio categories would all need to map to one FK target — `kind` collapses them into one binary discriminator.
 
@@ -123,7 +123,7 @@ workout_session_exercises (id PK, kind, UNIQUE (id, kind))
    │ (workout_session_exercise_id,             │ (workout_session_exercise_id,
    │  parent_kind = 'strength')                │  parent_kind = 'cardio')
    │                                          │
-workout_session_sets                          workout_session_cardio_entries
+workout_session_strength_sets                 workout_session_cardio_entries
 ```
 
 Each child table pins its discriminator via `DEFAULT '<value>' CHECK (parent_kind = '<value>')`. The discriminator column is a real, physical column whose only job is to participate in the composite FK — clients can omit it on insert (the DEFAULT fills it) and cannot bypass it (the CHECK rejects any other value, and even if they could, the composite FK would still require it to match the parent's `kind`).
@@ -147,7 +147,7 @@ If `exercises_cardio.metrics_schema` is missing → `22023` (cardio exercise has
 
 The trigger fires only when `metrics` or `workout_session_exercise_id` is touched. Updating only `entry_number` skips validation, which is correct (the payload and its parent schema didn't change). The trigger lookup uses the **current** schema; existing rows aren't re-validated when an admin edits `exercises_cardio.metrics_schema` — that's standard trigger semantics, schema changes are forward-only for stored entries.
 
-There is **no symmetric trigger on `workout_session_sets`** because strength sets have a fixed columnar shape (reps, weight) — there's nothing per-exercise to validate. The strength side gets its kind enforcement from the composite FK alone.
+There is **no symmetric trigger on `workout_session_strength_sets`** because strength sets have a fixed columnar shape (reps, weight) — there's nothing per-exercise to validate. The strength side gets its kind enforcement from the composite FK alone.
 
 ## The `pg_jsonschema` extension
 

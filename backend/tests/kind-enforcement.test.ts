@@ -31,6 +31,9 @@ const ADMIN_SECRET = "nhost-admin-secret";
 // Seed UUIDs (see backend/nhost/seeds/default/1778179381117_test_user.sql and
 // 1778716800004_cardio_examples.sql).
 const TEST_USER_ID = "f26ac88d-4dcd-48e8-a0ae-b4248918bc1c";
+// A uuid that doesn't correspond to any real user — used to forge an
+// X-Hasura-User-Id header for negative permission tests.
+const OTHER_USER_ID = "11111111-1111-4111-8111-111111111111";
 const CARDIO_EXERCISE_ID = "019e0675-a94d-7663-a002-da133cfe683c"; // Running, Treadmill
 const STRENGTH_EXERCISE_ID = "019e0675-a286-7b8a-9ed0-aff41340d088"; // Barbell Hip Thrust
 
@@ -51,6 +54,26 @@ async function gql<T>(
     headers: {
       "content-type": "application/json",
       "x-hasura-admin-secret": ADMIN_SECRET,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  return res.json() as Promise<GraphQLResponse<T>>;
+}
+
+// Run a request as the `user` role with a forged X-Hasura-User-Id. The admin
+// secret still has to be present for Hasura to honor the role override.
+async function gqlAsUser<T>(
+  userId: string,
+  query: string,
+  variables: Record<string, unknown> = {},
+): Promise<GraphQLResponse<T>> {
+  const res = await fetch(HASURA_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-hasura-admin-secret": ADMIN_SECRET,
+      "x-hasura-role": "user",
+      "x-hasura-user-id": userId,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -328,5 +351,133 @@ describe("cardio metrics-schema validation", () => {
     );
     expect(res.errors).toBeUndefined();
     expect(res.data!.insertWorkoutSessionStrengthSet.setNumber).toBe(21);
+  });
+});
+
+// User-role permission tests. These complement the SQL-level integrity tests
+// above by exercising the *security boundary* — the FK chain
+// `child → workout_session_exercise → workout_session → user`. A regression in
+// any of the user-role permissions in the metadata YAMLs would silently let
+// one user read or write into another user's session, and SQL constraints
+// would never catch it.
+describe("user-role permissions", () => {
+  test("foreign user cannot insert a cardio entry into another user's session", async () => {
+    if (!hasuraReachable) return;
+    const res = await gqlAsUser(
+      OTHER_USER_ID,
+      `
+      mutation ForeignCardioInsert($wseId: uuid!) {
+        insertWorkoutSessionCardioEntry(object: {
+          workoutSessionExerciseId: $wseId,
+          entryNumber: 50,
+          metrics: { duration_s: 600 }
+        }) { id }
+      }
+    `,
+      { wseId: cardioWseId },
+    );
+    expect(res.errors).toBeDefined();
+    // Hasura returns "permission-error" when the insert check fails; it never
+    // reaches the row.
+    expect(res.errors![0].extensions?.code).toBe("permission-error");
+  });
+
+  test("foreign user cannot insert a strength set into another user's session", async () => {
+    if (!hasuraReachable) return;
+    const res = await gqlAsUser(
+      OTHER_USER_ID,
+      `
+      mutation ForeignStrengthInsert($wseId: uuid!) {
+        insertWorkoutSessionStrengthSet(object: {
+          workoutSessionExerciseId: $wseId,
+          setNumber: 50, reps: 5, weight: "60.00"
+        }) { id }
+      }
+    `,
+      { wseId: strengthWseId },
+    );
+    expect(res.errors).toBeDefined();
+    expect(res.errors![0].extensions?.code).toBe("permission-error");
+  });
+
+  test("foreign user's select on another user's session returns no rows", async () => {
+    if (!hasuraReachable) return;
+    // The seeded cardio entries created above belong to TEST_USER_ID. A
+    // foreign user querying the same WSEs gets an empty list — the select
+    // filter (`workoutSession.user_id = X-Hasura-User-Id`) hides them.
+    const res = await gqlAsUser<{
+      cardio: Array<{ id: string }>;
+      strength: Array<{ id: string }>;
+    }>(
+      OTHER_USER_ID,
+      `
+      query ForeignSelect($cardioWse: uuid!, $strengthWse: uuid!) {
+        cardio: workoutSessionCardioEntries(where: { workoutSessionExerciseId: { _eq: $cardioWse } }) { id }
+        strength: workoutSessionStrengthSets(where: { workoutSessionExerciseId: { _eq: $strengthWse } }) { id }
+      }
+    `,
+      { cardioWse: cardioWseId, strengthWse: strengthWseId },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data!.cardio).toEqual([]);
+    expect(res.data!.strength).toEqual([]);
+  });
+
+  test("user-role schema does not expose `kind` as an insertable column on WSE", async () => {
+    if (!hasuraReachable) return;
+    // The user-role insert column allowlist is (workout_session_id,
+    // exercise_id, position). `kind` is excluded — even if a client tries to
+    // pin it, Hasura rejects the field before the SQL runs (validation error),
+    // not at the trigger level. This locks the security boundary independently
+    // of the sync trigger.
+    const res = await gqlAsUser(
+      TEST_USER_ID,
+      `
+      mutation UserLyingKind($sessionId: uuid!, $cardioEx: uuid!) {
+        insertWorkoutSessionExercise(object: {
+          workoutSessionId: $sessionId,
+          exerciseId: $cardioEx,
+          position: 50,
+          kind: "strength"
+        }) { id kind }
+      }
+    `,
+      { sessionId: testSessionId, cardioEx: CARDIO_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    // The field-not-found error comes from Hasura's GraphQL validator; the
+    // exact code is `validation-failed`.
+    expect(res.errors![0].extensions?.code).toBe("validation-failed");
+    expect(res.errors![0].message.toLowerCase()).toContain("kind");
+  });
+
+  test("user-role cannot insert exercises_cardio for a public catalog exercise", async () => {
+    if (!hasuraReachable) return;
+    // The seeded cardio exercises are public (`is_public = true`). The
+    // exercises_cardio insert permission requires `is_public = false AND
+    // user_id = self`, so even the owning user cannot back-fill a sidecar for
+    // a public exercise — that's an admin-only operation. In practice the
+    // request can fail two ways:
+    //   - `permission-error`: Hasura's insert check rejects the row.
+    //   - `constraint-violation`: the PK already has a row (the migration
+    //     backfilled metrics_schema for every public cardio exercise), so
+    //     Postgres rejects the duplicate before the check fires.
+    // Both are valid "user is blocked" outcomes for this security boundary.
+    const res = await gqlAsUser(
+      TEST_USER_ID,
+      `
+      mutation UserSchemaPush($exId: uuid!) {
+        insertExerciseCardio(object: {
+          exerciseId: $exId,
+          metricsSchema: { type: "object", properties: { duration_s: { type: "integer" } }, required: ["duration_s"] }
+        }) { exerciseId }
+      }
+    `,
+      { exId: CARDIO_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    const code = res.errors![0].extensions?.code;
+    expect(code).toBeDefined();
+    expect(["permission-error", "constraint-violation"]).toContain(code as string);
   });
 });

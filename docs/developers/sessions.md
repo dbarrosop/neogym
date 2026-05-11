@@ -92,7 +92,7 @@ Until that changes, treat workout deletion as destructive of session history. Th
 - **Insert:** `user_id = X-Hasura-User-Id` AND (`workout_id IS NULL` OR `workout.user_id = X-Hasura-User-Id` OR `workout.is_public = true`). `user_id` is auto-set via `set:`.
 - **Select / Update / Delete:** scoped to `user_id = X-Hasura-User-Id`. Update additionally enforces the same `workout_id` rule on the new value, so a user cannot reassign their session to someone else's private workout.
 
-`workout_session_exercises`, `workout_session_sets`, and `workout_session_cardio_entries`: scope all CRUD to the owning user via the `workoutSession.user_id = X-Hasura-User-Id` filter (transitively through relationships). This means the FK chain `entry → workout_session_exercise → workout_session → user` is the security boundary — there's no separate `user_id` column on the children.
+`workout_session_exercises`, `workout_session_strength_sets`, and `workout_session_cardio_entries`: scope all CRUD to the owning user via the `workoutSession.user_id = X-Hasura-User-Id` filter (transitively through relationships). This means the FK chain `entry → workout_session_exercise → workout_session → user` is the security boundary — there's no separate `user_id` column on the children.
 
 The user-role insert permission columns deliberately exclude the discriminator columns (`workout_session_exercises.kind`, `workout_session_strength_sets.parent_kind`, `workout_session_cardio_entries.parent_kind`): on session-exercises a trigger populates `kind` from the parent exercise, and on children the CHECK + DEFAULT keep `parent_kind` pinned to the right value. Clients pass `exercise_id` (and `workout_session_exercise_id` for children) and the discriminator falls out structurally.
 
