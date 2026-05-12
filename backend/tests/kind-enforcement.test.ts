@@ -376,6 +376,112 @@ describe("cardio metrics-schema validation", () => {
     expect(res.data!.insertWorkoutSessionCardioEntry.entryNumber).toBe(13);
   });
 
+  test("UPDATE of metrics to a malformed shape → schema-validation error", async () => {
+    if (!hasuraReachable) return;
+    // The validate_workout_session_cardio_entry trigger fires on BEFORE INSERT
+    // OR UPDATE OF metrics — the INSERT arm is covered above; this locks the
+    // UPDATE arm. Insert a valid entry first, then attempt to mutate `metrics`
+    // into a shape that drops the required `duration_s` field, then prove the
+    // transaction rolled back by re-reading the row.
+    const insertRes = await gql<{
+      insertWorkoutSessionCardioEntry: { id: string };
+    }>(
+      `
+      mutation GoodCardioEntry($wseId: uuid!) {
+        insertWorkoutSessionCardioEntry(object: {
+          workoutSessionExerciseId: $wseId,
+          entryNumber: 31,
+          metrics: { duration_s: 600 }
+        }) { id }
+      }
+    `,
+      { wseId: cardioWseId },
+    );
+    expect(insertRes.errors).toBeUndefined();
+    const entryId = insertRes.data!.insertWorkoutSessionCardioEntry.id;
+
+    try {
+      const update = await gql(
+        `
+        mutation BadUpdate($id: uuid!) {
+          updateWorkoutSessionCardioEntry(pk_columns: { id: $id }, _set: {
+            metrics: { distance_km: 5.0 }
+          }) { id }
+        }
+      `,
+        { id: entryId },
+      );
+      expect(update.errors).toBeDefined();
+      expect(update.errors![0].message.toLowerCase()).toContain("schema validation");
+
+      // Re-read: the original metrics survived because the tx rolled back.
+      const after = await gql<{
+        workoutSessionCardioEntry: { metrics: Record<string, unknown> } | null;
+      }>(
+        `query Verify($id: uuid!) { workoutSessionCardioEntry(id: $id) { metrics } }`,
+        { id: entryId },
+      );
+      expect(after.data!.workoutSessionCardioEntry).not.toBeNull();
+      expect(after.data!.workoutSessionCardioEntry!.metrics).toEqual({ duration_s: 600 });
+    } finally {
+      await gql(
+        `mutation Drop($id: uuid!) { deleteWorkoutSessionCardioEntry(id: $id) { id } }`,
+        { id: entryId },
+      );
+    }
+  });
+
+  test("UPDATE of metrics adding an unknown property → schema-validation error", async () => {
+    if (!hasuraReachable) return;
+    // Symmetric to the INSERT-path "unknown property" test above, on the
+    // UPDATE arm of the same trigger. additionalProperties: false in the
+    // schema is what rejects this.
+    const insertRes = await gql<{
+      insertWorkoutSessionCardioEntry: { id: string };
+    }>(
+      `
+      mutation GoodCardioEntry($wseId: uuid!) {
+        insertWorkoutSessionCardioEntry(object: {
+          workoutSessionExerciseId: $wseId,
+          entryNumber: 32,
+          metrics: { duration_s: 600 }
+        }) { id }
+      }
+    `,
+      { wseId: cardioWseId },
+    );
+    expect(insertRes.errors).toBeUndefined();
+    const entryId = insertRes.data!.insertWorkoutSessionCardioEntry.id;
+
+    try {
+      const update = await gql(
+        `
+        mutation BogusUpdate($id: uuid!) {
+          updateWorkoutSessionCardioEntry(pk_columns: { id: $id }, _set: {
+            metrics: { duration_s: 600, bogus_field: 1 }
+          }) { id }
+        }
+      `,
+        { id: entryId },
+      );
+      expect(update.errors).toBeDefined();
+      expect(update.errors![0].message.toLowerCase()).toContain("schema validation");
+
+      const after = await gql<{
+        workoutSessionCardioEntry: { metrics: Record<string, unknown> } | null;
+      }>(
+        `query Verify($id: uuid!) { workoutSessionCardioEntry(id: $id) { metrics } }`,
+        { id: entryId },
+      );
+      expect(after.data!.workoutSessionCardioEntry!.metrics).toEqual({ duration_s: 600 });
+    } finally {
+      await gql(
+        `mutation Drop($id: uuid!) { deleteWorkoutSessionCardioEntry(id: $id) { id } }`,
+        { id: entryId },
+      );
+    }
+  });
+
   test("valid strength set inserts successfully", async () => {
     if (!hasuraReachable) return;
     const res = await gql<{
@@ -655,6 +761,117 @@ describe("user-role permissions", () => {
     const code = res.errors![0].extensions?.code;
     expect(code).toBeDefined();
     expect(["permission-error", "constraint-violation"]).toContain(code as string);
+  });
+
+  test("foreign user cannot UPDATE another user's private cardio sidecar", async () => {
+    if (!hasuraReachable) return;
+    // user-role UPDATE on exercises_cardio is gated by
+    //   filter: { exercise: { user_id._eq: X-Hasura-User-Id, is_public: false } }
+    // — a forged X-Hasura-User-Id that doesn't own the row leaves Hasura with
+    // an empty filter match, so the mutation returns affected_rows=0 instead
+    // of a permission-error. Either way the row must not change.
+    const slug = `test_foreign_update_cardio_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation Make($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Foreign update cardio",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: cardio, equipment: body_only,
+           isPublic: false, userId: $userId,
+           cardio: { data: {
+             metricsSchema: {
+               type: "object", additionalProperties: false,
+               properties: { duration_s: { type: "integer", minimum: 0 } },
+               required: ["duration_s"]
+             }
+           } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const attempt = await gqlAsUser<{
+        updateExercisesCardio: { affected_rows: number };
+      }>(
+        OTHER_USER_ID,
+        `mutation ForeignUpdate($id: uuid!) {
+           updateExercisesCardio(
+             where: { exerciseId: { _eq: $id } },
+             _set: { metricsSchema: { type: "object", properties: {} } }
+           ) { affected_rows }
+         }`,
+        { id: exerciseId },
+      );
+      expect(attempt.errors).toBeUndefined();
+      expect(attempt.data!.updateExercisesCardio.affected_rows).toBe(0);
+
+      // Re-fetch as admin and confirm the schema is unchanged.
+      const after = await gql<{
+        exerciseCardio: { metricsSchema: { required?: string[] } } | null;
+      }>(
+        `query Verify($id: uuid!) { exerciseCardio(exerciseId: $id) { metricsSchema } }`,
+        { id: exerciseId },
+      );
+      expect(after.data!.exerciseCardio).not.toBeNull();
+      expect(after.data!.exerciseCardio!.metricsSchema.required).toEqual(["duration_s"]);
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
+  });
+
+  test("foreign user cannot UPDATE another user's private strength sidecar", async () => {
+    if (!hasuraReachable) return;
+    // Same shape as the cardio case above, against exercises_strength.
+    const slug = `test_foreign_update_strength_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation Make($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Foreign update strength",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: strength, equipment: body_only,
+           isPublic: false, userId: $userId,
+           strength: { data: { doubleWeight: false } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const attempt = await gqlAsUser<{
+        updateExercisesStrength: { affected_rows: number };
+      }>(
+        OTHER_USER_ID,
+        `mutation ForeignUpdate($id: uuid!) {
+           updateExercisesStrength(
+             where: { exerciseId: { _eq: $id } },
+             _set: { doubleWeight: true }
+           ) { affected_rows }
+         }`,
+        { id: exerciseId },
+      );
+      expect(attempt.errors).toBeUndefined();
+      expect(attempt.data!.updateExercisesStrength.affected_rows).toBe(0);
+
+      const after = await gql<{
+        exerciseStrength: { doubleWeight: boolean } | null;
+      }>(
+        `query Verify($id: uuid!) { exerciseStrength(exerciseId: $id) { doubleWeight } }`,
+        { id: exerciseId },
+      );
+      expect(after.data!.exerciseStrength).not.toBeNull();
+      expect(after.data!.exerciseStrength!.doubleWeight).toBe(false);
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
   });
 });
 
@@ -1553,6 +1770,119 @@ describe("workout deletion detaches sessions (not cascade)", () => {
       // Cleanup: delete the now-ad-hoc session so we don't leak rows.
       await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
         id: sessionId,
+      });
+    }
+  });
+});
+
+// User-role permissions on workout_sessions inserts.
+//
+// Migration 1790000430000 made workout_sessions.workout_id nullable, and
+// public_workout_sessions.yaml extends the user-role insert check to allow
+// `workout_id IS NULL` (ad-hoc sessions) in addition to "workout is owned-or-
+// public." The fixture beforeAll above creates the shared test session as
+// *admin*, so the user-role branch of the permission has no coverage by
+// default. These tests pin the new permission shape end-to-end: ad-hoc
+// inserts succeed, cross-user private workouts are rejected, public workouts
+// owned by another user are accepted.
+describe("user-role workout_sessions insert (ad-hoc + cross-user)", () => {
+  test("user can insert an ad-hoc session with workoutId NULL", async () => {
+    if (!hasuraReachable) return;
+    const res = await gqlAsUser<{
+      insertWorkoutSession: { id: string; workoutId: string | null };
+    }>(
+      TEST_USER_ID,
+      `mutation AdHoc { insertWorkoutSession(object: {}) { id workoutId } }`,
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data!.insertWorkoutSession.workoutId).toBeNull();
+    // Cleanup admin-side to stay independent of user-role delete permissions.
+    await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+      id: res.data!.insertWorkoutSession.id,
+    });
+  });
+
+  test("user cannot insert a session pointing at another user's private workout", async () => {
+    if (!hasuraReachable) return;
+    // Admin-create a private workout owned by TEST_USER_ID. The
+    // _or branch (workout_id is null) is false because workoutId is set;
+    // the workout branch's nested check rejects because the foreign user
+    // doesn't own the workout and it's not public.
+    const setup = await gql<{ insertWorkout: { id: string } }>(
+      `mutation MakePrivate($userId: uuid!, $name: String!) {
+         insertWorkout(object: { name: $name, isPublic: false, userId: $userId }) { id }
+       }`,
+      { userId: TEST_USER_ID, name: `Foreign private ${Date.now()}` },
+    );
+    expect(setup.errors).toBeUndefined();
+    const workoutId = setup.data!.insertWorkout.id;
+
+    try {
+      const res = await gqlAsUser(
+        OTHER_USER_ID,
+        `mutation ForeignInsert($workoutId: uuid!) {
+           insertWorkoutSession(object: { workoutId: $workoutId }) { id }
+         }`,
+        { workoutId },
+      );
+      expect(res.errors).toBeDefined();
+      // Hasura maps row-level insert check violations to either
+      // `permission-error` (when the pre-insert check rejects) or
+      // `constraint-violation` (when the rewritten CHECK fires post-insert).
+      // Both are correct "user is blocked" outcomes — same pattern as the
+      // public-catalog sidecar test above.
+      const code = res.errors![0].extensions?.code;
+      expect(["permission-error", "constraint-violation"]).toContain(code as string);
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: workoutId,
+      });
+    }
+  });
+
+  test("user can insert a session pointing at a public catalog workout", async () => {
+    if (!hasuraReachable) return;
+    // Validates the second arm of the workout sub-filter (`is_public: true`).
+    // The workouts_visibility_check CHECK constraint requires public workouts
+    // to have user_id IS NULL — public workouts are catalog rows, not owned
+    // by any user — so the fixture creates one with userId omitted.
+    const setup = await gql<{ insertWorkout: { id: string } }>(
+      `mutation MakePublic($name: String!) {
+         insertWorkout(object: { name: $name, isPublic: true }) { id }
+       }`,
+      { name: `Public catalog ${Date.now()}` },
+    );
+    expect(setup.errors).toBeUndefined();
+    const workoutId = setup.data!.insertWorkout.id;
+
+    try {
+      // We use TEST_USER_ID (a real auth.users row) rather than OTHER_USER_ID
+      // here because OTHER_USER_ID is a forged UUID that doesn't exist in
+      // auth.users, and workout_sessions.user_id has a FK to auth.users. The
+      // public-workout permission branch we want to validate is independent
+      // of *which* user is acting — what matters is that the workout has
+      // is_public=true. (TEST_USER_ID also doesn't own the workout — by the
+      // workouts_visibility_check CHECK, public workouts have user_id=NULL,
+      // so "not the owner" is automatic.)
+      const res = await gqlAsUser<{
+        insertWorkoutSession: { id: string; workoutId: string | null };
+      }>(
+        TEST_USER_ID,
+        `mutation PublicInsert($workoutId: uuid!) {
+           insertWorkoutSession(object: { workoutId: $workoutId }) { id workoutId }
+         }`,
+        { workoutId },
+      );
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.insertWorkoutSession.workoutId).toBe(workoutId);
+      // Cleanup the session admin-side. The workout itself is dropped in
+      // finally below.
+      await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+        id: res.data!.insertWorkoutSession.id,
+      });
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: workoutId,
       });
     }
   });
