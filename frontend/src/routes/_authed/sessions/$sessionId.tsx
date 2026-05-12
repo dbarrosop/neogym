@@ -280,15 +280,17 @@ function SessionDetailRoute() {
 
   const totals = useMemo(() => {
     if (!session) {
-      return { sets: 0, reps: 0, volume: 0 };
+      return { sets: 0, reps: 0, volume: 0, hasStrength: false };
     }
     let sets = 0;
     let reps = 0;
     let volume = 0;
+    let hasStrength = false;
     for (const e of session.workoutSessionExercises) {
       if (e.exercise.kind === "cardio") {
         continue;
       }
+      hasStrength = true;
       const m = e.exercise.strength?.doubleWeight ? 2 : 1;
       for (const s of e.workoutSessionStrengthSets) {
         sets += 1;
@@ -296,7 +298,7 @@ function SessionDetailRoute() {
         volume += s.reps * Number(s.weight) * m;
       }
     }
-    return { sets, reps, volume };
+    return { sets, reps, volume, hasStrength };
   }, [session]);
 
   const [editingDate, setEditingDate] = useState(false);
@@ -352,15 +354,17 @@ function SessionDetailRoute() {
           </button>
         </header>
 
-        <div className="grid grid-cols-3 gap-3">
-          <Stat icon={<Hash className="h-4 w-4" />} label="Sets" value={totals.sets} />
-          <Stat icon={<Repeat2 className="h-4 w-4" />} label="Reps" value={totals.reps} />
-          <Stat
-            icon={<Flame className="h-4 w-4" />}
-            label="Volume"
-            value={`${formatVolume(totals.volume)} kg`}
-          />
-        </div>
+        {totals.hasStrength ? (
+          <div className="grid grid-cols-3 gap-3">
+            <Stat icon={<Hash className="h-4 w-4" />} label="Sets" value={totals.sets} />
+            <Stat icon={<Repeat2 className="h-4 w-4" />} label="Reps" value={totals.reps} />
+            <Stat
+              icon={<Flame className="h-4 w-4" />}
+              label="Volume"
+              value={`${formatVolume(totals.volume)} kg`}
+            />
+          </div>
+        ) : null}
 
         <div className="space-y-3">
           {session.workoutSessionExercises.map((we) => (

@@ -55,7 +55,10 @@ export function useStartSession() {
         navigate({ to: "/sessions/$sessionId", params: { sessionId: id } });
       } else {
         toast.error("Session created but the server didn't return an id");
-        navigate({ to: "/sessions", replace: true });
+        // Originating page (/workouts/$workoutId, /exercises/$exerciseId) is a
+        // durable detail page — keep it on the Back stack per CLAUDE.md's
+        // navigation convention. No `replace` here.
+        navigate({ to: "/sessions" });
       }
     },
     onError: (e) => {
