@@ -17,6 +17,10 @@ ALTER TABLE public.workout_exercises
     ON UPDATE CASCADE ON DELETE RESTRICT,
   DROP COLUMN IF EXISTS kind;
 
+-- Note: previously-NULL category values were backfilled to 'strength' in the
+--       up migration and cannot be restored. This down only drops the NOT NULL
+--       constraint and the generated kind column / its uniqueness; the data
+--       shift is forward-only.
 ALTER TABLE public.exercises
   DROP CONSTRAINT IF EXISTS exercises_id_kind_uq,
   DROP COLUMN IF EXISTS kind,

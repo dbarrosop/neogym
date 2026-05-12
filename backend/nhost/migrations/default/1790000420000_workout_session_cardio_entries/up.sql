@@ -43,6 +43,21 @@ DECLARE
   v_schema jsonb;
   v_errors text[];
 BEGIN
+  -- LEFT JOIN + v_schema-is-NULL branch is intentional defense-in-depth, not
+  -- dead code. The deferred no-orphan triggers in migration 1790000440000
+  -- guarantee that under normal operation every cardio exercise has its
+  -- exercises_cardio sidecar at commit time, so an INNER JOIN would behave
+  -- the same in practice. But that guarantee can be bypassed in two ways:
+  --   1. SET session_replication_role = replica disables constraint triggers
+  --      for the session (used by some restore/import tooling).
+  --   2. A future migration that drops/recreates the no-orphan triggers in a
+  --      window where data exists.
+  -- In either case, an orphan cardio exercise (no sidecar) reaching this
+  -- trigger should fail loudly with 22023, not silently insert an unvalidated
+  -- entry. Do NOT "simplify" this to INNER JOIN — it removes the only guard
+  -- on that path. This path has no automated test (the test infra can't run
+  -- raw SQL: the Hasura sql/query API is disabled in nhost.toml), so the
+  -- guarantee lives in this comment plus the explicit ERRCODE + HINT below.
   SELECT wse.kind, ec.metrics_schema INTO v_kind, v_schema
   FROM public.workout_session_exercises wse
   LEFT JOIN public.exercises_cardio ec ON ec.exercise_id = wse.exercise_id
