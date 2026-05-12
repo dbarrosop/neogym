@@ -562,6 +562,21 @@ function ExerciseRow({
   const onRequestRemove = () =>
     onConfirmRemove({ id: we.id, name: we.exercise.name, setCount: entryCount });
 
+  // Memoize on the raw query slice so the reference stays stable when
+  // react-query's structural sharing returns the same data — without this,
+  // every parent rerender (window-focus refetch on PWA resume, mutation
+  // invalidation) produces a fresh array, which propagates into
+  // CardioMetricsForm's seeding effect and wipes in-flight input.
+  const cardioEntries = useMemo<CardioEntryRow[]>(
+    () =>
+      we.workoutSessionCardioEntries.map((e) => ({
+        id: e.id,
+        entryNumber: e.entryNumber,
+        metrics: (e.metrics ?? {}) as CardioMetrics,
+      })),
+    [we.workoutSessionCardioEntries],
+  );
+
   if (isCardio && cardioSchema) {
     return (
       <CardioExerciseLog
@@ -573,11 +588,7 @@ function ExerciseRow({
         image1FileId={we.exercise.image1FileId}
         image2FileId={we.exercise.image2FileId}
         schema={cardioSchema}
-        entries={we.workoutSessionCardioEntries.map((e) => ({
-          id: e.id,
-          entryNumber: e.entryNumber,
-          metrics: (e.metrics ?? {}) as CardioMetrics,
-        }))}
+        entries={cardioEntries}
         priorEntries={priorCardioByExercise.get(we.exercise.id) ?? []}
         onMutated={onMutated}
         onRequestRemove={onRequestRemove}

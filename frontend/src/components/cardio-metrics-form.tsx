@@ -56,14 +56,19 @@ export function CardioMetricsForm({
   const specs = useMemo(() => iterateMetrics(schema), [schema]);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
   const [values, setValues] = useState<Record<string, CardioFieldState>>({});
+  const wasOpenRef = useRef(false);
   const submitLabel = mode === "edit" ? "Save" : "Log entry";
 
+  // Seed only on the false→true edge of `open`. A reference change in
+  // initialMetrics/previousMetrics while the dialog is open (e.g., react-query
+  // refetch on PWA resume) must not reseed — that would wipe whatever the user
+  // is typing.
   useEffect(() => {
-    if (!open) {
-      return;
+    if (open && !wasOpenRef.current) {
+      setValues(seedFieldStates(specs, initialMetrics ?? previousMetrics ?? null));
+      requestAnimationFrame(() => firstInputRef.current?.select());
     }
-    setValues(seedFieldStates(specs, initialMetrics ?? previousMetrics ?? null));
-    requestAnimationFrame(() => firstInputRef.current?.select());
+    wasOpenRef.current = open;
   }, [open, initialMetrics, previousMetrics, specs]);
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
