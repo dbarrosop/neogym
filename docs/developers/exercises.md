@@ -152,6 +152,19 @@ The `exercises_cardio_schema_valid` CHECK keeps inserts honest: any insert witho
 
 Public/built-in cardio exercises are admin-managed via SQL migration + seed.
 
+### Schema evolution is forward-only
+
+When the owner of a private cardio exercise (or an admin, for built-in exercises) edits `exercises_cardio.metrics_schema` after entries have already been logged against it, **existing entries are not re-validated.** The shape-validation trigger on `workout_session_cardio_entries` runs only at write time on that table and reads `metrics_schema` fresh from the parent on every entry write — so subsequent entries follow the new shape, but rows already in the table stay as-is.
+
+This is a deliberate product decision, not an accident of how the trigger is wired:
+
+- A user tweaking their own custom cardio exercise — adding a `cadence` field, raising the minimum on `duration_s`, dropping a property they no longer track — should be able to evolve the shape going forward without their history being retroactively rejected or silently mutated. Block-on-update would force them to delete their history before editing the schema; coerce-on-update would quietly corrupt the historical record.
+- The frontend already has to be tolerant of an old entry's metrics not matching the current schema, because reads and catalog edits aren't coupled. `cardio-schema.ts` falls back to the property key as label and decimal format for unrecognized properties, and `formatMetricValue()` skips properties absent from the entry — so a renamed/removed field degrades gracefully instead of crashing.
+
+The corollary for **insert/update permissions**: the Hasura user-role update permission on `exercises_cardio.metrics_schema` intentionally has no shape constraint beyond the `jsonschema_is_valid` CHECK. There is no "your old entries must still validate" gate, because that gate is the destructive UX above. Owners of private cardio exercises can change their schema freely; cleaning up old-shape entries afterwards is a manual delete in the UI.
+
+Strength has no analogue: `workout_session_strength_sets` is `(reps, weight)` for every exercise, so there's nothing per-exercise to evolve.
+
 ## How the strength/cardio split is enforced structurally
 
 There is **no runtime guard** for "is this exercise cardio?" at the entry-write level — it's a foreign-key violation, not a trigger raise. The pattern is the textbook discriminated-FK approach to exclusive subtypes:
@@ -199,7 +212,7 @@ WHERE wse.id = NEW.workout_session_exercise_id;
 
 If `exercises_cardio.metrics_schema` is missing → `22023` (cardio exercise has no schema configured). If `jsonb_matches_schema` rejects the metrics → `23514` with the list of validation errors from `jsonschema_validation_errors`.
 
-The trigger fires only when `metrics` or `workout_session_exercise_id` is touched. Updating only `entry_number` skips validation, which is correct (the payload and its parent schema didn't change). The trigger lookup uses the **current** schema; existing rows aren't re-validated when an admin edits `exercises_cardio.metrics_schema` — that's standard trigger semantics, schema changes are forward-only for stored entries.
+The trigger fires only when `metrics` or `workout_session_exercise_id` is touched. Updating only `entry_number` skips validation, which is correct (the payload and its parent schema didn't change). The trigger lookup uses the **current** schema; existing rows aren't re-validated when `exercises_cardio.metrics_schema` is edited — that's the deliberate forward-only semantics covered under "[Schema evolution is forward-only](#schema-evolution-is-forward-only)" above, not just an artifact of trigger timing.
 
 There is **no symmetric trigger on `workout_session_strength_sets`** because strength sets have a fixed columnar shape (reps, weight) — there's nothing per-exercise to validate. The strength side gets its kind enforcement from the composite FK alone.
 
