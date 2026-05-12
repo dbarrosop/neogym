@@ -143,6 +143,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- AFTER INSERT only is deliberate. Post-insert protection against a wrong-
+-- kind or missing sidecar is covered by two other invariants:
+--   1. `exercises.kind` is GENERATED STORED from category (migration
+--      1790000415000) — clients can't set or update `kind` directly.
+--   2. Each sidecar pins `kind` via DEFAULT + CHECK and composite-FKs to
+--      exercises(id, kind) with ON UPDATE CASCADE. A category flip
+--      recomputes kind; the cascade hits the pinned CHECK and rolls back.
+-- A future migration that removes (1) or weakens (2) must revisit this
+-- trigger and widen it to AFTER INSERT OR UPDATE OF category, kind.
 CREATE CONSTRAINT TRIGGER exercise_must_have_sidecar
 AFTER INSERT ON public.exercises
 DEFERRABLE INITIALLY DEFERRED
