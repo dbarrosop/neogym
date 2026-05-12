@@ -97,6 +97,14 @@ export function CardioMetricsForm({
       toast.error(first ? `${first.path.join(".")}: ${first.message}` : "Validation failed");
       return;
     }
+    // Block the all-empty submission when the schema has fields but none are
+    // required — zod and pg_jsonschema both accept `{}` in that case, which
+    // would silently insert a blank entry and render an empty pill. Skip the
+    // guard for a degenerate schema (specs.length === 0).
+    if (specs.length > 0 && Object.keys(out).length === 0) {
+      toast.error("Enter at least one value");
+      return;
+    }
     onSubmit(out);
   }
 
