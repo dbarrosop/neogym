@@ -1,4 +1,13 @@
--- Revert the exercises_cardio retrofit first, restoring the single-column FK
+-- Drop the deferred constraint triggers first so the rest of the down
+-- migration can delete and reshape sidecars without tripping the no-orphan
+-- checks at commit time.
+DROP TRIGGER IF EXISTS exercises_cardio_no_orphan_parent ON public.exercises_cardio;
+DROP TRIGGER IF EXISTS exercises_strength_no_orphan_parent ON public.exercises_strength;
+DROP TRIGGER IF EXISTS exercise_must_have_sidecar ON public.exercises;
+DROP FUNCTION IF EXISTS public.sidecar_delete_requires_parent_delete();
+DROP FUNCTION IF EXISTS public.exercise_must_have_sidecar();
+
+-- Revert the exercises_cardio retrofit, restoring the single-column FK
 -- that the table was originally created with in migration 1790000410000.
 ALTER TABLE public.exercises_cardio
   DROP CONSTRAINT IF EXISTS exercises_cardio_exercise_id_kind_fk,

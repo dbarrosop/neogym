@@ -2642,7 +2642,11 @@ INSERT INTO public.exercises (id, slug, name, primary_muscle_group, instructions
 
 -- Strength sidecar rows: one per non-cardio exercise. The base `exercises`
 -- INSERT above carries only shared columns; double_weight/force/mechanic
--- live here instead.
+-- live here instead. Plain INSERTs work because the no-orphan check is a
+-- DEFERRABLE INITIALLY DEFERRED constraint trigger (migration 1790000440000)
+-- that fires at commit; within this seed transaction the exercises rows
+-- inserted above and their matching sidecar rows below are all visible by
+-- the time the check runs.
 INSERT INTO public.exercises_strength (exercise_id, double_weight, force, mechanic) VALUES
   ('019e0675-a19e-7658-aa38-c2389add6849', false, 'pull', 'compound'),
   ('019e0675-a1ad-7f42-ae2e-120e147ce2dc', false, 'push', 'isolation'),

@@ -74,7 +74,44 @@ PK = `exercise_id`, 1:1 with `exercises`. A row in `exercises_cardio` is what ma
 
 `exercises_strength` mirrors this exactly: `kind` pinned to `'strength'` via `DEFAULT + CHECK`, composite-FK to `exercises(id, kind)` `ON UPDATE CASCADE ON DELETE CASCADE`. So the same pinned-kind trick that protects the WSE entry tables (see "How the strength/cardio split is enforced structurally" below) also protects the sidecars: if anyone flips `exercises.category` on an exercise that already has a sidecar, the cascade recomputes `exercises.kind`, propagates to the sidecar's `kind`, and the CHECK rejects — rolling back the whole transaction rather than leaving a wrong-kind sidecar attached.
 
-Hasura exposes this as an `object_relationship` on `exercises` named `cardio`, so the frontend reads the schema as `exercise.cardio?.metricsSchema`. For a strength exercise the relationship resolves to `null`.
+### Sidecar lifecycle is atomic with the parent
+
+Adding an exercise and its sidecar must happen together, and removing them must happen together — neither half can occur on its own, for admins or users alike. The invariant is enforced by **`DEFERRABLE INITIALLY DEFERRED` constraint triggers** that fire at transaction commit:
+
+- **`AFTER INSERT` on `exercises` → `exercise_must_have_sidecar`** checks that a matching sidecar row exists for this exercise's kind. Fires at commit.
+- **`AFTER DELETE` on each sidecar → `sidecar_delete_requires_parent_delete`** checks that the parent exercise no longer exists (because it was also deleted in this transaction, via CASCADE). Fires at commit.
+
+"Deferred" matters: the check fires at commit, so clients can INSERT the exercise and the matching sidecar **in either order within the same transaction**. The natural shapes are:
+
+- **Hasura nested mutation** — Hasura inserts the parent first, then the nested child, both within one transaction:
+
+  ```graphql
+  mutation {
+    insertExercise(object: {
+      slug: "...", name: "...", category: strength, ...,
+      strength: { data: { doubleWeight: true, force: pull } }
+    }) { id }
+  }
+  ```
+
+  For cardio, the nested `data` always carries an explicit `metricsSchema` (the cardio sidecar has `NOT NULL metrics_schema` with no default — there's no useful generic default, so callers always provide a real schema).
+
+- **SQL CTE** — admins and migrations that need to do this in raw SQL:
+
+  ```sql
+  WITH e AS (
+    INSERT INTO public.exercises (slug, name, category, ...) VALUES (...)
+    RETURNING id
+  )
+  INSERT INTO public.exercises_strength (exercise_id, double_weight, force)
+  SELECT id, true, 'pull' FROM e;
+  ```
+
+Net effect: "every exercise has exactly one matching sidecar" goes from "the seed promises so" to "the database enforces so". An admin running `INSERT INTO exercises` alone gets a `constraint-violation` at commit ("exercise &lt;id&gt; (kind=&lt;k&gt;) is missing its matching sidecar at commit time"); an admin `DELETE FROM exercises_strength` standalone gets "deleting exercises_strength standalone would orphan exercise &lt;id&gt;". The only escape is the deliberate `SET session_replication_role = replica` (disables all user triggers — the well-known PG "I know what I'm doing" footgun-on-purpose).
+
+We deliberately don't auto-create the sidecar with defaults. For cardio the `metrics_schema` is genuinely per-exercise — there's no useful generic default, and silently inserting an empty schema would just shift the failure mode from "tx aborts at commit" to "every logged entry fails validation against an empty schema". An explicit "you forgot the sidecar" at commit time is the clearer failure.
+
+Hasura exposes the cardio sidecar as an `object_relationship` on `exercises` named `cardio`, so the frontend reads the schema as `exercise.cardio?.metricsSchema`. For a strength exercise the relationship resolves to `null`.
 
 ### The metrics JSON Schema
 

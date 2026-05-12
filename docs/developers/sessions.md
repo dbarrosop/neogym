@@ -58,7 +58,7 @@ startSession.mutate({ exerciseId: exercise.id });
 
 This produces a session with `workout_id = NULL` and a single `workout_session_exercise` at `position: 0` for that exercise. The user can then add more exercises from the session detail page.
 
-In both cases, `useStartSession` navigates to `/sessions/$sessionId` with `replace: true` so back-navigation lands on the originating workout/exercise page, not on a now-spent intermediate state.
+In both cases, `useStartSession` navigates to `/sessions/$sessionId` without `replace`, so back-navigation lands on the originating workout/exercise detail page. The originating page is a legit destination, not a "spent" form/picker, so the CLAUDE.md `replace: true` rule does not apply here.
 
 ## The workout link is a template, not a contract
 

@@ -41,8 +41,24 @@ interface GraphQLResponse<T> {
   data: T | null;
   errors?: Array<{
     message: string;
-    extensions?: { code?: string };
+    extensions?: {
+      code?: string;
+      // Set by Hasura when a DEFERRED constraint trigger raises at COMMIT —
+      // the top-level `message` reads "postgres tx error" in that case, but
+      // the trigger's RAISE text and SQLSTATE live here.
+      internal?: { error?: { message?: string; status_code?: string; hint?: string } };
+    };
   }>;
+}
+
+// Pull the most-specific error message out of a Hasura GraphQL response:
+// for deferred constraint-trigger failures the top-level `message` is the
+// generic "postgres tx error" wrapper, and the trigger's RAISE EXCEPTION
+// text lives in `extensions.internal.error.message`. Prefer the inner one
+// when present so message-based assertions stay readable.
+function errorText(err: GraphQLResponse<unknown>["errors"] extends infer E ? E : never): string {
+  const e = (err as NonNullable<GraphQLResponse<unknown>["errors"]>)[0];
+  return e.extensions?.internal?.error?.message ?? e.message;
 }
 
 async function gql<T>(
@@ -636,6 +652,8 @@ describe("category-flip cascade integrity (sidecars)", () => {
     if (!hasuraReachable) return;
 
     const slug = `test_sidecar_strength_flip_${Date.now()}`;
+    // Nested insert: exercise + matching sidecar in a single tx so the
+    // deferred no-orphan trigger (migration 1790000440000) passes at commit.
     const created = await gql<{ insertExercise: { id: string } }>(
       `
       mutation MakeExercise($slug: String!, $userId: uuid!) {
@@ -647,7 +665,8 @@ describe("category-flip cascade integrity (sidecars)", () => {
           category: strength,
           equipment: body_only,
           isPublic: false,
-          userId: $userId
+          userId: $userId,
+          strength: { data: {} }
         }) { id }
       }
     `,
@@ -657,18 +676,13 @@ describe("category-flip cascade integrity (sidecars)", () => {
     const exerciseId = created.data!.insertExercise.id;
 
     try {
-      // The 1790000440000 backfill only runs at migration time; a fresh
-      // exercise doesn't get a sidecar automatically, so insert it manually.
-      const sidecar = await gql<{ insertExerciseStrength: { exerciseId: string; kind: string } }>(
-        `
-        mutation MakeSidecar($id: uuid!) {
-          insertExerciseStrength(object: { exerciseId: $id }) { exerciseId kind }
-        }
-      `,
+      // Confirm the sidecar landed via the nested insert above.
+      const sidecar = await gql<{ exerciseStrength: { kind: string } | null }>(
+        `query Check($id: uuid!) { exerciseStrength(exerciseId: $id) { kind } }`,
         { id: exerciseId },
       );
       expect(sidecar.errors).toBeUndefined();
-      expect(sidecar.data!.insertExerciseStrength.kind).toBe("strength");
+      expect(sidecar.data!.exerciseStrength?.kind).toBe("strength");
 
       // Flip category. exercises.kind recomputes to 'cardio', CASCADE updates
       // exercises_strength.kind, the pinned CHECK (kind = 'strength') rejects.
@@ -704,6 +718,8 @@ describe("category-flip cascade integrity (sidecars)", () => {
     if (!hasuraReachable) return;
 
     const slug = `test_sidecar_cardio_flip_${Date.now()}`;
+    // Nested insert with an explicit metrics_schema (the cardio sidecar
+    // requires it — there's no default, by design).
     const created = await gql<{ insertExercise: { id: string } }>(
       `
       mutation MakeExercise($slug: String!, $userId: uuid!) {
@@ -715,7 +731,15 @@ describe("category-flip cascade integrity (sidecars)", () => {
           category: cardio,
           equipment: body_only,
           isPublic: false,
-          userId: $userId
+          userId: $userId,
+          cardio: { data: {
+            metricsSchema: {
+              type: "object",
+              additionalProperties: false,
+              properties: { duration_s: { type: "integer", minimum: 0 } },
+              required: ["duration_s"]
+            }
+          } }
         }) { id }
       }
     `,
@@ -725,24 +749,12 @@ describe("category-flip cascade integrity (sidecars)", () => {
     const exerciseId = created.data!.insertExercise.id;
 
     try {
-      const sidecar = await gql<{ insertExerciseCardio: { exerciseId: string; kind: string } }>(
-        `
-        mutation MakeSidecar($id: uuid!) {
-          insertExerciseCardio(object: {
-            exerciseId: $id,
-            metricsSchema: {
-              type: "object",
-              additionalProperties: false,
-              properties: { duration_s: { type: "integer", minimum: 0 } },
-              required: ["duration_s"]
-            }
-          }) { exerciseId kind }
-        }
-      `,
+      const sidecar = await gql<{ exerciseCardio: { kind: string } | null }>(
+        `query Check($id: uuid!) { exerciseCardio(exerciseId: $id) { kind } }`,
         { id: exerciseId },
       );
       expect(sidecar.errors).toBeUndefined();
-      expect(sidecar.data!.insertExerciseCardio.kind).toBe("cardio");
+      expect(sidecar.data!.exerciseCardio?.kind).toBe("cardio");
 
       // Mirror direction: cardio → strength. Same cascade into
       // exercises_cardio.kind, same CHECK pinned to 'cardio'.
@@ -770,5 +782,395 @@ describe("category-flip cascade integrity (sidecars)", () => {
         id: exerciseId,
       });
     }
+  });
+});
+
+// Sidecar lifecycle atomicity.
+//
+// The composite-FK + pinned-kind plumbing prevents an exercise from carrying
+// the wrong-kind sidecar, but on its own it doesn't stop two leaky states an
+// admin (or a careless seed) could reach by accident:
+//
+//   1. Exercise inserted without a sidecar. For cardio this immediately
+//      breaks logging (22023); for strength it silently elides catalog
+//      metadata.
+//   2. Sidecar deleted standalone, leaving the parent in state (1).
+//
+// Migration 1790000440000 closes both with DEFERRABLE INITIALLY DEFERRED
+// CONSTRAINT TRIGGERs that fire at transaction commit:
+//   - AFTER INSERT on exercises → exercise_must_have_sidecar checks the
+//     matching sidecar exists for this exercise's kind.
+//   - AFTER DELETE on each sidecar → sidecar_delete_requires_parent_delete
+//     checks the parent exercise was also removed in this tx (via CASCADE).
+//
+// "Deferred" matters: the check fires at commit, so clients can INSERT the
+// exercise and the matching sidecar in either order within one transaction
+// (Hasura nested mutation, SQL CTE). Mid-transaction states are allowed; we
+// only block bad states that would *persist*.
+//
+// These tests run as admin (via `gql`) because admin is the only role that
+// *could* reach the bad states in principle — user-role Hasura permissions
+// also block the delete path independently (delete_permissions absent on
+// sidecars). The user-role tests in the next describe block prove that
+// boundary too.
+describe("sidecar lifecycle is atomic", () => {
+  test("inserting a strength exercise without a sidecar fails at commit", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_no_orphan_strength_${Date.now()}`;
+    const res = await gql(
+      `
+      mutation MakeWithoutSidecar($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Strength without sidecar",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner,
+          category: strength,
+          equipment: body_only,
+          isPublic: false,
+          userId: $userId
+        }) { id }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(res.errors).toBeDefined();
+    // Hasura wraps deferred-trigger EXCEPTIONs raised at COMMIT under a
+    // generic top-level `message: "postgres tx error"` with `code:
+    // "postgres-error"`; the trigger's RAISE text and SQLSTATE land in
+    // `extensions.internal.error.{message,status_code}`. `errorText()` reads
+    // the inner one so the assertion proves the right invariant fired.
+    expect(["constraint-violation", "postgres-error"]).toContain(
+      res.errors![0].extensions?.code as string,
+    );
+    expect(errorText(res.errors).toLowerCase()).toContain("missing its matching sidecar");
+    // Transaction rolled back: no exercise persisted either.
+    const after = await gql<{ exercises: Array<{ id: string }> }>(
+      `query Check($slug: String!) { exercises(where: { slug: { _eq: $slug } }) { id } }`,
+      { slug },
+    );
+    expect(after.data!.exercises).toEqual([]);
+  });
+
+  test("inserting a cardio exercise without a sidecar fails at commit", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_no_orphan_cardio_${Date.now()}`;
+    const res = await gql(
+      `
+      mutation MakeWithoutSidecar($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Cardio without sidecar",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner,
+          category: cardio,
+          equipment: body_only,
+          isPublic: false,
+          userId: $userId
+        }) { id }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(res.errors).toBeDefined();
+    expect(["constraint-violation", "postgres-error"]).toContain(
+      res.errors![0].extensions?.code as string,
+    );
+    expect(errorText(res.errors).toLowerCase()).toContain("missing its matching sidecar");
+    const after = await gql<{ exercises: Array<{ id: string }> }>(
+      `query Check($slug: String!) { exercises(where: { slug: { _eq: $slug } }) { id } }`,
+      { slug },
+    );
+    expect(after.data!.exercises).toEqual([]);
+  });
+
+  test("nested insert of exercise + strength sidecar in one mutation succeeds", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_nested_strength_${Date.now()}`;
+    const created = await gql<{
+      insertExercise: {
+        id: string;
+        strength: { kind: string; doubleWeight: boolean } | null;
+      };
+    }>(
+      `
+      mutation MakeNested($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Nested strength",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner, category: strength, equipment: body_only,
+          isPublic: false, userId: $userId,
+          strength: { data: { doubleWeight: true } }
+        }) {
+          id
+          strength { kind doubleWeight }
+        }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    expect(created.data!.insertExercise.strength).not.toBeNull();
+    expect(created.data!.insertExercise.strength!.kind).toBe("strength");
+    expect(created.data!.insertExercise.strength!.doubleWeight).toBe(true);
+
+    // Cleanup via parent — CASCADE removes the sidecar, deferred trigger sees
+    // both gone at commit and passes.
+    await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+      id: created.data!.insertExercise.id,
+    });
+  });
+
+  test("nested insert of exercise + cardio sidecar in one mutation succeeds", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_nested_cardio_${Date.now()}`;
+    const created = await gql<{
+      insertExercise: {
+        id: string;
+        cardio: { kind: string; metricsSchema: Record<string, unknown> } | null;
+      };
+    }>(
+      `
+      mutation MakeNested($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Nested cardio",
+          primaryMuscleGroup: abdominals,
+          instructions: ["x"],
+          level: beginner, category: cardio, equipment: body_only,
+          isPublic: false, userId: $userId,
+          cardio: { data: {
+            metricsSchema: {
+              type: "object", additionalProperties: false,
+              properties: { duration_s: { type: "integer", minimum: 0 } },
+              required: ["duration_s"]
+            }
+          } }
+        }) {
+          id
+          cardio { kind metricsSchema }
+        }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    expect(created.data!.insertExercise.cardio).not.toBeNull();
+    expect(created.data!.insertExercise.cardio!.kind).toBe("cardio");
+
+    await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+      id: created.data!.insertExercise.id,
+    });
+  });
+
+  test("admin cannot DELETE an exercises_strength row standalone (orphans parent)", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_forbid_strength_delete_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation Make($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Forbid strength delete",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: strength, equipment: body_only,
+           isPublic: false, userId: $userId,
+           strength: { data: {} }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const res = await gql(
+        `mutation Drop($id: uuid!) {
+           deleteExerciseStrength(exerciseId: $id) { exerciseId }
+         }`,
+        { id: exerciseId },
+      );
+      expect(res.errors).toBeDefined();
+      expect(["constraint-violation", "postgres-error"]).toContain(
+        res.errors![0].extensions?.code as string,
+      );
+      expect(errorText(res.errors).toLowerCase()).toContain("orphan");
+
+      // Sidecar still present — the rejected delete rolled back at commit.
+      const sidecar = await gql<{ exerciseStrength: { exerciseId: string } | null }>(
+        `query Check($id: uuid!) { exerciseStrength(exerciseId: $id) { exerciseId } }`,
+        { id: exerciseId },
+      );
+      expect(sidecar.data!.exerciseStrength).not.toBeNull();
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
+  });
+
+  test("admin cannot DELETE an exercises_cardio row standalone (orphans parent)", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_forbid_cardio_delete_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation Make($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Forbid cardio delete",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: cardio, equipment: body_only,
+           isPublic: false, userId: $userId,
+           cardio: { data: {
+             metricsSchema: {
+               type: "object", additionalProperties: false,
+               properties: { duration_s: { type: "integer", minimum: 0 } },
+               required: ["duration_s"]
+             }
+           } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const res = await gql(
+        `mutation Drop($id: uuid!) {
+           deleteExerciseCardio(exerciseId: $id) { exerciseId }
+         }`,
+        { id: exerciseId },
+      );
+      expect(res.errors).toBeDefined();
+      expect(["constraint-violation", "postgres-error"]).toContain(
+        res.errors![0].extensions?.code as string,
+      );
+      expect(errorText(res.errors).toLowerCase()).toContain("orphan");
+
+      const sidecar = await gql<{ exerciseCardio: { exerciseId: string } | null }>(
+        `query Check($id: uuid!) { exerciseCardio(exerciseId: $id) { exerciseId } }`,
+        { id: exerciseId },
+      );
+      expect(sidecar.data!.exerciseCardio).not.toBeNull();
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
+  });
+
+  test("admin cannot nested-insert a wrong-kind sidecar (composite FK rejects)", async () => {
+    if (!hasuraReachable) return;
+    // A strength exercise with a *cardio* nested sidecar. Hasura inserts the
+    // parent first, then tries to insert exercises_cardio with the parent's
+    // (id, kind='strength') back-filled. exercises_cardio.kind has DEFAULT
+    // 'cardio' + CHECK (kind = 'cardio') — Hasura's back-filled 'strength'
+    // value either fails the CHECK directly or the composite FK to
+    // exercises(id, kind='cardio') fails. Either way → constraint-violation.
+    const slug = `test_cross_kind_nested_${Date.now()}`;
+    const res = await gql(
+      `mutation BadNested($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Cross-kind nested",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: strength, equipment: body_only,
+           isPublic: false, userId: $userId,
+           cardio: { data: {
+             metricsSchema: { type: "object", additionalProperties: true, properties: {} }
+           } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(res.errors).toBeDefined();
+    // Hasura back-fills (exercise_id, kind) on the child from the parent.
+    // With a strength parent the back-filled kind is 'strength', which
+    // exercises_cardio's CHECK (kind = 'cardio') rejects. Hasura maps that
+    // CHECK violation to `permission-error` in its error-code system
+    // (counter-intuitive but consistent — see also the category-flip tests
+    // above, which accept either code).
+    expect(["constraint-violation", "permission-error"]).toContain(
+      res.errors![0].extensions?.code as string,
+    );
+    expect(res.errors![0].message.toLowerCase()).toContain("check constraint");
+    expect(res.errors![0].message).toContain("exercises_cardio_kind_check");
+    // Confirm the tx rolled back — no exercise leaked.
+    const after = await gql<{ exercises: Array<{ id: string }> }>(
+      `query Check($slug: String!) { exercises(where: { slug: { _eq: $slug } }) { id } }`,
+      { slug },
+    );
+    expect(after.data!.exercises).toEqual([]);
+  });
+
+  test("DELETE FROM exercises CASCADEs into the sidecar atomically", async () => {
+    if (!hasuraReachable) return;
+    const slug = `test_cascade_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation Make($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Cascade test",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: strength, equipment: body_only,
+           isPublic: false, userId: $userId,
+           strength: { data: {} }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    const before = await gql<{ exerciseStrength: { exerciseId: string } | null }>(
+      `query Check($id: uuid!) { exerciseStrength(exerciseId: $id) { exerciseId } }`,
+      { id: exerciseId },
+    );
+    expect(before.data!.exerciseStrength).not.toBeNull();
+
+    const deleted = await gql(
+      `mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`,
+      { id: exerciseId },
+    );
+    expect(deleted.errors).toBeUndefined();
+
+    const after = await gql<{
+      exerciseStrength: { exerciseId: string } | null;
+      exercise: { id: string } | null;
+    }>(
+      `query Check($id: uuid!) {
+         exerciseStrength(exerciseId: $id) { exerciseId }
+         exercise(id: $id) { id }
+       }`,
+      { id: exerciseId },
+    );
+    expect(after.data!.exercise).toBeNull();
+    expect(after.data!.exerciseStrength).toBeNull();
+  });
+});
+
+// User-role permission boundary on sidecar deletes.
+//
+// `delete_permissions` for `user` was removed from public_exercises_strength
+// and public_exercises_cardio. These tests prove the path stays closed —
+// even though the DB-level forbid_standalone_sidecar_delete trigger above
+// would catch it, the Hasura layer rejects first with a `validation-failed`
+// (the deleteExerciseStrength / deleteExerciseCardio fields aren't in the
+// user-role GraphQL schema at all). If anyone re-adds delete_permissions,
+// these tests catch it before the DB trigger has to.
+describe("user-role can't reach sidecar delete mutations", () => {
+  test("user calling deleteExerciseStrength → validation-failed", async () => {
+    if (!hasuraReachable) return;
+    const res = await gqlAsUser(
+      TEST_USER_ID,
+      `mutation { deleteExerciseStrength(exerciseId: "00000000-0000-0000-0000-000000000000") { exerciseId } }`,
+    );
+    expect(res.errors).toBeDefined();
+    expect(res.errors![0].extensions?.code).toBe("validation-failed");
+  });
+
+  test("user calling deleteExerciseCardio → validation-failed", async () => {
+    if (!hasuraReachable) return;
+    const res = await gqlAsUser(
+      TEST_USER_ID,
+      `mutation { deleteExerciseCardio(exerciseId: "00000000-0000-0000-0000-000000000000") { exerciseId } }`,
+    );
+    expect(res.errors).toBeDefined();
+    expect(res.errors![0].extensions?.code).toBe("validation-failed");
   });
 });
