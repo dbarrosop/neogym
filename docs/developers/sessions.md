@@ -67,7 +67,7 @@ In both cases, `useStartSession` navigates to `/sessions/$sessionId` without `re
 Concretely:
 
 - A session can be created from workout X, then the user can add, remove, or reorder exercises on that session without ever touching workout X.
-- A session can be created from workout X, then workout X can be edited (or deleted — cascade deletes the link, see below).
+- A session can be created from workout X, then workout X can be edited (or deleted — the session detaches to ad-hoc, see below).
 - A session's `workout_id` can be `UPDATE`d after the fact (the user role has `workout_id` in the `update_permissions.columns` list).
 - An ad-hoc session can later be assigned a `workout_id`, or a templated session can be detached by setting `workout_id = NULL` — both are permitted.
 
@@ -81,9 +81,9 @@ It is **not** used to validate the session's contents, suggest sets/reps, or con
 
 ### What happens if the workout is deleted
 
-`workout_sessions.workout_id` has `ON DELETE CASCADE` referencing `workouts.id`. The column is nullable, but the FK action is still `CASCADE`. **Deleting a workout deletes every session that was created from it.** This is a sharp edge — if the product ever needs to preserve session history across workout deletion, the FK action needs to become `ON DELETE SET NULL`, which is now viable since the column is nullable.
+`workout_sessions.workout_id` has `ON DELETE SET NULL` referencing `workouts.id` (migration `1790000460000_workout_sessions_set_null_on_workout_delete`). **Deleting a workout detaches every session that was created from it — the sessions become ad-hoc.** `sessionDisplayName()` falls back to the first exercise's name (or "Untitled session") once the workout link is gone, so the session keeps a sensible label without any frontend work.
 
-Until that changes, treat workout deletion as destructive of session history. The UI does not currently warn about this.
+This pairs with the nullable `workout_id` column (migration `1790000430000`): together they mean a session is logged history that outlives the template it was seeded from. The original init migration used `CASCADE`, which silently destroyed session history on workout deletion; that contradicted the "template, not a contract" framing above and the user-facing copy on the workout-delete confirmation dialog.
 
 ## Hasura permissions
 

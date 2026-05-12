@@ -61,7 +61,7 @@ erDiagram
 
     WORKOUT_SESSIONS {
         uuid id PK
-        uuid workout_id FK "workouts CASCADE; NULLABLE for ad-hoc"
+        uuid workout_id FK "workouts SET NULL; NULLABLE for ad-hoc"
         uuid user_id FK "auth.users CASCADE"
         timestamptz started_at
     }
@@ -101,7 +101,7 @@ erDiagram
     EXERCISES ||--o{ WORKOUT_SESSION_EXERCISES   : "composite FK (id, kind)"
 
     WORKOUTS  ||--o{ WORKOUT_EXERCISES           : "ordered list"
-    WORKOUTS  ||--o{ WORKOUT_SESSIONS            : "template link (nullable; CASCADE)"
+    WORKOUTS  ||--o{ WORKOUT_SESSIONS            : "template link (nullable; SET NULL on delete)"
 
     WORKOUT_SESSIONS          ||--o{ WORKOUT_SESSION_EXERCISES        : "ordered list"
     WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_STRENGTH_SETS    : "composite FK; parent_kind='strength'"
@@ -258,13 +258,13 @@ The Hasura `user`-role select filter is `user_id = X-Hasura-User-Id OR is_public
 
 ## Cascade behavior
 
-Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a session removes its session-exercises which remove their sets/entries. Two exceptions worth knowing:
+Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a session removes its session-exercises which remove their sets/entries. The exceptions:
 
 | FK | Action | Why |
 |---|---|---|
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
-| `workout_sessions.workout_id` → `workouts.id` | `ON DELETE CASCADE` | Deleting a workout cascades to every session created from it. The column is nullable for ad-hoc sessions, but the CASCADE wasn't changed when nullability was added — see [`sessions.md`](sessions.md) → "What happens if the workout is deleted" for the sharp edge. |
+| `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
 
 ## Triggers
 
