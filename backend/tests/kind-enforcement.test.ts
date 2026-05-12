@@ -1432,3 +1432,128 @@ describe("user-role can't reach sidecar delete mutations", () => {
     expect(res.errors![0].extensions?.code).toBe("validation-failed");
   });
 });
+
+// Workout-deletion semantics.
+//
+// `workout_sessions.workout_id` is `ON DELETE SET NULL` (migration
+// 1790000460000), not CASCADE. The original init migration used CASCADE; that
+// silently destroyed session history when a workout was deleted, contradicting
+// the "template, not a contract" framing of the workout link
+// (docs/developers/sessions.md) and the user-facing copy on the workout-delete
+// confirmation dialog. SET NULL detaches sessions to ad-hoc on workout
+// deletion, preserving their logged sets/entries.
+//
+// A future maintainer who reverts the FK action — e.g., by recreating the
+// init migration or copy-pasting the original FK definition — would silently
+// regress this. This test fails fast in that scenario.
+describe("workout deletion detaches sessions (not cascade)", () => {
+  test("deleting a workout sets its sessions' workout_id to NULL and keeps the rows", async () => {
+    if (!hasuraReachable) return;
+
+    // Create a throwaway workout + a session that references it + one strength
+    // set so we have something to prove "logged history is preserved."
+    const setup = await gql<{
+      insertWorkout: { id: string };
+    }>(
+      `
+      mutation MakeWorkout($userId: uuid!, $name: String!) {
+        insertWorkout(object: {
+          name: $name,
+          isPublic: false,
+          userId: $userId
+        }) { id }
+      }
+    `,
+      { userId: TEST_USER_ID, name: `Test workout for SET NULL ${Date.now()}` },
+    );
+    expect(setup.errors).toBeUndefined();
+    const workoutId = setup.data!.insertWorkout.id;
+
+    const sessionSetup = await gql<{
+      insertWorkoutSession: {
+        id: string;
+        workoutSessionExercises: Array<{ id: string }>;
+      };
+    }>(
+      `
+      mutation MakeSession($userId: uuid!, $workoutId: uuid!, $strengthEx: uuid!) {
+        insertWorkoutSession(object: {
+          userId: $userId,
+          workoutId: $workoutId,
+          workoutSessionExercises: { data: [{ exerciseId: $strengthEx, position: 0 }] }
+        }) {
+          id
+          workoutSessionExercises { id }
+        }
+      }
+    `,
+      { userId: TEST_USER_ID, workoutId, strengthEx: STRENGTH_EXERCISE_ID },
+    );
+    expect(sessionSetup.errors).toBeUndefined();
+    const sessionId = sessionSetup.data!.insertWorkoutSession.id;
+    const wseId = sessionSetup.data!.insertWorkoutSession.workoutSessionExercises[0].id;
+
+    const setInsert = await gql<{ insertWorkoutSessionStrengthSet: { id: string } }>(
+      `
+      mutation MakeSet($wseId: uuid!) {
+        insertWorkoutSessionStrengthSet(object: {
+          workoutSessionExerciseId: $wseId,
+          setNumber: 1, reps: 10, weight: "50.00"
+        }) { id }
+      }
+    `,
+      { wseId },
+    );
+    expect(setInsert.errors).toBeUndefined();
+    const setId = setInsert.data!.insertWorkoutSessionStrengthSet.id;
+
+    try {
+      // The act: delete the workout.
+      const del = await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: workoutId,
+      });
+      expect(del.errors).toBeUndefined();
+
+      // Session row still exists, with workout_id detached to NULL.
+      const after = await gql<{
+        workoutSession: {
+          id: string;
+          workoutId: string | null;
+          workoutSessionExercises: Array<{
+            id: string;
+            workoutSessionStrengthSets: Array<{ id: string }>;
+          }>;
+        } | null;
+      }>(
+        `query Verify($id: uuid!) {
+          workoutSession(id: $id) {
+            id
+            workoutId
+            workoutSessionExercises {
+              id
+              workoutSessionStrengthSets { id }
+            }
+          }
+        }`,
+        { id: sessionId },
+      );
+      expect(after.errors).toBeUndefined();
+      expect(after.data!.workoutSession).not.toBeNull();
+      expect(after.data!.workoutSession!.workoutId).toBeNull();
+      // The session-exercise and its strength set survived too.
+      expect(after.data!.workoutSession!.workoutSessionExercises).toHaveLength(1);
+      expect(after.data!.workoutSession!.workoutSessionExercises[0].id).toBe(wseId);
+      expect(
+        after.data!.workoutSession!.workoutSessionExercises[0].workoutSessionStrengthSets,
+      ).toHaveLength(1);
+      expect(
+        after.data!.workoutSession!.workoutSessionExercises[0].workoutSessionStrengthSets[0].id,
+      ).toBe(setId);
+    } finally {
+      // Cleanup: delete the now-ad-hoc session so we don't leak rows.
+      await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+        id: sessionId,
+      });
+    }
+  });
+});
