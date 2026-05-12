@@ -796,6 +796,104 @@ describe("category-flip cascade integrity", () => {
     );
     expect(after.data!.exercise).toEqual({ category: "cardio", kind: "cardio" });
   });
+
+  // Alternate path into the same cascade: instead of flipping the parent
+  // exercise's category, re-point a workout_session_exercise to a different-
+  // kind exercise. The sync trigger fires on UPDATE OF exercise_id, kind and
+  // overwrites WSE.kind with the new parent's kind; from there the chain is
+  // identical — ON UPDATE CASCADE on the composite FK propagates into the
+  // child's parent_kind and the pinned CHECK rejects. Without this test the
+  // category-flip block alone wouldn't prove the path via exercise_id is
+  // blocked.
+  test("re-pointing strength WSE to a cardio exercise with logged sets → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    const setRes = await gql<{ insertWorkoutSessionStrengthSet: { id: string } }>(
+      `
+      mutation AnchorStrengthSet($wseId: uuid!) {
+        insertWorkoutSessionStrengthSet(object: {
+          workoutSessionExerciseId: $wseId,
+          setNumber: 91, reps: 5, weight: "50.00"
+        }) { id }
+      }
+    `,
+      { wseId: strengthWseId },
+    );
+    expect(setRes.errors).toBeUndefined();
+
+    const res = await gql(
+      `
+      mutation RepointStrengthToCardio($id: uuid!, $cardioEx: uuid!) {
+        updateWorkoutSessionExercise(pk_columns: { id: $id }, _set: { exerciseId: $cardioEx }) {
+          id exerciseId kind
+        }
+      }
+    `,
+      { id: strengthWseId, cardioEx: CARDIO_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    const code = res.errors![0].extensions?.code;
+    expect(["constraint-violation", "permission-error"]).toContain(code as string);
+    expect(res.errors![0].message.toLowerCase()).toMatch(/parent_kind|kind/);
+    expect(res.errors![0].message).toContain("workout_session_strength_sets");
+
+    // Verify the WSE wasn't mutated — the whole tx rolled back.
+    const after = await gql<{
+      workoutSessionExercise: { exerciseId: string; kind: string };
+    }>(
+      `query Verify($id: uuid!) { workoutSessionExercise(id: $id) { exerciseId kind } }`,
+      { id: strengthWseId },
+    );
+    expect(after.data!.workoutSessionExercise).toEqual({
+      exerciseId: STRENGTH_EXERCISE_ID,
+      kind: "strength",
+    });
+  });
+
+  test("re-pointing cardio WSE to a strength exercise with logged entries → check violation", async () => {
+    if (!hasuraReachable) return;
+
+    const entryRes = await gql<{ insertWorkoutSessionCardioEntry: { id: string } }>(
+      `
+      mutation AnchorCardioEntry($wseId: uuid!) {
+        insertWorkoutSessionCardioEntry(object: {
+          workoutSessionExerciseId: $wseId,
+          entryNumber: 91,
+          metrics: { duration_s: 600 }
+        }) { id }
+      }
+    `,
+      { wseId: cardioWseId },
+    );
+    expect(entryRes.errors).toBeUndefined();
+
+    const res = await gql(
+      `
+      mutation RepointCardioToStrength($id: uuid!, $strengthEx: uuid!) {
+        updateWorkoutSessionExercise(pk_columns: { id: $id }, _set: { exerciseId: $strengthEx }) {
+          id exerciseId kind
+        }
+      }
+    `,
+      { id: cardioWseId, strengthEx: STRENGTH_EXERCISE_ID },
+    );
+    expect(res.errors).toBeDefined();
+    const code = res.errors![0].extensions?.code;
+    expect(["constraint-violation", "permission-error"]).toContain(code as string);
+    expect(res.errors![0].message.toLowerCase()).toMatch(/parent_kind|kind/);
+    expect(res.errors![0].message).toContain("workout_session_cardio_entries");
+
+    const after = await gql<{
+      workoutSessionExercise: { exerciseId: string; kind: string };
+    }>(
+      `query Verify($id: uuid!) { workoutSessionExercise(id: $id) { exerciseId kind } }`,
+      { id: cardioWseId },
+    );
+    expect(after.data!.workoutSessionExercise).toEqual({
+      exerciseId: CARDIO_EXERCISE_ID,
+      kind: "cardio",
+    });
+  });
 });
 
 // Sidecar-only cascade integrity.
