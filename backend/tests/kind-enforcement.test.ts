@@ -291,6 +291,32 @@ describe("composite-FK enforcement", () => {
       id: res.data!.insertWorkoutSessionExercise.id,
     });
   });
+
+  test("admin direct UPDATE setting WSE.kind to the wrong value is overwritten", async () => {
+    if (!hasuraReachable) return;
+    // The user-role insert allowlist excludes `kind` (covered by the test in
+    // the user-role describe block) and user-role update permissions on WSE
+    // are limited to `position`, so a user simply can't reach this path. But
+    // admin (and any future role with broader update access) can issue a
+    // direct UPDATE of `kind` without touching `exercise_id`. The sync
+    // trigger must cover that case too — otherwise the composite FK would
+    // still reject the write, but the in-code claim "a wrong kind cannot
+    // bypass the composite FK either" would be inaccurate. The trigger fires
+    // on UPDATE OF exercise_id, kind, so direct admin UPDATE of `kind` is
+    // overwritten back to the parent's value before the FK ever sees it.
+    const res = await gql<{ updateWorkoutSessionExercise: { id: string; kind: string } }>(
+      `
+      mutation AdminLyingKindUpdate($id: uuid!) {
+        updateWorkoutSessionExercise(pk_columns: { id: $id }, _set: { kind: "strength" }) {
+          id kind
+        }
+      }
+    `,
+      { id: cardioWseId },
+    );
+    expect(res.errors).toBeUndefined();
+    expect(res.data!.updateWorkoutSessionExercise.kind).toBe("cardio");
+  });
 });
 
 describe("cardio metrics-schema validation", () => {
@@ -367,6 +393,140 @@ describe("cardio metrics-schema validation", () => {
     );
     expect(res.errors).toBeUndefined();
     expect(res.data!.insertWorkoutSessionStrengthSet.setNumber).toBe(21);
+  });
+
+  test("tightening metrics_schema does not retroactively invalidate existing entries", async () => {
+    if (!hasuraReachable) return;
+    // The validate_workout_session_cardio_entry trigger fires on writes to the
+    // entry table (INSERT, UPDATE OF metrics / workout_session_exercise_id),
+    // not on writes to the schema source (exercises_cardio.metrics_schema). So
+    // updating the schema is deliberately a "going-forward" change: new writes
+    // must match the new shape, old writes stay as-logged. This test locks
+    // that contract in by:
+    //   1. Creating a private cardio exercise with a permissive schema.
+    //   2. Logging an entry that conforms.
+    //   3. Tightening the schema so the existing entry would no longer pass.
+    //   4. Asserting the historical entry is still readable and unmutated.
+    //   5. Asserting a fresh entry with the old (now-invalid) shape is rejected.
+    const slug = `test_schema_evolution_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `
+      mutation MakeExercise($slug: String!, $userId: uuid!) {
+        insertExercise(object: {
+          slug: $slug, name: "Schema evolution test",
+          primaryMuscleGroup: abdominals, instructions: ["x"],
+          level: beginner, category: cardio, equipment: body_only,
+          isPublic: false, userId: $userId,
+          cardio: { data: {
+            metricsSchema: {
+              type: "object",
+              additionalProperties: false,
+              properties: { duration_s: { type: "integer", minimum: 0 } },
+              required: ["duration_s"]
+            }
+          } }
+        }) { id }
+      }
+    `,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const setup = await gql<{
+        insertWorkoutSession: {
+          id: string;
+          workoutSessionExercises: Array<{ id: string }>;
+        };
+      }>(
+        `
+        mutation Setup($userId: uuid!, $exId: uuid!) {
+          insertWorkoutSession(object: {
+            userId: $userId,
+            workoutSessionExercises: { data: [{ exerciseId: $exId, position: 0 }] }
+          }) {
+            id
+            workoutSessionExercises { id }
+          }
+        }
+      `,
+        { userId: TEST_USER_ID, exId: exerciseId },
+      );
+      expect(setup.errors).toBeUndefined();
+      const sessionId = setup.data!.insertWorkoutSession.id;
+      const wseId = setup.data!.insertWorkoutSession.workoutSessionExercises[0].id;
+
+      const inserted = await gql<{
+        insertWorkoutSessionCardioEntry: { id: string };
+      }>(
+        `
+        mutation Log($wseId: uuid!) {
+          insertWorkoutSessionCardioEntry(object: {
+            workoutSessionExerciseId: $wseId,
+            entryNumber: 1,
+            metrics: { duration_s: 600 }
+          }) { id }
+        }
+      `,
+        { wseId },
+      );
+      expect(inserted.errors).toBeUndefined();
+      const entryId = inserted.data!.insertWorkoutSessionCardioEntry.id;
+
+      const tighten = await gql(
+        `
+        mutation Tighten($exId: uuid!) {
+          updateExerciseCardio(pk_columns: { exerciseId: $exId }, _set: {
+            metricsSchema: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                duration_s: { type: "integer", minimum: 0 },
+                distance_km: { type: "number", minimum: 0 }
+              },
+              required: ["duration_s", "distance_km"]
+            }
+          }) { exerciseId }
+        }
+      `,
+        { exId: exerciseId },
+      );
+      expect(tighten.errors).toBeUndefined();
+
+      const after = await gql<{
+        entry: { id: string; metrics: Record<string, unknown> } | null;
+      }>(
+        `query Read($id: uuid!) { entry: workoutSessionCardioEntry(id: $id) { id metrics } }`,
+        { id: entryId },
+      );
+      expect(after.errors).toBeUndefined();
+      expect(after.data!.entry).not.toBeNull();
+      expect(after.data!.entry!.metrics).toEqual({ duration_s: 600 });
+
+      const fresh = await gql(
+        `
+        mutation FreshOldShape($wseId: uuid!) {
+          insertWorkoutSessionCardioEntry(object: {
+            workoutSessionExerciseId: $wseId,
+            entryNumber: 2,
+            metrics: { duration_s: 700 }
+          }) { id }
+        }
+      `,
+        { wseId },
+      );
+      expect(fresh.errors).toBeDefined();
+      expect(fresh.errors![0].message.toLowerCase()).toContain("schema validation");
+
+      await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+        id: sessionId,
+      });
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
   });
 });
 

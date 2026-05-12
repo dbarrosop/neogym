@@ -180,7 +180,7 @@ There is **no runtime guard** for "is this exercise cardio?" at the entry-write 
 
 Each child table — the WSE entry tables **and the sidecars** — pins its discriminator via `DEFAULT '<value>' CHECK (kind = '<value>')`. The discriminator column is a real, physical column whose only job is to participate in the composite FK — clients can omit it on insert (the DEFAULT fills it) and cannot bypass it (the CHECK rejects any other value, and even if they could, the composite FK would still require it to match the parent's `kind`).
 
-On the WSE side (`workout_exercises`, `workout_session_exercises`), `kind` is auto-populated by a `BEFORE INSERT OR UPDATE OF exercise_id` trigger that copies from the referenced `exercises.kind`. Clients can omit `kind` and the trigger fills it; clients that send a wrong value get it overwritten before the FK check runs, so a wrong kind can never make it past the trigger.
+On the WSE side (`workout_exercises`, `workout_session_exercises`), `kind` is auto-populated by a `BEFORE INSERT OR UPDATE OF exercise_id, kind` trigger that copies from the referenced `exercises.kind`. Clients can omit `kind` and the trigger fills it; clients that send a wrong value get it overwritten before the FK check runs, so a wrong kind can never make it past the trigger. The trigger explicitly covers direct `UPDATE OF kind` (no `exercise_id` change) too — without that, the composite FK would still reject a wrong-kind direct update, but the trigger's normalize-then-write contract would be a half-truth.
 
 The end result: a strength set whose parent session-exercise is cardio is an **FK violation** (SQLSTATE `23503`), and vice versa. The check is declarative, in the Postgres catalog, no plpgsql in the hot path.
 

@@ -58,8 +58,11 @@ ALTER TABLE public.workout_session_exercises
   DROP CONSTRAINT workout_session_exercises_exercise_id_fkey;
 
 -- Auto-populate the discriminator from the parent exercise so the column is a
--- pure FK slot. The trigger overwrites any client-supplied value, so a wrong
--- kind cannot bypass the composite FK either.
+-- pure FK slot. The trigger overwrites any client-supplied value on every
+-- INSERT, every UPDATE OF exercise_id, and every direct UPDATE OF kind — so a
+-- wrong kind cannot bypass the composite FK either (the FK would catch it on
+-- its own, but the trigger normalizes the column so the row ends up with the
+-- correct kind instead of just rejecting the write).
 CREATE OR REPLACE FUNCTION public.sync_workout_exercise_kind()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -69,9 +72,9 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER sync_public_workout_exercises_kind
-BEFORE INSERT OR UPDATE OF exercise_id ON public.workout_exercises
+BEFORE INSERT OR UPDATE OF exercise_id, kind ON public.workout_exercises
 FOR EACH ROW EXECUTE FUNCTION public.sync_workout_exercise_kind();
 
 CREATE TRIGGER sync_public_workout_session_exercises_kind
-BEFORE INSERT OR UPDATE OF exercise_id ON public.workout_session_exercises
+BEFORE INSERT OR UPDATE OF exercise_id, kind ON public.workout_session_exercises
 FOR EACH ROW EXECUTE FUNCTION public.sync_workout_exercise_kind();

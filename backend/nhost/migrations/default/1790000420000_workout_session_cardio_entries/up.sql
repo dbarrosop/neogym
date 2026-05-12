@@ -26,6 +26,16 @@ IS 'trigger to set value of column "updated_at" to current timestamp on row upda
 -- trigger validates that the metrics jsonb conforms to that exercise's JSON
 -- Schema in exercises_cardio.metrics_schema. The kind check is no longer
 -- needed here — the FK enforces it declaratively.
+--
+-- Temporal semantics: validation runs only at write time on this table
+-- (INSERT, or UPDATE of metrics/workout_session_exercise_id). The schema is
+-- intentionally treated as "shape at time of entry," not a forever invariant:
+-- if the owner of a private cardio exercise later edits
+-- exercises_cardio.metrics_schema, existing entries are NOT re-validated and
+-- stay as-is. That is the right behavior for this domain — a user tweaking
+-- their custom exercise's metric definition shouldn't have historical entries
+-- retroactively rejected or quietly mutated. New writes pick up the new shape;
+-- old writes stand on their own.
 CREATE OR REPLACE FUNCTION public.validate_workout_session_cardio_entry()
 RETURNS TRIGGER AS $$
 DECLARE
