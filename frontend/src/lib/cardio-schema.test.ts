@@ -13,6 +13,7 @@ import {
   parseIntegerInput,
   secondsToDurationParts,
   seedFieldStates,
+  shouldShowHoursInput,
 } from "./cardio-schema";
 
 const runningSchema: CardioMetricsSchema = {
@@ -196,6 +197,24 @@ const shortDurationSchema: CardioMetricsSchema = {
   },
   required: ["duration_s"],
 };
+
+describe("shouldShowHoursInput", () => {
+  it("hides hours below the 3600-second boundary (interval cap)", () => {
+    expect(shouldShowHoursInput({ maximum: 3599 })).toBe(false);
+  });
+
+  it("hides hours at exactly 3600 seconds (one hour reachable via m + s)", () => {
+    expect(shouldShowHoursInput({ maximum: 3600 })).toBe(false);
+  });
+
+  it("shows hours when the cap exceeds one hour", () => {
+    expect(shouldShowHoursInput({ maximum: 3601 })).toBe(true);
+  });
+
+  it("shows hours when no maximum is configured (unbounded)", () => {
+    expect(shouldShowHoursInput({})).toBe(true);
+  });
+});
 
 describe("seedFieldStates", () => {
   it("returns empty placeholders when no seed is given (add-mode, no previousMetrics)", () => {

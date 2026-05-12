@@ -81,6 +81,7 @@ export function CardioMetricsForm({
   onDelete,
 }: CardioMetricsFormProps) {
   const specs = useMemo(() => iterateMetrics(schema), [schema]);
+  const zod = useMemo(() => buildZodSchemaFromMetricsSchema(schema), [schema]);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
   const [values, setValues] = useState<Record<string, CardioFieldState>>({});
   // Marks the field that failed the most recent submit so MetricInput can paint
@@ -122,7 +123,6 @@ export function CardioMetricsForm({
       return;
     }
     const out = collected.out;
-    const zod = buildZodSchemaFromMetricsSchema(schema);
     const result = zod.safeParse(out);
     if (!result.success) {
       const first = result.error.issues[0];

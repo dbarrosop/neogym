@@ -44,12 +44,20 @@ export function useStartSession() {
             };
       return gqlRequest(StartSessionMutation, { obj });
     },
-    onSuccess: (res) => {
+    onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      // The exercise detail page renders this session in its history list;
-      // matches the invalidation pattern in sessions/$sessionId.tsx so the
-      // "started from exercise" flow stays consistent with in-session edits.
-      queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
+      // Exercise-detail pages render history derived from sessions. From a
+      // workout-driven start, every exercise in the workout gains a new entry,
+      // but we don't know their ids here — leave their caches alone and let
+      // each detail page refetch lazily when next visited (the ["sessions"]
+      // invalidation above already covers session lists). For the
+      // exercise-driven start we know exactly which exercise's history just
+      // changed, so target only that one.
+      if (!("workoutId" in vars)) {
+        queryClient.invalidateQueries({
+          queryKey: ["exercises", "detail", vars.exerciseId],
+        });
+      }
       const id = res.insertWorkoutSession?.id;
       if (id) {
         navigate({ to: "/sessions/$sessionId", params: { sessionId: id } });

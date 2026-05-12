@@ -95,21 +95,21 @@ Per-kind catalog metadata for strength exercises (double_weight, force, mechanic
 
 | Role | Action | Columns | Filter / Check | Enforces |
 |---|---|---|---|---|
-| `user` | `select` | `exercise_id`, `double_weight`, `force`, `mechanic`, `created_at`, `updated_at` | filter: `exercise._or [user_id eq self, is_public eq true]` | A user sees the strength sidecar for any exercise they can see (public or their own). |
-| `user` | `insert` | `exercise_id`, `double_weight`, `force`, `mechanic` | check: `exercise._and [user_id eq self, is_public eq false, kind eq strength]` | A user can only attach a strength sidecar to their own private *strength* exercise. The `kind eq strength` clause prevents attaching a strength sidecar to a cardio exercise. |
+| `user` | `select` | `exercise_id`, `kind`, `double_weight`, `force`, `mechanic`, `created_at`, `updated_at` | filter: `exercise._or [user_id eq self, is_public eq true]` | A user sees the strength sidecar for any exercise they can see (public or their own). |
+| `user` | `insert` | `exercise_id`, `double_weight`, `force`, `mechanic` | check: `exercise._and [user_id eq self, is_public eq false]` | A user can only attach a strength sidecar to their own private exercise. Attaching a strength sidecar to a cardio exercise is rejected at the DB level — the composite FK on `(exercise_id, kind) → exercises(id, kind)` combined with `DEFAULT 'strength' CHECK (kind = 'strength')` makes it an FK violation, not a permission failure. |
 | `user` | `update` | `double_weight`, `force`, `mechanic` | filter & check: `exercise._and [user_id eq self, is_public eq false]` | A user can only edit the strength sidecar of their own private exercise. |
-| `user` | `delete` | — | filter: `exercise._and [user_id eq self, is_public eq false]` | Same. |
 
 ### `exercises_cardio` — pattern **C (inherited from exercise)**
 
-Per-kind catalog metadata for cardio exercises (the per-exercise JSON Schema in `metrics_schema`). Same shape as strength, with the `kind` clause keyed to `category` (legacy — see comment 10 in the PR review).
+Per-kind catalog metadata for cardio exercises (the per-exercise JSON Schema in `metrics_schema`). Same shape as strength.
 
 | Role | Action | Columns | Filter / Check | Enforces |
 |---|---|---|---|---|
-| `user` | `select` | `exercise_id`, `metrics_schema`, `created_at`, `updated_at` | filter: `exercise._or [user_id eq self, is_public eq true]` | A user sees the cardio sidecar (and so its metrics schema) for any exercise they can see. |
-| `user` | `insert` | `exercise_id`, `metrics_schema` | check: `exercise._and [user_id eq self, is_public eq false, category eq cardio]` | A user can only attach a cardio sidecar to their own private *cardio* exercise. The `category eq cardio` clause prevents attaching a cardio sidecar to a strength exercise. |
+| `user` | `select` | `exercise_id`, `kind`, `metrics_schema`, `created_at`, `updated_at` | filter: `exercise._or [user_id eq self, is_public eq true]` | A user sees the cardio sidecar (and so its metrics schema) for any exercise they can see. |
+| `user` | `insert` | `exercise_id`, `metrics_schema` | check: `exercise._and [user_id eq self, is_public eq false]` | A user can only attach a cardio sidecar to their own private exercise. Attaching a cardio sidecar to a strength exercise is rejected at the DB level — the composite FK on `(exercise_id, kind) → exercises(id, kind)` combined with `DEFAULT 'cardio' CHECK (kind = 'cardio')` makes it an FK violation, not a permission failure. |
 | `user` | `update` | `metrics_schema` | filter & check: `exercise._and [user_id eq self, is_public eq false]` | A user can only edit the cardio sidecar of their own private exercise. |
-| `user` | `delete` | — | filter: `exercise._and [user_id eq self, is_public eq false]` | Same. |
+
+Note: neither sidecar has a `delete_permissions` block for the `user` role. Standalone sidecar deletes would orphan the parent exercise — the `<sidecar>_no_orphan_parent` `DEFERRABLE INITIALLY DEFERRED` constraint trigger ([`database.md`](database.md), `Triggers` section) raises `23503` at commit if the parent exercise still exists. The intended lifecycle is `DELETE FROM exercises`, whose `ON DELETE CASCADE` removes parent and sidecar atomically. `backend/tests/kind-enforcement.test.ts` asserts that `deleteExerciseStrength` and `deleteExerciseCardio` return `validation-failed` for the user role.
 
 ## Workouts (templates)
 

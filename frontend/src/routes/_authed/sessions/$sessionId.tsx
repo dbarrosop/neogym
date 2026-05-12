@@ -307,7 +307,8 @@ function SessionDetailRoute() {
   const [confirmingRemoveExercise, setConfirmingRemoveExercise] = useState<{
     id: string;
     name: string;
-    setCount: number;
+    childCount: number;
+    childNoun: "set" | "entry";
   } | null>(null);
 
   const selectedExerciseIds = useMemo(
@@ -441,8 +442,8 @@ function SessionDetailRoute() {
               : "Remove exercise?"
           }
           description={
-            confirmingRemoveExercise && confirmingRemoveExercise.setCount > 0
-              ? `${confirmingRemoveExercise.setCount} logged set${confirmingRemoveExercise.setCount === 1 ? "" : "s"} will be deleted with it. This can't be undone.`
+            confirmingRemoveExercise && confirmingRemoveExercise.childCount > 0
+              ? `${confirmingRemoveExercise.childCount} logged ${pluralChild(confirmingRemoveExercise.childNoun, confirmingRemoveExercise.childCount)} will be deleted with it. This can't be undone.`
               : "It will be removed from this session only."
           }
           confirmLabel="Remove"
@@ -547,7 +548,19 @@ interface ExerciseRowProps {
   priorSessionsByExercise: Map<string, PriorEntry[]>;
   priorCardioByExercise: Map<string, PriorCardioEntry[]>;
   onMutated: () => void;
-  onConfirmRemove: (info: { id: string; name: string; setCount: number }) => void;
+  onConfirmRemove: (info: {
+    id: string;
+    name: string;
+    childCount: number;
+    childNoun: "set" | "entry";
+  }) => void;
+}
+
+function pluralChild(noun: "set" | "entry", count: number): string {
+  if (count === 1) {
+    return noun;
+  }
+  return noun === "entry" ? "entries" : "sets";
 }
 
 function ExerciseRow({
@@ -560,11 +573,16 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   const isCardio = we.exercise.kind === "cardio";
   const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.cardio?.metricsSchema) : null;
-  const entryCount = isCardio
+  const childCount = isCardio
     ? we.workoutSessionCardioEntries.length
     : we.workoutSessionStrengthSets.length;
   const onRequestRemove = () =>
-    onConfirmRemove({ id: we.id, name: we.exercise.name, setCount: entryCount });
+    onConfirmRemove({
+      id: we.id,
+      name: we.exercise.name,
+      childCount,
+      childNoun: isCardio ? "entry" : "set",
+    });
 
   // Memoize on the raw query slice so the reference stays stable when
   // react-query's structural sharing returns the same data — without this,

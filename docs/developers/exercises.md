@@ -146,7 +146,7 @@ The migration `1790000410000_exercise_metrics_schema` creates the `exercises_car
 
 ### Who can author schemas
 
-Users can edit `metrics_schema` on their own private cardio exercises through the `insertExerciseCardio` / `updateExerciseCardio` mutations on the `exercises_cardio` table, gated by the user-role permission `exercise.user_id = X-Hasura-User-Id AND exercise.is_public = false AND exercise.category = 'cardio'`. The catalog-level metadata (name, category, etc.) is edited via the parent `exercises` mutations; the sidecar's `metrics_schema` is a separate write.
+Users can edit `metrics_schema` on their own private cardio exercises through the `insertExerciseCardio` / `updateExerciseCardio` mutations on the `exercises_cardio` table, gated by the user-role permission `exercise.user_id = X-Hasura-User-Id AND exercise.is_public = false`. Wrong-kind attach (a cardio sidecar pointed at a strength exercise) isn't blocked at the permission layer — it's a structural FK violation: the composite FK on `(exercise_id, kind) → exercises(id, kind)` combined with the pinned `CHECK (kind = 'cardio')` on the sidecar makes the row unrepresentable. The catalog-level metadata (name, category, etc.) is edited via the parent `exercises` mutations; the sidecar's `metrics_schema` is a separate write.
 
 The `exercises_cardio_schema_valid` CHECK keeps inserts honest: any insert without a structurally valid JSON Schema is rejected by Postgres, and the resulting Hasura error surfaces as a constraint violation. The CHECK validates JSON Schema structure only, not the `x-*` annotations — those are by convention and the frontend infers defaults when missing.
 

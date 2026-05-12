@@ -1,112 +1,31 @@
 # Database schema
 
-A visual map of NeoGym's Postgres schema. The diagrams below are Mermaid ER diagrams — GitHub renders them natively, and most IDEs (VS Code with the Markdown Preview Mermaid Support extension, JetBrains with Mermaid plugin) do too.
+A map of NeoGym's Postgres schema. For the authoritative definitions, always read the migrations under `backend/nhost/migrations/default/` and the Hasura metadata under `backend/nhost/metadata/databases/default/tables/` — if there's a conflict, those win.
 
-If you only want quick reference for the **strength/cardio split** and **per-exercise metrics-schema**, see [`exercises.md`](exercises.md) and [`sessions.md`](sessions.md) — they cover the invariants in prose. This document focuses on the shape: what tables exist, how they connect, and which keys do the load-bearing work.
-
-For the authoritative definitions, always read the migrations under `backend/nhost/migrations/default/`. The diagram lags reality — if there's a conflict, the migration wins.
+If you want quick reference for the **strength/cardio split** and **per-exercise metrics-schema**, see [`exercises.md`](exercises.md) and [`sessions.md`](sessions.md) — they cover the invariants in prose. For who can read/write what, see [`permissions.md`](permissions.md).
 
 ## Core domain — workouts, sessions, exercises
 
-This is the heart of the app. Strength sets and cardio entries are the two child tables; everything above them is shared.
+This is the heart of the app. Strength sets and cardio entries are the two child tables; everything above them is shared. The tree of ownership (top-down):
 
-```mermaid
-erDiagram
-    USERS["auth.users"]
-
-    EXERCISES {
-        uuid id PK
-        text slug UK
-        text name
-        text category FK "exercise_categories"
-        text kind "GENERATED: cardio iff category=cardio, else strength"
-        text primary_muscle_group FK "muscle_groups"
-        boolean is_public
-        uuid user_id FK "auth.users; NULL iff is_public"
-        text level FK "exercise_levels (nullable)"
-        text equipment FK "exercise_equipments (nullable)"
-        uuid image_1_file_id FK "storage.files (nullable)"
-        uuid image_2_file_id FK "storage.files (nullable)"
-    }
-
-    EXERCISES_STRENGTH {
-        uuid exercise_id PK "composite FK with kind; 1:1, present iff kind=strength"
-        text kind "DEFAULT strength CHECK = strength"
-        boolean double_weight
-        text force FK "exercise_forces (nullable)"
-        text mechanic FK "exercise_mechanics (nullable)"
-    }
-
-    EXERCISES_CARDIO {
-        uuid exercise_id PK "composite FK with kind; 1:1, present iff kind=cardio"
-        text kind "DEFAULT cardio CHECK = cardio"
-        jsonb metrics_schema "CHECK jsonschema_is_valid"
-    }
-
-    WORKOUTS {
-        uuid id PK
-        text name
-        text description
-        boolean is_public
-        uuid user_id FK "auth.users; NULL iff is_public"
-    }
-
-    WORKOUT_EXERCISES {
-        uuid id PK
-        uuid workout_id FK "workouts CASCADE"
-        uuid exercise_id FK "composite FK with kind"
-        text kind FK "composite FK; trigger-synced from exercises.kind"
-        integer position "UNIQUE(workout_id, position) DEFERRABLE"
-    }
-
-    WORKOUT_SESSIONS {
-        uuid id PK
-        uuid workout_id FK "workouts SET NULL; NULLABLE for ad-hoc"
-        uuid user_id FK "auth.users CASCADE"
-        timestamptz started_at
-    }
-
-    WORKOUT_SESSION_EXERCISES {
-        uuid id PK
-        uuid workout_session_id FK "workout_sessions CASCADE"
-        uuid exercise_id FK "composite FK with kind"
-        text kind FK "composite FK; trigger-synced from exercises.kind"
-        integer position "UNIQUE(workout_session_id, position) DEFERRABLE"
-    }
-
-    WORKOUT_SESSION_STRENGTH_SETS {
-        uuid id PK
-        uuid workout_session_exercise_id FK "composite FK with parent_kind"
-        text parent_kind "DEFAULT strength CHECK = strength"
-        integer set_number "UNIQUE per parent"
-        integer reps "CHECK reps >= 0"
-        numeric weight "CHECK weight >= 0"
-    }
-
-    WORKOUT_SESSION_CARDIO_ENTRIES {
-        uuid id PK
-        uuid workout_session_exercise_id FK "composite FK with parent_kind"
-        text parent_kind "DEFAULT cardio CHECK = cardio"
-        integer entry_number "UNIQUE per parent"
-        jsonb metrics "validated by trigger vs exercises_cardio.metrics_schema"
-    }
-
-    USERS ||--o{ EXERCISES                       : "owns (private)"
-    USERS ||--o{ WORKOUTS                        : "owns (private)"
-    USERS ||--o{ WORKOUT_SESSIONS                : "owns"
-
-    EXERCISES ||--o| EXERCISES_STRENGTH          : "composite FK (id, kind); kind pinned to strength"
-    EXERCISES ||--o| EXERCISES_CARDIO            : "composite FK (id, kind); kind pinned to cardio"
-    EXERCISES ||--o{ WORKOUT_EXERCISES           : "composite FK (id, kind)"
-    EXERCISES ||--o{ WORKOUT_SESSION_EXERCISES   : "composite FK (id, kind)"
-
-    WORKOUTS  ||--o{ WORKOUT_EXERCISES           : "ordered list"
-    WORKOUTS  ||--o{ WORKOUT_SESSIONS            : "template link (nullable; SET NULL on delete)"
-
-    WORKOUT_SESSIONS          ||--o{ WORKOUT_SESSION_EXERCISES        : "ordered list"
-    WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_STRENGTH_SETS    : "composite FK; parent_kind='strength'"
-    WORKOUT_SESSION_EXERCISES ||--o{ WORKOUT_SESSION_CARDIO_ENTRIES   : "composite FK; parent_kind='cardio'"
 ```
+auth.users
+  └─ workout_sessions                       (one row per "I worked out")
+        └─ workout_session_exercises        (ordered list of exercises in that session)
+              ├─ workout_session_strength_sets    (reps × weight, per set)   ← parent_kind = 'strength'
+              └─ workout_session_cardio_entries   (jsonb metrics, per entry) ← parent_kind = 'cardio'
+
+auth.users
+  └─ workouts                               (reusable template: ordered exercises)
+        └─ workout_exercises                (the template's exercise list)
+
+auth.users
+  └─ exercises                              (catalog row — admin-owned if is_public, else user-owned)
+        ├─ exercises_strength               (1:1 sidecar, present iff kind = 'strength')
+        └─ exercises_cardio                 (1:1 sidecar, present iff kind = 'cardio')
+```
+
+The session-side and template-side trees both reference `exercises` via composite FK on `(exercise_id, kind)`. `workout_sessions.workout_id` is nullable (ad-hoc sessions) and uses `ON DELETE SET NULL` — deleting a workout detaches every session it seeded rather than wiping history.
 
 ### The strength/cardio split (the load-bearing pattern)
 
@@ -207,16 +126,18 @@ erDiagram
     BODY_MEASUREMENTS {
         uuid id PK
         uuid user_id "FK auth.users CASCADE"
-        date measured_on
-        numeric weight_kg
-        numeric body_fat_percent
+        date measured_on "UNIQUE per (user_id, measured_on)"
+        numeric weight_kg "nullable; CHECK 0 < weight_kg < 500"
+        numeric body_fat_pct "nullable; CHECK 0 <= body_fat_pct < 100"
+        text notes "nullable"
     }
 
     JOURNAL_ENTRIES {
         uuid id PK
         uuid user_id "FK auth.users CASCADE"
-        timestamptz entry_at
-        text body
+        date entry_date "DEFAULT CURRENT_DATE"
+        text title "nullable; length 1..200"
+        text body "NOT NULL; CHECK length > 0"
     }
 
     JOURNAL_LABELS {
