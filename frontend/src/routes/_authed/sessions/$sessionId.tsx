@@ -1040,6 +1040,9 @@ function SetDialog({
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (isPending) {
+      return;
+    }
     const w = Number(weight.replace(",", "."));
     const r = Number(reps);
     if (!Number.isFinite(w) || w < 0) {

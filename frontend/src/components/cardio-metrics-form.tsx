@@ -116,6 +116,9 @@ export function CardioMetricsForm({
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (isPending) {
+      return;
+    }
     const collected = collectMetrics(specs, values);
     if (!collected.ok) {
       toast.error(collected.message);
