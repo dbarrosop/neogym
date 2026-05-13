@@ -9,6 +9,8 @@ configuration:
       custom_name: exerciseId
     id:
       custom_name: id
+    kind:
+      custom_name: kind
     position:
       custom_name: position
     updated_at:
@@ -19,6 +21,7 @@ configuration:
     created_at: createdAt
     exercise_id: exerciseId
     id: id
+    kind: kind
     position: position
     updated_at: updatedAt
     workout_id: workoutId
@@ -36,7 +39,9 @@ configuration:
 object_relationships:
   - name: exercise
     using:
-      foreign_key_constraint_on: exercise_id
+      foreign_key_constraint_on:
+        - exercise_id
+        - kind
   - name: workout
     using:
       foreign_key_constraint_on: workout_id
@@ -61,6 +66,7 @@ select_permissions:
         - id
         - workout_id
         - exercise_id
+        - kind
         - position
         - created_at
         - updated_at

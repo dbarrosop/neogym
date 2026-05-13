@@ -1,45 +1,47 @@
 table:
-  name: workout_session_sets
+  name: workout_session_cardio_entries
   schema: public
 configuration:
   column_config:
     created_at:
       custom_name: createdAt
+    entry_number:
+      custom_name: entryNumber
     id:
       custom_name: id
-    reps:
-      custom_name: reps
-    set_number:
-      custom_name: setNumber
+    metrics:
+      custom_name: metrics
+    parent_kind:
+      custom_name: parentKind
     updated_at:
       custom_name: updatedAt
-    weight:
-      custom_name: weight
     workout_session_exercise_id:
       custom_name: workoutSessionExerciseId
   custom_column_names:
     created_at: createdAt
+    entry_number: entryNumber
     id: id
-    reps: reps
-    set_number: setNumber
+    metrics: metrics
+    parent_kind: parentKind
     updated_at: updatedAt
-    weight: weight
     workout_session_exercise_id: workoutSessionExerciseId
-  custom_name: workoutSessionSets
+  custom_name: workoutSessionCardioEntries
   custom_root_fields:
-    delete: deleteWorkoutSessionSets
-    delete_by_pk: deleteWorkoutSessionSet
-    insert: insertWorkoutSessionSets
-    insert_one: insertWorkoutSessionSet
-    select: workoutSessionSets
-    select_aggregate: workoutSessionSetsAggregate
-    select_by_pk: workoutSessionSet
-    update: updateWorkoutSessionSets
-    update_by_pk: updateWorkoutSessionSet
+    delete: deleteWorkoutSessionCardioEntries
+    delete_by_pk: deleteWorkoutSessionCardioEntry
+    insert: insertWorkoutSessionCardioEntries
+    insert_one: insertWorkoutSessionCardioEntry
+    select: workoutSessionCardioEntries
+    select_aggregate: workoutSessionCardioEntriesAggregate
+    select_by_pk: workoutSessionCardioEntry
+    update: updateWorkoutSessionCardioEntries
+    update_by_pk: updateWorkoutSessionCardioEntry
 object_relationships:
   - name: workoutSessionExercise
     using:
-      foreign_key_constraint_on: workout_session_exercise_id
+      foreign_key_constraint_on:
+        - workout_session_exercise_id
+        - parent_kind
 insert_permissions:
   - role: user
     permission:
@@ -50,18 +52,16 @@ insert_permissions:
               _eq: X-Hasura-User-Id
       columns:
         - workout_session_exercise_id
-        - set_number
-        - reps
-        - weight
+        - entry_number
+        - metrics
 select_permissions:
   - role: user
     permission:
       columns:
         - id
         - workout_session_exercise_id
-        - set_number
-        - reps
-        - weight
+        - entry_number
+        - metrics
         - created_at
         - updated_at
       filter:
@@ -74,9 +74,8 @@ update_permissions:
   - role: user
     permission:
       columns:
-        - set_number
-        - reps
-        - weight
+        - entry_number
+        - metrics
       filter:
         workoutSessionExercise:
           workoutSession:

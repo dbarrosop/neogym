@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { to: "/workouts", label: "Workouts", Icon: ListChecks },
+  { to: "/exercises", label: "Exercises", Icon: Dumbbell },
   { to: "/sessions", label: "Sessions", Icon: CalendarCheck2 },
   { to: "/body", label: "Body", Icon: Scale },
   { to: "/journal", label: "Journal", Icon: NotebookPen },
-  { to: "/exercises", label: "Exercises", Icon: Dumbbell },
   { to: "/profile", label: "Profile", Icon: User2 },
 ] as const;
 

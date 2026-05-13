@@ -18,3 +18,8 @@ dev-env-down:
 	nhost \
 		down \
 		--volumes
+
+
+.PHONY: test
+test:
+	cd tests && bun install && bun test

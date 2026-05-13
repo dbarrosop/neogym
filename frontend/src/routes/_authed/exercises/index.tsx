@@ -17,7 +17,7 @@ const ExercisesIndexQuery = graphql(`
     exercises(order_by: { name: asc }) {
       id
       name
-      doubleWeight
+      strength { doubleWeight }
       primaryMuscleGroup
       category
       equipment
@@ -50,7 +50,7 @@ export const Route = createFileRoute("/_authed/exercises/")({
 type Exercise = {
   id: string;
   name: string;
-  doubleWeight: boolean;
+  strength?: { doubleWeight: boolean } | null;
   primaryMuscleGroup: string;
   category?: string | null;
   equipment?: string | null;
@@ -625,7 +625,7 @@ function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?
               {formatEnumValue(exercise.primaryMuscleGroup)}
             </span>
           ) : null}
-          {exercise.doubleWeight ? (
+          {exercise.strength?.doubleWeight ? (
             <Badge variant="outline" className="hidden sm:inline-flex">
               Two-handed
             </Badge>

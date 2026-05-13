@@ -7,12 +7,8 @@ configuration:
       custom_name: category
     created_at:
       custom_name: createdAt
-    double_weight:
-      custom_name: doubleWeight
     equipment:
       custom_name: equipment
-    force:
-      custom_name: force
     id:
       custom_name: id
     image_1_file_id:
@@ -23,10 +19,10 @@ configuration:
       custom_name: instructions
     is_public:
       custom_name: isPublic
+    kind:
+      custom_name: kind
     level:
       custom_name: level
-    mechanic:
-      custom_name: mechanic
     name:
       custom_name: name
     primary_muscle_group:
@@ -40,16 +36,14 @@ configuration:
   custom_column_names:
     category: category
     created_at: createdAt
-    double_weight: doubleWeight
     equipment: equipment
-    force: force
     id: id
     image_1_file_id: image1FileId
     image_2_file_id: image2FileId
     instructions: instructions
     is_public: isPublic
+    kind: kind
     level: level
-    mechanic: mechanic
     name: name
     primary_muscle_group: primaryMuscleGroup
     slug: slug
@@ -67,12 +61,30 @@ configuration:
     update: updateExercises
     update_by_pk: updateExercise
 object_relationships:
+  - name: cardio
+    using:
+      foreign_key_constraint_on:
+        columns:
+          - exercise_id
+          - kind
+        table:
+          name: exercises_cardio
+          schema: public
   - name: image1
     using:
       foreign_key_constraint_on: image_1_file_id
   - name: image2
     using:
       foreign_key_constraint_on: image_2_file_id
+  - name: strength
+    using:
+      foreign_key_constraint_on:
+        columns:
+          - exercise_id
+          - kind
+        table:
+          name: exercises_strength
+          schema: public
   - name: user
     using:
       foreign_key_constraint_on: user_id
@@ -87,14 +99,18 @@ array_relationships:
   - name: workoutExercises
     using:
       foreign_key_constraint_on:
-        column: exercise_id
+        columns:
+          - exercise_id
+          - kind
         table:
           name: workout_exercises
           schema: public
   - name: workoutSessionExercises
     using:
       foreign_key_constraint_on:
-        column: exercise_id
+        columns:
+          - exercise_id
+          - kind
         table:
           name: workout_session_exercises
           schema: public
@@ -112,12 +128,9 @@ insert_permissions:
       columns:
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
-        - force
-        - mechanic
         - equipment
         - image_1_file_id
         - image_2_file_id
@@ -129,12 +142,10 @@ select_permissions:
         - slug
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
-        - force
-        - mechanic
+        - kind
         - equipment
         - image_1_file_id
         - image_2_file_id
@@ -155,12 +166,9 @@ update_permissions:
       columns:
         - name
         - primary_muscle_group
-        - double_weight
         - instructions
         - level
         - category
-        - force
-        - mechanic
         - equipment
         - image_1_file_id
         - image_2_file_id

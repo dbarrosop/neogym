@@ -1,0 +1,87 @@
+table:
+  name: exercises_cardio
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    exercise_id:
+      custom_name: exerciseId
+    kind:
+      custom_name: kind
+    metrics_schema:
+      custom_name: metricsSchema
+    updated_at:
+      custom_name: updatedAt
+  custom_column_names:
+    created_at: createdAt
+    exercise_id: exerciseId
+    kind: kind
+    metrics_schema: metricsSchema
+    updated_at: updatedAt
+  custom_name: exercisesCardio
+  custom_root_fields:
+    delete: deleteExercisesCardio
+    delete_by_pk: deleteExerciseCardio
+    insert: insertExercisesCardio
+    insert_one: insertExerciseCardio
+    select: exercisesCardio
+    select_aggregate: exercisesCardioAggregate
+    select_by_pk: exerciseCardio
+    update: updateExercisesCardio
+    update_by_pk: updateExerciseCardio
+object_relationships:
+  - name: exercise
+    using:
+      foreign_key_constraint_on:
+        - exercise_id
+        - kind
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        exercise:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+      columns:
+        - exercise_id
+        - metrics_schema
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - exercise_id
+        - kind
+        - metrics_schema
+        - created_at
+        - updated_at
+      filter:
+        exercise:
+          _or:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: true
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - metrics_schema
+      filter:
+        exercise:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+      check:
+        exercise:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false

@@ -711,7 +711,7 @@ INSERT INTO public.workout_session_exercises (id, workout_session_id, exercise_i
   ('019e077b-4698-75c4-8db7-05e26e501a55', '019e077b-4695-7f23-aa85-d1e2c621ab8e', '019e0675-a6b7-7d2a-8ccc-f3cf2f585cd7', 5, '2026-05-08 12:06:20.05054+00', '2026-05-08 12:06:20.05054+00'),
   ('019e077b-4698-75ce-ad0a-9f1c0b2b78b7', '019e077b-4695-7f23-aa85-d1e2c621ab8e', '019e0675-a9d8-7469-b72e-a5ef3f1e67d1', 6, '2026-05-08 12:06:20.05054+00', '2026-05-08 12:06:20.05054+00');
 
-INSERT INTO public.workout_session_sets (id, workout_session_exercise_id, set_number, reps, weight, created_at, updated_at) VALUES
+INSERT INTO public.workout_session_strength_sets (id, workout_session_exercise_id, set_number, reps, weight, created_at, updated_at) VALUES
   ('90702ad7-931a-4d49-8f8d-7122edf9e055', 'b738de38-c1fa-4840-a2c9-c18d5e48d7b4', 1, 50, 12.00, '2026-05-08 10:05:20.889035+00', '2026-05-08 10:05:20.889035+00'),
   ('9b9701a4-3d4d-47bb-9fba-4de3800a19c8', 'b738de38-c1fa-4840-a2c9-c18d5e48d7b4', 2, 55, 12.00, '2026-05-08 10:05:20.889035+00', '2026-05-08 10:05:20.889035+00'),
   ('f07895ec-ea13-4d2a-ac36-af900e069e88', 'b738de38-c1fa-4840-a2c9-c18d5e48d7b4', 3, 55, 12.00, '2026-05-08 10:05:20.889035+00', '2026-05-08 10:05:20.889035+00'),

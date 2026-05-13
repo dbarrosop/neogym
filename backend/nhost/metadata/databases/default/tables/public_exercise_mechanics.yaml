@@ -23,12 +23,12 @@ configuration:
     update: updateExerciseMechanics
     update_by_pk: updateExerciseMechanic
 array_relationships:
-  - name: exercises
+  - name: exercisesStrength
     using:
       foreign_key_constraint_on:
         column: mechanic
         table:
-          name: exercises
+          name: exercises_strength
           schema: public
 select_permissions:
   - role: user

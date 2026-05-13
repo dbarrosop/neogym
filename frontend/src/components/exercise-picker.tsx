@@ -16,7 +16,7 @@ const ExercisePickerQuery = graphql(`
       id
       name
       primaryMuscleGroup
-      doubleWeight
+      strength { doubleWeight }
     }
   }
 `);
@@ -55,7 +55,7 @@ export function ExercisePicker({
         id: ex.id,
         name: ex.name,
         primaryMuscleGroup: ex.primaryMuscleGroup,
-        doubleWeight: ex.doubleWeight,
+        doubleWeight: ex.strength?.doubleWeight ?? false,
       })),
     [data],
   );

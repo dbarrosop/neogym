@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ChevronRight, Globe2, Pencil, Play, Tag, User } from "lucide-react";
+import { ChevronRight, Globe2, Loader2, Pencil, Play, Tag, User } from "lucide-react";
 import { Markdown } from "@/components/markdown";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { useStartSession } from "@/lib/hooks/use-start-session";
 import { useAuth } from "@/lib/nhost/auth-provider";
 
 const WorkoutDetailQuery = graphql(`
@@ -25,7 +26,7 @@ const WorkoutDetailQuery = graphql(`
         exercise {
           id
           name
-          doubleWeight
+          strength { doubleWeight }
           primaryMuscleGroup
           image1FileId
           image2FileId
@@ -53,6 +54,7 @@ function WorkoutDetailRoute() {
     queryKey: ["workouts", "detail", workoutId],
     queryFn: () => gqlRequest(WorkoutDetailQuery, { id: workoutId }),
   });
+  const startSession = useStartSession();
 
   function renderContent() {
     if (isLoading) {
@@ -105,11 +107,27 @@ function WorkoutDetailRoute() {
             {workout.workoutExercises.length} exercise
             {workout.workoutExercises.length === 1 ? "" : "s"}
           </p>
-          <Button asChild size="lg" className="w-full">
-            <Link to="/sessions/new" search={{ workoutId: workout.id }}>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            disabled={startSession.isPending}
+            onClick={() =>
+              startSession.mutate({
+                workoutId: workout.id,
+                exercises: workout.workoutExercises.map((we) => ({
+                  exerciseId: we.exercise.id,
+                  position: we.position,
+                })),
+              })
+            }
+          >
+            {startSession.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
               <Play className="h-4 w-4 fill-current" />
-              Start session
-            </Link>
+            )}
+            Start session
           </Button>
         </CardHeader>
         <CardContent className="px-2 pt-0 pb-2">
@@ -135,7 +153,7 @@ function WorkoutDetailRoute() {
                     <p className="truncate text-sm font-medium">{we.exercise.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {we.exercise.primaryMuscleGroup}
-                      {we.exercise.doubleWeight ? " · two-handed" : ""}
+                      {we.exercise.strength?.doubleWeight ? " · two-handed" : ""}
                     </p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
