@@ -20,7 +20,8 @@
 
 CREATE TABLE public.exercises_strength (
   exercise_id    uuid PRIMARY KEY,
-  kind           text NOT NULL DEFAULT 'strength' CHECK (kind = 'strength'),
+  kind           text NOT NULL DEFAULT 'strength'
+    CONSTRAINT exercises_strength_kind_check CHECK (kind = 'strength'),
   double_weight  boolean NOT NULL DEFAULT false,
   force          text REFERENCES public.exercise_forces(value)    ON UPDATE CASCADE ON DELETE RESTRICT,
   mechanic       text REFERENCES public.exercise_mechanics(value) ON UPDATE CASCADE ON DELETE RESTRICT,
@@ -30,6 +31,27 @@ CREATE TABLE public.exercises_strength (
     FOREIGN KEY (exercise_id, kind) REFERENCES public.exercises(id, kind)
     ON UPDATE CASCADE ON DELETE CASCADE
 );
+
+COMMENT ON TABLE public.exercises_strength IS
+  'Sidecar for strength exercises (class-table inheritance with exercises): carries strength-specific catalog metadata (double_weight, force, mechanic). kind is pinned to ''strength'' and composite-FKs to exercises(id, kind), making the strength/cardio split structural. Lifecycle is atomic: every strength exercise must have a matching row at commit time (exercise_must_have_sidecar trigger), and this row cannot be deleted standalone (sidecar_delete_requires_parent_delete trigger).';
+
+COMMENT ON COLUMN public.exercises_strength.kind IS
+  'Pinned to ''strength'' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction.';
+
+COMMENT ON COLUMN public.exercises_strength.double_weight IS
+  'Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used".';
+
+COMMENT ON COLUMN public.exercises_strength.force IS
+  'Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges.';
+
+COMMENT ON COLUMN public.exercises_strength.mechanic IS
+  'Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges.';
+
+COMMENT ON CONSTRAINT exercises_strength_kind_check ON public.exercises_strength IS
+  'Pins kind to ''strength''. Combined with the composite FK to exercises(id, kind), this rejects any cascade from a category flip that would make the parent ''cardio'' — the transaction rolls back.';
+
+COMMENT ON CONSTRAINT exercises_strength_exercise_id_kind_fk ON public.exercises_strength IS
+  'Composite FK to exercises(id, kind). Pinned-kind enforcement: this row can only attach to a strength exercise. ON UPDATE CASCADE + the pinned CHECK above are what make category flips atomic.';
 
 CREATE TRIGGER set_public_exercises_strength_updated_at
 BEFORE UPDATE ON public.exercises_strength
@@ -69,11 +91,21 @@ ALTER TABLE public.exercises
 -- versa). The DEFAULT + CHECK + composite FK closes it symmetrically with
 -- exercises_strength above.
 ALTER TABLE public.exercises_cardio
-  ADD COLUMN kind text NOT NULL DEFAULT 'cardio' CHECK (kind = 'cardio'),
+  ADD COLUMN kind text NOT NULL DEFAULT 'cardio'
+    CONSTRAINT exercises_cardio_kind_check CHECK (kind = 'cardio'),
   DROP CONSTRAINT exercises_cardio_exercise_id_fkey,
   ADD CONSTRAINT exercises_cardio_exercise_id_kind_fk
     FOREIGN KEY (exercise_id, kind) REFERENCES public.exercises(id, kind)
     ON UPDATE CASCADE ON DELETE CASCADE;
+
+COMMENT ON COLUMN public.exercises_cardio.kind IS
+  'Pinned to ''cardio'' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength.';
+
+COMMENT ON CONSTRAINT exercises_cardio_kind_check ON public.exercises_cardio IS
+  'Pins kind to ''cardio''. See exercises_strength_kind_check for the symmetric strength constraint.';
+
+COMMENT ON CONSTRAINT exercises_cardio_exercise_id_kind_fk ON public.exercises_cardio IS
+  'Composite FK to exercises(id, kind). Pinned-kind enforcement: this row can only attach to a cardio exercise. Retrofitted from a single-column FK to close the asymmetry with exercises_strength.';
 
 -- Atomicity: every exercise has a matching sidecar at commit time, and a
 -- sidecar can only be deleted when its parent exercise is also deleted in
@@ -143,6 +175,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+COMMENT ON FUNCTION public.exercise_must_have_sidecar() IS
+  'DEFERRABLE INITIALLY DEFERRED constraint trigger function (AFTER INSERT on exercises). At commit time, verifies the inserted exercise has a matching exercises_strength or exercises_cardio row. Lets clients INSERT parent and sidecar in either order within a single transaction (Hasura nested mutation or SQL CTE). Bypassed by SET session_replication_role = replica (the deliberate PG footgun). AFTER INSERT only is deliberate: kind/category UPDATE paths are covered by the GENERATED kind column (1790000415000) plus the pinned CHECK + composite FK on each sidecar — a kind-changing category flip rolls the whole transaction back via cascade, so no UPDATE-time guard is needed here.';
+
 -- AFTER INSERT only is deliberate. Post-insert protection against a wrong-
 -- kind or missing sidecar is covered by two other invariants:
 --   1. `exercises.kind` is GENERATED STORED from category (migration
@@ -156,6 +191,8 @@ CREATE CONSTRAINT TRIGGER exercise_must_have_sidecar
 AFTER INSERT ON public.exercises
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION public.exercise_must_have_sidecar();
+COMMENT ON TRIGGER exercise_must_have_sidecar ON public.exercises IS
+  'Deferred AFTER INSERT check: every new exercise must have a matching sidecar (exercises_strength or exercises_cardio) row at commit time. See exercise_must_have_sidecar().';
 
 CREATE OR REPLACE FUNCTION public.sidecar_delete_requires_parent_delete()
 RETURNS TRIGGER AS $$
@@ -173,12 +210,19 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+COMMENT ON FUNCTION public.sidecar_delete_requires_parent_delete() IS
+  'DEFERRABLE INITIALLY DEFERRED constraint trigger function (AFTER DELETE on each sidecar). At commit time, refuses to commit if the sidecar was deleted standalone — i.e., the parent exercise still exists. The CASCADE path from DELETE FROM exercises skips this check (parent is gone, so the EXISTS check passes through). Bypassed by SET session_replication_role = replica.';
+
 CREATE CONSTRAINT TRIGGER exercises_strength_no_orphan_parent
 AFTER DELETE ON public.exercises_strength
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION public.sidecar_delete_requires_parent_delete();
+COMMENT ON TRIGGER exercises_strength_no_orphan_parent ON public.exercises_strength IS
+  'Deferred AFTER DELETE check: standalone sidecar deletion would orphan the parent exercise. See sidecar_delete_requires_parent_delete().';
 
 CREATE CONSTRAINT TRIGGER exercises_cardio_no_orphan_parent
 AFTER DELETE ON public.exercises_cardio
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION public.sidecar_delete_requires_parent_delete();
+COMMENT ON TRIGGER exercises_cardio_no_orphan_parent ON public.exercises_cardio IS
+  'Deferred AFTER DELETE check: standalone sidecar deletion would orphan the parent exercise. See sidecar_delete_requires_parent_delete().';

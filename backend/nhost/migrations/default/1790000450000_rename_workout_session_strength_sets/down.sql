@@ -1,4 +1,8 @@
 ALTER TABLE public.workout_session_strength_sets
+  RENAME CONSTRAINT workout_session_strength_sets_parent_kind_check
+  TO workout_session_sets_parent_kind_check;
+
+ALTER TABLE public.workout_session_strength_sets
   RENAME CONSTRAINT workout_session_strength_sets_wse_id_kind_fk
   TO workout_session_sets_workout_session_exercise_id_kind_fk;
 

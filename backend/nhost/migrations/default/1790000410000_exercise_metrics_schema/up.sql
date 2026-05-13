@@ -15,6 +15,9 @@ CREATE TABLE public.exercises_cardio (
   CONSTRAINT exercises_cardio_schema_valid CHECK (jsonschema_is_valid(metrics_schema::json))
 );
 
+COMMENT ON TABLE public.exercises_cardio IS
+  'Sidecar for cardio exercises (class-table inheritance with exercises): carries the per-exercise JSON Schema in metrics_schema. exercises_cardio.kind is pinned to ''cardio'' (added in migration 1790000440000) and composite-FKs to exercises(id, kind), making the strength/cardio split structural. Lifecycle is atomic: every cardio exercise must have a matching row at commit time (exercise_must_have_sidecar trigger), and this row cannot be deleted standalone (sidecar_delete_requires_parent_delete trigger).';
+
 CREATE TRIGGER set_public_exercises_cardio_updated_at
 BEFORE UPDATE ON public.exercises_cardio
 FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
@@ -23,6 +26,9 @@ IS 'trigger to set value of column "updated_at" to current timestamp on row upda
 
 COMMENT ON COLUMN public.exercises_cardio.metrics_schema IS
   'JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session.';
+
+COMMENT ON CONSTRAINT exercises_cardio_schema_valid ON public.exercises_cardio IS
+  'metrics_schema must itself be a valid JSON Schema document (pg_jsonschema.jsonschema_is_valid). The per-entry shape check against this schema happens in validate_workout_session_cardio_entry on workout_session_cardio_entries, not here.';
 
 -- Backfill schemas for the 14 seeded cardio exercises.
 -- Template "running": distance + duration + calories + heart rate.

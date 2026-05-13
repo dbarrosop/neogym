@@ -19,3 +19,6 @@ ALTER TABLE public.workout_sessions
   ADD CONSTRAINT workout_sessions_workout_id_fkey
     FOREIGN KEY (workout_id) REFERENCES public.workouts(id)
     ON UPDATE CASCADE ON DELETE SET NULL;
+
+COMMENT ON CONSTRAINT workout_sessions_workout_id_fkey ON public.workout_sessions IS
+  'ON DELETE SET NULL: deleting a workout detaches its sessions to ad-hoc rather than wiping them. The workout link is a template, not a contract — historical sessions stand on their own. ON UPDATE CASCADE keeps the link intact across id changes. Replaces an earlier ON DELETE CASCADE that contradicted both docs/developers/sessions.md and the user-facing workout-delete dialog copy.';

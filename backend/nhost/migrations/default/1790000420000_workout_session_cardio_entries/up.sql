@@ -1,20 +1,34 @@
 CREATE TABLE public.workout_session_cardio_entries (
   id                            uuid PRIMARY KEY DEFAULT uuidv7(),
   workout_session_exercise_id   uuid NOT NULL,
-  -- Discriminator pinned to 'cardio' so the composite FK below can only target
-  -- a workout_session_exercises row whose kind is 'cardio'. This makes the
-  -- strength/cardio split structural — strength sessions cannot accept cardio
-  -- entries by construction, no trigger needed.
-  parent_kind                   text NOT NULL DEFAULT 'cardio' CHECK (parent_kind = 'cardio'),
+  parent_kind                   text NOT NULL DEFAULT 'cardio'
+    CONSTRAINT workout_session_cardio_entries_parent_kind_check CHECK (parent_kind = 'cardio'),
   entry_number                  integer NOT NULL CHECK (entry_number >= 1),
   metrics                       jsonb NOT NULL,
   created_at                    timestamptz NOT NULL DEFAULT now(),
   updated_at                    timestamptz NOT NULL DEFAULT now(),
-  FOREIGN KEY (workout_session_exercise_id, parent_kind)
+  CONSTRAINT workout_session_cardio_entries_wse_id_parent_kind_fk
+    FOREIGN KEY (workout_session_exercise_id, parent_kind)
     REFERENCES public.workout_session_exercises(id, kind)
     ON UPDATE CASCADE ON DELETE CASCADE,
-  UNIQUE (workout_session_exercise_id, entry_number)
+  CONSTRAINT workout_session_cardio_entries_wse_id_entry_number_key
+    UNIQUE (workout_session_exercise_id, entry_number)
 );
+
+COMMENT ON TABLE public.workout_session_cardio_entries IS
+  'Per-entry metric blobs logged for a cardio session-exercise. parent_kind is pinned to ''cardio'' (composite FK to workout_session_exercises(id, kind)), so this table can only attach to cardio session-exercises by construction — strength session-exercises cannot accept cardio entries, no trigger needed. The metrics jsonb shape is validated against the parent exercise''s exercises_cardio.metrics_schema by validate_workout_session_cardio_entry() at write time only.';
+
+COMMENT ON COLUMN public.workout_session_cardio_entries.parent_kind IS
+  'Pinned to ''cardio'' via DEFAULT + CHECK. Forms a composite FK with workout_session_exercise_id targeting workout_session_exercises(id, kind), so this row can only attach to a cardio session-exercise.';
+
+COMMENT ON COLUMN public.workout_session_cardio_entries.metrics IS
+  'Per-entry metric values. Shape validated against the parent exercise''s exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema.';
+
+COMMENT ON CONSTRAINT workout_session_cardio_entries_parent_kind_check ON public.workout_session_cardio_entries IS
+  'Pins parent_kind to ''cardio''. Combined with the composite FK to workout_session_exercises(id, kind), this makes the cardio/strength split structural — strength session-exercises cannot accept cardio entries.';
+
+COMMENT ON CONSTRAINT workout_session_cardio_entries_wse_id_parent_kind_fk ON public.workout_session_cardio_entries IS
+  'Composite FK to workout_session_exercises(id, kind). Only matches when parent kind = ''cardio''. See workout_session_strength_sets_wse_id_kind_fk for the symmetric strength constraint.';
 
 CREATE TRIGGER set_public_workout_session_cardio_entries_updated_at
 BEFORE UPDATE ON public.workout_session_cardio_entries
@@ -22,20 +36,6 @@ FOR EACH ROW EXECUTE FUNCTION public.set_current_timestamp_updated_at();
 COMMENT ON TRIGGER set_public_workout_session_cardio_entries_updated_at ON public.workout_session_cardio_entries
 IS 'trigger to set value of column "updated_at" to current timestamp on row update';
 
--- Shape validation: the composite FK guarantees the parent is cardio; this
--- trigger validates that the metrics jsonb conforms to that exercise's JSON
--- Schema in exercises_cardio.metrics_schema. The kind check is no longer
--- needed here — the FK enforces it declaratively.
---
--- Temporal semantics: validation runs only at write time on this table
--- (INSERT, or UPDATE of metrics/workout_session_exercise_id). The schema is
--- intentionally treated as "shape at time of entry," not a forever invariant:
--- if the owner of a private cardio exercise later edits
--- exercises_cardio.metrics_schema, existing entries are NOT re-validated and
--- stay as-is. That is the right behavior for this domain — a user tweaking
--- their custom exercise's metric definition shouldn't have historical entries
--- retroactively rejected or quietly mutated. New writes pick up the new shape;
--- old writes stand on their own.
 CREATE OR REPLACE FUNCTION public.validate_workout_session_cardio_entry()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -87,7 +87,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+COMMENT ON FUNCTION public.validate_workout_session_cardio_entry() IS
+  'BEFORE INSERT/UPDATE trigger function on workout_session_cardio_entries. Validates the metrics jsonb against the parent exercise''s exercises_cardio.metrics_schema (pg_jsonschema). Temporal semantics: validation runs only at write time, never retroactively — if the owner edits metrics_schema later, existing entries are not re-validated. The composite FK guarantees the parent is cardio; the trigger noops if not, leaving the FK to surface the clearer error. Raises 22023 if a cardio exercise lacks its sidecar (defense-in-depth against session_replication_role=replica), 23514 on shape mismatch.';
+
 CREATE TRIGGER validate_public_workout_session_cardio_entries_metrics
 BEFORE INSERT OR UPDATE OF metrics, workout_session_exercise_id
 ON public.workout_session_cardio_entries
 FOR EACH ROW EXECUTE FUNCTION public.validate_workout_session_cardio_entry();
+COMMENT ON TRIGGER validate_public_workout_session_cardio_entries_metrics ON public.workout_session_cardio_entries IS
+  'Shape validation of metrics jsonb against the parent exercise''s metrics_schema. See validate_workout_session_cardio_entry().';
