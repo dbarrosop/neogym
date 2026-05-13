@@ -136,6 +136,12 @@ describe("formatMetricValue", () => {
   it("formats duration without trailing unit", () => {
     expect(formatMetricValue(125, duration)).toBe("2:05");
   });
+
+  it("renders placeholder for non-numeric stored values (jsonb shape drift)", () => {
+    expect(formatMetricValue("5.0" as unknown as number, distance)).toBe("—");
+    expect(formatMetricValue(true as unknown as number, distance)).toBe("—");
+    expect(formatMetricValue(Number.POSITIVE_INFINITY, distance)).toBe("—");
+  });
 });
 
 describe("aggregationForFormat", () => {
@@ -158,6 +164,12 @@ describe("parseDecimalInput", () => {
     expect(parseDecimalInput("abc")).toBeNull();
     expect(parseDecimalInput("1.2.3")).toBeNull();
   });
+
+  it("rejects negative numbers (cardio metrics are never negative)", () => {
+    expect(parseDecimalInput("-5")).toBeNull();
+    expect(parseDecimalInput("-5.42")).toBeNull();
+    expect(parseDecimalInput("-0")).toBeNull();
+  });
 });
 
 describe("parseIntegerInput", () => {
@@ -165,6 +177,10 @@ describe("parseIntegerInput", () => {
     expect(parseIntegerInput("5")).toBe(5);
     expect(parseIntegerInput("5.0")).toBeNull();
     expect(parseIntegerInput("")).toBeNull();
+  });
+
+  it("rejects negative integers", () => {
+    expect(parseIntegerInput("-5")).toBeNull();
   });
 });
 
@@ -332,5 +348,13 @@ describe("buildZodSchemaFromMetricsSchema", () => {
     expect(() => zodSchema.parse({ duration_s: 100, distance_km: -1 })).toThrow();
     expect(() => zodSchema.parse({ duration_s: 100, distance_km: 1000 })).toThrow();
     expect(() => zodSchema.parse({ duration_s: 100, avg_hr_bpm: 1000 })).toThrow();
+  });
+
+  it("honours exclusiveMaximum (rejects at the cap, accepts just below)", () => {
+    // distance_km has exclusiveMaximum: 1000, so 999.99 is valid but 1000 is not.
+    // An inclusive `.lte(1000)` regression would still reject 1000 + accept 999.99,
+    // but only on the wrong side of the boundary — the next assertion catches that.
+    expect(() => zodSchema.parse({ duration_s: 100, distance_km: 999.99 })).not.toThrow();
+    expect(() => zodSchema.parse({ duration_s: 100, distance_km: 1000 })).toThrow();
   });
 });

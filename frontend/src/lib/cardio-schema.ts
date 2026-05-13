@@ -97,10 +97,10 @@ const NUMBER_FORMAT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 
 const INT_FORMAT = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
 export function formatMetricValue(
-  value: number | null | undefined,
+  value: number | string | boolean | null | undefined,
   spec: CardioMetricSpec,
 ): string {
-  if (value === null || value === undefined || Number.isNaN(value)) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     return "—";
   }
   switch (spec.format) {
@@ -114,8 +114,8 @@ export function formatMetricValue(
   }
 }
 
-const DECIMAL_RE = /^-?\d+([.,]\d+)?$/;
-const INTEGER_RE = /^-?\d+$/;
+const DECIMAL_RE = /^\d+([.,]\d+)?$/;
+const INTEGER_RE = /^\d+$/;
 const POSITIVE_INTEGER_RE = /^\d+$/;
 
 export function parseDecimalInput(raw: string): number | null {

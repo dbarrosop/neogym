@@ -1887,3 +1887,397 @@ describe("user-role workout_sessions insert (ad-hoc + cross-user)", () => {
     }
   });
 });
+
+// The relaxed workout_sessions UPDATE check in public_workout_sessions.yaml is
+// the symmetric attack surface to INSERT (covered above). A regression that
+// simplifies update_permissions.check to plain user_id=X-Hasura-User-Id would
+// let any user re-point an existing session at any other user's private workout
+// and the INSERT-only tests would stay green. These tests pin the UPDATE check
+// end-to-end.
+describe("user-role workout_sessions update (ad-hoc + cross-user)", () => {
+  test("user can detach their session to ad-hoc by setting workoutId to null", async () => {
+    if (!hasuraReachable) return;
+    const setup = await gql<{ insertWorkout: { id: string } }>(
+      `mutation MakeOwn($userId: uuid!, $name: String!) {
+         insertWorkout(object: { name: $name, isPublic: false, userId: $userId }) { id }
+       }`,
+      { userId: TEST_USER_ID, name: `Own workout to detach ${Date.now()}` },
+    );
+    expect(setup.errors).toBeUndefined();
+    const workoutId = setup.data!.insertWorkout.id;
+
+    const createSession = await gqlAsUser<{ insertWorkoutSession: { id: string } }>(
+      TEST_USER_ID,
+      `mutation Make($workoutId: uuid!) {
+         insertWorkoutSession(object: { workoutId: $workoutId }) { id }
+       }`,
+      { workoutId },
+    );
+    expect(createSession.errors).toBeUndefined();
+    const sessionId = createSession.data!.insertWorkoutSession.id;
+
+    try {
+      const res = await gqlAsUser<{
+        updateWorkoutSession: { id: string; workoutId: string | null };
+      }>(
+        TEST_USER_ID,
+        `mutation Detach($id: uuid!) {
+           updateWorkoutSession(pk_columns: { id: $id }, _set: { workoutId: null }) {
+             id workoutId
+           }
+         }`,
+        { id: sessionId },
+      );
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateWorkoutSession.workoutId).toBeNull();
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+        id: sessionId,
+      });
+      await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: workoutId,
+      });
+    }
+  });
+
+  test("user can re-point their session to a public catalog workout", async () => {
+    if (!hasuraReachable) return;
+    const pub = await gql<{ insertWorkout: { id: string } }>(
+      `mutation MakePublic($name: String!) {
+         insertWorkout(object: { name: $name, isPublic: true }) { id }
+       }`,
+      { name: `Public catalog for update ${Date.now()}` },
+    );
+    expect(pub.errors).toBeUndefined();
+    const publicWorkoutId = pub.data!.insertWorkout.id;
+
+    const own = await gql<{ insertWorkout: { id: string } }>(
+      `mutation MakeOwn($userId: uuid!, $name: String!) {
+         insertWorkout(object: { name: $name, isPublic: false, userId: $userId }) { id }
+       }`,
+      { userId: TEST_USER_ID, name: `Own to repoint ${Date.now()}` },
+    );
+    expect(own.errors).toBeUndefined();
+    const ownWorkoutId = own.data!.insertWorkout.id;
+
+    const session = await gqlAsUser<{ insertWorkoutSession: { id: string } }>(
+      TEST_USER_ID,
+      `mutation Make($workoutId: uuid!) {
+         insertWorkoutSession(object: { workoutId: $workoutId }) { id }
+       }`,
+      { workoutId: ownWorkoutId },
+    );
+    expect(session.errors).toBeUndefined();
+    const sessionId = session.data!.insertWorkoutSession.id;
+
+    try {
+      const res = await gqlAsUser<{
+        updateWorkoutSession: { id: string; workoutId: string | null };
+      }>(
+        TEST_USER_ID,
+        `mutation Repoint($id: uuid!, $workoutId: uuid!) {
+           updateWorkoutSession(pk_columns: { id: $id }, _set: { workoutId: $workoutId }) {
+             id workoutId
+           }
+         }`,
+        { id: sessionId, workoutId: publicWorkoutId },
+      );
+      expect(res.errors).toBeUndefined();
+      expect(res.data!.updateWorkoutSession.workoutId).toBe(publicWorkoutId);
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+        id: sessionId,
+      });
+      await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: ownWorkoutId,
+      });
+      await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+        id: publicWorkoutId,
+      });
+    }
+  });
+
+  test("user cannot re-point their session at another user's private workout", async () => {
+    if (!hasuraReachable) return;
+    // The cross-user UPDATE check needs TWO real users: TEST_USER_ID is the
+    // attacker (they own a session and try to re-point it), and a second user
+    // owns the target private workout. Hasura's admin role lets us insert
+    // directly into auth.users to materialise that second user — the same
+    // trick isn't needed in the symmetric INSERT-negative test because the
+    // INSERT permission check rejects before any user_id FK is touched.
+    const foreignUserId = "33333333-3333-4333-8333-333333333333";
+    const newUser = await gql<{ insertUser: { id: string } | null }>(
+      `mutation MakeForeignUser($id: uuid!, $email: citext!) {
+         insertUser(object: {
+           id: $id, email: $email, emailVerified: true,
+           displayName: "Foreign update test", locale: "en", defaultRole: "user"
+         }) { id }
+       }`,
+      { id: foreignUserId, email: `foreign-update-${Date.now()}@test.local` },
+    );
+    expect(newUser.errors).toBeUndefined();
+
+    try {
+      const setup = await gql<{ insertWorkout: { id: string } }>(
+        `mutation MakePrivate($userId: uuid!, $name: String!) {
+           insertWorkout(object: { name: $name, isPublic: false, userId: $userId }) { id }
+         }`,
+        { userId: foreignUserId, name: `Foreign private update ${Date.now()}` },
+      );
+      expect(setup.errors).toBeUndefined();
+      const foreignWorkoutId = setup.data!.insertWorkout.id;
+
+      const session = await gqlAsUser<{ insertWorkoutSession: { id: string } }>(
+        TEST_USER_ID,
+        `mutation MakeAdHoc { insertWorkoutSession(object: {}) { id } }`,
+      );
+      expect(session.errors).toBeUndefined();
+      const sessionId = session.data!.insertWorkoutSession.id;
+
+      try {
+        const res = await gqlAsUser<{
+          updateWorkoutSession: { id: string; workoutId: string | null } | null;
+        }>(
+          TEST_USER_ID,
+          `mutation BadRepoint($id: uuid!, $workoutId: uuid!) {
+             updateWorkoutSession(pk_columns: { id: $id }, _set: { workoutId: $workoutId }) {
+               id workoutId
+             }
+           }`,
+          { id: sessionId, workoutId: foreignWorkoutId },
+        );
+        expect(res.errors).toBeDefined();
+        const code = res.errors![0].extensions?.code;
+        expect(["permission-error", "constraint-violation"]).toContain(code as string);
+
+        const after = await gql<{
+          workoutSession: { workoutId: string | null } | null;
+        }>(
+          `query Verify($id: uuid!) { workoutSession(id: $id) { workoutId } }`,
+          { id: sessionId },
+        );
+        expect(after.data!.workoutSession!.workoutId).toBeNull();
+      } finally {
+        await gql(`mutation Drop($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, {
+          id: sessionId,
+        });
+        await gql(`mutation Drop($id: uuid!) { deleteWorkout(id: $id) { id } }`, {
+          id: foreignWorkoutId,
+        });
+      }
+    } finally {
+      await gql(`mutation DropUser($id: uuid!) { deleteUser(id: $id) { id } }`, {
+        id: foreignUserId,
+      });
+    }
+  });
+});
+
+// The pinned-parent_kind CHECK constraints on workout_session_strength_sets
+// and workout_session_cardio_entries are exercised indirectly via the
+// composite-FK rejection tests and the category-flip cascade tests above. But
+// the most direct path — UPDATE parent_kind to the other value — was not
+// covered. Today parent_kind isn't in any user-role write allowlist, so this
+// path is only reachable as admin; the test exists to lock the CHECK against
+// future regressions (e.g., someone widening the user-role update allowlist
+// without realizing the CHECK is the load-bearing line).
+describe("parent_kind pinned CHECK rejects direct admin UPDATE", () => {
+  test("UPDATE workout_session_strength_set.parentKind = 'cardio' → rejected", async () => {
+    if (!hasuraReachable) return;
+    const inserted = await gql<{ insertWorkoutSessionStrengthSet: { id: string } }>(
+      `mutation MakeSet($wseId: uuid!) {
+         insertWorkoutSessionStrengthSet(object: {
+           workoutSessionExerciseId: $wseId,
+           setNumber: 191, reps: 5, weight: "60.00"
+         }) { id }
+       }`,
+      { wseId: strengthWseId },
+    );
+    expect(inserted.errors).toBeUndefined();
+    const setId = inserted.data!.insertWorkoutSessionStrengthSet.id;
+
+    try {
+      const res = await gql(
+        `mutation Flip($id: uuid!) {
+           updateWorkoutSessionStrengthSet(pk_columns: { id: $id }, _set: { parentKind: "cardio" }) {
+             id parentKind
+           }
+         }`,
+        { id: setId },
+      );
+      expect(res.errors).toBeDefined();
+      // Hasura surfaces the pinned-kind CHECK as either constraint-violation
+      // or permission-error depending on which table the mutation targets
+      // (the wrapper class differs between sibling tables). Both reflect the
+      // same underlying CHECK rejection — the load-bearing assertion is the
+      // re-read below that proves the row is unchanged.
+      const code = res.errors![0].extensions?.code;
+      expect(["constraint-violation", "permission-error"]).toContain(code as string);
+      expect(res.errors![0].message.toLowerCase()).toContain("parent_kind_check");
+
+      const after = await gql<{
+        workoutSessionStrengthSet: { parentKind: string } | null;
+      }>(
+        `query Verify($id: uuid!) { workoutSessionStrengthSet(id: $id) { parentKind } }`,
+        { id: setId },
+      );
+      expect(after.data!.workoutSessionStrengthSet!.parentKind).toBe("strength");
+    } finally {
+      await gql(
+        `mutation Drop($id: uuid!) { deleteWorkoutSessionStrengthSet(id: $id) { id } }`,
+        { id: setId },
+      );
+    }
+  });
+
+  test("UPDATE workout_session_cardio_entry.parentKind = 'strength' → rejected", async () => {
+    if (!hasuraReachable) return;
+    const inserted = await gql<{ insertWorkoutSessionCardioEntry: { id: string } }>(
+      `mutation MakeEntry($wseId: uuid!) {
+         insertWorkoutSessionCardioEntry(object: {
+           workoutSessionExerciseId: $wseId,
+           entryNumber: 191,
+           metrics: { duration_s: 300 }
+         }) { id }
+       }`,
+      { wseId: cardioWseId },
+    );
+    expect(inserted.errors).toBeUndefined();
+    const entryId = inserted.data!.insertWorkoutSessionCardioEntry.id;
+
+    try {
+      const res = await gql(
+        `mutation Flip($id: uuid!) {
+           updateWorkoutSessionCardioEntry(pk_columns: { id: $id }, _set: { parentKind: "strength" }) {
+             id parentKind
+           }
+         }`,
+        { id: entryId },
+      );
+      expect(res.errors).toBeDefined();
+      const code = res.errors![0].extensions?.code;
+      expect(["constraint-violation", "permission-error"]).toContain(code as string);
+      expect(res.errors![0].message.toLowerCase()).toContain("parent_kind_check");
+
+      const after = await gql<{
+        workoutSessionCardioEntry: { parentKind: string } | null;
+      }>(
+        `query Verify($id: uuid!) { workoutSessionCardioEntry(id: $id) { parentKind } }`,
+        { id: entryId },
+      );
+      expect(after.data!.workoutSessionCardioEntry!.parentKind).toBe("cardio");
+    } finally {
+      await gql(
+        `mutation Drop($id: uuid!) { deleteWorkoutSessionCardioEntry(id: $id) { id } }`,
+        { id: entryId },
+      );
+    }
+  });
+});
+
+// Migration 1790000410000 adds CHECK exercises_cardio_schema_valid using
+// pg_jsonschema.jsonschema_is_valid on metrics_schema. Hasura lets users
+// insert and update metricsSchema on their own private cardio exercises, so
+// this CHECK is the integrity gate on a user-writable column. The existing
+// suite covers the per-entry trigger (validate_workout_session_cardio_entry)
+// but not the schema-itself CHECK; without that coverage, dropping the CHECK
+// in a future migration would be invisible.
+describe("exercises_cardio_schema_valid CHECK on metrics_schema", () => {
+  test("INSERT with malformed metrics_schema (invalid JSON Schema) → rejected", async () => {
+    if (!hasuraReachable) return;
+    const slug = `bad_schema_insert_${Date.now()}`;
+    // Admin-level write — the CHECK fires regardless of role, and using admin
+    // keeps the assertion focused on the schema-validity gate instead of the
+    // user-role permission shape (which has its own tests).
+    const res = await gql(
+      `mutation BadSchemaInsert($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Bad schema cardio",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: cardio, equipment: body_only,
+           isPublic: false, userId: $userId,
+           cardio: { data: { metricsSchema: { type: "not_a_real_json_schema_type" } } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(res.errors).toBeDefined();
+    expect(errorText(res.errors!).toLowerCase()).toContain("exercises_cardio_schema_valid");
+  });
+
+  test("UPDATE rewriting metricsSchema to a malformed value → rejected", async () => {
+    if (!hasuraReachable) return;
+    const slug = `bad_schema_update_${Date.now()}`;
+    const created = await gql<{ insertExercise: { id: string } }>(
+      `mutation MakeExercise($slug: String!, $userId: uuid!) {
+         insertExercise(object: {
+           slug: $slug, name: "Schema update test",
+           primaryMuscleGroup: abdominals, instructions: ["x"],
+           level: beginner, category: cardio, equipment: body_only,
+           isPublic: false, userId: $userId,
+           cardio: { data: {
+             metricsSchema: {
+               type: "object", additionalProperties: false,
+               properties: { duration_s: { type: "integer", minimum: 0 } },
+               required: ["duration_s"]
+             }
+           } }
+         }) { id }
+       }`,
+      { slug, userId: TEST_USER_ID },
+    );
+    expect(created.errors).toBeUndefined();
+    const exerciseId = created.data!.insertExercise.id;
+
+    try {
+      const res = await gql(
+        `mutation BadUpdate($exId: uuid!) {
+           updateExerciseCardio(pk_columns: { exerciseId: $exId }, _set: {
+             metricsSchema: { type: "not_a_real_json_schema_type" }
+           }) { exerciseId }
+         }`,
+        { exId: exerciseId },
+      );
+      expect(res.errors).toBeDefined();
+      expect(errorText(res.errors!).toLowerCase()).toContain("exercises_cardio_schema_valid");
+    } finally {
+      await gql(`mutation Drop($id: uuid!) { deleteExercise(id: $id) { id } }`, {
+        id: exerciseId,
+      });
+    }
+  });
+});
+
+// Read-side invariant check. The deferred constraint triggers guarantee at
+// commit time that every newly-inserted exercise has its sidecar — but if a
+// future seed or migration ever slips a partial-commit through (e.g., via
+// SET session_replication_role = replica), only a read-side check would
+// notice. Two cheap GraphQL queries; runs in milliseconds.
+describe("data consistency", () => {
+  test("every exercise has its matching sidecar (no orphans in the live DB)", async () => {
+    if (!hasuraReachable) return;
+    const strengthOrphans = await gql<{
+      exercises: Array<{ id: string; slug: string }>;
+    }>(`
+      query StrengthOrphans {
+        exercises(where: { kind: { _eq: "strength" }, _not: { strength: {} } }) {
+          id slug
+        }
+      }
+    `);
+    expect(strengthOrphans.errors).toBeUndefined();
+    expect(strengthOrphans.data!.exercises).toHaveLength(0);
+
+    const cardioOrphans = await gql<{
+      exercises: Array<{ id: string; slug: string }>;
+    }>(`
+      query CardioOrphans {
+        exercises(where: { kind: { _eq: "cardio" }, _not: { cardio: {} } }) {
+          id slug
+        }
+      }
+    `);
+    expect(cardioOrphans.errors).toBeUndefined();
+    expect(cardioOrphans.data!.exercises).toHaveLength(0);
+  });
+});

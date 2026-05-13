@@ -143,8 +143,7 @@ erDiagram
     JOURNAL_LABELS {
         uuid id PK
         text name
-        uuid user_id "FK auth.users; NULL iff is_public"
-        boolean is_public
+        uuid user_id "FK auth.users CASCADE"
     }
 
     JOURNAL_ENTRY_LABELS {
@@ -160,11 +159,11 @@ erDiagram
     JOURNAL_LABELS  ||--o{ JOURNAL_ENTRY_LABELS   : "applied to"
 ```
 
-`journal_labels` and `workout_labels` use the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint.
+`workout_labels` uses the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint. `journal_labels` is strictly private per-user — no `is_public` column, `user_id NOT NULL` — see [`permissions.md`](permissions.md) pattern A.
 
 ## Public vs user-owned visibility
 
-A pattern that recurs across `exercises`, `workouts`, `labels`, `journal_labels`:
+A pattern that recurs across `exercises`, `workouts`, `labels`:
 
 ```sql
 CHECK (
@@ -193,10 +192,10 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 
 | Table | Trigger | Fires on | What it does |
 |---|---|---|---|
-| `workout_exercises` | `sync_public_workout_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id` | Copies `kind` from the parent `exercises.kind`, overwriting any client-supplied value. |
-| `workout_session_exercises` | `sync_public_workout_session_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id` | Same. |
+| `workout_exercises` | `sync_public_workout_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id, kind` | Copies `kind` from the parent `exercises.kind`, overwriting any client-supplied value (including on UPDATE OF `kind` itself, so a client can't bypass the FK by re-pointing `kind` without changing `exercise_id`). |
+| `workout_session_exercises` | `sync_public_workout_session_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id, kind` | Same. |
 | `workout_session_cardio_entries` | `validate_public_workout_session_cardio_entries_metrics` | `BEFORE INSERT OR UPDATE OF metrics, workout_session_exercise_id` | Validates `metrics` against `exercises_cardio.metrics_schema` via `pg_jsonschema`. Noops if the parent isn't cardio so the FK can give a clearer error. |
-| `exercises` | `exercise_must_have_sidecar` | `AFTER INSERT` (DEFERRABLE INITIALLY DEFERRED) | At commit, raises `23503` if the inserted exercise has no matching sidecar (`exercises_strength` for kind=strength, `exercises_cardio` for kind=cardio). "Deferred" lets clients insert the exercise and its sidecar in either order within one transaction — the natural shapes are Hasura nested mutation or a SQL CTE. |
-| `exercises_strength`, `exercises_cardio` | `<sidecar>_no_orphan_parent` | `AFTER DELETE` (DEFERRABLE INITIALLY DEFERRED) | At commit, raises `23503` if the deleted sidecar's parent exercise still exists. CASCADE from `DELETE FROM exercises` removes both atomically (parent gone, check passes); standalone sidecar DELETEs trip the check and roll back. |
+| `exercises` | `exercise_must_have_sidecar` | `CONSTRAINT TRIGGER — AFTER INSERT, DEFERRABLE INITIALLY DEFERRED (fires at commit)` | At commit, raises `23503` if the inserted exercise has no matching sidecar (`exercises_strength` for kind=strength, `exercises_cardio` for kind=cardio). Deferral lets clients insert the exercise and its sidecar in either order within one transaction — the natural shapes are Hasura nested mutation or a SQL CTE. |
+| `exercises_strength`, `exercises_cardio` | `<sidecar>_no_orphan_parent` | `CONSTRAINT TRIGGER — AFTER DELETE, DEFERRABLE INITIALLY DEFERRED (fires at commit)` | At commit, raises `23503` if the deleted sidecar's parent exercise still exists. CASCADE from `DELETE FROM exercises` removes both atomically (parent gone, check passes); standalone sidecar DELETEs trip the check and roll back. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.
