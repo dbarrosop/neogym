@@ -13,6 +13,7 @@
       "!.nitro",
       "!.tanstack",
       "!.vinxi",
+      "!.wrangler",
       "!src/routeTree.gen.ts",
       "!src/gql",
       "!src/components/ui",

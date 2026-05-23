@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "neogym",
+  "compatibility_date": "2024-09-19",
+  // Static-only deploy: no `main`, just an [assets] binding. Cloudflare serves the SPA shell
+  // (`index.html`) for any path that doesn't match a built asset.
+  "assets": {
+    "directory": "./.output/public",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [{ "pattern": "neogym.nhost.app", "custom_domain": true }],
+  // neogym.nhost.app is the only public URL — no workers.dev fallback, no per-version preview URLs.
+  "workers_dev": false,
+  "preview_urls": false
+}

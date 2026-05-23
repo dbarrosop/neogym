@@ -8,8 +8,16 @@
     nix-filter.follows = "nixops/nix-filter";
   };
 
-  outputs = { self, nixops, nixpkgs, flake-utils, nix-filter, }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixops,
+      nixpkgs,
+      flake-utils,
+      nix-filter,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -47,28 +55,32 @@
       in
       {
         checks = {
-          nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
-            {
-              nativeBuildInputs = with pkgs;
-                [
+          nixpkgs-fmt =
+            pkgs.runCommand "check-nixpkgs-fmt"
+              {
+                nativeBuildInputs = with pkgs; [
                   nixpkgs-fmt
                 ];
-            }
-            ''
-              nixpkgs-fmt --check ${nix-src}/*
+              }
+              ''
+                nixpkgs-fmt --check ${nix-src}/*
 
-              mkdir $out
-            '';
-
+                mkdir $out
+              '';
 
         };
 
         devShells = flake-utils.lib.flattenTree {
           default = pkgs.mkShell {
-            buildInputs = with pkgs; [
-              gnumake
-              nixpkgs-fmt
-            ] ++ checkDeps ++ buildInputs ++ nativeBuildInputs;
+            buildInputs =
+              with pkgs;
+              [
+                gnumake
+                nixpkgs-fmt
+              ]
+              ++ checkDeps
+              ++ buildInputs
+              ++ nativeBuildInputs;
           };
         };
 
@@ -76,4 +88,3 @@
       }
     );
 }
-
