@@ -831,11 +831,11 @@ function ExerciseLog({
                     {s.setNumber}
                   </span>
                   <span className="flex-1 text-sm tabular-nums">
+                    <span className="font-medium">{s.reps}</span>
+                    <span className="px-2 text-muted-foreground">×</span>
                     <span className="font-medium">
                       {Number(s.weight) === 0 ? "BW" : `${Number(s.weight)} kg`}
                     </span>
-                    <span className="px-2 text-muted-foreground">×</span>
-                    <span className="font-medium">{s.reps}</span>
                     {doubleWeight && Number(s.weight) > 0 ? (
                       <span className="ml-2 text-xs text-muted-foreground">/side</span>
                     ) : null}
@@ -1015,7 +1015,7 @@ function SetDialog({
 }: SetDialogProps) {
   const [weight, setWeight] = useState("");
   const [reps, setReps] = useState("");
-  const weightInputRef = useRef<HTMLInputElement | null>(null);
+  const repsInputRef = useRef<HTMLInputElement | null>(null);
 
   // Reset values when dialog opens.
   useEffect(() => {
@@ -1032,8 +1032,8 @@ function SetDialog({
       setWeight("");
       setReps("");
     }
-    // Focus weight input after dialog mounts
-    requestAnimationFrame(() => weightInputRef.current?.select());
+    // Focus reps input after dialog mounts
+    requestAnimationFrame(() => repsInputRef.current?.select());
   }, [open, mode, editingSet, previousSet]);
 
   const submitLabel = mode === "edit" ? "Save" : "Log set";
@@ -1070,33 +1070,33 @@ function SetDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="set-weight" className="text-xs">
-                Weight (kg){doubleWeight ? " · per side" : ""}
-              </Label>
-              <Input
-                id="set-weight"
-                ref={weightInputRef}
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]*[.,]?[0-9]*"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                className="text-right tabular-nums"
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
               <Label htmlFor="set-reps" className="text-xs">
                 Reps
               </Label>
               <Input
                 id="set-reps"
+                ref={repsInputRef}
                 type="number"
                 inputMode="numeric"
                 step="1"
                 min="0"
                 value={reps}
                 onChange={(e) => setReps(e.target.value)}
+                className="text-right tabular-nums"
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-weight" className="text-xs">
+                Weight (kg){doubleWeight ? " · per side" : ""}
+              </Label>
+              <Input
+                id="set-weight"
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
                 className="text-right tabular-nums"
                 placeholder="0"
               />

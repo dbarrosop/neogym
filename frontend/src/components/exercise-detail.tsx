@@ -383,11 +383,11 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
                               className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-xs tabular-nums"
                             >
                               <span className="text-muted-foreground">{s.setNumber}.</span>
+                              <span className="font-medium">{s.reps}</span>
+                              <span className="text-muted-foreground">×</span>
                               <span className="font-medium">
                                 {Number(s.weight) === 0 ? "BW" : `${Number(s.weight)} kg`}
                               </span>
-                              <span className="text-muted-foreground">×</span>
-                              <span className="font-medium">{s.reps}</span>
                             </span>
                           ))}
                         </div>
@@ -469,7 +469,7 @@ function ExerciseProgress({ points, doubleWeight }: ExerciseProgressProps) {
       <div className="grid gap-3 sm:grid-cols-2">
         <ProgressCard
           title="Volume"
-          subtitle="weight × reps, all sets"
+          subtitle="reps × weight, all sets"
           metric="volume"
           metricLabel="Volume"
           points={points}
