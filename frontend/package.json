@@ -16,7 +16,7 @@
     "codegen": "bun run codegen:graphql-schema && bun run codegen:graphql",
     "test": "bun test",
     "check": "bun run typecheck && bun run lint && bun run test",
-    "deploy": "bun run build && wrangler deploy"
+    "deploy": "bun run build && wrangler deploy --dispatch-namespace nhost-app"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
