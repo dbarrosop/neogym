@@ -12,6 +12,7 @@ import { graphql } from "@/gql";
 import type { JournalEntries_Bool_Exp } from "@/gql/graphql";
 import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import { usePersistedSearch } from "@/lib/hooks/use-persisted-search";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -63,6 +64,13 @@ function JournalRoute() {
   const activeLabels = useMemo(() => searchParams.labels ?? [], [searchParams.labels]);
   const activeLabelSet = useMemo(() => new Set(activeLabels), [activeLabels]);
   const isFiltered = activeLabels.length > 0;
+
+  usePersistedSearch({
+    storageKey: "journal:filters",
+    search: searchParams,
+    isEmpty: (searchParams.labels?.length ?? 0) === 0,
+    apply: (next) => navigate({ search: next, replace: true }),
+  });
 
   const where = useMemo<JournalEntries_Bool_Exp | undefined>(() => {
     if (activeLabels.length === 0) {

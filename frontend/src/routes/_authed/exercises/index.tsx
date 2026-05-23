@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { usePersistedSearch } from "@/lib/hooks/use-persisted-search";
 import { cn } from "@/lib/utils";
 
 const ExercisesIndexQuery = graphql(`
@@ -169,6 +170,19 @@ function ExercisesRoute() {
   );
   const visibility: Visibility | null = searchParams.visibility ?? null;
   const search = searchParams.q ?? "";
+
+  usePersistedSearch({
+    storageKey: "exercises:filters",
+    search: searchParams,
+    isEmpty:
+      !searchParams.q &&
+      !searchParams.muscle &&
+      !searchParams.category &&
+      !searchParams.equipment &&
+      !searchParams.level &&
+      !searchParams.visibility,
+    apply: (next) => navigate({ search: next, replace: true }),
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["exercises", "index"],

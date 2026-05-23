@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { usePersistedSearch } from "@/lib/hooks/use-persisted-search";
 import { cn } from "@/lib/utils";
 
 const WorkoutsIndexQuery = graphql(`
@@ -57,6 +58,14 @@ function WorkoutsRoute() {
   const navigate = Route.useNavigate();
   const visibility: Visibility | null = searchParams.visibility ?? null;
   const activeLabels = useMemo(() => new Set(searchParams.labels ?? []), [searchParams.labels]);
+
+  usePersistedSearch({
+    storageKey: "workouts:filters",
+    search: searchParams,
+    isEmpty: !searchParams.visibility && (searchParams.labels?.length ?? 0) === 0,
+    apply: (next) => navigate({ search: next, replace: true }),
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["workouts", "index"],
     queryFn: () => gqlRequest(WorkoutsIndexQuery),
