@@ -212,3 +212,5 @@ enabled = false
 
 [observability.grafana.contacts]
 
+[experimental.constellation]
+version = "0.2.0"
