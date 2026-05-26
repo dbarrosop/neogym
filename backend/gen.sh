@@ -4,6 +4,7 @@ set -euo pipefail
 DST_PATH="./schemas"
 
 mkdir -p "$DST_PATH"
+rm -f "${DST_PATH}/schema."*
 
 SUBDOMAIN="local"
 REGION="local"
