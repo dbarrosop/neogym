@@ -18,21 +18,6 @@
         "type": "github"
       }
     },
-    "nix-filter": {
-      "locked": {
-        "lastModified": 1757882181,
-        "narHash": "sha256-+cCxYIh2UNalTz364p+QYmWHs0P+6wDhiWR4jDIKQIU=",
-        "owner": "numtide",
-        "repo": "nix-filter",
-        "rev": "59c44d1909c72441144b93cf0f054be7fe764de5",
-        "type": "github"
-      },
-      "original": {
-        "owner": "numtide",
-        "repo": "nix-filter",
-        "type": "github"
-      }
-    },
     "nix2container": {
       "inputs": {
         "nixpkgs": [
@@ -57,16 +42,15 @@
     "nixops": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nix-filter": "nix-filter",
         "nix2container": "nix2container",
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1777561079,
-        "narHash": "sha256-tJPRQjGlMlNxI2CNfyYXHyaLZ5ozXJ1RMhe4YeMKj9E=",
+        "lastModified": 1780002339,
+        "narHash": "sha256-z65VA3zkVpmN2UIJR8yyItj00OWw6YFVhSF9+T475pM=",
         "owner": "nhost",
         "repo": "nhost",
-        "rev": "24e0a2de28c36a216a03c4cb25ce5a23e655849c",
+        "rev": "c7b16fcc5a7596b9518d4440a76363976ef71aba",
         "type": "github"
       },
       "original": {
@@ -96,10 +80,6 @@
         "flake-utils": [
           "nixops",
           "flake-utils"
-        ],
-        "nix-filter": [
-          "nixops",
-          "nix-filter"
         ],
         "nixops": "nixops",
         "nixpkgs": [

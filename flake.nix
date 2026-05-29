@@ -5,11 +5,17 @@
     nixops.url = "github:nhost/nhost";
     nixpkgs.follows = "nixops/nixpkgs";
     flake-utils.follows = "nixops/flake-utils";
-    nix-filter.follows = "nixops/nix-filter";
   };
 
-  outputs = { self, nixops, nixpkgs, flake-utils, nix-filter, }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixops,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -19,16 +25,18 @@
           ];
         };
 
-        src = nix-filter.lib.filter {
-          root = ./.;
-          include = [
+        fs = pkgs.lib.fileset;
+
+        src = fs.toSource {
+          root = ../..;
+          fileset = fs.unions [
           ];
         };
 
-        nix-src = nix-filter.lib.filter {
+        nix-src = fs.toSource {
           root = ./.;
-          include = [
-            (nix-filter.lib.matchExt "nix")
+          fileset = fs.unions [
+            (fs.fileFilter (file: file.hasExt "nix") ./.)
           ];
         };
 
@@ -47,28 +55,33 @@
       in
       {
         checks = {
-          nixpkgs-fmt = pkgs.runCommand "check-nixpkgs-fmt"
-            {
-              nativeBuildInputs = with pkgs;
-                [
+          nixpkgs-fmt =
+            pkgs.runCommand "check-nixpkgs-fmt"
+              {
+                nativeBuildInputs = with pkgs; [
                   nixpkgs-fmt
                 ];
-            }
-            ''
-              nixpkgs-fmt --check ${nix-src}/*
+              }
+              ''
+                nixpkgs-fmt --check ${nix-src}/*
 
-              mkdir $out
-            '';
-
+                mkdir $out
+              '';
 
         };
 
         devShells = flake-utils.lib.flattenTree {
           default = pkgs.mkShell {
-            buildInputs = with pkgs; [
-              gnumake
-              nixpkgs-fmt
-            ] ++ checkDeps ++ buildInputs ++ nativeBuildInputs;
+            buildInputs =
+              with pkgs;
+              [
+                gnumake
+                nixpkgs-fmt
+                nhost-cli
+              ]
+              ++ checkDeps
+              ++ buildInputs
+              ++ nativeBuildInputs;
           };
         };
 
@@ -76,4 +89,3 @@
       }
     );
 }
-
