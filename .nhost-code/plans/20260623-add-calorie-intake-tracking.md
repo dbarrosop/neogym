@@ -295,7 +295,18 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implemented the Phase 2 nutrition shell and foods UI: added a single top-level Nutrition nav item, a nutrition layout with only Overview/Foods tabs, foods list/search/filter, private-food create/detail/edit/delete routes, a reusable `FoodForm`, and nutrition numeric/macro helpers with tests.
+- Reviewer verdict: `ACCEPT`. Public foods are visible/read-only, private CRUD is implemented by code review, spent-page redirects use `replace: true`, no dead tabs/links were introduced, and no Phase 3+ meals/plans/days UI was added.
+- Autonomous decisions recorded:
+  - Continued to Phase 2 after committing Phase 1 because no phase argument was provided and Phase 2 is the next unimplemented dependency-order phase. Correctness: frontend foods UI depends on the committed backend contract.
+  - The mobile nav was made horizontally scrollable for seven top-level entries instead of removing or grouping links. Long-term maintenance: this is the smallest reversible change that preserves existing navigation semantics; documented in `CLAUDE.md`.
+  - Full `bun run codegen` failure due missing `rover` was accepted again, with `bun run codegen:graphql` used against unchanged SDL. Correctness: `git diff -- frontend/schema.user.graphqls --exit-code` proved no backend schema drift in this frontend-only phase.
+- Quality-gate history:
+  - `cd frontend && nix develop ../ --command bun run codegen` — failed with `rover: command not found`; recorded as the existing toolchain limitation.
+  - `cd frontend && nix develop ../ --command bun run codegen:graphql` — passed.
+  - `cd frontend && nix develop ../ --command bun run check` — passed: typecheck, Biome, and 73 frontend tests.
+  - `git diff -- frontend/schema.user.graphqls --exit-code` — passed; user-role SDL unchanged.
+- Accepted concerns/follow-ups: browser manual smoke was not run; reviewer accepted code review plus automated gate per the plan. The friendly food-in-use error matcher is intentionally broad and can be narrowed later if it mislabels unrelated FK failures.
 
 ### Phase 3 — Meals CRUD
 
