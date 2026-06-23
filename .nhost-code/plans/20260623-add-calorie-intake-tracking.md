@@ -426,7 +426,18 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implemented private daily nutrition plan templates: added the Plans tab and overview card, plan list/detail/create/edit/delete routes, `NutritionPlanForm`, `MealPicker`, live slot/daily planned totals, and typed GraphQL operations.
+- Reviewer verdict: `ACCEPT`. The reviewer verified no calendar/daily-log scope creep, plan-slot permission compatibility, changed-meal delete+insert behavior, sorting by `(slot_time, position, id)`, `replace: true` on spent redirects, live meal/food planned totals, and no dead Today/Days links.
+- Autonomous decisions recorded:
+  - Continued to Phase 4 after committing Phase 3 because no phase argument was provided and Phase 4 is next in dependency order. Correctness: plans depend on meals.
+  - Full `bun run codegen` failure due missing `rover` was accepted again, with `bun run codegen:graphql` used against unchanged SDL. Correctness: `git diff -- frontend/schema.user.graphqls --exit-code` proved no backend schema drift in this frontend-only phase.
+  - Time inputs intentionally normalize DB `time` values to `HH:MM`. Long-term maintenance: current UI only creates minute-level local time-of-day slots, matching the phase's required local time-of-day scope.
+- Quality-gate history:
+  - `cd frontend && nix develop ../ --command bun run codegen` — failed with `rover: command not found`; recorded as the existing toolchain limitation.
+  - `cd frontend && nix develop ../ --command bun run codegen:graphql` — passed.
+  - `cd frontend && nix develop ../ --command bun run check` — passed: typecheck, Biome, and 77 frontend tests.
+  - `git diff -- frontend/schema.user.graphqls --exit-code` — passed; user-role SDL unchanged.
+- Accepted concerns/follow-ups: browser manual smoke was not run; reviewer accepted the automated gate and code review per the plan. If sub-minute `slot_time` values are ever introduced outside this UI, the editor will truncate them to `HH:MM`.
 
 ### Phase 5 — Daily intake logging
 

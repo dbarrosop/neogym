@@ -30,6 +30,14 @@ export interface MealTotalIngredient {
   food?: MacroFields | null;
 }
 
+export interface PlanTotalSlot {
+  meal?: {
+    mealIngredients: MealTotalIngredient[];
+  } | null;
+}
+
+const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})/;
+
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
   fatPer100g: "fat",
@@ -122,6 +130,47 @@ export function mealMacroTotals(ingredients: MealTotalIngredient[]): MacroTotals
     }
     return addMacroTotals(total, macrosForGrams(ingredient.food, ingredient.grams));
   }, EMPTY_MACRO_TOTALS);
+}
+
+export function planMacroTotals(slots: PlanTotalSlot[]): MacroTotals {
+  return slots.reduce((total, slot) => {
+    if (!slot.meal) {
+      return total;
+    }
+    return addMacroTotals(total, mealMacroTotals(slot.meal.mealIngredients));
+  }, EMPTY_MACRO_TOTALS);
+}
+
+export function timeToInputValue(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const match = TIME_OF_DAY_PATTERN.exec(value);
+  if (!match) {
+    return "";
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isInteger(hours) || !Number.isInteger(minutes)) {
+    return "";
+  }
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+    return "";
+  }
+  return `${match[1]}:${match[2]}`;
+}
+
+export function formatTimeOfDay(value: unknown): string {
+  const inputValue = timeToInputValue(value);
+  if (!inputValue) {
+    return "—";
+  }
+  const [hours = "0", minutes = "0"] = inputValue.split(":");
+  const date = new Date(2000, 0, 1, Number(hours), Number(minutes));
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
 }
 
 export function macroTotalsSummary(totals: MacroTotals): string {
