@@ -224,7 +224,20 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implemented the Phase 1 backend nutrition contract: added the `foods`, `meals`, `meal_ingredients`, `nutrition_plans`, `nutrition_plan_meals`, `nutrition_days`, `nutrition_log_meals`, and `nutrition_log_entries` schema; Hasura metadata/relationships/permissions; public-food and test-user seeds; nutrition integration tests; regenerated user-role GraphQL artifacts; and updated `CLAUDE.md` plus developer docs.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS` after a cleanup pass. C1 (whitespace-only churn in `backend/tests/kind-enforcement.test.ts`) was sent back to the implementer and resolved. Accepted concerns: tests deliberately target Hasura directly instead of the Constellation proxy, and `schema.user.graphqls` has large fallback-printer formatting churn until `rover` is available in the devshell.
+- Autonomous decisions recorded:
+  - No skill arguments were provided, so the latest non-architect plan in `.nhost-code/plans/` was selected. Correctness: it was the only candidate and had `Status: ready`.
+  - All phase commit messages were absent from `git log`, so Phase 1 was treated as the first unimplemented phase. Correctness: implementing dependencies in plan order avoids frontend work before the backend contract exists.
+  - The accepted C1 reviewer concern was still sent to the implementer. Long-term maintenance: removing whitespace-only churn reduces merge friction while preserving correctness/security.
+  - The direct-Hasura backend test endpoint was accepted. Correctness/security: these tests assert Hasura permissions/error behavior and are safer against proxy normalization; the decision is documented in `CLAUDE.md`.
+  - `bun run codegen` failed because `rover` is not present in the Nix devshell, so the strongest available equivalent was used: the already-regenerated SDL from GraphQL introspection plus `bun run codegen:graphql`. Correctness/long-term maintenance: generated TypeScript artifacts typecheck against the new user-role SDL, and the tooling limitation is documented for a later devshell/script fix.
+- Quality-gate history:
+  - `cd backend && make dev-env-down && make dev-env-up` — passed; fresh local stack applied migrations, metadata, and seeds.
+  - `cd backend && make test` — passed after review cleanup: 64 tests, 0 failures, 281 expectations.
+  - `cd frontend && nix develop ../ --command bun run codegen` — failed with `rover: command not found`; recorded as a toolchain limitation.
+  - `cd frontend && nix develop ../ --command bun run codegen:graphql` — passed using the regenerated SDL.
+  - `cd frontend && nix develop ../ --command bun run check` — passed: typecheck, Biome, and 68 frontend tests.
 
 ### Phase 2 — Nutrition shell and foods CRUD
 

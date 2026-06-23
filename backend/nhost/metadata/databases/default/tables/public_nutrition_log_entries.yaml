@@ -1,0 +1,156 @@
+table:
+  name: nutrition_log_entries
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    food_id:
+      custom_name: foodId
+    grams:
+      custom_name: grams
+    id:
+      custom_name: id
+    nutrition_day_id:
+      custom_name: nutritionDayId
+    nutrition_log_meal_id:
+      custom_name: nutritionLogMealId
+    position:
+      custom_name: position
+    snapshot_carbs_per_100g:
+      custom_name: snapshotCarbsPer100g
+    snapshot_fat_per_100g:
+      custom_name: snapshotFatPer100g
+    snapshot_fiber_per_100g:
+      custom_name: snapshotFiberPer100g
+    snapshot_food_name:
+      custom_name: snapshotFoodName
+    snapshot_kcal_per_100g:
+      custom_name: snapshotKcalPer100g
+    snapshot_protein_per_100g:
+      custom_name: snapshotProteinPer100g
+    snapshot_sugar_per_100g:
+      custom_name: snapshotSugarPer100g
+    updated_at:
+      custom_name: updatedAt
+  custom_column_names:
+    created_at: createdAt
+    food_id: foodId
+    grams: grams
+    id: id
+    nutrition_day_id: nutritionDayId
+    nutrition_log_meal_id: nutritionLogMealId
+    position: position
+    snapshot_carbs_per_100g: snapshotCarbsPer100g
+    snapshot_fat_per_100g: snapshotFatPer100g
+    snapshot_fiber_per_100g: snapshotFiberPer100g
+    snapshot_food_name: snapshotFoodName
+    snapshot_kcal_per_100g: snapshotKcalPer100g
+    snapshot_protein_per_100g: snapshotProteinPer100g
+    snapshot_sugar_per_100g: snapshotSugarPer100g
+    updated_at: updatedAt
+  custom_name: nutritionLogEntries
+  custom_root_fields:
+    delete: deleteNutritionLogEntries
+    delete_by_pk: deleteNutritionLogEntry
+    insert: insertNutritionLogEntries
+    insert_one: insertNutritionLogEntry
+    select: nutritionLogEntries
+    select_aggregate: nutritionLogEntriesAggregate
+    select_by_pk: nutritionLogEntry
+    update: updateNutritionLogEntries
+    update_by_pk: updateNutritionLogEntry
+object_relationships:
+  - name: food
+    using:
+      foreign_key_constraint_on: food_id
+  - name: nutritionDay
+    using:
+      manual_configuration:
+        column_mapping:
+          nutrition_day_id: id
+        insertion_order: null
+        remote_table:
+          name: nutrition_days
+          schema: public
+  - name: nutritionLogMeal
+    using:
+      manual_configuration:
+        column_mapping:
+          nutrition_log_meal_id: id
+        insertion_order: null
+        remote_table:
+          name: nutrition_log_meals
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - nutritionDay:
+              user_id:
+                _eq: X-Hasura-User-Id
+          - _or:
+              - nutrition_log_meal_id:
+                  _is_null: true
+              - nutritionLogMeal:
+                  nutritionDay:
+                    user_id:
+                      _eq: X-Hasura-User-Id
+          - food:
+              _or:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: true
+      columns:
+        - nutrition_day_id
+        - nutrition_log_meal_id
+        - food_id
+        - grams
+        - position
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - nutrition_day_id
+        - nutrition_log_meal_id
+        - food_id
+        - grams
+        - position
+        - snapshot_food_name
+        - snapshot_kcal_per_100g
+        - snapshot_fat_per_100g
+        - snapshot_carbs_per_100g
+        - snapshot_protein_per_100g
+        - snapshot_fiber_per_100g
+        - snapshot_sugar_per_100g
+        - created_at
+        - updated_at
+      filter:
+        nutritionDay:
+          user_id:
+            _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - grams
+        - position
+      filter:
+        nutritionDay:
+          user_id:
+            _eq: X-Hasura-User-Id
+      check:
+        nutritionDay:
+          user_id:
+            _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        nutritionDay:
+          user_id:
+            _eq: X-Hasura-User-Id

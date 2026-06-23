@@ -25,7 +25,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
-const HASURA_URL = "https://local.graphql.local.nhost.run/v1";
+const HASURA_URL = "https://local.hasura.local.nhost.run/v1/graphql";
 const ADMIN_SECRET = "nhost-admin-secret";
 
 // Seed UUIDs (see backend/nhost/seeds/default/1778179381117_test_user.sql and
@@ -156,8 +156,26 @@ beforeAll(async () => {
   }
   const session = res.data!.insertWorkoutSession;
   testSessionId = session.id;
-  cardioWseId = session.workoutSessionExercises.find((w) => w.exerciseId === CARDIO_EXERCISE_ID)!.id;
-  strengthWseId = session.workoutSessionExercises.find((w) => w.exerciseId === STRENGTH_EXERCISE_ID)!.id;
+
+  // The Nhost GraphQL layer may return only one nested child from this insert
+  // shape, so fetch the session exercises explicitly before deriving fixture ids.
+  const wseRes = await gql<{
+    workoutSessionExercises: Array<{ id: string; kind: string; exerciseId: string }>;
+  }>(
+    `query FixtureWses($sessionId: uuid!) {
+      workoutSessionExercises(where: { workoutSessionId: { _eq: $sessionId } }) { id kind exerciseId }
+    }`,
+    { sessionId: testSessionId },
+  );
+  if (wseRes.errors) {
+    throw new Error(`fixture WSE lookup failed: ${JSON.stringify(wseRes.errors)}`);
+  }
+  cardioWseId = wseRes.data!.workoutSessionExercises.find(
+    (w) => w.exerciseId === CARDIO_EXERCISE_ID,
+  )!.id;
+  strengthWseId = wseRes.data!.workoutSessionExercises.find(
+    (w) => w.exerciseId === STRENGTH_EXERCISE_ID,
+  )!.id;
 });
 
 afterAll(async () => {

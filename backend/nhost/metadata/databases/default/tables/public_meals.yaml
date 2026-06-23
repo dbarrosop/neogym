@@ -1,0 +1,104 @@
+table:
+  name: meals
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    description:
+      custom_name: description
+    id:
+      custom_name: id
+    name:
+      custom_name: name
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    description: description
+    id: id
+    name: name
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: meals
+  custom_root_fields:
+    delete: deleteMeals
+    delete_by_pk: deleteMeal
+    insert: insertMeals
+    insert_one: insertMeal
+    select: meals
+    select_aggregate: mealsAggregate
+    select_by_pk: meal
+    update: updateMeals
+    update_by_pk: updateMeal
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: mealIngredients
+    using:
+      foreign_key_constraint_on:
+        column: meal_id
+        table:
+          name: meal_ingredients
+          schema: public
+  - name: nutritionLogMeals
+    using:
+      foreign_key_constraint_on:
+        column: meal_id
+        table:
+          name: nutrition_log_meals
+          schema: public
+  - name: nutritionPlanMeals
+    using:
+      foreign_key_constraint_on:
+        column: meal_id
+        table:
+          name: nutrition_plan_meals
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - name
+        - description
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - name
+        - description
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - description
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

@@ -17,6 +17,7 @@ export type Scalars = {
   date: { input: any; output: any; }
   jsonb: { input: any; output: any; }
   numeric: { input: any; output: any; }
+  time: { input: any; output: any; }
   timestamptz: { input: any; output: any; }
   uuid: { input: any; output: any; }
 };
@@ -166,7 +167,7 @@ export type BodyMeasurements_Bool_Exp = {
 export enum BodyMeasurements_Constraint {
   /** unique or primary key constraint on columns "id" */
   BodyMeasurementsPkey = 'body_measurements_pkey',
-  /** unique or primary key constraint on columns "measured_on", "user_id" */
+  /** unique or primary key constraint on columns "user_id", "measured_on" */
   BodyMeasurementsUserDateKey = 'body_measurements_user_date_key'
 }
 
@@ -1131,6 +1132,7 @@ export type Exercises = {
   image2FileId?: Maybe<Scalars['uuid']['output']>;
   instructions: Array<Scalars['String']['output']>;
   isPublic: Scalars['Boolean']['output'];
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: Maybe<Scalars['String']['output']>;
   level?: Maybe<ExerciseLevels_Enum>;
   name: Scalars['String']['output'];
@@ -1214,13 +1216,14 @@ export type ExercisesWorkoutSessionExercises_AggregateArgs = {
   where?: InputMaybe<WorkoutSessionExercises_Bool_Exp>;
 };
 
-/** columns and relationships of "exercises_cardio" */
+/** Sidecar for cardio exercises (class-table inheritance with exercises): carries the per-exercise JSON Schema in metrics_schema. exercises_cardio.kind is pinned to 'cardio' (added in migration 1790000440000) and composite-FKs to exercises(id, kind), making the strength/cardio split structural. Lifecycle is atomic: every cardio exercise must have a matching row at commit time (exercise_must_have_sidecar trigger), and this row cannot be deleted standalone (sidecar_delete_requires_parent_delete trigger). */
 export type ExercisesCardio = {
   __typename?: 'exercisesCardio';
   createdAt: Scalars['timestamptz']['output'];
   /** An object relationship */
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind: Scalars['String']['output'];
   /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema: Scalars['jsonb']['output'];
@@ -1228,7 +1231,7 @@ export type ExercisesCardio = {
 };
 
 
-/** columns and relationships of "exercises_cardio" */
+/** Sidecar for cardio exercises (class-table inheritance with exercises): carries the per-exercise JSON Schema in metrics_schema. exercises_cardio.kind is pinned to 'cardio' (added in migration 1790000440000) and composite-FKs to exercises(id, kind), making the strength/cardio split structural. Lifecycle is atomic: every cardio exercise must have a matching row at commit time (exercise_must_have_sidecar trigger), and this row cannot be deleted standalone (sidecar_delete_requires_parent_delete trigger). */
 export type ExercisesCardioMetricsSchemaArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
@@ -1269,7 +1272,9 @@ export type ExercisesCardio_Bool_Exp = {
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind?: InputMaybe<String_Comparison_Exp>;
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: InputMaybe<Jsonb_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
 };
@@ -1311,7 +1316,10 @@ export type ExercisesCardio_Max_Fields = {
   __typename?: 'exercisesCardio_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind?: Maybe<Scalars['String']['output']>;
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: Maybe<Scalars['jsonb']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1320,7 +1328,10 @@ export type ExercisesCardio_Min_Fields = {
   __typename?: 'exercisesCardio_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind?: Maybe<Scalars['String']['output']>;
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
+  metricsSchema?: Maybe<Scalars['jsonb']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -1352,7 +1363,9 @@ export type ExercisesCardio_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind?: InputMaybe<Order_By>;
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1374,9 +1387,9 @@ export enum ExercisesCardio_Select_Column {
   CreatedAt = 'createdAt',
   /** column name */
   ExerciseId = 'exerciseId',
-  /** column name */
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   Kind = 'kind',
-  /** column name */
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   MetricsSchema = 'metricsSchema',
   /** column name */
   UpdatedAt = 'updatedAt'
@@ -1400,6 +1413,7 @@ export type ExercisesCardio_Stream_Cursor_Input = {
 export type ExercisesCardio_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  /** Pinned to 'cardio' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a cardio exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. Added in this migration to close the asymmetry with exercises_strength. */
   kind?: InputMaybe<Scalars['String']['input']>;
   /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   metricsSchema?: InputMaybe<Scalars['jsonb']['input']>;
@@ -1408,7 +1422,7 @@ export type ExercisesCardio_Stream_Cursor_Value_Input = {
 
 /** update columns of table "exercises_cardio" */
 export enum ExercisesCardio_Update_Column {
-  /** column name */
+  /** JSON Schema describing the per-entry metrics shape for this cardio exercise. Custom annotation keys: x-label, x-unit, x-format (integer|decimal|duration_seconds|average), x-order. Format "average" displays like an integer but is averaged (not summed) when aggregating across entries in a session. */
   MetricsSchema = 'metricsSchema'
 }
 
@@ -1429,16 +1443,20 @@ export type ExercisesCardio_Updates = {
   where: ExercisesCardio_Bool_Exp;
 };
 
-/** columns and relationships of "exercises_strength" */
+/** Sidecar for strength exercises (class-table inheritance with exercises): carries strength-specific catalog metadata (double_weight, force, mechanic). kind is pinned to 'strength' and composite-FKs to exercises(id, kind), making the strength/cardio split structural. Lifecycle is atomic: every strength exercise must have a matching row at commit time (exercise_must_have_sidecar trigger), and this row cannot be deleted standalone (sidecar_delete_requires_parent_delete trigger). */
 export type ExercisesStrength = {
   __typename?: 'exercisesStrength';
   createdAt: Scalars['timestamptz']['output'];
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight: Scalars['Boolean']['output'];
   /** An object relationship */
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: Maybe<ExerciseForces_Enum>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind: Scalars['String']['output'];
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: Maybe<ExerciseMechanics_Enum>;
   updatedAt: Scalars['timestamptz']['output'];
 };
@@ -1505,11 +1523,15 @@ export type ExercisesStrength_Bool_Exp = {
   _not?: InputMaybe<ExercisesStrength_Bool_Exp>;
   _or?: InputMaybe<Array<ExercisesStrength_Bool_Exp>>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight?: InputMaybe<Boolean_Comparison_Exp>;
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: InputMaybe<ExerciseForces_Enum_Comparison_Exp>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: InputMaybe<String_Comparison_Exp>;
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: InputMaybe<ExerciseMechanics_Enum_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
 };
@@ -1522,10 +1544,13 @@ export enum ExercisesStrength_Constraint {
 
 /** input type for inserting data into table "exercises_strength" */
 export type ExercisesStrength_Insert_Input = {
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   exercise?: InputMaybe<Exercises_Obj_Rel_Insert_Input>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: InputMaybe<ExerciseForces_Enum>;
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
 };
 
@@ -1533,7 +1558,10 @@ export type ExercisesStrength_Insert_Input = {
 export type ExercisesStrength_Max_Fields = {
   __typename?: 'exercisesStrength_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
+  doubleWeight?: Maybe<Scalars['Boolean']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
@@ -1541,7 +1569,10 @@ export type ExercisesStrength_Max_Fields = {
 /** order by max() on columns of table "exercises_strength" */
 export type ExercisesStrength_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
+  doubleWeight?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1550,7 +1581,10 @@ export type ExercisesStrength_Max_Order_By = {
 export type ExercisesStrength_Min_Fields = {
   __typename?: 'exercisesStrength_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
+  doubleWeight?: Maybe<Scalars['Boolean']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
@@ -1558,7 +1592,10 @@ export type ExercisesStrength_Min_Fields = {
 /** order by min() on columns of table "exercises_strength" */
 export type ExercisesStrength_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
+  doubleWeight?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1589,11 +1626,15 @@ export type ExercisesStrength_On_Conflict = {
 /** Ordering options when selecting data from "exercises_strength". */
 export type ExercisesStrength_Order_By = {
   createdAt?: InputMaybe<Order_By>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight?: InputMaybe<Order_By>;
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: InputMaybe<Order_By>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: InputMaybe<Order_By>;
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
@@ -1607,15 +1648,15 @@ export type ExercisesStrength_Pk_Columns_Input = {
 export enum ExercisesStrength_Select_Column {
   /** column name */
   CreatedAt = 'createdAt',
-  /** column name */
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   DoubleWeight = 'doubleWeight',
   /** column name */
   ExerciseId = 'exerciseId',
-  /** column name */
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   Force = 'force',
-  /** column name */
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   Kind = 'kind',
-  /** column name */
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   Mechanic = 'mechanic',
   /** column name */
   UpdatedAt = 'updatedAt'
@@ -1635,8 +1676,11 @@ export enum ExercisesStrength_Select_Column_ExercisesStrength_Aggregate_Bool_Exp
 
 /** input type for updating data in table "exercises_strength" */
 export type ExercisesStrength_Set_Input = {
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: InputMaybe<ExerciseForces_Enum>;
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
 };
 
@@ -1651,21 +1695,25 @@ export type ExercisesStrength_Stream_Cursor_Input = {
 /** Initial value of the column from where the streaming should start */
 export type ExercisesStrength_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   doubleWeight?: InputMaybe<Scalars['Boolean']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   force?: InputMaybe<ExerciseForces_Enum>;
+  /** Pinned to 'strength' via DEFAULT + CHECK. Forms a composite FK with exercise_id targeting exercises(id, kind), so this row can only attach to a strength exercise — a category flip on the parent that would change exercises.kind cascades into here and the pinned CHECK rolls back the transaction. */
   kind?: InputMaybe<Scalars['String']['input']>;
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   mechanic?: InputMaybe<ExerciseMechanics_Enum>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
 };
 
 /** update columns of table "exercises_strength" */
 export enum ExercisesStrength_Update_Column {
-  /** column name */
+  /** Per-exercise hint: the displayed/logged weight is per-implement (dumbbell, kettlebell). Multiplies session volume by 2 when set. Pure UI metadata — no DB-level enforcement of "two implements were actually used". */
   DoubleWeight = 'doubleWeight',
-  /** column name */
+  /** Movement force pattern (push / pull / static) from exercise_forces — strength-specific catalog metadata, used for filtering/badges. */
   Force = 'force',
-  /** column name */
+  /** Movement mechanic (compound / isolation) from exercise_mechanics — strength-specific catalog metadata, used for filtering/badges. */
   Mechanic = 'mechanic'
 }
 
@@ -1748,6 +1796,7 @@ export type Exercises_Bool_Exp = {
   image2FileId?: InputMaybe<Uuid_Comparison_Exp>;
   instructions?: InputMaybe<String_Array_Comparison_Exp>;
   isPublic?: InputMaybe<Boolean_Comparison_Exp>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: InputMaybe<String_Comparison_Exp>;
   level?: InputMaybe<ExerciseLevels_Enum_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
@@ -1799,7 +1848,8 @@ export type Exercises_Max_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   image1FileId?: Maybe<Scalars['uuid']['output']>;
   image2FileId?: Maybe<Scalars['uuid']['output']>;
-  instructions?: Maybe<Array<Scalars['String']['output']>>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   slug?: Maybe<Scalars['String']['output']>;
@@ -1813,7 +1863,8 @@ export type Exercises_Max_Order_By = {
   id?: InputMaybe<Order_By>;
   image1FileId?: InputMaybe<Order_By>;
   image2FileId?: InputMaybe<Order_By>;
-  instructions?: InputMaybe<Order_By>;
+  isPublic?: InputMaybe<Order_By>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   slug?: InputMaybe<Order_By>;
@@ -1828,7 +1879,8 @@ export type Exercises_Min_Fields = {
   id?: Maybe<Scalars['uuid']['output']>;
   image1FileId?: Maybe<Scalars['uuid']['output']>;
   image2FileId?: Maybe<Scalars['uuid']['output']>;
-  instructions?: Maybe<Array<Scalars['String']['output']>>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   slug?: Maybe<Scalars['String']['output']>;
@@ -1842,7 +1894,8 @@ export type Exercises_Min_Order_By = {
   id?: InputMaybe<Order_By>;
   image1FileId?: InputMaybe<Order_By>;
   image2FileId?: InputMaybe<Order_By>;
-  instructions?: InputMaybe<Order_By>;
+  isPublic?: InputMaybe<Order_By>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
   slug?: InputMaybe<Order_By>;
@@ -1886,6 +1939,7 @@ export type Exercises_Order_By = {
   image2FileId?: InputMaybe<Order_By>;
   instructions?: InputMaybe<Order_By>;
   isPublic?: InputMaybe<Order_By>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: InputMaybe<Order_By>;
   level?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
@@ -1922,7 +1976,7 @@ export enum Exercises_Select_Column {
   Instructions = 'instructions',
   /** column name */
   IsPublic = 'isPublic',
-  /** column name */
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   Kind = 'kind',
   /** column name */
   Level = 'level',
@@ -1980,6 +2034,7 @@ export type Exercises_Stream_Cursor_Value_Input = {
   image2FileId?: InputMaybe<Scalars['uuid']['input']>;
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   isPublic?: InputMaybe<Scalars['Boolean']['input']>;
+  /** GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based. */
   kind?: InputMaybe<Scalars['String']['input']>;
   level?: InputMaybe<ExerciseLevels_Enum>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -2172,6 +2227,413 @@ export type Files_Stream_Cursor_Value_Input = {
   size?: InputMaybe<Scalars['Int']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   uploadedByUserId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
+export type Foods = {
+  __typename?: 'foods';
+  carbsPer100g: Scalars['numeric']['output'];
+  createdAt: Scalars['timestamptz']['output'];
+  fatPer100g: Scalars['numeric']['output'];
+  fiberPer100g: Scalars['numeric']['output'];
+  id: Scalars['uuid']['output'];
+  isPublic: Scalars['Boolean']['output'];
+  kcalPer100g: Scalars['numeric']['output'];
+  /** An array relationship */
+  mealIngredients: Array<MealIngredients>;
+  /** An aggregate relationship */
+  mealIngredients_aggregate: MealIngredients_Aggregate;
+  name: Scalars['String']['output'];
+  /** An array relationship */
+  nutritionLogEntries: Array<NutritionLogEntries>;
+  /** An aggregate relationship */
+  nutritionLogEntries_aggregate: NutritionLogEntries_Aggregate;
+  proteinPer100g: Scalars['numeric']['output'];
+  sugarPer100g: Scalars['numeric']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+
+/** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
+export type FoodsMealIngredientsArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+/** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
+export type FoodsMealIngredients_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+/** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
+export type FoodsNutritionLogEntriesArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+/** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
+export type FoodsNutritionLogEntries_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+/** aggregated selection of "foods" */
+export type Foods_Aggregate = {
+  __typename?: 'foods_aggregate';
+  aggregate?: Maybe<Foods_Aggregate_Fields>;
+  nodes: Array<Foods>;
+};
+
+/** aggregate fields of "foods" */
+export type Foods_Aggregate_Fields = {
+  __typename?: 'foods_aggregate_fields';
+  avg?: Maybe<Foods_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<Foods_Max_Fields>;
+  min?: Maybe<Foods_Min_Fields>;
+  stddev?: Maybe<Foods_Stddev_Fields>;
+  stddev_pop?: Maybe<Foods_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<Foods_Stddev_Samp_Fields>;
+  sum?: Maybe<Foods_Sum_Fields>;
+  var_pop?: Maybe<Foods_Var_Pop_Fields>;
+  var_samp?: Maybe<Foods_Var_Samp_Fields>;
+  variance?: Maybe<Foods_Variance_Fields>;
+};
+
+
+/** aggregate fields of "foods" */
+export type Foods_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Foods_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type Foods_Avg_Fields = {
+  __typename?: 'foods_avg_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "foods". All fields are combined with a logical 'AND'. */
+export type Foods_Bool_Exp = {
+  _and?: InputMaybe<Array<Foods_Bool_Exp>>;
+  _not?: InputMaybe<Foods_Bool_Exp>;
+  _or?: InputMaybe<Array<Foods_Bool_Exp>>;
+  carbsPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  fatPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  fiberPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  isPublic?: InputMaybe<Boolean_Comparison_Exp>;
+  kcalPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  mealIngredients?: InputMaybe<MealIngredients_Bool_Exp>;
+  mealIngredients_aggregate?: InputMaybe<MealIngredients_Aggregate_Bool_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Bool_Exp>;
+  proteinPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  sugarPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "foods" */
+export enum Foods_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  FoodsPkey = 'foods_pkey',
+  /** unique or primary key constraint on columns "user_id", "name" */
+  FoodsUserNameUq = 'foods_user_name_uq'
+}
+
+/** input type for incrementing numeric columns in table "foods" */
+export type Foods_Inc_Input = {
+  carbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  kcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  proteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  sugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** input type for inserting data into table "foods" */
+export type Foods_Insert_Input = {
+  carbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  kcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  mealIngredients?: InputMaybe<MealIngredients_Arr_Rel_Insert_Input>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Arr_Rel_Insert_Input>;
+  proteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  sugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate max on columns */
+export type Foods_Max_Fields = {
+  __typename?: 'foods_max_fields';
+  carbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  fatPer100g?: Maybe<Scalars['numeric']['output']>;
+  fiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
+  kcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  proteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  sugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Foods_Min_Fields = {
+  __typename?: 'foods_min_fields';
+  carbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  fatPer100g?: Maybe<Scalars['numeric']['output']>;
+  fiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
+  kcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  proteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  sugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "foods" */
+export type Foods_Mutation_Response = {
+  __typename?: 'foods_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Foods>;
+};
+
+/** input type for inserting object relation for remote table "foods" */
+export type Foods_Obj_Rel_Insert_Input = {
+  data: Foods_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Foods_On_Conflict>;
+};
+
+/** on_conflict condition type for table "foods" */
+export type Foods_On_Conflict = {
+  constraint: Foods_Constraint;
+  update_columns?: Array<Foods_Update_Column>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "foods". */
+export type Foods_Order_By = {
+  carbsPer100g?: InputMaybe<Order_By>;
+  createdAt?: InputMaybe<Order_By>;
+  fatPer100g?: InputMaybe<Order_By>;
+  fiberPer100g?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  isPublic?: InputMaybe<Order_By>;
+  kcalPer100g?: InputMaybe<Order_By>;
+  mealIngredients_aggregate?: InputMaybe<MealIngredients_Aggregate_Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Order_By>;
+  proteinPer100g?: InputMaybe<Order_By>;
+  sugarPer100g?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: foods */
+export type Foods_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "foods" */
+export enum Foods_Select_Column {
+  /** column name */
+  CarbsPer100g = 'carbsPer100g',
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  FatPer100g = 'fatPer100g',
+  /** column name */
+  FiberPer100g = 'fiberPer100g',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  IsPublic = 'isPublic',
+  /** column name */
+  KcalPer100g = 'kcalPer100g',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  ProteinPer100g = 'proteinPer100g',
+  /** column name */
+  SugarPer100g = 'sugarPer100g',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "foods" */
+export type Foods_Set_Input = {
+  carbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  kcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  proteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  sugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type Foods_Stddev_Fields = {
+  __typename?: 'foods_stddev_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type Foods_Stddev_Pop_Fields = {
+  __typename?: 'foods_stddev_pop_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type Foods_Stddev_Samp_Fields = {
+  __typename?: 'foods_stddev_samp_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "foods" */
+export type Foods_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Foods_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Foods_Stream_Cursor_Value_Input = {
+  carbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  fatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  fiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  isPublic?: InputMaybe<Scalars['Boolean']['input']>;
+  kcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  proteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  sugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type Foods_Sum_Fields = {
+  __typename?: 'foods_sum_fields';
+  carbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  fatPer100g?: Maybe<Scalars['numeric']['output']>;
+  fiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  kcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  proteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  sugarPer100g?: Maybe<Scalars['numeric']['output']>;
+};
+
+/** update columns of table "foods" */
+export enum Foods_Update_Column {
+  /** column name */
+  CarbsPer100g = 'carbsPer100g',
+  /** column name */
+  FatPer100g = 'fatPer100g',
+  /** column name */
+  FiberPer100g = 'fiberPer100g',
+  /** column name */
+  KcalPer100g = 'kcalPer100g',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  ProteinPer100g = 'proteinPer100g',
+  /** column name */
+  SugarPer100g = 'sugarPer100g'
+}
+
+export type Foods_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<Foods_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Foods_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Foods_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type Foods_Var_Pop_Fields = {
+  __typename?: 'foods_var_pop_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type Foods_Var_Samp_Fields = {
+  __typename?: 'foods_var_samp_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type Foods_Variance_Fields = {
+  __typename?: 'foods_variance_fields';
+  carbsPer100g?: Maybe<Scalars['Float']['output']>;
+  fatPer100g?: Maybe<Scalars['Float']['output']>;
+  fiberPer100g?: Maybe<Scalars['Float']['output']>;
+  kcalPer100g?: Maybe<Scalars['Float']['output']>;
+  proteinPer100g?: Maybe<Scalars['Float']['output']>;
+  sugarPer100g?: Maybe<Scalars['Float']['output']>;
 };
 
 /** columns and relationships of "journal_entries" */
@@ -2460,7 +2922,7 @@ export type JournalEntryLabels_Bool_Exp = {
 
 /** unique or primary key constraints on table "journal_entry_labels" */
 export enum JournalEntryLabels_Constraint {
-  /** unique or primary key constraint on columns "label_id", "journal_entry_id" */
+  /** unique or primary key constraint on columns "journal_entry_id", "label_id" */
   JournalEntryLabelsPkey = 'journal_entry_labels_pkey'
 }
 
@@ -2868,6 +3330,7 @@ export type Labels_Max_Fields = {
   __typename?: 'labels_max_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
@@ -2878,6 +3341,7 @@ export type Labels_Min_Fields = {
   __typename?: 'labels_min_fields';
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
@@ -2972,6 +3436,626 @@ export type Labels_Updates = {
   _set?: InputMaybe<Labels_Set_Input>;
   /** filter the rows which have to be updated */
   where: Labels_Bool_Exp;
+};
+
+/** columns and relationships of "meal_ingredients" */
+export type MealIngredients = {
+  __typename?: 'mealIngredients';
+  createdAt: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  food: Foods;
+  foodId: Scalars['uuid']['output'];
+  grams: Scalars['numeric']['output'];
+  id: Scalars['uuid']['output'];
+  /** An object relationship */
+  meal: Meals;
+  mealId: Scalars['uuid']['output'];
+  position: Scalars['Int']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+/** aggregated selection of "meal_ingredients" */
+export type MealIngredients_Aggregate = {
+  __typename?: 'mealIngredients_aggregate';
+  aggregate?: Maybe<MealIngredients_Aggregate_Fields>;
+  nodes: Array<MealIngredients>;
+};
+
+export type MealIngredients_Aggregate_Bool_Exp = {
+  count?: InputMaybe<MealIngredients_Aggregate_Bool_Exp_Count>;
+};
+
+export type MealIngredients_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<MealIngredients_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "meal_ingredients" */
+export type MealIngredients_Aggregate_Fields = {
+  __typename?: 'mealIngredients_aggregate_fields';
+  avg?: Maybe<MealIngredients_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<MealIngredients_Max_Fields>;
+  min?: Maybe<MealIngredients_Min_Fields>;
+  stddev?: Maybe<MealIngredients_Stddev_Fields>;
+  stddev_pop?: Maybe<MealIngredients_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<MealIngredients_Stddev_Samp_Fields>;
+  sum?: Maybe<MealIngredients_Sum_Fields>;
+  var_pop?: Maybe<MealIngredients_Var_Pop_Fields>;
+  var_samp?: Maybe<MealIngredients_Var_Samp_Fields>;
+  variance?: Maybe<MealIngredients_Variance_Fields>;
+};
+
+
+/** aggregate fields of "meal_ingredients" */
+export type MealIngredients_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "meal_ingredients" */
+export type MealIngredients_Aggregate_Order_By = {
+  avg?: InputMaybe<MealIngredients_Avg_Order_By>;
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<MealIngredients_Max_Order_By>;
+  min?: InputMaybe<MealIngredients_Min_Order_By>;
+  stddev?: InputMaybe<MealIngredients_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<MealIngredients_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<MealIngredients_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<MealIngredients_Sum_Order_By>;
+  var_pop?: InputMaybe<MealIngredients_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<MealIngredients_Var_Samp_Order_By>;
+  variance?: InputMaybe<MealIngredients_Variance_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "meal_ingredients" */
+export type MealIngredients_Arr_Rel_Insert_Input = {
+  data: Array<MealIngredients_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<MealIngredients_On_Conflict>;
+};
+
+/** aggregate avg on columns */
+export type MealIngredients_Avg_Fields = {
+  __typename?: 'mealIngredients_avg_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by avg() on columns of table "meal_ingredients" */
+export type MealIngredients_Avg_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** Boolean expression to filter rows from the table "meal_ingredients". All fields are combined with a logical 'AND'. */
+export type MealIngredients_Bool_Exp = {
+  _and?: InputMaybe<Array<MealIngredients_Bool_Exp>>;
+  _not?: InputMaybe<MealIngredients_Bool_Exp>;
+  _or?: InputMaybe<Array<MealIngredients_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  food?: InputMaybe<Foods_Bool_Exp>;
+  foodId?: InputMaybe<Uuid_Comparison_Exp>;
+  grams?: InputMaybe<Numeric_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  meal?: InputMaybe<Meals_Bool_Exp>;
+  mealId?: InputMaybe<Uuid_Comparison_Exp>;
+  position?: InputMaybe<Int_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "meal_ingredients" */
+export enum MealIngredients_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  MealIngredientsPkey = 'meal_ingredients_pkey'
+}
+
+/** input type for incrementing numeric columns in table "meal_ingredients" */
+export type MealIngredients_Inc_Input = {
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "meal_ingredients" */
+export type MealIngredients_Insert_Input = {
+  food?: InputMaybe<Foods_Obj_Rel_Insert_Input>;
+  foodId?: InputMaybe<Scalars['uuid']['input']>;
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  meal?: InputMaybe<Meals_Obj_Rel_Insert_Input>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate max on columns */
+export type MealIngredients_Max_Fields = {
+  __typename?: 'mealIngredients_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  foodId?: Maybe<Scalars['uuid']['output']>;
+  grams?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by max() on columns of table "meal_ingredients" */
+export type MealIngredients_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type MealIngredients_Min_Fields = {
+  __typename?: 'mealIngredients_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  foodId?: Maybe<Scalars['uuid']['output']>;
+  grams?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by min() on columns of table "meal_ingredients" */
+export type MealIngredients_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "meal_ingredients" */
+export type MealIngredients_Mutation_Response = {
+  __typename?: 'mealIngredients_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<MealIngredients>;
+};
+
+/** on_conflict condition type for table "meal_ingredients" */
+export type MealIngredients_On_Conflict = {
+  constraint: MealIngredients_Constraint;
+  update_columns?: Array<MealIngredients_Update_Column>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "meal_ingredients". */
+export type MealIngredients_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  food?: InputMaybe<Foods_Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  meal?: InputMaybe<Meals_Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: meal_ingredients */
+export type MealIngredients_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "meal_ingredients" */
+export enum MealIngredients_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  FoodId = 'foodId',
+  /** column name */
+  Grams = 'grams',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  MealId = 'mealId',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** input type for updating data in table "meal_ingredients" */
+export type MealIngredients_Set_Input = {
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type MealIngredients_Stddev_Fields = {
+  __typename?: 'mealIngredients_stddev_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev() on columns of table "meal_ingredients" */
+export type MealIngredients_Stddev_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_pop on columns */
+export type MealIngredients_Stddev_Pop_Fields = {
+  __typename?: 'mealIngredients_stddev_pop_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_pop() on columns of table "meal_ingredients" */
+export type MealIngredients_Stddev_Pop_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_samp on columns */
+export type MealIngredients_Stddev_Samp_Fields = {
+  __typename?: 'mealIngredients_stddev_samp_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_samp() on columns of table "meal_ingredients" */
+export type MealIngredients_Stddev_Samp_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** Streaming cursor of the table "mealIngredients" */
+export type MealIngredients_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: MealIngredients_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type MealIngredients_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  foodId?: InputMaybe<Scalars['uuid']['input']>;
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** aggregate sum on columns */
+export type MealIngredients_Sum_Fields = {
+  __typename?: 'mealIngredients_sum_fields';
+  grams?: Maybe<Scalars['numeric']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+};
+
+/** order by sum() on columns of table "meal_ingredients" */
+export type MealIngredients_Sum_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** update columns of table "meal_ingredients" */
+export enum MealIngredients_Update_Column {
+  /** column name */
+  Grams = 'grams',
+  /** column name */
+  Position = 'position'
+}
+
+export type MealIngredients_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<MealIngredients_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<MealIngredients_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: MealIngredients_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type MealIngredients_Var_Pop_Fields = {
+  __typename?: 'mealIngredients_var_pop_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_pop() on columns of table "meal_ingredients" */
+export type MealIngredients_Var_Pop_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate var_samp on columns */
+export type MealIngredients_Var_Samp_Fields = {
+  __typename?: 'mealIngredients_var_samp_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_samp() on columns of table "meal_ingredients" */
+export type MealIngredients_Var_Samp_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate variance on columns */
+export type MealIngredients_Variance_Fields = {
+  __typename?: 'mealIngredients_variance_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by variance() on columns of table "meal_ingredients" */
+export type MealIngredients_Variance_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+};
+
+/** columns and relationships of "meals" */
+export type Meals = {
+  __typename?: 'meals';
+  createdAt: Scalars['timestamptz']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  /** An array relationship */
+  mealIngredients: Array<MealIngredients>;
+  /** An aggregate relationship */
+  mealIngredients_aggregate: MealIngredients_Aggregate;
+  name: Scalars['String']['output'];
+  /** An array relationship */
+  nutritionLogMeals: Array<NutritionLogMeals>;
+  /** An aggregate relationship */
+  nutritionLogMeals_aggregate: NutritionLogMeals_Aggregate;
+  /** An array relationship */
+  nutritionPlanMeals: Array<NutritionPlanMeals>;
+  /** An aggregate relationship */
+  nutritionPlanMeals_aggregate: NutritionPlanMeals_Aggregate;
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsMealIngredientsArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsMealIngredients_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsNutritionLogMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsNutritionLogMeals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsNutritionPlanMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "meals" */
+export type MealsNutritionPlanMeals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+/** aggregated selection of "meals" */
+export type Meals_Aggregate = {
+  __typename?: 'meals_aggregate';
+  aggregate?: Maybe<Meals_Aggregate_Fields>;
+  nodes: Array<Meals>;
+};
+
+/** aggregate fields of "meals" */
+export type Meals_Aggregate_Fields = {
+  __typename?: 'meals_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<Meals_Max_Fields>;
+  min?: Maybe<Meals_Min_Fields>;
+};
+
+
+/** aggregate fields of "meals" */
+export type Meals_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<Meals_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "meals". All fields are combined with a logical 'AND'. */
+export type Meals_Bool_Exp = {
+  _and?: InputMaybe<Array<Meals_Bool_Exp>>;
+  _not?: InputMaybe<Meals_Bool_Exp>;
+  _or?: InputMaybe<Array<Meals_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  description?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  mealIngredients?: InputMaybe<MealIngredients_Bool_Exp>;
+  mealIngredients_aggregate?: InputMaybe<MealIngredients_Aggregate_Bool_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Bool_Exp>;
+  nutritionPlanMeals?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+  nutritionPlanMeals_aggregate?: InputMaybe<NutritionPlanMeals_Aggregate_Bool_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "meals" */
+export enum Meals_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  MealsPkey = 'meals_pkey',
+  /** unique or primary key constraint on columns "user_id", "name" */
+  MealsUserNameUq = 'meals_user_name_uq'
+}
+
+/** input type for inserting data into table "meals" */
+export type Meals_Insert_Input = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  mealIngredients?: InputMaybe<MealIngredients_Arr_Rel_Insert_Input>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Arr_Rel_Insert_Input>;
+  nutritionPlanMeals?: InputMaybe<NutritionPlanMeals_Arr_Rel_Insert_Input>;
+};
+
+/** aggregate max on columns */
+export type Meals_Max_Fields = {
+  __typename?: 'meals_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type Meals_Min_Fields = {
+  __typename?: 'meals_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "meals" */
+export type Meals_Mutation_Response = {
+  __typename?: 'meals_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Meals>;
+};
+
+/** input type for inserting object relation for remote table "meals" */
+export type Meals_Obj_Rel_Insert_Input = {
+  data: Meals_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Meals_On_Conflict>;
+};
+
+/** on_conflict condition type for table "meals" */
+export type Meals_On_Conflict = {
+  constraint: Meals_Constraint;
+  update_columns?: Array<Meals_Update_Column>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "meals". */
+export type Meals_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  description?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  mealIngredients_aggregate?: InputMaybe<MealIngredients_Aggregate_Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Order_By>;
+  nutritionPlanMeals_aggregate?: InputMaybe<NutritionPlanMeals_Aggregate_Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: meals */
+export type Meals_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "meals" */
+export enum Meals_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Description = 'description',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "meals" */
+export type Meals_Set_Input = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "meals" */
+export type Meals_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: Meals_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type Meals_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "meals" */
+export enum Meals_Update_Column {
+  /** column name */
+  Description = 'description',
+  /** column name */
+  Name = 'name'
+}
+
+export type Meals_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<Meals_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: Meals_Bool_Exp;
 };
 
 /** columns and relationships of "muscle_groups" */
@@ -3148,6 +4232,10 @@ export type Mutation_Root = {
   deleteExercise?: Maybe<Exercises>;
   /** delete data from the table: "exercises" */
   deleteExercises?: Maybe<Exercises_Mutation_Response>;
+  /** delete single row from the table: "foods" */
+  deleteFood?: Maybe<Foods>;
+  /** delete data from the table: "foods" */
+  deleteFoods?: Maybe<Foods_Mutation_Response>;
   /** delete data from the table: "journal_entries" */
   deleteJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** delete single row from the table: "journal_entries" */
@@ -3164,6 +4252,34 @@ export type Mutation_Root = {
   deleteLabel?: Maybe<Labels>;
   /** delete data from the table: "labels" */
   deleteLabels?: Maybe<Labels_Mutation_Response>;
+  /** delete single row from the table: "meals" */
+  deleteMeal?: Maybe<Meals>;
+  /** delete single row from the table: "meal_ingredients" */
+  deleteMealIngredient?: Maybe<MealIngredients>;
+  /** delete data from the table: "meal_ingredients" */
+  deleteMealIngredients?: Maybe<MealIngredients_Mutation_Response>;
+  /** delete data from the table: "meals" */
+  deleteMeals?: Maybe<Meals_Mutation_Response>;
+  /** delete single row from the table: "nutrition_days" */
+  deleteNutritionDay?: Maybe<NutritionDays>;
+  /** delete data from the table: "nutrition_days" */
+  deleteNutritionDays?: Maybe<NutritionDays_Mutation_Response>;
+  /** delete data from the table: "nutrition_log_entries" */
+  deleteNutritionLogEntries?: Maybe<NutritionLogEntries_Mutation_Response>;
+  /** delete single row from the table: "nutrition_log_entries" */
+  deleteNutritionLogEntry?: Maybe<NutritionLogEntries>;
+  /** delete single row from the table: "nutrition_log_meals" */
+  deleteNutritionLogMeal?: Maybe<NutritionLogMeals>;
+  /** delete data from the table: "nutrition_log_meals" */
+  deleteNutritionLogMeals?: Maybe<NutritionLogMeals_Mutation_Response>;
+  /** delete single row from the table: "nutrition_plans" */
+  deleteNutritionPlan?: Maybe<NutritionPlans>;
+  /** delete single row from the table: "nutrition_plan_meals" */
+  deleteNutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  /** delete data from the table: "nutrition_plan_meals" */
+  deleteNutritionPlanMeals?: Maybe<NutritionPlanMeals_Mutation_Response>;
+  /** delete data from the table: "nutrition_plans" */
+  deleteNutritionPlans?: Maybe<NutritionPlans_Mutation_Response>;
   /** delete single row from the table: "workouts" */
   deleteWorkout?: Maybe<Workouts>;
   /** delete single row from the table: "workout_exercises" */
@@ -3208,6 +4324,10 @@ export type Mutation_Root = {
   insertExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
   /** insert data into the table: "exercises_strength" */
   insertExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
+  /** insert a single row into the table: "foods" */
+  insertFood?: Maybe<Foods>;
+  /** insert data into the table: "foods" */
+  insertFoods?: Maybe<Foods_Mutation_Response>;
   /** insert data into the table: "journal_entries" */
   insertJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** insert a single row into the table: "journal_entries" */
@@ -3224,6 +4344,34 @@ export type Mutation_Root = {
   insertLabel?: Maybe<Labels>;
   /** insert data into the table: "labels" */
   insertLabels?: Maybe<Labels_Mutation_Response>;
+  /** insert a single row into the table: "meals" */
+  insertMeal?: Maybe<Meals>;
+  /** insert a single row into the table: "meal_ingredients" */
+  insertMealIngredient?: Maybe<MealIngredients>;
+  /** insert data into the table: "meal_ingredients" */
+  insertMealIngredients?: Maybe<MealIngredients_Mutation_Response>;
+  /** insert data into the table: "meals" */
+  insertMeals?: Maybe<Meals_Mutation_Response>;
+  /** insert a single row into the table: "nutrition_days" */
+  insertNutritionDay?: Maybe<NutritionDays>;
+  /** insert data into the table: "nutrition_days" */
+  insertNutritionDays?: Maybe<NutritionDays_Mutation_Response>;
+  /** insert data into the table: "nutrition_log_entries" */
+  insertNutritionLogEntries?: Maybe<NutritionLogEntries_Mutation_Response>;
+  /** insert a single row into the table: "nutrition_log_entries" */
+  insertNutritionLogEntry?: Maybe<NutritionLogEntries>;
+  /** insert a single row into the table: "nutrition_log_meals" */
+  insertNutritionLogMeal?: Maybe<NutritionLogMeals>;
+  /** insert data into the table: "nutrition_log_meals" */
+  insertNutritionLogMeals?: Maybe<NutritionLogMeals_Mutation_Response>;
+  /** insert a single row into the table: "nutrition_plans" */
+  insertNutritionPlan?: Maybe<NutritionPlans>;
+  /** insert a single row into the table: "nutrition_plan_meals" */
+  insertNutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  /** insert data into the table: "nutrition_plan_meals" */
+  insertNutritionPlanMeals?: Maybe<NutritionPlanMeals_Mutation_Response>;
+  /** insert data into the table: "nutrition_plans" */
+  insertNutritionPlans?: Maybe<NutritionPlans_Mutation_Response>;
   /** insert a single row into the table: "workouts" */
   insertWorkout?: Maybe<Workouts>;
   /** insert a single row into the table: "workout_exercises" */
@@ -3268,6 +4416,10 @@ export type Mutation_Root = {
   updateExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
   /** update data of the table: "exercises_strength" */
   updateExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
+  /** update single row of the table: "foods" */
+  updateFood?: Maybe<Foods>;
+  /** update data of the table: "foods" */
+  updateFoods?: Maybe<Foods_Mutation_Response>;
   /** update data of the table: "journal_entries" */
   updateJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** update single row of the table: "journal_entries" */
@@ -3280,6 +4432,34 @@ export type Mutation_Root = {
   updateLabel?: Maybe<Labels>;
   /** update data of the table: "labels" */
   updateLabels?: Maybe<Labels_Mutation_Response>;
+  /** update single row of the table: "meals" */
+  updateMeal?: Maybe<Meals>;
+  /** update single row of the table: "meal_ingredients" */
+  updateMealIngredient?: Maybe<MealIngredients>;
+  /** update data of the table: "meal_ingredients" */
+  updateMealIngredients?: Maybe<MealIngredients_Mutation_Response>;
+  /** update data of the table: "meals" */
+  updateMeals?: Maybe<Meals_Mutation_Response>;
+  /** update single row of the table: "nutrition_days" */
+  updateNutritionDay?: Maybe<NutritionDays>;
+  /** update data of the table: "nutrition_days" */
+  updateNutritionDays?: Maybe<NutritionDays_Mutation_Response>;
+  /** update data of the table: "nutrition_log_entries" */
+  updateNutritionLogEntries?: Maybe<NutritionLogEntries_Mutation_Response>;
+  /** update single row of the table: "nutrition_log_entries" */
+  updateNutritionLogEntry?: Maybe<NutritionLogEntries>;
+  /** update single row of the table: "nutrition_log_meals" */
+  updateNutritionLogMeal?: Maybe<NutritionLogMeals>;
+  /** update data of the table: "nutrition_log_meals" */
+  updateNutritionLogMeals?: Maybe<NutritionLogMeals_Mutation_Response>;
+  /** update single row of the table: "nutrition_plans" */
+  updateNutritionPlan?: Maybe<NutritionPlans>;
+  /** update single row of the table: "nutrition_plan_meals" */
+  updateNutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  /** update data of the table: "nutrition_plan_meals" */
+  updateNutritionPlanMeals?: Maybe<NutritionPlanMeals_Mutation_Response>;
+  /** update data of the table: "nutrition_plans" */
+  updateNutritionPlans?: Maybe<NutritionPlans_Mutation_Response>;
   /** update single row of the table: "workouts" */
   updateWorkout?: Maybe<Workouts>;
   /** update single row of the table: "workout_exercises" */
@@ -3312,12 +4492,28 @@ export type Mutation_Root = {
   update_exercisesStrength_many?: Maybe<Array<Maybe<ExercisesStrength_Mutation_Response>>>;
   /** update multiples rows of table: "exercises" */
   update_exercises_many?: Maybe<Array<Maybe<Exercises_Mutation_Response>>>;
+  /** update multiples rows of table: "foods" */
+  update_foods_many?: Maybe<Array<Maybe<Foods_Mutation_Response>>>;
   /** update multiples rows of table: "journal_entries" */
   update_journalEntries_many?: Maybe<Array<Maybe<JournalEntries_Mutation_Response>>>;
   /** update multiples rows of table: "journal_labels" */
   update_journalLabels_many?: Maybe<Array<Maybe<JournalLabels_Mutation_Response>>>;
   /** update multiples rows of table: "labels" */
   update_labels_many?: Maybe<Array<Maybe<Labels_Mutation_Response>>>;
+  /** update multiples rows of table: "meal_ingredients" */
+  update_mealIngredients_many?: Maybe<Array<Maybe<MealIngredients_Mutation_Response>>>;
+  /** update multiples rows of table: "meals" */
+  update_meals_many?: Maybe<Array<Maybe<Meals_Mutation_Response>>>;
+  /** update multiples rows of table: "nutrition_days" */
+  update_nutritionDays_many?: Maybe<Array<Maybe<NutritionDays_Mutation_Response>>>;
+  /** update multiples rows of table: "nutrition_log_entries" */
+  update_nutritionLogEntries_many?: Maybe<Array<Maybe<NutritionLogEntries_Mutation_Response>>>;
+  /** update multiples rows of table: "nutrition_log_meals" */
+  update_nutritionLogMeals_many?: Maybe<Array<Maybe<NutritionLogMeals_Mutation_Response>>>;
+  /** update multiples rows of table: "nutrition_plan_meals" */
+  update_nutritionPlanMeals_many?: Maybe<Array<Maybe<NutritionPlanMeals_Mutation_Response>>>;
+  /** update multiples rows of table: "nutrition_plans" */
+  update_nutritionPlans_many?: Maybe<Array<Maybe<NutritionPlans_Mutation_Response>>>;
   /** update multiples rows of table: "workout_exercises" */
   update_workoutExercises_many?: Maybe<Array<Maybe<WorkoutExercises_Mutation_Response>>>;
   /** update multiples rows of table: "workout_session_cardio_entries" */
@@ -3354,6 +4550,18 @@ export type Mutation_RootDeleteExerciseArgs = {
 /** mutation root */
 export type Mutation_RootDeleteExercisesArgs = {
   where: Exercises_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteFoodArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteFoodsArgs = {
+  where: Foods_Bool_Exp;
 };
 
 
@@ -3403,6 +4611,90 @@ export type Mutation_RootDeleteLabelArgs = {
 /** mutation root */
 export type Mutation_RootDeleteLabelsArgs = {
   where: Labels_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteMealIngredientArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteMealIngredientsArgs = {
+  where: MealIngredients_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteMealsArgs = {
+  where: Meals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionDayArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionDaysArgs = {
+  where: NutritionDays_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionLogEntriesArgs = {
+  where: NutritionLogEntries_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionLogEntryArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionLogMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionLogMealsArgs = {
+  where: NutritionLogMeals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionPlanArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionPlanMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionPlanMealsArgs = {
+  where: NutritionPlanMeals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteNutritionPlansArgs = {
+  where: NutritionPlans_Bool_Exp;
 };
 
 
@@ -3548,6 +4840,20 @@ export type Mutation_RootInsertExercisesStrengthArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsertFoodArgs = {
+  object: Foods_Insert_Input;
+  on_conflict?: InputMaybe<Foods_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertFoodsArgs = {
+  objects: Array<Foods_Insert_Input>;
+  on_conflict?: InputMaybe<Foods_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsertJournalEntriesArgs = {
   objects: Array<JournalEntries_Insert_Input>;
   on_conflict?: InputMaybe<JournalEntries_On_Conflict>;
@@ -3600,6 +4906,104 @@ export type Mutation_RootInsertLabelArgs = {
 export type Mutation_RootInsertLabelsArgs = {
   objects: Array<Labels_Insert_Input>;
   on_conflict?: InputMaybe<Labels_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertMealArgs = {
+  object: Meals_Insert_Input;
+  on_conflict?: InputMaybe<Meals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertMealIngredientArgs = {
+  object: MealIngredients_Insert_Input;
+  on_conflict?: InputMaybe<MealIngredients_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertMealIngredientsArgs = {
+  objects: Array<MealIngredients_Insert_Input>;
+  on_conflict?: InputMaybe<MealIngredients_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertMealsArgs = {
+  objects: Array<Meals_Insert_Input>;
+  on_conflict?: InputMaybe<Meals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionDayArgs = {
+  object: NutritionDays_Insert_Input;
+  on_conflict?: InputMaybe<NutritionDays_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionDaysArgs = {
+  objects: Array<NutritionDays_Insert_Input>;
+  on_conflict?: InputMaybe<NutritionDays_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionLogEntriesArgs = {
+  objects: Array<NutritionLogEntries_Insert_Input>;
+  on_conflict?: InputMaybe<NutritionLogEntries_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionLogEntryArgs = {
+  object: NutritionLogEntries_Insert_Input;
+  on_conflict?: InputMaybe<NutritionLogEntries_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionLogMealArgs = {
+  object: NutritionLogMeals_Insert_Input;
+  on_conflict?: InputMaybe<NutritionLogMeals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionLogMealsArgs = {
+  objects: Array<NutritionLogMeals_Insert_Input>;
+  on_conflict?: InputMaybe<NutritionLogMeals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionPlanArgs = {
+  object: NutritionPlans_Insert_Input;
+  on_conflict?: InputMaybe<NutritionPlans_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionPlanMealArgs = {
+  object: NutritionPlanMeals_Insert_Input;
+  on_conflict?: InputMaybe<NutritionPlanMeals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionPlanMealsArgs = {
+  objects: Array<NutritionPlanMeals_Insert_Input>;
+  on_conflict?: InputMaybe<NutritionPlanMeals_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertNutritionPlansArgs = {
+  objects: Array<NutritionPlans_Insert_Input>;
+  on_conflict?: InputMaybe<NutritionPlans_On_Conflict>;
 };
 
 
@@ -3770,6 +5174,22 @@ export type Mutation_RootUpdateExercisesStrengthArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateFoodArgs = {
+  _inc?: InputMaybe<Foods_Inc_Input>;
+  _set?: InputMaybe<Foods_Set_Input>;
+  pk_columns: Foods_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateFoodsArgs = {
+  _inc?: InputMaybe<Foods_Inc_Input>;
+  _set?: InputMaybe<Foods_Set_Input>;
+  where: Foods_Bool_Exp;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateJournalEntriesArgs = {
   _set?: InputMaybe<JournalEntries_Set_Input>;
   where: JournalEntries_Bool_Exp;
@@ -3808,6 +5228,112 @@ export type Mutation_RootUpdateLabelArgs = {
 export type Mutation_RootUpdateLabelsArgs = {
   _set?: InputMaybe<Labels_Set_Input>;
   where: Labels_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateMealArgs = {
+  _set?: InputMaybe<Meals_Set_Input>;
+  pk_columns: Meals_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateMealIngredientArgs = {
+  _inc?: InputMaybe<MealIngredients_Inc_Input>;
+  _set?: InputMaybe<MealIngredients_Set_Input>;
+  pk_columns: MealIngredients_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateMealIngredientsArgs = {
+  _inc?: InputMaybe<MealIngredients_Inc_Input>;
+  _set?: InputMaybe<MealIngredients_Set_Input>;
+  where: MealIngredients_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateMealsArgs = {
+  _set?: InputMaybe<Meals_Set_Input>;
+  where: Meals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionDayArgs = {
+  _set?: InputMaybe<NutritionDays_Set_Input>;
+  pk_columns: NutritionDays_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionDaysArgs = {
+  _set?: InputMaybe<NutritionDays_Set_Input>;
+  where: NutritionDays_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionLogEntriesArgs = {
+  _inc?: InputMaybe<NutritionLogEntries_Inc_Input>;
+  _set?: InputMaybe<NutritionLogEntries_Set_Input>;
+  where: NutritionLogEntries_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionLogEntryArgs = {
+  _inc?: InputMaybe<NutritionLogEntries_Inc_Input>;
+  _set?: InputMaybe<NutritionLogEntries_Set_Input>;
+  pk_columns: NutritionLogEntries_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionLogMealArgs = {
+  _inc?: InputMaybe<NutritionLogMeals_Inc_Input>;
+  _set?: InputMaybe<NutritionLogMeals_Set_Input>;
+  pk_columns: NutritionLogMeals_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionLogMealsArgs = {
+  _inc?: InputMaybe<NutritionLogMeals_Inc_Input>;
+  _set?: InputMaybe<NutritionLogMeals_Set_Input>;
+  where: NutritionLogMeals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionPlanArgs = {
+  _set?: InputMaybe<NutritionPlans_Set_Input>;
+  pk_columns: NutritionPlans_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionPlanMealArgs = {
+  _inc?: InputMaybe<NutritionPlanMeals_Inc_Input>;
+  _set?: InputMaybe<NutritionPlanMeals_Set_Input>;
+  pk_columns: NutritionPlanMeals_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionPlanMealsArgs = {
+  _inc?: InputMaybe<NutritionPlanMeals_Inc_Input>;
+  _set?: InputMaybe<NutritionPlanMeals_Set_Input>;
+  where: NutritionPlanMeals_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateNutritionPlansArgs = {
+  _set?: InputMaybe<NutritionPlans_Set_Input>;
+  where: NutritionPlans_Bool_Exp;
 };
 
 
@@ -3938,6 +5464,12 @@ export type Mutation_RootUpdate_Exercises_ManyArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdate_Foods_ManyArgs = {
+  updates: Array<Foods_Updates>;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdate_JournalEntries_ManyArgs = {
   updates: Array<JournalEntries_Updates>;
 };
@@ -3952,6 +5484,48 @@ export type Mutation_RootUpdate_JournalLabels_ManyArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Labels_ManyArgs = {
   updates: Array<Labels_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_MealIngredients_ManyArgs = {
+  updates: Array<MealIngredients_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_Meals_ManyArgs = {
+  updates: Array<Meals_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_NutritionDays_ManyArgs = {
+  updates: Array<NutritionDays_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_NutritionLogEntries_ManyArgs = {
+  updates: Array<NutritionLogEntries_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_NutritionLogMeals_ManyArgs = {
+  updates: Array<NutritionLogMeals_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_NutritionPlanMeals_ManyArgs = {
+  updates: Array<NutritionPlanMeals_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_NutritionPlans_ManyArgs = {
+  updates: Array<NutritionPlans_Updates>;
 };
 
 
@@ -4001,6 +5575,1865 @@ export type Numeric_Comparison_Exp = {
   _lte?: InputMaybe<Scalars['numeric']['input']>;
   _neq?: InputMaybe<Scalars['numeric']['input']>;
   _nin?: InputMaybe<Array<Scalars['numeric']['input']>>;
+};
+
+/** columns and relationships of "nutrition_days" */
+export type NutritionDays = {
+  __typename?: 'nutritionDays';
+  createdAt: Scalars['timestamptz']['output'];
+  id: Scalars['uuid']['output'];
+  logDate: Scalars['date']['output'];
+  /** An array relationship */
+  nutritionLogEntries: Array<NutritionLogEntries>;
+  /** An aggregate relationship */
+  nutritionLogEntries_aggregate: NutritionLogEntries_Aggregate;
+  /** An array relationship */
+  nutritionLogMeals: Array<NutritionLogMeals>;
+  /** An aggregate relationship */
+  nutritionLogMeals_aggregate: NutritionLogMeals_Aggregate;
+  /** An object relationship */
+  nutritionPlan?: Maybe<NutritionPlans>;
+  nutritionPlanId?: Maybe<Scalars['uuid']['output']>;
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+
+/** columns and relationships of "nutrition_days" */
+export type NutritionDaysNutritionLogEntriesArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_days" */
+export type NutritionDaysNutritionLogEntries_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_days" */
+export type NutritionDaysNutritionLogMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_days" */
+export type NutritionDaysNutritionLogMeals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+/** aggregated selection of "nutrition_days" */
+export type NutritionDays_Aggregate = {
+  __typename?: 'nutritionDays_aggregate';
+  aggregate?: Maybe<NutritionDays_Aggregate_Fields>;
+  nodes: Array<NutritionDays>;
+};
+
+export type NutritionDays_Aggregate_Bool_Exp = {
+  count?: InputMaybe<NutritionDays_Aggregate_Bool_Exp_Count>;
+};
+
+export type NutritionDays_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<NutritionDays_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "nutrition_days" */
+export type NutritionDays_Aggregate_Fields = {
+  __typename?: 'nutritionDays_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<NutritionDays_Max_Fields>;
+  min?: Maybe<NutritionDays_Min_Fields>;
+};
+
+
+/** aggregate fields of "nutrition_days" */
+export type NutritionDays_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "nutrition_days" */
+export type NutritionDays_Aggregate_Order_By = {
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<NutritionDays_Max_Order_By>;
+  min?: InputMaybe<NutritionDays_Min_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "nutrition_days" */
+export type NutritionDays_Arr_Rel_Insert_Input = {
+  data: Array<NutritionDays_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionDays_On_Conflict>;
+};
+
+/** Boolean expression to filter rows from the table "nutrition_days". All fields are combined with a logical 'AND'. */
+export type NutritionDays_Bool_Exp = {
+  _and?: InputMaybe<Array<NutritionDays_Bool_Exp>>;
+  _not?: InputMaybe<NutritionDays_Bool_Exp>;
+  _or?: InputMaybe<Array<NutritionDays_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  logDate?: InputMaybe<Date_Comparison_Exp>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Bool_Exp>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Bool_Exp>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Bool_Exp>;
+  nutritionPlanId?: InputMaybe<Uuid_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "nutrition_days" */
+export enum NutritionDays_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  NutritionDaysPkey = 'nutrition_days_pkey',
+  /** unique or primary key constraint on columns "user_id", "log_date" */
+  NutritionDaysUserDateUq = 'nutrition_days_user_date_uq'
+}
+
+/** input type for inserting data into table "nutrition_days" */
+export type NutritionDays_Insert_Input = {
+  logDate?: InputMaybe<Scalars['date']['input']>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Arr_Rel_Insert_Input>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Arr_Rel_Insert_Input>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Obj_Rel_Insert_Input>;
+  nutritionPlanId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate max on columns */
+export type NutritionDays_Max_Fields = {
+  __typename?: 'nutritionDays_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  logDate?: Maybe<Scalars['date']['output']>;
+  nutritionPlanId?: Maybe<Scalars['uuid']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** order by max() on columns of table "nutrition_days" */
+export type NutritionDays_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  logDate?: InputMaybe<Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type NutritionDays_Min_Fields = {
+  __typename?: 'nutritionDays_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  logDate?: Maybe<Scalars['date']['output']>;
+  nutritionPlanId?: Maybe<Scalars['uuid']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** order by min() on columns of table "nutrition_days" */
+export type NutritionDays_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  logDate?: InputMaybe<Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "nutrition_days" */
+export type NutritionDays_Mutation_Response = {
+  __typename?: 'nutritionDays_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<NutritionDays>;
+};
+
+/** input type for inserting object relation for remote table "nutrition_days" */
+export type NutritionDays_Obj_Rel_Insert_Input = {
+  data: NutritionDays_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionDays_On_Conflict>;
+};
+
+/** on_conflict condition type for table "nutrition_days" */
+export type NutritionDays_On_Conflict = {
+  constraint: NutritionDays_Constraint;
+  update_columns?: Array<NutritionDays_Update_Column>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "nutrition_days". */
+export type NutritionDays_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  logDate?: InputMaybe<Order_By>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Order_By>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Order_By>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: nutrition_days */
+export type NutritionDays_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "nutrition_days" */
+export enum NutritionDays_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  LogDate = 'logDate',
+  /** column name */
+  NutritionPlanId = 'nutritionPlanId',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "nutrition_days" */
+export type NutritionDays_Set_Input = {
+  logDate?: InputMaybe<Scalars['date']['input']>;
+  nutritionPlanId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** Streaming cursor of the table "nutritionDays" */
+export type NutritionDays_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: NutritionDays_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type NutritionDays_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  logDate?: InputMaybe<Scalars['date']['input']>;
+  nutritionPlanId?: InputMaybe<Scalars['uuid']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "nutrition_days" */
+export enum NutritionDays_Update_Column {
+  /** column name */
+  LogDate = 'logDate',
+  /** column name */
+  NutritionPlanId = 'nutritionPlanId'
+}
+
+export type NutritionDays_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<NutritionDays_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: NutritionDays_Bool_Exp;
+};
+
+/** Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only. */
+export type NutritionLogEntries = {
+  __typename?: 'nutritionLogEntries';
+  createdAt: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  food?: Maybe<Foods>;
+  foodId?: Maybe<Scalars['uuid']['output']>;
+  grams: Scalars['numeric']['output'];
+  id: Scalars['uuid']['output'];
+  /** An object relationship */
+  nutritionDay?: Maybe<NutritionDays>;
+  nutritionDayId: Scalars['uuid']['output'];
+  /** An object relationship */
+  nutritionLogMeal?: Maybe<NutritionLogMeals>;
+  nutritionLogMealId?: Maybe<Scalars['uuid']['output']>;
+  position: Scalars['Int']['output'];
+  snapshotCarbsPer100g: Scalars['numeric']['output'];
+  snapshotFatPer100g: Scalars['numeric']['output'];
+  snapshotFiberPer100g: Scalars['numeric']['output'];
+  snapshotFoodName: Scalars['String']['output'];
+  snapshotKcalPer100g: Scalars['numeric']['output'];
+  snapshotProteinPer100g: Scalars['numeric']['output'];
+  snapshotSugarPer100g: Scalars['numeric']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+/** aggregated selection of "nutrition_log_entries" */
+export type NutritionLogEntries_Aggregate = {
+  __typename?: 'nutritionLogEntries_aggregate';
+  aggregate?: Maybe<NutritionLogEntries_Aggregate_Fields>;
+  nodes: Array<NutritionLogEntries>;
+};
+
+export type NutritionLogEntries_Aggregate_Bool_Exp = {
+  count?: InputMaybe<NutritionLogEntries_Aggregate_Bool_Exp_Count>;
+};
+
+export type NutritionLogEntries_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "nutrition_log_entries" */
+export type NutritionLogEntries_Aggregate_Fields = {
+  __typename?: 'nutritionLogEntries_aggregate_fields';
+  avg?: Maybe<NutritionLogEntries_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<NutritionLogEntries_Max_Fields>;
+  min?: Maybe<NutritionLogEntries_Min_Fields>;
+  stddev?: Maybe<NutritionLogEntries_Stddev_Fields>;
+  stddev_pop?: Maybe<NutritionLogEntries_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<NutritionLogEntries_Stddev_Samp_Fields>;
+  sum?: Maybe<NutritionLogEntries_Sum_Fields>;
+  var_pop?: Maybe<NutritionLogEntries_Var_Pop_Fields>;
+  var_samp?: Maybe<NutritionLogEntries_Var_Samp_Fields>;
+  variance?: Maybe<NutritionLogEntries_Variance_Fields>;
+};
+
+
+/** aggregate fields of "nutrition_log_entries" */
+export type NutritionLogEntries_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "nutrition_log_entries" */
+export type NutritionLogEntries_Aggregate_Order_By = {
+  avg?: InputMaybe<NutritionLogEntries_Avg_Order_By>;
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<NutritionLogEntries_Max_Order_By>;
+  min?: InputMaybe<NutritionLogEntries_Min_Order_By>;
+  stddev?: InputMaybe<NutritionLogEntries_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<NutritionLogEntries_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<NutritionLogEntries_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<NutritionLogEntries_Sum_Order_By>;
+  var_pop?: InputMaybe<NutritionLogEntries_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<NutritionLogEntries_Var_Samp_Order_By>;
+  variance?: InputMaybe<NutritionLogEntries_Variance_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "nutrition_log_entries" */
+export type NutritionLogEntries_Arr_Rel_Insert_Input = {
+  data: Array<NutritionLogEntries_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionLogEntries_On_Conflict>;
+};
+
+/** aggregate avg on columns */
+export type NutritionLogEntries_Avg_Fields = {
+  __typename?: 'nutritionLogEntries_avg_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by avg() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Avg_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** Boolean expression to filter rows from the table "nutrition_log_entries". All fields are combined with a logical 'AND'. */
+export type NutritionLogEntries_Bool_Exp = {
+  _and?: InputMaybe<Array<NutritionLogEntries_Bool_Exp>>;
+  _not?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+  _or?: InputMaybe<Array<NutritionLogEntries_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  food?: InputMaybe<Foods_Bool_Exp>;
+  foodId?: InputMaybe<Uuid_Comparison_Exp>;
+  grams?: InputMaybe<Numeric_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  nutritionDay?: InputMaybe<NutritionDays_Bool_Exp>;
+  nutritionDayId?: InputMaybe<Uuid_Comparison_Exp>;
+  nutritionLogMeal?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  nutritionLogMealId?: InputMaybe<Uuid_Comparison_Exp>;
+  position?: InputMaybe<Int_Comparison_Exp>;
+  snapshotCarbsPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  snapshotFatPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  snapshotFiberPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  snapshotFoodName?: InputMaybe<String_Comparison_Exp>;
+  snapshotKcalPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  snapshotProteinPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  snapshotSugarPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "nutrition_log_entries" */
+export enum NutritionLogEntries_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  NutritionLogEntriesPkey = 'nutrition_log_entries_pkey'
+}
+
+/** input type for incrementing numeric columns in table "nutrition_log_entries" */
+export type NutritionLogEntries_Inc_Input = {
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "nutrition_log_entries" */
+export type NutritionLogEntries_Insert_Input = {
+  food?: InputMaybe<Foods_Obj_Rel_Insert_Input>;
+  foodId?: InputMaybe<Scalars['uuid']['input']>;
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  nutritionDay?: InputMaybe<NutritionDays_Obj_Rel_Insert_Input>;
+  nutritionDayId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionLogMeal?: InputMaybe<NutritionLogMeals_Obj_Rel_Insert_Input>;
+  nutritionLogMealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate max on columns */
+export type NutritionLogEntries_Max_Fields = {
+  __typename?: 'nutritionLogEntries_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  foodId?: Maybe<Scalars['uuid']['output']>;
+  grams?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  nutritionDayId?: Maybe<Scalars['uuid']['output']>;
+  nutritionLogMealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFoodName?: Maybe<Scalars['String']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by max() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionLogMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotFoodName?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type NutritionLogEntries_Min_Fields = {
+  __typename?: 'nutritionLogEntries_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  foodId?: Maybe<Scalars['uuid']['output']>;
+  grams?: Maybe<Scalars['numeric']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  nutritionDayId?: Maybe<Scalars['uuid']['output']>;
+  nutritionLogMealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFoodName?: Maybe<Scalars['String']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by min() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionLogMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotFoodName?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "nutrition_log_entries" */
+export type NutritionLogEntries_Mutation_Response = {
+  __typename?: 'nutritionLogEntries_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<NutritionLogEntries>;
+};
+
+/** on_conflict condition type for table "nutrition_log_entries" */
+export type NutritionLogEntries_On_Conflict = {
+  constraint: NutritionLogEntries_Constraint;
+  update_columns?: Array<NutritionLogEntries_Update_Column>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "nutrition_log_entries". */
+export type NutritionLogEntries_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  food?: InputMaybe<Foods_Order_By>;
+  foodId?: InputMaybe<Order_By>;
+  grams?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  nutritionDay?: InputMaybe<NutritionDays_Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionLogMeal?: InputMaybe<NutritionLogMeals_Order_By>;
+  nutritionLogMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotFoodName?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: nutrition_log_entries */
+export type NutritionLogEntries_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "nutrition_log_entries" */
+export enum NutritionLogEntries_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  FoodId = 'foodId',
+  /** column name */
+  Grams = 'grams',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  NutritionDayId = 'nutritionDayId',
+  /** column name */
+  NutritionLogMealId = 'nutritionLogMealId',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  SnapshotCarbsPer100g = 'snapshotCarbsPer100g',
+  /** column name */
+  SnapshotFatPer100g = 'snapshotFatPer100g',
+  /** column name */
+  SnapshotFiberPer100g = 'snapshotFiberPer100g',
+  /** column name */
+  SnapshotFoodName = 'snapshotFoodName',
+  /** column name */
+  SnapshotKcalPer100g = 'snapshotKcalPer100g',
+  /** column name */
+  SnapshotProteinPer100g = 'snapshotProteinPer100g',
+  /** column name */
+  SnapshotSugarPer100g = 'snapshotSugarPer100g',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** input type for updating data in table "nutrition_log_entries" */
+export type NutritionLogEntries_Set_Input = {
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type NutritionLogEntries_Stddev_Fields = {
+  __typename?: 'nutritionLogEntries_stddev_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Stddev_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_pop on columns */
+export type NutritionLogEntries_Stddev_Pop_Fields = {
+  __typename?: 'nutritionLogEntries_stddev_pop_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_pop() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Stddev_Pop_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_samp on columns */
+export type NutritionLogEntries_Stddev_Samp_Fields = {
+  __typename?: 'nutritionLogEntries_stddev_samp_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_samp() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Stddev_Samp_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** Streaming cursor of the table "nutritionLogEntries" */
+export type NutritionLogEntries_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: NutritionLogEntries_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type NutritionLogEntries_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  foodId?: InputMaybe<Scalars['uuid']['input']>;
+  grams?: InputMaybe<Scalars['numeric']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionDayId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionLogMealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  snapshotCarbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFoodName?: InputMaybe<Scalars['String']['input']>;
+  snapshotKcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotProteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotSugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** aggregate sum on columns */
+export type NutritionLogEntries_Sum_Fields = {
+  __typename?: 'nutritionLogEntries_sum_fields';
+  grams?: Maybe<Scalars['numeric']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['numeric']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['numeric']['output']>;
+};
+
+/** order by sum() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Sum_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** update columns of table "nutrition_log_entries" */
+export enum NutritionLogEntries_Update_Column {
+  /** column name */
+  Grams = 'grams',
+  /** column name */
+  Position = 'position'
+}
+
+export type NutritionLogEntries_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<NutritionLogEntries_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<NutritionLogEntries_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: NutritionLogEntries_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type NutritionLogEntries_Var_Pop_Fields = {
+  __typename?: 'nutritionLogEntries_var_pop_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_pop() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Var_Pop_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** aggregate var_samp on columns */
+export type NutritionLogEntries_Var_Samp_Fields = {
+  __typename?: 'nutritionLogEntries_var_samp_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_samp() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Var_Samp_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** aggregate variance on columns */
+export type NutritionLogEntries_Variance_Fields = {
+  __typename?: 'nutritionLogEntries_variance_fields';
+  grams?: Maybe<Scalars['Float']['output']>;
+  position?: Maybe<Scalars['Float']['output']>;
+  snapshotCarbsPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFatPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotFiberPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotKcalPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotProteinPer100g?: Maybe<Scalars['Float']['output']>;
+  snapshotSugarPer100g?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by variance() on columns of table "nutrition_log_entries" */
+export type NutritionLogEntries_Variance_Order_By = {
+  grams?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  snapshotCarbsPer100g?: InputMaybe<Order_By>;
+  snapshotFatPer100g?: InputMaybe<Order_By>;
+  snapshotFiberPer100g?: InputMaybe<Order_By>;
+  snapshotKcalPer100g?: InputMaybe<Order_By>;
+  snapshotProteinPer100g?: InputMaybe<Order_By>;
+  snapshotSugarPer100g?: InputMaybe<Order_By>;
+};
+
+/** columns and relationships of "nutrition_log_meals" */
+export type NutritionLogMeals = {
+  __typename?: 'nutritionLogMeals';
+  createdAt: Scalars['timestamptz']['output'];
+  id: Scalars['uuid']['output'];
+  /** An object relationship */
+  meal?: Maybe<Meals>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  name: Scalars['String']['output'];
+  /** An object relationship */
+  nutritionDay: NutritionDays;
+  nutritionDayId: Scalars['uuid']['output'];
+  /** An array relationship */
+  nutritionLogEntries: Array<NutritionLogEntries>;
+  /** An aggregate relationship */
+  nutritionLogEntries_aggregate: NutritionLogEntries_Aggregate;
+  /** An object relationship */
+  nutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  nutritionPlanMealId?: Maybe<Scalars['uuid']['output']>;
+  position: Scalars['Int']['output'];
+  slotTime?: Maybe<Scalars['time']['output']>;
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+
+/** columns and relationships of "nutrition_log_meals" */
+export type NutritionLogMealsNutritionLogEntriesArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_log_meals" */
+export type NutritionLogMealsNutritionLogEntries_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+/** aggregated selection of "nutrition_log_meals" */
+export type NutritionLogMeals_Aggregate = {
+  __typename?: 'nutritionLogMeals_aggregate';
+  aggregate?: Maybe<NutritionLogMeals_Aggregate_Fields>;
+  nodes: Array<NutritionLogMeals>;
+};
+
+export type NutritionLogMeals_Aggregate_Bool_Exp = {
+  count?: InputMaybe<NutritionLogMeals_Aggregate_Bool_Exp_Count>;
+};
+
+export type NutritionLogMeals_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "nutrition_log_meals" */
+export type NutritionLogMeals_Aggregate_Fields = {
+  __typename?: 'nutritionLogMeals_aggregate_fields';
+  avg?: Maybe<NutritionLogMeals_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<NutritionLogMeals_Max_Fields>;
+  min?: Maybe<NutritionLogMeals_Min_Fields>;
+  stddev?: Maybe<NutritionLogMeals_Stddev_Fields>;
+  stddev_pop?: Maybe<NutritionLogMeals_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<NutritionLogMeals_Stddev_Samp_Fields>;
+  sum?: Maybe<NutritionLogMeals_Sum_Fields>;
+  var_pop?: Maybe<NutritionLogMeals_Var_Pop_Fields>;
+  var_samp?: Maybe<NutritionLogMeals_Var_Samp_Fields>;
+  variance?: Maybe<NutritionLogMeals_Variance_Fields>;
+};
+
+
+/** aggregate fields of "nutrition_log_meals" */
+export type NutritionLogMeals_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "nutrition_log_meals" */
+export type NutritionLogMeals_Aggregate_Order_By = {
+  avg?: InputMaybe<NutritionLogMeals_Avg_Order_By>;
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<NutritionLogMeals_Max_Order_By>;
+  min?: InputMaybe<NutritionLogMeals_Min_Order_By>;
+  stddev?: InputMaybe<NutritionLogMeals_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<NutritionLogMeals_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<NutritionLogMeals_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<NutritionLogMeals_Sum_Order_By>;
+  var_pop?: InputMaybe<NutritionLogMeals_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<NutritionLogMeals_Var_Samp_Order_By>;
+  variance?: InputMaybe<NutritionLogMeals_Variance_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "nutrition_log_meals" */
+export type NutritionLogMeals_Arr_Rel_Insert_Input = {
+  data: Array<NutritionLogMeals_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionLogMeals_On_Conflict>;
+};
+
+/** aggregate avg on columns */
+export type NutritionLogMeals_Avg_Fields = {
+  __typename?: 'nutritionLogMeals_avg_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by avg() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Avg_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** Boolean expression to filter rows from the table "nutrition_log_meals". All fields are combined with a logical 'AND'. */
+export type NutritionLogMeals_Bool_Exp = {
+  _and?: InputMaybe<Array<NutritionLogMeals_Bool_Exp>>;
+  _not?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  _or?: InputMaybe<Array<NutritionLogMeals_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  meal?: InputMaybe<Meals_Bool_Exp>;
+  mealId?: InputMaybe<Uuid_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  nutritionDay?: InputMaybe<NutritionDays_Bool_Exp>;
+  nutritionDayId?: InputMaybe<Uuid_Comparison_Exp>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Bool_Exp>;
+  nutritionPlanMeal?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+  nutritionPlanMealId?: InputMaybe<Uuid_Comparison_Exp>;
+  position?: InputMaybe<Int_Comparison_Exp>;
+  slotTime?: InputMaybe<Time_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "nutrition_log_meals" */
+export enum NutritionLogMeals_Constraint {
+  /** unique or primary key constraint on columns "id", "nutrition_day_id" */
+  NutritionLogMealsIdDayUq = 'nutrition_log_meals_id_day_uq',
+  /** unique or primary key constraint on columns "id" */
+  NutritionLogMealsPkey = 'nutrition_log_meals_pkey'
+}
+
+/** input type for incrementing numeric columns in table "nutrition_log_meals" */
+export type NutritionLogMeals_Inc_Input = {
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "nutrition_log_meals" */
+export type NutritionLogMeals_Insert_Input = {
+  meal?: InputMaybe<Meals_Obj_Rel_Insert_Input>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nutritionDay?: InputMaybe<NutritionDays_Obj_Rel_Insert_Input>;
+  nutritionDayId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionLogEntries?: InputMaybe<NutritionLogEntries_Arr_Rel_Insert_Input>;
+  nutritionPlanMeal?: InputMaybe<NutritionPlanMeals_Obj_Rel_Insert_Input>;
+  nutritionPlanMealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+};
+
+/** aggregate max on columns */
+export type NutritionLogMeals_Max_Fields = {
+  __typename?: 'nutritionLogMeals_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  nutritionDayId?: Maybe<Scalars['uuid']['output']>;
+  nutritionPlanMealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  slotTime?: Maybe<Scalars['time']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by max() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionPlanMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type NutritionLogMeals_Min_Fields = {
+  __typename?: 'nutritionLogMeals_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  nutritionDayId?: Maybe<Scalars['uuid']['output']>;
+  nutritionPlanMealId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  slotTime?: Maybe<Scalars['time']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by min() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionPlanMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "nutrition_log_meals" */
+export type NutritionLogMeals_Mutation_Response = {
+  __typename?: 'nutritionLogMeals_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<NutritionLogMeals>;
+};
+
+/** input type for inserting object relation for remote table "nutrition_log_meals" */
+export type NutritionLogMeals_Obj_Rel_Insert_Input = {
+  data: NutritionLogMeals_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionLogMeals_On_Conflict>;
+};
+
+/** on_conflict condition type for table "nutrition_log_meals" */
+export type NutritionLogMeals_On_Conflict = {
+  constraint: NutritionLogMeals_Constraint;
+  update_columns?: Array<NutritionLogMeals_Update_Column>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "nutrition_log_meals". */
+export type NutritionLogMeals_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  meal?: InputMaybe<Meals_Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionDay?: InputMaybe<NutritionDays_Order_By>;
+  nutritionDayId?: InputMaybe<Order_By>;
+  nutritionLogEntries_aggregate?: InputMaybe<NutritionLogEntries_Aggregate_Order_By>;
+  nutritionPlanMeal?: InputMaybe<NutritionPlanMeals_Order_By>;
+  nutritionPlanMealId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: nutrition_log_meals */
+export type NutritionLogMeals_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "nutrition_log_meals" */
+export enum NutritionLogMeals_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  MealId = 'mealId',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  NutritionDayId = 'nutritionDayId',
+  /** column name */
+  NutritionPlanMealId = 'nutritionPlanMealId',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  SlotTime = 'slotTime',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** input type for updating data in table "nutrition_log_meals" */
+export type NutritionLogMeals_Set_Input = {
+  name?: InputMaybe<Scalars['String']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type NutritionLogMeals_Stddev_Fields = {
+  __typename?: 'nutritionLogMeals_stddev_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Stddev_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_pop on columns */
+export type NutritionLogMeals_Stddev_Pop_Fields = {
+  __typename?: 'nutritionLogMeals_stddev_pop_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_pop() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Stddev_Pop_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_samp on columns */
+export type NutritionLogMeals_Stddev_Samp_Fields = {
+  __typename?: 'nutritionLogMeals_stddev_samp_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_samp() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Stddev_Samp_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** Streaming cursor of the table "nutritionLogMeals" */
+export type NutritionLogMeals_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: NutritionLogMeals_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type NutritionLogMeals_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nutritionDayId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionPlanMealId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** aggregate sum on columns */
+export type NutritionLogMeals_Sum_Fields = {
+  __typename?: 'nutritionLogMeals_sum_fields';
+  position?: Maybe<Scalars['Int']['output']>;
+};
+
+/** order by sum() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Sum_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** update columns of table "nutrition_log_meals" */
+export enum NutritionLogMeals_Update_Column {
+  /** column name */
+  Name = 'name',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  SlotTime = 'slotTime'
+}
+
+export type NutritionLogMeals_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<NutritionLogMeals_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<NutritionLogMeals_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: NutritionLogMeals_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type NutritionLogMeals_Var_Pop_Fields = {
+  __typename?: 'nutritionLogMeals_var_pop_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_pop() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Var_Pop_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate var_samp on columns */
+export type NutritionLogMeals_Var_Samp_Fields = {
+  __typename?: 'nutritionLogMeals_var_samp_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_samp() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Var_Samp_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate variance on columns */
+export type NutritionLogMeals_Variance_Fields = {
+  __typename?: 'nutritionLogMeals_variance_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by variance() on columns of table "nutrition_log_meals" */
+export type NutritionLogMeals_Variance_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** columns and relationships of "nutrition_plan_meals" */
+export type NutritionPlanMeals = {
+  __typename?: 'nutritionPlanMeals';
+  createdAt: Scalars['timestamptz']['output'];
+  id: Scalars['uuid']['output'];
+  label?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  meal: Meals;
+  mealId: Scalars['uuid']['output'];
+  /** An array relationship */
+  nutritionLogMeals: Array<NutritionLogMeals>;
+  /** An aggregate relationship */
+  nutritionLogMeals_aggregate: NutritionLogMeals_Aggregate;
+  /** An object relationship */
+  nutritionPlan: NutritionPlans;
+  nutritionPlanId: Scalars['uuid']['output'];
+  position: Scalars['Int']['output'];
+  slotTime: Scalars['time']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+
+/** columns and relationships of "nutrition_plan_meals" */
+export type NutritionPlanMealsNutritionLogMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_plan_meals" */
+export type NutritionPlanMealsNutritionLogMeals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+/** aggregated selection of "nutrition_plan_meals" */
+export type NutritionPlanMeals_Aggregate = {
+  __typename?: 'nutritionPlanMeals_aggregate';
+  aggregate?: Maybe<NutritionPlanMeals_Aggregate_Fields>;
+  nodes: Array<NutritionPlanMeals>;
+};
+
+export type NutritionPlanMeals_Aggregate_Bool_Exp = {
+  count?: InputMaybe<NutritionPlanMeals_Aggregate_Bool_Exp_Count>;
+};
+
+export type NutritionPlanMeals_Aggregate_Bool_Exp_Count = {
+  arguments?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+  filter?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+  predicate: Int_Comparison_Exp;
+};
+
+/** aggregate fields of "nutrition_plan_meals" */
+export type NutritionPlanMeals_Aggregate_Fields = {
+  __typename?: 'nutritionPlanMeals_aggregate_fields';
+  avg?: Maybe<NutritionPlanMeals_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<NutritionPlanMeals_Max_Fields>;
+  min?: Maybe<NutritionPlanMeals_Min_Fields>;
+  stddev?: Maybe<NutritionPlanMeals_Stddev_Fields>;
+  stddev_pop?: Maybe<NutritionPlanMeals_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<NutritionPlanMeals_Stddev_Samp_Fields>;
+  sum?: Maybe<NutritionPlanMeals_Sum_Fields>;
+  var_pop?: Maybe<NutritionPlanMeals_Var_Pop_Fields>;
+  var_samp?: Maybe<NutritionPlanMeals_Var_Samp_Fields>;
+  variance?: Maybe<NutritionPlanMeals_Variance_Fields>;
+};
+
+
+/** aggregate fields of "nutrition_plan_meals" */
+export type NutritionPlanMeals_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** order by aggregate values of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Aggregate_Order_By = {
+  avg?: InputMaybe<NutritionPlanMeals_Avg_Order_By>;
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<NutritionPlanMeals_Max_Order_By>;
+  min?: InputMaybe<NutritionPlanMeals_Min_Order_By>;
+  stddev?: InputMaybe<NutritionPlanMeals_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<NutritionPlanMeals_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<NutritionPlanMeals_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<NutritionPlanMeals_Sum_Order_By>;
+  var_pop?: InputMaybe<NutritionPlanMeals_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<NutritionPlanMeals_Var_Samp_Order_By>;
+  variance?: InputMaybe<NutritionPlanMeals_Variance_Order_By>;
+};
+
+/** input type for inserting array relation for remote table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Arr_Rel_Insert_Input = {
+  data: Array<NutritionPlanMeals_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionPlanMeals_On_Conflict>;
+};
+
+/** aggregate avg on columns */
+export type NutritionPlanMeals_Avg_Fields = {
+  __typename?: 'nutritionPlanMeals_avg_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by avg() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Avg_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** Boolean expression to filter rows from the table "nutrition_plan_meals". All fields are combined with a logical 'AND'. */
+export type NutritionPlanMeals_Bool_Exp = {
+  _and?: InputMaybe<Array<NutritionPlanMeals_Bool_Exp>>;
+  _not?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+  _or?: InputMaybe<Array<NutritionPlanMeals_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  label?: InputMaybe<String_Comparison_Exp>;
+  meal?: InputMaybe<Meals_Bool_Exp>;
+  mealId?: InputMaybe<Uuid_Comparison_Exp>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Bool_Exp>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Bool_Exp>;
+  nutritionPlanId?: InputMaybe<Uuid_Comparison_Exp>;
+  position?: InputMaybe<Int_Comparison_Exp>;
+  slotTime?: InputMaybe<Time_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "nutrition_plan_meals" */
+export enum NutritionPlanMeals_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  NutritionPlanMealsPkey = 'nutrition_plan_meals_pkey'
+}
+
+/** input type for incrementing numeric columns in table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Inc_Input = {
+  position?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** input type for inserting data into table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Insert_Input = {
+  label?: InputMaybe<Scalars['String']['input']>;
+  meal?: InputMaybe<Meals_Obj_Rel_Insert_Input>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionLogMeals?: InputMaybe<NutritionLogMeals_Arr_Rel_Insert_Input>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Obj_Rel_Insert_Input>;
+  nutritionPlanId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+};
+
+/** aggregate max on columns */
+export type NutritionPlanMeals_Max_Fields = {
+  __typename?: 'nutritionPlanMeals_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  label?: Maybe<Scalars['String']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  nutritionPlanId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  slotTime?: Maybe<Scalars['time']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by max() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Max_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  label?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** aggregate min on columns */
+export type NutritionPlanMeals_Min_Fields = {
+  __typename?: 'nutritionPlanMeals_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  label?: Maybe<Scalars['String']['output']>;
+  mealId?: Maybe<Scalars['uuid']['output']>;
+  nutritionPlanId?: Maybe<Scalars['uuid']['output']>;
+  position?: Maybe<Scalars['Int']['output']>;
+  slotTime?: Maybe<Scalars['time']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+};
+
+/** order by min() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Min_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  label?: InputMaybe<Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Mutation_Response = {
+  __typename?: 'nutritionPlanMeals_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<NutritionPlanMeals>;
+};
+
+/** input type for inserting object relation for remote table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Obj_Rel_Insert_Input = {
+  data: NutritionPlanMeals_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionPlanMeals_On_Conflict>;
+};
+
+/** on_conflict condition type for table "nutrition_plan_meals" */
+export type NutritionPlanMeals_On_Conflict = {
+  constraint: NutritionPlanMeals_Constraint;
+  update_columns?: Array<NutritionPlanMeals_Update_Column>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "nutrition_plan_meals". */
+export type NutritionPlanMeals_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  label?: InputMaybe<Order_By>;
+  meal?: InputMaybe<Meals_Order_By>;
+  mealId?: InputMaybe<Order_By>;
+  nutritionLogMeals_aggregate?: InputMaybe<NutritionLogMeals_Aggregate_Order_By>;
+  nutritionPlan?: InputMaybe<NutritionPlans_Order_By>;
+  nutritionPlanId?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  slotTime?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: nutrition_plan_meals */
+export type NutritionPlanMeals_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "nutrition_plan_meals" */
+export enum NutritionPlanMeals_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Label = 'label',
+  /** column name */
+  MealId = 'mealId',
+  /** column name */
+  NutritionPlanId = 'nutritionPlanId',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  SlotTime = 'slotTime',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** input type for updating data in table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Set_Input = {
+  label?: InputMaybe<Scalars['String']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type NutritionPlanMeals_Stddev_Fields = {
+  __typename?: 'nutritionPlanMeals_stddev_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Stddev_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_pop on columns */
+export type NutritionPlanMeals_Stddev_Pop_Fields = {
+  __typename?: 'nutritionPlanMeals_stddev_pop_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_pop() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Stddev_Pop_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate stddev_samp on columns */
+export type NutritionPlanMeals_Stddev_Samp_Fields = {
+  __typename?: 'nutritionPlanMeals_stddev_samp_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by stddev_samp() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Stddev_Samp_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** Streaming cursor of the table "nutritionPlanMeals" */
+export type NutritionPlanMeals_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: NutritionPlanMeals_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type NutritionPlanMeals_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  label?: InputMaybe<Scalars['String']['input']>;
+  mealId?: InputMaybe<Scalars['uuid']['input']>;
+  nutritionPlanId?: InputMaybe<Scalars['uuid']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  slotTime?: InputMaybe<Scalars['time']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** aggregate sum on columns */
+export type NutritionPlanMeals_Sum_Fields = {
+  __typename?: 'nutritionPlanMeals_sum_fields';
+  position?: Maybe<Scalars['Int']['output']>;
+};
+
+/** order by sum() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Sum_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** update columns of table "nutrition_plan_meals" */
+export enum NutritionPlanMeals_Update_Column {
+  /** column name */
+  Label = 'label',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  SlotTime = 'slotTime'
+}
+
+export type NutritionPlanMeals_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<NutritionPlanMeals_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<NutritionPlanMeals_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: NutritionPlanMeals_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type NutritionPlanMeals_Var_Pop_Fields = {
+  __typename?: 'nutritionPlanMeals_var_pop_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_pop() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Var_Pop_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate var_samp on columns */
+export type NutritionPlanMeals_Var_Samp_Fields = {
+  __typename?: 'nutritionPlanMeals_var_samp_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by var_samp() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Var_Samp_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** aggregate variance on columns */
+export type NutritionPlanMeals_Variance_Fields = {
+  __typename?: 'nutritionPlanMeals_variance_fields';
+  position?: Maybe<Scalars['Float']['output']>;
+};
+
+/** order by variance() on columns of table "nutrition_plan_meals" */
+export type NutritionPlanMeals_Variance_Order_By = {
+  position?: InputMaybe<Order_By>;
+};
+
+/** columns and relationships of "nutrition_plans" */
+export type NutritionPlans = {
+  __typename?: 'nutritionPlans';
+  createdAt: Scalars['timestamptz']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['uuid']['output'];
+  name: Scalars['String']['output'];
+  /** An array relationship */
+  nutritionDays: Array<NutritionDays>;
+  /** An aggregate relationship */
+  nutritionDays_aggregate: NutritionDays_Aggregate;
+  /** An array relationship */
+  nutritionPlanMeals: Array<NutritionPlanMeals>;
+  /** An aggregate relationship */
+  nutritionPlanMeals_aggregate: NutritionPlanMeals_Aggregate;
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+
+/** columns and relationships of "nutrition_plans" */
+export type NutritionPlansNutritionDaysArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_plans" */
+export type NutritionPlansNutritionDays_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_plans" */
+export type NutritionPlansNutritionPlanMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+/** columns and relationships of "nutrition_plans" */
+export type NutritionPlansNutritionPlanMeals_AggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+/** aggregated selection of "nutrition_plans" */
+export type NutritionPlans_Aggregate = {
+  __typename?: 'nutritionPlans_aggregate';
+  aggregate?: Maybe<NutritionPlans_Aggregate_Fields>;
+  nodes: Array<NutritionPlans>;
+};
+
+/** aggregate fields of "nutrition_plans" */
+export type NutritionPlans_Aggregate_Fields = {
+  __typename?: 'nutritionPlans_aggregate_fields';
+  count: Scalars['Int']['output'];
+  max?: Maybe<NutritionPlans_Max_Fields>;
+  min?: Maybe<NutritionPlans_Min_Fields>;
+};
+
+
+/** aggregate fields of "nutrition_plans" */
+export type NutritionPlans_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<NutritionPlans_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "nutrition_plans". All fields are combined with a logical 'AND'. */
+export type NutritionPlans_Bool_Exp = {
+  _and?: InputMaybe<Array<NutritionPlans_Bool_Exp>>;
+  _not?: InputMaybe<NutritionPlans_Bool_Exp>;
+  _or?: InputMaybe<Array<NutritionPlans_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  description?: InputMaybe<String_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  nutritionDays?: InputMaybe<NutritionDays_Bool_Exp>;
+  nutritionDays_aggregate?: InputMaybe<NutritionDays_Aggregate_Bool_Exp>;
+  nutritionPlanMeals?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+  nutritionPlanMeals_aggregate?: InputMaybe<NutritionPlanMeals_Aggregate_Bool_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "nutrition_plans" */
+export enum NutritionPlans_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  NutritionPlansPkey = 'nutrition_plans_pkey',
+  /** unique or primary key constraint on columns "user_id", "name" */
+  NutritionPlansUserNameUq = 'nutrition_plans_user_name_uq'
+}
+
+/** input type for inserting data into table "nutrition_plans" */
+export type NutritionPlans_Insert_Input = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nutritionDays?: InputMaybe<NutritionDays_Arr_Rel_Insert_Input>;
+  nutritionPlanMeals?: InputMaybe<NutritionPlanMeals_Arr_Rel_Insert_Input>;
+};
+
+/** aggregate max on columns */
+export type NutritionPlans_Max_Fields = {
+  __typename?: 'nutritionPlans_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type NutritionPlans_Min_Fields = {
+  __typename?: 'nutritionPlans_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  description?: Maybe<Scalars['String']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  name?: Maybe<Scalars['String']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "nutrition_plans" */
+export type NutritionPlans_Mutation_Response = {
+  __typename?: 'nutritionPlans_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<NutritionPlans>;
+};
+
+/** input type for inserting object relation for remote table "nutrition_plans" */
+export type NutritionPlans_Obj_Rel_Insert_Input = {
+  data: NutritionPlans_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<NutritionPlans_On_Conflict>;
+};
+
+/** on_conflict condition type for table "nutrition_plans" */
+export type NutritionPlans_On_Conflict = {
+  constraint: NutritionPlans_Constraint;
+  update_columns?: Array<NutritionPlans_Update_Column>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "nutrition_plans". */
+export type NutritionPlans_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  description?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  nutritionDays_aggregate?: InputMaybe<NutritionDays_Aggregate_Order_By>;
+  nutritionPlanMeals_aggregate?: InputMaybe<NutritionPlanMeals_Aggregate_Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: nutrition_plans */
+export type NutritionPlans_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "nutrition_plans" */
+export enum NutritionPlans_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Description = 'description',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "nutrition_plans" */
+export type NutritionPlans_Set_Input = {
+  description?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Streaming cursor of the table "nutritionPlans" */
+export type NutritionPlans_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: NutritionPlans_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type NutritionPlans_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "nutrition_plans" */
+export enum NutritionPlans_Update_Column {
+  /** column name */
+  Description = 'description',
+  /** column name */
+  Name = 'name'
+}
+
+export type NutritionPlans_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<NutritionPlans_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: NutritionPlans_Bool_Exp;
 };
 
 /** column ordering options */
@@ -4063,13 +7496,13 @@ export type Query_Root = {
   exerciseMechanicsAggregate: ExerciseMechanics_Aggregate;
   /** fetch data from the table: "exercise_secondary_muscle_groups" using primary key columns */
   exerciseSecondaryMuscleGroup?: Maybe<ExerciseSecondaryMuscleGroups>;
-  /** An array relationship */
+  /** fetch data from the table: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroups: Array<ExerciseSecondaryMuscleGroups>;
   /** fetch aggregated fields from the table: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroupsAggregate: ExerciseSecondaryMuscleGroups_Aggregate;
   /** fetch data from the table: "exercises_strength" using primary key columns */
   exerciseStrength?: Maybe<ExercisesStrength>;
-  /** An array relationship */
+  /** fetch data from the table: "exercises" */
   exercises: Array<Exercises>;
   /** fetch aggregated fields from the table: "exercises" */
   exercisesAggregate: Exercises_Aggregate;
@@ -4077,7 +7510,7 @@ export type Query_Root = {
   exercisesCardio: Array<ExercisesCardio>;
   /** fetch aggregated fields from the table: "exercises_cardio" */
   exercisesCardioAggregate: ExercisesCardio_Aggregate;
-  /** An array relationship */
+  /** fetch data from the table: "exercises_strength" */
   exercisesStrength: Array<ExercisesStrength>;
   /** fetch aggregated fields from the table: "exercises_strength" */
   exercisesStrengthAggregate: ExercisesStrength_Aggregate;
@@ -4085,6 +7518,12 @@ export type Query_Root = {
   file?: Maybe<Files>;
   /** fetch data from the table: "storage.files" */
   files: Array<Files>;
+  /** fetch data from the table: "foods" using primary key columns */
+  food?: Maybe<Foods>;
+  /** fetch data from the table: "foods" */
+  foods: Array<Foods>;
+  /** fetch aggregated fields from the table: "foods" */
+  foodsAggregate: Foods_Aggregate;
   /** fetch data from the table: "journal_entries" */
   journalEntries: Array<JournalEntries>;
   /** fetch aggregated fields from the table: "journal_entries" */
@@ -4093,7 +7532,7 @@ export type Query_Root = {
   journalEntry?: Maybe<JournalEntries>;
   /** fetch data from the table: "journal_entry_labels" using primary key columns */
   journalEntryLabel?: Maybe<JournalEntryLabels>;
-  /** An array relationship */
+  /** fetch data from the table: "journal_entry_labels" */
   journalEntryLabels: Array<JournalEntryLabels>;
   /** fetch aggregated fields from the table: "journal_entry_labels" */
   journalEntryLabelsAggregate: JournalEntryLabels_Aggregate;
@@ -4109,29 +7548,71 @@ export type Query_Root = {
   labels: Array<Labels>;
   /** fetch aggregated fields from the table: "labels" */
   labelsAggregate: Labels_Aggregate;
+  /** fetch data from the table: "meals" using primary key columns */
+  meal?: Maybe<Meals>;
+  /** fetch data from the table: "meal_ingredients" using primary key columns */
+  mealIngredient?: Maybe<MealIngredients>;
+  /** fetch data from the table: "meal_ingredients" */
+  mealIngredients: Array<MealIngredients>;
+  /** fetch aggregated fields from the table: "meal_ingredients" */
+  mealIngredientsAggregate: MealIngredients_Aggregate;
+  /** fetch data from the table: "meals" */
+  meals: Array<Meals>;
+  /** fetch aggregated fields from the table: "meals" */
+  mealsAggregate: Meals_Aggregate;
   /** fetch data from the table: "muscle_groups" using primary key columns */
   muscleGroup?: Maybe<MuscleGroups>;
   /** fetch data from the table: "muscle_groups" */
   muscleGroups: Array<MuscleGroups>;
   /** fetch aggregated fields from the table: "muscle_groups" */
   muscleGroupsAggregate: MuscleGroups_Aggregate;
+  /** fetch data from the table: "nutrition_days" using primary key columns */
+  nutritionDay?: Maybe<NutritionDays>;
+  /** fetch data from the table: "nutrition_days" */
+  nutritionDays: Array<NutritionDays>;
+  /** fetch aggregated fields from the table: "nutrition_days" */
+  nutritionDaysAggregate: NutritionDays_Aggregate;
+  /** fetch data from the table: "nutrition_log_entries" */
+  nutritionLogEntries: Array<NutritionLogEntries>;
+  /** fetch aggregated fields from the table: "nutrition_log_entries" */
+  nutritionLogEntriesAggregate: NutritionLogEntries_Aggregate;
+  /** fetch data from the table: "nutrition_log_entries" using primary key columns */
+  nutritionLogEntry?: Maybe<NutritionLogEntries>;
+  /** fetch data from the table: "nutrition_log_meals" using primary key columns */
+  nutritionLogMeal?: Maybe<NutritionLogMeals>;
+  /** fetch data from the table: "nutrition_log_meals" */
+  nutritionLogMeals: Array<NutritionLogMeals>;
+  /** fetch aggregated fields from the table: "nutrition_log_meals" */
+  nutritionLogMealsAggregate: NutritionLogMeals_Aggregate;
+  /** fetch data from the table: "nutrition_plans" using primary key columns */
+  nutritionPlan?: Maybe<NutritionPlans>;
+  /** fetch data from the table: "nutrition_plan_meals" using primary key columns */
+  nutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  /** fetch data from the table: "nutrition_plan_meals" */
+  nutritionPlanMeals: Array<NutritionPlanMeals>;
+  /** fetch aggregated fields from the table: "nutrition_plan_meals" */
+  nutritionPlanMealsAggregate: NutritionPlanMeals_Aggregate;
+  /** fetch data from the table: "nutrition_plans" */
+  nutritionPlans: Array<NutritionPlans>;
+  /** fetch aggregated fields from the table: "nutrition_plans" */
+  nutritionPlansAggregate: NutritionPlans_Aggregate;
   /** fetch data from the table: "workouts" using primary key columns */
   workout?: Maybe<Workouts>;
   /** fetch data from the table: "workout_exercises" using primary key columns */
   workoutExercise?: Maybe<WorkoutExercises>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_exercises" */
   workoutExercises: Array<WorkoutExercises>;
   /** fetch aggregated fields from the table: "workout_exercises" */
   workoutExercisesAggregate: WorkoutExercises_Aggregate;
   /** fetch data from the table: "workout_labels" using primary key columns */
   workoutLabel?: Maybe<WorkoutLabels>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_labels" */
   workoutLabels: Array<WorkoutLabels>;
   /** fetch aggregated fields from the table: "workout_labels" */
   workoutLabelsAggregate: WorkoutLabels_Aggregate;
   /** fetch data from the table: "workout_sessions" using primary key columns */
   workoutSession?: Maybe<WorkoutSessions>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_cardio_entries" */
   workoutSessionCardioEntries: Array<WorkoutSessionCardioEntries>;
   /** fetch aggregated fields from the table: "workout_session_cardio_entries" */
   workoutSessionCardioEntriesAggregate: WorkoutSessionCardioEntries_Aggregate;
@@ -4139,17 +7620,17 @@ export type Query_Root = {
   workoutSessionCardioEntry?: Maybe<WorkoutSessionCardioEntries>;
   /** fetch data from the table: "workout_session_exercises" using primary key columns */
   workoutSessionExercise?: Maybe<WorkoutSessionExercises>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_exercises" */
   workoutSessionExercises: Array<WorkoutSessionExercises>;
   /** fetch aggregated fields from the table: "workout_session_exercises" */
   workoutSessionExercisesAggregate: WorkoutSessionExercises_Aggregate;
   /** fetch data from the table: "workout_session_strength_sets" using primary key columns */
   workoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_strength_sets" */
   workoutSessionStrengthSets: Array<WorkoutSessionStrengthSets>;
   /** fetch aggregated fields from the table: "workout_session_strength_sets" */
   workoutSessionStrengthSetsAggregate: WorkoutSessionStrengthSets_Aggregate;
-  /** An array relationship */
+  /** fetch data from the table: "workout_sessions" */
   workoutSessions: Array<WorkoutSessions>;
   /** fetch aggregated fields from the table: "workout_sessions" */
   workoutSessionsAggregate: WorkoutSessions_Aggregate;
@@ -4405,6 +7886,29 @@ export type Query_RootFilesArgs = {
 };
 
 
+export type Query_RootFoodArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootFoodsArgs = {
+  distinct_on?: InputMaybe<Array<Foods_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Foods_Order_By>>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
+export type Query_RootFoodsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<Foods_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Foods_Order_By>>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
 export type Query_RootJournalEntriesArgs = {
   distinct_on?: InputMaybe<Array<JournalEntries_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -4498,6 +8002,52 @@ export type Query_RootLabelsAggregateArgs = {
 };
 
 
+export type Query_RootMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootMealIngredientArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootMealIngredientsArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+export type Query_RootMealIngredientsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+export type Query_RootMealsArgs = {
+  distinct_on?: InputMaybe<Array<Meals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Meals_Order_By>>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+
+export type Query_RootMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<Meals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Meals_Order_By>>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+
 export type Query_RootMuscleGroupArgs = {
   value: Scalars['String']['input'];
 };
@@ -4518,6 +8068,121 @@ export type Query_RootMuscleGroupsAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<MuscleGroups_Order_By>>;
   where?: InputMaybe<MuscleGroups_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionDayArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootNutritionDaysArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionDaysAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionLogEntriesArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionLogEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionLogEntryArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootNutritionLogMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootNutritionLogMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionLogMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionPlanArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootNutritionPlanMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootNutritionPlanMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionPlanMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionPlansArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlans_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlans_Order_By>>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+
+export type Query_RootNutritionPlansAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlans_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlans_Order_By>>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
 };
 
 
@@ -4738,7 +8403,7 @@ export type Subscription_Root = {
   exerciseMechanics_stream: Array<ExerciseMechanics>;
   /** fetch data from the table: "exercise_secondary_muscle_groups" using primary key columns */
   exerciseSecondaryMuscleGroup?: Maybe<ExerciseSecondaryMuscleGroups>;
-  /** An array relationship */
+  /** fetch data from the table: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroups: Array<ExerciseSecondaryMuscleGroups>;
   /** fetch aggregated fields from the table: "exercise_secondary_muscle_groups" */
   exerciseSecondaryMuscleGroupsAggregate: ExerciseSecondaryMuscleGroups_Aggregate;
@@ -4746,7 +8411,7 @@ export type Subscription_Root = {
   exerciseSecondaryMuscleGroups_stream: Array<ExerciseSecondaryMuscleGroups>;
   /** fetch data from the table: "exercises_strength" using primary key columns */
   exerciseStrength?: Maybe<ExercisesStrength>;
-  /** An array relationship */
+  /** fetch data from the table: "exercises" */
   exercises: Array<Exercises>;
   /** fetch aggregated fields from the table: "exercises" */
   exercisesAggregate: Exercises_Aggregate;
@@ -4756,7 +8421,7 @@ export type Subscription_Root = {
   exercisesCardioAggregate: ExercisesCardio_Aggregate;
   /** fetch data from the table in a streaming manner: "exercises_cardio" */
   exercisesCardio_stream: Array<ExercisesCardio>;
-  /** An array relationship */
+  /** fetch data from the table: "exercises_strength" */
   exercisesStrength: Array<ExercisesStrength>;
   /** fetch aggregated fields from the table: "exercises_strength" */
   exercisesStrengthAggregate: ExercisesStrength_Aggregate;
@@ -4770,6 +8435,14 @@ export type Subscription_Root = {
   files: Array<Files>;
   /** fetch data from the table in a streaming manner: "storage.files" */
   files_stream: Array<Files>;
+  /** fetch data from the table: "foods" using primary key columns */
+  food?: Maybe<Foods>;
+  /** fetch data from the table: "foods" */
+  foods: Array<Foods>;
+  /** fetch aggregated fields from the table: "foods" */
+  foodsAggregate: Foods_Aggregate;
+  /** fetch data from the table in a streaming manner: "foods" */
+  foods_stream: Array<Foods>;
   /** fetch data from the table: "journal_entries" */
   journalEntries: Array<JournalEntries>;
   /** fetch aggregated fields from the table: "journal_entries" */
@@ -4780,7 +8453,7 @@ export type Subscription_Root = {
   journalEntry?: Maybe<JournalEntries>;
   /** fetch data from the table: "journal_entry_labels" using primary key columns */
   journalEntryLabel?: Maybe<JournalEntryLabels>;
-  /** An array relationship */
+  /** fetch data from the table: "journal_entry_labels" */
   journalEntryLabels: Array<JournalEntryLabels>;
   /** fetch aggregated fields from the table: "journal_entry_labels" */
   journalEntryLabelsAggregate: JournalEntryLabels_Aggregate;
@@ -4802,6 +8475,22 @@ export type Subscription_Root = {
   labelsAggregate: Labels_Aggregate;
   /** fetch data from the table in a streaming manner: "labels" */
   labels_stream: Array<Labels>;
+  /** fetch data from the table: "meals" using primary key columns */
+  meal?: Maybe<Meals>;
+  /** fetch data from the table: "meal_ingredients" using primary key columns */
+  mealIngredient?: Maybe<MealIngredients>;
+  /** fetch data from the table: "meal_ingredients" */
+  mealIngredients: Array<MealIngredients>;
+  /** fetch aggregated fields from the table: "meal_ingredients" */
+  mealIngredientsAggregate: MealIngredients_Aggregate;
+  /** fetch data from the table in a streaming manner: "meal_ingredients" */
+  mealIngredients_stream: Array<MealIngredients>;
+  /** fetch data from the table: "meals" */
+  meals: Array<Meals>;
+  /** fetch aggregated fields from the table: "meals" */
+  mealsAggregate: Meals_Aggregate;
+  /** fetch data from the table in a streaming manner: "meals" */
+  meals_stream: Array<Meals>;
   /** fetch data from the table: "muscle_groups" using primary key columns */
   muscleGroup?: Maybe<MuscleGroups>;
   /** fetch data from the table: "muscle_groups" */
@@ -4810,11 +8499,51 @@ export type Subscription_Root = {
   muscleGroupsAggregate: MuscleGroups_Aggregate;
   /** fetch data from the table in a streaming manner: "muscle_groups" */
   muscleGroups_stream: Array<MuscleGroups>;
+  /** fetch data from the table: "nutrition_days" using primary key columns */
+  nutritionDay?: Maybe<NutritionDays>;
+  /** fetch data from the table: "nutrition_days" */
+  nutritionDays: Array<NutritionDays>;
+  /** fetch aggregated fields from the table: "nutrition_days" */
+  nutritionDaysAggregate: NutritionDays_Aggregate;
+  /** fetch data from the table in a streaming manner: "nutrition_days" */
+  nutritionDays_stream: Array<NutritionDays>;
+  /** fetch data from the table: "nutrition_log_entries" */
+  nutritionLogEntries: Array<NutritionLogEntries>;
+  /** fetch aggregated fields from the table: "nutrition_log_entries" */
+  nutritionLogEntriesAggregate: NutritionLogEntries_Aggregate;
+  /** fetch data from the table in a streaming manner: "nutrition_log_entries" */
+  nutritionLogEntries_stream: Array<NutritionLogEntries>;
+  /** fetch data from the table: "nutrition_log_entries" using primary key columns */
+  nutritionLogEntry?: Maybe<NutritionLogEntries>;
+  /** fetch data from the table: "nutrition_log_meals" using primary key columns */
+  nutritionLogMeal?: Maybe<NutritionLogMeals>;
+  /** fetch data from the table: "nutrition_log_meals" */
+  nutritionLogMeals: Array<NutritionLogMeals>;
+  /** fetch aggregated fields from the table: "nutrition_log_meals" */
+  nutritionLogMealsAggregate: NutritionLogMeals_Aggregate;
+  /** fetch data from the table in a streaming manner: "nutrition_log_meals" */
+  nutritionLogMeals_stream: Array<NutritionLogMeals>;
+  /** fetch data from the table: "nutrition_plans" using primary key columns */
+  nutritionPlan?: Maybe<NutritionPlans>;
+  /** fetch data from the table: "nutrition_plan_meals" using primary key columns */
+  nutritionPlanMeal?: Maybe<NutritionPlanMeals>;
+  /** fetch data from the table: "nutrition_plan_meals" */
+  nutritionPlanMeals: Array<NutritionPlanMeals>;
+  /** fetch aggregated fields from the table: "nutrition_plan_meals" */
+  nutritionPlanMealsAggregate: NutritionPlanMeals_Aggregate;
+  /** fetch data from the table in a streaming manner: "nutrition_plan_meals" */
+  nutritionPlanMeals_stream: Array<NutritionPlanMeals>;
+  /** fetch data from the table: "nutrition_plans" */
+  nutritionPlans: Array<NutritionPlans>;
+  /** fetch aggregated fields from the table: "nutrition_plans" */
+  nutritionPlansAggregate: NutritionPlans_Aggregate;
+  /** fetch data from the table in a streaming manner: "nutrition_plans" */
+  nutritionPlans_stream: Array<NutritionPlans>;
   /** fetch data from the table: "workouts" using primary key columns */
   workout?: Maybe<Workouts>;
   /** fetch data from the table: "workout_exercises" using primary key columns */
   workoutExercise?: Maybe<WorkoutExercises>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_exercises" */
   workoutExercises: Array<WorkoutExercises>;
   /** fetch aggregated fields from the table: "workout_exercises" */
   workoutExercisesAggregate: WorkoutExercises_Aggregate;
@@ -4822,7 +8551,7 @@ export type Subscription_Root = {
   workoutExercises_stream: Array<WorkoutExercises>;
   /** fetch data from the table: "workout_labels" using primary key columns */
   workoutLabel?: Maybe<WorkoutLabels>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_labels" */
   workoutLabels: Array<WorkoutLabels>;
   /** fetch aggregated fields from the table: "workout_labels" */
   workoutLabelsAggregate: WorkoutLabels_Aggregate;
@@ -4830,7 +8559,7 @@ export type Subscription_Root = {
   workoutLabels_stream: Array<WorkoutLabels>;
   /** fetch data from the table: "workout_sessions" using primary key columns */
   workoutSession?: Maybe<WorkoutSessions>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_cardio_entries" */
   workoutSessionCardioEntries: Array<WorkoutSessionCardioEntries>;
   /** fetch aggregated fields from the table: "workout_session_cardio_entries" */
   workoutSessionCardioEntriesAggregate: WorkoutSessionCardioEntries_Aggregate;
@@ -4840,7 +8569,7 @@ export type Subscription_Root = {
   workoutSessionCardioEntry?: Maybe<WorkoutSessionCardioEntries>;
   /** fetch data from the table: "workout_session_exercises" using primary key columns */
   workoutSessionExercise?: Maybe<WorkoutSessionExercises>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_exercises" */
   workoutSessionExercises: Array<WorkoutSessionExercises>;
   /** fetch aggregated fields from the table: "workout_session_exercises" */
   workoutSessionExercisesAggregate: WorkoutSessionExercises_Aggregate;
@@ -4848,13 +8577,13 @@ export type Subscription_Root = {
   workoutSessionExercises_stream: Array<WorkoutSessionExercises>;
   /** fetch data from the table: "workout_session_strength_sets" using primary key columns */
   workoutSessionStrengthSet?: Maybe<WorkoutSessionStrengthSets>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_session_strength_sets" */
   workoutSessionStrengthSets: Array<WorkoutSessionStrengthSets>;
   /** fetch aggregated fields from the table: "workout_session_strength_sets" */
   workoutSessionStrengthSetsAggregate: WorkoutSessionStrengthSets_Aggregate;
   /** fetch data from the table in a streaming manner: "workout_session_strength_sets" */
   workoutSessionStrengthSets_stream: Array<WorkoutSessionStrengthSets>;
-  /** An array relationship */
+  /** fetch data from the table: "workout_sessions" */
   workoutSessions: Array<WorkoutSessions>;
   /** fetch aggregated fields from the table: "workout_sessions" */
   workoutSessionsAggregate: WorkoutSessions_Aggregate;
@@ -5191,6 +8920,36 @@ export type Subscription_RootFiles_StreamArgs = {
 };
 
 
+export type Subscription_RootFoodArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootFoodsArgs = {
+  distinct_on?: InputMaybe<Array<Foods_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Foods_Order_By>>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
+export type Subscription_RootFoodsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<Foods_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Foods_Order_By>>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
+export type Subscription_RootFoods_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Foods_Stream_Cursor_Input>>;
+  where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
 export type Subscription_RootJournalEntriesArgs = {
   distinct_on?: InputMaybe<Array<JournalEntries_Select_Column>>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -5312,6 +9071,66 @@ export type Subscription_RootLabels_StreamArgs = {
 };
 
 
+export type Subscription_RootMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootMealIngredientArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootMealIngredientsArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+export type Subscription_RootMealIngredientsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<MealIngredients_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MealIngredients_Order_By>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+export type Subscription_RootMealIngredients_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<MealIngredients_Stream_Cursor_Input>>;
+  where?: InputMaybe<MealIngredients_Bool_Exp>;
+};
+
+
+export type Subscription_RootMealsArgs = {
+  distinct_on?: InputMaybe<Array<Meals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Meals_Order_By>>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+
+export type Subscription_RootMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<Meals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<Meals_Order_By>>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+
+export type Subscription_RootMeals_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<Meals_Stream_Cursor_Input>>;
+  where?: InputMaybe<Meals_Bool_Exp>;
+};
+
+
 export type Subscription_RootMuscleGroupArgs = {
   value: Scalars['String']['input'];
 };
@@ -5339,6 +9158,156 @@ export type Subscription_RootMuscleGroups_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<MuscleGroups_Stream_Cursor_Input>>;
   where?: InputMaybe<MuscleGroups_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionDayArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootNutritionDaysArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionDaysAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionDays_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionDays_Order_By>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionDays_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<NutritionDays_Stream_Cursor_Input>>;
+  where?: InputMaybe<NutritionDays_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogEntriesArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogEntries_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogEntries_Order_By>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogEntries_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<NutritionLogEntries_Stream_Cursor_Input>>;
+  where?: InputMaybe<NutritionLogEntries_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogEntryArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootNutritionLogMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootNutritionLogMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionLogMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionLogMeals_Order_By>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionLogMeals_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<NutritionLogMeals_Stream_Cursor_Input>>;
+  where?: InputMaybe<NutritionLogMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlanArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootNutritionPlanMealArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootNutritionPlanMealsArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlanMealsAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlanMeals_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlanMeals_Order_By>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlanMeals_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<NutritionPlanMeals_Stream_Cursor_Input>>;
+  where?: InputMaybe<NutritionPlanMeals_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlansArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlans_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlans_Order_By>>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlansAggregateArgs = {
+  distinct_on?: InputMaybe<Array<NutritionPlans_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<NutritionPlans_Order_By>>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+
+export type Subscription_RootNutritionPlans_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<NutritionPlans_Stream_Cursor_Input>>;
+  where?: InputMaybe<NutritionPlans_Bool_Exp>;
 };
 
 
@@ -5552,6 +9521,19 @@ export type Subscription_RootWorkouts_StreamArgs = {
   where?: InputMaybe<Workouts_Bool_Exp>;
 };
 
+/** Boolean expression to compare columns of type "time". All fields are combined with logical 'AND'. */
+export type Time_Comparison_Exp = {
+  _eq?: InputMaybe<Scalars['time']['input']>;
+  _gt?: InputMaybe<Scalars['time']['input']>;
+  _gte?: InputMaybe<Scalars['time']['input']>;
+  _in?: InputMaybe<Array<Scalars['time']['input']>>;
+  _is_null?: InputMaybe<Scalars['Boolean']['input']>;
+  _lt?: InputMaybe<Scalars['time']['input']>;
+  _lte?: InputMaybe<Scalars['time']['input']>;
+  _neq?: InputMaybe<Scalars['time']['input']>;
+  _nin?: InputMaybe<Array<Scalars['time']['input']>>;
+};
+
 /** Boolean expression to compare columns of type "timestamptz". All fields are combined with logical 'AND'. */
 export type Timestamptz_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -5586,6 +9568,7 @@ export type WorkoutExercises = {
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind: Scalars['String']['output'];
   position: Scalars['Int']['output'];
   updatedAt: Scalars['timestamptz']['output'];
@@ -5677,6 +9660,7 @@ export type WorkoutExercises_Bool_Exp = {
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: InputMaybe<String_Comparison_Exp>;
   position?: InputMaybe<Int_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -5712,6 +9696,7 @@ export type WorkoutExercises_Max_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: Maybe<Scalars['String']['output']>;
   position?: Maybe<Scalars['Int']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
@@ -5723,6 +9708,7 @@ export type WorkoutExercises_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -5735,6 +9721,7 @@ export type WorkoutExercises_Min_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: Maybe<Scalars['String']['output']>;
   position?: Maybe<Scalars['Int']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
@@ -5746,6 +9733,7 @@ export type WorkoutExercises_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -5774,6 +9762,7 @@ export type WorkoutExercises_Order_By = {
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -5794,7 +9783,7 @@ export enum WorkoutExercises_Select_Column {
   ExerciseId = 'exerciseId',
   /** column name */
   Id = 'id',
-  /** column name */
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   Kind = 'kind',
   /** column name */
   Position = 'position',
@@ -5855,6 +9844,7 @@ export type WorkoutExercises_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this; the trigger overwrites any client-supplied value. */
   kind?: InputMaybe<Scalars['String']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -6091,12 +10081,13 @@ export enum WorkoutLabels_Update_Column {
   Placeholder = '_PLACEHOLDER'
 }
 
-/** columns and relationships of "workout_session_cardio_entries" */
+/** Per-entry metric blobs logged for a cardio session-exercise. parent_kind is pinned to 'cardio' (composite FK to workout_session_exercises(id, kind)), so this table can only attach to cardio session-exercises by construction — strength session-exercises cannot accept cardio entries, no trigger needed. The metrics jsonb shape is validated against the parent exercise's exercises_cardio.metrics_schema by validate_workout_session_cardio_entry() at write time only. */
 export type WorkoutSessionCardioEntries = {
   __typename?: 'workoutSessionCardioEntries';
   createdAt: Scalars['timestamptz']['output'];
   entryNumber: Scalars['Int']['output'];
   id: Scalars['uuid']['output'];
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics: Scalars['jsonb']['output'];
   updatedAt: Scalars['timestamptz']['output'];
   /** An object relationship */
@@ -6105,7 +10096,7 @@ export type WorkoutSessionCardioEntries = {
 };
 
 
-/** columns and relationships of "workout_session_cardio_entries" */
+/** Per-entry metric blobs logged for a cardio session-exercise. parent_kind is pinned to 'cardio' (composite FK to workout_session_exercises(id, kind)), so this table can only attach to cardio session-exercises by construction — strength session-exercises cannot accept cardio entries, no trigger needed. The metrics jsonb shape is validated against the parent exercise's exercises_cardio.metrics_schema by validate_workout_session_cardio_entry() at write time only. */
 export type WorkoutSessionCardioEntriesMetricsArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
@@ -6168,6 +10159,7 @@ export type WorkoutSessionCardioEntries_Aggregate_Order_By = {
 
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type WorkoutSessionCardioEntries_Append_Input = {
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -6197,6 +10189,7 @@ export type WorkoutSessionCardioEntries_Bool_Exp = {
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   entryNumber?: InputMaybe<Int_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Jsonb_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   workoutSessionExercise?: InputMaybe<WorkoutSessionExercises_Bool_Exp>;
@@ -6205,24 +10198,27 @@ export type WorkoutSessionCardioEntries_Bool_Exp = {
 
 /** unique or primary key constraints on table "workout_session_cardio_entries" */
 export enum WorkoutSessionCardioEntries_Constraint {
-  /** unique or primary key constraint on columns "workout_session_exercise_id", "entry_number" */
-  WorkoutSessionCardioEntrieWorkoutSessionExerciseIdEKey = 'workout_session_cardio_entrie_workout_session_exercise_id_e_key',
   /** unique or primary key constraint on columns "id" */
-  WorkoutSessionCardioEntriesPkey = 'workout_session_cardio_entries_pkey'
+  WorkoutSessionCardioEntriesPkey = 'workout_session_cardio_entries_pkey',
+  /** unique or primary key constraint on columns "workout_session_exercise_id", "entry_number" */
+  WorkoutSessionCardioEntriesWseIdEntryNumberKey = 'workout_session_cardio_entries_wse_id_entry_number_key'
 }
 
 /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
 export type WorkoutSessionCardioEntries_Delete_At_Path_Input = {
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
 export type WorkoutSessionCardioEntries_Delete_Elem_Input = {
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /** delete key/value pair or string element. key/value pairs are matched based on their key value */
 export type WorkoutSessionCardioEntries_Delete_Key_Input = {
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -6234,6 +10230,7 @@ export type WorkoutSessionCardioEntries_Inc_Input = {
 /** input type for inserting data into table "workout_session_cardio_entries" */
 export type WorkoutSessionCardioEntries_Insert_Input = {
   entryNumber?: InputMaybe<Scalars['Int']['input']>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['jsonb']['input']>;
   workoutSessionExercise?: InputMaybe<WorkoutSessionExercises_Obj_Rel_Insert_Input>;
   workoutSessionExerciseId?: InputMaybe<Scalars['uuid']['input']>;
@@ -6245,6 +10242,8 @@ export type WorkoutSessionCardioEntries_Max_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   entryNumber?: Maybe<Scalars['Int']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
+  metrics?: Maybe<Scalars['jsonb']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   workoutSessionExerciseId?: Maybe<Scalars['uuid']['output']>;
 };
@@ -6254,6 +10253,8 @@ export type WorkoutSessionCardioEntries_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   entryNumber?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
+  metrics?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   workoutSessionExerciseId?: InputMaybe<Order_By>;
 };
@@ -6264,6 +10265,8 @@ export type WorkoutSessionCardioEntries_Min_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   entryNumber?: Maybe<Scalars['Int']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
+  metrics?: Maybe<Scalars['jsonb']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   workoutSessionExerciseId?: Maybe<Scalars['uuid']['output']>;
 };
@@ -6273,6 +10276,8 @@ export type WorkoutSessionCardioEntries_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   entryNumber?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
+  metrics?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   workoutSessionExerciseId?: InputMaybe<Order_By>;
 };
@@ -6298,6 +10303,7 @@ export type WorkoutSessionCardioEntries_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   entryNumber?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   workoutSessionExercise?: InputMaybe<WorkoutSessionExercises_Order_By>;
@@ -6311,6 +10317,7 @@ export type WorkoutSessionCardioEntries_Pk_Columns_Input = {
 
 /** prepend existing jsonb value of filtered columns with new jsonb value */
 export type WorkoutSessionCardioEntries_Prepend_Input = {
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -6322,7 +10329,7 @@ export enum WorkoutSessionCardioEntries_Select_Column {
   EntryNumber = 'entryNumber',
   /** column name */
   Id = 'id',
-  /** column name */
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   Metrics = 'metrics',
   /** column name */
   UpdatedAt = 'updatedAt',
@@ -6333,6 +10340,7 @@ export enum WorkoutSessionCardioEntries_Select_Column {
 /** input type for updating data in table "workout_session_cardio_entries" */
 export type WorkoutSessionCardioEntries_Set_Input = {
   entryNumber?: InputMaybe<Scalars['Int']['input']>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['jsonb']['input']>;
 };
 
@@ -6382,6 +10390,7 @@ export type WorkoutSessionCardioEntries_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   entryNumber?: InputMaybe<Scalars['Int']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   metrics?: InputMaybe<Scalars['jsonb']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   workoutSessionExerciseId?: InputMaybe<Scalars['uuid']['input']>;
@@ -6402,7 +10411,7 @@ export type WorkoutSessionCardioEntries_Sum_Order_By = {
 export enum WorkoutSessionCardioEntries_Update_Column {
   /** column name */
   EntryNumber = 'entryNumber',
-  /** column name */
+  /** Per-entry metric values. Shape validated against the parent exercise's exercises_cardio.metrics_schema at INSERT/UPDATE time by validate_workout_session_cardio_entry(). Schema changes are NOT retroactive — historical entries stay as-is even if the owner later edits metrics_schema. */
   Metrics = 'metrics'
 }
 
@@ -6466,6 +10475,7 @@ export type WorkoutSessionExercises = {
   exercise: Exercises;
   exerciseId: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind: Scalars['String']['output'];
   position: Scalars['Int']['output'];
   updatedAt: Scalars['timestamptz']['output'];
@@ -6605,6 +10615,7 @@ export type WorkoutSessionExercises_Bool_Exp = {
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: InputMaybe<String_Comparison_Exp>;
   position?: InputMaybe<Int_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -6648,6 +10659,7 @@ export type WorkoutSessionExercises_Max_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: Maybe<Scalars['String']['output']>;
   position?: Maybe<Scalars['Int']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
@@ -6659,6 +10671,7 @@ export type WorkoutSessionExercises_Max_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -6671,6 +10684,7 @@ export type WorkoutSessionExercises_Min_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   exerciseId?: Maybe<Scalars['uuid']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: Maybe<Scalars['String']['output']>;
   position?: Maybe<Scalars['Int']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
@@ -6682,6 +10696,7 @@ export type WorkoutSessionExercises_Min_Order_By = {
   createdAt?: InputMaybe<Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -6717,6 +10732,7 @@ export type WorkoutSessionExercises_Order_By = {
   exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: InputMaybe<Order_By>;
   position?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
@@ -6739,7 +10755,7 @@ export enum WorkoutSessionExercises_Select_Column {
   ExerciseId = 'exerciseId',
   /** column name */
   Id = 'id',
-  /** column name */
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   Kind = 'kind',
   /** column name */
   Position = 'position',
@@ -6800,6 +10816,7 @@ export type WorkoutSessionExercises_Stream_Cursor_Value_Input = {
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
+  /** Mirror of parent exercises.kind, kept in sync by the BEFORE INSERT/UPDATE sync_workout_exercise_kind trigger. Clients don't pass this. The (id, kind) pair is itself a UNIQUE anchor for the per-kind entry tables (workout_session_strength_sets, workout_session_cardio_entries). */
   kind?: InputMaybe<Scalars['String']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
@@ -7253,6 +11270,7 @@ export type WorkoutSessions = {
   userId: Scalars['uuid']['output'];
   /** An object relationship */
   workout?: Maybe<Workouts>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: Maybe<Scalars['uuid']['output']>;
   /** An array relationship */
   workoutSessionExercises: Array<WorkoutSessionExercises>;
@@ -7338,6 +11356,7 @@ export type WorkoutSessions_Bool_Exp = {
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   userId?: InputMaybe<Uuid_Comparison_Exp>;
   workout?: InputMaybe<Workouts_Bool_Exp>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Uuid_Comparison_Exp>;
   workoutSessionExercises?: InputMaybe<WorkoutSessionExercises_Bool_Exp>;
   workoutSessionExercises_aggregate?: InputMaybe<WorkoutSessionExercises_Aggregate_Bool_Exp>;
@@ -7353,6 +11372,7 @@ export enum WorkoutSessions_Constraint {
 export type WorkoutSessions_Insert_Input = {
   startedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   workout?: InputMaybe<Workouts_Obj_Rel_Insert_Input>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Scalars['uuid']['input']>;
   workoutSessionExercises?: InputMaybe<WorkoutSessionExercises_Arr_Rel_Insert_Input>;
 };
@@ -7365,6 +11385,7 @@ export type WorkoutSessions_Max_Fields = {
   startedAt?: Maybe<Scalars['timestamptz']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -7375,6 +11396,7 @@ export type WorkoutSessions_Max_Order_By = {
   startedAt?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Order_By>;
 };
 
@@ -7386,6 +11408,7 @@ export type WorkoutSessions_Min_Fields = {
   startedAt?: Maybe<Scalars['timestamptz']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: Maybe<Scalars['uuid']['output']>;
 };
 
@@ -7396,6 +11419,7 @@ export type WorkoutSessions_Min_Order_By = {
   startedAt?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Order_By>;
 };
 
@@ -7430,6 +11454,7 @@ export type WorkoutSessions_Order_By = {
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
   workout?: InputMaybe<Workouts_Order_By>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Order_By>;
   workoutSessionExercises_aggregate?: InputMaybe<WorkoutSessionExercises_Aggregate_Order_By>;
 };
@@ -7451,13 +11476,14 @@ export enum WorkoutSessions_Select_Column {
   UpdatedAt = 'updatedAt',
   /** column name */
   UserId = 'userId',
-  /** column name */
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   WorkoutId = 'workoutId'
 }
 
 /** input type for updating data in table "workout_sessions" */
 export type WorkoutSessions_Set_Input = {
   startedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -7476,6 +11502,7 @@ export type WorkoutSessions_Stream_Cursor_Value_Input = {
   startedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   userId?: InputMaybe<Scalars['uuid']['input']>;
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   workoutId?: InputMaybe<Scalars['uuid']['input']>;
 };
 
@@ -7483,7 +11510,7 @@ export type WorkoutSessions_Stream_Cursor_Value_Input = {
 export enum WorkoutSessions_Update_Column {
   /** column name */
   StartedAt = 'startedAt',
-  /** column name */
+  /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
   WorkoutId = 'workoutId'
 }
 
@@ -7643,6 +11670,7 @@ export type Workouts_Max_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
@@ -7654,6 +11682,7 @@ export type Workouts_Min_Fields = {
   createdAt?: Maybe<Scalars['timestamptz']['output']>;
   description?: Maybe<Scalars['String']['output']>;
   id?: Maybe<Scalars['uuid']['output']>;
+  isPublic?: Maybe<Scalars['Boolean']['output']>;
   name?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
   userId?: Maybe<Scalars['uuid']['output']>;
