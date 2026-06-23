@@ -27,4 +27,5 @@ backend/.secrets
 # Nhost local data
 backend/.nhost
 
-.review
+/.nhost-code/tmp
+/.nhost-code/review

@@ -44,9 +44,8 @@
         ];
 
         nativeBuildInputs = with pkgs; [
-          biome
+          nhost.biome
           bun
-          rover
         ];
 
         buildInputs = [
