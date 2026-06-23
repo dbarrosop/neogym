@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Apple, ClipboardList } from "lucide-react";
+import { Apple, ChefHat, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authed/nutrition")({
@@ -9,6 +9,7 @@ export const Route = createFileRoute("/_authed/nutrition")({
 const TABS = [
   { to: "/nutrition", label: "Overview", Icon: ClipboardList, exact: true },
   { to: "/nutrition/foods", label: "Foods", Icon: Apple, exact: false },
+  { to: "/nutrition/meals", label: "Meals", Icon: ChefHat, exact: false },
 ] as const;
 
 function NutritionLayoutRoute() {
@@ -23,8 +24,8 @@ function NutritionLayoutRoute() {
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">Calorie intake</h1>
           <p className="text-sm text-muted-foreground">
-            Manage your food catalog now. Meals, plans, and daily logs will appear as those flows
-            are implemented.
+            Manage your food catalog and reusable private meal templates. Plans and daily logs will
+            appear as those flows are implemented.
           </p>
         </header>
 

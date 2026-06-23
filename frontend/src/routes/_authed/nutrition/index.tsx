@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Apple, ArrowRight, Info } from "lucide-react";
+import { Apple, ArrowRight, ChefHat, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -31,12 +31,33 @@ function NutritionIndexRoute() {
         </CardContent>
       </Card>
 
+      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-xl tracking-tight">
+            <ChefHat className="h-5 w-5 text-primary" />
+            Meals
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
+          <p>
+            Combine your private foods and public foods into reusable private meal templates with
+            live computed nutrition totals.
+          </p>
+          <Button asChild>
+            <Link to="/nutrition/meals">
+              Open meals
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card className="border-border/60 border-dashed bg-muted/20">
         <CardContent className="flex gap-3 py-4 text-sm text-muted-foreground">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
-            This phase intentionally links only to implemented nutrition routes. Meal templates,
-            plans, and daily logging will be added in later phases.
+            This phase intentionally links only to implemented nutrition routes. Daily plans and
+            daily logging will be added in later phases.
           </p>
         </CardContent>
       </Card>

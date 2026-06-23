@@ -16,6 +16,20 @@ export interface NormalizedMacros {
   sugarPer100g: number;
 }
 
+export interface MacroTotals {
+  kcal: number;
+  fat: number;
+  carbs: number;
+  protein: number;
+  fiber: number;
+  sugar: number;
+}
+
+export interface MealTotalIngredient {
+  grams: unknown;
+  food?: MacroFields | null;
+}
+
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
   fatPer100g: "fat",
@@ -23,6 +37,15 @@ const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   proteinPer100g: "protein",
   fiberPer100g: "fiber",
   sugarPer100g: "sugar",
+};
+
+export const EMPTY_MACRO_TOTALS: MacroTotals = {
+  kcal: 0,
+  fat: 0,
+  carbs: 0,
+  protein: 0,
+  fiber: 0,
+  sugar: 0,
 };
 
 export function normalizeNumeric(value: unknown): number {
@@ -68,6 +91,50 @@ export function formatMacro(value: unknown, unit: "g" | "kcal"): string {
   })} ${unit}`;
 }
 
+export function macrosForGrams(input: MacroFields, grams: unknown): MacroTotals {
+  const macros = normalizeMacros(input);
+  const multiplier = normalizeNumeric(grams) / 100;
+  return {
+    kcal: macros.kcalPer100g * multiplier,
+    fat: macros.fatPer100g * multiplier,
+    carbs: macros.carbsPer100g * multiplier,
+    protein: macros.proteinPer100g * multiplier,
+    fiber: macros.fiberPer100g * multiplier,
+    sugar: macros.sugarPer100g * multiplier,
+  };
+}
+
+export function addMacroTotals(left: MacroTotals, right: MacroTotals): MacroTotals {
+  return {
+    kcal: left.kcal + right.kcal,
+    fat: left.fat + right.fat,
+    carbs: left.carbs + right.carbs,
+    protein: left.protein + right.protein,
+    fiber: left.fiber + right.fiber,
+    sugar: left.sugar + right.sugar,
+  };
+}
+
+export function mealMacroTotals(ingredients: MealTotalIngredient[]): MacroTotals {
+  return ingredients.reduce((total, ingredient) => {
+    if (!ingredient.food) {
+      return total;
+    }
+    return addMacroTotals(total, macrosForGrams(ingredient.food, ingredient.grams));
+  }, EMPTY_MACRO_TOTALS);
+}
+
+export function macroTotalsSummary(totals: MacroTotals): string {
+  return [
+    formatMacro(totals.kcal, "kcal"),
+    `${formatMacro(totals.fat, "g")} fat`,
+    `${formatMacro(totals.carbs, "g")} carbs`,
+    `${formatMacro(totals.protein, "g")} protein`,
+    `${formatMacro(totals.fiber, "g")} fiber`,
+    `${formatMacro(totals.sugar, "g")} sugar`,
+  ].join(" · ");
+}
+
 export function macroSummary(input: MacroFields): string {
   const macros = normalizeMacros(input);
   return (Object.entries(macros) as [keyof NormalizedMacros, number][])
@@ -86,6 +153,15 @@ export function isFoodInUseError(error: Error): boolean {
     message.includes("foreign key") ||
     message.includes("meal_ingredients") ||
     message.includes("nutrition_log_entries") ||
+    message.includes("violates constraint")
+  );
+}
+
+export function isMealInUseByPlanError(error: Error): boolean {
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("foreign key") ||
+    message.includes("nutrition_plan_meals") ||
     message.includes("violates constraint")
   );
 }

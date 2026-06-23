@@ -2,6 +2,9 @@ import { describe, expect, it } from "bun:test";
 import {
   formatMacro,
   macroSummary,
+  macrosForGrams,
+  macroTotalsSummary,
+  mealMacroTotals,
   normalizeMacros,
   normalizeNumeric,
   parseMacroInput,
@@ -59,5 +62,67 @@ describe("nutrition helpers", () => {
         sugarPer100g: "5",
       }),
     ).toBe("120 kcal · 3.5 g fat · 20 g carbs · 4 g protein · 2.3 g fiber · 5 g sugar");
+  });
+
+  it("scales live food macros by grams", () => {
+    expect(
+      macrosForGrams(
+        {
+          kcalPer100g: "200",
+          fatPer100g: "10",
+          carbsPer100g: "20",
+          proteinPer100g: "5",
+          fiberPer100g: "2",
+          sugarPer100g: "8",
+        },
+        "150",
+      ),
+    ).toEqual({
+      kcal: 300,
+      fat: 15,
+      carbs: 30,
+      protein: 7.5,
+      fiber: 3,
+      sugar: 12,
+    });
+  });
+
+  it("computes meal totals from ingredient foods", () => {
+    const totals = mealMacroTotals([
+      {
+        grams: 100,
+        food: {
+          kcalPer100g: 100,
+          fatPer100g: 1,
+          carbsPer100g: 10,
+          proteinPer100g: 5,
+          fiberPer100g: 2,
+          sugarPer100g: 3,
+        },
+      },
+      {
+        grams: "50",
+        food: {
+          kcalPer100g: "80",
+          fatPer100g: "2",
+          carbsPer100g: "6",
+          proteinPer100g: "4",
+          fiberPer100g: "1",
+          sugarPer100g: "2",
+        },
+      },
+    ]);
+
+    expect(totals).toEqual({
+      kcal: 140,
+      fat: 2,
+      carbs: 13,
+      protein: 7,
+      fiber: 2.5,
+      sugar: 4,
+    });
+    expect(macroTotalsSummary(totals)).toBe(
+      "140 kcal · 2 g fat · 13 g carbs · 7 g protein · 2.5 g fiber · 4 g sugar",
+    );
   });
 });

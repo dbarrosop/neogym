@@ -362,7 +362,17 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implemented private meal template management: added the Meals tab and overview card, meal list/detail/create/edit/delete routes, `MealForm`, `FoodPicker`, `MacroSummary`, live gram-scaled macro totals, and typed GraphQL operations.
+- Reviewer verdict: `ACCEPT`. The reviewer verified permission compatibility with meal/ingredient allowlists, delete+insert behavior for changed `food_id`, no dead Plans/Days links, `replace: true` on spent redirects, and deletion-copy consistency with backend RESTRICT/SET NULL semantics.
+- Autonomous decisions recorded:
+  - Continued to Phase 3 after committing Phase 2 because no phase argument was provided and Phase 3 is next in dependency order. Correctness: meals build on foods and precede plans.
+  - Full `bun run codegen` failure due missing `rover` was accepted again, with `bun run codegen:graphql` used against unchanged SDL. Correctness: `git diff -- frontend/schema.user.graphqls --exit-code` proved no backend schema drift in this frontend-only phase.
+- Quality-gate history:
+  - `cd frontend && nix develop ../ --command bun run codegen` — failed with `rover: command not found`; recorded as the existing toolchain limitation.
+  - `cd frontend && nix develop ../ --command bun run codegen:graphql` — passed.
+  - `cd frontend && nix develop ../ --command bun run check` — passed: typecheck, Biome, and 75 frontend tests.
+  - `git diff -- frontend/schema.user.graphqls --exit-code` — passed; user-role SDL unchanged.
+- Accepted concerns/follow-ups: browser manual smoke was not run; reviewer accepted the automated gate and code review per the plan. The meal-in-use error matcher is broad but safe for current schema because the only RESTRICT meal reference is `nutrition_plan_meals`.
 
 ### Phase 4 — Daily plan CRUD
 
