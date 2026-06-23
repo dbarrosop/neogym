@@ -36,6 +36,17 @@ export interface PlanTotalSlot {
   } | null;
 }
 
+export interface LoggedSnapshotEntry {
+  grams: unknown;
+  snapshotKcalPer100g: unknown;
+  snapshotFatPer100g: unknown;
+  snapshotCarbsPer100g: unknown;
+  snapshotProteinPer100g: unknown;
+  snapshotFiberPer100g: unknown;
+  snapshotSugarPer100g: unknown;
+}
+
+const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})/;
 
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
@@ -139,6 +150,76 @@ export function planMacroTotals(slots: PlanTotalSlot[]): MacroTotals {
     }
     return addMacroTotals(total, mealMacroTotals(slot.meal.mealIngredients));
   }, EMPTY_MACRO_TOTALS);
+}
+
+export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
+  return macrosForGrams(
+    {
+      kcalPer100g: entry.snapshotKcalPer100g,
+      fatPer100g: entry.snapshotFatPer100g,
+      carbsPer100g: entry.snapshotCarbsPer100g,
+      proteinPer100g: entry.snapshotProteinPer100g,
+      fiberPer100g: entry.snapshotFiberPer100g,
+      sugarPer100g: entry.snapshotSugarPer100g,
+    },
+    entry.grams,
+  );
+}
+
+export function loggedMacroTotals(entries: LoggedSnapshotEntry[]): MacroTotals {
+  return entries.reduce(
+    (total, entry) => addMacroTotals(total, loggedEntryMacroTotals(entry)),
+    EMPTY_MACRO_TOTALS,
+  );
+}
+
+export function formatLocalDate(date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function isValidLocalDate(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const match = LOCAL_DATE_PATTERN.exec(value);
+  if (!match) {
+    return false;
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+}
+
+export function localDateToDate(value: string): Date | null {
+  if (!isValidLocalDate(value)) {
+    return null;
+  }
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year ?? 0, (month ?? 1) - 1, day ?? 1);
+}
+
+export function addLocalDateDays(value: string, days: number): string {
+  const date = localDateToDate(value) ?? new Date();
+  date.setDate(date.getDate() + days);
+  return formatLocalDate(date);
+}
+
+export function formatLocalDateLabel(value: string): string {
+  const date = localDateToDate(value);
+  if (!date) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  }).format(date);
 }
 
 export function timeToInputValue(value: unknown): string {

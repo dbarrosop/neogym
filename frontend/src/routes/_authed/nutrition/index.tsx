@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Apple, ArrowRight, CalendarClock, ChefHat, Info } from "lucide-react";
+import { Apple, ArrowRight, CalendarClock, CalendarDays, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -73,13 +73,24 @@ function NutritionIndexRoute() {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 border-dashed bg-muted/20">
-        <CardContent className="flex gap-3 py-4 text-sm text-muted-foreground">
-          <Info className="mt-0.5 h-4 w-4 shrink-0" />
+      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-xl tracking-tight">
+            <CalendarDays className="h-5 w-5 text-primary" />
+            Daily logs
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            This phase intentionally links only to implemented nutrition routes. Daily logging will
-            be added in a later phase.
+            Open a local calendar date, choose plan suggestions, log planned or ad-hoc meals and
+            foods, then edit historical grams without changing templates.
           </p>
+          <Button asChild>
+            <Link to="/nutrition/days">
+              Open days
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Apple, CalendarClock, ChefHat, ClipboardList } from "lucide-react";
+import { Apple, CalendarClock, CalendarDays, ChefHat, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authed/nutrition")({
@@ -11,6 +11,7 @@ const TABS = [
   { to: "/nutrition/foods", label: "Foods", Icon: Apple, exact: false },
   { to: "/nutrition/meals", label: "Meals", Icon: ChefHat, exact: false },
   { to: "/nutrition/plans", label: "Plans", Icon: CalendarClock, exact: false },
+  { to: "/nutrition/days", label: "Days", Icon: CalendarDays, exact: false },
 ] as const;
 
 function NutritionLayoutRoute() {
@@ -25,8 +26,8 @@ function NutritionLayoutRoute() {
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">Calorie intake</h1>
           <p className="text-sm text-muted-foreground">
-            Manage your food catalog, reusable private meal templates, and daily plan templates.
-            Daily logs will appear when that flow is implemented.
+            Manage your food catalog, reusable private meal templates, daily plan suggestions, and
+            historical intake logs.
           </p>
         </header>
 

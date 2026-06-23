@@ -498,7 +498,18 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implemented daily intake logging: added the Days tab and overview card, recent-days/today route, local-date day route validation, open/create-by-date flow, plan selection/clearing, plan suggestions, planned/ad-hoc meal logging, standalone food logging, entry gram edits/deletes, group deletes, day delete/clear, and snapshot-based totals.
+- Reviewer verdict: `ACCEPT`. The reviewer verified local-date validation and invalid redirect with `replace: true`, query-then-insert day creation with unique-conflict requery, plan picker/clearer, sorted suggestions, nested meal logging with matching `nutritionDayId` on every child entry, snapshot-only logged totals, grams-only entry updates, entry/group/day delete behavior, no schema drift, and no Phase 6 scope creep.
+- Autonomous decisions recorded:
+  - The first Phase 5 implementer run failed with `Unsupported content type` after writing partial files. Correctness/long-term maintenance: treated it as a retryable implementation-pass failure and re-dispatched the same implementer to finish or replace its own partial work, preserving the single-writer loop.
+  - Continued Phase 5 after committing Phase 4 because no phase argument was provided and Phase 5 is next in dependency order. Correctness: daily logging depends on foods, meals, and plans.
+  - Full `bun run codegen` failure due missing `rover` was accepted again, with `bun run codegen:graphql` used against unchanged SDL. Correctness: `git diff -- frontend/schema.user.graphqls --exit-code` proved no backend schema drift in this frontend-only phase.
+- Quality-gate history:
+  - `cd frontend && nix develop ../ --command bun run codegen` — failed with `rover: command not found`; recorded as the existing toolchain limitation.
+  - `cd frontend && nix develop ../ --command bun run codegen:graphql` — passed.
+  - `cd frontend && nix develop ../ --command bun run check` — passed: typecheck, Biome, and 79 frontend tests.
+  - `git diff -- frontend/schema.user.graphqls --exit-code` — passed; user-role SDL unchanged.
+- Accepted concerns/follow-ups: browser manual smoke was not run; reviewer accepted the automated gate and code review per the plan. Rapid back-to-back logs before refetch may create harmless position gaps/collisions, but ordered queries fall back to `createdAt`.
 
 ### Phase 6 — Final validation and review readiness
 

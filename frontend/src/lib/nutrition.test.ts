@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
+  addLocalDateDays,
+  formatLocalDate,
+  formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
+  isValidLocalDate,
+  loggedMacroTotals,
   macroSummary,
   macrosForGrams,
   macroTotalsSummary,
@@ -179,11 +184,52 @@ describe("nutrition helpers", () => {
     });
   });
 
+  it("computes logged totals from trusted snapshot columns", () => {
+    expect(
+      loggedMacroTotals([
+        {
+          grams: "150",
+          snapshotKcalPer100g: "100",
+          snapshotFatPer100g: "2",
+          snapshotCarbsPer100g: "10",
+          snapshotProteinPer100g: "5",
+          snapshotFiberPer100g: "1",
+          snapshotSugarPer100g: "3",
+        },
+        {
+          grams: 50,
+          snapshotKcalPer100g: 200,
+          snapshotFatPer100g: 8,
+          snapshotCarbsPer100g: 20,
+          snapshotProteinPer100g: 10,
+          snapshotFiberPer100g: 4,
+          snapshotSugarPer100g: 6,
+        },
+      ]),
+    ).toEqual({
+      kcal: 250,
+      fat: 7,
+      carbs: 25,
+      protein: 12.5,
+      fiber: 3.5,
+      sugar: 7.5,
+    });
+  });
+
   it("normalizes and formats database time values for plan slot inputs", () => {
     expect(timeToInputValue("07:30:00")).toBe("07:30");
     expect(timeToInputValue("19:05:12.345")).toBe("19:05");
     expect(timeToInputValue("24:00:00")).toBe("");
     expect(formatTimeOfDay("07:30:00")).toMatch(SEVEN_THIRTY_FORMAT_PATTERN);
     expect(formatTimeOfDay(null)).toBe("—");
+  });
+
+  it("formats and validates local calendar dates without UTC conversion", () => {
+    expect(formatLocalDate(new Date(2026, 0, 5, 23, 30))).toBe("2026-01-05");
+    expect(isValidLocalDate("2026-02-28")).toBe(true);
+    expect(isValidLocalDate("2026-02-29")).toBe(false);
+    expect(isValidLocalDate("2026-13-01")).toBe(false);
+    expect(addLocalDateDays("2026-01-31", 1)).toBe("2026-02-01");
+    expect(formatLocalDateLabel("not-a-date")).toBe("not-a-date");
   });
 });
