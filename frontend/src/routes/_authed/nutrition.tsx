@@ -8,10 +8,10 @@ export const Route = createFileRoute("/_authed/nutrition")({
 
 const TABS = [
   { to: "/nutrition", label: "Overview", Icon: ClipboardList, exact: true },
+  { to: "/nutrition/days", label: "Days", Icon: CalendarDays, exact: false },
+  { to: "/nutrition/plans", label: "Plans", Icon: CalendarClock, exact: false },
   { to: "/nutrition/foods", label: "Foods", Icon: Apple, exact: false },
   { to: "/nutrition/meals", label: "Meals", Icon: ChefHat, exact: false },
-  { to: "/nutrition/plans", label: "Plans", Icon: CalendarClock, exact: false },
-  { to: "/nutrition/days", label: "Days", Icon: CalendarDays, exact: false },
 ] as const;
 
 function NutritionLayoutRoute() {
@@ -33,7 +33,7 @@ function NutritionLayoutRoute() {
 
         <nav
           aria-label="Nutrition sections"
-          className="inline-flex w-full items-center gap-1 rounded-lg border border-border/60 bg-muted/40 p-1 text-muted-foreground backdrop-blur supports-[backdrop-filter]:bg-muted/30"
+          className="flex w-full items-center gap-1 overflow-x-auto rounded-lg border border-border/60 bg-muted/40 p-1 text-muted-foreground backdrop-blur [-ms-overflow-style:none] [scrollbar-width:none] supports-[backdrop-filter]:bg-muted/30 [&::-webkit-scrollbar]:hidden"
         >
           {TABS.map(({ to, label, Icon, exact }) => {
             const isActive = exact
@@ -44,7 +44,7 @@ function NutritionLayoutRoute() {
                 key={to}
                 to={to}
                 className={cn(
-                  "inline-flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all hover:text-foreground",
+                  "inline-flex min-w-max flex-none items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-all hover:text-foreground sm:flex-1",
                   isActive && "bg-background text-foreground shadow-sm",
                 )}
               >

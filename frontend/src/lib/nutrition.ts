@@ -67,12 +67,18 @@ export const EMPTY_MACRO_TOTALS: MacroTotals = {
   sugar: 0,
 };
 
+export const DECIMAL_INPUT_PATTERN = "[0-9]*[.,]?[0-9]*";
+
+function normalizeDecimalInput(value: string): string {
+  return value.trim().replace(",", ".");
+}
+
 export function normalizeNumeric(value: unknown): number {
   if (typeof value === "number") {
     return Number.isFinite(value) ? value : 0;
   }
   if (typeof value === "string") {
-    const parsed = Number(value);
+    const parsed = Number(normalizeDecimalInput(value));
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
@@ -90,11 +96,11 @@ export function normalizeMacros(input: MacroFields): NormalizedMacros {
 }
 
 export function parseMacroInput(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") {
+  const normalized = normalizeDecimalInput(value);
+  if (normalized === "") {
     return null;
   }
-  const parsed = Number(trimmed);
+  const parsed = Number(normalized);
   if (!Number.isFinite(parsed) || parsed < 0) {
     return null;
   }

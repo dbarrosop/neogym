@@ -41,19 +41,23 @@ const SaveNutritionPlanMutation = graphql(`
     $id: uuid!
     $set: nutritionPlans_set_input!
     $deleteSlotIds: [uuid!]!
+    $hasDeleteSlots: Boolean!
     $insertSlots: [nutritionPlanMeals_insert_input!]!
+    $hasInsertSlots: Boolean!
     $slotUpdates: [nutritionPlanMeals_updates!]!
+    $hasSlotUpdates: Boolean!
   ) {
     updateNutritionPlan(pk_columns: { id: $id }, _set: $set) {
       id
     }
-    deleteNutritionPlanMeals(where: { id: { _in: $deleteSlotIds } }) {
+    deleteNutritionPlanMeals(where: { id: { _in: $deleteSlotIds } })
+      @include(if: $hasDeleteSlots) {
       affected_rows
     }
-    insertNutritionPlanMeals(objects: $insertSlots) {
+    insertNutritionPlanMeals(objects: $insertSlots) @include(if: $hasInsertSlots) {
       affected_rows
     }
-    update_nutritionPlanMeals_many(updates: $slotUpdates) {
+    update_nutritionPlanMeals_many(updates: $slotUpdates) @include(if: $hasSlotUpdates) {
       affected_rows
     }
   }
@@ -153,8 +157,11 @@ function EditNutritionPlanRoute() {
           description: values.description === "" ? null : values.description,
         },
         deleteSlotIds,
+        hasDeleteSlots: deleteSlotIds.length > 0,
         insertSlots,
+        hasInsertSlots: insertSlots.length > 0,
         slotUpdates,
+        hasSlotUpdates: slotUpdates.length > 0,
       });
     },
     onSuccess: () => {

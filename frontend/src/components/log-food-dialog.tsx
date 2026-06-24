@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { currentTimeInputValue, parseMacroInput } from "@/lib/nutrition";
+import { currentTimeInputValue, DECIMAL_INPUT_PATTERN, parseMacroInput } from "@/lib/nutrition";
 
 const LogFoodMutation = graphql(`
   mutation LogFood($object: nutritionLogEntries_insert_input!) {
@@ -131,9 +131,11 @@ export function LogFoodDialog({
               <Label htmlFor="log-food-grams">Grams consumed</Label>
               <Input
                 id="log-food-grams"
+                type="text"
+                inputMode="decimal"
+                pattern={DECIMAL_INPUT_PATTERN}
                 value={grams}
                 onChange={(event) => setGrams(event.target.value)}
-                inputMode="decimal"
                 placeholder="100"
                 disabled={mutation.isPending}
               />
