@@ -1,5 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarCheck2, Dumbbell, ListChecks, NotebookPen, Scale, User2 } from "lucide-react";
+import {
+  Apple,
+  CalendarCheck2,
+  Dumbbell,
+  ListChecks,
+  NotebookPen,
+  Scale,
+  User2,
+} from "lucide-react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -10,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/exercises", label: "Exercises", Icon: Dumbbell },
   { to: "/sessions", label: "Sessions", Icon: CalendarCheck2 },
   { to: "/body", label: "Body", Icon: Scale },
+  { to: "/nutrition", label: "Nutrition", Icon: Apple },
   { to: "/journal", label: "Journal", Icon: NotebookPen },
   { to: "/profile", label: "Profile", Icon: User2 },
 ] as const;
@@ -72,9 +81,9 @@ function MobileTabBar() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:hidden"
     >
-      <ul className="mx-auto flex max-w-md items-stretch justify-around">
+      <ul className="mx-auto flex max-w-md items-stretch justify-start overflow-x-auto sm:justify-around">
         {NAV_ITEMS.map(({ to, label, Icon }) => (
-          <li key={to} className="flex-1">
+          <li key={to} className="min-w-16 flex-1">
             <Link
               to={to}
               className={cn(

@@ -1,0 +1,116 @@
+table:
+  name: nutrition_days
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    id:
+      custom_name: id
+    log_date:
+      custom_name: logDate
+    nutrition_plan_id:
+      custom_name: nutritionPlanId
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    id: id
+    log_date: logDate
+    nutrition_plan_id: nutritionPlanId
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: nutritionDays
+  custom_root_fields:
+    delete: deleteNutritionDays
+    delete_by_pk: deleteNutritionDay
+    insert: insertNutritionDays
+    insert_one: insertNutritionDay
+    select: nutritionDays
+    select_aggregate: nutritionDaysAggregate
+    select_by_pk: nutritionDay
+    update: updateNutritionDays
+    update_by_pk: updateNutritionDay
+object_relationships:
+  - name: nutritionPlan
+    using:
+      foreign_key_constraint_on: nutrition_plan_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: nutritionLogEntries
+    using:
+      manual_configuration:
+        column_mapping:
+          id: nutrition_day_id
+        insertion_order: null
+        remote_table:
+          name: nutrition_log_entries
+          schema: public
+  - name: nutritionLogMeals
+    using:
+      foreign_key_constraint_on:
+        column: nutrition_day_id
+        table:
+          name: nutrition_log_meals
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - _or:
+              - nutrition_plan_id:
+                  _is_null: true
+              - nutritionPlan:
+                  user_id:
+                    _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - log_date
+        - nutrition_plan_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - log_date
+        - nutrition_plan_id
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - log_date
+        - nutrition_plan_id
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - _or:
+              - nutrition_plan_id:
+                  _is_null: true
+              - nutritionPlan:
+                  user_id:
+                    _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

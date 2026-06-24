@@ -1,0 +1,112 @@
+table:
+  name: nutrition_plan_meals
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    id:
+      custom_name: id
+    label:
+      custom_name: label
+    meal_id:
+      custom_name: mealId
+    nutrition_plan_id:
+      custom_name: nutritionPlanId
+    position:
+      custom_name: position
+    slot_time:
+      custom_name: slotTime
+    updated_at:
+      custom_name: updatedAt
+  custom_column_names:
+    created_at: createdAt
+    id: id
+    label: label
+    meal_id: mealId
+    nutrition_plan_id: nutritionPlanId
+    position: position
+    slot_time: slotTime
+    updated_at: updatedAt
+  custom_name: nutritionPlanMeals
+  custom_root_fields:
+    delete: deleteNutritionPlanMeals
+    delete_by_pk: deleteNutritionPlanMeal
+    insert: insertNutritionPlanMeals
+    insert_one: insertNutritionPlanMeal
+    select: nutritionPlanMeals
+    select_aggregate: nutritionPlanMealsAggregate
+    select_by_pk: nutritionPlanMeal
+    update: updateNutritionPlanMeals
+    update_by_pk: updateNutritionPlanMeal
+object_relationships:
+  - name: meal
+    using:
+      foreign_key_constraint_on: meal_id
+  - name: nutritionPlan
+    using:
+      foreign_key_constraint_on: nutrition_plan_id
+array_relationships:
+  - name: nutritionLogMeals
+    using:
+      foreign_key_constraint_on:
+        column: nutrition_plan_meal_id
+        table:
+          name: nutrition_log_meals
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - nutritionPlan:
+              user_id:
+                _eq: X-Hasura-User-Id
+          - meal:
+              user_id:
+                _eq: X-Hasura-User-Id
+      columns:
+        - nutrition_plan_id
+        - meal_id
+        - slot_time
+        - label
+        - position
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - nutrition_plan_id
+        - meal_id
+        - slot_time
+        - label
+        - position
+        - created_at
+        - updated_at
+      filter:
+        nutritionPlan:
+          user_id:
+            _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - slot_time
+        - label
+        - position
+      filter:
+        nutritionPlan:
+          user_id:
+            _eq: X-Hasura-User-Id
+      check:
+        nutritionPlan:
+          user_id:
+            _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        nutritionPlan:
+          user_id:
+            _eq: X-Hasura-User-Id
