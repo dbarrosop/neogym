@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   addLocalDateDays,
+  currentTimeInputValue,
   formatLocalDate,
   formatLocalDateLabel,
   formatMacro,
@@ -217,6 +218,7 @@ describe("nutrition helpers", () => {
   });
 
   it("normalizes and formats database time values for plan slot inputs", () => {
+    expect(currentTimeInputValue(new Date(2026, 0, 5, 9, 7))).toBe("09:07");
     expect(timeToInputValue("07:30:00")).toBe("07:30");
     expect(timeToInputValue("19:05:12.345")).toBe("19:05");
     expect(timeToInputValue("24:00:00")).toBe("");

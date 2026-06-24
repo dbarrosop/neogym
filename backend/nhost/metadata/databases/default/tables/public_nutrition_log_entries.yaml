@@ -17,6 +17,8 @@ configuration:
       custom_name: nutritionLogMealId
     position:
       custom_name: position
+    slot_time:
+      custom_name: slotTime
     snapshot_carbs_per_100g:
       custom_name: snapshotCarbsPer100g
     snapshot_fat_per_100g:
@@ -41,6 +43,7 @@ configuration:
     nutrition_day_id: nutritionDayId
     nutrition_log_meal_id: nutritionLogMealId
     position: position
+    slot_time: slotTime
     snapshot_carbs_per_100g: snapshotCarbsPer100g
     snapshot_fat_per_100g: snapshotFatPer100g
     snapshot_fiber_per_100g: snapshotFiberPer100g
@@ -109,6 +112,7 @@ insert_permissions:
         - food_id
         - grams
         - position
+        - slot_time
 select_permissions:
   - role: user
     permission:
@@ -119,6 +123,7 @@ select_permissions:
         - food_id
         - grams
         - position
+        - slot_time
         - snapshot_food_name
         - snapshot_kcal_per_100g
         - snapshot_fat_per_100g
@@ -139,6 +144,7 @@ update_permissions:
       columns:
         - grams
         - position
+        - slot_time
       filter:
         nutritionDay:
           user_id:

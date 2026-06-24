@@ -17,18 +17,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
   addLocalDateDays,
   formatLocalDateLabel,
+  formatMacro,
   formatTimeOfDay,
   loggedEntryMacroTotals,
   loggedMacroTotals,
   macroTotalsSummary,
   parseMacroInput,
+  timeToInputValue,
 } from "@/lib/nutrition";
 
 const DailyIntakeLogQuery = graphql(`
@@ -37,38 +38,7 @@ const DailyIntakeLogQuery = graphql(`
       id
       logDate
       nutritionPlanId
-      nutritionPlan {
-        id
-        name
-        description
-        nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
-          id
-          slotTime
-          label
-          position
-          meal {
-            id
-            name
-            description
-            mealIngredients(order_by: [{ position: asc }, { id: asc }]) {
-              id
-              grams
-              position
-              food {
-                id
-                name
-                kcalPer100g
-                fatPer100g
-                carbsPer100g
-                proteinPer100g
-                fiberPer100g
-                sugarPer100g
-              }
-            }
-          }
-        }
-      }
-      nutritionLogMeals(order_by: [{ position: asc }, { createdAt: asc }]) {
+      nutritionLogMeals(order_by: [{ slotTime: asc }, { position: asc }, { createdAt: asc }]) {
         id
         mealId
         nutritionPlanMealId
@@ -81,6 +51,7 @@ const DailyIntakeLogQuery = graphql(`
           foodId
           grams
           position
+          slotTime
           snapshotFoodName
           snapshotKcalPer100g
           snapshotFatPer100g
@@ -92,13 +63,14 @@ const DailyIntakeLogQuery = graphql(`
       }
       nutritionLogEntries(
         where: { nutritionLogMealId: { _is_null: true } }
-        order_by: [{ position: asc }, { createdAt: asc }]
+        order_by: [{ slotTime: asc }, { position: asc }, { createdAt: asc }]
       ) {
         id
         nutritionLogMealId
         foodId
         grams
         position
+        slotTime
         snapshotFoodName
         snapshotKcalPer100g
         snapshotFatPer100g
@@ -242,6 +214,7 @@ type DailyEntry = {
   foodId?: string | null;
   grams: unknown;
   position: number;
+  slotTime?: string | null;
   snapshotFoodName: string;
   snapshotKcalPer100g: unknown;
   snapshotFatPer100g: unknown;
@@ -272,7 +245,6 @@ type DailyDay = {
   id: string;
   logDate: string;
   nutritionPlanId?: string | null;
-  nutritionPlan?: DailyPlan | null;
   nutritionLogMeals: DailyLogMeal[];
   nutritionLogEntries: DailyEntry[];
 };
@@ -388,7 +360,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     ...day.nutritionLogMeals.flatMap((meal) => meal.nutritionLogEntries),
   ];
   const totals = loggedMacroTotals(allEntries);
-  const selectedPlan = day.nutritionPlan ?? null;
+  const selectedPlan = nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null;
   const nextEntryPosition = allEntries.length;
   const nextGroupPosition = day.nutritionLogMeals.length;
   const isMutating =
@@ -397,6 +369,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     deleteEntryMutation.isPending ||
     deleteGroupMutation.isPending ||
     deleteDayMutation.isPending;
+  const loggedTimeGroups = groupLoggedFoodByTime(day.nutritionLogMeals, day.nutritionLogEntries);
 
   return (
     <div className="space-y-5">
@@ -430,6 +403,80 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         title="Logged totals"
         description="Computed from snapshot kcal, fat, carbs, protein, fiber, and sugar on each logged row."
       />
+
+      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <CardHeader className="space-y-3 pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg tracking-tight">Logged food</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Edit grams or delete individual entries without changing templates.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-wrap justify-end gap-2">
+              <LogMealDialog
+                dayId={day.id}
+                date={date}
+                meals={meals}
+                nextPosition={nextGroupPosition}
+                disabled={isMutating}
+              />
+              <LogFoodDialog
+                dayId={day.id}
+                date={date}
+                foods={foods}
+                nextPosition={nextEntryPosition}
+                disabled={isMutating}
+              />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {allEntries.length === 0 ? (
+            <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
+              No food has been logged for this day yet.
+            </p>
+          ) : null}
+
+          {loggedTimeGroups.map((group) => (
+            <section key={group.key} className="space-y-3">
+              <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                {group.label}
+              </h3>
+
+              {group.items.map((item) =>
+                item.kind === "meal" ? (
+                  <LoggedMealGroup
+                    key={item.meal.id}
+                    group={item.meal}
+                    onUpdateEntry={(entryId, grams) =>
+                      updateEntryMutation.mutate({ id: entryId, grams })
+                    }
+                    onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
+                    onDeleteGroup={() => deleteGroupMutation.mutate(item.meal.id)}
+                    disabled={isMutating}
+                    showTime={false}
+                  />
+                ) : (
+                  <div
+                    key={item.entry.id}
+                    className="overflow-hidden rounded-md border border-border/60"
+                  >
+                    <EntryRow
+                      entry={item.entry}
+                      onUpdate={(grams) => updateEntryMutation.mutate({ id: item.entry.id, grams })}
+                      onDelete={() => deleteEntryMutation.mutate(item.entry.id)}
+                      disabled={isMutating}
+                      showTime={false}
+                    />
+                  </div>
+                ),
+              )}
+            </section>
+          ))}
+        </CardContent>
+      </Card>
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardHeader className="space-y-1 pb-3">
@@ -477,72 +524,6 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               Pick a plan to show timed meal suggestions, or log meals and foods ad hoc below.
             </p>
           )}
-        </CardContent>
-      </Card>
-
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="space-y-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg tracking-tight">Logged food</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Edit grams or delete individual entries without changing templates.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-2">
-              <LogMealDialog
-                dayId={day.id}
-                date={date}
-                meals={meals}
-                nextPosition={nextGroupPosition}
-                disabled={isMutating}
-              />
-              <LogFoodDialog
-                dayId={day.id}
-                date={date}
-                foods={foods}
-                nextPosition={nextEntryPosition}
-                disabled={isMutating}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {allEntries.length === 0 ? (
-            <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-              No food has been logged for this day yet.
-            </p>
-          ) : null}
-
-          {day.nutritionLogMeals.map((meal) => (
-            <LoggedMealGroup
-              key={meal.id}
-              group={meal}
-              onUpdateEntry={(entryId, grams) => updateEntryMutation.mutate({ id: entryId, grams })}
-              onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
-              onDeleteGroup={() => deleteGroupMutation.mutate(meal.id)}
-              disabled={isMutating}
-            />
-          ))}
-
-          {day.nutritionLogEntries.length > 0 ? (
-            <section className="space-y-2">
-              <h3 className="text-sm font-medium">Standalone foods</h3>
-              <div className="overflow-hidden rounded-md border border-border/60">
-                <ul className="divide-y divide-border/50">
-                  {day.nutritionLogEntries.map((entry) => (
-                    <EntryRow
-                      key={entry.id}
-                      entry={entry}
-                      onUpdate={(grams) => updateEntryMutation.mutate({ id: entry.id, grams })}
-                      onDelete={() => deleteEntryMutation.mutate(entry.id)}
-                      disabled={isMutating}
-                    />
-                  ))}
-                </ul>
-              </div>
-            </section>
-          ) : null}
         </CardContent>
       </Card>
 
@@ -627,6 +608,64 @@ function isUniqueConflictError(error: unknown): boolean {
   );
 }
 
+type LoggedFoodTimeItem =
+  | { kind: "meal"; meal: DailyLogMeal; sortPosition: number }
+  | { kind: "entry"; entry: DailyEntry; sortPosition: number };
+
+type LoggedFoodTimeGroup = {
+  key: string;
+  label: string;
+  sortKey: string;
+  items: LoggedFoodTimeItem[];
+};
+
+function groupLoggedFoodByTime(
+  mealGroups: DailyLogMeal[],
+  standaloneEntries: DailyEntry[],
+): LoggedFoodTimeGroup[] {
+  const groups = new Map<string, LoggedFoodTimeGroup>();
+
+  function ensureGroup(slotTime: unknown): LoggedFoodTimeGroup {
+    const inputValue = timeToInputValue(slotTime);
+    const key = inputValue || "no-time";
+    const existing = groups.get(key);
+    if (existing) {
+      return existing;
+    }
+    const group: LoggedFoodTimeGroup = {
+      key,
+      label: inputValue ? formatTimeOfDay(inputValue) : "No time",
+      sortKey: inputValue || "99:99",
+      items: [],
+    };
+    groups.set(key, group);
+    return group;
+  }
+
+  for (const meal of mealGroups) {
+    ensureGroup(meal.slotTime).items.push({
+      kind: "meal",
+      meal,
+      sortPosition: meal.position,
+    });
+  }
+
+  for (const entry of standaloneEntries) {
+    ensureGroup(entry.slotTime).items.push({
+      kind: "entry",
+      entry,
+      sortPosition: entry.position,
+    });
+  }
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      items: group.items.toSorted((left, right) => left.sortPosition - right.sortPosition),
+    }))
+    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+}
+
 function PlanSuggestions({
   plan,
   dayId,
@@ -702,12 +741,14 @@ function LoggedMealGroup({
   onDeleteEntry,
   onDeleteGroup,
   disabled,
+  showTime = true,
 }: {
   group: DailyLogMeal;
   onUpdateEntry: (entryId: string, grams: number) => void;
   onDeleteEntry: (entryId: string) => void;
   onDeleteGroup: () => void;
   disabled: boolean;
+  showTime?: boolean;
 }) {
   const totals = loggedMacroTotals(group.nutritionLogEntries);
   return (
@@ -716,7 +757,7 @@ function LoggedMealGroup({
         <div className="space-y-1">
           <h3 className="text-sm font-medium">{group.name}</h3>
           <p className="text-xs text-muted-foreground">
-            {group.slotTime ? `${formatTimeOfDay(group.slotTime)} · ` : ""}
+            {showTime && group.slotTime ? `${formatTimeOfDay(group.slotTime)} · ` : ""}
             {macroTotalsSummary(totals)}
           </p>
         </div>
@@ -760,59 +801,87 @@ function EntryRow({
   onUpdate,
   onDelete,
   disabled,
+  showTime = true,
 }: {
   entry: DailyEntry;
   onUpdate: (grams: number) => void;
   onDelete: () => void;
   disabled: boolean;
+  showTime?: boolean;
 }) {
+  const [isEditingGrams, setIsEditingGrams] = useState(false);
   const [grams, setGrams] = useState(String(entry.grams));
 
   useEffect(() => {
     setGrams(String(entry.grams));
+    setIsEditingGrams(false);
   }, [entry.grams]);
 
   const totals = loggedEntryMacroTotals(entry);
   const parsedGrams = parseMacroInput(grams);
-  const canSave = parsedGrams !== null && parsedGrams > 0 && String(entry.grams) !== grams;
+  const displayGrams = formatMacro(entry.grams, "g");
+
+  function cancelEdit() {
+    setGrams(String(entry.grams));
+    setIsEditingGrams(false);
+  }
 
   function save() {
     if (parsedGrams === null || parsedGrams <= 0) {
       toast.error("Enter grams greater than zero.");
       return;
     }
-    onUpdate(parsedGrams);
+    if (String(entry.grams) !== grams) {
+      onUpdate(parsedGrams);
+      return;
+    }
+    setIsEditingGrams(false);
   }
 
   return (
     <li className="space-y-3 px-3 py-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
       <div className="min-w-0 space-y-1">
         <p className="truncate text-sm font-medium">{entry.snapshotFoodName}</p>
-        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+        <p className="text-xs text-muted-foreground">
+          {showTime && entry.slotTime ? `${formatTimeOfDay(entry.slotTime)} · ` : ""}
+          {macroTotalsSummary(totals)}
+        </p>
       </div>
-      <div className="flex flex-wrap items-end gap-2 sm:justify-end">
-        <div className="w-28 space-y-1">
-          <Label htmlFor={`grams-${entry.id}`} className="text-xs">
-            Grams
-          </Label>
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        {isEditingGrams ? (
           <Input
             id={`grams-${entry.id}`}
             value={grams}
             onChange={(event) => setGrams(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                save();
+              }
+              if (event.key === "Escape") {
+                cancelEdit();
+              }
+            }}
+            onBlur={cancelEdit}
             inputMode="decimal"
             disabled={disabled}
-            className="h-9"
+            className="h-9 w-24"
+            aria-label={`Grams for ${entry.snapshotFoodName}`}
+            autoFocus
           />
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={save}
-          disabled={disabled || !canSave}
-        >
-          Save
-        </Button>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="tabular-nums"
+            onClick={() => setIsEditingGrams(true)}
+            disabled={disabled}
+            title="Click to edit grams, then press Enter to save"
+          >
+            {displayGrams}
+          </Button>
+        )}
         <Button
           type="button"
           size="sm"

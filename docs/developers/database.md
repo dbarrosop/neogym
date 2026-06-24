@@ -187,8 +187,8 @@ erDiagram
     NUTRITION_PLANS { uuid id PK uuid user_id text name text description }
     NUTRITION_PLAN_MEALS { uuid id PK uuid nutrition_plan_id FK uuid meal_id FK time slot_time text label int position }
     NUTRITION_DAYS { uuid id PK uuid user_id date log_date uuid nutrition_plan_id "nullable template link" }
-    NUTRITION_LOG_MEALS { uuid id PK uuid nutrition_day_id FK uuid meal_id "nullable provenance" uuid nutrition_plan_meal_id "nullable provenance" text name time slot_time int position }
-    NUTRITION_LOG_ENTRIES { uuid id PK uuid nutrition_day_id FK uuid nutrition_log_meal_id "nullable group" uuid food_id "nullable after food delete" numeric grams text snapshot_food_name numeric snapshot_kcal_per_100g }
+    NUTRITION_LOG_MEALS { uuid id PK uuid nutrition_day_id FK uuid meal_id "nullable provenance" uuid nutrition_plan_meal_id "nullable provenance" text name time slot_time "logged time" int position }
+    NUTRITION_LOG_ENTRIES { uuid id PK uuid nutrition_day_id FK uuid nutrition_log_meal_id "nullable group" uuid food_id "nullable after food delete" numeric grams time slot_time "standalone logged time" text snapshot_food_name numeric snapshot_kcal_per_100g }
 
     USERS ||--o{ FOODS : "owns private"
     USERS ||--o{ MEALS : owns
@@ -207,7 +207,7 @@ erDiagram
     FOODS ||--o{ NUTRITION_LOG_ENTRIES : "nullable provenance; SET NULL"
 ```
 
-Foods reuse the owner-or-public catalog visibility invariant (`is_public = true` iff `user_id IS NULL`) and `UNIQUE NULLS NOT DISTINCT (user_id, name)`. Meal and plan templates are private roots. Logged day entries are historical facts: `nutrition_log_entries` has non-null `snapshot_*` food name/nutrient columns populated by an insert-only trigger. Later food updates/deletes do not change those snapshots, and `food_id` is nullable only for the post-delete provenance-detached state.
+Foods reuse the owner-or-public catalog visibility invariant (`is_public = true` iff `user_id IS NULL`) and `UNIQUE NULLS NOT DISTINCT (user_id, name)`. Meal and plan templates are private roots. Logged day entries are historical facts: `nutrition_log_entries` has non-null `snapshot_*` food name/nutrient columns populated by an insert-only trigger. Later food updates/deletes do not change those snapshots, and `food_id` is nullable only for the post-delete provenance-detached state. Log `slot_time` values record the actual user-selected time-of-day (defaulting to now); planned meal provenance stays in `nutrition_plan_meal_id` and should not force the logged time to the template slot time.
 
 `nutrition_log_entries` also has a composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`. With default `MATCH SIMPLE`, standalone entries (`nutrition_log_meal_id IS NULL`) skip that composite FK while still using the direct `nutrition_day_id` FK; grouped entries must point at a group on the same day. Because `nutrition_day_id` is present in both the direct and composite FKs, Hasura/Nhost metadata uses manual relationships for the affected day/group links rather than auto-tracking the ambiguous constraints.
 

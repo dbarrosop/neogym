@@ -180,6 +180,12 @@ export function formatLocalDate(date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+export function currentTimeInputValue(date = new Date()): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
 export function isValidLocalDate(value: unknown): value is string {
   if (typeof value !== "string") {
     return false;

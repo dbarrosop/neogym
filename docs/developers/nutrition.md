@@ -28,9 +28,9 @@ Template FKs intentionally restrict deletion: a food used by any `meal_ingredien
 
 `nutrition_days` is one private row per `(user_id, log_date)`. `nutrition_plan_id` is nullable and uses `ON DELETE SET NULL`: it records which template was selected as suggestions, not a scheduled assignment or binding contract.
 
-`nutrition_log_meals` is an optional group/provenance row for a logged meal. It may point at a source `meal` and/or `nutrition_plan_meal`, but both FKs use `ON DELETE SET NULL` so historical logs remain if templates are deleted. `name` and `slot_time` are client-copied display snapshots, not trusted trigger-populated snapshots.
+`nutrition_log_meals` is an optional group/provenance row for a logged meal. It may point at a source `meal` and/or `nutrition_plan_meal`, but both FKs use `ON DELETE SET NULL` so historical logs remain if templates are deleted. `name` is a client-copied display snapshot. `slot_time` is the actual logged time-of-day chosen by the user, defaulting to now; for planned meals it must not be copied blindly from the template slot time.
 
-`nutrition_log_entries` stores the actual consumed food rows. Standalone entries have `nutrition_log_meal_id IS NULL`; grouped entries use the composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`. That FK both cascades group deletes and rejects a child entry whose group belongs to a different day.
+`nutrition_log_entries` stores the actual consumed food rows. Standalone entries have `nutrition_log_meal_id IS NULL` and their own `slot_time` logged time-of-day, also defaulting to now. Grouped entries use the composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`; their display time comes from the parent logged meal group. That FK both cascades group deletes and rejects a child entry whose group belongs to a different day.
 
 ## Trusted food snapshots
 
@@ -45,7 +45,7 @@ Daily totals must be computed from `grams / 100 * snapshot_*`, never from the li
 
 ## Logging a meal
 
-The GraphQL shape expected by the backend is a nested insert of one `nutritionLogMeal` with child `nutritionLogEntries`. Each child entry must explicitly include the same `nutritionDayId` as the group; Hasura/Nhost nested inserts populate `nutritionLogMealId`, but not the direct day FK used by permissions and the composite same-day FK. `backend/tests/nutrition.test.ts` proves this shape early.
+The GraphQL shape expected by the backend is a nested insert of one `nutritionLogMeal` with child `nutritionLogEntries`. Each child entry must explicitly include the same `nutritionDayId` as the group; Hasura/Nhost nested inserts populate `nutritionLogMealId`, but not the direct day FK used by permissions and the composite same-day FK. The parent group and child entries should all carry the user-selected logged `slotTime` (default now), while `nutritionPlanMealId` preserves which plan slot was used. `backend/tests/nutrition.test.ts` proves this shape early.
 
 Metadata footgun: `nutrition_log_entries.nutrition_day_id` participates in both the direct day FK and the composite same-day group FK. Nhost GraphQL/Constellation can choose the wrong FK or generate ambiguous SQL if those relationships are auto-tracked from constraints. The metadata therefore uses manual relationships for `nutritionLogEntry.nutritionDay`, `nutritionLogEntry.nutritionLogMeal`, `nutritionDay.nutritionLogEntries`, and `nutritionLogMeal.nutritionLogEntries`; keep that explicit mapping if you regenerate or edit metadata.
 

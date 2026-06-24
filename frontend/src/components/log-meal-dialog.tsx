@@ -13,9 +13,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
+  currentTimeInputValue,
   formatTimeOfDay,
   macroTotalsSummary,
   mealMacroTotals,
@@ -83,10 +86,12 @@ export function LogMealDialog({
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mealId, setMealId] = useState(slot?.meal.id ?? "");
+  const [slotTime, setSlotTime] = useState(() => currentTimeInputValue());
 
   useEffect(() => {
     if (open) {
       setMealId(slot?.meal.id ?? "");
+      setSlotTime(currentTimeInputValue());
     }
   }, [open, slot]);
 
@@ -101,6 +106,9 @@ export function LogMealDialog({
       if (selectedMeal.mealIngredients.length === 0) {
         throw new Error("This meal has no ingredients to log.");
       }
+      if (!slotTime) {
+        throw new Error("Choose the time eaten.");
+      }
 
       return gqlRequest(LogMealMutation, {
         object: {
@@ -108,7 +116,7 @@ export function LogMealDialog({
           mealId: selectedMeal.id,
           nutritionPlanMealId: slot?.id ?? null,
           name: slot?.label || selectedMeal.name,
-          slotTime: slot?.slotTime ?? null,
+          slotTime,
           position: nextPosition,
           nutritionLogEntries: {
             data: selectedMeal.mealIngredients.map((ingredient, index) => ({
@@ -116,6 +124,7 @@ export function LogMealDialog({
               foodId: ingredient.food.id,
               grams: normalizeNumeric(ingredient.grams),
               position: index,
+              slotTime,
             })),
           },
         },
@@ -157,7 +166,7 @@ export function LogMealDialog({
             <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm">
               <p className="flex items-center gap-2 font-medium">
                 <Clock className="h-4 w-4 text-primary" />
-                {formatTimeOfDay(slot.slotTime)} · {slot.label || slot.meal.name}
+                Planned {formatTimeOfDay(slot.slotTime)} · {slot.label || slot.meal.name}
               </p>
               {slot.label ? (
                 <p className="text-xs text-muted-foreground">Template: {slot.meal.name}</p>
@@ -171,6 +180,22 @@ export function LogMealDialog({
               disabled={mutation.isPending}
             />
           )}
+
+          <div className="space-y-2">
+            <Label htmlFor={slot ? `log-meal-time-${slot.id}` : "log-meal-time"}>Time eaten</Label>
+            <Input
+              id={slot ? `log-meal-time-${slot.id}` : "log-meal-time"}
+              type="time"
+              value={slotTime}
+              onChange={(event) => setSlotTime(event.target.value)}
+              disabled={mutation.isPending}
+              required
+            />
+            <p className="text-xs text-muted-foreground">
+              Defaults to now. Planned meals keep their template slot as provenance, but the log
+              uses this actual time.
+            </p>
+          </div>
 
           {selectedMeal && totals ? (
             <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { parseMacroInput } from "@/lib/nutrition";
+import { currentTimeInputValue, parseMacroInput } from "@/lib/nutrition";
 
 const LogFoodMutation = graphql(`
   mutation LogFood($object: nutritionLogEntries_insert_input!) {
@@ -40,8 +40,15 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
   const [open, setOpen] = useState(false);
   const [foodId, setFoodId] = useState("");
   const [grams, setGrams] = useState("100");
+  const [slotTime, setSlotTime] = useState(() => currentTimeInputValue());
 
   const selectedFood = foods.find((food) => food.id === foodId) ?? null;
+
+  useEffect(() => {
+    if (open) {
+      setSlotTime(currentTimeInputValue());
+    }
+  }, [open]);
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -49,12 +56,16 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
       if (!selectedFood || parsedGrams === null || parsedGrams <= 0) {
         throw new Error("Choose a food and enter grams greater than zero.");
       }
+      if (!slotTime) {
+        throw new Error("Choose the time eaten.");
+      }
       return gqlRequest(LogFoodMutation, {
         object: {
           nutritionDayId: dayId,
           foodId: selectedFood.id,
           grams: parsedGrams,
           position: nextPosition,
+          slotTime,
         },
       });
     },
@@ -65,6 +76,7 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
       setOpen(false);
       setFoodId("");
       setGrams("100");
+      setSlotTime(currentTimeInputValue());
     },
     onError: (error) => {
       toast.error(`Failed to log food: ${error.message}`);
@@ -96,16 +108,29 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
             disabled={mutation.isPending}
           />
 
-          <div className="space-y-2">
-            <Label htmlFor="log-food-grams">Grams consumed</Label>
-            <Input
-              id="log-food-grams"
-              value={grams}
-              onChange={(event) => setGrams(event.target.value)}
-              inputMode="decimal"
-              placeholder="100"
-              disabled={mutation.isPending}
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="log-food-time">Time eaten</Label>
+              <Input
+                id="log-food-time"
+                type="time"
+                value={slotTime}
+                onChange={(event) => setSlotTime(event.target.value)}
+                disabled={mutation.isPending}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="log-food-grams">Grams consumed</Label>
+              <Input
+                id="log-food-grams"
+                value={grams}
+                onChange={(event) => setGrams(event.target.value)}
+                inputMode="decimal"
+                placeholder="100"
+                disabled={mutation.isPending}
+              />
+            </div>
           </div>
         </div>
 

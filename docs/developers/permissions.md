@@ -285,11 +285,11 @@ Select/update/delete walk `nutritionPlan.user_id eq self`. Insert checks both `n
 
 ### `nutrition_log_meals` — pattern **C (owned day, nullable provenance)**
 
-Select/update/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day and uses explicit nullable branches for provenance: `_or [meal_id is null, meal.user_id eq self]` and `_or [nutrition_plan_meal_id is null, nutritionPlanMeal.nutritionPlan.user_id eq self]`. Users may insert `name`, `slot_time`, and `position` display snapshots but cannot reparent a logged group after insert.
+Select/update/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day and uses explicit nullable branches for provenance: `_or [meal_id is null, meal.user_id eq self]` and `_or [nutrition_plan_meal_id is null, nutritionPlanMeal.nutritionPlan.user_id eq self]`. Users may insert/update `name`, `slot_time`, and `position`; `slot_time` is the actual logged time-of-day chosen in the UI, not necessarily the source plan slot time. Users cannot reparent a logged group after insert.
 
 ### `nutrition_log_entries` — pattern **C (owned day + visible food + optional same-day group)**
 
-Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can update only `grams` and `position`; `food_id` and all `snapshot_*` columns are not user-writable. Snapshot columns are selectable so clients can compute historical totals.
+Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can insert/update `slot_time` for standalone logged-food time and can update only `grams`, `position`, and `slot_time`; `food_id` and all `snapshot_*` columns are not user-writable. Snapshot columns are selectable so clients can compute historical totals.
 
 ## Storage
 

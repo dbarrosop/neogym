@@ -311,13 +311,14 @@ describe("nutrition logging snapshots", () => {
 			insertNutritionLogEntry: {
 				id: string;
 				grams: string;
+				slotTime: string;
 				snapshotFoodName: string;
 				snapshotKcalPer100g: string;
 			};
 		}>(
 			`mutation Log($dayId: uuid!, $foodId: uuid!) {
-        insertNutritionLogEntry(object: { nutritionDayId: $dayId, foodId: $foodId, grams: "100", position: 0 }) {
-          id grams snapshotFoodName snapshotKcalPer100g
+        insertNutritionLogEntry(object: { nutritionDayId: $dayId, foodId: $foodId, grams: "100", position: 0, slotTime: "09:15:00" }) {
+          id grams slotTime snapshotFoodName snapshotKcalPer100g
         }
       }`,
 			{ dayId: day.id, foodId: food.id },
@@ -327,6 +328,7 @@ describe("nutrition logging snapshots", () => {
 		expect(inserted.data!.insertNutritionLogEntry.snapshotFoodName).toBe(
 			food.name,
 		);
+		expect(inserted.data!.insertNutritionLogEntry.slotTime).toBe("09:15:00");
 		expect(
 			String(inserted.data!.insertNutritionLogEntry.snapshotKcalPer100g),
 		).toBe("123");
@@ -341,17 +343,19 @@ describe("nutrition logging snapshots", () => {
 		const updateEntry = await gqlAsUser<{
 			updateNutritionLogEntry: {
 				grams: string;
+				slotTime: string;
 				snapshotFoodName: string;
 				snapshotKcalPer100g: string;
 			} | null;
 		}>(
-			`mutation UpdateEntry($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { grams: "50" }) { grams snapshotFoodName snapshotKcalPer100g } }`,
+			`mutation UpdateEntry($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { grams: "50", slotTime: "10:30:00" }) { grams slotTime snapshotFoodName snapshotKcalPer100g } }`,
 			{ id: inserted.data!.insertNutritionLogEntry.id },
 			TEST_USER_ID,
 		);
 		expect(updateEntry.errors).toBeUndefined();
 		expect(updateEntry.data!.updateNutritionLogEntry).toEqual({
 			grams: 50,
+			slotTime: "10:30:00",
 			snapshotFoodName: food.name,
 			snapshotKcalPer100g: 123,
 		});
@@ -392,7 +396,12 @@ describe("nutrition logging snapshots", () => {
 		const res = await gqlAsUser<{
 			insertNutritionLogMeal: {
 				id: string;
-				nutritionLogEntries: Array<{ id: string; snapshotFoodName: string }>;
+				slotTime: string;
+				nutritionLogEntries: Array<{
+					id: string;
+					slotTime: string;
+					snapshotFoodName: string;
+				}>;
 			};
 		}>(
 			`mutation NestedLog($dayId: uuid!, $mealId: uuid!, $foodId: uuid!) {
@@ -400,20 +409,25 @@ describe("nutrition logging snapshots", () => {
           nutritionDayId: $dayId,
           mealId: $mealId,
           name: "Nested meal snapshot",
+          slotTime: "13:45:00",
           position: 0,
           nutritionLogEntries: { data: [
-            { nutritionDayId: $dayId, foodId: $foodId, grams: "100", position: 0 }
+            { nutritionDayId: $dayId, foodId: $foodId, grams: "100", position: 0, slotTime: "13:45:00" }
           ] }
-        }) { id nutritionLogEntries { id snapshotFoodName } }
+        }) { id slotTime nutritionLogEntries { id slotTime snapshotFoodName } }
       }`,
 			{ dayId: day.id, mealId, foodId: PUBLIC_BANANA_ID },
 			TEST_USER_ID,
 		);
 
 		expect(res.errors).toBeUndefined();
+		expect(res.data!.insertNutritionLogMeal.slotTime).toBe("13:45:00");
 		expect(res.data!.insertNutritionLogMeal.nutritionLogEntries).toHaveLength(
 			1,
 		);
+		expect(
+			res.data!.insertNutritionLogMeal.nutritionLogEntries[0].slotTime,
+		).toBe("13:45:00");
 		expect(
 			res.data!.insertNutritionLogMeal.nutritionLogEntries[0].snapshotFoodName,
 		).toBe("Banana");

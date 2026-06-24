@@ -155,7 +155,9 @@ CREATE TABLE public.nutrition_log_meals (
 CREATE INDEX nutrition_log_meals_day_id_idx ON public.nutrition_log_meals(nutrition_day_id);
 CREATE INDEX nutrition_log_meals_meal_id_idx ON public.nutrition_log_meals(meal_id);
 CREATE INDEX nutrition_log_meals_plan_meal_id_idx ON public.nutrition_log_meals(nutrition_plan_meal_id);
-CREATE INDEX nutrition_log_meals_day_order_idx ON public.nutrition_log_meals(nutrition_day_id, position, id);
+CREATE INDEX nutrition_log_meals_day_order_idx ON public.nutrition_log_meals(nutrition_day_id, slot_time, position, id);
+COMMENT ON COLUMN public.nutrition_log_meals.slot_time IS
+  'Client-supplied logged time-of-day for the meal group. For planned meals this defaults to now, not the template slot time.';
 
 CREATE TRIGGER set_public_nutrition_log_meals_updated_at
 BEFORE UPDATE ON public.nutrition_log_meals
@@ -170,6 +172,7 @@ CREATE TABLE public.nutrition_log_entries (
   food_id                    uuid REFERENCES public.foods(id) ON UPDATE CASCADE ON DELETE SET NULL,
   grams                      numeric(8,2) NOT NULL CHECK (grams > 0),
   position                   integer NOT NULL CHECK (position >= 0),
+  slot_time                  time,
   snapshot_food_name         text NOT NULL,
   snapshot_kcal_per_100g     numeric(8,2) NOT NULL CHECK (snapshot_kcal_per_100g >= 0),
   snapshot_fat_per_100g      numeric(8,2) NOT NULL CHECK (snapshot_fat_per_100g >= 0),
@@ -185,11 +188,13 @@ CREATE TABLE public.nutrition_log_entries (
     ON UPDATE CASCADE ON DELETE CASCADE
 );
 COMMENT ON TABLE public.nutrition_log_entries IS
-  'Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only.';
+  'Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position/slot_time only.';
+COMMENT ON COLUMN public.nutrition_log_entries.slot_time IS
+  'Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time.';
 CREATE INDEX nutrition_log_entries_day_id_idx ON public.nutrition_log_entries(nutrition_day_id);
 CREATE INDEX nutrition_log_entries_group_id_idx ON public.nutrition_log_entries(nutrition_log_meal_id);
 CREATE INDEX nutrition_log_entries_food_id_idx ON public.nutrition_log_entries(food_id);
-CREATE INDEX nutrition_log_entries_day_order_idx ON public.nutrition_log_entries(nutrition_day_id, position, id);
+CREATE INDEX nutrition_log_entries_day_order_idx ON public.nutrition_log_entries(nutrition_day_id, slot_time, position, id);
 
 CREATE OR REPLACE FUNCTION public.populate_nutrition_log_entry_food_snapshot()
 RETURNS TRIGGER AS $$
