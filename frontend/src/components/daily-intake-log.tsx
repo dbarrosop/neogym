@@ -22,6 +22,7 @@ import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
   addLocalDateDays,
+  DECIMAL_INPUT_PATTERN,
   formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
@@ -30,6 +31,7 @@ import {
   macroTotalsSummary,
   normalizeNumeric,
   parseMacroInput,
+  planMacroTotals,
   timeToInputValue,
 } from "@/lib/nutrition";
 
@@ -385,6 +387,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const selectedPlan = day?.nutritionPlanId
     ? (nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null)
     : null;
+  const targetTotals = selectedPlan ? planMacroTotals(selectedPlan.nutritionPlanMeals) : null;
   const nextEntryPosition = allEntries.length;
   const nextGroupPosition = loggedMeals.length;
   const isMutating =
@@ -422,40 +425,10 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         </div>
       </div>
 
-      <MacroSummary
-        totals={totals}
-        title="Logged totals"
-        description="Computed from snapshot kcal, fat, carbs, protein, fiber, and sugar on each logged row."
-      />
+      <MacroSummary totals={totals} targetTotals={targetTotals} />
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="space-y-3 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-lg tracking-tight">Logged food</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Edit grams or delete individual entries without changing templates.
-              </p>
-            </div>
-            <div className="flex shrink-0 flex-wrap justify-end gap-2">
-              <LogMealDialog
-                ensureDay={ensureDay}
-                date={date}
-                meals={meals}
-                nextPosition={nextGroupPosition}
-                disabled={isMutating}
-              />
-              <LogFoodDialog
-                ensureDay={ensureDay}
-                date={date}
-                foods={foods}
-                nextPosition={nextEntryPosition}
-                disabled={isMutating}
-              />
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           {allEntries.length === 0 ? (
             <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
               No food has been logged for this day yet.
@@ -499,6 +472,23 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               )}
             </section>
           ))}
+
+          <div className="flex flex-wrap justify-end gap-2">
+            <LogMealDialog
+              ensureDay={ensureDay}
+              date={date}
+              meals={meals}
+              nextPosition={nextGroupPosition}
+              disabled={isMutating}
+            />
+            <LogFoodDialog
+              ensureDay={ensureDay}
+              date={date}
+              foods={foods}
+              nextPosition={nextEntryPosition}
+              disabled={isMutating}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -896,6 +886,9 @@ function EntryRow({
           <div className="flex flex-wrap items-center gap-1">
             <Input
               id={`grams-${entry.id}`}
+              type="text"
+              inputMode="decimal"
+              pattern={DECIMAL_INPUT_PATTERN}
               value={grams}
               onChange={(event) => setGrams(event.target.value)}
               onKeyDown={(event) => {
@@ -908,7 +901,6 @@ function EntryRow({
                 }
               }}
               onBlur={handleGramsBlur}
-              inputMode="decimal"
               disabled={disabled}
               className="h-9 w-24"
               aria-label={`Grams for ${entry.snapshotFoodName}`}

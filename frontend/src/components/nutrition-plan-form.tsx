@@ -158,12 +158,11 @@ export function NutritionPlanForm({
   const canSubmit = !isSubmitting && !isLoading;
 
   function addSlot() {
-    const firstMeal = meals[0];
     setSlots((current) => [
       ...current,
       {
         clientId: createClientId(),
-        mealId: firstMeal?.id ?? "",
+        mealId: "",
         slotTime: "12:00",
         label: "",
       },
@@ -266,17 +265,11 @@ export function NutritionPlanForm({
       />
 
       <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium">Meal slots</h2>
-            <p className="text-xs text-muted-foreground">
-              Add required local times of day. Slots sort by time, then stable position.
-            </p>
-          </div>
-          <Button type="button" size="sm" variant="outline" onClick={addSlot} disabled={isLoading}>
-            <Plus className="h-4 w-4" />
-            Add slot
-          </Button>
+        <div>
+          <h2 className="text-sm font-medium">Meal slots</h2>
+          <p className="text-xs text-muted-foreground">
+            Add required local times of day. Slots sort by time, then stable position.
+          </p>
         </div>
 
         {isLoading ? <NutritionPlanFormSkeleton /> : null}
@@ -383,6 +376,13 @@ export function NutritionPlanForm({
               </Card>
             );
           })}
+        </div>
+
+        <div className="flex justify-end">
+          <Button type="button" size="sm" variant="outline" onClick={addSlot} disabled={isLoading}>
+            <Plus className="h-4 w-4" />
+            Add slot
+          </Button>
         </div>
 
         {formError ? (

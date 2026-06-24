@@ -6,6 +6,7 @@ interface MacroSummaryProps {
   title?: string;
   description?: string;
   compact?: boolean;
+  targetTotals?: MacroTotals | null;
 }
 
 const MACRO_TILES = [
@@ -17,7 +18,21 @@ const MACRO_TILES = [
   { key: "sugar", label: "Sugar", unit: "g" },
 ] as const;
 
-export function MacroSummary({ totals, title, description, compact = false }: MacroSummaryProps) {
+function formatMacroNumber(value: number): string {
+  const precision = Number.isInteger(value) ? 0 : 1;
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: precision,
+    minimumFractionDigits: 0,
+  });
+}
+
+export function MacroSummary({
+  totals,
+  title,
+  description,
+  compact = false,
+  targetTotals,
+}: MacroSummaryProps) {
   if (compact) {
     const summary = macroTotalsSummary(totals);
 
@@ -47,7 +62,13 @@ export function MacroSummary({ totals, title, description, compact = false }: Ma
             className="rounded-md border border-border/60 bg-background/70 px-3 py-2"
           >
             <dt className="text-xs text-muted-foreground">{tile.label}</dt>
-            <dd className="font-medium tabular-nums">{formatMacro(totals[tile.key], tile.unit)}</dd>
+            <dd className="font-medium tabular-nums">
+              {targetTotals
+                ? `${formatMacroNumber(totals[tile.key])} / ${formatMacroNumber(
+                    targetTotals[tile.key],
+                  )} ${tile.unit}`
+                : formatMacro(totals[tile.key], tile.unit)}
+            </dd>
           </div>
         ))}
       </dl>

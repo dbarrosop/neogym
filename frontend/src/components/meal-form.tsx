@@ -10,7 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { mealMacroTotals, normalizeNumeric, parseMacroInput } from "@/lib/nutrition";
+import {
+  DECIMAL_INPUT_PATTERN,
+  mealMacroTotals,
+  normalizeNumeric,
+  parseMacroInput,
+} from "@/lib/nutrition";
 
 const MealFormFoodsQuery = graphql(`
   query MealFormFoods {
@@ -148,10 +153,9 @@ export function MealForm({
   const canSubmit = !isSubmitting && !isLoading;
 
   function addIngredient() {
-    const firstFood = foods[0];
     setIngredients((current) => [
       ...current,
-      { clientId: createClientId(), foodId: firstFood?.id ?? "", grams: "100" },
+      { clientId: createClientId(), foodId: "", grams: "100" },
     ]);
   }
 
@@ -252,23 +256,11 @@ export function MealForm({
       />
 
       <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium">Ingredients</h2>
-            <p className="text-xs text-muted-foreground">
-              Pick from your private foods and public foods. Use the arrows to keep stable order.
-            </p>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={addIngredient}
-            disabled={isLoading}
-          >
-            <Plus className="h-4 w-4" />
-            Add food
-          </Button>
+        <div>
+          <h2 className="text-sm font-medium">Ingredients</h2>
+          <p className="text-xs text-muted-foreground">
+            Pick from your private foods and public foods. Use the arrows to keep stable order.
+          </p>
         </div>
 
         {isLoading ? <MealFormSkeleton /> : null}
@@ -345,10 +337,9 @@ export function MealForm({
                     <div className="relative">
                       <Input
                         id={gramsId}
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        min="0.1"
-                        step="0.1"
+                        pattern={DECIMAL_INPUT_PATTERN}
                         value={ingredient.grams}
                         onChange={(event) =>
                           updateIngredient(ingredient.clientId, { grams: event.target.value })
@@ -365,6 +356,19 @@ export function MealForm({
               </Card>
             );
           })}
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={addIngredient}
+            disabled={isLoading}
+          >
+            <Plus className="h-4 w-4" />
+            Add food
+          </Button>
         </div>
 
         {formError ? (

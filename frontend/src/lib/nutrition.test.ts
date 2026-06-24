@@ -24,6 +24,7 @@ const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
 describe("nutrition helpers", () => {
   it("normalizes Hasura numeric values returned as strings or numbers", () => {
     expect(normalizeNumeric("12.5")).toBe(12.5);
+    expect(normalizeNumeric("12,5")).toBe(12.5);
     expect(normalizeNumeric(8)).toBe(8);
     expect(normalizeNumeric("not-a-number")).toBe(0);
     expect(normalizeNumeric(null)).toBe(0);
@@ -51,6 +52,7 @@ describe("nutrition helpers", () => {
 
   it("parses non-negative form inputs and rejects invalid values", () => {
     expect(parseMacroInput(" 42.5 ")).toBe(42.5);
+    expect(parseMacroInput("42,5")).toBe(42.5);
     expect(parseMacroInput("0")).toBe(0);
     expect(parseMacroInput("")).toBeNull();
     expect(parseMacroInput("-1")).toBeNull();

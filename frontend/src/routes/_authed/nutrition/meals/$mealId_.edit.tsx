@@ -40,19 +40,23 @@ const SaveMealMutation = graphql(`
     $id: uuid!
     $set: meals_set_input!
     $deleteIngredientIds: [uuid!]!
+    $hasDeleteIngredients: Boolean!
     $insertIngredients: [mealIngredients_insert_input!]!
+    $hasInsertIngredients: Boolean!
     $ingredientUpdates: [mealIngredients_updates!]!
+    $hasIngredientUpdates: Boolean!
   ) {
     updateMeal(pk_columns: { id: $id }, _set: $set) {
       id
     }
-    deleteMealIngredients(where: { id: { _in: $deleteIngredientIds } }) {
+    deleteMealIngredients(where: { id: { _in: $deleteIngredientIds } })
+      @include(if: $hasDeleteIngredients) {
       affected_rows
     }
-    insertMealIngredients(objects: $insertIngredients) {
+    insertMealIngredients(objects: $insertIngredients) @include(if: $hasInsertIngredients) {
       affected_rows
     }
-    update_mealIngredients_many(updates: $ingredientUpdates) {
+    update_mealIngredients_many(updates: $ingredientUpdates) @include(if: $hasIngredientUpdates) {
       affected_rows
     }
   }
@@ -150,8 +154,11 @@ function EditMealRoute() {
           description: values.description === "" ? null : values.description,
         },
         deleteIngredientIds,
+        hasDeleteIngredients: deleteIngredientIds.length > 0,
         insertIngredients,
+        hasInsertIngredients: insertIngredients.length > 0,
         ingredientUpdates,
+        hasIngredientUpdates: ingredientUpdates.length > 0,
       });
     },
     onSuccess: () => {

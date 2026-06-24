@@ -1,7 +1,7 @@
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { parseMacroInput } from "@/lib/nutrition";
+import { DECIMAL_INPUT_PATTERN, parseMacroInput } from "@/lib/nutrition";
 
 export interface FoodFormValues {
   name: string;
@@ -24,13 +24,13 @@ interface FoodFormProps {
 
 type NutrientKey = Exclude<keyof FoodFormValues, "name">;
 
-const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string; step: string }[] = [
-  { key: "kcalPer100g", label: "Calories", suffix: "kcal", step: "1" },
-  { key: "fatPer100g", label: "Fat", suffix: "g", step: "0.1" },
-  { key: "carbsPer100g", label: "Carbs", suffix: "g", step: "0.1" },
-  { key: "proteinPer100g", label: "Protein", suffix: "g", step: "0.1" },
-  { key: "fiberPer100g", label: "Fiber", suffix: "g", step: "0.1" },
-  { key: "sugarPer100g", label: "Sugar", suffix: "g", step: "0.1" },
+const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string }[] = [
+  { key: "kcalPer100g", label: "Calories", suffix: "kcal" },
+  { key: "fatPer100g", label: "Fat", suffix: "g" },
+  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
+  { key: "proteinPer100g", label: "Protein", suffix: "g" },
+  { key: "fiberPer100g", label: "Fiber", suffix: "g" },
+  { key: "sugarPer100g", label: "Sugar", suffix: "g" },
 ];
 
 function numberToInput(value: number): string {
@@ -153,10 +153,9 @@ export function FoodForm({
                   <div className="relative">
                     <Input
                       id={id}
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      min="0"
-                      step={field.step}
+                      pattern={DECIMAL_INPUT_PATTERN}
                       value={nutrients[field.key]}
                       onChange={(event) => handleNutrientChange(field.key, event.target.value)}
                       className="pr-12"

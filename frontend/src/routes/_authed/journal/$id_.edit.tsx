@@ -46,20 +46,22 @@ const SaveJournalEntryMutation = graphql(`
     $id: uuid!
     $set: journalEntries_set_input!
     $deleteLabelIds: [uuid!]!
+    $hasDeleteLabels: Boolean!
     $insertLabels: [journalEntryLabels_insert_input!]!
+    $hasInsertLabels: Boolean!
   ) {
     updateJournalEntry(pk_columns: { id: $id }, _set: $set) {
       id
     }
     deleteJournalEntryLabels(
       where: { journalEntryId: { _eq: $id }, labelId: { _in: $deleteLabelIds } }
-    ) {
+    ) @include(if: $hasDeleteLabels) {
       affected_rows
     }
     insertJournalEntryLabels(
       objects: $insertLabels
       on_conflict: { constraint: journal_entry_labels_pkey, update_columns: [] }
-    ) {
+    ) @include(if: $hasInsertLabels) {
       affected_rows
     }
   }
@@ -139,7 +141,9 @@ function EditJournalEntryRoute() {
           body: values.body,
         },
         deleteLabelIds,
+        hasDeleteLabels: deleteLabelIds.length > 0,
         insertLabels,
+        hasInsertLabels: insertLabels.length > 0,
       });
     },
     onSuccess: () => {
