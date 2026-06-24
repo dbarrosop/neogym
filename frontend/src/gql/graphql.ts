@@ -5858,7 +5858,7 @@ export type NutritionDays_Updates = {
   where: NutritionDays_Bool_Exp;
 };
 
-/** Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position/slot_time only. */
+/** Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only. */
 export type NutritionLogEntries = {
   __typename?: 'nutritionLogEntries';
   createdAt: Scalars['timestamptz']['output'];
@@ -6198,8 +6198,6 @@ export enum NutritionLogEntries_Select_Column {
 export type NutritionLogEntries_Set_Input = {
   grams?: InputMaybe<Scalars['numeric']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
-  /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
-  slotTime?: InputMaybe<Scalars['time']['input']>;
 };
 
 /** aggregate stddev on columns */
@@ -6336,9 +6334,7 @@ export enum NutritionLogEntries_Update_Column {
   /** column name */
   Grams = 'grams',
   /** column name */
-  Position = 'position',
-  /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
-  SlotTime = 'slotTime'
+  Position = 'position'
 }
 
 export type NutritionLogEntries_Updates = {

@@ -289,7 +289,7 @@ Select/update/delete walk `nutritionDay.user_id eq self`. Insert checks the owne
 
 ### `nutrition_log_entries` — pattern **C (owned day + visible food + optional same-day group)**
 
-Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can insert/update `slot_time` for standalone logged-food time and can update only `grams`, `position`, and `slot_time`; `food_id` and all `snapshot_*` columns are not user-writable. Snapshot columns are selectable so clients can compute historical totals.
+Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can set `slot_time` for standalone logged-food time on insert, but updates are limited to `grams` and `position`; `food_id`, `slot_time`, and all `snapshot_*` columns are not user-updatable. Snapshot columns are selectable so clients can compute historical totals.
 
 ## Storage
 

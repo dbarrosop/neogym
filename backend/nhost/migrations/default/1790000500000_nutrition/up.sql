@@ -32,9 +32,7 @@ CREATE TABLE public.foods (
 COMMENT ON TABLE public.foods IS
   'Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent.';
 
-CREATE INDEX foods_user_id_idx ON public.foods(user_id);
 CREATE INDEX foods_public_name_idx ON public.foods(name) WHERE is_public = true;
-CREATE INDEX foods_user_name_idx ON public.foods(user_id, name);
 
 CREATE TRIGGER set_public_foods_updated_at
 BEFORE UPDATE ON public.foods
@@ -52,8 +50,6 @@ CREATE TABLE public.meals (
   CONSTRAINT meals_name_format_check CHECK (length(btrim(name)) BETWEEN 1 AND 160),
   CONSTRAINT meals_user_name_uq UNIQUE (user_id, name)
 );
-CREATE INDEX meals_user_id_idx ON public.meals(user_id);
-CREATE INDEX meals_user_name_idx ON public.meals(user_id, name);
 
 CREATE TRIGGER set_public_meals_updated_at
 BEFORE UPDATE ON public.meals
@@ -90,8 +86,6 @@ CREATE TABLE public.nutrition_plans (
   CONSTRAINT nutrition_plans_name_format_check CHECK (length(btrim(name)) BETWEEN 1 AND 160),
   CONSTRAINT nutrition_plans_user_name_uq UNIQUE (user_id, name)
 );
-CREATE INDEX nutrition_plans_user_id_idx ON public.nutrition_plans(user_id);
-CREATE INDEX nutrition_plans_user_name_idx ON public.nutrition_plans(user_id, name);
 
 CREATE TRIGGER set_public_nutrition_plans_updated_at
 BEFORE UPDATE ON public.nutrition_plans
@@ -129,9 +123,7 @@ CREATE TABLE public.nutrition_days (
   updated_at         timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT nutrition_days_user_date_uq UNIQUE (user_id, log_date)
 );
-CREATE INDEX nutrition_days_user_id_idx ON public.nutrition_days(user_id);
 CREATE INDEX nutrition_days_plan_id_idx ON public.nutrition_days(nutrition_plan_id);
-CREATE INDEX nutrition_days_user_date_idx ON public.nutrition_days(user_id, log_date DESC);
 
 CREATE TRIGGER set_public_nutrition_days_updated_at
 BEFORE UPDATE ON public.nutrition_days
@@ -188,7 +180,7 @@ CREATE TABLE public.nutrition_log_entries (
     ON UPDATE CASCADE ON DELETE CASCADE
 );
 COMMENT ON TABLE public.nutrition_log_entries IS
-  'Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position/slot_time only.';
+  'Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only.';
 COMMENT ON COLUMN public.nutrition_log_entries.slot_time IS
   'Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time.';
 CREATE INDEX nutrition_log_entries_day_id_idx ON public.nutrition_log_entries(nutrition_day_id);

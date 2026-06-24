@@ -144,7 +144,6 @@ update_permissions:
       columns:
         - grams
         - position
-        - slot_time
       filter:
         nutritionDay:
           user_id:

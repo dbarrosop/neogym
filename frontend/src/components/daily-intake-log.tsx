@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, Clock, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
+import { type FocusEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { LogFoodDialog } from "@/components/log-food-dialog";
 import { LogMealDialog, type LogMealOption, type LogPlanSlot } from "@/components/log-meal-dialog";
@@ -28,6 +28,7 @@ import {
   loggedEntryMacroTotals,
   loggedMacroTotals,
   macroTotalsSummary,
+  normalizeNumeric,
   parseMacroInput,
   timeToInputValue,
 } from "@/lib/nutrition";
@@ -250,7 +251,7 @@ type DailyDay = {
 };
 
 type DailyIntakeLogData = {
-  day: DailyDay;
+  day: DailyDay | null;
   nutritionPlans: DailyPlan[];
   meals: LogMealOption[];
   foods: DailyFood[];
@@ -271,15 +272,34 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
   const query = useQuery({
     queryKey: ["nutrition", "days", date],
-    queryFn: () => openOrCreateDay(date),
+    queryFn: () => openDay(date),
   });
 
+  const ensureDay = () => {
+    const cachedDay = queryClient.getQueryData<DailyIntakeLogData>([
+      "nutrition",
+      "days",
+      date,
+    ])?.day;
+    if (cachedDay) {
+      return Promise.resolve(cachedDay.id);
+    }
+
+    return createDay(date);
+  };
+
   const updatePlanMutation = useMutation({
-    mutationFn: (nutritionPlanId: string | null) =>
-      gqlRequest(UpdateNutritionDayPlanMutation, {
-        id: query.data?.day.id ?? "",
+    mutationFn: async (nutritionPlanId: string | null) => {
+      const dayId = nutritionPlanId ? await ensureDay() : query.data?.day?.id;
+      if (!dayId) {
+        return null;
+      }
+
+      return gqlRequest(UpdateNutritionDayPlanMutation, {
+        id: dayId,
         nutritionPlanId,
-      }),
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
@@ -355,21 +375,25 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   }
 
   const { day, nutritionPlans, meals, foods } = query.data;
+  const standaloneEntries = day?.nutritionLogEntries ?? [];
+  const loggedMeals = day?.nutritionLogMeals ?? [];
   const allEntries = [
-    ...day.nutritionLogEntries,
-    ...day.nutritionLogMeals.flatMap((meal) => meal.nutritionLogEntries),
+    ...standaloneEntries,
+    ...loggedMeals.flatMap((meal) => meal.nutritionLogEntries),
   ];
   const totals = loggedMacroTotals(allEntries);
-  const selectedPlan = nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null;
+  const selectedPlan = day?.nutritionPlanId
+    ? (nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null)
+    : null;
   const nextEntryPosition = allEntries.length;
-  const nextGroupPosition = day.nutritionLogMeals.length;
+  const nextGroupPosition = loggedMeals.length;
   const isMutating =
     updatePlanMutation.isPending ||
     updateEntryMutation.isPending ||
     deleteEntryMutation.isPending ||
     deleteGroupMutation.isPending ||
     deleteDayMutation.isPending;
-  const loggedTimeGroups = groupLoggedFoodByTime(day.nutritionLogMeals, day.nutritionLogEntries);
+  const loggedTimeGroups = groupLoggedFoodByTime(loggedMeals, standaloneEntries);
 
   return (
     <div className="space-y-5">
@@ -415,14 +439,14 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-2">
               <LogMealDialog
-                dayId={day.id}
+                ensureDay={ensureDay}
                 date={date}
                 meals={meals}
                 nextPosition={nextGroupPosition}
                 disabled={isMutating}
               />
               <LogFoodDialog
-                dayId={day.id}
+                ensureDay={ensureDay}
                 date={date}
                 foods={foods}
                 nextPosition={nextEntryPosition}
@@ -488,7 +512,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row">
             <select
-              value={day.nutritionPlanId ?? ""}
+              value={day?.nutritionPlanId ?? ""}
               onChange={(event) => updatePlanMutation.mutate(event.target.value || null)}
               disabled={updatePlanMutation.isPending}
               className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -505,7 +529,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               type="button"
               variant="outline"
               onClick={() => updatePlanMutation.mutate(null)}
-              disabled={!day.nutritionPlanId || updatePlanMutation.isPending}
+              disabled={!day?.nutritionPlanId || updatePlanMutation.isPending}
             >
               Clear plan
             </Button>
@@ -514,7 +538,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
           {selectedPlan ? (
             <PlanSuggestions
               plan={selectedPlan}
-              dayId={day.id}
+              ensureDay={ensureDay}
               date={date}
               nextGroupPosition={nextGroupPosition}
               disabled={isMutating}
@@ -527,73 +551,79 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={() => setConfirmDeleteDay(true)}
-          disabled={deleteDayMutation.isPending}
-        >
-          <Trash2 className="h-4 w-4" />
-          Clear day log
-        </Button>
-      </div>
-
-      <Dialog open={confirmDeleteDay} onOpenChange={setConfirmDeleteDay}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Clear this day?</DialogTitle>
-            <DialogDescription>
-              This deletes the nutrition day row for {formatLocalDateLabel(date)}. Logged meal
-              groups and entries cascade and cannot be recovered.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      {day ? (
+        <>
+          <div className="flex justify-end">
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setConfirmDeleteDay(false)}
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => setConfirmDeleteDay(true)}
               disabled={deleteDayMutation.isPending}
             >
-              Cancel
+              <Trash2 className="h-4 w-4" />
+              Clear day log
             </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteDayMutation.mutate(day.id)}
-              disabled={deleteDayMutation.isPending}
-            >
-              {deleteDayMutation.isPending ? "Clearing…" : "Clear day"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          <Dialog open={confirmDeleteDay} onOpenChange={setConfirmDeleteDay}>
+            <DialogContent className="md:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Clear this day?</DialogTitle>
+                <DialogDescription>
+                  This deletes the nutrition day row for {formatLocalDateLabel(date)}. Logged meal
+                  groups and entries cascade and cannot be recovered.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setConfirmDeleteDay(false)}
+                  disabled={deleteDayMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => deleteDayMutation.mutate(day.id)}
+                  disabled={deleteDayMutation.isPending}
+                >
+                  {deleteDayMutation.isPending ? "Clearing…" : "Clear day"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
     </div>
   );
 }
 
-async function openOrCreateDay(date: string): Promise<DailyIntakeLogData> {
-  const first = (await gqlRequest(DailyIntakeLogQuery, { date })) as DailyIntakeLogQueryData;
-  const existing = first.nutritionDays[0];
-  if (existing) {
-    return { ...first, day: existing };
-  }
+async function openDay(date: string): Promise<DailyIntakeLogData> {
+  const data = (await gqlRequest(DailyIntakeLogQuery, { date })) as DailyIntakeLogQueryData;
+  return { ...data, day: data.nutritionDays[0] ?? null };
+}
 
+async function createDay(date: string): Promise<string> {
   try {
-    await gqlRequest(CreateNutritionDayMutation, { object: { logDate: date } });
+    const created = await gqlRequest(CreateNutritionDayMutation, { object: { logDate: date } });
+    const createdId = created.insertNutritionDay?.id;
+    if (createdId) {
+      return createdId;
+    }
   } catch (error) {
     if (!isUniqueConflictError(error)) {
       throw error;
     }
   }
 
-  const second = (await gqlRequest(DailyIntakeLogQuery, { date })) as DailyIntakeLogQueryData;
-  const created = second.nutritionDays[0];
-  if (!created) {
+  const data = await openDay(date);
+  if (!data.day) {
     throw new Error("Nutrition day could not be opened after creation.");
   }
-  return { ...second, day: created };
+  return data.day.id;
 }
 
 function isUniqueConflictError(error: unknown): boolean {
@@ -668,13 +698,13 @@ function groupLoggedFoodByTime(
 
 function PlanSuggestions({
   plan,
-  dayId,
+  ensureDay,
   date,
   nextGroupPosition,
   disabled,
 }: {
   plan: DailyPlan;
-  dayId: string;
+  ensureDay: () => Promise<string>;
   date: string;
   nextGroupPosition: number;
   disabled: boolean;
@@ -706,7 +736,7 @@ function PlanSuggestions({
                 <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
               </div>
               <LogMealDialog
-                dayId={dayId}
+                ensureDay={ensureDay}
                 date={date}
                 meals={[slot.meal]}
                 slot={slot}
@@ -819,7 +849,9 @@ function EntryRow({
 
   const totals = loggedEntryMacroTotals(entry);
   const parsedGrams = parseMacroInput(grams);
+  const entryGrams = normalizeNumeric(entry.grams);
   const displayGrams = formatMacro(entry.grams, "g");
+  const gramsHelpId = `grams-${entry.id}-help`;
 
   function cancelEdit() {
     setGrams(String(entry.grams));
@@ -829,13 +861,25 @@ function EntryRow({
   function save() {
     if (parsedGrams === null || parsedGrams <= 0) {
       toast.error("Enter grams greater than zero.");
-      return;
+      return false;
     }
-    if (String(entry.grams) !== grams) {
+    if (parsedGrams !== entryGrams) {
       onUpdate(parsedGrams);
-      return;
+      return true;
     }
     setIsEditingGrams(false);
+    return true;
+  }
+
+  function handleGramsBlur(event: FocusEvent<HTMLInputElement>) {
+    const nextTarget = event.relatedTarget;
+    if (
+      nextTarget instanceof HTMLElement &&
+      nextTarget.dataset["gramsEditorActionFor"] === entry.id
+    ) {
+      return;
+    }
+    save();
   }
 
   return (
@@ -849,26 +893,56 @@ function EntryRow({
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {isEditingGrams ? (
-          <Input
-            id={`grams-${entry.id}`}
-            value={grams}
-            onChange={(event) => setGrams(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                save();
-              }
-              if (event.key === "Escape") {
-                cancelEdit();
-              }
-            }}
-            onBlur={cancelEdit}
-            inputMode="decimal"
-            disabled={disabled}
-            className="h-9 w-24"
-            aria-label={`Grams for ${entry.snapshotFoodName}`}
-            autoFocus
-          />
+          <div className="flex flex-wrap items-center gap-1">
+            <Input
+              id={`grams-${entry.id}`}
+              value={grams}
+              onChange={(event) => setGrams(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  save();
+                }
+                if (event.key === "Escape") {
+                  cancelEdit();
+                }
+              }}
+              onBlur={handleGramsBlur}
+              inputMode="decimal"
+              disabled={disabled}
+              className="h-9 w-24"
+              aria-label={`Grams for ${entry.snapshotFoodName}`}
+              aria-describedby={gramsHelpId}
+              autoFocus
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-9 gap-1 px-2"
+              onClick={save}
+              disabled={disabled}
+              data-grams-editor-action-for={entry.id}
+            >
+              <Check className="h-4 w-4" />
+              Save
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-9 px-2"
+              onClick={cancelEdit}
+              disabled={disabled}
+              data-grams-editor-action-for={entry.id}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Cancel editing grams</span>
+            </Button>
+            <span id={gramsHelpId} className="sr-only">
+              Press Enter or Save to update grams. Press Escape to cancel.
+            </span>
+          </div>
         ) : (
           <Button
             type="button"
@@ -877,7 +951,7 @@ function EntryRow({
             className="tabular-nums"
             onClick={() => setIsEditingGrams(true)}
             disabled={disabled}
-            title="Click to edit grams, then press Enter to save"
+            title="Click to edit grams"
           >
             {displayGrams}
           </Button>

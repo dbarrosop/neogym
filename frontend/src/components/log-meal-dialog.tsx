@@ -67,7 +67,7 @@ export interface LogPlanSlot {
 }
 
 interface LogMealDialogProps {
-  dayId: string;
+  ensureDay: () => Promise<string>;
   date: string;
   meals: LogMealOption[];
   nextPosition: number;
@@ -76,7 +76,7 @@ interface LogMealDialogProps {
 }
 
 export function LogMealDialog({
-  dayId,
+  ensureDay,
   date,
   meals,
   nextPosition,
@@ -99,7 +99,7 @@ export function LogMealDialog({
   const totals = selectedMeal ? mealMacroTotals(selectedMeal.mealIngredients) : null;
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!selectedMeal) {
         throw new Error("Choose a meal to log.");
       }
@@ -110,6 +110,7 @@ export function LogMealDialog({
         throw new Error("Choose the time eaten.");
       }
 
+      const dayId = await ensureDay();
       return gqlRequest(LogMealMutation, {
         object: {
           nutritionDayId: dayId,

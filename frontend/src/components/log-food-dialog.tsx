@@ -28,14 +28,20 @@ const LogFoodMutation = graphql(`
 `);
 
 interface LogFoodDialogProps {
-  dayId: string;
+  ensureDay: () => Promise<string>;
   date: string;
   foods: FoodPickerOption[];
   nextPosition: number;
   disabled?: boolean;
 }
 
-export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: LogFoodDialogProps) {
+export function LogFoodDialog({
+  ensureDay,
+  date,
+  foods,
+  nextPosition,
+  disabled,
+}: LogFoodDialogProps) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [foodId, setFoodId] = useState("");
@@ -51,7 +57,7 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
   }, [open]);
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const parsedGrams = parseMacroInput(grams);
       if (!selectedFood || parsedGrams === null || parsedGrams <= 0) {
         throw new Error("Choose a food and enter grams greater than zero.");
@@ -59,6 +65,7 @@ export function LogFoodDialog({ dayId, date, foods, nextPosition, disabled }: Lo
       if (!slotTime) {
         throw new Error("Choose the time eaten.");
       }
+      const dayId = await ensureDay();
       return gqlRequest(LogFoodMutation, {
         object: {
           nutritionDayId: dayId,

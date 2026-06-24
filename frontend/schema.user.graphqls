@@ -2905,7 +2905,7 @@ type nutritionDays_mutation_response {
   "data from the rows affected by the mutation"
   returning: [nutritionDays!]!
 }
-"Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position/slot_time only."
+"Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only."
 type nutritionLogEntries {
   id: uuid!
   nutritionDayId: uuid!
@@ -7373,8 +7373,6 @@ enum nutritionLogEntries_update_column {
   grams
   "column name"
   position
-  "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
-  slotTime
 }
 """
 unique or primary key constraints on table "nutrition_log_meals"
@@ -10055,8 +10053,6 @@ input type for updating data in table "nutrition_log_entries"
 input nutritionLogEntries_set_input {
   grams: numeric
   position: Int
-  "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
-  slotTime: time
 }
 """
 order by stddev() on columns of table "nutrition_log_entries"

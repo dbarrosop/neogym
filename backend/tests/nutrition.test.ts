@@ -4,7 +4,7 @@
 // Prereqs: local Nhost stack must be running with seeds applied
 // (`make dev-env-up` from backend/). Tests skip cleanly if Hasura is down.
 
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 const HASURA_URL = "https://local.hasura.local.nhost.run/v1/graphql";
 const ADMIN_SECRET = "nhost-admin-secret";
@@ -13,7 +13,8 @@ const TEST_USER_ID = "f26ac88d-4dcd-48e8-a0ae-b4248918bc1c";
 const OTHER_USER_ID = "11111111-1111-4111-8111-111111111111";
 const PUBLIC_BANANA_ID = "019e1000-0000-7000-8000-000000000001";
 const RUN_ID = `${Date.now()}`;
-const RUN_DAY_OFFSET = Number(RUN_ID.slice(-4)) % 2000;
+const RUN_DAY_OFFSET = Number(RUN_ID) % 100_000;
+const createdNutritionDayIds = new Set<string>();
 
 function runDate(offset: number): string {
 	const date = new Date(Date.UTC(2030, 0, 1 + RUN_DAY_OFFSET + offset));
@@ -40,6 +41,21 @@ function errorText(errors: GraphQLResponse<unknown>["errors"]): string {
 
 function expectGraphQLError(errors: GraphQLResponse<unknown>["errors"]): void {
 	expect(errorText(errors)).not.toBe("");
+}
+
+async function gqlAdmin<T>(
+	query: string,
+	variables: Record<string, unknown> = {},
+): Promise<GraphQLResponse<T>> {
+	const res = await fetch(HASURA_URL, {
+		method: "POST",
+		headers: {
+			"content-type": "application/json",
+			"x-hasura-admin-secret": ADMIN_SECRET,
+		},
+		body: JSON.stringify({ query, variables }),
+	});
+	return res.json() as Promise<GraphQLResponse<T>>;
 }
 
 async function gqlAsUser<T>(
@@ -81,6 +97,20 @@ let hasuraReachable = false;
 
 beforeAll(async () => {
 	hasuraReachable = await isHasuraReachable();
+});
+
+afterAll(async () => {
+	if (!hasuraReachable || createdNutritionDayIds.size === 0) return;
+
+	const res = await gqlAdmin<{
+		deleteNutritionDays: { affected_rows: number };
+	}>(
+		`mutation CleanupNutritionDays($ids: [uuid!]!) {
+      deleteNutritionDays(where: { id: { _in: $ids } }) { affected_rows }
+    }`,
+		{ ids: [...createdNutritionDayIds] },
+	);
+	expect(res.errors).toBeUndefined();
 });
 
 async function createFood(userId: string, name: string) {
@@ -140,6 +170,7 @@ async function createDay(
 		userId,
 	);
 	expect(res.errors).toBeUndefined();
+	createdNutritionDayIds.add(res.data!.insertNutritionDay.id);
 	return res.data!.insertNutritionDay;
 }
 
@@ -290,7 +321,7 @@ describe("nutrition template ownership", () => {
 });
 
 describe("nutrition logging snapshots", () => {
-	test("snapshot columns are trigger-populated, stable after food changes, and not user-writable", async () => {
+	test("snapshot columns are trigger-populated, stable after food changes, and slot time is not user-updatable", async () => {
 		if (!hasuraReachable) return;
 		const food = await createFood(TEST_USER_ID, `Snapshot source ${RUN_ID}`);
 		const day = await createDay(TEST_USER_ID, runDate(1));
@@ -343,22 +374,31 @@ describe("nutrition logging snapshots", () => {
 		const updateEntry = await gqlAsUser<{
 			updateNutritionLogEntry: {
 				grams: string;
+				position: number;
 				slotTime: string;
 				snapshotFoodName: string;
 				snapshotKcalPer100g: string;
 			} | null;
 		}>(
-			`mutation UpdateEntry($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { grams: "50", slotTime: "10:30:00" }) { grams slotTime snapshotFoodName snapshotKcalPer100g } }`,
+			`mutation UpdateEntry($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { grams: "50", position: 2 }) { grams position slotTime snapshotFoodName snapshotKcalPer100g } }`,
 			{ id: inserted.data!.insertNutritionLogEntry.id },
 			TEST_USER_ID,
 		);
 		expect(updateEntry.errors).toBeUndefined();
 		expect(updateEntry.data!.updateNutritionLogEntry).toEqual({
 			grams: 50,
-			slotTime: "10:30:00",
+			position: 2,
+			slotTime: "09:15:00",
 			snapshotFoodName: food.name,
 			snapshotKcalPer100g: 123,
 		});
+
+		const updateSlotTime = await gqlAsUser<unknown>(
+			`mutation UpdateSlotTime($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { slotTime: "10:30:00" }) { id } }`,
+			{ id: inserted.data!.insertNutritionLogEntry.id },
+			TEST_USER_ID,
+		);
+		expect(errorText(updateSlotTime.errors)).toContain("slotTime");
 	});
 
 	test("log entries reject null food_id on insert and foreign private foods by permission", async () => {

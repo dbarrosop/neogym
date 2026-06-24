@@ -104,7 +104,7 @@ Add a relational nutrition domain that mirrors the app's existing ownership and 
 - `nutrition_log_entries` has a `BEFORE INSERT` snapshot trigger that rejects `food_id IS NULL` on insert and copies food name/nutrients from `foods`. It does not run on food delete/nulling.
 - `nutrition_log_meals.name` and `slot_time` are client-supplied display snapshots copied by the UI from the meal/plan slot; they are not trigger-verified trusted snapshots.
 - Grouped log entries use a default `MATCH SIMPLE` composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`. Standalone entries rely on `MATCH SIMPLE` skipping the composite FK when `nutrition_log_meal_id IS NULL` and still use the direct `nutrition_day_id` FK.
-- Ordered children use stable sort indexes instead of unique position constraints to avoid reorder swap friction: `(meal_id, position, id)`, `(nutrition_plan_id, slot_time, position, id)`, `(nutrition_day_id, position, id)`.
+- Ordered children use stable sort indexes instead of unique position constraints to avoid reorder swap friction: `(meal_id, position, id)`, `(nutrition_plan_id, slot_time, position, id)`, and daily log day-scope indexes `(nutrition_day_id, slot_time, position, id)` for logged meal groups and entries so the database order matches the slot-time-first intake display.
 - Daily totals are computed client-side from logged snapshot columns: `grams / 100 * snapshot_per_100g`.
 - Hasura `numeric` values may arrive as strings; frontend helpers must normalize before math.
 - Daily date routes use local calendar-date formatting, not `toISOString().slice(0, 10)`, to avoid timezone off-by-one bugs.
