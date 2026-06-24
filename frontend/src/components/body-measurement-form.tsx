@@ -1,5 +1,5 @@
-import { type SubmitEvent, useId, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { type ChangeEvent, type ReactNode, type SubmitEvent, useId, useState } from "react";
+import { FormActions, FormSection } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -16,7 +16,7 @@ interface BodyMeasurementFormProps {
   onSubmit: (values: BodyMeasurementFormValues) => void;
   onCancel: () => void;
   isSubmitting: boolean;
-  extraActions?: React.ReactNode;
+  extraActions?: ReactNode;
 }
 
 const NUMERIC = /^\d{0,3}([.,]\d{0,2})?$/;
@@ -52,7 +52,7 @@ export function BodyMeasurementForm({
   const hasValue = trimmedWeight !== "" || trimmedFat !== "";
 
   function handleNumeric(setter: (v: string) => void) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
+    return (e: ChangeEvent<HTMLInputElement>) => {
       const v = e.target.value;
       if (v === "" || NUMERIC.test(v)) {
         setter(v);
@@ -93,7 +93,7 @@ export function BodyMeasurementForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
+      <FormSection>
         <div className="space-y-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">
             Date
@@ -153,19 +153,15 @@ export function BodyMeasurementForm({
         </div>
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      </div>
+      </FormSection>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting || !hasValue}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-        {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
-      </div>
+      <FormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        submitDisabled={!hasValue}
+        onCancel={onCancel}
+        destructiveActions={extraActions}
+      />
     </form>
   );
 }

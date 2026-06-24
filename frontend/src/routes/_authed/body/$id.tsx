@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,10 +39,10 @@ function BodyMeasurementDetailRoute() {
       return <DetailSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Failed to load measurement" message={error.message} />;
     }
     if (!data?.bodyMeasurement) {
-      return <p className="text-sm text-muted-foreground">Measurement not found.</p>;
+      return <EmptyState title="Measurement not found." />;
     }
     const m = data.bodyMeasurement;
     return (
@@ -94,11 +96,7 @@ function BodyMeasurementDetailRoute() {
     );
   }
 
-  return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">{renderContent()}</div>
-    </section>
-  );
+  return <PageShell maxWidth="2xl">{renderContent()}</PageShell>;
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -112,15 +110,17 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function DetailSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-16 w-full" />
-        <Skeleton className="h-16 w-full" />
-      </CardContent>
-    </Card>
+    <SkeletonState>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-7 w-48" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </CardContent>
+      </Card>
+    </SkeletonState>
   );
 }

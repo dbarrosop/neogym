@@ -7,16 +7,11 @@ import {
   BodyMeasurementForm,
   type BodyMeasurementFormValues,
 } from "@/components/body-measurement-form";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
+import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
@@ -120,91 +115,68 @@ function EditBodyMeasurementRoute() {
       return <EditSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Failed to load measurement" message={error.message} />;
     }
     if (!measurement || !initialValues) {
-      return <p className="text-sm text-muted-foreground">Measurement not found.</p>;
+      return <EmptyState title="Measurement not found." />;
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-2xl tracking-tight">Edit measurement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <BodyMeasurementForm
-            initialValues={initialValues}
-            submitLabel="Save changes"
-            isSubmitting={saveMutation.isPending}
-            onSubmit={(values) => saveMutation.mutate(values)}
-            onCancel={() => navigate({ to: "/body/$id", params: { id }, replace: true })}
-            extraActions={
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleteMutation.isPending || saveMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete measurement
-              </Button>
-            }
-          />
-        </CardContent>
-      </Card>
+      <FormCardShell eyebrow="Edit" title="Edit measurement">
+        <BodyMeasurementForm
+          initialValues={initialValues}
+          submitLabel="Save changes"
+          isSubmitting={saveMutation.isPending}
+          onSubmit={(values) => saveMutation.mutate(values)}
+          onCancel={() => navigate({ to: "/body/$id", params: { id }, replace: true })}
+          extraActions={
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
+              onClick={() => setConfirmDelete(true)}
+              disabled={deleteMutation.isPending || saveMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete measurement
+            </Button>
+          }
+        />
+      </FormCardShell>
     );
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
-        {renderContent()}
-      </div>
+    <PageShell maxWidth="2xl">
+      {renderContent()}
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this measurement?</DialogTitle>
-            <DialogDescription>
-              This entry will be removed from your body history.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete measurement"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </section>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this measurement?"
+        description="This entry will be removed from your body history."
+        confirmLabel="Delete measurement"
+        pendingLabel="Deleting…"
+        destructive
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
+    </PageShell>
   );
 }
 
 function EditSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-20 w-full" />
-      </CardContent>
-    </Card>
+    <SkeletonState>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-7 w-48" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-20 w-full" />
+        </CardContent>
+      </Card>
+    </SkeletonState>
   );
 }
