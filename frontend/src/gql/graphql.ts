@@ -6198,6 +6198,8 @@ export enum NutritionLogEntries_Select_Column {
 export type NutritionLogEntries_Set_Input = {
   grams?: InputMaybe<Scalars['numeric']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
+  /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
+  slotTime?: InputMaybe<Scalars['time']['input']>;
 };
 
 /** aggregate stddev on columns */
@@ -6334,7 +6336,9 @@ export enum NutritionLogEntries_Update_Column {
   /** column name */
   Grams = 'grams',
   /** column name */
-  Position = 'position'
+  Position = 'position',
+  /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
+  SlotTime = 'slotTime'
 }
 
 export type NutritionLogEntries_Updates = {

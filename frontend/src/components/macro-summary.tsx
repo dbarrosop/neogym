@@ -17,20 +17,27 @@ const MACRO_TILES = [
   { key: "sugar", label: "Sugar", unit: "g" },
 ] as const;
 
-export function MacroSummary({
-  totals,
-  title = "Totals",
-  description,
-  compact = false,
-}: MacroSummaryProps) {
+export function MacroSummary({ totals, title, description, compact = false }: MacroSummaryProps) {
   if (compact) {
-    return <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>;
+    const summary = macroTotalsSummary(totals);
+
+    if (!title && !description) {
+      return <p className="text-xs text-muted-foreground">{summary}</p>;
+    }
+
+    return (
+      <div className="space-y-1">
+        {title ? <p className="text-xs font-medium text-foreground">{title}</p> : null}
+        {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+        <p className="text-xs text-muted-foreground">{summary}</p>
+      </div>
+    );
   }
 
   return (
     <section className="rounded-lg border border-border/60 bg-muted/20 p-4">
       <div className="space-y-1">
-        <h2 className="text-sm font-medium">{title}</h2>
+        <h2 className="text-sm font-medium">{title ?? "Totals"}</h2>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">

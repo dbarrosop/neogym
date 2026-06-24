@@ -227,7 +227,16 @@ function PlansIndexRoute() {
       </div>
 
       {search.trim() && filteredPlans.length > 0 ? (
-        <MacroSummary totals={allTotals} title="Filtered plan totals" compact />
+        <MacroSummary
+          totals={allTotals}
+          title="Filtered plan totals"
+          description={
+            filteredPlans.length === 1
+              ? "Totals for the single matching one-day plan."
+              : `Combined totals across all ${filteredPlans.length} matching one-day plans.`
+          }
+          compact
+        />
       ) : null}
 
       {renderContent()}

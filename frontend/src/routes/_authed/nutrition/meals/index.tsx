@@ -207,7 +207,16 @@ function MealsIndexRoute() {
       </div>
 
       {search.trim() && filteredMeals.length > 0 ? (
-        <MacroSummary totals={allTotals} title="Filtered meal totals" compact />
+        <MacroSummary
+          totals={allTotals}
+          title="Filtered meal totals"
+          description={
+            filteredMeals.length === 1
+              ? "Totals for the single matching meal."
+              : `Combined totals across all ${filteredMeals.length} matching meals.`
+          }
+          compact
+        />
       ) : null}
 
       {renderContent()}

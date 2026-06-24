@@ -321,7 +321,7 @@ describe("nutrition template ownership", () => {
 });
 
 describe("nutrition logging snapshots", () => {
-	test("snapshot columns are trigger-populated, stable after food changes, and slot time is not user-updatable", async () => {
+	test("snapshot columns are trigger-populated, stable after food changes, and slot time is user-updatable", async () => {
 		if (!hasuraReachable) return;
 		const food = await createFood(TEST_USER_ID, `Snapshot source ${RUN_ID}`);
 		const day = await createDay(TEST_USER_ID, runDate(1));
@@ -393,12 +393,17 @@ describe("nutrition logging snapshots", () => {
 			snapshotKcalPer100g: 123,
 		});
 
-		const updateSlotTime = await gqlAsUser<unknown>(
-			`mutation UpdateSlotTime($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { slotTime: "10:30:00" }) { id } }`,
+		const updateSlotTime = await gqlAsUser<{
+			updateNutritionLogEntry: { slotTime: string } | null;
+		}>(
+			`mutation UpdateSlotTime($id: uuid!) { updateNutritionLogEntry(pk_columns: { id: $id }, _set: { slotTime: "10:30:00" }) { slotTime } }`,
 			{ id: inserted.data!.insertNutritionLogEntry.id },
 			TEST_USER_ID,
 		);
-		expect(errorText(updateSlotTime.errors)).toContain("slotTime");
+		expect(updateSlotTime.errors).toBeUndefined();
+		expect(updateSlotTime.data!.updateNutritionLogEntry).toEqual({
+			slotTime: "10:30:00",
+		});
 	});
 
 	test("log entries reject null food_id on insert and foreign private foods by permission", async () => {
