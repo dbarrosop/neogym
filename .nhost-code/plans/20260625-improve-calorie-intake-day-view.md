@@ -144,7 +144,10 @@ Use the existing data and keep this as a frontend-only UI/modeling change. Add N
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Implementation notes: Added Nutrition breadcrumb route mappings for all in-scope days, foods, meals, and plans routes; added dynamic Food/Meal/NutritionPlan breadcrumb label queries plus short date labels; added route matching tests for Nutrition trails and static `new` precedence; regenerated frontend GraphQL operation artifacts.
+- Reviewer verdict: `ACCEPT` from `nhost-reviewer`; reviewer verified route coverage, dynamic fallbacks, timezone-safe day labels, generated artifacts, additive scope, and `new` route precedence.
+- Autonomous decisions: Accepted the implementer's `CrumbLabel` renderer-map refactor as in-scope because it preserves behavior while reducing complexity after adding new dynamic cases (long-term maintenance). Manual browser navigation was not run; accepted unit tests plus reviewer route-file cross-check and full check as sufficient for this additive routing/helper phase (correctness).
+- Quality gate: `cd frontend && nix develop ../ --command bun run codegen:graphql` passed in the implementer pass; `cd frontend && nix develop ../ --command bun run check` passed in both implementer and orchestrator runs (89 tests, 0 failures).
 
 ### Phase 2 — Render daily log as collapsible time slots
 
