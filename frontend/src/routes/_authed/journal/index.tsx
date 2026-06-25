@@ -4,6 +4,8 @@ import { ChevronRight, Loader2, Plus, Tag } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
+import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -127,26 +129,22 @@ function JournalRoute() {
       return <JournalSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Failed to load journal entries" message={error.message} />;
     }
     if (entries.length === 0) {
-      const emptyMsg = isFiltered
-        ? "No entries match the selected labels."
-        : "No journal entries yet.";
       return (
-        <Card className="border-border/60 border-dashed">
-          <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
-            <p>{emptyMsg}</p>
-            {isFiltered ? null : (
-              <Button asChild size="sm">
-                <Link to="/journal/new">
-                  <Plus className="h-4 w-4" />
-                  Write your first entry
-                </Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title={isFiltered ? "No entries match the selected labels." : "No journal entries yet."}
+        >
+          {isFiltered ? null : (
+            <Button asChild size="sm">
+              <Link to="/journal/new">
+                <Plus className="h-4 w-4" />
+                Write your first entry
+              </Link>
+            </Button>
+          )}
+        </EmptyState>
       );
     }
     return (
@@ -214,57 +212,51 @@ function JournalRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <header className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Tracking
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">Journal</h1>
-            <p className="text-sm text-muted-foreground">
-              Notes, reflections, and anything else worth remembering.
-            </p>
-          </div>
-          <Button asChild size="sm" className="shrink-0">
+    <PageShell maxWidth="3xl">
+      <PageHeader
+        eyebrow="Tracking"
+        title="Journal"
+        description="Notes, reflections, and anything else worth remembering."
+        actions={
+          <Button asChild size="sm">
             <Link to="/journal/new">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New entry</span>
               <span className="sm:hidden">New</span>
             </Link>
           </Button>
-        </header>
+        }
+      />
 
-        {allLabels.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Filter
-            </span>
-            {allLabels.map((label) => (
-              <FilterPill
-                key={label.id}
-                active={activeLabelSet.has(label.id)}
-                onClick={() => toggleLabel(label.id)}
-              >
-                <Tag className="h-3 w-3" />
-                {label.name}
-              </FilterPill>
-            ))}
-            {isFiltered ? (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+      {allLabels.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Filter
+          </span>
+          {allLabels.map((label) => (
+            <FilterPill
+              key={label.id}
+              active={activeLabelSet.has(label.id)}
+              onClick={() => toggleLabel(label.id)}
+            >
+              <Tag className="h-3 w-3" />
+              {label.name}
+            </FilterPill>
+          ))}
+          {isFiltered ? (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-        {renderContent()}
-      </div>
-    </section>
+      {renderContent()}
+    </PageShell>
   );
 }
 
@@ -295,18 +287,20 @@ function FilterPill({
 
 function JournalSkeleton() {
   return (
-    <ul className="space-y-2">
-      {[0, 1, 2, 3].map((i) => (
-        <li key={i}>
-          <Card className="border-border/60 py-0">
-            <CardContent className="space-y-2 px-4 py-3">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-4 w-64" />
-              <Skeleton className="h-4 w-40" />
-            </CardContent>
-          </Card>
-        </li>
-      ))}
-    </ul>
+    <SkeletonState>
+      <ul className="space-y-2">
+        {[0, 1, 2, 3].map((i) => (
+          <li key={i}>
+            <Card className="border-border/60 py-0">
+              <CardContent className="space-y-2 px-4 py-3">
+                <Skeleton className="h-3 w-32" />
+                <Skeleton className="h-4 w-64" />
+                <Skeleton className="h-4 w-40" />
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </SkeletonState>
   );
 }

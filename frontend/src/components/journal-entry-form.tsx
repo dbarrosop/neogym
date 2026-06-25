@@ -1,6 +1,6 @@
-import { type SubmitEvent, useId, useState } from "react";
+import { type ReactNode, type SubmitEvent, useId, useState } from "react";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
-import { Button } from "@/components/ui/button";
+import { FormActions, FormSection } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -18,7 +18,7 @@ interface JournalEntryFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   labelSuggestions: LabelSuggestion[];
-  extraActions?: React.ReactNode;
+  extraActions?: ReactNode;
 }
 
 export function JournalEntryForm({
@@ -39,11 +39,10 @@ export function JournalEntryForm({
   const bodyId = useId();
 
   const trimmedBody = body.trim();
-  const canSubmit = trimmedBody.length > 0 && !isSubmitting;
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!canSubmit) {
+    if (trimmedBody.length === 0 || isSubmitting) {
       return;
     }
     onSubmit({
@@ -56,7 +55,7 @@ export function JournalEntryForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
+      <FormSection>
         <div className="space-y-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">
             Date
@@ -108,19 +107,15 @@ export function JournalEntryForm({
           suggestions={labelSuggestions}
           disabled={isSubmitting}
         />
-      </div>
+      </FormSection>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-        {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
-      </div>
+      <FormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        submitDisabled={trimmedBody.length === 0}
+        onCancel={onCancel}
+        extraActions={extraActions}
+      />
     </form>
   );
 }
