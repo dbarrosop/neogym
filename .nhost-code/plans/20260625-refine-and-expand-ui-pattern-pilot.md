@@ -132,7 +132,10 @@ Use journal as the single next validation surface because it is closest to body:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Collapsed `FormActions` to a single secondary `extraActions` slot and removed the `destructiveActions` prop/fallback path. Updated `BodyMeasurementForm` to forward its existing public `extraActions` prop into the unified `FormActions` slot. Updated `patterns.test.tsx` to use the single-slot API and added smoke coverage for `FormCardShell` and `ConfirmActionDialog`.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the phase satisfied its definition of done: `FormActions` now has one secondary slot, `patterns.test.tsx` asserts the new API, body public props and footer behavior are structurally unchanged, no GraphQL/codegen surfaces changed, and the work did not jump ahead into journal migration.
+- **Autonomous decisions / assumptions:** Removed an accidental untracked root file named `inline` that contained only subagent summary text before review. Justification: **correctness** (keep the phase diff limited to planned files), **security** (avoid committing orchestration artifacts), **long-term maintenance** (avoid repository clutter). Accepted the lack of browser/manual spot check as a recorded residual risk because automated checks and reviewer inspection passed and the markup path is structurally unchanged. Justification: **correctness** (do not claim unrun validation), **long-term maintenance** (record limitation for future evaluation).
+- **Quality gate history:** Implementer ran targeted pattern tests, full `bun run check`, and grep for `destructiveActions`; all passed. Reviewer independently ran `cd frontend && nix develop ../ --command bun run check`; passed. Orchestrator mandatory gate also ran `cd frontend && nix develop ../ --command bun run check`; passed (`tsc --noEmit`, `biome check .`, and `bun test`; 84 tests passed, 0 failed). Repository search found no remaining `destructiveActions` references. No codegen was needed.
 
 ### Phase 2 — Migrate journal onto the existing primitives
 

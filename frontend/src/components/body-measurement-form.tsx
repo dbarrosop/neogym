@@ -160,7 +160,7 @@ export function BodyMeasurementForm({
         isSubmitting={isSubmitting}
         submitDisabled={!hasValue}
         onCancel={onCancel}
-        destructiveActions={extraActions}
+        extraActions={extraActions}
       />
     </form>
   );

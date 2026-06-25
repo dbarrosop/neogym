@@ -31,7 +31,6 @@ interface FormActionsProps {
   submittingLabel?: ReactNode;
   submitDisabled?: boolean;
   extraActions?: ReactNode;
-  destructiveActions?: ReactNode;
   className?: string;
 }
 
@@ -43,11 +42,8 @@ export function FormActions({
   submittingLabel = "Saving…",
   submitDisabled = false,
   extraActions,
-  destructiveActions,
   className,
 }: FormActionsProps) {
-  const secondaryActions = extraActions || destructiveActions;
-
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -58,12 +54,7 @@ export function FormActions({
           {isSubmitting ? submittingLabel : submitLabel}
         </Button>
       </div>
-      {secondaryActions ? (
-        <div className="border-t border-border/40 pt-3">
-          {extraActions}
-          {destructiveActions}
-        </div>
-      ) : null}
+      {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
     </div>
   );
 }

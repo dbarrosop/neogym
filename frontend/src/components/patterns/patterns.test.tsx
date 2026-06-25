@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { FormActions, FormSection } from "@/components/patterns/form-actions";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { FormCardShell, PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 
 function normalize(markup: string) {
@@ -29,6 +30,27 @@ describe("pattern components", () => {
     expect(markup).toContain("Tracking");
     expect(markup).toContain("Body");
     expect(markup).toContain("Domain content");
+  });
+
+  it("renders form card shell chrome around caller-owned content", () => {
+    const markup = normalize(
+      renderToStaticMarkup(
+        <FormCardShell
+          eyebrow="Tracking"
+          title="New measurement"
+          description="Record today's baseline"
+          actions={<a href="/body">Back</a>}
+        >
+          <p>Form content</p>
+        </FormCardShell>,
+      ),
+    );
+
+    expect(markup).toContain("Tracking");
+    expect(markup).toContain("New measurement");
+    expect(markup).toContain("Record today");
+    expect(markup).toContain("Back");
+    expect(markup).toContain("Form content");
   });
 
   it("renders query states with caller-provided actions and loading children", () => {
@@ -63,7 +85,7 @@ describe("pattern components", () => {
           submitLabel="Save"
           isSubmitting={false}
           onCancel={() => undefined}
-          destructiveActions={<button type="button">Delete</button>}
+          extraActions={<button type="button">Delete</button>}
         />
       </form>,
     );
@@ -73,5 +95,22 @@ describe("pattern components", () => {
     expect(markup).toContain("Cancel");
     expect(markup).toContain("Save");
     expect(markup).toContain("Delete");
+  });
+
+  it("can construct a confirm action dialog for destructive confirmations", () => {
+    expect(() =>
+      renderToStaticMarkup(
+        <ConfirmActionDialog
+          open={true}
+          onOpenChange={() => undefined}
+          title="Delete measurement?"
+          description="This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={() => undefined}
+          isPending={false}
+          destructive={true}
+        />,
+      ),
+    ).not.toThrow();
   });
 });
