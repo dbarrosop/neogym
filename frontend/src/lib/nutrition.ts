@@ -46,8 +46,55 @@ export interface LoggedSnapshotEntry {
   snapshotSugarPer100g: unknown;
 }
 
+export interface IntakeEntry extends LoggedSnapshotEntry {
+  id: string;
+  position: number;
+  slotTime?: string | null;
+  nutritionLogMealId?: string | null;
+  snapshotFoodName: string;
+}
+
+export interface IntakeLoggedMealGroup<TEntry extends IntakeEntry = IntakeEntry> {
+  id: string;
+  mealId?: string | null;
+  nutritionPlanMealId?: string | null;
+  name: string;
+  slotTime?: string | null;
+  position: number;
+  nutritionLogEntries: TEntry[];
+}
+
+export interface IntakeSlotMealGroup {
+  id: string;
+  mealId?: string | null;
+  nutritionPlanMealId?: string | null;
+  name: string;
+  slotTime?: string | null;
+  position: number;
+  entryCount: number;
+}
+
+export interface IntakeSlotEntry<TEntry extends IntakeEntry = IntakeEntry> {
+  kind: "meal" | "standalone";
+  entry: TEntry;
+  /** Logged meal group id/name for provenance; null for standalone entries. */
+  mealId: string | null;
+  mealName: string | null;
+}
+
+export interface IntakeTimeSlot<TEntry extends IntakeEntry = IntakeEntry> {
+  key: string;
+  label: string;
+  sortKey: string;
+  entries: IntakeSlotEntry<TEntry>[];
+  mealGroups: IntakeSlotMealGroup[];
+  totals: MacroTotals;
+}
+
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})/;
+const NO_TIME_SLOT_KEY = "no-time";
+const NO_TIME_SORT_KEY = "99:99";
 
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
@@ -177,6 +224,155 @@ export function loggedMacroTotals(entries: LoggedSnapshotEntry[]): MacroTotals {
     (total, entry) => addMacroTotals(total, loggedEntryMacroTotals(entry)),
     EMPTY_MACRO_TOTALS,
   );
+}
+
+type IntakeSourceUnit<TEntry extends IntakeEntry> =
+  | {
+      kind: "meal";
+      id: string;
+      position: number;
+      meal: IntakeSlotMealGroup;
+      entries: TEntry[];
+    }
+  | {
+      kind: "standalone";
+      id: string;
+      position: number;
+      entry: TEntry;
+    };
+
+type MutableIntakeTimeSlot<TEntry extends IntakeEntry> = Omit<
+  IntakeTimeSlot<TEntry>,
+  "entries" | "mealGroups" | "totals"
+> & {
+  sourceUnits: IntakeSourceUnit<TEntry>[];
+};
+
+export function groupIntakeByTimeSlot<TEntry extends IntakeEntry>(
+  mealGroups: IntakeLoggedMealGroup<TEntry>[],
+  standaloneEntries: TEntry[],
+): IntakeTimeSlot<TEntry>[] {
+  const slots = new Map<string, MutableIntakeTimeSlot<TEntry>>();
+
+  function ensureSlot(slotTime: unknown): MutableIntakeTimeSlot<TEntry> {
+    const inputValue = timeToInputValue(slotTime);
+    const key = inputValue || NO_TIME_SLOT_KEY;
+    const existing = slots.get(key);
+    if (existing) {
+      return existing;
+    }
+    const slot: MutableIntakeTimeSlot<TEntry> = {
+      key,
+      label: inputValue ? formatTimeOfDay(inputValue) : "No time",
+      sortKey: inputValue || NO_TIME_SORT_KEY,
+      sourceUnits: [],
+    };
+    slots.set(key, slot);
+    return slot;
+  }
+
+  for (const meal of mealGroups) {
+    const slot = ensureSlot(meal.slotTime);
+    const mealMetadata: IntakeSlotMealGroup = {
+      id: meal.id,
+      mealId: meal.mealId ?? null,
+      nutritionPlanMealId: meal.nutritionPlanMealId ?? null,
+      name: meal.name,
+      slotTime: meal.slotTime ?? null,
+      position: meal.position,
+      entryCount: meal.nutritionLogEntries.length,
+    };
+    slot.sourceUnits.push({
+      kind: "meal",
+      id: meal.id,
+      position: meal.position,
+      meal: mealMetadata,
+      entries: meal.nutritionLogEntries,
+    });
+  }
+
+  for (const entry of standaloneEntries) {
+    ensureSlot(entry.slotTime).sourceUnits.push({
+      kind: "standalone",
+      id: entry.id,
+      position: entry.position,
+      entry,
+    });
+  }
+
+  return Array.from(slots.values())
+    .map((slot) => {
+      const sourceUnits = slot.sourceUnits.toSorted(compareIntakeSourceUnits);
+      const entries = sourceUnits.flatMap((sourceUnit): IntakeSlotEntry<TEntry>[] => {
+        if (sourceUnit.kind === "standalone") {
+          return [
+            {
+              kind: "standalone",
+              entry: sourceUnit.entry,
+              mealId: null,
+              mealName: null,
+            },
+          ];
+        }
+
+        return sourceUnit.entries.toSorted(compareIntakeEntries).map((entry) => ({
+          kind: "meal",
+          entry,
+          mealId: sourceUnit.meal.id,
+          mealName: sourceUnit.meal.name,
+        }));
+      });
+      const mealGroupsForSlot = sourceUnits
+        .filter(
+          (sourceUnit): sourceUnit is Extract<IntakeSourceUnit<TEntry>, { kind: "meal" }> =>
+            sourceUnit.kind === "meal",
+        )
+        .map((sourceUnit) => sourceUnit.meal);
+
+      return {
+        key: slot.key,
+        label: slot.label,
+        sortKey: slot.sortKey,
+        entries,
+        mealGroups: mealGroupsForSlot,
+        totals: loggedMacroTotals(entries.map((slotEntry) => slotEntry.entry)),
+      };
+    })
+    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+}
+
+function compareIntakeSourceUnits<TEntry extends IntakeEntry>(
+  left: IntakeSourceUnit<TEntry>,
+  right: IntakeSourceUnit<TEntry>,
+): number {
+  return (
+    compareSortPosition(left.position, right.position) ||
+    compareSourceKind(left.kind, right.kind) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
+function compareIntakeEntries(left: IntakeEntry, right: IntakeEntry): number {
+  return compareSortPosition(left.position, right.position) || left.id.localeCompare(right.id);
+}
+
+function compareSourceKind(
+  left: IntakeSourceUnit<IntakeEntry>["kind"],
+  right: IntakeSourceUnit<IntakeEntry>["kind"],
+): number {
+  const sourceKindOrder = { meal: 0, standalone: 1 } satisfies Record<
+    IntakeSourceUnit<IntakeEntry>["kind"],
+    number
+  >;
+  return sourceKindOrder[left] - sourceKindOrder[right];
+}
+
+function compareSortPosition(left: number, right: number): number {
+  return normalizeSortPosition(left) - normalizeSortPosition(right);
+}
+
+function normalizeSortPosition(value: number): number {
+  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER;
 }
 
 export function formatLocalDate(date = new Date()): string {
