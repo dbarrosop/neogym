@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import { graphql } from "@/gql";
 import { formatDateShort } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
@@ -36,6 +36,30 @@ const ROUTES: Record<string, RouteDef> = {
   "/journal/new": { label: "New", parent: "/journal" },
   "/journal/$id": { label: "Entry", parent: "/journal" },
   "/journal/$id/edit": { label: "Edit", parent: "/journal/$id" },
+  "/nutrition": { label: "Nutrition", parent: null },
+  "/nutrition/days": { label: "Days", parent: "/nutrition" },
+  "/nutrition/days/$date": { label: "Day", parent: "/nutrition/days" },
+  "/nutrition/foods": { label: "Foods", parent: "/nutrition" },
+  "/nutrition/foods/new": { label: "New", parent: "/nutrition/foods" },
+  "/nutrition/foods/$foodId": { label: "Food", parent: "/nutrition/foods" },
+  "/nutrition/foods/$foodId/edit": {
+    label: "Edit",
+    parent: "/nutrition/foods/$foodId",
+  },
+  "/nutrition/meals": { label: "Meals", parent: "/nutrition" },
+  "/nutrition/meals/new": { label: "New", parent: "/nutrition/meals" },
+  "/nutrition/meals/$mealId": { label: "Meal", parent: "/nutrition/meals" },
+  "/nutrition/meals/$mealId/edit": {
+    label: "Edit",
+    parent: "/nutrition/meals/$mealId",
+  },
+  "/nutrition/plans": { label: "Plans", parent: "/nutrition" },
+  "/nutrition/plans/new": { label: "New", parent: "/nutrition/plans" },
+  "/nutrition/plans/$planId": { label: "Plan", parent: "/nutrition/plans" },
+  "/nutrition/plans/$planId/edit": {
+    label: "Edit",
+    parent: "/nutrition/plans/$planId",
+  },
   "/profile": { label: "Profile", parent: null },
 };
 
@@ -100,6 +124,8 @@ function trailFor(pathname: string): Crumb[] {
   return trail;
 }
 
+export const __testing = { matchPattern, trailFor };
+
 export function Breadcrumbs() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const trail = trailFor(pathname);
@@ -142,23 +168,42 @@ export function Breadcrumbs() {
   );
 }
 
+const CRUMB_LABEL_RENDERERS: Record<string, (crumb: Crumb) => ReactNode> = {
+  "/workouts/$workoutId": (crumb) => (
+    <WorkoutName id={crumb.params["workoutId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/sessions/$sessionId": (crumb) => (
+    <SessionLabel id={crumb.params["sessionId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/exercises/$exerciseId": (crumb) => (
+    <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/workouts/$workoutId/exercises/$exerciseId": (crumb) => (
+    <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/sessions/$sessionId/exercises/$exerciseId": (crumb) => (
+    <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/body/$id": (crumb) => (
+    <BodyMeasurementLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
+  ),
+  "/journal/$id": (crumb) => (
+    <JournalEntryLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
+  ),
+  "/nutrition/days/$date": (crumb) => formatDateShort(crumb.params["date"] ?? ""),
+  "/nutrition/foods/$foodId": (crumb) => (
+    <FoodName id={crumb.params["foodId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/nutrition/meals/$mealId": (crumb) => (
+    <MealName id={crumb.params["mealId"] ?? ""} fallback={crumb.label} />
+  ),
+  "/nutrition/plans/$planId": (crumb) => (
+    <NutritionPlanName id={crumb.params["planId"] ?? ""} fallback={crumb.label} />
+  ),
+};
+
 function CrumbLabel({ crumb }: { crumb: Crumb }) {
-  switch (crumb.pattern) {
-    case "/workouts/$workoutId":
-      return <WorkoutName id={crumb.params["workoutId"] ?? ""} fallback={crumb.label} />;
-    case "/sessions/$sessionId":
-      return <SessionLabel id={crumb.params["sessionId"] ?? ""} fallback={crumb.label} />;
-    case "/exercises/$exerciseId":
-    case "/workouts/$workoutId/exercises/$exerciseId":
-    case "/sessions/$sessionId/exercises/$exerciseId":
-      return <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />;
-    case "/body/$id":
-      return <BodyMeasurementLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />;
-    case "/journal/$id":
-      return <JournalEntryLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />;
-    default:
-      return <>{crumb.label}</>;
-  }
+  return <>{CRUMB_LABEL_RENDERERS[crumb.pattern]?.(crumb) ?? crumb.label}</>;
 }
 
 const BreadcrumbWorkoutQuery = graphql(`
@@ -275,4 +320,61 @@ function JournalEntryLabel({ id, fallback }: { id: string; fallback: string }) {
     return <>{fallback}</>;
   }
   return <>{e.title ?? formatDateShort(e.entryDate)}</>;
+}
+
+const BreadcrumbFoodQuery = graphql(`
+  query BreadcrumbFood($id: uuid!) {
+    food(id: $id) {
+      id
+      name
+    }
+  }
+`);
+
+function FoodName({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["foods", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbFoodQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  return <>{data?.food?.name ?? fallback}</>;
+}
+
+const BreadcrumbMealQuery = graphql(`
+  query BreadcrumbMeal($id: uuid!) {
+    meal(id: $id) {
+      id
+      name
+    }
+  }
+`);
+
+function MealName({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["meals", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbMealQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  return <>{data?.meal?.name ?? fallback}</>;
+}
+
+const BreadcrumbNutritionPlanQuery = graphql(`
+  query BreadcrumbNutritionPlan($id: uuid!) {
+    nutritionPlan(id: $id) {
+      id
+      name
+    }
+  }
+`);
+
+function NutritionPlanName({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["nutrition_plans", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbNutritionPlanQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  return <>{data?.nutritionPlan?.name ?? fallback}</>;
 }

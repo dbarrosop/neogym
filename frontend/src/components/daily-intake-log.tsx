@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
 import { type FocusEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { LogFoodDialog } from "@/components/log-food-dialog";
@@ -26,13 +26,14 @@ import {
   formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
+  groupIntakeByTimeSlot,
+  type IntakeTimeSlot,
   loggedEntryMacroTotals,
   loggedMacroTotals,
   macroTotalsSummary,
   normalizeNumeric,
   parseMacroInput,
   planMacroTotals,
-  timeToInputValue,
 } from "@/lib/nutrition";
 
 const DailyIntakeLogQuery = graphql(`
@@ -271,6 +272,25 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
+  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    if (date) {
+      setExpandedSlots(new Set());
+    }
+  }, [date]);
+
+  const toggleSlot = (slotKey: string) => {
+    setExpandedSlots((current) => {
+      const next = new Set(current);
+      if (next.has(slotKey)) {
+        next.delete(slotKey);
+      } else {
+        next.add(slotKey);
+      }
+      return next;
+    });
+  };
 
   const query = useQuery({
     queryKey: ["nutrition", "days", date],
@@ -396,7 +416,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     deleteEntryMutation.isPending ||
     deleteGroupMutation.isPending ||
     deleteDayMutation.isPending;
-  const loggedTimeGroups = groupLoggedFoodByTime(loggedMeals, standaloneEntries);
+  const intakeSlots = groupIntakeByTimeSlot(loggedMeals, standaloneEntries);
 
   return (
     <div className="space-y-5">
@@ -429,48 +449,23 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardContent className="space-y-4 p-4 sm:p-6">
-          {allEntries.length === 0 ? (
+          {intakeSlots.length === 0 ? (
             <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
               No food has been logged for this day yet.
             </p>
           ) : null}
 
-          {loggedTimeGroups.map((group) => (
-            <section key={group.key} className="space-y-3">
-              <h3 className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Clock className="h-4 w-4" />
-                {group.label}
-              </h3>
-
-              {group.items.map((item) =>
-                item.kind === "meal" ? (
-                  <LoggedMealGroup
-                    key={item.meal.id}
-                    group={item.meal}
-                    onUpdateEntry={(entryId, grams) =>
-                      updateEntryMutation.mutate({ id: entryId, grams })
-                    }
-                    onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
-                    onDeleteGroup={() => deleteGroupMutation.mutate(item.meal.id)}
-                    disabled={isMutating}
-                    showTime={false}
-                  />
-                ) : (
-                  <div
-                    key={item.entry.id}
-                    className="overflow-hidden rounded-md border border-border/60"
-                  >
-                    <EntryRow
-                      entry={item.entry}
-                      onUpdate={(grams) => updateEntryMutation.mutate({ id: item.entry.id, grams })}
-                      onDelete={() => deleteEntryMutation.mutate(item.entry.id)}
-                      disabled={isMutating}
-                      showTime={false}
-                    />
-                  </div>
-                ),
-              )}
-            </section>
+          {intakeSlots.map((slot) => (
+            <TimeSlotSection
+              key={slot.key}
+              slot={slot}
+              isExpanded={expandedSlots.has(slot.key)}
+              onToggle={() => toggleSlot(slot.key)}
+              onUpdateEntry={(entryId, grams) => updateEntryMutation.mutate({ id: entryId, grams })}
+              onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
+              onDeleteGroup={(groupId) => deleteGroupMutation.mutate(groupId)}
+              disabled={isMutating}
+            />
           ))}
 
           <div className="flex flex-wrap justify-end gap-2">
@@ -628,62 +623,123 @@ function isUniqueConflictError(error: unknown): boolean {
   );
 }
 
-type LoggedFoodTimeItem =
-  | { kind: "meal"; meal: DailyLogMeal; sortPosition: number }
-  | { kind: "entry"; entry: DailyEntry; sortPosition: number };
+function TimeSlotSection({
+  slot,
+  isExpanded,
+  onToggle,
+  onUpdateEntry,
+  onDeleteEntry,
+  onDeleteGroup,
+  disabled,
+}: {
+  slot: IntakeTimeSlot<DailyEntry>;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onUpdateEntry: (entryId: string, grams: number) => void;
+  onDeleteEntry: (entryId: string) => void;
+  onDeleteGroup: (groupId: string) => void;
+  disabled: boolean;
+}) {
+  const slotPanelId = `intake-slot-${slot.key.replaceAll(":", "-")}`;
+  return (
+    <section className="overflow-hidden rounded-md border border-border/60">
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        aria-expanded={isExpanded}
+        aria-controls={slotPanelId}
+        onClick={onToggle}
+      >
+        <span className="min-w-0 space-y-1">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            {slot.label}
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {macroTotalsSummary(slot.totals)}
+          </span>
+          <span className="block text-xs text-muted-foreground">
+            {formatSlotCounts(slot.entries.length, slot.mealGroups.length)}
+          </span>
+        </span>
+        <ChevronDown
+          className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
+            isExpanded ? "rotate-180" : ""
+          }`}
+          aria-hidden="true"
+        />
+      </button>
 
-type LoggedFoodTimeGroup = {
-  key: string;
-  label: string;
-  sortKey: string;
-  items: LoggedFoodTimeItem[];
-};
+      {isExpanded ? (
+        <div id={slotPanelId} className="space-y-3 border-t border-border/60 p-3">
+          {slot.mealGroups.length > 0 ? (
+            <div className="rounded-md bg-muted/40 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Logged meal groups
+              </p>
+              <ul className="mt-2 space-y-2">
+                {slot.mealGroups.map((group) => (
+                  <li key={group.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{group.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatEntryCount(group.entryCount)}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => onDeleteGroup(group.id)}
+                      disabled={disabled}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Delete group
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
-function groupLoggedFoodByTime(
-  mealGroups: DailyLogMeal[],
-  standaloneEntries: DailyEntry[],
-): LoggedFoodTimeGroup[] {
-  const groups = new Map<string, LoggedFoodTimeGroup>();
+          {slot.entries.length === 0 ? (
+            <p className="rounded-md border border-border/60 border-dashed px-3 py-4 text-sm text-muted-foreground">
+              This time slot has no food entries.
+            </p>
+          ) : (
+            <div className="overflow-hidden rounded-md border border-border/60">
+              <ul className="divide-y divide-border/50">
+                {slot.entries.map((slotEntry) => (
+                  <EntryRow
+                    key={slotEntry.entry.id}
+                    entry={slotEntry.entry}
+                    onUpdate={(grams) => onUpdateEntry(slotEntry.entry.id, grams)}
+                    onDelete={() => onDeleteEntry(slotEntry.entry.id)}
+                    disabled={disabled}
+                    showTime={false}
+                    provenance={slotEntry.mealName ? `From ${slotEntry.mealName}` : undefined}
+                  />
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      ) : null}
+    </section>
+  );
+}
 
-  function ensureGroup(slotTime: unknown): LoggedFoodTimeGroup {
-    const inputValue = timeToInputValue(slotTime);
-    const key = inputValue || "no-time";
-    const existing = groups.get(key);
-    if (existing) {
-      return existing;
-    }
-    const group: LoggedFoodTimeGroup = {
-      key,
-      label: inputValue ? formatTimeOfDay(inputValue) : "No time",
-      sortKey: inputValue || "99:99",
-      items: [],
-    };
-    groups.set(key, group);
-    return group;
-  }
+function formatSlotCounts(entryCount: number, groupCount: number): string {
+  return [formatEntryCount(entryCount), formatGroupCount(groupCount)].join(" · ");
+}
 
-  for (const meal of mealGroups) {
-    ensureGroup(meal.slotTime).items.push({
-      kind: "meal",
-      meal,
-      sortPosition: meal.position,
-    });
-  }
+function formatEntryCount(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? "entry" : "entries"}`;
+}
 
-  for (const entry of standaloneEntries) {
-    ensureGroup(entry.slotTime).items.push({
-      kind: "entry",
-      entry,
-      sortPosition: entry.position,
-    });
-  }
-
-  return Array.from(groups.values())
-    .map((group) => ({
-      ...group,
-      items: group.items.toSorted((left, right) => left.sortPosition - right.sortPosition),
-    }))
-    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+function formatGroupCount(count: number): string {
+  return `${count.toLocaleString()} ${count === 1 ? "meal group" : "meal groups"}`;
 }
 
 function PlanSuggestions({
@@ -755,79 +811,20 @@ function mealMacroTotalsSafe(meal: LogMealOption) {
   );
 }
 
-function LoggedMealGroup({
-  group,
-  onUpdateEntry,
-  onDeleteEntry,
-  onDeleteGroup,
-  disabled,
-  showTime = true,
-}: {
-  group: DailyLogMeal;
-  onUpdateEntry: (entryId: string, grams: number) => void;
-  onDeleteEntry: (entryId: string) => void;
-  onDeleteGroup: () => void;
-  disabled: boolean;
-  showTime?: boolean;
-}) {
-  const totals = loggedMacroTotals(group.nutritionLogEntries);
-  return (
-    <section className="space-y-2">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h3 className="text-sm font-medium">{group.name}</h3>
-          <p className="text-xs text-muted-foreground">
-            {showTime && group.slotTime ? `${formatTimeOfDay(group.slotTime)} · ` : ""}
-            {macroTotalsSummary(totals)}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          onClick={onDeleteGroup}
-          disabled={disabled}
-        >
-          <Trash2 className="h-4 w-4" />
-          Delete group
-        </Button>
-      </div>
-      <div className="overflow-hidden rounded-md border border-border/60">
-        {group.nutritionLogEntries.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">
-            This logged meal has no entries.
-          </p>
-        ) : (
-          <ul className="divide-y divide-border/50">
-            {group.nutritionLogEntries.map((entry) => (
-              <EntryRow
-                key={entry.id}
-                entry={entry}
-                onUpdate={(grams) => onUpdateEntry(entry.id, grams)}
-                onDelete={() => onDeleteEntry(entry.id)}
-                disabled={disabled}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function EntryRow({
   entry,
   onUpdate,
   onDelete,
   disabled,
   showTime = true,
+  provenance,
 }: {
   entry: DailyEntry;
   onUpdate: (grams: number) => void;
   onDelete: () => void;
   disabled: boolean;
   showTime?: boolean;
+  provenance?: string | undefined;
 }) {
   const [isEditingGrams, setIsEditingGrams] = useState(false);
   const [grams, setGrams] = useState(String(entry.grams));
@@ -880,6 +877,7 @@ function EntryRow({
           {showTime && entry.slotTime ? `${formatTimeOfDay(entry.slotTime)} · ` : ""}
           {macroTotalsSummary(totals)}
         </p>
+        {provenance ? <p className="text-xs text-muted-foreground">{provenance}</p> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {isEditingGrams ? (

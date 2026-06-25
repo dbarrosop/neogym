@@ -4,16 +4,11 @@ import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
+import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { JournalLabels_Constraint } from "@/gql/graphql";
@@ -172,95 +167,69 @@ function EditJournalEntryRoute() {
       return <EditSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Failed to load entry" message={error.message} />;
     }
     if (!entry || !initialValues) {
-      return <p className="text-sm text-muted-foreground">Entry not found.</p>;
+      return <EmptyState title="Entry not found." />;
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-2xl tracking-tight">
-            {entry.title ?? "Untitled entry"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <JournalEntryForm
-            initialValues={initialValues}
-            submitLabel="Save changes"
-            isSubmitting={saveMutation.isPending}
-            labelSuggestions={data?.journalLabels ?? []}
-            onSubmit={(values) => saveMutation.mutate(values)}
-            onCancel={() => navigate({ to: "/journal/$id", params: { id }, replace: true })}
-            extraActions={
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleteMutation.isPending || saveMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete entry
-              </Button>
-            }
-          />
-        </CardContent>
-      </Card>
+      <FormCardShell eyebrow="Edit" title={entry.title ?? "Untitled entry"}>
+        <JournalEntryForm
+          initialValues={initialValues}
+          submitLabel="Save changes"
+          isSubmitting={saveMutation.isPending}
+          labelSuggestions={data?.journalLabels ?? []}
+          onSubmit={(values) => saveMutation.mutate(values)}
+          onCancel={() => navigate({ to: "/journal/$id", params: { id }, replace: true })}
+          extraActions={
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
+              onClick={() => setConfirmDelete(true)}
+              disabled={deleteMutation.isPending || saveMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete entry
+            </Button>
+          }
+        />
+      </FormCardShell>
     );
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
-        {renderContent()}
-      </div>
+    <PageShell maxWidth="2xl">
+      {renderContent()}
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this entry?</DialogTitle>
-            <DialogDescription>
-              The entry and its label associations will be removed. Your custom labels stay
-              available for future entries.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete entry"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </section>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete this entry?"
+        description="The entry and its label associations will be removed. Your custom labels stay available for future entries."
+        confirmLabel="Delete entry"
+        pendingLabel="Deleting…"
+        destructive
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
+    </PageShell>
   );
 }
 
 function EditSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-7 w-64" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </CardContent>
-    </Card>
+    <SkeletonState>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-7 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-40 w-full" />
+        </CardContent>
+      </Card>
+    </SkeletonState>
   );
 }

@@ -6,6 +6,9 @@ import {
   formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
+  groupIntakeByTimeSlot,
+  type IntakeEntry,
+  type IntakeLoggedMealGroup,
   isValidLocalDate,
   loggedMacroTotals,
   macroSummary,
@@ -21,7 +24,38 @@ import {
 
 const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
 
-describe("nutrition helpers", () => {
+function loggedEntry(overrides: Partial<IntakeEntry> & Pick<IntakeEntry, "id">): IntakeEntry {
+  return {
+    id: overrides.id,
+    nutritionLogMealId: overrides.nutritionLogMealId ?? null,
+    grams: overrides.grams ?? 100,
+    position: overrides.position ?? 0,
+    slotTime: overrides.slotTime ?? null,
+    snapshotFoodName: overrides.snapshotFoodName ?? overrides.id,
+    snapshotKcalPer100g: overrides.snapshotKcalPer100g ?? 100,
+    snapshotFatPer100g: overrides.snapshotFatPer100g ?? 1,
+    snapshotCarbsPer100g: overrides.snapshotCarbsPer100g ?? 2,
+    snapshotProteinPer100g: overrides.snapshotProteinPer100g ?? 3,
+    snapshotFiberPer100g: overrides.snapshotFiberPer100g ?? 4,
+    snapshotSugarPer100g: overrides.snapshotSugarPer100g ?? 5,
+  };
+}
+
+function loggedMeal(
+  overrides: Partial<IntakeLoggedMealGroup> & Pick<IntakeLoggedMealGroup, "id">,
+): IntakeLoggedMealGroup {
+  return {
+    id: overrides.id,
+    mealId: overrides.mealId ?? null,
+    nutritionPlanMealId: overrides.nutritionPlanMealId ?? null,
+    name: overrides.name ?? overrides.id,
+    slotTime: overrides.slotTime ?? null,
+    position: overrides.position ?? 0,
+    nutritionLogEntries: overrides.nutritionLogEntries ?? [],
+  };
+}
+
+describe("nutrition numeric and macro helpers", () => {
   it("normalizes Hasura numeric values returned as strings or numbers", () => {
     expect(normalizeNumeric("12.5")).toBe(12.5);
     expect(normalizeNumeric("12,5")).toBe(12.5);
@@ -218,7 +252,133 @@ describe("nutrition helpers", () => {
       sugar: 7.5,
     });
   });
+});
 
+describe("nutrition time-slot grouping", () => {
+  it("groups logged intake by normalized time slots and source metadata", () => {
+    const groupedChild = loggedEntry({
+      id: "grouped-child",
+      nutritionLogMealId: "logged-meal",
+      slotTime: "23:30:00",
+      snapshotFoodName: "Grouped child",
+    });
+    const standalone = loggedEntry({
+      id: "standalone",
+      slotTime: "10:15:00",
+      snapshotFoodName: "Standalone food",
+    });
+    const slots = groupIntakeByTimeSlot(
+      [
+        loggedMeal({
+          id: "logged-meal",
+          name: "Breakfast",
+          slotTime: "08:00:00",
+          nutritionLogEntries: [groupedChild],
+        }),
+      ],
+      [standalone],
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["08:00", "10:15"]);
+    expect(slots[0]?.entries.map((slotEntry) => slotEntry.entry.id)).toEqual(["grouped-child"]);
+    expect(slots[0]?.entries[0]?.mealId).toBe("logged-meal");
+    expect(slots[0]?.entries[0]?.mealName).toBe("Breakfast");
+    expect(slots[1]?.entries.map((slotEntry) => slotEntry.entry.id)).toEqual(["standalone"]);
+    expect(slots[1]?.entries[0]?.mealId).toBeNull();
+    expect(slots[1]?.entries[0]?.mealName).toBeNull();
+  });
+
+  it("sorts no-time intake last while preserving childless logged meal groups", () => {
+    const slots = groupIntakeByTimeSlot(
+      [
+        loggedMeal({ id: "childless", name: "Empty meal", slotTime: null }),
+        loggedMeal({ id: "timed", name: "Timed meal", slotTime: "07:00:00" }),
+      ],
+      [loggedEntry({ id: "timed-entry", slotTime: "12:00:00" })],
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["07:00", "12:00", "no-time"]);
+    expect(slots[2]?.label).toBe("No time");
+    expect(slots[2]?.mealGroups).toEqual([
+      {
+        id: "childless",
+        mealId: null,
+        nutritionPlanMealId: null,
+        name: "Empty meal",
+        slotTime: null,
+        position: 0,
+        entryCount: 0,
+      },
+    ]);
+    expect(slots[2]?.entries).toEqual([]);
+  });
+
+  it("totals each time slot from its flat logged snapshot entries", () => {
+    const groupedChild = loggedEntry({
+      id: "grouped-child",
+      grams: 100,
+      snapshotKcalPer100g: 80,
+      snapshotFatPer100g: 1,
+      snapshotCarbsPer100g: 2,
+      snapshotProteinPer100g: 3,
+      snapshotFiberPer100g: 4,
+      snapshotSugarPer100g: 5,
+    });
+    const standalone = loggedEntry({
+      id: "standalone",
+      grams: 50,
+      slotTime: "08:00:00",
+      snapshotKcalPer100g: 120,
+      snapshotFatPer100g: 2,
+      snapshotCarbsPer100g: 4,
+      snapshotProteinPer100g: 6,
+      snapshotFiberPer100g: 8,
+      snapshotSugarPer100g: 10,
+    });
+    const [slot] = groupIntakeByTimeSlot(
+      [
+        loggedMeal({
+          id: "meal",
+          slotTime: "08:00:00",
+          nutritionLogEntries: [groupedChild],
+        }),
+      ],
+      [standalone],
+    );
+
+    expect(slot?.totals).toEqual(loggedMacroTotals([groupedChild, standalone]));
+  });
+
+  it("orders slot entries deterministically by source and child positions", () => {
+    const mealB = loggedMeal({
+      id: "meal-b",
+      slotTime: "09:00:00",
+      position: 1,
+      nutritionLogEntries: [
+        loggedEntry({ id: "meal-b-child-2", position: 2 }),
+        loggedEntry({ id: "meal-b-child-1", position: 1 }),
+      ],
+    });
+    const mealA = loggedMeal({
+      id: "meal-a",
+      slotTime: "09:00:00",
+      position: 1,
+      nutritionLogEntries: [loggedEntry({ id: "meal-a-child", position: 1 })],
+    });
+    const standalone = loggedEntry({ id: "standalone", slotTime: "09:00:00", position: 1 });
+    const [slot] = groupIntakeByTimeSlot([mealB, mealA], [standalone]);
+
+    expect(slot?.entries.map((slotEntry) => slotEntry.entry.id)).toEqual([
+      "meal-a-child",
+      "meal-b-child-1",
+      "meal-b-child-2",
+      "standalone",
+    ]);
+    expect(slot?.mealGroups.map((group) => group.id)).toEqual(["meal-a", "meal-b"]);
+  });
+});
+
+describe("nutrition date and time helpers", () => {
   it("normalizes and formats database time values for plan slot inputs", () => {
     expect(currentTimeInputValue(new Date(2026, 0, 5, 9, 7))).toBe("09:07");
     expect(timeToInputValue("07:30:00")).toBe("07:30");

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
 import { graphql } from "@/gql";
 import { JournalLabels_Constraint } from "@/gql/graphql";
 import { todayLocalISO } from "@/lib/dates";
@@ -78,32 +78,22 @@ function NewJournalEntryRoute() {
   });
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-          <CardHeader className="pb-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Tracking
-            </p>
-            <CardTitle className="text-2xl tracking-tight">New entry</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JournalEntryForm
-              initialValues={{
-                entryDate: todayLocalISO(),
-                title: "",
-                body: "",
-                labels: [],
-              }}
-              submitLabel="Save entry"
-              isSubmitting={createMutation.isPending}
-              labelSuggestions={labelsData?.journalLabels ?? []}
-              onSubmit={(values) => createMutation.mutate(values)}
-              onCancel={() => navigate({ to: "/journal", replace: true })}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+    <PageShell maxWidth="2xl">
+      <FormCardShell eyebrow="Tracking" title="New entry">
+        <JournalEntryForm
+          initialValues={{
+            entryDate: todayLocalISO(),
+            title: "",
+            body: "",
+            labels: [],
+          }}
+          submitLabel="Save entry"
+          isSubmitting={createMutation.isPending}
+          labelSuggestions={labelsData?.journalLabels ?? []}
+          onSubmit={(values) => createMutation.mutate(values)}
+          onCancel={() => navigate({ to: "/journal", replace: true })}
+        />
+      </FormCardShell>
+    </PageShell>
   );
 }

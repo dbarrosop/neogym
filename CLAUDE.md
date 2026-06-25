@@ -63,11 +63,11 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 | Production build | `bun run build` |
 | Typecheck | `bun run typecheck` |
 | Lint + format check | `bun run lint` |
-| Typecheck + lint (run after every code change) | `bun run check` |
+| Typecheck + lint + tests (run after every code change) | `bun run check` |
 | Auto-fix formatting | `bun run format` |
 | Regen GraphQL schema dump + TS types | `bun run codegen` (needs backend up; runs `codegen:graphql-schema` then `codegen:graphql`) |
 
-**Always run `bun run check` after writing or modifying code.** It runs `typecheck` + `lint` together; fix any errors it surfaces before reporting work as done.
+**Always run `bun run check` after writing or modifying code.** It runs `typecheck` + `lint` + `bun test` together; fix any errors it surfaces before reporting work as done.
 
 From `backend/`:
 - `make dev-env-up` — boot Hasura + Auth + Postgres + MailHog locally and apply seeds (wraps `nhost up --apply-seeds`)
@@ -94,9 +94,10 @@ A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-r
 ## Conventions
 
 - **Path alias**: `@/*` → `frontend/src/*`. Wired in `tsconfig.json` (paths) and `vite.config.ts` (`resolve.alias`).
-- **File-based routing**: any new file under `src/routes/` is a route. The router plugin regenerates `src/routeTree.gen.ts` when the dev server boots — never edit that file by hand. Pathless layouts use the `_name.tsx` + `_name/` directory pattern (see `_authed`).
+- **File-based routing**: any new file under `src/routes/` is a route. The router plugin regenerates `src/routeTree.gen.ts` when the dev server boots — never edit that file by hand. If `bun run check` reports the generated file is missing in a fresh workspace, generate it first (for example by starting the dev server once); the file is ignored and should not be committed. Pathless layouts use the `_name.tsx` + `_name/` directory pattern (see `_authed`).
 - **Forms**: react-hook-form + zod via `@hookform/resolvers/zod`, rendered through `@/components/ui/form` shadcn primitives.
 - **Toasts**: `sonner` mounted at root in `__root.tsx`; call `toast.error(...)` etc. from anywhere.
+- **Component tiers**: `src/components/ui/` stays generic shadcn-style UI with no NeoGym product semantics. `src/components/patterns/` holds narrow app/product presentation patterns (page shells, headers, query states, form sections/actions, confirm dialogs, picker/dialog footers, ordered-row chrome) with slots/children and no domain imports. Domain components/routes keep GraphQL documents, mutations, validation, navigation, and domain-specific behavior; do not hide them behind a generic CRUD framework.
 - **shadcn components are hand-written** under `src/components/ui/`. The `bunx shadcn add` CLI was deliberately *not* used. To add a new primitive, copy from <https://ui.shadcn.com> and adjust the `cn`/import paths to `@/lib/utils`.
 - **Biome** is the only formatter/linter. ESLint and Prettier are not used. CSS parser has `tailwindDirectives: true` so `@theme inline`, `@utility`, `@custom-variant` parse cleanly.
 - **Auth state** lives client-side in `lib/nhost/auth-provider.tsx`. The Nhost client uses localStorage by default; SSR renders see `user = null` and `isAuthenticated = false`. Protected routes (`_authed.tsx`) redirect via `useEffect`, not `beforeLoad`, because the SDK's session storage is browser-only.
