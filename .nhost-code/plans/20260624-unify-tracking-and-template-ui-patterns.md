@@ -1,7 +1,9 @@
 # Unify tracking and template UI patterns
 
-**Status:** ready
+**Status:** paused / superseded after Phase 1
 **Created:** 2026-06-24
+
+> **Supersession note (2026-06-25):** This broad rollout plan is no longer the active implementation plan beyond Phase 1. Phase 1 was completed in commit `7f55d11 refactor(ui): introduce pattern layer with body pilot`. After evaluating that pilot, the chosen direction is a smaller refine-then-expand plan: `.nhost-code/plans/20260625-refine-and-expand-ui-pattern-pilot.md`. Do **not** continue Phase 2+ from this plan without explicit re-approval; use the 2026-06-25 plan as the active follow-up.
 
 ---
 
@@ -151,6 +153,8 @@ Create an app-specific pattern layer under `frontend/src/components/patterns/` a
 - **Quality gate history:** Initial orchestrator gate invocation `nix develop ../ --command bun run check` from the repository root failed because `../` resolved outside the repo flake; this was an invocation error, not a code failure. Re-ran the required command exactly as planned: `cd frontend && nix develop ../ --command bun run check` — passed (`tsc --noEmit`, `biome check .`, and `bun test`; 82 tests passed). Implementer also reported `bun install --frozen-lockfile`, formatting, lint, tests, final check, and LSP diagnostics all passed after generating ignored `frontend/src/routeTree.gen.ts` locally for typecheck; the generated file remains ignored and untracked.
 
 ### Phase 2 — Normalize non-nutrition catalog and log shells
+
+> **Paused / superseded:** Do not implement this phase directly. The active follow-up is `.nhost-code/plans/20260625-refine-and-expand-ui-pattern-pilot.md`, which first refines `FormActions`, then migrates only Journal as a validation surface, then records a continue/pause/revert decision.
 
 **Goal:** Apply page/state/list/filter primitives to workouts, exercises, sessions, and journal while keeping domain behavior untouched.
 
