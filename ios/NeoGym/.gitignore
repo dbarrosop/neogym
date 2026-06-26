@@ -1,0 +1,11 @@
+# Generated project/build output
+NeoGym.xcodeproj/
+.build/
+DerivedData/
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+
+# SwiftPM editor state
+.swiftpm/

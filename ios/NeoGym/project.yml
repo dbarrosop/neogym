@@ -1,0 +1,40 @@
+name: NeoGym
+options:
+  minimumXcodeGenVersion: 2.44.0
+  deploymentTarget:
+    iOS: "15.0"
+packages:
+  NeoGymKit:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+targets:
+  NeoGym:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+    resources:
+      - path: App/Assets.xcassets
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: io.nhost.neogym
+            CFBundleURLSchemes:
+              - neogym
+    dependencies:
+      - package: NeoGymKit
+        product: NeoGymKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym
+        PRODUCT_NAME: NeoGym
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic

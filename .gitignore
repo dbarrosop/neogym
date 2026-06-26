@@ -8,6 +8,9 @@ frontend/.nitro
 frontend/.tanstack
 frontend/.vinxi
 frontend/src/routeTree.gen.ts
+ios/NeoGym/NeoGym.xcodeproj
+ios/NeoGym/.build
+ios/NeoGym/DerivedData
 
 # Env / secrets
 .env

@@ -43,11 +43,16 @@
         checkDeps = [
         ];
 
-        nativeBuildInputs = with pkgs; [
-          nhost.biome
-          bun
-          rover
-        ];
+        nativeBuildInputs =
+          with pkgs;
+          [
+            nhost.biome
+            bun
+            rover
+          ]
+          ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
+            xcodegen
+          ];
 
         buildInputs = [
         ];

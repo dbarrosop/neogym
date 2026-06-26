@@ -18,14 +18,17 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 | Runtime / pkg manager | Bun |
 | Codegen | graphql-codegen `client-preset` |
 | Backend | Nhost (Hasura, Auth, Storage, Postgres, MailHog) |
+| iOS | SwiftUI app generated with XcodeGen + local `NeoGymKit` SwiftPM package |
 
 ## Prerequisites
 
 - [Nix](https://nixos.org/download/) with flakes enabled
 - [Docker](https://docs.docker.com/get-docker/) (the Nhost CLI runs the local stack via Docker)
 - [Nhost CLI](https://docs.nhost.io/platform/cli) — install via `brew install nhost/cli/nhost` or the upstream installer
+- Xcode for iOS simulator builds
+- Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun` and `biome` come from the Nix devshell — no host install needed.
+`bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
 
 ## Quick start
 
@@ -51,7 +54,7 @@ Try the flow:
 
 ## Available commands
 
-All run from `frontend/` and require `nix develop ../ --command ` as a prefix unless you've already entered the devshell with `nix develop ..`.
+All run from `frontend/` and require `nix develop ../ --command` as a prefix unless you've already entered the devshell with `nix develop ..`.
 
 | Command | What it does |
 |---|---|
@@ -73,11 +76,21 @@ Backend (from `backend/`):
 | `nhost config validate` | Validate `nhost.toml` after editing |
 | `nhost logs <service>` | Tail a service's logs |
 
+Native iOS (from `ios/NeoGym/`):
+
+| Command | What it does |
+|---|---|
+| `swift build` | Build the host-compatible `NeoGymKit` package |
+| `swift test` | Run deterministic `NeoGymKit` unit tests |
+| `nix develop ../.. --command xcodegen generate` | Generate `NeoGym.xcodeproj` from `project.yml` |
+| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app shell |
+
 ## Project layout
 
 ```
 .
-├── flake.nix                  # Nix devshell — bun + biome
+├── flake.nix                  # Nix devshell — bun + biome + XcodeGen on Darwin
+├── ios/NeoGym/                # SwiftUI app + XcodeGen spec + NeoGymKit package
 ├── frontend/
 │   ├── src/
 │   │   ├── routes/            # File-based routes

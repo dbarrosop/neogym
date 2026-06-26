@@ -10,7 +10,8 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 
 ```
 .
-├── flake.nix          # Nix devshell — provides bun + biome
+├── flake.nix          # Nix devshell — provides bun + biome + XcodeGen on Darwin
+├── ios/NeoGym/        # SwiftUI app shell, XcodeGen spec, and host-testable NeoGymKit package
 ├── frontend/          # TanStack Start app (Vite default port 5173, bound to 0.0.0.0 for LAN/mobile)
 │   ├── src/
 │   │   ├── routes/    # File-based routes (TanStack Router)
@@ -42,7 +43,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun` and `biome` are NOT on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -50,7 +51,7 @@ nix develop ../ --command bun run <script>
 nix develop ../ --command bunx <pkg>
 ```
 
-**Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix.
+**Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix. If XcodeGen is unavailable in the pinned Nixpkgs on a Darwin host, use the documented Homebrew fallback (`brew install xcodegen`) but keep `ios/NeoGym/project.yml` as the source of truth and do not commit generated `.xcodeproj` output.
 
 ## Common commands
 
@@ -59,7 +60,7 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 | What | Command |
 |---|---|
 | Install deps | `bun install` |
-| Dev server (http://localhost:5173, also exposed on LAN) | `bun run dev` |
+| Dev server (<http://localhost:5173>, also exposed on LAN) | `bun run dev` |
 | Production build | `bun run build` |
 | Typecheck | `bun run typecheck` |
 | Lint + format check | `bun run lint` |
@@ -70,10 +71,20 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 **Always run `bun run check` after writing or modifying code.** It runs `typecheck` + `lint` + `bun test` together; fix any errors it surfaces before reporting work as done.
 
 From `backend/`:
+
 - `make dev-env-up` — boot Hasura + Auth + Postgres + MailHog locally and apply seeds (wraps `nhost up --apply-seeds`)
 - `make dev-env-down` — stop and remove volumes (wraps `nhost down --volumes`) — destroys the local DB, so the next `dev-env-up` is a clean apply of migrations + seeds. Use after editing migrations to make sure a fresh run picks them up.
 - `make test` — run backend integration tests under `backend/tests/` against the live local Hasura. Requires `dev-env-up` first. The Makefile target runs `bun install && bun test` so dependencies are resolved on a fresh clone. The tests deliberately target `https://local.hasura.local.nhost.run/v1/graphql`, not the Constellation/Nhost GraphQL proxy at `https://local.graphql.local.nhost.run/v1`; many assertions depend on Hasura error codes and metadata behavior.
 - `nhost config validate` — sanity-check `nhost.toml` after edits
+
+From `ios/NeoGym/`:
+
+- `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
+- `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
+- `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
+- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app shell for a simulator destination.
+
+The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
 ### Backend tests — the rule
 
