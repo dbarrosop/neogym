@@ -15,6 +15,13 @@
     "path": "/auth/redirections/clientUrl"
   },
   {
+    "value": [
+      "neogym://verify"
+    ],
+    "op": "add",
+    "path": "/auth/redirections/allowedUrls"
+  },
+  {
     "value": "https://neogym.nhost.app",
     "op": "replace",
     "path": "/hasura/settings/corsDomain/0"

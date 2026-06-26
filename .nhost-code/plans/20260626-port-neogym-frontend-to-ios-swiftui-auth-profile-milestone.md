@@ -338,7 +338,10 @@ Add a new iOS SwiftUI app under `ios/NeoGym` whose project is generated from a c
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added the native `neogym://verify` redirect allowlist to `backend/nhost/nhost.toml` and the production overlay, preserving the existing web `clientUrl` values. Added `backend/tests/auth-config.test.ts` to pin local and production redirect behavior. Updated root, agent, and iOS docs with the native redirect requirement, backend restart requirement, and email-change verification runbook.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the diff matches Phase 4 scope, preserves web redirect behavior, and accurately documents the shipped config. Reviewer noted a pre-existing `CLAUDE.md` backend-test enumeration drift as a minor unrelated follow-up.
+- **Autonomous decisions:** Accepted the implementer's programmatic Auth/MailHog PKCE email-change e2e plus simulator URL-smoke as sufficient for Phase 4 correctness even though the full tap-through UI flow was not manually driven. This is correct because the backend redirect, token exchange, native URL dispatch, and app-side handler were each validated, and avoids overstating manual UI evidence.
+- **Quality gate:** `nhost config validate` passed using a temporary untracked `.secrets` file that was removed after validation; `nix develop . --command bun test backend/tests/auth-config.test.ts` passed; `nix develop . --command make -C backend test` initially failed while Hasura was warming up, then passed on rerun (66 tests); `cd ios/NeoGym && swift test` passed (29 tests); `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` passed; `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed; `cd frontend && nix develop ../ --command bun run check` passed. Implementer also validated local Auth/MailHog PKCE redirect/token exchange and simulator `neogym://verify?code=fake` dispatch.
 
 ---
 

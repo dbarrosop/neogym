@@ -92,8 +92,10 @@ PKCE verifier/challenge, stores the verifier in Keychain via
 `.onOpenURL` path. A successful `neogym://verify?code=...` callback exchanges
 the code with the saved verifier, clears the verifier, and applies the returned
 session; error or malformed callbacks surface feedback and also clear stale
-verifier state. The app-side flow is in place, but committed backend
-`allowedUrls` changes for the native custom scheme remain a Phase 4 task.
+verifier state. The backend must allow this native callback by keeping
+`neogym://verify` in `auth.redirections.allowedUrls` in both
+`backend/nhost/nhost.toml` and the production overlay. Restart the local Nhost
+stack after redirect config edits; the CLI does not hot-reload `nhost.toml`.
 
 Manual local OTP check:
 
@@ -107,12 +109,18 @@ Manual local OTP check:
 5. Sign out, sign in again with the same email, verify the OTP, and relaunch the
    app to confirm the persisted session is restored.
 
-Custom-scheme spike note for Phase 3: this host did not have the local Nhost
-Auth service running (`https://local.auth.local.nhost.run/v1/version` failed to
-connect), and Phase 3 intentionally does not edit backend redirect allowlists.
-The app therefore treats `neogym://verify` as the native callback shape and keeps
-real Nhost redirect allowlist validation/e2e verification in Phase 4, when
-backend config changes are in scope.
+Manual local email-change check:
+
+1. From the repository root, run
+   `make -C backend dev-env-down && make -C backend dev-env-up` after redirect
+   config changes so local Auth loads the allowlist.
+2. Build/run the iOS app in a simulator and sign in as an existing user.
+3. Open **Change email** on the profile screen, enter a different email address,
+   and submit the request.
+4. Open MailHog, open the verification link on the simulator, and confirm iOS
+   routes the callback into the app as `neogym://verify?code=...`.
+5. Confirm token exchange succeeds, the saved verifier is cleared, and the
+   profile shows the updated email.
 
 Hand-crafted callback smoke check, when a simulator is available:
 
