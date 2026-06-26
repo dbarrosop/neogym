@@ -18,6 +18,9 @@ public protocol AuthServicing: Sendable {
     func subscribeToSessionChanges(
         _ handler: @escaping @Sendable (StoredSession?) async -> Void
     ) async -> AuthSessionSubscription
+    func requestSignInOTP(email: String) async throws
+    func requestSignUpOTP(email: String, displayName: String) async throws
+    func verifySignInOTP(email: String, otp: String) async throws -> StoredSession?
     func signOut(refreshToken: String?) async throws
     func clearSession() async throws
 }
@@ -40,6 +43,33 @@ public struct NhostAuthService: AuthServicing {
         return AuthSessionSubscription {
             await subscription.cancel()
         }
+    }
+
+    public func requestSignInOTP(email: String) async throws {
+        _ = try await client.auth.signInOTPEmail(
+            body: AuthSignInOTPEmailRequest(email: email)
+        )
+    }
+
+    public func requestSignUpOTP(email: String, displayName: String) async throws {
+        _ = try await client.auth.signUpOTPEmail(
+            body: AuthSignUpOTPEmailRequest(
+                email: email,
+                options: AuthSignUpOptions(displayName: displayName)
+            )
+        )
+    }
+
+    public func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? {
+        let response = try await client.auth.verifySignInOTPEmail(
+            body: AuthSignInOTPEmailVerifyRequest(otp: otp, email: email)
+        )
+
+        if let session = response.body.session {
+            return try StoredSession(session)
+        }
+
+        return nil
     }
 
     public func signOut(refreshToken: String?) async throws {

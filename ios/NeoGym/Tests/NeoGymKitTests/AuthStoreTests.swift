@@ -109,18 +109,35 @@ final class AuthStoreTests: XCTestCase {
 
 private enum TestError: Error {
     case remoteSignOutFailed
+    case requestFailed
+    case verifyFailed
 }
 
 private actor FakeAuthService: AuthServicing {
     private var session: StoredSession?
     private var subscribers: [UUID: @Sendable (StoredSession?) async -> Void] = [:]
     private let signOutError: Error?
+    private let requestError: Error?
+    private let verifyError: Error?
+    private var verifySession: StoredSession?
+    private(set) var signInRequests: [String] = []
+    private(set) var signUpRequests: [(email: String, displayName: String)] = []
+    private(set) var verifyRequests: [(email: String, otp: String)] = []
     private(set) var signOutRefreshTokens: [String?] = []
     private(set) var didClearSession = false
 
-    init(initialSession: StoredSession? = nil, signOutError: Error? = nil) {
+    init(
+        initialSession: StoredSession? = nil,
+        signOutError: Error? = nil,
+        requestError: Error? = nil,
+        verifyError: Error? = nil,
+        verifySession: StoredSession? = nil
+    ) {
         session = initialSession
         self.signOutError = signOutError
+        self.requestError = requestError
+        self.verifyError = verifyError
+        self.verifySession = verifySession
     }
 
     func getUserSession() async throws -> StoredSession? {
@@ -136,6 +153,31 @@ private actor FakeAuthService: AuthServicing {
         return AuthSessionSubscription { [weak self] in
             await self?.unsubscribe(id)
         }
+    }
+
+    func requestSignInOTP(email: String) async throws {
+        signInRequests.append(email)
+        if let requestError {
+            throw requestError
+        }
+    }
+
+    func requestSignUpOTP(email: String, displayName: String) async throws {
+        signUpRequests.append((email: email, displayName: displayName))
+        if let requestError {
+            throw requestError
+        }
+    }
+
+    func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? {
+        verifyRequests.append((email: email, otp: otp))
+        if let verifyError {
+            throw verifyError
+        }
+        if let verifySession {
+            await updateSession(verifySession)
+        }
+        return verifySession
     }
 
     func signOut(refreshToken: String?) async throws {
@@ -163,6 +205,18 @@ private actor FakeAuthService: AuthServicing {
 
     func didClearSessionSnapshot() -> Bool {
         didClearSession
+    }
+
+    func signInRequestsSnapshot() -> [String] {
+        signInRequests
+    }
+
+    func signUpRequestsSnapshot() -> [(email: String, displayName: String)] {
+        signUpRequests
+    }
+
+    func verifyRequestsSnapshot() -> [(email: String, otp: String)] {
+        verifyRequests
     }
 
     private func unsubscribe(_ id: UUID) {

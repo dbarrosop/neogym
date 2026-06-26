@@ -82,9 +82,17 @@ From `ios/NeoGym/`:
 - `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
 - `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
-- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app shell for a simulator destination.
+- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
+
+The native app uses the same email OTP auth shape as the web app for
+sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
+`UserProfile`, and the `AuthServicing` boundary; SwiftUI views under
+`ios/NeoGym/App/` call those models and route to `ProfileView` when `AuthStore`
+has a session. Keep unit tests deterministic with fake auth services. Sign-out
+must always call `clearSession()` after attempting remote sign-out so local
+persisted sessions are removed even when the network request fails.
 
 ### Backend tests — the rule
 

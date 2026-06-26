@@ -29,7 +29,7 @@ public enum AuthState: Sendable {
 public final class AuthStore: ObservableObject {
     @Published public private(set) var state: AuthState = .loading
 
-    private let authService: any AuthServicing
+    public let authService: any AuthServicing
     private var subscription: AuthSessionSubscription?
     private var bootstrapTask: Task<Void, Never>?
 
@@ -75,6 +75,10 @@ public final class AuthStore: ObservableObject {
         } catch {
             state = .error(error.localizedDescription)
         }
+    }
+
+    public func applyVerifiedSession(_ session: StoredSession) {
+        applySession(session)
     }
 
     public func signOut() async {

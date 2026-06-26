@@ -83,7 +83,12 @@ Native iOS (from `ios/NeoGym/`):
 | `swift build` | Build the host-compatible `NeoGymKit` package |
 | `swift test` | Run deterministic `NeoGymKit` unit tests |
 | `nix develop ../.. --command xcodegen generate` | Generate `NeoGym.xcodeproj` from `project.yml` |
-| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app shell |
+| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app |
+
+The native app currently supports the same local email OTP sign-in/sign-up shape
+as the web app: request a 6-digit code, copy it from MailHog, verify, view the
+protected profile, and sign out. Sign-out always clears the local SDK session
+store after the remote request attempt.
 
 ## Project layout
 

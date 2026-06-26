@@ -2,175 +2,98 @@ import NeoGymKit
 import Nhost
 import SwiftUI
 
+enum AuthScreen {
+    case signIn
+    case signUp
+}
+
 struct RootView: View {
     @EnvironmentObject private var authStore: AuthStore
+    @State private var authScreen: AuthScreen = .signIn
+    @State private var isSigningOut = false
 
     var body: some View {
         ZStack {
-            BackgroundView()
+            GridBackground()
 
             switch authStore.state {
             case .loading:
                 LoadingView()
             case .signedOut:
-                SignedOutPlaceholderView()
+                signedOutView
             case let .signedIn(session):
-                SignedInPlaceholderView(session: session) {
-                    Task {
-                        await authStore.signOut()
-                    }
+                ProfileView(session: session, isSigningOut: isSigningOut) {
+                    signOut()
                 }
             case let .error(message):
-                ErrorPlaceholderView(message: message) {
+                ErrorCard(message: message) {
                     authStore.start()
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: authStore.state.isLoading)
     }
-}
 
-private struct BackgroundView: View {
-    var body: some View {
-        LinearGradient(
-            colors: [
-                Color(.systemBackground),
-                Color(.secondarySystemBackground),
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .overlay(alignment: .topTrailing) {
-            Circle()
-                .fill(Color.accentColor.opacity(0.18))
-                .blur(radius: 80)
-                .frame(width: 260, height: 260)
-                .offset(x: 120, y: -120)
+    @ViewBuilder
+    private var signedOutView: some View {
+        switch authScreen {
+        case .signIn:
+            SignInView(
+                authService: authStore.authService,
+                onSignUp: { authScreen = .signUp },
+                onAuthenticated: { session in authStore.applyVerifiedSession(session) }
+            )
+        case .signUp:
+            SignUpView(
+                authService: authStore.authService,
+                onSignIn: { authScreen = .signIn },
+                onAuthenticated: { session in authStore.applyVerifiedSession(session) }
+            )
         }
-        .overlay(alignment: .bottomLeading) {
-            Circle()
-                .fill(Color.purple.opacity(0.12))
-                .blur(radius: 90)
-                .frame(width: 300, height: 300)
-                .offset(x: -150, y: 150)
+    }
+
+    private func signOut() {
+        guard !isSigningOut else { return }
+        isSigningOut = true
+        Task {
+            await authStore.signOut()
+            await MainActor.run {
+                authScreen = .signIn
+                isSigningOut = false
+            }
         }
     }
 }
 
 private struct LoadingView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .controlSize(.large)
-            Text("Loading NeoGym")
-                .font(.headline)
-            Text("Checking for a saved session…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+        AuthCard(title: "Loading NeoGym", description: "Checking for a saved session…") {
+            VStack(spacing: 14) {
+                ProgressView()
+                    .controlSize(.large)
+                Text("Preparing your profile")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            .frame(maxWidth: .infinity)
+        } footer: {
+            EmptyView()
         }
-        .frame(maxWidth: 320)
-        .padding(28)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.quaternary)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 24, y: 12)
-        .padding()
     }
 }
 
-private struct SignedOutPlaceholderView: View {
-    var body: some View {
-        VStack(spacing: 18) {
-            Text("NeoGym")
-                .font(.largeTitle.bold())
-            Text("Native iOS auth is being ported in phases.")
-                .font(.headline)
-                .multilineTextAlignment(.center)
-            Text(
-                "Sign-in and sign-up forms arrive next. "
-                    + "For now this shell proves that persisted sessions load before protected content is chosen."
-            )
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: 360)
-        .padding(28)
-        .background(Color(.systemBackground).opacity(0.88), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
-        )
-        .shadow(color: .black.opacity(0.08), radius: 30, y: 16)
-        .padding()
-    }
-}
-
-private struct SignedInPlaceholderView: View {
-    let session: StoredSession
-    let signOut: () -> Void
-
-    var body: some View {
-        VStack(spacing: 18) {
-            Text("Protected shell")
-                .font(.largeTitle.bold())
-            Text(displayName)
-                .font(.title3.weight(.semibold))
-            Text(email)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text("Profile details and OTP auth are implemented in the next phase.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("Sign out", action: signOut)
-                .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: 360)
-        .padding(28)
-        .background(Color(.systemBackground).opacity(0.9), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.primary.opacity(0.08))
-        )
-        .shadow(color: .black.opacity(0.08), radius: 30, y: 16)
-        .padding()
-    }
-
-    private var displayName: String {
-        guard let user = session.user, !user.displayName.isEmpty else {
-            return "Signed-in athlete"
-        }
-
-        return user.displayName
-    }
-
-    private var email: String {
-        session.user?.email ?? "Session is active"
-    }
-}
-
-private struct ErrorPlaceholderView: View {
+private struct ErrorCard: View {
     let message: String
     let retry: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Text("Session error")
-                .font(.title.bold())
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        AuthCard(title: "Session error", description: "NeoGym couldn't load your saved session.") {
+            FeedbackBanner(message: message)
             Button("Try again", action: retry)
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(NeoGymPrimaryButtonStyle())
+        } footer: {
+            EmptyView()
         }
-        .frame(maxWidth: 340)
-        .padding(28)
-        .background(Color(.systemBackground).opacity(0.9), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .padding()
     }
 }
 
@@ -187,6 +110,12 @@ private struct PreviewAuthService: AuthServicing {
     ) async -> AuthSessionSubscription {
         AuthSessionSubscription {}
     }
+
+    func requestSignInOTP(email: String) async throws {}
+
+    func requestSignUpOTP(email: String, displayName: String) async throws {}
+
+    func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? { nil }
 
     func signOut(refreshToken: String?) async throws {}
 

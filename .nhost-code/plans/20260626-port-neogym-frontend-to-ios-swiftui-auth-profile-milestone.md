@@ -281,7 +281,10 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added Phase 2 OTP auth/profile functionality. `NeoGymKit` now includes live OTP request/verify methods using the Nhost SDK request structs, validators, sign-in/sign-up state models, and `UserProfile` mapping for optional/empty SDK user fields. The SwiftUI app now has sign-in, sign-up, protected profile, sign-out routing, themed auth cards, feedback banners, OTP code entry, and grid/background styling inspired by the web app. Root and iOS docs now describe the native OTP flow and manual MailHog checklist.
+- **Reviewer verdict:** `ACCEPT_WITH_CONCERNS`. Reviewer verified deterministic tests and generic simulator build, with the sole concern that live MailHog OTP e2e and relaunch persistence were not demonstrated because this host reports an out-of-date CoreSimulator and disabled simulator device support.
+- **Autonomous decisions:** Accepted the reviewer concern as non-blocking for this phase because correctness is supported by unit tests, live SDK call wiring, and successful app build, while falsely claiming live e2e would be worse for correctness. Recorded the manual validation gap for later execution on a host with a working simulator/backend.
+- **Quality gate:** `cd ios/NeoGym && swift test` passed (18 tests); `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` passed; `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed. Manual MailHog OTP flow was not run due the CoreSimulator environment limitation.
 
 ### Phase 4 — Add native redirect allowlist, docs, and end-to-end email-change verification
 
