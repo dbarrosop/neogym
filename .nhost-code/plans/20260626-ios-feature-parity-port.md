@@ -730,7 +730,34 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native journal entries: models, raw GraphQL repository operations,
+list/detail/editor view models, and SwiftUI list/detail/create/edit/delete
+screens. Wired the Journal shell destination, ported AND-semantics label
+filtering, reused the Phase 4 label input semantics for private journal label
+create/attach/detach, rendered read bodies through the Phase 2 markdown helper,
+and updated the parity checklist.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified web parity for label filtering,
+preview stripping, label normalization and diffing, and GraphQL mutation shapes;
+confirmed user-role mutation variables omit ownership/public/discriminator fields;
+and reran build/test/diagnostic checks successfully. Accepted low-severity notes:
+`journalLabelsFilterQuery` duplicates the labels-for-form query and can be cleaned
+later; journal label chips use a non-wrapping row consistent with earlier label
+views; markdown rendering remains intentionally minimal per plan scope.
+
+Autonomous decisions recorded:
+
+- **Correctness:** mirrored web journal mutations, including nested new-label creation with `journal_labels_user_name_key`, join-row conflict handling, and edit-time label diffing.
+- **Long-term maintenance:** kept journal label normalization/form behavior in `NeoGymKit` and used a Journal-specific SwiftUI input patterned after the existing Phase 4 label input.
+- **Security/correctness:** added mutation-variable tests proving entry, label, and junction writes omit ownership/discriminator/public columns and use user-role-permitted shapes.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 136 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 9 — Nutrition foods and meals
 

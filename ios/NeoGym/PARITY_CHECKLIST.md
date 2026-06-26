@@ -71,10 +71,10 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/journal` list | Journal list/filter | 8 | ☐ planned | Label filtering. |
-| `/journal/new` | Create journal entry | 8 | ☐ planned | Label create/attach behavior. |
-| `/journal/$id` detail | Journal detail | 8 | ☐ planned | Native markdown-ish rendering. |
-| `/journal/$id/edit` | Edit/delete journal entry | 8 | ☐ planned | Spent form dismisses on submit/cancel/delete. |
+| `/journal` list | Journal list/filter | 8 | ☑ complete | AND-semantics label filtering with private journal labels. |
+| `/journal/new` | Create journal entry | 8 | ☑ complete | Label create/attach behavior mirrors web `LabelInput`. |
+| `/journal/$id` detail | Journal detail | 8 | ☑ complete | Native markdown-ish rendering via Phase 2 helper. |
+| `/journal/$id/edit` | Edit/delete journal entry | 8 | ☑ complete | Spent form dismisses on submit/cancel/delete. |
 
 ## Nutrition
 

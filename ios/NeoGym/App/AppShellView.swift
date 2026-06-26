@@ -44,7 +44,7 @@ enum AppDestination: String, CaseIterable, Identifiable {
         case .workouts: "Phase 4"
         case .sessions: "Available now"
         case .body: "Available now"
-        case .journal: "Phase 8"
+        case .journal: "Available now"
         case .nutrition: "Phases 9–11"
         }
     }
@@ -134,6 +134,10 @@ struct AppShellView: View {
         case .body:
             BodyNavigationView(
                 repository: BodyMeasurementsRepository(graphQL: environment.graphQLService)
+            )
+        case .journal:
+            JournalNavigationView(
+                repository: JournalRepository(graphQL: environment.graphQLService)
             )
         case .profile:
             ProfileView(
