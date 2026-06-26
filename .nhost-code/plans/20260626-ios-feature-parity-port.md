@@ -653,7 +653,37 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native body measurements: raw GraphQL repository operations, DTOs,
+form validation, list/detail/editor view models, list/detail/create/edit/delete
+SwiftUI flows, and an iOS 15-compatible custom trend chart. Wired the Body shell
+destination and updated the parity checklist to mark body routes complete.
+Added deterministic decoding, form-validation, mutation-variable, constraint-error,
+and chart-normalization tests.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified GraphQL parity with the web body
+routes, mutation safety, validation ranges, duplicate-date constraint mapping,
+DateOnly usage, and iOS 15-compatible trend rendering. All build/test/Xcode gates
+passed. Accepted concern: the trend chart and date formatting are native
+approximations rather than pixel-identical web rendering, which matches the plan's
+native parity goal.
+
+Autonomous decisions recorded:
+
+- **Correctness:** used Phase 2 `DateOnly` helpers for form defaults, date picker
+  round-tripping, list/detail formatting, and chart normalization so Postgres
+  `date` values do not shift with timezone.
+- **Correctness/security:** body measurement mutations only send `measuredOn`,
+  `weightKg`, `bodyFatPct`, and `notes`; tests assert no `userId` ownership write.
+- **Compatibility:** used a custom `Path`/`GeometryReader` chart instead of Swift
+  Charts to preserve the iOS 15 deployment target.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 126 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 8 — Journal
 

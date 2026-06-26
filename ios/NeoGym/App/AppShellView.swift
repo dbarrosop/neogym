@@ -43,7 +43,7 @@ enum AppDestination: String, CaseIterable, Identifiable {
         case .exercises: "Phase 3"
         case .workouts: "Phase 4"
         case .sessions: "Available now"
-        case .body: "Phase 7"
+        case .body: "Available now"
         case .journal: "Phase 8"
         case .nutrition: "Phases 9–11"
         }
@@ -130,6 +130,10 @@ struct AppShellView: View {
                 exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                 storageBaseURL: environment.client.serviceURLs.storage,
                 pendingSessionId: $pendingSessionId
+            )
+        case .body:
+            BodyNavigationView(
+                repository: BodyMeasurementsRepository(graphQL: environment.graphQLService)
             )
         case .profile:
             ProfileView(

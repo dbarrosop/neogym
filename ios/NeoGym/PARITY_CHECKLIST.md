@@ -62,10 +62,10 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/body` list/chart | Body list and trend | 7 | ☐ planned | iOS 15-compatible chart/fallback. |
-| `/body/new` | Create body measurement form | 7 | ☐ planned | Date-only values must not time-zone shift. |
-| `/body/$id` detail | Body measurement detail | 7 | ☐ planned | Shows weight/body-fat/notes. |
-| `/body/$id/edit` | Edit/delete body measurement | 7 | ☐ planned | Friendly uniqueness constraint errors. |
+| `/body` list/chart | Body list and trend | 7 | ☑ complete | Uses a custom iOS 15-compatible `Path` chart and Phase 2 date-only helpers. |
+| `/body/new` | Create body measurement form | 7 | ☑ complete | Date-only values use `DateOnly` and mutation variables omit ownership fields. |
+| `/body/$id` detail | Body measurement detail | 7 | ☑ complete | Shows weight/body-fat/notes. |
+| `/body/$id/edit` | Edit/delete body measurement | 7 | ☑ complete | Surfaces friendly same-date uniqueness constraint errors. |
 
 ## Journal
 
