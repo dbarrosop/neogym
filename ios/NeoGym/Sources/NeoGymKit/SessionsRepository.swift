@@ -3,6 +3,7 @@ import Foundation
 public protocol SessionsRepositoryProtocol: Sendable {
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem]
     func sessionDetail(id: String) async throws -> SessionDetailModel?
+    func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -15,6 +16,13 @@ public protocol SessionsRepositoryProtocol: Sendable {
     ) async throws -> String
     func updateStrengthSet(id: String, reps: Int, weight: Double) async throws
     func deleteStrengthSet(id: String) async throws
+    func addCardioEntry(
+        workoutSessionExerciseId: String,
+        entryNumber: Int,
+        metrics: CardioMetrics
+    ) async throws -> String
+    func updateCardioEntry(id: String, metrics: CardioMetrics) async throws
+    func deleteCardioEntry(id: String) async throws
 }
 
 public struct SessionsRepository: SessionsRepositoryProtocol {
@@ -40,6 +48,19 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "SessionDetail"
         )
         return data.workoutSession
+    }
+
+    public func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory {
+        guard !exerciseIds.isEmpty else { return SessionPriorHistory() }
+        let data: PriorSessionsData = try await graphQL.execute(
+            query: Self.priorSessionsPerExerciseQuery,
+            variables: [
+                "exerciseIds": .array(exerciseIds.map(GraphQLScalars.uuid)),
+                "excludeSessionId": GraphQLScalars.uuid(excludeSessionId)
+            ],
+            operationName: "PriorSessionsPerExercise"
+        )
+        return SessionPriorHistory(exercises: data.exercises)
     }
 
     public func updateStartedAt(sessionId: String, startedAt: Date) async throws {
@@ -122,6 +143,47 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "DeleteWorkoutSessionStrengthSet"
         )
     }
+
+    public func addCardioEntry(
+        workoutSessionExerciseId: String,
+        entryNumber: Int,
+        metrics: CardioMetrics
+    ) async throws -> String {
+        let data: InsertCardioEntryData = try await graphQL.execute(
+            query: Self.insertCardioEntryMutation,
+            variables: [
+                "obj": Self.cardioEntryObject(
+                    workoutSessionExerciseId: workoutSessionExerciseId,
+                    entryNumber: entryNumber,
+                    metrics: metrics
+                )
+            ],
+            operationName: "InsertWorkoutSessionCardioEntry"
+        )
+        guard let id = data.insertWorkoutSessionCardioEntry?.id else {
+            throw GraphQLDomainError.missingData(operationName: "InsertWorkoutSessionCardioEntry")
+        }
+        return id
+    }
+
+    public func updateCardioEntry(id: String, metrics: CardioMetrics) async throws {
+        let _: UpdateCardioEntryData = try await graphQL.execute(
+            query: Self.updateCardioEntryMutation,
+            variables: [
+                "id": GraphQLScalars.uuid(id),
+                "set": .object(["metrics": Self.metricsJSON(metrics)])
+            ],
+            operationName: "UpdateWorkoutSessionCardioEntry"
+        )
+    }
+
+    public func deleteCardioEntry(id: String) async throws {
+        let _: DeleteCardioEntryData = try await graphQL.execute(
+            query: Self.deleteCardioEntryMutation,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DeleteWorkoutSessionCardioEntry"
+        )
+    }
 }
 
 private struct SessionsIndexData: Decodable, Sendable {
@@ -130,6 +192,10 @@ private struct SessionsIndexData: Decodable, Sendable {
 
 private struct SessionDetailData: Decodable, Sendable {
     let workoutSession: SessionDetailModel?
+}
+
+private struct PriorSessionsData: Decodable, Sendable {
+    let exercises: [SessionPriorExerciseHistory]
 }
 
 private struct UpdateSessionData: Decodable, Sendable {
@@ -158,6 +224,18 @@ private struct UpdateStrengthSetData: Decodable, Sendable {
 
 private struct DeleteStrengthSetData: Decodable, Sendable {
     let deleteWorkoutSessionStrengthSet: MutationIdPayload?
+}
+
+private struct InsertCardioEntryData: Decodable, Sendable {
+    let insertWorkoutSessionCardioEntry: MutationIdPayload?
+}
+
+private struct UpdateCardioEntryData: Decodable, Sendable {
+    let updateWorkoutSessionCardioEntry: MutationIdPayload?
+}
+
+private struct DeleteCardioEntryData: Decodable, Sendable {
+    let deleteWorkoutSessionCardioEntry: MutationIdPayload?
 }
 
 private struct MutationIdPayload: Decodable, Sendable {
@@ -207,6 +285,36 @@ public extension SessionsRepository {
             image2FileId
             strength { doubleWeight }
             cardio { metricsSchema }
+          }
+          workoutSessionStrengthSets(order_by: { setNumber: asc }) {
+            id
+            setNumber
+            reps
+            weight
+          }
+          workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+            id
+            entryNumber
+            metrics
+          }
+        }
+      }
+    }
+    """
+
+    static let priorSessionsPerExerciseQuery = """
+    query PriorSessionsPerExercise($exerciseIds: [uuid!]!, $excludeSessionId: uuid!) {
+      exercises(where: { id: { _in: $exerciseIds } }) {
+        id
+        workoutSessionExercises(
+          limit: 3
+          order_by: { workoutSession: { startedAt: desc } }
+          where: { workoutSessionId: { _neq: $excludeSessionId } }
+        ) {
+          id
+          workoutSession {
+            id
+            startedAt
           }
           workoutSessionStrengthSets(order_by: { setNumber: asc }) {
             id
@@ -280,6 +388,30 @@ public extension SessionsRepository {
     }
     """
 
+    static let insertCardioEntryMutation = """
+    mutation InsertWorkoutSessionCardioEntry($obj: workoutSessionCardioEntries_insert_input!) {
+      insertWorkoutSessionCardioEntry(object: $obj) {
+        id
+      }
+    }
+    """
+
+    static let updateCardioEntryMutation = """
+    mutation UpdateWorkoutSessionCardioEntry($id: uuid!, $set: workoutSessionCardioEntries_set_input!) {
+      updateWorkoutSessionCardioEntry(pk_columns: { id: $id }, _set: $set) {
+        id
+      }
+    }
+    """
+
+    static let deleteCardioEntryMutation = """
+    mutation DeleteWorkoutSessionCardioEntry($id: uuid!) {
+      deleteWorkoutSessionCardioEntry(id: $id) {
+        id
+      }
+    }
+    """
+
     static func strengthSetObject(
         workoutSessionExerciseId: String,
         setNumber: Int,
@@ -292,5 +424,23 @@ public extension SessionsRepository {
             "reps": .number(Double(reps)),
             "weight": GraphQLScalars.numeric(weight)
         ])
+    }
+
+    static func cardioEntryObject(
+        workoutSessionExerciseId: String,
+        entryNumber: Int,
+        metrics: CardioMetrics
+    ) -> JSONValue {
+        .object([
+            "workoutSessionExerciseId": GraphQLScalars.uuid(workoutSessionExerciseId),
+            "entryNumber": .number(Double(entryNumber)),
+            "metrics": metricsJSON(metrics)
+        ])
+    }
+
+    static func metricsJSON(_ metrics: CardioMetrics) -> JSONValue {
+        .object(Dictionary(uniqueKeysWithValues: metrics.map { key, value in
+            (key, .number(value))
+        }))
     }
 }

@@ -37,6 +37,30 @@ final class SessionsRepositoryTests: XCTestCase {
         XCTAssertEqual(session.strengthTotals.volume, 1_600)
     }
 
+    func testPriorSessionsQueryDecodesAndExcludesCurrentSessionVariable() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "exercises": .array([priorExerciseFixture])
+        ]))])
+        let repository = SessionsRepository(graphQL: fake)
+
+        let history = try await repository.priorSessionsPerExercise(
+            exerciseIds: ["exercise-1"],
+            excludeSessionId: "session-current"
+        )
+
+        let strength = try XCTUnwrap(history.strengthByExercise["exercise-1"]?.first)
+        XCTAssertEqual(strength.sets.map { $0.reps }, [5])
+        let cardio = try XCTUnwrap(history.cardioByExercise["exercise-1"]?.first)
+        XCTAssertEqual(cardio.entries.first?.metrics["duration_s"], 600)
+        let requests = await fake.requestsSnapshot()
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.operationName, "PriorSessionsPerExercise")
+        XCTAssertEqual(request.variables?["exerciseIds"], JSONValue.array([.string("exercise-1")]))
+        XCTAssertEqual(request.variables?["excludeSessionId"], JSONValue.string("session-current"))
+        XCTAssertTrue(request.query.contains("limit: 3"))
+        XCTAssertTrue(request.query.contains("_neq: $excludeSessionId"))
+    }
+
     func testSessionExerciseInsertVariablesOmitForbiddenColumnsAndDoNotUpdateExerciseId() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "insertWorkoutSessionExercises": .object(["affected_rows": .number(2)])
@@ -100,6 +124,42 @@ final class SessionsRepositoryTests: XCTestCase {
         XCTAssertNil(requests[1].variables?["set"]?["setNumber"])
     }
 
+    func testCardioEntryMutationVariablesOmitParentKindAndImmutableColumns() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object(["insertWorkoutSessionCardioEntry": .object(["id": .string("entry-new")])])),
+            .json(.object(["updateWorkoutSessionCardioEntry": .object(["id": .string("entry-new")])])),
+            .json(.object(["deleteWorkoutSessionCardioEntry": .object(["id": .string("entry-new")])]))
+        ])
+        let repository = SessionsRepository(graphQL: fake)
+
+        _ = try await repository.addCardioEntry(
+            workoutSessionExerciseId: "wse-cardio",
+            entryNumber: 2,
+            metrics: ["duration_s": 900, "avg_hr_bpm": 142]
+        )
+        try await repository.updateCardioEntry(id: "entry-new", metrics: ["duration_s": 1_000])
+        try await repository.deleteCardioEntry(id: "entry-new")
+
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.map(\.operationName), [
+            "InsertWorkoutSessionCardioEntry",
+            "UpdateWorkoutSessionCardioEntry",
+            "DeleteWorkoutSessionCardioEntry"
+        ])
+        for request in requests {
+            let variables = JSONValue.object(request.variables ?? [:])
+            XCTAssertFalse(variables.recursivelyContainsKey("userId"))
+            XCTAssertFalse(variables.recursivelyContainsKey("kind"))
+            XCTAssertFalse(variables.recursivelyContainsKey("parentKind"))
+        }
+        XCTAssertEqual(requests[0].variables?["obj"]?["workoutSessionExerciseId"], .string("wse-cardio"))
+        XCTAssertEqual(requests[0].variables?["obj"]?["entryNumber"], .number(2))
+        XCTAssertEqual(requests[0].variables?["obj"]?["metrics"]?["duration_s"], .number(900))
+        XCTAssertEqual(requests[1].variables?["set"]?["metrics"]?["duration_s"], .number(1_000))
+        XCTAssertNil(requests[1].variables?["set"]?["workoutSessionExerciseId"])
+        XCTAssertNil(requests[1].variables?["set"]?["entryNumber"])
+    }
+
     func testStartedAtAndDeleteVariablesAreScopedToAllowedColumns() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["updateWorkoutSession": .object(["id": .string("session-1")])])),
@@ -155,9 +215,22 @@ final class SessionsViewModelTests: XCTestCase {
         let didUpdateStartedAt = await viewModel.updateStartedAt(startedAt)
         let didAddExercises = await viewModel.addExercises([pickerExercise(id: "exercise-new")])
         let didRemoveExercise = await viewModel.removeExercise(id: "wse-1")
-        let didAddSet = await viewModel.addStrengthSet(workoutSessionExerciseId: "wse-1", reps: 10, weight: 50)
+        let didAddSet = await viewModel.addStrengthSet(
+            workoutSessionExerciseId: "wse-1",
+            reps: 10,
+            weight: 50
+        )
         let didUpdateSet = await viewModel.updateStrengthSet(id: "set-1", reps: 6, weight: 101)
         let didDeleteSet = await viewModel.deleteStrengthSet(id: "set-1")
+        let didAddCardio = await viewModel.addCardioEntry(
+            workoutSessionExerciseId: "wse-cardio",
+            metrics: ["duration_s": 700]
+        )
+        let didUpdateCardio = await viewModel.updateCardioEntry(
+            id: "entry-1",
+            metrics: ["duration_s": 800]
+        )
+        let didDeleteCardio = await viewModel.deleteCardioEntry(id: "entry-1")
         let didDeleteSession = await viewModel.deleteSession()
 
         XCTAssertTrue(didUpdateStartedAt)
@@ -166,6 +239,9 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertTrue(didAddSet)
         XCTAssertTrue(didUpdateSet)
         XCTAssertTrue(didDeleteSet)
+        XCTAssertTrue(didAddCardio)
+        XCTAssertTrue(didUpdateCardio)
+        XCTAssertTrue(didDeleteCardio)
         XCTAssertTrue(didDeleteSession)
         XCTAssertEqual(repository.updatedStartedAtSessionIds, ["session-1"])
         XCTAssertEqual(repository.addedExerciseIds, ["exercise-new"])
@@ -173,14 +249,27 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertEqual(repository.addedStrengthSetNumbers, [3])
         XCTAssertEqual(repository.updatedStrengthSetIds, ["set-1"])
         XCTAssertEqual(repository.deletedStrengthSetIds, ["set-1"])
+        XCTAssertEqual(repository.addedCardioEntryNumbers, [2])
+        XCTAssertEqual(repository.updatedCardioEntryIds, ["entry-1"])
+        XCTAssertEqual(repository.deletedCardioEntryIds, ["entry-1"])
         XCTAssertEqual(repository.deletedSessionIds, ["session-1"])
-        XCTAssertGreaterThanOrEqual(repository.detailLoadCount, 7)
+        XCTAssertEqual(repository.priorHistoryRequests.first?.excludeSessionId, "session-1")
+        XCTAssertGreaterThanOrEqual(repository.detailLoadCount, 10)
     }
 
     func testSetFormValidator() {
-        XCTAssertEqual(SessionSetFormValidator.validate(repsText: "8", weightText: "42,5"), .success(reps: 8, weight: 42.5))
-        XCTAssertEqual(SessionSetFormValidator.validate(repsText: "-1", weightText: "42"), .failure("Reps must be a whole number ≥ 0."))
-        XCTAssertEqual(SessionSetFormValidator.validate(repsText: "8", weightText: "nope"), .failure("Weight must be a number ≥ 0."))
+        XCTAssertEqual(
+            SessionSetFormValidator.validate(repsText: "8", weightText: "42,5"),
+            .success(reps: 8, weight: 42.5)
+        )
+        XCTAssertEqual(
+            SessionSetFormValidator.validate(repsText: "-1", weightText: "42"),
+            .failure("Reps must be a whole number ≥ 0.")
+        )
+        XCTAssertEqual(
+            SessionSetFormValidator.validate(repsText: "8", weightText: "nope"),
+            .failure("Weight must be a number ≥ 0.")
+        )
     }
 }
 
@@ -199,7 +288,9 @@ private let sessionListFixture: JSONValue = .object([
         ]),
         .object([
             "exercise": .object(["id": .string("exercise-2"), "name": .string("Run")]),
-            "workoutSessionStrengthSets_aggregate": .object(["aggregate": .object(["count": .number(0), "sum": .object(["reps": .null])])]),
+            "workoutSessionStrengthSets_aggregate": .object([
+                "aggregate": .object(["count": .number(0), "sum": .object(["reps": .null])])
+            ]),
             "workoutSessionCardioEntries_aggregate": .object(["aggregate": .object(["count": .number(1)])])
         ])
     ])
@@ -210,13 +301,26 @@ private let sessionDetailFixture: JSONValue = .object([
     "startedAt": .string("2026-06-26T12:00:00Z"),
     "workout": .object(["id": .string("workout-1"), "name": .string("Push Day")]),
     "workoutSessionExercises": .array([
-        sessionExerciseRow(id: "wse-1", position: 1, exerciseId: "exercise-1", name: "Bench Press", doubleWeight: false, sets: [
-            strengthSet(id: "set-1", number: 1, reps: 5, weight: 100),
-            strengthSet(id: "set-2", number: 2, reps: 5, weight: 100)
-        ]),
-        sessionExerciseRow(id: "wse-2", position: 2, exerciseId: "exercise-2", name: "Dumbbell Row", muscle: "back", doubleWeight: true, sets: [
-            strengthSet(id: "set-3", number: 1, reps: 12, weight: 25)
-        ]),
+        sessionExerciseRow(
+            id: "wse-1",
+            position: 1,
+            exerciseId: "exercise-1",
+            name: "Bench Press",
+            doubleWeight: false,
+            sets: [
+                strengthSet(id: "set-1", number: 1, reps: 5, weight: 100),
+                strengthSet(id: "set-2", number: 2, reps: 5, weight: 100)
+            ]
+        ),
+        sessionExerciseRow(
+            id: "wse-2",
+            position: 2,
+            exerciseId: "exercise-2",
+            name: "Dumbbell Row",
+            muscle: "back",
+            doubleWeight: true,
+            sets: [strengthSet(id: "set-3", number: 1, reps: 12, weight: 25)]
+        ),
         cardioSessionExerciseRow
     ])
 ])
@@ -243,6 +347,29 @@ private let cardioSessionExerciseRow: JSONValue = .object([
     "workoutSessionStrengthSets": .array([]),
     "workoutSessionCardioEntries": .array([
         .object(["id": .string("entry-1"), "entryNumber": .number(1), "metrics": .object(["duration_s": .number(600)])])
+    ])
+])
+
+private let priorExerciseFixture: JSONValue = .object([
+    "id": .string("exercise-1"),
+    "workoutSessionExercises": .array([
+        .object([
+            "id": .string("prior-wse-1"),
+            "workoutSession": .object([
+                "id": .string("prior-session-1"),
+                "startedAt": .string("2026-06-20T12:00:00Z")
+            ]),
+            "workoutSessionStrengthSets": .array([
+                strengthSet(id: "prior-set-1", number: 1, reps: 5, weight: 100)
+            ]),
+            "workoutSessionCardioEntries": .array([
+                .object([
+                    "id": .string("prior-entry-1"),
+                    "entryNumber": .number(1),
+                    "metrics": .object(["duration_s": .number(600)])
+                ])
+            ])
+        ])
     ])
 ])
 
@@ -308,6 +435,11 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var addedStrengthSetNumbers: [Int] = []
     var updatedStrengthSetIds: [String] = []
     var deletedStrengthSetIds: [String] = []
+    var priorHistory = SessionPriorHistory()
+    var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
+    var addedCardioEntryNumbers: [Int] = []
+    var updatedCardioEntryIds: [String] = []
+    var deletedCardioEntryIds: [String] = []
 
     init(sessions: [SessionListItem] = [], detail: SessionDetailModel? = nil) {
         self.sessions = sessions
@@ -321,6 +453,11 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     func sessionDetail(id: String) async throws -> SessionDetailModel? {
         detailLoadCount += 1
         return detail
+    }
+
+    func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory {
+        priorHistoryRequests.append((exerciseIds: exerciseIds, excludeSessionId: excludeSessionId))
+        return priorHistory
     }
 
     func updateStartedAt(sessionId: String, startedAt: Date) async throws {
@@ -339,7 +476,12 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         removedExerciseIds.append(id)
     }
 
-    func addStrengthSet(workoutSessionExerciseId: String, setNumber: Int, reps: Int, weight: Double) async throws -> String {
+    func addStrengthSet(
+        workoutSessionExerciseId: String,
+        setNumber: Int,
+        reps: Int,
+        weight: Double
+    ) async throws -> String {
         addedStrengthSetNumbers.append(setNumber)
         return "set-new"
     }
@@ -350,6 +492,23 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
 
     func deleteStrengthSet(id: String) async throws {
         deletedStrengthSetIds.append(id)
+    }
+
+    func addCardioEntry(
+        workoutSessionExerciseId: String,
+        entryNumber: Int,
+        metrics: CardioMetrics
+    ) async throws -> String {
+        addedCardioEntryNumbers.append(entryNumber)
+        return "entry-new"
+    }
+
+    func updateCardioEntry(id: String, metrics: CardioMetrics) async throws {
+        updatedCardioEntryIds.append(id)
+    }
+
+    func deleteCardioEntry(id: String) async throws {
+        deletedCardioEntryIds.append(id)
     }
 }
 

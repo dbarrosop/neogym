@@ -257,6 +257,7 @@ struct SessionDetailView: View {
     @State private var isConfirmingDelete = false
     @State private var pendingRemoveExercise: SessionExerciseRow?
     @State private var editingSet: StrengthSetEditorState?
+    @State private var editingCardioEntry: CardioEntryEditorState?
     @State private var errorMessage: String?
 
     init(
@@ -342,6 +343,39 @@ struct SessionDetailView: View {
                 }
             } onCancel: {
                 editingSet = nil
+            }
+        }
+        .sheet(item: $editingCardioEntry) { state in
+            CardioMetricsFormView(
+                state: state,
+                isPending: viewModel.mutationState.isLoading
+            ) { metrics in
+                Task {
+                    let didSave: Bool
+                    switch state.mode {
+                    case let .add(workoutSessionExerciseId):
+                        didSave = await viewModel.addCardioEntry(
+                            workoutSessionExerciseId: workoutSessionExerciseId,
+                            metrics: metrics
+                        )
+                    case let .edit(entry):
+                        didSave = await viewModel.updateCardioEntry(id: entry.id, metrics: metrics)
+                    }
+                    if didSave {
+                        editingCardioEntry = nil
+                        onMutated()
+                    }
+                }
+            } onDelete: {
+                guard case let .edit(entry) = state.mode else { return }
+                Task {
+                    if await viewModel.deleteCardioEntry(id: entry.id) {
+                        editingCardioEntry = nil
+                        onMutated()
+                    }
+                }
+            } onCancel: {
+                editingCardioEntry = nil
             }
         }
         .alert("Delete this session?", isPresented: $isConfirmingDelete) {
@@ -468,6 +502,8 @@ struct SessionDetailView: View {
                 ForEach(session.workoutSessionExercises) { row in
                     SessionExerciseCard(
                         row: row,
+                        priorStrengthEntries: viewModel.priorStrengthByExercise[row.exercise.id] ?? [],
+                        priorCardioEntries: viewModel.priorCardioByExercise[row.exercise.id] ?? [],
                         exercisesRepository: exercisesRepository,
                         storageBaseURL: storageBaseURL,
                         onSessionStarted: { _ in },
@@ -486,6 +522,22 @@ struct SessionDetailView: View {
                                 set: set,
                                 exerciseName: row.exercise.name,
                                 doubleWeight: row.exercise.doubleWeight
+                            )
+                        },
+                        onAddCardioEntry: { schema in
+                            editingCardioEntry = CardioEntryEditorState.add(
+                                workoutSessionExerciseId: row.id,
+                                exerciseName: row.exercise.name,
+                                schema: schema,
+                                nextEntryNumber: (row.workoutSessionCardioEntries.map(\.entryNumber).max() ?? 0) + 1,
+                                previousMetrics: row.workoutSessionCardioEntries.last?.metrics
+                            )
+                        },
+                        onEditCardioEntry: { entry, schema in
+                            editingCardioEntry = CardioEntryEditorState.edit(
+                                entry: entry,
+                                exerciseName: row.exercise.name,
+                                schema: schema
                             )
                         }
                     )
@@ -565,12 +617,16 @@ private struct SessionStatCard: View {
 
 private struct SessionExerciseCard: View {
     let row: SessionExerciseRow
+    let priorStrengthEntries: [SessionPriorStrengthEntry]
+    let priorCardioEntries: [SessionPriorCardioEntry]
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
     var onSessionStarted: (String) -> Void
     let onRemove: () -> Void
     let onAddSet: () -> Void
     let onEditSet: (SessionStrengthSet) -> Void
+    let onAddCardioEntry: (CardioMetricsSchema) -> Void
+    let onEditCardioEntry: (SessionCardioEntryShell, CardioMetricsSchema) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -631,13 +687,28 @@ private struct SessionExerciseCard: View {
             }
 
             if row.exercise.isCardio {
-                CardioPhasePlaceholder(entryCount: row.workoutSessionCardioEntries.count)
+                if let schema = row.exercise.cardioSchema {
+                    CardioEntriesListView(
+                        entries: row.workoutSessionCardioEntries,
+                        schema: schema,
+                        onSelect: { onEditCardioEntry($0, schema) }
+                    )
+                    CardioPriorSummary(entries: priorCardioEntries, schema: schema)
+                    Button { onAddCardioEntry(schema) } label: {
+                        Label("Add entry", systemImage: "plus")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(NeoGymSecondaryButtonStyle())
+                } else {
+                    CardioMissingSchemaNotice()
+                }
             } else {
                 StrengthSetsList(
                     sets: row.workoutSessionStrengthSets,
                     doubleWeight: row.exercise.doubleWeight,
                     onEdit: onEditSet
                 )
+                StrengthPriorSummary(entries: priorStrengthEntries, doubleWeight: row.exercise.doubleWeight)
                 Button(action: onAddSet) {
                     Label("Add set", systemImage: "plus")
                         .frame(maxWidth: .infinity)
@@ -700,23 +771,6 @@ private struct StrengthSetsList: View {
 
     private static func formatVolume(_ volume: Double) -> String {
         volume.rounded() == volume ? String(format: "%.0f", volume) : String(format: "%.1f", volume)
-    }
-}
-
-private struct CardioPhasePlaceholder: View {
-    let entryCount: Int
-
-    var body: some View {
-        Text(
-            entryCount == 0
-                ? "Cardio logging arrives in Phase 6. You can still keep or remove this exercise."
-                : "\(entryCount) cardio entr\(entryCount == 1 ? "y is" : "ies are") visible; editing arrives in Phase 6."
-        )
-        .font(.caption)
-        .foregroundColor(NeoGymTheme.mutedText)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

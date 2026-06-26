@@ -167,6 +167,10 @@ public struct SessionExerciseDetail: Decodable, Identifiable, Sendable, Equatabl
 
     public var isCardio: Bool { kind == "cardio" }
     public var doubleWeight: Bool { strength?.doubleWeight ?? false }
+    public var cardioSchema: CardioMetricsSchema? {
+        guard let cardio else { return nil }
+        return CardioMetricsSchemaHelpers.asSchema(cardio.metricsSchema)
+    }
 }
 
 public struct SessionStrengthSet: Decodable, Identifiable, Sendable, Equatable, Hashable {
@@ -223,6 +227,109 @@ public struct SessionCardioEntryShell: Decodable, Identifiable, Sendable, Equata
         entryNumber = try container.decode(Int.self, forKey: .entryNumber)
         let raw = try container.decode(JSONValue.self, forKey: .metrics)
         metrics = ExerciseJSONMetrics.decode(raw)
+    }
+}
+
+public struct SessionPriorWorkoutSession: Decodable, Identifiable, Sendable, Equatable, Hashable {
+    public let id: String
+    public let startedAt: String
+
+    public init(id: String, startedAt: String) {
+        self.id = id
+        self.startedAt = startedAt
+    }
+
+    public var startedAtDate: Date? { ExerciseDateParser.parseTimestamp(startedAt) }
+}
+
+public struct SessionPriorWorkoutSessionExercise: Decodable, Identifiable, Sendable, Equatable {
+    public let id: String
+    public let workoutSession: SessionPriorWorkoutSession
+    public let workoutSessionStrengthSets: [SessionStrengthSet]
+    public let workoutSessionCardioEntries: [SessionCardioEntryShell]
+
+    public init(
+        id: String,
+        workoutSession: SessionPriorWorkoutSession,
+        workoutSessionStrengthSets: [SessionStrengthSet] = [],
+        workoutSessionCardioEntries: [SessionCardioEntryShell] = []
+    ) {
+        self.id = id
+        self.workoutSession = workoutSession
+        self.workoutSessionStrengthSets = workoutSessionStrengthSets
+        self.workoutSessionCardioEntries = workoutSessionCardioEntries
+    }
+}
+
+public struct SessionPriorExerciseHistory: Decodable, Identifiable, Sendable, Equatable {
+    public let id: String
+    public let workoutSessionExercises: [SessionPriorWorkoutSessionExercise]
+
+    public init(id: String, workoutSessionExercises: [SessionPriorWorkoutSessionExercise] = []) {
+        self.id = id
+        self.workoutSessionExercises = workoutSessionExercises
+    }
+}
+
+public struct SessionPriorStrengthEntry: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let startedAt: String
+    public let sets: [SessionStrengthSet]
+
+    public init(id: String, startedAt: String, sets: [SessionStrengthSet]) {
+        self.id = id
+        self.startedAt = startedAt
+        self.sets = sets
+    }
+}
+
+public struct SessionPriorCardioEntry: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let startedAt: String
+    public let entries: [SessionCardioEntryShell]
+
+    public init(id: String, startedAt: String, entries: [SessionCardioEntryShell]) {
+        self.id = id
+        self.startedAt = startedAt
+        self.entries = entries
+    }
+}
+
+public struct SessionPriorHistory: Sendable, Equatable {
+    public let exercises: [SessionPriorExerciseHistory]
+
+    public init(exercises: [SessionPriorExerciseHistory] = []) {
+        self.exercises = exercises
+    }
+
+    public var strengthByExercise: [String: [SessionPriorStrengthEntry]] {
+        Dictionary(uniqueKeysWithValues: exercises.map { exercise in
+            (
+                exercise.id,
+                exercise.workoutSessionExercises.map { row in
+                    SessionPriorStrengthEntry(
+                        id: row.id,
+                        startedAt: row.workoutSession.startedAt,
+                        sets: row.workoutSessionStrengthSets
+                    )
+                }
+            )
+        })
+    }
+
+    public var cardioByExercise: [String: [SessionPriorCardioEntry]] {
+        Dictionary(uniqueKeysWithValues: exercises.map { exercise in
+            (
+                exercise.id,
+                exercise.workoutSessionExercises.map { row in
+                    SessionPriorCardioEntry(
+                        id: row.id,
+                        startedAt: row.workoutSession.startedAt,
+                        entries: row.workoutSessionCardioEntries
+                    )
+                }
+            )
+        })
     }
 }
 

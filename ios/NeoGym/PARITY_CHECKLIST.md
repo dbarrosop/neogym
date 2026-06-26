@@ -55,8 +55,8 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | Delete session | Session delete confirmation | 5 | ☑ complete | Spent detail dismisses after delete. |
 | Add/remove session exercise | Session exercise picker/delete | 5 | ☑ complete | Uses insert/delete only; never updates `exercise_id`. |
 | Strength set add/edit/delete | Strength logging UI | 5 | ☑ complete | Omits `kind`/`parentKind`; double-weight UI shows per-side and volume hints. |
-| Cardio entry add/edit/delete | Schema-driven cardio logging UI | 6 | ☐ planned | Uses `exercises_cardio.metrics_schema`; do not send `parentKind`. |
-| Prior session history per exercise | Prior history on session detail | 6 | ☐ planned | Strength and cardio summaries. |
+| Cardio entry add/edit/delete | Schema-driven cardio logging UI | 6 | ☑ complete | Uses `exercises_cardio.metrics_schema`; mutation variables omit `parentKind`. |
+| Prior session history per exercise | Prior history on session detail | 6 | ☑ complete | Strength and cardio summaries, excluding current session and capped to 3 per exercise. |
 
 ## Body measurements
 

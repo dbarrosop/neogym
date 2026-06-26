@@ -575,7 +575,37 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented schema-driven cardio logging and prior session history. Added cardio
+entry insert/update/delete repository operations, corrected the prior-session
+query to match the web shape (`limit: 3` and exclude current session), added
+`CardioEntryFormModel`, native cardio entry list/form sheets, prior history
+summary views, and integration in session detail. Updated tests for form
+seeding/validation, cardio mutation variables, prior history, and checklist
+completion.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified the prior-session query and
+cardio mutations match the web documents, confirmed cardio variables omit
+`parentKind`, `kind`, and `userId`, and reran build/test/Xcode checks
+successfully. Accepted concern: `CardioEntriesListView` has a non-wrapping
+`FlowLayout`/`HStack`, so many metric tags may truncate on narrow screens; this is
+cosmetic and can be refined later.
+
+Autonomous decisions recorded:
+
+- **Correctness/security:** cardio insert/update/delete variables omit
+  `parentKind` and other forbidden discriminator/ownership columns.
+- **Correctness:** reconciled the Phase 3 prior-session query divergence by
+  matching the web query's current-session exclusion and per-exercise limit.
+- **Long-term maintenance:** reused Phase 2 cardio parsing/validation helpers in
+  `CardioEntryFormModel` rather than duplicating schema logic in SwiftUI views.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 113 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 7 — Body measurements
 

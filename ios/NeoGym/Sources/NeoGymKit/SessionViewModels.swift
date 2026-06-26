@@ -79,6 +79,7 @@ public final class SessionsListViewModel: ObservableObject {
 @MainActor
 public final class SessionDetailViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<SessionDetailModel> = .idle
+    @Published public private(set) var priorHistoryState: Loadable<SessionPriorHistory> = .idle
     @Published public private(set) var mutationState: Loadable<String> = .idle
 
     public let sessionId: String
@@ -91,16 +92,28 @@ public final class SessionDetailViewModel: ObservableObject {
 
     public var session: SessionDetailModel? { state.value }
     public var displayName: String { session?.displayName ?? SessionDisplayName.untitled }
-    public var totals: SessionStrengthTotals { session?.strengthTotals ?? SessionStrengthTotals(sets: 0, reps: 0, volume: 0, hasStrength: false) }
+    public var totals: SessionStrengthTotals {
+        session?.strengthTotals ?? SessionStrengthTotals(sets: 0, reps: 0, volume: 0, hasStrength: false)
+    }
+
+    public var priorStrengthByExercise: [String: [SessionPriorStrengthEntry]] {
+        priorHistoryState.value?.strengthByExercise ?? [:]
+    }
+
+    public var priorCardioByExercise: [String: [SessionPriorCardioEntry]] {
+        priorHistoryState.value?.cardioByExercise ?? [:]
+    }
 
     public func load() async {
         state = .loading(previous: state.value)
         do {
             guard let session = try await repository.sessionDetail(id: sessionId) else {
                 state = .failed(message: "Session not found.", previous: nil)
+                priorHistoryState = .loaded(SessionPriorHistory())
                 return
             }
             state = .loaded(session)
+            await loadPriorHistory(for: session)
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -158,6 +171,52 @@ public final class SessionDetailViewModel: ObservableObject {
     public func deleteStrengthSet(id: String) async -> Bool {
         await mutate(label: "DeleteWorkoutSessionStrengthSet", reload: true) {
             try await repository.deleteStrengthSet(id: id)
+        }
+    }
+
+    public func addCardioEntry(workoutSessionExerciseId: String, metrics: CardioMetrics) async -> Bool {
+        let row = session?.workoutSessionExercises.first { $0.id == workoutSessionExerciseId }
+        let nextEntryNumber = (row?.workoutSessionCardioEntries.map(\.entryNumber).max() ?? 0) + 1
+        return await mutate(label: "InsertWorkoutSessionCardioEntry", reload: true) {
+            _ = try await repository.addCardioEntry(
+                workoutSessionExerciseId: workoutSessionExerciseId,
+                entryNumber: nextEntryNumber,
+                metrics: metrics
+            )
+        }
+    }
+
+    public func updateCardioEntry(id: String, metrics: CardioMetrics) async -> Bool {
+        await mutate(label: "UpdateWorkoutSessionCardioEntry", reload: true) {
+            try await repository.updateCardioEntry(id: id, metrics: metrics)
+        }
+    }
+
+    public func deleteCardioEntry(id: String) async -> Bool {
+        await mutate(label: "DeleteWorkoutSessionCardioEntry", reload: true) {
+            try await repository.deleteCardioEntry(id: id)
+        }
+    }
+
+    private func loadPriorHistory(for session: SessionDetailModel) async {
+        let exerciseIds = session.workoutSessionExercises.map(\.exercise.id)
+        guard !exerciseIds.isEmpty else {
+            priorHistoryState = .loaded(SessionPriorHistory())
+            return
+        }
+        priorHistoryState = .loading(previous: priorHistoryState.value)
+        do {
+            let history = try await repository.priorSessionsPerExercise(
+                exerciseIds: exerciseIds,
+                excludeSessionId: session.id
+            )
+            priorHistoryState = .loaded(history)
+        } catch {
+            // Prior history is decorative; keep the main session detail usable if it fails.
+            priorHistoryState = .failed(
+                message: GraphQLDomainError.map(error).localizedDescription,
+                previous: priorHistoryState.value ?? SessionPriorHistory()
+            )
         }
     }
 
