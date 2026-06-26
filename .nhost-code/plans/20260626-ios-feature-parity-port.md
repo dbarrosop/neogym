@@ -328,7 +328,39 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native exercise catalog models, repository GraphQL operations,
+list filtering/search/visibility, detail history/progress builders, and ad-hoc
+session start. Wired the Exercises shell destination to real list/detail SwiftUI
+screens with filters, storage images, strength/cardio sidecar display, history,
+and simple iOS 15-compatible trend visuals. Added reusable exercise detail
+surfaces for later workout/session context entry points and updated the parity
+checklist to mark Phase 3 exercise items complete.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified GraphQL parity for
+`ExercisesIndex`, `ExerciseDetail`, and `StartSession`; checked strength/cardio
+progress math against the web implementation; and reran `swift build`,
+`swift test`, XcodeGen, and simulator `xcodebuild` successfully. Accepted
+non-blocking concerns: the unused `priorSessionsPerExerciseQuery` currently
+diverges from the web prior-session query and must be reconciled in Phase 6;
+search uses a custom fuzzy matcher instead of Fuse.js, so edge-case ordering may
+differ; start-session destination navigation is deferred to Phase 5.
+
+Autonomous decisions recorded:
+
+- **Correctness:** kept exercise authoring out of scope because the current web
+  route inventory has exercise list/detail only.
+- **Long-term maintenance:** exposed reusable exercise detail surfaces so later
+  workout/session context entry points can link to the same implementation.
+- **Security/correctness:** added mutation-variable tests proving ad-hoc session
+  start omits forbidden ownership/discriminator columns.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 89 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 4 — Workouts
 

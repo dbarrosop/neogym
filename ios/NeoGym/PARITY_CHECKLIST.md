@@ -25,10 +25,10 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/exercises` list | Exercises list/search/filter | 3 | ☐ planned | Query text, muscle, category, equipment, level, and visibility filters. |
-| `/exercises/$exerciseId` detail | Exercise detail | 3 | ☐ planned | Storage images, public/private visibility, strength/cardio sidecar display. |
-| Exercise history/progress | Exercise detail history/progress | 3 | ☐ planned | Includes prior session summaries. |
-| Start ad-hoc session from exercise | Exercise detail start action | 3 | ☐ planned | Insert session with nullable `workoutId` and one session exercise. |
+| `/exercises` list | Exercises list/search/filter | 3 | ☑ complete | Query text, muscle, category, equipment, level, and visibility filters. |
+| `/exercises/$exerciseId` detail | Exercise detail | 3 | ☑ complete | Storage images, public/private visibility, strength/cardio sidecar display. |
+| Exercise history/progress | Exercise detail history/progress | 3 | ☑ complete | Includes prior session summaries with simple iOS 15-compatible trend visuals. |
+| Start ad-hoc session from exercise | Exercise detail start action | 3 | ☑ complete | Insert session with nullable `workoutId` and one session exercise; Sessions detail navigation arrives in Phase 5. |
 | Workout-scoped exercise detail `/workouts/$workoutId/exercises/$exerciseId` | Reusable exercise detail from workout context | 4 | ☐ planned | Context-scoped entry required by parity. |
 | Session-scoped exercise detail `/sessions/$sessionId/exercises/$exerciseId` | Reusable exercise detail from session context | 5 | ☐ planned | Context-scoped entry required by parity. |
 | Exercise create/edit/delete | Native exercise authoring | TBD | ⊘ out of scope | No current signed-in web exercise authoring route in scope. |

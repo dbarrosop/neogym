@@ -105,6 +105,13 @@ struct AppShellView: View {
     @ViewBuilder
     private var content: some View {
         switch selection {
+        case .exercises:
+            ExercisesNavigationView(
+                repository: ExercisesRepository(graphQL: environment.graphQLService),
+                storageBaseURL: environment.client.serviceURLs.storage
+            ) { _ in
+                selection = .sessions
+            }
         case .profile:
             ProfileView(
                 session: session,
