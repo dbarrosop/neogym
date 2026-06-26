@@ -250,7 +250,36 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented pure Foundation helpers for date-only values, session display names,
+cardio metric schemas and validation, nutrition math, intake grouping, and minimal
+markdown rendering. Added tests for date parsing/formatting, session name
+fallbacks, cardio metric ordering/formatting/validation and duration boundaries,
+macro normalization/totals including snapshot totals, intake time-slot grouping,
+and markdown stripping/block parsing.
+
+Reviewer verdict: `ACCEPT`. The reviewer compared the new helpers against the
+web counterparts and reran `swift build` and `swift test` successfully. Accepted
+informational concerns: equal `x-order` cardio metrics sort alphabetically in
+Swift because `JSONValue.object` is dictionary-backed and cannot recover JSON
+insertion order; Swift `<` is used instead of JS `localeCompare` for UUID/time
+strings, which is equivalent for current data shapes.
+
+Autonomous decisions recorded:
+
+- **Correctness:** mirrored web helper semantics and tests rather than inventing
+  native-only behavior, so later domain phases match persisted/user-visible web
+  behavior.
+- **Long-term maintenance:** split cardio validation and intake source-unit logic
+  into small focused files while keeping all APIs pure `NeoGymKit`.
+- **Correctness/security:** added explicit logged snapshot total helpers so later
+  nutrition phases do not accidentally compute history from mutable live foods.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 82 tests.
+- `lens_diagnostics mode=all` — no blocking errors; markdown style warnings remain
+  in the plan artifact only.
 
 ### Phase 3 — Exercises catalog and exercise detail
 
