@@ -81,14 +81,14 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `/nutrition` landing | Nutrition overview | 11 | ☐ planned | Top-level Nutrition remains one primary shell destination. |
-| `/nutrition/foods` list | Foods list | 9 | ☐ planned | Food search/list. |
-| `/nutrition/foods/new` | Create food form | 9 | ☐ planned | Omit ownership/public fields. |
-| `/nutrition/foods/$foodId` detail | Food detail | 9 | ☐ planned | Macro values per 100g. |
-| `/nutrition/foods/$foodId/edit` | Edit/delete food | 9 | ☐ planned | Surface `ON DELETE RESTRICT` in-use errors. |
-| `/nutrition/meals` list | Meals list | 9 | ☐ planned | Template macro totals from live foods. |
-| `/nutrition/meals/new` | Create meal form | 9 | ☐ planned | Food picker and ingredient grams. |
-| `/nutrition/meals/$mealId` detail | Meal detail | 9 | ☐ planned | Ingredients and totals. |
-| `/nutrition/meals/$mealId/edit` | Edit/delete meal | 9 | ☐ planned | Ingredient mutation variables omit immutable/owner fields. |
+| `/nutrition/foods` list | Foods list | 9 | ☑ complete | Food search/list with Mine/Public filters inside Nutrition sub-navigation. |
+| `/nutrition/foods/new` | Create food form | 9 | ☑ complete | Mutation variables omit ownership/public fields. |
+| `/nutrition/foods/$foodId` detail | Food detail | 9 | ☑ complete | Macro values per 100g and public/private edit affordance. |
+| `/nutrition/foods/$foodId/edit` | Edit/delete food | 9 | ☑ complete | Surfaces `ON DELETE RESTRICT` food-in-meal errors with friendly copy. |
+| `/nutrition/meals` list | Meals list | 9 | ☑ complete | Template macro totals computed from live food values. |
+| `/nutrition/meals/new` | Create meal form | 9 | ☑ complete | Food picker, ingredient grams, ordering, and live macro summary. |
+| `/nutrition/meals/$mealId` detail | Meal detail | 9 | ☑ complete | Ingredients and totals from live food values. |
+| `/nutrition/meals/$mealId/edit` | Edit/delete meal | 9 | ☑ complete | Ingredient updates omit immutable `foodId`; food changes use delete+insert. |
 | `/nutrition/plans` list | Plans list | 10 | ☐ planned | Plan templates. |
 | `/nutrition/plans/new` | Create plan form | 10 | ☐ planned | Ordered meal slots and slot times. |
 | `/nutrition/plans/$planId` detail | Plan detail | 10 | ☐ planned | Macro summaries from meal slots. |

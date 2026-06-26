@@ -808,7 +808,34 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native nutrition food and meal template management. Added Food/Meal
+models, repository GraphQL operations, list/detail/editor view models, Nutrition
+sub-navigation scaffold (Overview/Days/Plans/Foods/Meals), food and meal SwiftUI
+CRUD screens, food picker, macro summaries, and checklist updates. Added fixture
+decoding, live macro total, mutation-variable, form-validation, and in-use error
+mapping tests.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified food/meal GraphQL documents
+match the web routes, mutation variables omit ownership/public/immutable fields,
+meal ingredient `foodId` changes use delete+insert rather than update, in-use
+error mapping covers food and meal-plan restrictions, and all build/test/Xcode
+checks passed. Accepted notes: numeric fields are sent as strings for precision,
+meal index fetches a harmless superset of fields, and food search is substring-
+based instead of Fuse.js fuzzy ranking.
+
+Autonomous decisions recorded:
+
+- **Correctness/security:** food mutations send only name and per-100g nutrient columns; meal ingredient edits update only grams/position and use delete+insert whenever `foodId` changes.
+- **Correctness:** meal template summaries use live food nutrition values, matching the web template behavior and keeping logged snapshot behavior reserved for Phase 11.
+- **Long-term maintenance:** kept Overview/Days/Plans as explicit Nutrition sub-navigation placeholders so later phases can attach their screens without changing the top-level shell.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 147 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 10 — Nutrition plans
 

@@ -1,0 +1,72 @@
+import NeoGymKit
+
+struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
+    func listFoods() async throws -> [Food] { previewFoods }
+    func food(id: String) async throws -> Food? { previewFoods.first { $0.id == id } }
+    func editFood(id: String) async throws -> Food? { try await food(id: id) }
+    func createFood(_ values: FoodFormValues) async throws -> String { "food-new" }
+    func updateFood(id: String, values: FoodFormValues) async throws {}
+    func deleteFood(id: String) async throws {}
+    func listMeals() async throws -> [Meal] { [previewMeal] }
+    func meal(id: String) async throws -> Meal? { previewMeal }
+    func editMeal(id: String) async throws -> MealEditPayload {
+        MealEditPayload(meal: previewMeal, foods: previewFoods)
+    }
+    func foodsForMealForm() async throws -> [Food] { previewFoods }
+    func createMeal(_ values: MealFormValues) async throws -> String { "meal-new" }
+    func saveMeal(id: String, initialValues: MealFormValues, values: MealFormValues) async throws {}
+    func deleteMeal(id: String) async throws {}
+
+    private var previewFoods: [Food] {
+        [
+            Food(
+                id: "food-1",
+                name: "Greek yogurt",
+                userId: "user-1",
+                isPublic: false,
+                kcalPer100g: .string("120"),
+                fatPer100g: .string("3.5"),
+                carbsPer100g: .string("5"),
+                proteinPer100g: .string("12"),
+                fiberPer100g: .string("0"),
+                sugarPer100g: .string("4")
+            ),
+            Food(
+                id: "food-2",
+                name: "Blueberries",
+                userId: nil,
+                isPublic: true,
+                kcalPer100g: .string("57"),
+                fatPer100g: .string("0.3"),
+                carbsPer100g: .string("14"),
+                proteinPer100g: .string("0.7"),
+                fiberPer100g: .string("2.4"),
+                sugarPer100g: .string("10")
+            )
+        ]
+    }
+
+    private var previewMeal: Meal {
+        Meal(
+            id: "meal-1",
+            name: "Breakfast bowl",
+            description: "Yogurt with berries.",
+            mealIngredients: [
+                MealIngredient(
+                    id: "ingredient-1",
+                    foodId: "food-1",
+                    grams: .string("200"),
+                    position: 0,
+                    food: previewFoods[0]
+                ),
+                MealIngredient(
+                    id: "ingredient-2",
+                    foodId: "food-2",
+                    grams: .string("80"),
+                    position: 1,
+                    food: previewFoods[1]
+                )
+            ]
+        )
+    }
+}

@@ -45,7 +45,7 @@ enum AppDestination: String, CaseIterable, Identifiable {
         case .sessions: "Available now"
         case .body: "Available now"
         case .journal: "Available now"
-        case .nutrition: "Phases 9–11"
+        case .nutrition: "Available now"
         }
     }
 }
@@ -138,6 +138,11 @@ struct AppShellView: View {
         case .journal:
             JournalNavigationView(
                 repository: JournalRepository(graphQL: environment.graphQLService)
+            )
+        case .nutrition:
+            NutritionNavigationView(
+                repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
+                currentUserId: session.user?.id
             )
         case .profile:
             ProfileView(
