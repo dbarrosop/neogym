@@ -222,7 +222,10 @@ Add a new iOS SwiftUI app under `ios/NeoGym` whose project is generated from a c
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added Phase 3 app-side PKCE email-change support. `NeoGymKit` now includes `AuthDeepLink`, `PKCEVerifierStore`, and `ChangeEmailModel`; the auth service exposes change-email and token-exchange methods using Nhost SDK request structs; the app has a `ChangeEmailSheet`, enabled profile email-change affordance, and `.onOpenURL` routing through a pending callback router so callbacks can wait for session bootstrap. Added deterministic tests for parser behavior, verifier persistence/clearing, same-email guard, request flow, callback errors, and token-exchange/session refresh.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the diff stayed within Phase 3 scope, did not touch backend redirect config, and remains compatible with Phase 4.
+- **Autonomous decisions:** Accepted the inability to validate local custom-scheme support as a Phase 4 gate rather than a Phase 3 blocker because local Nhost Auth was not running and no backend config was committed. This preserves correctness by not claiming e2e support and preserves maintenance by keeping backend allowlist changes in the planned backend phase.
+- **Quality gate:** `cd ios/NeoGym && swift test` passed (29 tests); `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` passed; `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed with the known CoreSimulator warning. `xcrun simctl openurl` and real local Auth custom-scheme validation were not run because simulator device support/local Auth were unavailable on this host.
 
 ### Phase 3 — Implement app-side PKCE email change and deep-link handling
 

@@ -213,6 +213,10 @@ private actor FakeAuthService: AuthServicing {
         return verifySession
     }
 
+    func requestEmailChange(newEmail: String, redirectTo: String, codeChallenge: String) async throws {}
+
+    func exchangeToken(code: String, codeVerifier: String) async throws -> StoredSession? { nil }
+
     func signOut(refreshToken: String?) async throws {}
 
     func clearSession() async throws {

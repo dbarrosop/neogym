@@ -5,7 +5,10 @@ import SwiftUI
 struct ProfileView: View {
     let session: StoredSession
     let isSigningOut: Bool
+    let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
+
+    @State private var isShowingChangeEmail = false
 
     var body: some View {
         ScrollView {
@@ -17,6 +20,15 @@ struct ProfileView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 40)
             .frame(maxWidth: .infinity)
+        }
+        .sheet(isPresented: $isShowingChangeEmail) {
+            if let changeEmailModel, let profile {
+                ChangeEmailSheet(
+                    model: changeEmailModel,
+                    currentEmailDisplay: profile.emailDisplay,
+                    dismiss: { isShowingChangeEmail = false }
+                )
+            }
         }
     }
 
@@ -42,7 +54,7 @@ struct ProfileView: View {
                     HStack(spacing: 8) {
                         Text(profile.emailDisplay)
                         Button {
-                            // Phase 3 wires the native PKCE email-change flow.
+                            isShowingChangeEmail = true
                         } label: {
                             Image(systemName: "pencil")
                                 .font(.caption.weight(.semibold))
@@ -50,7 +62,7 @@ struct ProfileView: View {
                         .buttonStyle(.plain)
                         .foregroundColor(NeoGymTheme.mutedText)
                         .accessibilityLabel("Change email")
-                        .disabled(true)
+                        .disabled(changeEmailModel == nil)
                     }
                 }
                 DetailRow(label: "Locale") { Text(profile.locale) }
@@ -60,12 +72,16 @@ struct ProfileView: View {
                         .font(.caption.monospaced())
                         .padding(.horizontal, 7)
                         .padding(.vertical, 4)
-                        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                        .background(
+                            NeoGymTheme.mutedFill,
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        )
                 }
                 DetailRow(label: "Member since") { Text(profile.memberSince) }
             } else {
                 FeedbackBanner(
-                    message: "Your session is active, but the profile payload is missing. Sign out and sign in again if this persists.",
+                    message: "Your session is active, but the profile payload is missing. "
+                        + "Sign out and sign in again if this persists.",
                     tone: .info
                 )
             }

@@ -9,8 +9,10 @@ enum AuthScreen {
 
 struct RootView: View {
     @EnvironmentObject private var authStore: AuthStore
+    @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
     @State private var authScreen: AuthScreen = .signIn
     @State private var isSigningOut = false
+    @State private var changeEmailModel: ChangeEmailModel?
 
     var body: some View {
         ZStack {
@@ -22,7 +24,11 @@ struct RootView: View {
             case .signedOut:
                 signedOutView
             case let .signedIn(session):
-                ProfileView(session: session, isSigningOut: isSigningOut) {
+                ProfileView(
+                    session: session,
+                    isSigningOut: isSigningOut,
+                    changeEmailModel: changeEmailModel
+                ) {
                     signOut()
                 }
             case let .error(message):
@@ -32,6 +38,17 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: authStore.state.isLoading)
+        .onAppear {
+            configureChangeEmailModel()
+            handlePendingAuthCallbackIfPossible()
+        }
+        .onChange(of: changeEmailModelKey) { _ in
+            configureChangeEmailModel()
+            handlePendingAuthCallbackIfPossible()
+        }
+        .onReceive(authCallbackURLRouter.$pendingURL.compactMap { $0 }) { url in
+            handleAuthCallback(url)
+        }
     }
 
     @ViewBuilder
@@ -49,6 +66,48 @@ struct RootView: View {
                 onSignIn: { authScreen = .signIn },
                 onAuthenticated: { session in authStore.applyVerifiedSession(session) }
             )
+        }
+    }
+
+    private var changeEmailModelKey: String {
+        guard case let .signedIn(session) = authStore.state else {
+            return "signed-out"
+        }
+
+        return "\(session.user?.id ?? "missing-user")|\(session.user?.email ?? "")"
+    }
+
+    private func configureChangeEmailModel() {
+        guard case let .signedIn(session) = authStore.state else {
+            changeEmailModel = nil
+            return
+        }
+
+        let currentEmail = session.user?.email
+        if changeEmailModel == nil || changeEmailModel?.currentEmail != currentEmail {
+            changeEmailModel = ChangeEmailModel(
+                authService: authStore.authService,
+                currentEmail: currentEmail
+            )
+        }
+    }
+
+    private func handlePendingAuthCallbackIfPossible() {
+        guard let pendingURL = authCallbackURLRouter.pendingURL else { return }
+        handleAuthCallback(pendingURL)
+    }
+
+    private func handleAuthCallback(_ url: URL) {
+        configureChangeEmailModel()
+
+        guard let changeEmailModel else { return }
+        authCallbackURLRouter.consume(url)
+
+        Task { @MainActor in
+            if let session = await changeEmailModel.handleCallback(url: url) {
+                authStore.applyVerifiedSession(session)
+                configureChangeEmailModel()
+            }
         }
     }
 
@@ -100,6 +159,7 @@ private struct ErrorCard: View {
 #Preview {
     RootView()
         .environmentObject(AuthStore(authService: PreviewAuthService(), autoBootstrap: false))
+        .environmentObject(AuthCallbackURLRouter())
 }
 
 private struct PreviewAuthService: AuthServicing {
@@ -116,6 +176,10 @@ private struct PreviewAuthService: AuthServicing {
     func requestSignUpOTP(email: String, displayName: String) async throws {}
 
     func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? { nil }
+
+    func requestEmailChange(newEmail: String, redirectTo: String, codeChallenge: String) async throws {}
+
+    func exchangeToken(code: String, codeVerifier: String) async throws -> StoredSession? { nil }
 
     func signOut(refreshToken: String?) async throws {}
 

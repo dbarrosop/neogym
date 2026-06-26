@@ -21,6 +21,8 @@ public protocol AuthServicing: Sendable {
     func requestSignInOTP(email: String) async throws
     func requestSignUpOTP(email: String, displayName: String) async throws
     func verifySignInOTP(email: String, otp: String) async throws -> StoredSession?
+    func requestEmailChange(newEmail: String, redirectTo: String, codeChallenge: String) async throws
+    func exchangeToken(code: String, codeVerifier: String) async throws -> StoredSession?
     func signOut(refreshToken: String?) async throws
     func clearSession() async throws
 }
@@ -70,6 +72,28 @@ public struct NhostAuthService: AuthServicing {
         }
 
         return nil
+    }
+
+    public func requestEmailChange(newEmail: String, redirectTo: String, codeChallenge: String) async throws {
+        _ = try await client.auth.changeUserEmail(
+            body: AuthUserEmailChangeRequest(
+                newEmail: newEmail,
+                options: AuthOptionsRedirectTo(redirectTo: redirectTo),
+                codeChallenge: codeChallenge
+            )
+        )
+    }
+
+    public func exchangeToken(code: String, codeVerifier: String) async throws -> StoredSession? {
+        let response = try await client.auth.tokenExchange(
+            body: AuthTokenExchangeRequest(code: code, codeVerifier: codeVerifier)
+        )
+
+        if let session = response.body.session {
+            return try StoredSession(session)
+        }
+
+        return try await client.getUserSession()
     }
 
     public func signOut(refreshToken: String?) async throws {

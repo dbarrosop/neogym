@@ -88,11 +88,17 @@ The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nh
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
-`UserProfile`, and the `AuthServicing` boundary; SwiftUI views under
-`ios/NeoGym/App/` call those models and route to `ProfileView` when `AuthStore`
-has a session. Keep unit tests deterministic with fake auth services. Sign-out
-must always call `clearSession()` after attempting remote sign-out so local
-persisted sessions are removed even when the network request fails.
+`UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
+`AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
+models and route to `ProfileView` when `AuthStore` has a session. Keep unit tests
+deterministic with fake auth services and the in-memory verifier store, not a
+live backend or real Keychain. Sign-out must always call `clearSession()` after
+attempting remote sign-out so local persisted sessions are removed even when the
+network request fails. Native email change uses app-side PKCE with
+`redirectTo = "neogym://verify"`, a Keychain-backed verifier, `.onOpenURL`
+deep-link handling, token exchange, and verifier clearing on all callback
+outcomes; committed backend `allowedUrls` support for that custom scheme remains
+the separate backend redirect phase.
 
 ### Backend tests — the rule
 

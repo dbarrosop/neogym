@@ -88,7 +88,10 @@ Native iOS (from `ios/NeoGym/`):
 The native app currently supports the same local email OTP sign-in/sign-up shape
 as the web app: request a 6-digit code, copy it from MailHog, verify, view the
 protected profile, and sign out. Sign-out always clears the local SDK session
-store after the remote request attempt.
+store after the remote request attempt. App-side PKCE email-change handling is
+implemented with the `neogym://verify` callback shape; backend native redirect
+allowlist changes and real e2e verification are intentionally left to the next
+auth phase.
 
 ## Project layout
 
@@ -158,7 +161,7 @@ clientUrl = 'http://localhost:5173'
   "value": [] }
 ```
 
-Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the email-change flow lands back on `/verify` without any extra configuration. Only redirects to a different host/port need to be added to `auth.redirections.allowedUrls` (in both files). Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts`.
+Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including the native `neogym://verify` callback, must be added to `auth.redirections.allowedUrls` (in both files) when the backend redirect phase is implemented. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts`.
 
 ## What's not in v1 (yet)
 
