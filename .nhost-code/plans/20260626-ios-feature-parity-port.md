@@ -168,7 +168,43 @@ Build native parity through a raw-GraphQL, fakeable repository/view-model archit
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented GraphQL foundation, signed-in shell, and the mandatory parity checklist.
+Added `GraphQLServicing`, `NhostGraphQLService`, `FakeGraphQLService`,
+structured `GraphQLDomainError`, scalar helpers, `Loadable`, and shared
+`AppEnvironment` composition. Updated `NeoGymApp`/`RootView` so auth and GraphQL
+share one `NhostClient`, and added a seven-destination shell with Profile as the
+only completed destination. Added shared App loading/error/empty/confirmation and
+storage-image placeholder components plus `ios/NeoGym/PARITY_CHECKLIST.md`.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified the diff from
+`feaa3f39de79a2663dccba4a457ae69bbf81dbfe`, confirmed the shell keeps all seven
+destinations directly discoverable, confirmed deep-link handling remains above
+the shell selection state, and reran `swift build` and `swift test` successfully.
+Accepted informational concerns: `NhostClientFactory.makeGraphQLService()` can
+create an unused separate client if called directly, so later phases should prefer
+`AppEnvironment.makeEnvironment()` or document/remove the helper; `numeric(Decimal)`
+uses a string while `numeric(Double)` uses a number to preserve precision.
+
+Autonomous decisions recorded:
+
+- **Correctness:** used a shared `NhostClient` in `AppEnvironment` for both auth
+  and GraphQL to avoid session/header drift.
+- **Long-term maintenance:** used a custom directly discoverable shell instead of
+  relying on a seven-item stock `TabView` that could hide destinations behind
+  iOS's More UI.
+- **Correctness:** accepted a documented/code-reviewed deep-link regression check
+  instead of an interactive simulator link-click smoke test; `RootView` owns the
+  callback router above `AppShellView`, so callbacks are independent of active tab.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 40 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- `lens_diagnostics mode=all` — no blocking errors; markdown line-length warnings
+  remain in the plan artifact only.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 2 — Shared domain helpers
 

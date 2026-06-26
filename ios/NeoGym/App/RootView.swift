@@ -8,6 +8,8 @@ enum AuthScreen {
 }
 
 struct RootView: View {
+    let appEnvironment: AppEnvironment
+
     @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
     @State private var authScreen: AuthScreen = .signIn
@@ -24,13 +26,13 @@ struct RootView: View {
             case .signedOut:
                 signedOutView
             case let .signedIn(session):
-                ProfileView(
+                AppShellView(
                     session: session,
+                    environment: appEnvironment,
                     isSigningOut: isSigningOut,
-                    changeEmailModel: changeEmailModel
-                ) {
-                    signOut()
-                }
+                    changeEmailModel: changeEmailModel,
+                    signOut: signOut
+                )
             case let .error(message):
                 ErrorCard(message: message) {
                     authStore.start()
@@ -157,7 +159,7 @@ private struct ErrorCard: View {
 }
 
 #Preview {
-    RootView()
+    RootView(appEnvironment: NhostClientFactory.makeEnvironment())
         .environmentObject(AuthStore(authService: PreviewAuthService(), autoBootstrap: false))
         .environmentObject(AuthCallbackURLRouter())
 }

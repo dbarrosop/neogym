@@ -14,4 +14,5 @@ public enum NhostClientFactory {
     public static func makeAuthService(config: NhostConfig = .local) -> NhostAuthService {
         NhostAuthService(client: makeClient(config: config))
     }
+
 }
