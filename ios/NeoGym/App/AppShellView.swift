@@ -42,7 +42,7 @@ enum AppDestination: String, CaseIterable, Identifiable {
         case .profile: "Available now"
         case .exercises: "Phase 3"
         case .workouts: "Phase 4"
-        case .sessions: "Phases 5–6"
+        case .sessions: "Available now"
         case .body: "Phase 7"
         case .journal: "Phase 8"
         case .nutrition: "Phases 9–11"
@@ -58,6 +58,7 @@ struct AppShellView: View {
     let signOut: () -> Void
 
     @State private var selection: AppDestination = .workouts
+    @State private var pendingSessionId: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -111,16 +112,25 @@ struct AppShellView: View {
                 exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                 storageBaseURL: environment.client.serviceURLs.storage,
                 currentUserId: session.user?.id
-            ) { _ in
+            ) { sessionId in
+                pendingSessionId = sessionId
                 selection = .sessions
             }
         case .exercises:
             ExercisesNavigationView(
                 repository: ExercisesRepository(graphQL: environment.graphQLService),
                 storageBaseURL: environment.client.serviceURLs.storage
-            ) { _ in
+            ) { sessionId in
+                pendingSessionId = sessionId
                 selection = .sessions
             }
+        case .sessions:
+            SessionsNavigationView(
+                sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
+                exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
+                storageBaseURL: environment.client.serviceURLs.storage,
+                pendingSessionId: $pendingSessionId
+            )
         case .profile:
             ProfileView(
                 session: session,

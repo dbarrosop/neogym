@@ -492,7 +492,43 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native session list/detail and strength logging. Added session DTOs,
+raw GraphQL repository operations, list/detail view models, a Sessions shell tab,
+started-at editing, delete confirmation, add/remove exercise via insert/delete,
+strength set add/edit/delete, and session-context exercise detail navigation.
+Cardio session exercises render a Phase 6 placeholder while preserving remove and
+detail navigation. Updated the parity checklist for completed Phase 5 routes and
+added deterministic repository/view-model/mutation-variable tests.
+
+Reviewer verdict: `ACCEPT_WITH_CONCERNS`. The reviewer verified byte-faithful
+session queries and mutation shapes, confirmed no `exerciseId` update path or
+forbidden discriminator/ownership fields are present, and reran build/test/Xcode
+checks successfully. Accepted concerns: strength rows show an extra per-set volume
+hint beyond the web UI, and start-session deep-link navigation may occasionally
+fall back to the sessions list rather than opening detail immediately; both
+degrade harmlessly and Phase 6/ongoing navigation work can refine them.
+
+Autonomous decisions recorded:
+
+- **Correctness/security:** session exercise changes use insert/delete only; no
+  `exerciseId` update path was added, and mutation-variable tests assert no
+  `kind`, `parentKind`, or ownership columns are sent.
+- **Correctness:** session exercise reordering was not implemented because the
+  current web session UI does not expose it.
+- **Long-term maintenance:** reused the Phase 3 exercise picker/detail surfaces
+  for session add-exercise and context exercise navigation.
+- **Correctness:** accepted the per-set volume and conditional NavigationLink
+  concerns as non-blocking because total volume remains visible, persisted data
+  semantics match the web, and failed detail deep-link still lands users on the
+  sessions list.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 108 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 6 — Sessions cardio logging and prior history
 

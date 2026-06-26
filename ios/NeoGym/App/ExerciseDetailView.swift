@@ -39,7 +39,10 @@ struct ExerciseDetailView: View {
             }
         }
         .refreshable { await viewModel.load() }
-        .alert("Session started", isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })) {
+        .alert(
+            "Session started",
+            isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })
+        ) {
             Button("View Sessions") {
                 if let startedSessionId {
                     onSessionStarted(startedSessionId)
@@ -48,7 +51,7 @@ struct ExerciseDetailView: View {
             }
             Button("Stay here", role: .cancel) { startedSessionId = nil }
         } message: {
-            Text("Your ad-hoc session was created. Session detail navigation arrives with the Sessions phase.")
+            Text("Your ad-hoc session was created. Open it now or keep browsing this exercise.")
         }
     }
 
@@ -127,4 +130,3 @@ private enum ExerciseDetailTab {
     case progress
     case history
 }
-

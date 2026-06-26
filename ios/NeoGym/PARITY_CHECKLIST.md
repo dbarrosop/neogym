@@ -30,7 +30,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | Exercise history/progress | Exercise detail history/progress | 3 | ☑ complete | Includes prior session summaries with simple iOS 15-compatible trend visuals. |
 | Start ad-hoc session from exercise | Exercise detail start action | 3 | ☑ complete | Insert session with nullable `workoutId` and one session exercise; Sessions detail navigation arrives in Phase 5. |
 | Workout-scoped exercise detail `/workouts/$workoutId/exercises/$exerciseId` | Reusable exercise detail from workout context | 4 | ☑ complete | Workout exercise rows navigate to the reusable native exercise detail. |
-| Session-scoped exercise detail `/sessions/$sessionId/exercises/$exerciseId` | Reusable exercise detail from session context | 5 | ☐ planned | Context-scoped entry required by parity. |
+| Session-scoped exercise detail `/sessions/$sessionId/exercises/$exerciseId` | Reusable exercise detail from session context | 5 | ☑ complete | Session exercise rows navigate to the reusable native exercise detail. |
 | Exercise create/edit/delete | Native exercise authoring | TBD | ⊘ out of scope | No current signed-in web exercise authoring route in scope. |
 
 ## Workouts
@@ -49,12 +49,12 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/sessions` list | Sessions list | 5 | ☐ planned | Uses session display-name helper from Phase 2. |
-| `/sessions/$sessionId` detail | Session detail | 5 | ☐ planned | Workout attribution and ordered exercises. |
-| Edit session started-at | Session detail edit action | 5 | ☐ planned | Refetch/update affected summaries. |
-| Delete session | Session delete confirmation | 5 | ☐ planned | Spent detail dismisses after delete. |
-| Add/remove session exercise | Session exercise picker/delete | 5 | ☐ planned | Replace exercise changes by delete+insert; do not update `exercise_id`. |
-| Strength set add/edit/delete | Strength logging UI | 5 | ☐ planned | Do not send `kind` or `parentKind`. |
+| `/sessions` list | Sessions list | 5 | ☑ complete | Uses session display-name helper from Phase 2, month grouping, and entry counts. |
+| `/sessions/$sessionId` detail | Session detail | 5 | ☑ complete | Workout attribution and ordered exercises. |
+| Edit session started-at | Session detail edit action | 5 | ☑ complete | Refetches detail and affected session summaries. |
+| Delete session | Session delete confirmation | 5 | ☑ complete | Spent detail dismisses after delete. |
+| Add/remove session exercise | Session exercise picker/delete | 5 | ☑ complete | Uses insert/delete only; never updates `exercise_id`. |
+| Strength set add/edit/delete | Strength logging UI | 5 | ☑ complete | Omits `kind`/`parentKind`; double-weight UI shows per-side and volume hints. |
 | Cardio entry add/edit/delete | Schema-driven cardio logging UI | 6 | ☐ planned | Uses `exercises_cardio.metrics_schema`; do not send `parentKind`. |
 | Prior session history per exercise | Prior history on session detail | 6 | ☐ planned | Strength and cardio summaries. |
 

@@ -22,7 +22,9 @@ struct WorkoutDetailView: View {
         onSessionStarted: @escaping (String) -> Void,
         onDeleted: @escaping () -> Void
     ) {
-        _viewModel = StateObject(wrappedValue: WorkoutDetailViewModel(workoutId: workoutId, repository: workoutsRepository))
+        _viewModel = StateObject(
+            wrappedValue: WorkoutDetailViewModel(workoutId: workoutId, repository: workoutsRepository)
+        )
         self.workoutsRepository = workoutsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
@@ -47,14 +49,17 @@ struct WorkoutDetailView: View {
         .navigationBarItems(trailing: editToolbarLink)
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .alert("Session started", isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })) {
+        .alert(
+            "Session started",
+            isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })
+        ) {
             Button("View Sessions") {
                 if let startedSessionId { onSessionStarted(startedSessionId) }
                 startedSessionId = nil
             }
             Button("Stay here", role: .cancel) { startedSessionId = nil }
         } message: {
-            Text("Your session was created from this workout. Session detail navigation arrives with the Sessions phase.")
+            Text("Your session was created from this workout. Open it now or keep browsing this workout.")
         }
     }
 
@@ -116,7 +121,10 @@ struct WorkoutDetailView: View {
                                 }
                             }
                         }
-                        Text("\(workout.workoutExercises.count) exercise\(workout.workoutExercises.count == 1 ? "" : "s")")
+                        Text(
+                            "\(workout.workoutExercises.count) "
+                                + "exercise\(workout.workoutExercises.count == 1 ? "" : "s")"
+                        )
                             .font(.caption)
                             .foregroundColor(NeoGymTheme.mutedText)
                         Button {
@@ -126,7 +134,10 @@ struct WorkoutDetailView: View {
                                 }
                             }
                         } label: {
-                            Label(viewModel.startState.isLoading ? "Starting…" : "Start session", systemImage: "play.fill")
+                            Label(
+                                viewModel.startState.isLoading ? "Starting…" : "Start session",
+                                systemImage: "play.fill"
+                            )
                                 .frame(maxWidth: .infinity)
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -208,7 +219,6 @@ private struct WorkoutExerciseDetailRow: View {
         .padding(.vertical, 10)
     }
 }
-
 
 private struct WorkoutVisibilityBadge: View {
     let isPublic: Bool
