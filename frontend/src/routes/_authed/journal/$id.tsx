@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Tag } from "lucide-react";
 import { Markdown } from "@/components/markdown";
+import { PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,10 +46,10 @@ function JournalEntryDetailRoute() {
       return <DetailSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Failed to load entry" message={error.message} />;
     }
     if (!data?.journalEntry) {
-      return <p className="text-sm text-muted-foreground">Entry not found.</p>;
+      return <EmptyState title="Entry not found." />;
     }
     const entry = data.journalEntry;
     return (
@@ -86,25 +88,23 @@ function JournalEntryDetailRoute() {
     );
   }
 
-  return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">{renderContent()}</div>
-    </section>
-  );
+  return <PageShell maxWidth="2xl">{renderContent()}</PageShell>;
 }
 
 function DetailSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-2">
-        <Skeleton className="h-3 w-32" />
-        <Skeleton className="h-7 w-64" />
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-2/3" />
-      </CardContent>
-    </Card>
+    <SkeletonState>
+      <Card className="border-border/60">
+        <CardHeader className="space-y-2">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-7 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </CardContent>
+      </Card>
+    </SkeletonState>
   );
 }

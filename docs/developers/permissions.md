@@ -49,7 +49,7 @@ The user can see their own private rows **plus** all rows flagged `is_public = t
 - `filter` on update/delete: `_and: [user_id eq self, is_public eq false]`.
 - `check` on insert/update: `_and: [user_id eq self, is_public eq false]`.
 
-Used for: `exercises`, `workouts`, `labels`.
+Used for: `exercises`, `workouts`, `labels`, `foods`.
 
 ### C. Inherited from a parent
 
@@ -58,7 +58,7 @@ The table itself has no `user_id` column — ownership is determined by walking 
 - The `filter` and `check` follow a relationship path: `<relationship>.<parent>.user_id._eq: X-Hasura-User-Id` (sometimes with an `is_public` branch for read-only access to public parents).
 - There's no `user_id` column to forge, so no `set` block is needed.
 
-Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_strength_sets`, `workout_session_cardio_entries`, `workout_labels`, `journal_entry_labels`, `exercises_strength`, `exercises_cardio`.
+Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_strength_sets`, `workout_session_cardio_entries`, `workout_labels`, `journal_entry_labels`, `exercises_strength`, `exercises_cardio`, `meal_ingredients`, `nutrition_plan_meals`, `nutrition_log_meals`, `nutrition_log_entries`.
 
 ## Public, user-readable catalog data
 
@@ -250,6 +250,46 @@ Weight / body fat / notes per measurement date. Always private.
 | `user` | `insert` | `measured_on`, `weight_kg`, `body_fat_pct`, `notes` | check: `user_id eq self`; `set: user_id = self` | A user can log measurements only for themselves. |
 | `user` | `update` | `measured_on`, `weight_kg`, `body_fat_pct`, `notes` | filter: `user_id eq self`; check: `null` | Edit your own measurements. |
 | `user` | `delete` | — | filter: `user_id eq self` | Delete your own measurements. |
+
+## Nutrition
+
+See [`nutrition.md`](nutrition.md) for model details. These permissions expose the full backend nutrition contract while keeping all user-owned rows private.
+
+### `foods` — pattern **B (owner-or-public catalog)**
+
+| Role | Action | Columns | Filter / Check | Enforces |
+|---|---|---|---|---|
+| `user` | `select` | `id`, `name`, `user_id`, `is_public`, `kcal_per_100g`, `fat_per_100g`, `carbs_per_100g`, `protein_per_100g`, `fiber_per_100g`, `sugar_per_100g`, timestamps | filter: `_or [user_id eq self, is_public eq true]` | Users see public foods plus their private foods. |
+| `user` | `insert` | `name` and nutrient columns | check: `_and [user_id eq self, is_public eq false]`; `set: user_id = self` | Users create private foods only; they cannot set `is_public`. |
+| `user` | `update` | `name` and nutrient columns | filter & check: `_and [user_id eq self, is_public eq false]` | Users edit only their private foods. |
+| `user` | `delete` | — | filter: `_and [user_id eq self, is_public eq false]` | Users delete only their private foods. Deletion can still be blocked by `meal_ingredients.food_id ON DELETE RESTRICT`. |
+
+### `meals`, `nutrition_plans`, `nutrition_days` — pattern **A (private per-user)**
+
+`meals` and `nutrition_plans` allow users to select/insert/update/delete only their rows. Insert uses `set: user_id = X-Hasura-User-Id`; update/delete filters are `user_id eq self`.
+
+`nutrition_days` is also private per-user, with `log_date` and nullable `nutrition_plan_id` exposed for insert/update. Its check is `_and [user_id eq self, _or [nutrition_plan_id is null, nutritionPlan.user_id eq self]]`, so a day can be ad-hoc or linked only to one of the user's own plan templates. Delete is `user_id eq self` and cascades log groups/entries at the database layer.
+
+### `meal_ingredients` — pattern **C (owned meal + visible food)**
+
+| Action | Columns | Filter / Check | Enforces |
+|---|---|---|---|
+| `select` | `id`, `meal_id`, `food_id`, `grams`, `position`, timestamps | `meal.user_id eq self` | Users read ingredients only in their meals. |
+| `insert` | `meal_id`, `food_id`, `grams`, `position` | `_and [meal.user_id eq self, food._or [user_id eq self, is_public eq true]]` | Ingredients can reference only an owned meal and a visible food. |
+| `update` | `grams`, `position` | filter & check: `meal.user_id eq self` | Changing `food_id` is not allowed; delete+insert instead. |
+| `delete` | — | `meal.user_id eq self` | Remove ingredients only from owned meals. |
+
+### `nutrition_plan_meals` — pattern **C (owned plan + owned meal)**
+
+Select/update/delete walk `nutritionPlan.user_id eq self`. Insert checks both `nutritionPlan.user_id eq self` and `meal.user_id eq self`. Users may update only `slot_time`, `label`, and `position`; changing the source meal is delete+insert.
+
+### `nutrition_log_meals` — pattern **C (owned day, nullable provenance)**
+
+Select/update/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day and uses explicit nullable branches for provenance: `_or [meal_id is null, meal.user_id eq self]` and `_or [nutrition_plan_meal_id is null, nutritionPlanMeal.nutritionPlan.user_id eq self]`. Users may insert/update `name`, `slot_time`, and `position`; `slot_time` is the actual logged time-of-day chosen in the UI, not necessarily the source plan slot time. Users cannot reparent a logged group after insert.
+
+### `nutrition_log_entries` — pattern **C (owned day + visible food + optional same-day group)**
+
+Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can set `slot_time` for standalone logged-food time on insert, but updates are limited to `grams` and `position`; `food_id`, `slot_time`, and all `snapshot_*` columns are not user-updatable. Snapshot columns are selectable so clients can compute historical totals.
 
 ## Storage
 

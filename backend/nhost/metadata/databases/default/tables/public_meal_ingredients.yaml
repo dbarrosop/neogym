@@ -1,0 +1,101 @@
+table:
+  name: meal_ingredients
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    food_id:
+      custom_name: foodId
+    grams:
+      custom_name: grams
+    id:
+      custom_name: id
+    meal_id:
+      custom_name: mealId
+    position:
+      custom_name: position
+    updated_at:
+      custom_name: updatedAt
+  custom_column_names:
+    created_at: createdAt
+    food_id: foodId
+    grams: grams
+    id: id
+    meal_id: mealId
+    position: position
+    updated_at: updatedAt
+  custom_name: mealIngredients
+  custom_root_fields:
+    delete: deleteMealIngredients
+    delete_by_pk: deleteMealIngredient
+    insert: insertMealIngredients
+    insert_one: insertMealIngredient
+    select: mealIngredients
+    select_aggregate: mealIngredientsAggregate
+    select_by_pk: mealIngredient
+    update: updateMealIngredients
+    update_by_pk: updateMealIngredient
+object_relationships:
+  - name: food
+    using:
+      foreign_key_constraint_on: food_id
+  - name: meal
+    using:
+      foreign_key_constraint_on: meal_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - meal:
+              user_id:
+                _eq: X-Hasura-User-Id
+          - food:
+              _or:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - is_public:
+                    _eq: true
+      columns:
+        - meal_id
+        - food_id
+        - grams
+        - position
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - meal_id
+        - food_id
+        - grams
+        - position
+        - created_at
+        - updated_at
+      filter:
+        meal:
+          user_id:
+            _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - grams
+        - position
+      filter:
+        meal:
+          user_id:
+            _eq: X-Hasura-User-Id
+      check:
+        meal:
+          user_id:
+            _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        meal:
+          user_id:
+            _eq: X-Hasura-User-Id

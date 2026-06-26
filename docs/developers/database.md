@@ -161,9 +161,59 @@ erDiagram
 
 `workout_labels` uses the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint. `journal_labels` is strictly private per-user — no `is_public` column, `user_id NOT NULL` — see [`permissions.md`](permissions.md) pattern A.
 
+## Nutrition
+
+Nutrition is a separate private/user-catalog domain for calorie intake. See [`nutrition.md`](nutrition.md) for invariants and operational caveats; this section is the schema map.
+
+```mermaid
+erDiagram
+    USERS["auth.users"]
+
+    FOODS {
+        uuid id PK
+        text name
+        uuid user_id "NULL iff is_public"
+        boolean is_public
+        numeric kcal_per_100g
+        numeric fat_per_100g
+        numeric carbs_per_100g
+        numeric protein_per_100g
+        numeric fiber_per_100g
+        numeric sugar_per_100g
+    }
+
+    MEALS { uuid id PK uuid user_id text name text description }
+    MEAL_INGREDIENTS { uuid id PK uuid meal_id FK uuid food_id FK numeric grams int position }
+    NUTRITION_PLANS { uuid id PK uuid user_id text name text description }
+    NUTRITION_PLAN_MEALS { uuid id PK uuid nutrition_plan_id FK uuid meal_id FK time slot_time text label int position }
+    NUTRITION_DAYS { uuid id PK uuid user_id date log_date uuid nutrition_plan_id "nullable template link" }
+    NUTRITION_LOG_MEALS { uuid id PK uuid nutrition_day_id FK uuid meal_id "nullable provenance" uuid nutrition_plan_meal_id "nullable provenance" text name time slot_time "logged time" int position }
+    NUTRITION_LOG_ENTRIES { uuid id PK uuid nutrition_day_id FK uuid nutrition_log_meal_id "nullable group" uuid food_id "nullable after food delete" numeric grams time slot_time "standalone logged time" text snapshot_food_name numeric snapshot_kcal_per_100g }
+
+    USERS ||--o{ FOODS : "owns private"
+    USERS ||--o{ MEALS : owns
+    USERS ||--o{ NUTRITION_PLANS : owns
+    USERS ||--o{ NUTRITION_DAYS : logs
+    FOODS ||--o{ MEAL_INGREDIENTS : "template ingredient (RESTRICT delete)"
+    MEALS ||--o{ MEAL_INGREDIENTS : contains
+    MEALS ||--o{ NUTRITION_PLAN_MEALS : "plan slot (RESTRICT delete)"
+    NUTRITION_PLANS ||--o{ NUTRITION_PLAN_MEALS : contains
+    NUTRITION_PLANS ||--o{ NUTRITION_DAYS : "selected template; SET NULL on delete"
+    NUTRITION_DAYS ||--o{ NUTRITION_LOG_MEALS : groups
+    NUTRITION_DAYS ||--o{ NUTRITION_LOG_ENTRIES : entries
+    NUTRITION_LOG_MEALS ||--o{ NUTRITION_LOG_ENTRIES : "grouped entries; composite FK same-day"
+    MEALS ||--o{ NUTRITION_LOG_MEALS : "nullable provenance; SET NULL"
+    NUTRITION_PLAN_MEALS ||--o{ NUTRITION_LOG_MEALS : "nullable provenance; SET NULL"
+    FOODS ||--o{ NUTRITION_LOG_ENTRIES : "nullable provenance; SET NULL"
+```
+
+Foods reuse the owner-or-public catalog visibility invariant (`is_public = true` iff `user_id IS NULL`) and `UNIQUE NULLS NOT DISTINCT (user_id, name)`. Meal and plan templates are private roots. Logged day entries are historical facts: `nutrition_log_entries` has non-null `snapshot_*` food name/nutrient columns populated by an insert-only trigger. Later food updates/deletes do not change those snapshots, and `food_id` is nullable only for the post-delete provenance-detached state. Log `slot_time` values record the actual user-selected time-of-day (defaulting to now); planned meal provenance stays in `nutrition_plan_meal_id` and should not force the logged time to the template slot time. The day-scoped ordering indexes for `nutrition_log_meals` and `nutrition_log_entries` are `(nutrition_day_id, slot_time, position, id)`, matching the slot-time-first daily intake display.
+
+`nutrition_log_entries` also has a composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`. With default `MATCH SIMPLE`, standalone entries (`nutrition_log_meal_id IS NULL`) skip that composite FK while still using the direct `nutrition_day_id` FK; grouped entries must point at a group on the same day. Because `nutrition_day_id` is present in both the direct and composite FKs, Hasura/Nhost metadata uses manual relationships for the affected day/group links rather than auto-tracking the ambiguous constraints.
+
 ## Public vs user-owned visibility
 
-A pattern that recurs across `exercises`, `workouts`, `labels`:
+A pattern that recurs across `exercises`, `workouts`, `labels`, `foods`:
 
 ```sql
 CHECK (
@@ -185,6 +235,12 @@ Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
+| `meal_ingredients.food_id` → `foods.id` | `ON DELETE RESTRICT` | A food used by any meal template cannot be deleted until the template reference is removed. This includes public foods referenced by users. |
+| `nutrition_plan_meals.meal_id` → `meals.id` | `ON DELETE RESTRICT` | A meal used by a daily plan template cannot be deleted until the plan slot is removed. |
+| `nutrition_days.nutrition_plan_id` → `nutrition_plans.id` | `ON DELETE SET NULL` | Selected plans are suggestions/templates only; deleting a plan detaches historical days. |
+| `nutrition_log_meals.meal_id` / `nutrition_plan_meal_id` | `ON DELETE SET NULL` | Logged meal provenance detaches when templates are removed; historical log groups remain. |
+| `nutrition_log_entries.food_id` → `foods.id` | `ON DELETE SET NULL` | Logged food provenance detaches when a source food is deleted; trusted snapshot columns remain. |
+| `nutrition_log_entries (nutrition_log_meal_id, nutrition_day_id)` → `nutrition_log_meals(id, nutrition_day_id)` | `ON DELETE CASCADE` | Deleting a logged meal group deletes its grouped entries and the composite FK rejects wrong-day group children. |
 
 ## Triggers
 
@@ -197,5 +253,6 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 | `workout_session_cardio_entries` | `validate_public_workout_session_cardio_entries_metrics` | `BEFORE INSERT OR UPDATE OF metrics, workout_session_exercise_id` | Validates `metrics` against `exercises_cardio.metrics_schema` via `pg_jsonschema`. Noops if the parent isn't cardio so the FK can give a clearer error. |
 | `exercises` | `exercise_must_have_sidecar` | `CONSTRAINT TRIGGER — AFTER INSERT, DEFERRABLE INITIALLY DEFERRED (fires at commit)` | At commit, raises `23503` if the inserted exercise has no matching sidecar (`exercises_strength` for kind=strength, `exercises_cardio` for kind=cardio). Deferral lets clients insert the exercise and its sidecar in either order within one transaction — the natural shapes are Hasura nested mutation or a SQL CTE. |
 | `exercises_strength`, `exercises_cardio` | `<sidecar>_no_orphan_parent` | `CONSTRAINT TRIGGER — AFTER DELETE, DEFERRABLE INITIALLY DEFERRED (fires at commit)` | At commit, raises `23503` if the deleted sidecar's parent exercise still exists. CASCADE from `DELETE FROM exercises` removes both atomically (parent gone, check passes); standalone sidecar DELETEs trip the check and roll back. |
+| `nutrition_log_entries` | `populate_public_nutrition_log_entry_food_snapshot` | `BEFORE INSERT` | Requires a non-null `food_id` and copies food name plus per-100g nutrients into the trusted `snapshot_*` columns. It is insert-only: food edits/deletes and grams updates do not rewrite history. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.

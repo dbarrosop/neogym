@@ -58,32 +58,37 @@ const SaveWorkoutMutation = graphql(`
     $id: uuid!
     $set: workouts_set_input!
     $deleteRowIds: [uuid!]!
+    $hasDeleteRows: Boolean!
     $insertRows: [workoutExercises_insert_input!]!
+    $hasInsertRows: Boolean!
     $positionUpdates: [workoutExercises_updates!]!
+    $hasPositionUpdates: Boolean!
     $deleteLabelIds: [uuid!]!
+    $hasDeleteLabels: Boolean!
     $insertLabels: [workoutLabels_insert_input!]!
+    $hasInsertLabels: Boolean!
   ) {
     updateWorkout(pk_columns: { id: $id }, _set: $set) {
       id
     }
-    deleteWorkoutExercises(where: { id: { _in: $deleteRowIds } }) {
+    deleteWorkoutExercises(where: { id: { _in: $deleteRowIds } }) @include(if: $hasDeleteRows) {
       affected_rows
     }
-    insertWorkoutExercises(objects: $insertRows) {
+    insertWorkoutExercises(objects: $insertRows) @include(if: $hasInsertRows) {
       affected_rows
     }
-    update_workoutExercises_many(updates: $positionUpdates) {
+    update_workoutExercises_many(updates: $positionUpdates) @include(if: $hasPositionUpdates) {
       affected_rows
     }
     deleteWorkoutLabels(
       where: { workoutId: { _eq: $id }, labelId: { _in: $deleteLabelIds } }
-    ) {
+    ) @include(if: $hasDeleteLabels) {
       affected_rows
     }
     insertWorkoutLabels(
       objects: $insertLabels
       on_conflict: { constraint: workout_labels_pkey, update_columns: [] }
-    ) {
+    ) @include(if: $hasInsertLabels) {
       affected_rows
     }
   }
@@ -217,10 +222,15 @@ function EditWorkoutRoute() {
           description: values.description || null,
         },
         deleteRowIds,
+        hasDeleteRows: deleteRowIds.length > 0,
         insertRows,
+        hasInsertRows: insertRows.length > 0,
         positionUpdates,
+        hasPositionUpdates: positionUpdates.length > 0,
         deleteLabelIds,
+        hasDeleteLabels: deleteLabelIds.length > 0,
         insertLabels,
+        hasInsertLabels: insertLabels.length > 0,
       });
     },
     onSuccess: () => {

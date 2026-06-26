@@ -1,0 +1,146 @@
+table:
+  name: foods
+  schema: public
+configuration:
+  column_config:
+    carbs_per_100g:
+      custom_name: carbsPer100g
+    created_at:
+      custom_name: createdAt
+    fat_per_100g:
+      custom_name: fatPer100g
+    fiber_per_100g:
+      custom_name: fiberPer100g
+    id:
+      custom_name: id
+    is_public:
+      custom_name: isPublic
+    kcal_per_100g:
+      custom_name: kcalPer100g
+    name:
+      custom_name: name
+    protein_per_100g:
+      custom_name: proteinPer100g
+    sugar_per_100g:
+      custom_name: sugarPer100g
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    carbs_per_100g: carbsPer100g
+    created_at: createdAt
+    fat_per_100g: fatPer100g
+    fiber_per_100g: fiberPer100g
+    id: id
+    is_public: isPublic
+    kcal_per_100g: kcalPer100g
+    name: name
+    protein_per_100g: proteinPer100g
+    sugar_per_100g: sugarPer100g
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: foods
+  custom_root_fields:
+    delete: deleteFoods
+    delete_by_pk: deleteFood
+    insert: insertFoods
+    insert_one: insertFood
+    select: foods
+    select_aggregate: foodsAggregate
+    select_by_pk: food
+    update: updateFoods
+    update_by_pk: updateFood
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+array_relationships:
+  - name: mealIngredients
+    using:
+      foreign_key_constraint_on:
+        column: food_id
+        table:
+          name: meal_ingredients
+          schema: public
+  - name: nutritionLogEntries
+    using:
+      foreign_key_constraint_on:
+        column: food_id
+        table:
+          name: nutrition_log_entries
+          schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - name
+        - kcal_per_100g
+        - fat_per_100g
+        - carbs_per_100g
+        - protein_per_100g
+        - fiber_per_100g
+        - sugar_per_100g
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - name
+        - user_id
+        - is_public
+        - kcal_per_100g
+        - fat_per_100g
+        - carbs_per_100g
+        - protein_per_100g
+        - fiber_per_100g
+        - sugar_per_100g
+        - created_at
+        - updated_at
+      filter:
+        _or:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: true
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - name
+        - kcal_per_100g
+        - fat_per_100g
+        - carbs_per_100g
+        - protein_per_100g
+        - fiber_per_100g
+        - sugar_per_100g
+      filter:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+      check:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        _and:
+          - user_id:
+              _eq: X-Hasura-User-Id
+          - is_public:
+              _eq: false
