@@ -29,7 +29,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | `/exercises/$exerciseId` detail | Exercise detail | 3 | ☑ complete | Storage images, public/private visibility, strength/cardio sidecar display. |
 | Exercise history/progress | Exercise detail history/progress | 3 | ☑ complete | Includes prior session summaries with simple iOS 15-compatible trend visuals. |
 | Start ad-hoc session from exercise | Exercise detail start action | 3 | ☑ complete | Insert session with nullable `workoutId` and one session exercise; Sessions detail navigation arrives in Phase 5. |
-| Workout-scoped exercise detail `/workouts/$workoutId/exercises/$exerciseId` | Reusable exercise detail from workout context | 4 | ☐ planned | Context-scoped entry required by parity. |
+| Workout-scoped exercise detail `/workouts/$workoutId/exercises/$exerciseId` | Reusable exercise detail from workout context | 4 | ☑ complete | Workout exercise rows navigate to the reusable native exercise detail. |
 | Session-scoped exercise detail `/sessions/$sessionId/exercises/$exerciseId` | Reusable exercise detail from session context | 5 | ☐ planned | Context-scoped entry required by parity. |
 | Exercise create/edit/delete | Native exercise authoring | TBD | ⊘ out of scope | No current signed-in web exercise authoring route in scope. |
 
@@ -37,13 +37,13 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/workouts` list | Workouts list | 4 | ☐ planned | Include public/private handling and labels. |
-| `/workouts/$workoutId` detail | Workout detail | 4 | ☐ planned | Ordered exercise rows and labels. |
-| `/workouts/new` | Create workout form | 4 | ☐ planned | Spent form dismisses on submit/cancel. |
-| `/workouts/$workoutId/edit` | Edit workout form | 4 | ☐ planned | Includes delete confirmation and spent-screen dismissal. |
-| Add/remove/reorder workout exercises | Workout form exercise picker/order controls | 4 | ☐ planned | Preserve web ordering semantics. |
-| Workout labels | Label input/create/attach/detach | 4 | ☐ planned | Mutation variables must omit ownership fields. |
-| Start session from workout | Workout detail start action | 4 | ☐ planned | Copy ordered workout exercises into session exercises. |
+| `/workouts` list | Workouts list | 4 | ☑ complete | Includes public/private handling, label badges, and label/visibility filters. |
+| `/workouts/$workoutId` detail | Workout detail | 4 | ☑ complete | Ordered exercise rows, labels, description, and owner-only edit affordance. |
+| `/workouts/new` | Create workout form | 4 | ☑ complete | Spent form dismisses on submit/cancel. |
+| `/workouts/$workoutId/edit` | Edit workout form | 4 | ☑ complete | Includes delete confirmation and spent-screen dismissal. |
+| Add/remove/reorder workout exercises | Workout form exercise picker/order controls | 4 | ☑ complete | Native picker prevents duplicate picks and rows can move up/down. |
+| Workout labels | Label input/create/attach/detach | 4 | ☑ complete | Mutation variables omit ownership fields and reuse/new-label behavior mirrors web. |
+| Start session from workout | Workout detail start action | 4 | ☑ complete | Copies ordered workout exercises into nested session exercises. |
 
 ## Sessions
 

@@ -411,7 +411,38 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native workout management: list, detail, create, edit, delete,
+labels, exercise picker, ordering controls, and start-session-from-workout. Added
+Workout models, repository operations, form model, view models, SwiftUI list/detail
+/form/picker/label views, and tests for fixture decoding, form behavior, filtering,
+and mutation-variable contracts. Wired the Workouts shell destination and workout
+context exercise detail navigation, and updated the parity checklist.
+
+Reviewer verdict: `ACCEPT_WITH_CONCERNS`. The reviewer verified the workout
+GraphQL operations match the web documents, including label and workout-label
+conflict constraints and position rewrite semantics; verified forbidden columns
+are omitted; and reran build/test/Xcode checks successfully. Accepted concerns:
+Phase 4 log needed this bookkeeping update before commit; `ExercisePickerView`
+uses dictionary values for multi-select confirmation, so insertion order may differ
+from the web picker, but users can reorder after adding.
+
+Autonomous decisions recorded:
+
+- **Correctness:** mirrored web mutation shapes and omitted ownership,
+  public/private, and discriminator columns from write variables.
+- **Long-term maintenance:** reused Phase 3 exercise list/detail surfaces for
+  workout exercise picking and workout-context detail navigation.
+- **Correctness:** accepted the picker multi-select ordering concern as
+  non-blocking because the form exposes ordering controls and mutation tests
+  verify persisted positions.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 100 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 5 — Sessions list/detail and strength logging
 
