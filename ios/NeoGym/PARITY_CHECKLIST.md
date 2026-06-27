@@ -80,7 +80,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/nutrition` landing | Nutrition overview | 11 | ☐ planned | Top-level Nutrition remains one primary shell destination. |
+| `/nutrition` landing | Nutrition overview | 11 | ☑ complete | Top-level Nutrition remains one primary shell destination with Overview/Days/Plans/Foods/Meals sub-navigation. |
 | `/nutrition/foods` list | Foods list | 9 | ☑ complete | Food search/list with Mine/Public filters inside Nutrition sub-navigation. |
 | `/nutrition/foods/new` | Create food form | 9 | ☑ complete | Mutation variables omit ownership/public fields. |
 | `/nutrition/foods/$foodId` detail | Food detail | 9 | ☑ complete | Macro values per 100g and public/private edit affordance. |
@@ -93,11 +93,11 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | `/nutrition/plans/new` | Create plan form | 10 | ☑ complete | Meal picker, ordered slots, labels, slot times, and live macro summary. |
 | `/nutrition/plans/$planId` detail | Plan detail | 10 | ☑ complete | Timed meal slots and macro summaries from live meal values. |
 | `/nutrition/plans/$planId/edit` | Edit/delete plan | 10 | ☑ complete | Slot `mealId` changes use delete+insert; meal-in-plan restrict errors stay friendly. |
-| `/nutrition/days` list | Nutrition days list | 11 | ☐ planned | Date browsing. |
-| `/nutrition/days/$date` detail | Daily intake detail | 11 | ☐ planned | Plan suggestions, logged groups, totals. |
-| Standalone food logging | Log food sheet/action | 11 | ☐ planned | User-selected/default-now `slotTime`; snapshot totals. |
-| Meal logging | Log meal sheet/action | 11 | ☐ planned | Nested insert children include same `nutritionDayId` as parent group. |
-| Edit/delete logs/day | Daily intake edit/delete actions | 11 | ☐ planned | Totals use logged snapshots, never live foods. |
+| `/nutrition/days` list | Nutrition days list | 11 | ☑ complete | Recent day list and local-date browsing/open-today actions. |
+| `/nutrition/days/$date` detail | Daily intake detail | 11 | ☑ complete | Plan suggestions, logged groups, date navigation, and snapshot-based totals. |
+| Standalone food logging | Log food sheet/action | 11 | ☑ complete | User-selected/default-now `slotTime`; mutation omits snapshot/ownership writes. |
+| Meal logging | Log meal sheet/action | 11 | ☑ complete | Nested insert children include same `nutritionDayId` as parent group and preserve plan provenance. |
+| Edit/delete logs/day | Daily intake edit/delete actions | 11 | ☑ complete | Entry/group grams/position/time edits and deletes; totals use logged snapshots, never live foods. |
 
 ## Final QA
 

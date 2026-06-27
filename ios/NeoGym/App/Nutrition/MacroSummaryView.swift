@@ -6,6 +6,7 @@ struct MacroSummaryView: View {
     var title = "Totals"
     var description: String?
     var compact = false
+    var targetTotals: MacroTotals?
 
     var body: some View {
         if compact {
@@ -35,12 +36,12 @@ struct MacroSummaryView: View {
                     }
                 }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    macroTile(label: "Calories", value: totals.kcal, unit: "kcal")
-                    macroTile(label: "Fat", value: totals.fat, unit: "g")
-                    macroTile(label: "Carbs", value: totals.carbs, unit: "g")
-                    macroTile(label: "Protein", value: totals.protein, unit: "g")
-                    macroTile(label: "Fiber", value: totals.fiber, unit: "g")
-                    macroTile(label: "Sugar", value: totals.sugar, unit: "g")
+                    macroTile(label: "Calories", value: totals.kcal, target: targetTotals?.kcal, unit: "kcal")
+                    macroTile(label: "Fat", value: totals.fat, target: targetTotals?.fat, unit: "g")
+                    macroTile(label: "Carbs", value: totals.carbs, target: targetTotals?.carbs, unit: "g")
+                    macroTile(label: "Protein", value: totals.protein, target: targetTotals?.protein, unit: "g")
+                    macroTile(label: "Fiber", value: totals.fiber, target: targetTotals?.fiber, unit: "g")
+                    macroTile(label: "Sugar", value: totals.sugar, target: targetTotals?.sugar, unit: "g")
                 }
             }
             .padding(14)
@@ -49,12 +50,21 @@ struct MacroSummaryView: View {
         }
     }
 
-    private func macroTile(label: String, value: Double, unit: String) -> some View {
+    private func formatMacroNumber(_ value: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = value.rounded() == value ? 0 : 1
+        formatter.minimumFractionDigits = 0
+        return formatter.string(from: NSNumber(value: value)) ?? String(value)
+    }
+
+    private func macroTile(label: String, value: Double, target: Double? = nil, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption2)
                 .foregroundColor(NeoGymTheme.mutedText)
-            Text(NutritionMath.formatMacro(value, unit: unit))
+            Text(target.map { "\(formatMacroNumber(value)) / \(formatMacroNumber($0)) \(unit)" }
+                ?? NutritionMath.formatMacro(value, unit: unit))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundColor(.primary)

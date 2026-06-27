@@ -963,7 +963,36 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native nutrition overview, day browsing, daily intake detail, plan
+suggestions, standalone food logging, meal logging, editable entry/group grams,
+positions and times, deletes, and snapshot-based totals. Added `NutritionDay`/log
+models, day/log GraphQL operations, `DailyIntakeViewModel`, Overview/Days/
+DailyIntake SwiftUI views, LogFood/LogMeal/Edit sheets, preview fixtures, and
+checklist closure for Phase 11.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified GraphQL parity for overview,
+day, food-log, meal-log, entry/group update/delete, and day-delete operations;
+confirmed nested logged meal children carry the same `nutritionDayId`; confirmed
+no ownership/snapshot writes; confirmed logged slot time is user-selected/default
+now rather than forced to the plan slot; and confirmed totals use snapshots, not
+live foods. Accepted scope note: native editing supports slot time/position fields
+that are allowed by docs and the plan even though the web currently only edits
+grams inline.
+
+Autonomous decisions recorded:
+
+- **Correctness/security:** daily totals are computed only from `snapshot*Per100g` fields, while meal/plan templates continue to use live food values.
+- **Correctness/security:** log-food/log-meal mutation tests assert ownership and trusted snapshot columns are not written; nested meal children explicitly carry the same `nutritionDayId` as the parent group.
+- **Correctness:** planned meal logging preserves `nutritionPlanMealId` provenance but defaults the actual logged `slotTime` to now and lets users edit it.
+- **Compatibility:** implemented daily UI with SwiftUI/Form/NavigationView patterns that keep the iOS 15 deployment target.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 164 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed after fixing an app-only optional string issue in the overview row.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 12 — Cross-domain parity QA and polish
 

@@ -25,6 +25,19 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     func createPlan(_ values: NutritionPlanFormValues) async throws -> String { "plan-new" }
     func savePlan(id: String, initialValues: NutritionPlanFormValues, values: NutritionPlanFormValues) async throws {}
     func deletePlan(id: String) async throws {}
+    func listNutritionDays() async throws -> [NutritionDay] { [previewDay] }
+    func openDailyIntake(date: String) async throws -> DailyIntakePayload {
+        DailyIntakePayload(day: previewDay, nutritionPlans: [previewPlan], meals: [previewMeal], foods: previewFoods)
+    }
+    func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String { "day-1" }
+    func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws {}
+    func deleteNutritionDay(id: String) async throws {}
+    func logFood(_ values: LogFoodValues) async throws -> String { "entry-new" }
+    func logMeal(_ values: LogMealValues) async throws -> String { "group-new" }
+    func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {}
+    func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {}
+    func deleteLogEntry(id: String) async throws {}
+    func deleteLogMeal(id: String) async throws {}
 
     private var previewFoods: [Food] {
         [
@@ -74,6 +87,60 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
                     grams: .string("80"),
                     position: 1,
                     food: previewFoods[1]
+                )
+            ]
+        )
+    }
+
+    private var previewDay: NutritionDay {
+        NutritionDay(
+            id: "day-1",
+            logDate: IntakeGrouping.formatLocalDate(),
+            nutritionPlanId: "plan-1",
+            nutritionPlan: previewPlan,
+            nutritionLogMeals: [
+                NutritionLogMeal(
+                    id: "log-meal-1",
+                    mealId: "meal-1",
+                    nutritionPlanMealId: "slot-1",
+                    name: "Breakfast",
+                    slotTime: "08:30:00",
+                    position: 0,
+                    nutritionLogEntries: [
+                        NutritionLogEntry(
+                            id: "entry-1",
+                            nutritionDayId: "day-1",
+                            nutritionLogMealId: "log-meal-1",
+                            foodId: "food-1",
+                            grams: .string("200"),
+                            position: 0,
+                            slotTime: "08:30:00",
+                            snapshotFoodName: "Greek yogurt",
+                            snapshotKcalPer100g: .string("120"),
+                            snapshotFatPer100g: .string("3.5"),
+                            snapshotCarbsPer100g: .string("5"),
+                            snapshotProteinPer100g: .string("12"),
+                            snapshotFiberPer100g: .string("0"),
+                            snapshotSugarPer100g: .string("4")
+                        )
+                    ]
+                )
+            ],
+            nutritionLogEntries: [
+                NutritionLogEntry(
+                    id: "entry-2",
+                    nutritionDayId: "day-1",
+                    foodId: "food-2",
+                    grams: .string("80"),
+                    position: 1,
+                    slotTime: "10:15:00",
+                    snapshotFoodName: "Blueberries",
+                    snapshotKcalPer100g: .string("57"),
+                    snapshotFatPer100g: .string("0.3"),
+                    snapshotCarbsPer100g: .string("14"),
+                    snapshotProteinPer100g: .string("0.7"),
+                    snapshotFiberPer100g: .string("2.4"),
+                    snapshotSugarPer100g: .string("10")
                 )
             ]
         )

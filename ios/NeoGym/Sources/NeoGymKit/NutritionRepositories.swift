@@ -23,6 +23,18 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func createPlan(_ values: NutritionPlanFormValues) async throws -> String
     func savePlan(id: String, initialValues: NutritionPlanFormValues, values: NutritionPlanFormValues) async throws
     func deletePlan(id: String) async throws
+
+    func listNutritionDays() async throws -> [NutritionDay]
+    func openDailyIntake(date: String) async throws -> DailyIntakePayload
+    func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
+    func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
+    func deleteNutritionDay(id: String) async throws
+    func logFood(_ values: LogFoodValues) async throws -> String
+    func logMeal(_ values: LogMealValues) async throws -> String
+    func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws
+    func updateLogMeal(id: String, values: LogMealUpdateValues) async throws
+    func deleteLogEntry(id: String) async throws
+    func deleteLogMeal(id: String) async throws
 }
 
 public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
@@ -215,6 +227,115 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "DeleteNutritionPlan"
         )
     }
+
+    public func listNutritionDays() async throws -> [NutritionDay] {
+        let data: NutritionDaysIndexData = try await graphQL.execute(
+            query: Self.nutritionDaysIndexQuery,
+            operationName: "NutritionDaysIndex"
+        )
+        return data.nutritionDays
+    }
+
+    public func openDailyIntake(date: String) async throws -> DailyIntakePayload {
+        let data: DailyIntakeLogData = try await graphQL.execute(
+            query: Self.dailyIntakeLogQuery,
+            variables: ["date": GraphQLScalars.date(date)],
+            operationName: "DailyIntakeLog"
+        )
+        return DailyIntakePayload(
+            day: data.nutritionDays.first,
+            nutritionPlans: data.nutritionPlans,
+            meals: data.meals,
+            foods: data.foods
+        )
+    }
+
+    public func createNutritionDay(date: String, nutritionPlanId: String? = nil) async throws -> String {
+        let data: InsertNutritionDayData = try await graphQL.execute(
+            query: Self.createNutritionDayMutation,
+            variables: ["object": Self.nutritionDayObject(date: date, nutritionPlanId: nutritionPlanId)],
+            operationName: "CreateNutritionDay"
+        )
+        guard let id = data.insertNutritionDay?.id else {
+            throw GraphQLDomainError.missingData(operationName: "CreateNutritionDay")
+        }
+        return id
+    }
+
+    public func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws {
+        let _: UpdateNutritionDayData = try await graphQL.execute(
+            query: Self.updateNutritionDayPlanMutation,
+            variables: [
+                "id": GraphQLScalars.uuid(dayId),
+                "nutritionPlanId": nutritionPlanId.map(GraphQLScalars.uuid) ?? .null
+            ],
+            operationName: "UpdateNutritionDayPlan"
+        )
+    }
+
+    public func deleteNutritionDay(id: String) async throws {
+        let _: DeleteNutritionDayData = try await graphQL.execute(
+            query: Self.deleteNutritionDayMutation,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DeleteNutritionDay"
+        )
+    }
+
+    public func logFood(_ values: LogFoodValues) async throws -> String {
+        let data: InsertNutritionLogEntryData = try await graphQL.execute(
+            query: Self.logFoodMutation,
+            variables: ["object": Self.logFoodObject(values)],
+            operationName: "LogFood"
+        )
+        guard let id = data.insertNutritionLogEntry?.id else {
+            throw GraphQLDomainError.missingData(operationName: "LogFood")
+        }
+        return id
+    }
+
+    public func logMeal(_ values: LogMealValues) async throws -> String {
+        let data: InsertNutritionLogMealData = try await graphQL.execute(
+            query: Self.logMealMutation,
+            variables: ["object": Self.logMealObject(values)],
+            operationName: "LogMeal"
+        )
+        guard let id = data.insertNutritionLogMeal?.id else {
+            throw GraphQLDomainError.missingData(operationName: "LogMeal")
+        }
+        return id
+    }
+
+    public func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {
+        let _: UpdateNutritionLogEntryData = try await graphQL.execute(
+            query: Self.updateNutritionLogEntryMutation,
+            variables: ["id": GraphQLScalars.uuid(id), "set": Self.logEntryUpdateSet(values)],
+            operationName: "UpdateNutritionLogEntry"
+        )
+    }
+
+    public func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {
+        let _: UpdateNutritionLogMealData = try await graphQL.execute(
+            query: Self.updateNutritionLogMealMutation,
+            variables: ["id": GraphQLScalars.uuid(id), "set": Self.logMealUpdateSet(values)],
+            operationName: "UpdateNutritionLogMeal"
+        )
+    }
+
+    public func deleteLogEntry(id: String) async throws {
+        let _: DeleteNutritionLogEntryData = try await graphQL.execute(
+            query: Self.deleteNutritionLogEntryMutation,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DeleteNutritionLogEntry"
+        )
+    }
+
+    public func deleteLogMeal(id: String) async throws {
+        let _: DeleteNutritionLogMealData = try await graphQL.execute(
+            query: Self.deleteNutritionLogMealMutation,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DeleteNutritionLogMeal"
+        )
+    }
 }
 
 private struct FoodsIndexData: Decodable, Sendable { let foods: [Food] }
@@ -261,6 +382,22 @@ private struct SaveNutritionPlanData: Decodable, Sendable {
     }
 }
 private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritionPlan: MutationIdPayload? }
+private struct NutritionDaysIndexData: Decodable, Sendable { let nutritionDays: [NutritionDay] }
+private struct DailyIntakeLogData: Decodable, Sendable {
+    let nutritionDays: [NutritionDay]
+    let nutritionPlans: [NutritionPlan]
+    let meals: [Meal]
+    let foods: [Food]
+}
+private struct InsertNutritionDayData: Decodable, Sendable { let insertNutritionDay: MutationIdPayload? }
+private struct UpdateNutritionDayData: Decodable, Sendable { let updateNutritionDay: MutationIdPayload? }
+private struct DeleteNutritionDayData: Decodable, Sendable { let deleteNutritionDay: MutationIdPayload? }
+private struct InsertNutritionLogEntryData: Decodable, Sendable { let insertNutritionLogEntry: MutationIdPayload? }
+private struct InsertNutritionLogMealData: Decodable, Sendable { let insertNutritionLogMeal: MutationIdPayload? }
+private struct UpdateNutritionLogEntryData: Decodable, Sendable { let updateNutritionLogEntry: MutationIdPayload? }
+private struct UpdateNutritionLogMealData: Decodable, Sendable { let updateNutritionLogMeal: MutationIdPayload? }
+private struct DeleteNutritionLogEntryData: Decodable, Sendable { let deleteNutritionLogEntry: MutationIdPayload? }
+private struct DeleteNutritionLogMealData: Decodable, Sendable { let deleteNutritionLogMeal: MutationIdPayload? }
 private struct MutationIdPayload: Decodable, Sendable { let id: String }
 private struct AffectedRowsPayload: Decodable, Sendable {
     let affectedRows: Int?

@@ -35,7 +35,8 @@ struct NutritionNavigationView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let currentUserId: String?
 
-    @State private var selection: NutritionSection = .foods
+    @State private var selection: NutritionSection = .overview
+    @State private var selectedDate: String?
 
     var body: some View {
         NavigationView {
@@ -91,17 +92,19 @@ struct NutritionNavigationView: View {
         case .meals:
             MealsListView(repository: repository)
         case .overview:
-            NutritionPlaceholderView(
-                title: "Overview",
-                message: "Nutrition dashboard and today’s totals arrive in Phase 11.",
-                systemImage: "chart.pie"
+            NutritionOverviewView(
+                repository: repository,
+                openSection: { section in
+                    selection = section
+                    if section != .days { selectedDate = nil }
+                },
+                openDay: { date in
+                    selectedDate = date
+                    selection = .days
+                }
             )
         case .days:
-            NutritionPlaceholderView(
-                title: "Days",
-                message: "Daily browsing and logging arrive in Phase 11.",
-                systemImage: "calendar"
-            )
+            NutritionDaysView(repository: repository, selectedDate: $selectedDate)
         case .plans:
             PlansListView(repository: repository)
         }
