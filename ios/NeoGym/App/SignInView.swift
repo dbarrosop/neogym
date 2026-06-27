@@ -43,6 +43,7 @@ struct SignInView: View {
                         Button("Create an account", action: onSignUp)
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(.primary)
+                            .frame(minHeight: 44)
                     }
                 } else {
                     Button("Use a different email") {
@@ -50,6 +51,7 @@ struct SignInView: View {
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundColor(.primary)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -161,4 +163,17 @@ private struct ProgressViewLabel: View {
             Text(title)
         }
     }
+}
+
+#Preview("Sign in") {
+    ScreenScaffold {
+        SignInView(authService: NeoGymPreviewAuthService(), onSignUp: {}, onAuthenticated: { _ in })
+    }
+}
+
+#Preview("Sign in · Large Type") {
+    ScreenScaffold {
+        SignInView(authService: NeoGymPreviewAuthService(), onSignUp: {}, onAuthenticated: { _ in })
+    }
+    .environment(\.dynamicTypeSize, .accessibility3)
 }

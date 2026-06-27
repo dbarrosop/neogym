@@ -105,6 +105,7 @@ private struct NutritionSecondaryBar: View {
         .padding(.horizontal, NeoGymTheme.spacingMD)
         .padding(.top, NeoGymTheme.spacingSM)
         .padding(.bottom, NeoGymTheme.spacingXS)
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .accessibilityElement(children: .contain)
     }
 }

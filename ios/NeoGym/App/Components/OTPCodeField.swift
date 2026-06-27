@@ -15,8 +15,10 @@ struct OTPCodeField: View {
                 .focused($isFocused)
                 .disabled(isDisabled)
                 .opacity(0.02)
-                .frame(width: 1, height: 1)
+                .frame(maxWidth: .infinity, minHeight: 54, maxHeight: 54)
                 .accessibilityLabel("One-time code")
+                .accessibilityValue(accessibilityValue)
+                .accessibilityHint("Enter the six digit code from your email.")
 
             GeometryReader { proxy in
                 let spacing: CGFloat = 7
@@ -36,6 +38,7 @@ struct OTPCodeField: View {
                 .frame(maxWidth: .infinity)
             }
             .frame(height: 54)
+            .accessibilityHidden(true)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard !isDisabled else { return }
@@ -48,6 +51,10 @@ struct OTPCodeField: View {
                 isFocused = true
             }
         }
+    }
+
+    private var accessibilityValue: String {
+        code.isEmpty ? "Empty" : "\(code.count) of 6 digits entered"
     }
 
     private var codeBinding: Binding<String> {

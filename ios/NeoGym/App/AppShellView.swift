@@ -37,18 +37,6 @@ enum AppDestination: String, CaseIterable, Identifiable {
         case .profile: "person.crop.circle"
         }
     }
-
-    var phase: String {
-        switch self {
-        case .profile: "Available now"
-        case .exercises: "Phase 3"
-        case .workouts: "Phase 4"
-        case .sessions: "Available now"
-        case .body: "Available now"
-        case .journal: "Available now"
-        case .nutrition: "Available now"
-        }
-    }
 }
 
 struct AppShellView: View {
@@ -128,8 +116,6 @@ struct AppShellView: View {
                 changeEmailModel: changeEmailModel,
                 signOut: signOut
             )
-        default:
-            PlaceholderDestinationView(destination: selection)
         }
     }
 }
@@ -155,13 +141,14 @@ private struct AppDestinationDock: View {
         .glassSurface(
             cornerRadius: NeoGymTheme.radiusXXL,
             material: .regular,
-            tint: NeoGymTheme.glassStrongFill,
+            tint: NeoGymTheme.glassFallbackFill,
             stroke: NeoGymTheme.glassStroke,
             shadow: true
         )
         .padding(.horizontal, NeoGymTheme.spacingMD)
         .padding(.top, NeoGymTheme.spacingXS)
         .padding(.bottom, NeoGymTheme.spacingXS)
+        .dynamicTypeSize(...DynamicTypeSize.xLarge)
         .accessibilityElement(children: .contain)
     }
 }
@@ -223,63 +210,12 @@ private struct AppDestinationDockItem: View {
     }
 }
 
-private struct PlaceholderDestinationView: View {
-    let destination: AppDestination
-
-    var body: some View {
-        ScrollView {
-            SectionShell(title: destination.title, subtitle: "Native parity arrives in \(destination.phase).") {
-                AppEmptyStateView(
-                    title: "Coming next",
-                    message: "This destination is wired into the native shell so future parity phases "
-                        + "can attach list, detail, and form flows without changing auth or navigation again.",
-                    systemImage: destination.icon
-                )
-            }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 40)
-            .frame(maxWidth: .infinity)
-        }
-    }
-}
-
 #Preview {
     AppShellView(
-        session: PreviewSessionFactory.session,
+        session: NeoGymPreviewFixtures.session,
         environment: NhostClientFactory.makeEnvironment(),
         isSigningOut: false,
         changeEmailModel: nil,
         signOut: {}
     )
-}
-
-private enum PreviewSessionFactory {
-    static var session: StoredSession {
-        do {
-            return try StoredSession(
-                accessToken: "header.payload.signature",
-                accessTokenExpiresIn: 900,
-                refreshTokenId: "refresh-token-id",
-                refreshToken: "refresh-token",
-                user: AuthUser(
-                    avatarUrl: "",
-                    createdAt: Date(timeIntervalSince1970: 1_700_000_000),
-                    defaultRole: "user",
-                    displayName: "Neo Athlete",
-                    email: "athlete@example.com",
-                    emailVerified: true,
-                    id: "user-id",
-                    isAnonymous: false,
-                    locale: "en",
-                    metadata: [:],
-                    phoneNumberVerified: false,
-                    roles: ["user"]
-                ),
-                decodedToken: DecodedToken(claims: [:])
-            )
-        } catch {
-            preconditionFailure("Preview session fixture should be valid: \(error)")
-        }
-    }
 }

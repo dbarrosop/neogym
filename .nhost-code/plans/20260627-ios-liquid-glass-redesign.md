@@ -471,7 +471,13 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Added SwiftUI previews and shared preview fixtures for the redesigned auth, shell/profile, and list surfaces.
+- Improved accessibility: OTP input now exposes one coherent VoiceOver element/value/hint; auth/profile/filter controls have 44pt hit targets/selected state; primary and Nutrition docks cap Dynamic Type to preserve reachable navigation.
+- Removed redundant Nutrition editor row border overlays from the Phase 4c accepted concern.
+- Removed stale `AppShellView` placeholder/phase code and updated README/CLAUDE shell/auth wording to match the new seven-destination glass shell and full-screen auth layout.
+- Reviewer verdict: `ACCEPT`. Reviewer verified preview fixtures are preview-only, AppShellView placeholder removal does not remove reachable destinations, accessibility APIs are iOS 15-safe, docs are accurate, and generated project output is not staged.
+- Autonomous decisions: accepted non-interactive simulator limitations because correctness/security-critical auth, sign-out, OTP duplicate, and PKCE behavior remain covered by deterministic model tests; screenshots/render checks were performed for signed-in shell dark mode and accessibility-size light mode, with remaining manual CRUD/OTP traversal deferred as an explicit follow-up rather than silently claimed.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; diff audit showed no backend/frontend/NeoGymKit changes and no generated `.xcodeproj` output staged.
 
 ---
 

@@ -367,7 +367,6 @@ private struct MealIngredientEditorRow: View {
         }
         .padding(12)
         .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
     }
 }
 

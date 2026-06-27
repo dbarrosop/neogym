@@ -1,9 +1,9 @@
 # NeoGym iOS
 
 Native SwiftUI app for NeoGym. The current milestone implements email OTP
-sign-in/sign-up, a protected profile screen, sign out, session bootstrap through
-local Nhost Swift SDK storage, and app-side PKCE email-change handling through
-the `neogym://verify` URL scheme.
+sign-in/sign-up, a protected seven-destination app shell, sign out, session
+bootstrap through local Nhost Swift SDK storage, and app-side PKCE email-change
+handling through the `neogym://verify` URL scheme.
 
 ## Layout
 
@@ -76,7 +76,7 @@ nix develop . --command xcodegen --version
 matching the web app's local development config. `AuthStore` shows a loading
 state while `getUserSession()` reads the SDK's persisted session, subscribes to
 `sessionStore.subscribe`, then routes to either signed-out OTP forms or the
-protected profile.
+protected full-screen app shell.
 
 Sign-in and sign-up use Nhost email OTP: request a 6-digit code, copy it from
 local MailHog, and verify it in the app. Sign-up sends

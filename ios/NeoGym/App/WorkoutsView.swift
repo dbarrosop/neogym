@@ -251,11 +251,14 @@ private struct WorkoutFilterPill: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
+                .frame(minHeight: 44)
                 .foregroundColor(active ? .white : NeoGymTheme.primaryText)
                 .background(pillBackground)
                 .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityValue(active ? "Selected" : "")
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 
     @ViewBuilder
@@ -276,5 +279,17 @@ private struct WorkoutFilterPill: View {
                         .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
                 )
         }
+    }
+}
+
+#Preview("Workouts") {
+    ScreenScaffold {
+        WorkoutsNavigationView(
+            workoutsRepository: PreviewWorkoutsRepository(),
+            exercisesRepository: PreviewExercisesRepository(),
+            storageBaseURL: URL(string: "https://storage.example.test")!,
+            currentUserId: "user-1",
+            onSessionStarted: { _ in }
+        )
     }
 }

@@ -101,6 +101,7 @@ struct ProfileView: View {
                         }
                         .buttonStyle(.plain)
                         .foregroundColor(.primary)
+                        .frame(minHeight: 44)
                         .accessibilityLabel("Change email")
                         .disabled(changeEmailModel == nil)
                     }
@@ -203,4 +204,27 @@ private struct DetailRow<Content: View>: View {
                 .multilineTextAlignment(.trailing)
         }
     }
+}
+
+#Preview("Profile") {
+    ScreenScaffold {
+        ProfileView(
+            session: NeoGymPreviewFixtures.session,
+            isSigningOut: false,
+            changeEmailModel: nil,
+            signOut: {}
+        )
+    }
+}
+
+#Preview("Profile · Dark") {
+    ScreenScaffold {
+        ProfileView(
+            session: NeoGymPreviewFixtures.session,
+            isSigningOut: false,
+            changeEmailModel: nil,
+            signOut: {}
+        )
+    }
+    .preferredColorScheme(.dark)
 }

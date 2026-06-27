@@ -43,6 +43,7 @@ struct SignUpView: View {
                         Button("Sign in", action: onSignIn)
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(.primary)
+                            .frame(minHeight: 44)
                     }
                 } else {
                     Button("Use a different email") {
@@ -50,6 +51,7 @@ struct SignUpView: View {
                     }
                     .font(.footnote.weight(.semibold))
                     .foregroundColor(.primary)
+                    .frame(minHeight: 44)
                 }
             }
         }
@@ -179,5 +181,11 @@ private struct SignUpProgressViewLabel: View {
             ProgressView()
             Text(title)
         }
+    }
+}
+
+#Preview("Sign up") {
+    ScreenScaffold {
+        SignUpView(authService: NeoGymPreviewAuthService(), onSignIn: {}, onAuthenticated: { _ in })
     }
 }
