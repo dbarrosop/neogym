@@ -34,15 +34,20 @@ struct WorkoutsSectionNavigationView: View {
     @Binding var pendingSessionId: String?
 
     @State private var selection: WorkoutAreaSection = .sessions
+    @State private var startedSessionId: String?
+    @State private var isShowingStartedSession = false
 
     var body: some View {
         NavigationView {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .top) {
-                    SecondarySectionBar(selection: $selection)
-                }
-                .navigationBarHidden(true)
+            ZStack {
+                content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .top) {
+                        SecondarySectionBar(selection: $selection)
+                    }
+                startedSessionNavigationLink
+            }
+            .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
     }
@@ -74,8 +79,44 @@ struct WorkoutsSectionNavigationView: View {
         }
     }
 
+    @ViewBuilder
+    private var startedSessionNavigationLink: some View {
+        if let sessionId = startedSessionId {
+            NavigationLink(
+                destination: SessionDetailView(
+                    sessionId: sessionId,
+                    sessionsRepository: sessionsRepository,
+                    exercisesRepository: exercisesRepository,
+                    storageBaseURL: storageBaseURL,
+                    onSessionStarted: openSession,
+                    onDeleted: closeStartedSession,
+                    onMutated: {}
+                ),
+                isActive: Binding(
+                    get: { isShowingStartedSession },
+                    set: { isActive in
+                        isShowingStartedSession = isActive
+                        if !isActive {
+                            startedSessionId = nil
+                        }
+                    }
+                )
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        }
+    }
+
     private func openSession(_ sessionId: String) {
-        pendingSessionId = sessionId
+        pendingSessionId = nil
+        startedSessionId = sessionId
+        isShowingStartedSession = true
+    }
+
+    private func closeStartedSession() {
+        isShowingStartedSession = false
+        startedSessionId = nil
         selection = .sessions
     }
 }
