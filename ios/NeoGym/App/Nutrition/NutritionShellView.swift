@@ -42,7 +42,7 @@ struct NutritionNavigationView: View {
         NavigationView {
             content
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .top) {
+                .safeAreaInset(edge: .top, spacing: 0) {
                     SecondarySectionBar(selection: $selection)
                 }
                 .navigationBarHidden(true)
