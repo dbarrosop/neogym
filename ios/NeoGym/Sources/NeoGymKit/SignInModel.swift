@@ -69,7 +69,11 @@ public final class SignInModel: ObservableObject {
             return session
         } catch {
             otp = ""
-            errorMessage = Self.message(for: error, fallback: "Sign in failed")
+            let message = Self.message(for: error, fallback: "Sign in failed")
+            #if DEBUG
+            print("NeoGym sign-in OTP verify failed: \(message)")
+            #endif
+            errorMessage = message
             return nil
         }
     }
@@ -91,11 +95,34 @@ public final class SignInModel: ObservableObject {
     }
 
     private static func message(for error: Error, fallback: String) -> String {
+        if let decodingMessage = decodingErrorMessage(error) {
+            return decodingMessage
+        }
+
         if let localized = error as? LocalizedError, let description = localized.errorDescription {
             return description
         }
 
         let description = error.localizedDescription
         return description.isEmpty ? fallback : description
+    }
+
+    private static func decodingErrorMessage(_ error: Error) -> String? {
+        let path: ([CodingKey]) -> String = { keys in
+            keys.map(\.stringValue).joined(separator: ".")
+        }
+
+        switch error {
+        case let DecodingError.valueNotFound(type, context):
+            return "DecodingError.valueNotFound type=\(type) path=\(path(context.codingPath)) debug=\(context.debugDescription)"
+        case let DecodingError.keyNotFound(key, context):
+            return "DecodingError.keyNotFound key=\(key.stringValue) path=\(path(context.codingPath)) debug=\(context.debugDescription)"
+        case let DecodingError.typeMismatch(type, context):
+            return "DecodingError.typeMismatch type=\(type) path=\(path(context.codingPath)) debug=\(context.debugDescription)"
+        case let DecodingError.dataCorrupted(context):
+            return "DecodingError.dataCorrupted path=\(path(context.codingPath)) debug=\(context.debugDescription)"
+        default:
+            return nil
+        }
     }
 }

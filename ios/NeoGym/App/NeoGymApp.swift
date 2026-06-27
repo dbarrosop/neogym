@@ -8,7 +8,12 @@ struct NeoGymApp: App {
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
 
     init() {
-        let appEnvironment = NhostClientFactory.makeEnvironment()
+        let appEnvironment = NhostClientFactory.makeEnvironment(
+            config: NhostConfig(
+                subdomain: "spmqtxqkdoxvtrkrfnnl",
+                region: "eu-central-1"
+            )
+        )
         self.appEnvironment = appEnvironment
         _authStore = StateObject(wrappedValue: AuthStore(authService: appEnvironment.authService))
     }
