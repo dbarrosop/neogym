@@ -7,38 +7,40 @@ struct LogFoodSheet: View {
 
     @State private var foodId = ""
     @State private var grams = "100"
-    @State private var slotTime = IntakeGrouping.currentTimeInputValue()
+    @State private var slotTime = Date()
 
     var body: some View {
         NavigationView {
-            ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        NutritionGlassSection("Food") {
-                            FoodPickerView(foods: viewModel.payload?.foods ?? [], foodId: $foodId, disabled: viewModel.isMutating)
-                        }
-                        NutritionGlassSection("Logged amount") {
-                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                                TextField("Time eaten", text: $slotTime)
-                                    .keyboardType(.numbersAndPunctuation)
-                                    .nutritionGlassField()
-                                TextField("Grams consumed", text: $grams)
-                                    .keyboardType(.decimalPad)
-                                    .nutritionGlassField()
-                            }
-                        }
-                        NutritionGlassSection {
-                            Text("The database snapshots food nutrition when it is logged. Historical totals use those snapshot columns.")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
-                        }
-                        mutationError
-                    }
-                    .frame(maxWidth: 640)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+            Form {
+                Section {
+                    FoodPickerView(
+                        foods: viewModel.payload?.foods ?? [],
+                        foodId: $foodId,
+                        disabled: viewModel.isMutating
+                    )
+                } header: {
+                    Text("Food")
                 }
+
+                Section {
+                    DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                } header: {
+                    Text("Time eaten")
+                }
+
+                Section {
+                    NutritionGramTextField(grams: $grams, title: "Grams consumed")
+                } header: {
+                    Text("Logged amount")
+                } footer: {
+                    Text(
+                        "The database snapshots food nutrition when it is logged. "
+                            + "Historical totals use those snapshot columns."
+                    )
+                }
+
+                mutationError
             }
             .navigationTitle("Log food")
             .navigationBarTitleDisplayMode(.inline)
@@ -49,7 +51,8 @@ struct LogFoodSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(viewModel.isMutating ? "Logging…" : "Log") {
                         Task {
-                            if await viewModel.logFood(foodId: foodId, grams: grams, slotTime: slotTime) {
+                            let time = NutritionLogTime.inputValue(from: slotTime)
+                            if await viewModel.logFood(foodId: foodId, grams: grams, slotTime: time) {
                                 dismiss()
                             }
                         }
@@ -59,13 +62,13 @@ struct LogFoodSheet: View {
             }
         }
         .navigationViewStyle(.stack)
-        .onAppear { slotTime = IntakeGrouping.currentTimeInputValue() }
+        .onAppear { slotTime = Date() }
     }
 
     @ViewBuilder
     private var mutationError: some View {
         if let message = viewModel.mutationState.errorMessage {
-            NutritionGlassSection {
+            Section {
                 Text(message)
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.danger)
@@ -81,7 +84,7 @@ struct LogMealSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var mealId = ""
-    @State private var slotTime = IntakeGrouping.currentTimeInputValue()
+    @State private var slotTime = Date()
 
     private var meals: [Meal] { viewModel.payload?.meals ?? [] }
     private var selectedMeal: Meal? {
@@ -90,42 +93,46 @@ struct LogMealSheet: View {
 
     var body: some View {
         NavigationView {
-            ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        if let planSlot {
-                            plannedSuggestionSection(planSlot)
-                        } else {
-                            NutritionGlassSection("Meal") {
-                                MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
-                            }
-                        }
-
-                        NutritionGlassSection("Logged time") {
-                            TextField("Time eaten", text: $slotTime)
-                                .keyboardType(.numbersAndPunctuation)
-                                .nutritionGlassField()
-                        }
-
-                        if let selectedMeal {
-                            NutritionGlassSection("Materialized entries") {
-                                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                                    Text("\(selectedMeal.mealIngredients.count) ingredient\(selectedMeal.mealIngredients.count == 1 ? "" : "s")")
-                                        .font(.subheadline.weight(.semibold))
-                                    Text(NutritionMath.macroTotalsSummary(selectedMeal.macroTotals))
-                                        .font(.caption)
-                                        .foregroundColor(NeoGymTheme.mutedText)
-                                }
-                            }
-                        }
-
-                        mutationError
+            Form {
+                if let planSlot {
+                    Section {
+                        plannedSuggestionContent(planSlot)
+                    } header: {
+                        Text("Planned suggestion")
                     }
-                    .frame(maxWidth: 640)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+                } else {
+                    Section {
+                        MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
+                    } header: {
+                        Text("Meal")
+                    }
                 }
+
+                Section {
+                    DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                } header: {
+                    Text("Logged time")
+                }
+
+                if let selectedMeal {
+                    Section {
+                        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                            Text(
+                                "\(selectedMeal.mealIngredients.count) "
+                                    + "ingredient\(selectedMeal.mealIngredients.count == 1 ? "" : "s")"
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            Text(NutritionMath.macroTotalsSummary(selectedMeal.macroTotals))
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                    } header: {
+                        Text("Materialized entries")
+                    }
+                }
+
+                mutationError
             }
             .navigationTitle(planSlot == nil ? "Log meal" : "Log planned meal")
             .navigationBarTitleDisplayMode(.inline)
@@ -140,7 +147,7 @@ struct LogMealSheet: View {
                             if await viewModel.logMeal(
                                 meal: selectedMeal,
                                 planSlot: planSlot,
-                                slotTime: slotTime,
+                                slotTime: NutritionLogTime.inputValue(from: slotTime),
                                 position: fixedPosition
                             ) {
                                 dismiss()
@@ -154,31 +161,29 @@ struct LogMealSheet: View {
         .navigationViewStyle(.stack)
         .onAppear {
             mealId = planSlot?.mealId ?? ""
-            slotTime = IntakeGrouping.currentTimeInputValue()
+            slotTime = Date()
         }
     }
 
-    private func plannedSuggestionSection(_ planSlot: NutritionPlanMealSlot) -> some View {
-        NutritionGlassSection("Planned suggestion") {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-                Text("Planned \(IntakeGrouping.formatTimeOfDay(planSlot.slotTime)) · \(planSlot.displayLabel)")
-                    .font(.subheadline.weight(.semibold))
-                if let meal = planSlot.meal, planSlot.label != nil {
-                    Text("Template: \(meal.name)")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                }
-                Text("The logged time below defaults to now and is not forced to the template slot.")
+    private func plannedSuggestionContent(_ planSlot: NutritionPlanMealSlot) -> some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            Text("Planned \(IntakeGrouping.formatTimeOfDay(planSlot.slotTime)) · \(planSlot.displayLabel)")
+                .font(.subheadline.weight(.semibold))
+            if let meal = planSlot.meal, planSlot.label != nil {
+                Text("Template: \(meal.name)")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
+            Text("The logged time below defaults to now and is not forced to the template slot.")
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
     @ViewBuilder
     private var mutationError: some View {
         if let message = viewModel.mutationState.errorMessage {
-            NutritionGlassSection {
+            Section {
                 Text(message)
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.danger)
@@ -193,46 +198,40 @@ struct EditLogEntrySheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var grams: String
-    @State private var position: String
-    @State private var slotTime: String
+    @State private var position: Int
+    @State private var slotTime: Date
 
     init(viewModel: DailyIntakeViewModel, item: EditingEntrySheetItem) {
         self.viewModel = viewModel
         self.item = item
-        _grams = State(initialValue: Self.editableNumber(item.entry.grams))
-        _position = State(initialValue: String(Int(item.entry.position)))
-        _slotTime = State(initialValue: IntakeGrouping.timeToInputValue(item.entry.slotTime))
+
+        _grams = State(initialValue: NutritionLogAmount.editableNumber(item.entry.grams))
+        _position = State(initialValue: max(1, Int(item.entry.position)))
+        _slotTime = State(initialValue: NutritionLogTime.date(from: item.entry.slotTime))
     }
 
     var body: some View {
         NavigationView {
-            ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        NutritionGlassSection("Entry") {
-                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                                Text(item.entry.snapshotFoodName)
-                                    .font(.subheadline.weight(.semibold))
-                                TextField("Grams", text: $grams)
-                                    .keyboardType(.decimalPad)
-                                    .nutritionGlassField()
-                                TextField("Position", text: $position)
-                                    .keyboardType(.numberPad)
-                                    .nutritionGlassField()
-                                if item.showTime {
-                                    TextField("Time eaten", text: $slotTime)
-                                        .keyboardType(.numbersAndPunctuation)
-                                        .nutritionGlassField()
-                                }
-                            }
-                        }
-                        mutationError
-                    }
-                    .frame(maxWidth: 640)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+            Form {
+                Section {
+                    Text(item.entry.snapshotFoodName)
+                        .font(.subheadline.weight(.semibold))
+                    NutritionGramTextField(grams: $grams, title: "Grams")
+                    Stepper("Position \(position)", value: $position, in: 1 ... 999)
+                } header: {
+                    Text("Entry")
                 }
+
+                if item.showTime {
+                    Section {
+                        DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
+                            .datePickerStyle(.wheel)
+                    } header: {
+                        Text("Time eaten")
+                    }
+                }
+
+                mutationError
             }
             .navigationTitle("Edit entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -241,12 +240,11 @@ struct EditLogEntrySheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            let nextPosition = Int(position) ?? Int(item.entry.position)
-                            let nextTime = item.showTime ? slotTime : nil
+                            let nextTime = item.showTime ? NutritionLogTime.inputValue(from: slotTime) : nil
                             if await viewModel.updateEntry(
                                 id: item.entry.id,
                                 grams: grams,
-                                position: nextPosition,
+                                position: position,
                                 slotTime: nextTime
                             ) {
                                 dismiss()
@@ -263,22 +261,12 @@ struct EditLogEntrySheet: View {
     @ViewBuilder
     private var mutationError: some View {
         if let message = viewModel.mutationState.errorMessage {
-            NutritionGlassSection {
+            Section {
                 Text(message)
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.danger)
             }
         }
-    }
-
-    private static func editableNumber(_ value: JSONValue?) -> String {
-        let number = NutritionMath.normalizeNumeric(value)
-        let formatter = NumberFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 3
-        formatter.usesGroupingSeparator = false
-        return formatter.string(from: NSNumber(value: number)) ?? String(number)
     }
 }
 
@@ -288,46 +276,32 @@ struct EditMealGroupSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String
-    @State private var position: String
-    @State private var slotTime: String
+    @State private var position: Int
+    @State private var slotTime: Date
 
     init(viewModel: DailyIntakeViewModel, item: EditingGroupSheetItem) {
         self.viewModel = viewModel
         self.item = item
         _name = State(initialValue: item.group.name)
-        _position = State(initialValue: String(item.group.position))
-        _slotTime = State(initialValue: IntakeGrouping.timeToInputValue(item.group.slotTime))
+        _position = State(initialValue: max(1, item.group.position))
+        _slotTime = State(initialValue: NutritionLogTime.date(from: item.group.slotTime))
     }
 
     var body: some View {
         NavigationView {
-            ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        NutritionGlassSection("Logged meal") {
-                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                                TextField("Name", text: $name)
-                                    .nutritionGlassField()
-                                TextField("Time eaten", text: $slotTime)
-                                    .keyboardType(.numbersAndPunctuation)
-                                    .nutritionGlassField()
-                                TextField("Position", text: $position)
-                                    .keyboardType(.numberPad)
-                                    .nutritionGlassField()
-                            }
-                        }
-                        NutritionGlassSection {
-                            Text("Grouped food entries display this parent logged meal time.")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
-                        }
-                        mutationError
-                    }
-                    .frame(maxWidth: 640)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+            Form {
+                Section {
+                    TextField("Name", text: $name)
+                    DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
+                        .datePickerStyle(.wheel)
+                    Stepper("Position \(position)", value: $position, in: 1 ... 999)
+                } header: {
+                    Text("Logged meal")
+                } footer: {
+                    Text("Grouped food entries display this parent logged meal time.")
                 }
+
+                mutationError
             }
             .navigationTitle("Edit logged meal")
             .navigationBarTitleDisplayMode(.inline)
@@ -339,8 +313,8 @@ struct EditMealGroupSheet: View {
                             if await viewModel.updateMealGroup(
                                 id: item.group.id,
                                 name: name,
-                                position: Int(position) ?? item.group.position,
-                                slotTime: slotTime
+                                position: position,
+                                slotTime: NutritionLogTime.inputValue(from: slotTime)
                             ) {
                                 dismiss()
                             }
@@ -356,7 +330,7 @@ struct EditMealGroupSheet: View {
     @ViewBuilder
     private var mutationError: some View {
         if let message = viewModel.mutationState.errorMessage {
-            NutritionGlassSection {
+            Section {
                 Text(message)
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.danger)
@@ -364,3 +338,4 @@ struct EditMealGroupSheet: View {
         }
     }
 }
+

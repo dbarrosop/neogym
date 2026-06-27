@@ -18,108 +18,104 @@ struct FoodPickerView: View {
         return foods.filter { $0.name.lowercased().contains(trimmed) }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(NeoGymTheme.mutedText)
-                TextField(selectedFood?.name ?? "Search own and public foods…", text: $query)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .disabled(disabled)
-                if !query.isEmpty {
-                    Button {
-                        query = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(10)
-            .nutritionGlassCard(cornerRadius: 12)
+    private var foodIds: [String] {
+        foods.map(\.id)
+    }
 
-            if let selectedFood {
-                selectedRow(food: selectedFood)
-            }
+    var body: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            searchField
 
             if foods.isEmpty {
-                Text("No foods are available yet. Create a private food first.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                message("No foods are available yet. Create a private food first.")
             } else if visibleFoods.isEmpty {
-                Text("No foods match this search.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                message("No foods match this search.")
             } else {
-                VStack(spacing: 0) {
-                    ForEach(visibleFoods.prefix(8)) { food in
-                        Button {
-                            foodId = food.id
-                            query = ""
-                        } label: {
-                            FoodPickerRow(food: food, isSelected: food.id == foodId)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(disabled)
-                        if food.id != visibleFoods.prefix(8).last?.id { Divider() }
+                Picker("Food", selection: $foodId) {
+                    ForEach(visibleFoods) { food in
+                        FoodWheelRow(food: food)
+                            .tag(food.id)
                     }
                 }
-                .nutritionGlassCard(cornerRadius: 12)
+                .pickerStyle(.wheel)
+                .labelsHidden()
+                .frame(height: 176)
+                .clipped()
+                .disabled(disabled)
+
+                if let selectedFood {
+                    selectedSummary(food: selectedFood)
+                }
             }
         }
-        .onAppear {
-            if query.isEmpty, foodId.isEmpty {
-                query = ""
+        .onAppear(perform: syncSelectionWithFilter)
+        .onChange(of: query) { _ in syncSelectionWithFilter() }
+        .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: NeoGymTheme.spacingXS) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(NeoGymTheme.mutedText)
+            TextField(selectedFood?.name ?? "Filter foods…", text: $query)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .disabled(disabled)
+            if !query.isEmpty {
+                Button {
+                    query = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
 
-    private func selectedRow(food: Food) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.accentColor)
-            Text(food.name)
-                .font(.caption.weight(.semibold))
-            Spacer()
-            FoodVisibilityBadge(isPublic: food.isPublic)
+    private func selectedSummary(food: Food) -> some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+            HStack(spacing: NeoGymTheme.spacingXS) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.accentColor)
+                Text(food.name)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                FoodVisibilityBadge(isPublic: food.isPublic)
+            }
+            Text(NutritionMath.macroSummary(food.macroFields) + " per 100g")
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
+                .lineLimit(2)
         }
-        .padding(10)
-        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.accentMuted, stroke: Color.accentColor.opacity(0.25))
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func message(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundColor(NeoGymTheme.mutedText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func syncSelectionWithFilter() {
+        guard let firstVisible = visibleFoods.first else { return }
+        if foodId.isEmpty || !visibleFoods.contains(where: { $0.id == foodId }) {
+            foodId = firstVisible.id
+        }
     }
 }
 
-private struct FoodPickerRow: View {
+private struct FoodWheelRow: View {
     let food: Food
-    let isSelected: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : "apple.logo")
-                .foregroundColor(isSelected ? .accentColor : NeoGymTheme.mutedText)
-                .frame(width: 20)
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(food.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                    FoodVisibilityBadge(isPublic: food.isPublic)
-                }
-                Text(NutritionMath.macroSummary(food.macroFields) + " per 100g")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .lineLimit(2)
-            }
-            Spacer()
+        HStack(spacing: NeoGymTheme.spacingXS) {
+            Image(systemName: "apple.logo")
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text(food.name)
+                .font(.body.weight(.semibold))
+                .lineLimit(1)
         }
-        .padding(10)
     }
 }
