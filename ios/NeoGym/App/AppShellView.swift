@@ -124,31 +124,30 @@ private struct AppDestinationDock: View {
     @Binding var selection: AppDestination
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: NeoGymTheme.spacingXS) {
-                ForEach(AppDestination.allCases) { destination in
-                    AppDestinationDockItem(
-                        destination: destination,
-                        isSelected: selection == destination
-                    ) {
-                        selection = destination
-                    }
+        HStack(spacing: 3) {
+            ForEach(AppDestination.allCases) { destination in
+                AppDestinationDockItem(
+                    destination: destination,
+                    isSelected: selection == destination
+                ) {
+                    selection = destination
                 }
+                .frame(maxWidth: .infinity)
             }
-            .padding(NeoGymTheme.spacingXS)
         }
+        .padding(4)
         .frame(maxWidth: .infinity)
         .glassSurface(
-            cornerRadius: NeoGymTheme.radiusXXL,
+            cornerRadius: NeoGymTheme.radiusXL,
             material: .regular,
             tint: NeoGymTheme.glassFallbackFill,
             stroke: NeoGymTheme.glassStroke,
             shadow: true
         )
-        .padding(.horizontal, NeoGymTheme.spacingMD)
-        .padding(.top, NeoGymTheme.spacingXS)
-        .padding(.bottom, NeoGymTheme.spacingXS)
-        .dynamicTypeSize(...DynamicTypeSize.xLarge)
+        .padding(.horizontal, 10)
+        .padding(.top, 2)
+        .padding(.bottom, 0)
+        .dynamicTypeSize(...DynamicTypeSize.large)
         .accessibilityElement(children: .contain)
     }
 }
@@ -160,27 +159,27 @@ private struct AppDestinationDockItem: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: NeoGymTheme.spacingXXS) {
+            VStack(spacing: 2) {
                 Image(systemName: destination.icon)
-                    .font(.headline.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .imageScale(.medium)
-                    .frame(height: 20)
+                    .frame(height: 17)
 
                 Text(destination.title)
-                    .font(.caption2.weight(.semibold))
+                    .font(.system(size: 8.5, weight: .semibold, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                    .minimumScaleFactor(0.72)
             }
             .foregroundColor(isSelected ? .white : NeoGymTheme.primaryText)
-            .frame(minWidth: 72, minHeight: 52)
-            .padding(.horizontal, NeoGymTheme.spacingXXS)
-            .padding(.vertical, NeoGymTheme.spacingXXS)
+            .frame(maxWidth: .infinity, minHeight: 42)
+            .padding(.horizontal, 1)
+            .padding(.vertical, 2)
             .background(itemBackground)
             .overlay(alignment: .bottom) {
                 Capsule(style: .continuous)
                     .fill(isSelected ? Color.white.opacity(0.92) : Color.clear)
-                    .frame(width: 18, height: 3)
-                    .offset(y: -4)
+                    .frame(width: 14, height: 2)
+                    .offset(y: -3)
             }
             .contentShape(RoundedRectangle(cornerRadius: NeoGymTheme.radiusLG, style: .continuous))
         }
