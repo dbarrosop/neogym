@@ -21,6 +21,7 @@ targets:
           - Info.plist
     resources:
       - path: App/Assets.xcassets
+      - path: App/LaunchScreen.storyboard
     info:
       path: App/Info.plist
       properties:
@@ -28,6 +29,8 @@ targets:
           - CFBundleURLName: io.nhost.neogym
             CFBundleURLSchemes:
               - neogym
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiresFullScreen: true
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit

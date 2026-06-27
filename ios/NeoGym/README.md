@@ -16,7 +16,8 @@ ios/NeoGym/
 │   ├── RootView.swift
 │   ├── SignInView.swift / SignUpView.swift / ProfileView.swift
 │   ├── Components/ and Theme/
-│   ├── Info.plist              # includes neogym:// URL scheme
+│   ├── Info.plist              # includes neogym:// URL scheme + launch screen keys
+│   ├── LaunchScreen.storyboard # required so iOS uses modern full-screen sizing
 │   └── Assets.xcassets/
 ├── Sources/NeoGymKit/          # host-testable auth/session logic
 └── Tests/NeoGymKitTests/
@@ -39,9 +40,12 @@ run on the macOS host. SwiftUI views belong in `App/`.
 If XcodeGen is not available from Nix on a Darwin host, install it with Homebrew
 (`brew install xcodegen`) and run the same `xcodegen generate` command below. Do
 not commit the generated `.xcodeproj`; `project.yml` is the source of truth. App
-Info.plist entries that XcodeGen owns, including the `neogym` URL scheme, are
-declared under the target `info.properties` in `project.yml`; rerun XcodeGen
-after changing them.
+Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
+full-screen launch screen keys, are declared under the target `info.properties`
+in `project.yml`; rerun XcodeGen after changing them. Keep
+`LaunchScreen.storyboard` wired through `UILaunchStoryboardName`; without a
+launch screen, iOS can run the app in legacy letterboxed compatibility sizing on
+modern devices.
 
 ## Commands
 
