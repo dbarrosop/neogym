@@ -66,7 +66,6 @@ struct AppShellView: View {
             Divider()
             content
         }
-        .background(GridBackground())
     }
 
     private var destinationBar: some View {

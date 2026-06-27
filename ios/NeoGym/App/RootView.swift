@@ -17,9 +17,7 @@ struct RootView: View {
     @State private var changeEmailModel: ChangeEmailModel?
 
     var body: some View {
-        ZStack {
-            GridBackground()
-
+        ScreenScaffold {
             switch authStore.state {
             case .loading:
                 LoadingView()
@@ -128,18 +126,37 @@ struct RootView: View {
 
 private struct LoadingView: View {
     var body: some View {
-        AuthCard(title: "Loading NeoGym", description: "Checking for a saved session…") {
-            VStack(spacing: 14) {
-                ProgressView()
-                    .controlSize(.large)
-                Text("Preparing your profile")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+        VStack(spacing: NeoGymTheme.spacingXL) {
+            Spacer(minLength: NeoGymTheme.spacingXXL)
+            GlassPanel(
+                cornerRadius: NeoGymTheme.radiusXXL,
+                material: .regular,
+                tint: NeoGymTheme.glassStrongFill,
+                contentPadding: EdgeInsets(
+                    top: NeoGymTheme.spacingXXL,
+                    leading: NeoGymTheme.spacingXL,
+                    bottom: NeoGymTheme.spacingXXL,
+                    trailing: NeoGymTheme.spacingXL
+                )
+            ) {
+                VStack(spacing: NeoGymTheme.spacingMD) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(NeoGymTheme.accent)
+                    Text("Loading NeoGym")
+                        .font(.title2.bold())
+                        .tracking(-0.4)
+                    Text("Checking for a saved session…")
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
-        } footer: {
-            EmptyView()
+            .frame(maxWidth: NeoGymTheme.maxCardWidth)
+            Spacer(minLength: NeoGymTheme.spacingXXL)
         }
+        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
     }
 }
 
@@ -148,13 +165,37 @@ private struct ErrorCard: View {
     let retry: () -> Void
 
     var body: some View {
-        AuthCard(title: "Session error", description: "NeoGym couldn't load your saved session.") {
-            FeedbackBanner(message: message)
-            Button("Try again", action: retry)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-        } footer: {
-            EmptyView()
+        VStack(spacing: NeoGymTheme.spacingXL) {
+            Spacer(minLength: NeoGymTheme.spacingXXL)
+            GlassPanel(
+                cornerRadius: NeoGymTheme.radiusXXL,
+                material: .regular,
+                tint: NeoGymTheme.glassStrongFill,
+                contentPadding: EdgeInsets(
+                    top: NeoGymTheme.spacingXL,
+                    leading: NeoGymTheme.spacingXL,
+                    bottom: NeoGymTheme.spacingXL,
+                    trailing: NeoGymTheme.spacingXL
+                )
+            ) {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+                    VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                        Text("Session error")
+                            .font(.title2.bold())
+                            .tracking(-0.4)
+                        Text("NeoGym couldn't load your saved session.")
+                            .font(.subheadline)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
+                    FeedbackBanner(message: message)
+                    Button("Try again", action: retry)
+                        .buttonStyle(NeoGymPrimaryButtonStyle())
+                }
+            }
+            .frame(maxWidth: NeoGymTheme.maxCardWidth)
+            Spacer(minLength: NeoGymTheme.spacingXXL)
         }
+        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
     }
 }
 

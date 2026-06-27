@@ -5,9 +5,10 @@ struct AppLoadingStateView: View {
     var message: String?
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: NeoGymTheme.spacingSM) {
             ProgressView()
                 .controlSize(.large)
+                .tint(NeoGymTheme.accent)
             Text(title)
                 .font(.headline)
             if let message {
@@ -18,7 +19,13 @@ struct AppLoadingStateView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(20)
+        .padding(NeoGymTheme.spacingLG)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusLG,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 }
 
@@ -29,10 +36,10 @@ struct AppErrorStateView: View {
     let retry: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
             Label(title, systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
-                .foregroundColor(.red)
+                .foregroundColor(NeoGymTheme.danger)
             Text(message)
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -42,7 +49,14 @@ struct AppErrorStateView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
+        .padding(NeoGymTheme.spacingLG)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusLG,
+            material: .thin,
+            tint: NeoGymTheme.danger.opacity(0.06),
+            stroke: NeoGymTheme.danger.opacity(0.22),
+            shadow: false
+        )
     }
 }
 
@@ -52,7 +66,7 @@ struct AppEmptyStateView: View {
     var systemImage: String = "tray"
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: NeoGymTheme.spacingSM) {
             Image(systemName: systemImage)
                 .font(.system(size: 34, weight: .semibold))
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -64,7 +78,13 @@ struct AppEmptyStateView: View {
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(20)
+        .padding(NeoGymTheme.spacingLG)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusLG,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 }
 
@@ -77,25 +97,21 @@ struct ConfirmationPanel: View {
     let cancel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.headline)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-            HStack {
-                Button(cancelTitle, action: cancel)
-                    .buttonStyle(NeoGymSecondaryButtonStyle())
-                Button(confirmTitle, action: confirm)
-                    .buttonStyle(NeoGymPrimaryButtonStyle())
+        GlassPanel(cornerRadius: NeoGymTheme.radiusXL, material: .thin, tint: NeoGymTheme.glassStrongFill) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+                Text(title)
+                    .font(.headline)
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                HStack(spacing: NeoGymTheme.spacingSM) {
+                    Button(cancelTitle, action: cancel)
+                        .buttonStyle(NeoGymSecondaryButtonStyle())
+                    Button(confirmTitle, action: confirm)
+                        .buttonStyle(NeoGymPrimaryButtonStyle())
+                }
             }
         }
-        .padding(20)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(NeoGymTheme.border)
-        )
     }
 }
 
@@ -105,28 +121,32 @@ struct SectionShell<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.title2.bold())
-                    .tracking(-0.4)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+        GlassPanel(
+            cornerRadius: NeoGymTheme.radiusXL,
+            material: .regular,
+            tint: NeoGymTheme.glassFill,
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingXL,
+                leading: NeoGymTheme.spacingXL,
+                bottom: NeoGymTheme.spacingXL,
+                trailing: NeoGymTheme.spacingXL
+            )
+        ) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                    Text(title)
+                        .font(.title2.bold())
+                        .tracking(-0.4)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.subheadline)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
                 }
+                GlassDivider()
+                content
             }
-            Divider()
-            content
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(22)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(NeoGymTheme.border)
-        )
-        .shadow(color: Color.accentColor.opacity(0.06), radius: 24, y: 12)
     }
 }

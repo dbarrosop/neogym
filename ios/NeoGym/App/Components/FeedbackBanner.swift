@@ -8,9 +8,9 @@ struct FeedbackBanner: View {
         var color: Color {
             switch self {
             case .error:
-                return Color.red
+                return NeoGymTheme.danger
             case .info:
-                return Color.blue
+                return NeoGymTheme.info
             }
         }
 
@@ -28,19 +28,22 @@ struct FeedbackBanner: View {
     var tone: Tone = .error
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: NeoGymTheme.spacingSM) {
             Image(systemName: tone.icon)
                 .foregroundColor(tone.color)
+                .font(.subheadline.weight(.semibold))
             Text(message)
                 .font(.footnote)
-                .foregroundColor(.primary)
+                .foregroundColor(NeoGymTheme.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(12)
-        .background(tone.color.opacity(0.09), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(tone.color.opacity(0.22))
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusSM,
+            material: .ultraThin,
+            tint: tone.color.opacity(0.08),
+            stroke: tone.color.opacity(0.24),
+            shadow: false
         )
     }
 }

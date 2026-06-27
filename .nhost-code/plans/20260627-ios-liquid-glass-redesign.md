@@ -149,7 +149,13 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Added the Phase 1 visual foundation: semantic theme tokens, iOS 15-safe glass primitives, root `ScreenScaffold` canvas ownership, and shared-state/button/banner/AuthCard restyling.
+- `GridBackground` now defaults to a lightweight transparent compatibility overlay; only `GridBackground(ownsCanvas: true)` paints the full aurora canvas, which keeps temporarily stacked legacy screen backgrounds from compounding into muddy layers during later phases.
+- Reduce-transparency fallbacks use opaque grouped-system fills, and reduce-motion trims aurora/shadow intensity without changing interaction behavior.
+- No auth, repository, GraphQL, navigation selection, or domain model behavior was intentionally changed.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS`. Accepted concerns were non-blocking: `AppShellView` was not named in the Phase 1 file list but its one-line background removal is required for root canvas ownership; simulator visual sampling was not performed in the non-interactive pass.
+- Autonomous decisions: accepted structural background-safety evidence in place of interactive simulator sampling for Phase 1 because correctness is covered by Xcode app compilation plus reviewer confirmation that stacked backgrounds are now idempotent; later phases retain simulator render checks.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; `nix develop ../.. --command xcodegen generate` passed; `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed with `** BUILD SUCCEEDED **`; generated project output was not staged.
 
 ### Phase 2 — Full-screen signed-in shell and glass dock
 

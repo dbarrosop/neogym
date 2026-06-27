@@ -19,54 +19,46 @@ struct AuthCard<Content: View, Footer: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(title)
-                    .font(.title2.bold())
-                    .tracking(-0.4)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding([.top, .horizontal], 24)
-            .padding(.bottom, 18)
-
-            VStack(spacing: 16) {
-                content
-            }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
-
-            footer
-                .font(.footnote)
-                .foregroundColor(NeoGymTheme.mutedText)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 16)
-                .background(Color.primary.opacity(0.018))
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(NeoGymTheme.border)
-                        .frame(height: 1)
+        GlassPanel(
+            cornerRadius: NeoGymTheme.cardCornerRadius,
+            material: .regular,
+            tint: NeoGymTheme.glassStrongFill,
+            contentPadding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
+        ) {
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(title)
+                        .font(.title2.bold())
+                        .tracking(-0.4)
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding([.top, .horizontal], NeoGymTheme.spacingXL)
+                .padding(.bottom, NeoGymTheme.spacingLG)
+
+                VStack(spacing: NeoGymTheme.spacingMD) {
+                    content
+                }
+                .padding(.horizontal, NeoGymTheme.spacingXL)
+                .padding(.bottom, NeoGymTheme.spacingXL)
+
+                footer
+                    .font(.footnote)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, NeoGymTheme.spacingXL)
+                    .padding(.vertical, NeoGymTheme.spacingMD)
+                    .background(NeoGymTheme.glassSubtleFill)
+                    .overlay(alignment: .top) {
+                        GlassDivider()
+                    }
+            }
         }
         .frame(maxWidth: NeoGymTheme.maxCardWidth)
-        .background(
-            .ultraThinMaterial,
-            in: RoundedRectangle(cornerRadius: NeoGymTheme.cardCornerRadius, style: .continuous)
-        )
-        .background(
-            NeoGymTheme.cardFill,
-            in: RoundedRectangle(cornerRadius: NeoGymTheme.cardCornerRadius, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: NeoGymTheme.cardCornerRadius, style: .continuous)
-                .stroke(NeoGymTheme.border)
-        )
-        .shadow(color: Color.accentColor.opacity(0.08), radius: 30, y: 16)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
     }
 }
 

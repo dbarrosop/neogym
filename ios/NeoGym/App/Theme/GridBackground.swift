@@ -1,34 +1,72 @@
 import SwiftUI
 
+/// Full-bleed visual canvas used by the root shell.
+///
+/// During the redesign migration many existing screens still attach `GridBackground`
+/// locally. The default initializer intentionally renders only a faint transparent
+/// overlay, so those temporary nested backgrounds do not compound into muddy aurora
+/// layers. Root owners should pass `ownsCanvas: true` to draw the opaque base.
 struct GridBackground: View {
+    let ownsCanvas: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    init(ownsCanvas: Bool = false) {
+        self.ownsCanvas = ownsCanvas
+    }
+
     var body: some View {
         GeometryReader { proxy in
+            let maxDimension = max(proxy.size.width, proxy.size.height)
+            let overlayOpacity = (ownsCanvas ? 1.0 : 0.18) * (reduceMotion ? 0.72 : 1.0)
+
             ZStack {
-                LinearGradient(
-                    colors: [Color(.systemBackground), Color(.secondarySystemBackground)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                if ownsCanvas {
+                    if reduceTransparency {
+                        NeoGymTheme.canvasFallback
+                    } else {
+                        NeoGymTheme.canvasGradient
+                    }
+                } else {
+                    Color.clear
+                }
 
-                RadialGradient(
-                    colors: [Color.purple.opacity(0.22), .clear],
-                    center: .top,
-                    startRadius: 20,
-                    endRadius: max(proxy.size.width, proxy.size.height) * 0.72
-                )
+                if !reduceTransparency {
+                    RadialGradient(
+                        colors: [NeoGymTheme.auroraPrimary.opacity(overlayOpacity), .clear],
+                        center: .topLeading,
+                        startRadius: 16,
+                        endRadius: maxDimension * 0.82
+                    )
+                    .blendMode(.screen)
 
-                RadialGradient(
-                    colors: [Color.blue.opacity(0.16), .clear],
-                    center: .bottomTrailing,
-                    startRadius: 20,
-                    endRadius: max(proxy.size.width, proxy.size.height) * 0.62
-                )
+                    RadialGradient(
+                        colors: [NeoGymTheme.auroraSecondary.opacity(overlayOpacity), .clear],
+                        center: .bottomTrailing,
+                        startRadius: 24,
+                        endRadius: maxDimension * 0.74
+                    )
+                    .blendMode(.screen)
 
-                GridPattern(spacing: 32)
-                    .stroke(Color.primary.opacity(0.055), lineWidth: 1)
+                    RadialGradient(
+                        colors: [NeoGymTheme.auroraTertiary.opacity(overlayOpacity), .clear],
+                        center: UnitPoint(x: 0.82, y: 0.18),
+                        startRadius: 10,
+                        endRadius: maxDimension * 0.52
+                    )
+                    .blendMode(.screen)
+                }
+
+                GridPattern(spacing: ownsCanvas ? 34 : 40)
+                    .stroke(
+                        Color.primary.opacity(reduceTransparency ? 0.035 : 0.05 * overlayOpacity),
+                        lineWidth: NeoGymTheme.hairline
+                    )
             }
         }
         .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 }
 
