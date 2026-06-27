@@ -12,13 +12,14 @@ struct ProfileView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: NeoGymTheme.spacingXL) {
+                accountHeader
                 profileCard
                 settingsCard
             }
             .frame(maxWidth: 640)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 40)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $isShowingChangeEmail) {
@@ -32,84 +33,139 @@ struct ProfileView: View {
         }
     }
 
-    private var profileCard: some View {
-        VStack(alignment: .leading, spacing: 18) {
+    private var accountHeader: some View {
+        HStack(alignment: .center, spacing: NeoGymTheme.spacingMD) {
             if let profile {
-                HStack(spacing: 16) {
-                    avatar(profile: profile)
+                avatar(profile: profile)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(profile.displayName)
-                            .font(.title2.bold())
-                            .tracking(-0.4)
-                        Text(profile.emailDisplay)
-                            .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                    Text("Account")
+                        .font(.caption.weight(.bold))
+                        .tracking(1.4)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    Text(profile.displayName)
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                        .tracking(-0.4)
+                    Text(profile.emailDisplay)
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                        .lineLimit(2)
                 }
+            } else {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                    Text("Account")
+                        .font(.caption.weight(.bold))
+                        .tracking(1.4)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    Text("Signed in")
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-                Divider()
-
-                DetailRow(label: "Email") {
-                    HStack(spacing: 8) {
-                        Text(profile.emailDisplay)
+    private var profileCard: some View {
+        GlassPanel(
+            cornerRadius: NeoGymTheme.radiusXXL,
+            material: .regular,
+            tint: NeoGymTheme.glassStrongFill,
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingXL,
+                leading: NeoGymTheme.spacingXL,
+                bottom: NeoGymTheme.spacingXL,
+                trailing: NeoGymTheme.spacingXL
+            )
+        ) {
+            VStack(alignment: .leading, spacing: 18) {
+                if let profile {
+                    HStack(alignment: .center, spacing: NeoGymTheme.spacingSM) {
+                        Label("Profile details", systemImage: "person.text.rectangle.fill")
+                            .font(.headline)
+                        Spacer(minLength: 0)
                         Button {
                             isShowingChangeEmail = true
                         } label: {
-                            Image(systemName: "pencil")
+                            Label("Change email", systemImage: "pencil")
                                 .font(.caption.weight(.semibold))
+                                .labelStyle(.titleAndIcon)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .glassSurface(
+                                    cornerRadius: NeoGymTheme.radiusPill,
+                                    material: .ultraThin,
+                                    tint: NeoGymTheme.glassSubtleFill,
+                                    shadow: false
+                                )
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(.primary)
                         .accessibilityLabel("Change email")
                         .disabled(changeEmailModel == nil)
                     }
+
+                    GlassDivider()
+
+                    DetailRow(label: "Email") { Text(profile.emailDisplay) }
+                    DetailRow(label: "Locale") { Text(profile.locale) }
+                    DetailRow(label: "Default role") { Text(profile.defaultRole) }
+                    DetailRow(label: "User ID") {
+                        Text(profile.id)
+                            .font(.caption.monospaced())
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(
+                                NeoGymTheme.glassSubtleFill,
+                                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            )
+                    }
+                    DetailRow(label: "Member since") { Text(profile.memberSince) }
+                } else {
+                    FeedbackBanner(
+                        message: "Your session is active, but the profile payload is missing. "
+                            + "Sign out and sign in again if this persists.",
+                        tone: .info
+                    )
                 }
-                DetailRow(label: "Locale") { Text(profile.locale) }
-                DetailRow(label: "Default role") { Text(profile.defaultRole) }
-                DetailRow(label: "User ID") {
-                    Text(profile.id)
-                        .font(.caption.monospaced())
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(
-                            NeoGymTheme.mutedFill,
-                            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        )
-                }
-                DetailRow(label: "Member since") { Text(profile.memberSince) }
-            } else {
-                FeedbackBanner(
-                    message: "Your session is active, but the profile payload is missing. "
-                        + "Sign out and sign in again if this persists.",
-                    tone: .info
-                )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardContainer()
     }
 
     private var settingsCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Settings")
-                .font(.headline)
-            Divider()
-            Button {
-                signOut()
-            } label: {
-                if isSigningOut {
-                    HStack(spacing: 8) {
-                        ProgressView()
-                        Text("Signing out")
+        GlassPanel(
+            cornerRadius: NeoGymTheme.radiusXXL,
+            material: .regular,
+            tint: NeoGymTheme.glassFill,
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingXL,
+                leading: NeoGymTheme.spacingXL,
+                bottom: NeoGymTheme.spacingXL,
+                trailing: NeoGymTheme.spacingXL
+            )
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Settings")
+                    .font(.headline)
+                GlassDivider()
+                Button {
+                    signOut()
+                } label: {
+                    if isSigningOut {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Signing out")
+                        }
+                    } else {
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                     }
-                } else {
-                    Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                 }
+                .buttonStyle(NeoGymSecondaryButtonStyle())
+                .disabled(isSigningOut)
             }
-            .buttonStyle(NeoGymSecondaryButtonStyle())
-            .disabled(isSigningOut)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .cardContainer()
     }
 
     private var profile: UserProfile? {
@@ -119,13 +175,14 @@ struct ProfileView: View {
     private func avatar(profile: UserProfile) -> some View {
         ZStack {
             Circle()
-                .fill(NeoGymTheme.mutedFill)
+                .fill(NeoGymTheme.accentSoft)
             Text(profile.initials)
                 .font(.title3.bold())
                 .foregroundColor(.primary)
         }
         .frame(width: 64, height: 64)
-        .overlay(Circle().stroke(NeoGymTheme.border))
+        .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
+        .shadow(color: NeoGymTheme.glassAmbientShadow, radius: 18, y: 8)
     }
 }
 
@@ -143,19 +200,5 @@ private struct DetailRow<Content: View>: View {
                 .font(.subheadline.weight(.medium))
                 .multilineTextAlignment(.trailing)
         }
-    }
-}
-
-private extension View {
-    func cardContainer() -> some View {
-        padding(22)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(NeoGymTheme.border)
-            )
-            .shadow(color: Color.accentColor.opacity(0.06), radius: 24, y: 12)
     }
 }

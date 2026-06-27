@@ -19,29 +19,38 @@ struct SignInView: View {
     }
 
     var body: some View {
-        AuthCard(
-            title: model.sentTo == nil ? "Welcome back" : "Enter your code",
-            description: description
+        AuthScreenLayout(
+            eyebrow: "Sign in",
+            title: model.sentTo == nil ? "Welcome back to NeoGym" : "Check your inbox",
+            subtitle: model.sentTo == nil
+                ? "Pick up your training log, body metrics, nutrition plans, and journal without a password."
+                : "Your one-time passcode keeps this device connected to the same secure account.",
+            systemImage: model.sentTo == nil ? "figure.strengthtraining.traditional" : "envelope.badge.shield.half.filled"
         ) {
-            if model.sentTo == nil {
-                requestForm
-            } else {
-                otpForm
-            }
-        } footer: {
-            if model.sentTo == nil {
-                HStack(spacing: 4) {
-                    Text("New here?")
-                    Button("Create an account", action: onSignUp)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(.primary)
+            AuthCard(
+                title: model.sentTo == nil ? "Email sign in" : "Enter your code",
+                description: description
+            ) {
+                if model.sentTo == nil {
+                    requestForm
+                } else {
+                    otpForm
                 }
-            } else {
-                Button("Use a different email") {
-                    model.reset()
+            } footer: {
+                if model.sentTo == nil {
+                    HStack(spacing: 4) {
+                        Text("New here?")
+                        Button("Create an account", action: onSignUp)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(.primary)
+                    }
+                } else {
+                    Button("Use a different email") {
+                        model.reset()
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(.primary)
                 }
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.primary)
             }
         }
     }
@@ -104,6 +113,7 @@ struct SignInView: View {
             .buttonStyle(NeoGymPrimaryButtonStyle())
             .disabled(model.isVerifying || model.otp.count != 6)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func verify() {
@@ -131,12 +141,12 @@ struct SignInView: View {
                 .textContentType(contentType)
                 .padding(13)
                 .background(
-                    Color(.secondarySystemBackground),
+                    NeoGymTheme.glassSubtleFill,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(NeoGymTheme.border)
+                        .stroke(NeoGymTheme.glassStrokeSecondary)
                 )
         }
     }

@@ -261,7 +261,12 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Redesigned sign-in and sign-up as full-screen, scrollable auth layouts with hero areas and lower glass form panels.
+- Restyled `AuthCard`, `OTPCodeField`, loading/error root states, the profile account header/cards, and `ChangeEmailSheet` with shared glass surfaces.
+- Preserved `SignInModel`, `SignUpModel`, `AuthService`, `ChangeEmailModel`, `AuthCallbackURLRouter`, `neogym://verify`, token exchange, verifier clearing, and sign-out behavior; changes were visual/composition-only.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS`. Accepted non-blocking concern: `NeoGymTheme.maxCardWidth` is now unused after auth/root card redesign, but it remains a harmless compatibility token and may be reused by later phases.
+- Autonomous decisions: retained `maxCardWidth` for long-term maintenance and compatibility with existing theme aliases rather than removing it mid-redesign; correctness is unaffected and later phases can decide whether to prune legacy tokens.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; generated project output was not staged. Manual cloud OTP, keyboard-open, and Dynamic Type walkthroughs were not run in the non-interactive pass; existing model tests and reviewer diff inspection verified behavior preservation.
 
 ### Phase 4a — Primary domain screen polish
 

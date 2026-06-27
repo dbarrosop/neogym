@@ -126,37 +126,38 @@ struct RootView: View {
 
 private struct LoadingView: View {
     var body: some View {
-        VStack(spacing: NeoGymTheme.spacingXL) {
-            Spacer(minLength: NeoGymTheme.spacingXXL)
+        RootStateLayout(
+            systemImage: "bolt.heart.fill",
+            eyebrow: "NeoGym",
+            title: "Preparing your training space",
+            message: "Checking for a saved session and syncing the app shell."
+        ) {
             GlassPanel(
                 cornerRadius: NeoGymTheme.radiusXXL,
                 material: .regular,
                 tint: NeoGymTheme.glassStrongFill,
                 contentPadding: EdgeInsets(
-                    top: NeoGymTheme.spacingXXL,
+                    top: NeoGymTheme.spacingXL,
                     leading: NeoGymTheme.spacingXL,
-                    bottom: NeoGymTheme.spacingXXL,
+                    bottom: NeoGymTheme.spacingXL,
                     trailing: NeoGymTheme.spacingXL
                 )
             ) {
-                VStack(spacing: NeoGymTheme.spacingMD) {
+                HStack(spacing: NeoGymTheme.spacingMD) {
                     ProgressView()
                         .controlSize(.large)
                         .tint(NeoGymTheme.accent)
-                    Text("Loading NeoGym")
-                        .font(.title2.bold())
-                        .tracking(-0.4)
-                    Text("Checking for a saved session…")
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .multilineTextAlignment(.center)
+                    VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                        Text("Loading NeoGym")
+                            .font(.headline)
+                        Text("Restoring your session…")
+                            .font(.subheadline)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: NeoGymTheme.maxCardWidth)
-            Spacer(minLength: NeoGymTheme.spacingXXL)
         }
-        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
     }
 }
 
@@ -165,8 +166,12 @@ private struct ErrorCard: View {
     let retry: () -> Void
 
     var body: some View {
-        VStack(spacing: NeoGymTheme.spacingXL) {
-            Spacer(minLength: NeoGymTheme.spacingXXL)
+        RootStateLayout(
+            systemImage: "exclamationmark.triangle.fill",
+            eyebrow: "Session error",
+            title: "NeoGym couldn't load your saved session",
+            message: "Retry the local session check, or sign in again if the issue persists."
+        ) {
             GlassPanel(
                 cornerRadius: NeoGymTheme.radiusXXL,
                 material: .regular,
@@ -179,23 +184,70 @@ private struct ErrorCard: View {
                 )
             ) {
                 VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                    VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-                        Text("Session error")
-                            .font(.title2.bold())
-                            .tracking(-0.4)
-                        Text("NeoGym couldn't load your saved session.")
-                            .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
                     FeedbackBanner(message: message)
                     Button("Try again", action: retry)
                         .buttonStyle(NeoGymPrimaryButtonStyle())
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: NeoGymTheme.maxCardWidth)
-            Spacer(minLength: NeoGymTheme.spacingXXL)
         }
-        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+    }
+}
+
+private struct RootStateLayout<ActionPanel: View>: View {
+    let systemImage: String
+    let eyebrow: String
+    let title: String
+    let message: String
+    @ViewBuilder let actionPanel: ActionPanel
+
+    var body: some View {
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXL) {
+                    VStack(alignment: .leading, spacing: NeoGymTheme.spacingLG) {
+                        ZStack {
+                            Circle()
+                                .fill(NeoGymTheme.accentSoft)
+                                .frame(width: 108, height: 108)
+                                .blur(radius: 18)
+                                .offset(x: 14, y: 12)
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .frame(width: 86, height: 86)
+                                .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
+                            Image(systemName: systemImage)
+                                .font(.system(size: 32, weight: .semibold))
+                                .foregroundColor(NeoGymTheme.accent)
+                        }
+                        .accessibilityHidden(true)
+
+                        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                            Text(eyebrow.uppercased())
+                                .font(.caption.weight(.bold))
+                                .tracking(1.6)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                            Text(title)
+                                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                                .tracking(-0.8)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(message)
+                                .font(.body)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    actionPanel
+                }
+                .frame(maxWidth: 620, alignment: .leading)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.top, max(NeoGymTheme.spacingXXL, proxy.safeAreaInsets.top + NeoGymTheme.spacingXL))
+                .padding(.bottom, max(NeoGymTheme.spacingXXL, proxy.safeAreaInsets.bottom + NeoGymTheme.spacingXL))
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: proxy.size.height, alignment: .center)
+            }
+        }
     }
 }
 

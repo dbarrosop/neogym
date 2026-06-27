@@ -19,29 +19,38 @@ struct SignUpView: View {
     }
 
     var body: some View {
-        AuthCard(
-            title: model.sentTo == nil ? "Create your account" : "Enter your code",
-            description: description
+        AuthScreenLayout(
+            eyebrow: "Create account",
+            title: model.sentTo == nil ? "Start training with context" : "Confirm your email",
+            subtitle: model.sentTo == nil
+                ? "Build your profile, then log workouts, nutrition, body metrics, and reflections from one place."
+                : "Enter the code we sent so NeoGym can finish setting up your account.",
+            systemImage: model.sentTo == nil ? "sparkles" : "envelope.badge.shield.half.filled"
         ) {
-            if model.sentTo == nil {
-                requestForm
-            } else {
-                otpForm
-            }
-        } footer: {
-            if model.sentTo == nil {
-                HStack(spacing: 4) {
-                    Text("Already have an account?")
-                    Button("Sign in", action: onSignIn)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(.primary)
+            AuthCard(
+                title: model.sentTo == nil ? "Create your account" : "Enter your code",
+                description: description
+            ) {
+                if model.sentTo == nil {
+                    requestForm
+                } else {
+                    otpForm
                 }
-            } else {
-                Button("Use a different email") {
-                    model.reset()
+            } footer: {
+                if model.sentTo == nil {
+                    HStack(spacing: 4) {
+                        Text("Already have an account?")
+                        Button("Sign in", action: onSignIn)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(.primary)
+                    }
+                } else {
+                    Button("Use a different email") {
+                        model.reset()
+                    }
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(.primary)
                 }
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.primary)
             }
         }
     }
@@ -118,6 +127,7 @@ struct SignUpView: View {
             .buttonStyle(NeoGymPrimaryButtonStyle())
             .disabled(model.isVerifying || model.otp.count != 6)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private func verify() {
@@ -144,12 +154,12 @@ struct SignUpView: View {
                 .textContentType(options.contentType)
                 .padding(13)
                 .background(
-                    Color(.secondarySystemBackground),
+                    NeoGymTheme.glassSubtleFill,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(NeoGymTheme.border)
+                        .stroke(NeoGymTheme.glassStrokeSecondary)
                 )
         }
     }

@@ -18,17 +18,31 @@ struct OTPCodeField: View {
                 .frame(width: 1, height: 1)
                 .accessibilityLabel("One-time code")
 
-            HStack(spacing: 8) {
-                ForEach(0..<6, id: \.self) { index in
-                    OTPSlot(character: character(at: index), isActive: isFocused && code.count == index)
+            GeometryReader { proxy in
+                let spacing: CGFloat = 7
+                let slotWidth = min(44, max(34, (proxy.size.width - (spacing * 5)) / 6))
+                let slotHeight = max(48, slotWidth * 1.18)
+
+                HStack(spacing: spacing) {
+                    ForEach(0..<6, id: \.self) { index in
+                        OTPSlot(
+                            character: character(at: index),
+                            isActive: isFocused && code.count == index,
+                            width: slotWidth,
+                            height: slotHeight
+                        )
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
+            .frame(height: 54)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard !isDisabled else { return }
                 isFocused = true
             }
         }
+        .frame(maxWidth: .infinity)
         .onAppear {
             if !isDisabled {
                 isFocused = true
@@ -60,18 +74,27 @@ struct OTPCodeField: View {
 private struct OTPSlot: View {
     let character: String
     let isActive: Bool
+    let width: CGFloat
+    let height: CGFloat
 
     var body: some View {
         Text(character)
             .font(.title2.monospacedDigit().weight(.semibold))
-            .frame(width: 44, height: 52)
+            .minimumScaleFactor(0.8)
+            .frame(width: width, height: height)
             .background(
-                Color(.secondarySystemBackground).opacity(0.9),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                NeoGymTheme.glassSubtleFill,
+                in: RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(isActive ? Color.accentColor : NeoGymTheme.border, lineWidth: isActive ? 2 : 1)
+                RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
+                    .stroke(isActive ? NeoGymTheme.accent : NeoGymTheme.glassStrokeSecondary, lineWidth: isActive ? 2 : 1)
             )
+            .overlay(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
+                    .stroke(Color.white.opacity(0.22), lineWidth: NeoGymTheme.hairline)
+                    .padding(1)
+            }
+            .shadow(color: isActive ? NeoGymTheme.accent.opacity(0.20) : .clear, radius: 10, y: 5)
     }
 }
