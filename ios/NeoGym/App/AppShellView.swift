@@ -55,8 +55,11 @@ struct AppShellView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isKeyboardVisible {
-                    AppDestinationDock(selection: $selection)
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: NeoGymTheme.dockContentExtraInset)
+                        AppDestinationDock(selection: $selection)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.easeInOut(duration: 0.18), value: isKeyboardVisible)
