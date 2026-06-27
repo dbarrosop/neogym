@@ -4,8 +4,8 @@ import Nhost
 
 @MainActor
 final class ValidationTests: XCTestCase {
-    func testEmailValidationTrimsAndRejectsInvalidInput() throws {
-        XCTAssertEqual(try AuthValidation.normalizedEmail(" athlete@example.com \n"), "athlete@example.com")
+    func testEmailValidationTrimsLowercasesAndRejectsInvalidInput() throws {
+        XCTAssertEqual(try AuthValidation.normalizedEmail(" Athlete@Example.COM \n"), "athlete@example.com")
         XCTAssertThrowsError(try AuthValidation.normalizedEmail("not-an-email")) { error in
             XCTAssertEqual(error as? ValidationError, .invalidEmail)
         }
@@ -64,6 +64,30 @@ final class SignInModelTests: XCTestCase {
         XCTAssertNil(verified)
         XCTAssertEqual(model.otp, "")
         XCTAssertNotNil(model.errorMessage)
+    }
+
+    func testSignInIgnoresDuplicateVerifyWhileRequestIsInFlight() async throws {
+        let session = try makeSession(email: "athlete@example.com")
+        let service = FakeAuthService(verifySession: session, verifyDelayNanoseconds: 50_000_000)
+        let model = SignInModel(authService: service, email: "athlete@example.com")
+
+        await model.requestCode()
+        model.updateOTP("123456")
+
+        let firstTask = Task { @MainActor in
+            await model.verifyCode()
+        }
+        for _ in 0..<10 where !model.isVerifying {
+            await Task.yield()
+        }
+        XCTAssertTrue(model.isVerifying)
+        let duplicate = await model.verifyCode()
+        let first = await firstTask.value
+
+        XCTAssertEqual(first?.user?.email, "athlete@example.com")
+        XCTAssertNil(duplicate)
+        let verifyRequests = await service.verifyRequestsSnapshot()
+        XCTAssertEqual(verifyRequests.count, 1)
     }
 
     func testSignInResetClearsCodeState() async {
@@ -165,6 +189,7 @@ private actor FakeAuthService: AuthServicing {
     private let requestError: Error?
     private let verifyError: Error?
     private let verifySession: StoredSession?
+    private let verifyDelayNanoseconds: UInt64
     private(set) var signInRequests: [String] = []
     private(set) var signUpRequests: [(email: String, displayName: String)] = []
     private(set) var verifyRequests: [(email: String, otp: String)] = []
@@ -174,12 +199,14 @@ private actor FakeAuthService: AuthServicing {
         initialSession: StoredSession? = nil,
         requestError: Error? = nil,
         verifyError: Error? = nil,
-        verifySession: StoredSession? = nil
+        verifySession: StoredSession? = nil,
+        verifyDelayNanoseconds: UInt64 = 0
     ) {
         session = initialSession
         self.requestError = requestError
         self.verifyError = verifyError
         self.verifySession = verifySession
+        self.verifyDelayNanoseconds = verifyDelayNanoseconds
     }
 
     func getUserSession() async throws -> StoredSession? { session }
@@ -206,6 +233,9 @@ private actor FakeAuthService: AuthServicing {
 
     func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? {
         verifyRequests.append((email: email, otp: otp))
+        if verifyDelayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: verifyDelayNanoseconds)
+        }
         if let verifyError { throw verifyError }
         if let verifySession {
             await updateSession(verifySession)

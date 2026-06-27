@@ -41,8 +41,9 @@ struct OTPCodeField: View {
             get: { code },
             set: { nextValue in
                 let normalized = String(nextValue.filter(\.isNumber).prefix(6))
+                let previous = code
                 code = normalized
-                if normalized.count == 6 {
+                if normalized.count == 6, normalized != previous {
                     onComplete(normalized)
                 }
             }

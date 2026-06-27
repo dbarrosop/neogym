@@ -32,7 +32,7 @@ public enum AuthValidation: Sendable {
             throw ValidationError.invalidEmail
         }
 
-        return trimmed
+        return trimmed.lowercased()
     }
 
     public static func normalizedDisplayName(_ displayName: String) throws -> String {

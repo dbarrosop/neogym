@@ -48,6 +48,10 @@ public final class SignUpModel: ObservableObject {
     }
 
     public func verifyCode() async -> StoredSession? {
+        guard !isVerifying else {
+            return nil
+        }
+
         errorMessage = nil
 
         guard let sentTo else {
