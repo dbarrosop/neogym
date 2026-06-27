@@ -5,36 +5,24 @@ import UIKit
 
 enum AppDestination: String, CaseIterable, Identifiable {
     case workouts
-    case exercises
-    case sessions
-    case body
     case nutrition
-    case journal
-    case profile
+    case me
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .workouts: "Workouts"
-        case .exercises: "Exercises"
-        case .sessions: "Sessions"
-        case .body: "Body"
         case .nutrition: "Nutrition"
-        case .journal: "Journal"
-        case .profile: "Profile"
+        case .me: "Me"
         }
     }
 
     var icon: String {
         switch self {
         case .workouts: "figure.strengthtraining.traditional"
-        case .exercises: "dumbbell"
-        case .sessions: "timer"
-        case .body: "heart.text.square"
         case .nutrition: "fork.knife"
-        case .journal: "book.closed"
-        case .profile: "person.crop.circle"
+        case .me: "person.crop.circle"
         }
     }
 }
@@ -75,46 +63,24 @@ struct AppShellView: View {
     private var content: some View {
         switch selection {
         case .workouts:
-            WorkoutsNavigationView(
+            WorkoutsSectionNavigationView(
                 workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
-                exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
-                storageBaseURL: environment.client.serviceURLs.storage,
-                currentUserId: session.user?.id
-            ) { sessionId in
-                pendingSessionId = sessionId
-                selection = .sessions
-            }
-        case .exercises:
-            ExercisesNavigationView(
-                repository: ExercisesRepository(graphQL: environment.graphQLService),
-                storageBaseURL: environment.client.serviceURLs.storage
-            ) { sessionId in
-                pendingSessionId = sessionId
-                selection = .sessions
-            }
-        case .sessions:
-            SessionsNavigationView(
                 sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
                 exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                 storageBaseURL: environment.client.serviceURLs.storage,
+                currentUserId: session.user?.id,
                 pendingSessionId: $pendingSessionId
-            )
-        case .body:
-            BodyNavigationView(
-                repository: BodyMeasurementsRepository(graphQL: environment.graphQLService)
-            )
-        case .journal:
-            JournalNavigationView(
-                repository: JournalRepository(graphQL: environment.graphQLService)
             )
         case .nutrition:
             NutritionNavigationView(
                 repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
                 currentUserId: session.user?.id
             )
-        case .profile:
-            ProfileView(
+        case .me:
+            MeNavigationView(
                 session: session,
+                bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                journalRepository: JournalRepository(graphQL: environment.graphQLService),
                 isSigningOut: isSigningOut,
                 changeEmailModel: changeEmailModel,
                 signOut: signOut
