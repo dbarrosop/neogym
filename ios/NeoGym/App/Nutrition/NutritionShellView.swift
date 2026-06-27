@@ -41,47 +41,15 @@ struct NutritionNavigationView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
-                subNavigation
-                Divider()
+                NutritionSecondaryBar(selection: $selection)
                 content
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(GridBackground())
             .navigationTitle("Nutrition")
             .navigationBarTitleDisplayMode(.inline)
         }
         .navigationViewStyle(.stack)
-    }
-
-    private var subNavigation: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(NutritionSection.allCases) { section in
-                    Button {
-                        selection = section
-                    } label: {
-                        Label(section.title, systemImage: section.icon)
-                            .font(.caption.weight(.semibold))
-                            .lineLimit(1)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .foregroundColor(selection == section ? .white : .primary)
-                            .background(
-                                selection == section ? Color.accentColor : NeoGymTheme.cardFill,
-                                in: Capsule(style: .continuous)
-                            )
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(selection == section ? Color.clear : NeoGymTheme.border)
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(selection == section ? .isSelected : [])
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-        .background(.ultraThinMaterial)
     }
 
     @ViewBuilder
@@ -107,6 +75,81 @@ struct NutritionNavigationView: View {
             NutritionDaysView(repository: repository, selectedDate: $selectedDate)
         case .plans:
             PlansListView(repository: repository)
+        }
+    }
+}
+
+private struct NutritionSecondaryBar: View {
+    @Binding var selection: NutritionSection
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: NeoGymTheme.spacingXS) {
+                ForEach(NutritionSection.allCases) { section in
+                    NutritionSecondaryBarItem(
+                        section: section,
+                        isSelected: selection == section
+                    ) {
+                        selection = section
+                    }
+                }
+            }
+            .padding(NeoGymTheme.spacingXS)
+        }
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusXL,
+            material: .thin,
+            tint: NeoGymTheme.glassFill,
+            stroke: NeoGymTheme.glassStroke,
+            shadow: true
+        )
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .padding(.top, NeoGymTheme.spacingSM)
+        .padding(.bottom, NeoGymTheme.spacingXS)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+private struct NutritionSecondaryBarItem: View {
+    let section: NutritionSection
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(section.title, systemImage: section.icon)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.78)
+                .foregroundColor(isSelected ? .white : NeoGymTheme.primaryText)
+                .padding(.horizontal, NeoGymTheme.spacingSM)
+                .padding(.vertical, NeoGymTheme.spacingXS)
+                .frame(minWidth: 88, minHeight: 44)
+                .background(itemBackground)
+                .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(section.title)
+        .accessibilityValue(isSelected ? "Selected" : "")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private var itemBackground: some View {
+        if isSelected {
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.primaryActionGradient)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
+                )
+        } else {
+            Capsule(style: .continuous)
+                .fill(Color.clear)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
         }
     }
 }

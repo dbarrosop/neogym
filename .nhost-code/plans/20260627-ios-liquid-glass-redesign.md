@@ -203,7 +203,14 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Replaced the signed-in top pill strip with a full-screen content shell and custom bottom glass dock in `AppShellView`.
+- Kept all seven destinations discoverable in a horizontally scrollable dock with selected styling, VoiceOver labels/selected state, and 44pt+ hit targets.
+- Preserved Workouts/Exercises start-session routing by keeping the existing `pendingSessionId` and `selection = .sessions` flow.
+- Restyled Nutrition's secondary navigation as a glass segmented bar while preserving `selection`, `selectedDate`, and callbacks.
+- Added keyboard-aware dock hiding to avoid collisions with form controls.
+- Reviewer verdict: `ACCEPT`. Non-blocking residual risk: interactive simulator walkthrough of narrow/tall and pushed-detail layouts was not performed; Phase 4b and final QA keep detail/form collision checks in scope.
+- Autonomous decisions: accepted structural `.safeAreaInset(edge: .bottom)` evidence plus reviewer verification in place of interactive simulator traversal for this non-interactive pass; correctness is supported by app build, tests, and reviewer inspection, with visual traversal retained for later phases.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; generated project output was not staged.
 
 ### Phase 3 — Full-screen auth, root states, and account sheets
 
