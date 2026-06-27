@@ -50,7 +50,7 @@ struct StrengthSetEditorView: View {
 
     @State private var reps: Int
     @State private var weightKilograms: Int
-    @State private var weightTenths: Int
+    @State private var weightGramStep: Int
 
     init(
         state: StrengthSetEditorState,
@@ -66,11 +66,11 @@ struct StrengthSetEditorView: View {
         self.onCancel = onCancel
 
         let seed = state.previousSet
-        let initialWeight = max(0, seed?.weight ?? 0)
-        let roundedTenths = Int((initialWeight * 10).rounded())
+        let roundedWeightGrams = Self.nearestWeightGrams(for: max(0, seed?.weight ?? 0))
         _reps = State(initialValue: min(Self.maximumReps, max(0, seed?.reps ?? Self.defaultReps(from: seed))))
-        _weightKilograms = State(initialValue: min(Self.maximumKilograms, max(0, roundedTenths / 10)))
-        _weightTenths = State(initialValue: min(9, max(0, roundedTenths % 10)))
+        _weightKilograms = State(initialValue: min(Self.maximumKilograms, roundedWeightGrams / Self.gramsPerKilogram))
+        let gramStep = (roundedWeightGrams % Self.gramsPerKilogram) / Self.weightStepGrams
+        _weightGramStep = State(initialValue: min(Self.gramSteps.count - 1, gramStep))
     }
 
     var body: some View {
@@ -125,10 +125,10 @@ struct StrengthSetEditorView: View {
                     Text("\(value)").tag(value)
                 }
 
-                wheelPicker(title: "decimal", selection: $weightTenths, values: 0...9) { value in
-                    Text(".\(value)").tag(value)
+                wheelPicker(title: "grams", selection: $weightGramStep, values: Self.gramStepRange) { value in
+                    Text(String(format: "%03d", Self.gramSteps[value])).tag(value)
                 }
-                .frame(maxWidth: 86)
+                .frame(maxWidth: 96)
 
                 wheelPicker(title: "reps", selection: $reps, values: 0...Self.maximumReps) { value in
                     Text("\(value)").tag(value)
@@ -171,7 +171,8 @@ struct StrengthSetEditorView: View {
     }
 
     private var weight: Double {
-        Double(weightKilograms) + (Double(weightTenths) / 10)
+        let grams = (weightKilograms * Self.gramsPerKilogram) + Self.gramSteps[weightGramStep]
+        return Double(grams) / Double(Self.gramsPerKilogram)
     }
 
     private var summary: String {
@@ -183,7 +184,17 @@ struct StrengthSetEditorView: View {
     }
 
     private static func formatWeight(_ weight: Double) -> String {
-        weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
+        let grams = Int((weight * Double(gramsPerKilogram)).rounded())
+        if grams.isMultiple(of: gramsPerKilogram) {
+            return String(format: "%.0f", weight)
+        }
+        return String(format: "%.3f", weight)
+    }
+
+    private static func nearestWeightGrams(for weight: Double) -> Int {
+        let grams = Int((weight * Double(gramsPerKilogram)).rounded())
+        let roundedStepGrams = Int((Double(grams) / Double(weightStepGrams)).rounded()) * weightStepGrams
+        return min(maximumKilograms * gramsPerKilogram, max(0, roundedStepGrams))
     }
 
     private static func defaultReps(from set: SessionStrengthSet?) -> Int {
@@ -192,4 +203,8 @@ struct StrengthSetEditorView: View {
 
     private static let maximumReps = 200
     private static let maximumKilograms = 500
+    private static let gramsPerKilogram = 1_000
+    private static let weightStepGrams = 125
+    private static let gramSteps = stride(from: 0, through: 875, by: weightStepGrams).map { $0 }
+    private static let gramStepRange = 0...(gramSteps.count - 1)
 }
