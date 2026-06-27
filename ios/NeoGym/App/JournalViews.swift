@@ -345,11 +345,10 @@ struct JournalEntryDetailView: View {
         ScrollView {
             content
                 .frame(maxWidth: 680)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
                 .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -471,7 +470,6 @@ struct JournalEntryCreateView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("New entry")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -549,7 +547,6 @@ struct JournalEntryEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("Edit entry")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -630,9 +627,13 @@ private struct JournalEntryFormScreen: View {
                         ))
                         .textInputAutocapitalization(.sentences)
                         .disableAutocorrection(false)
-                        .padding(12)
-                        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                        .padding(NeoGymTheme.spacingSM)
+                        .glassSurface(
+                            cornerRadius: NeoGymTheme.radiusMD,
+                            material: .ultraThin,
+                            tint: NeoGymTheme.glassFill,
+                            shadow: false
+                        )
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -640,12 +641,13 @@ private struct JournalEntryFormScreen: View {
                             .font(.subheadline.weight(.semibold))
                         TextEditor(text: $form.body)
                             .frame(minHeight: 220)
-                            .padding(8)
-                            .background(
-                                NeoGymTheme.cardFill,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .padding(NeoGymTheme.spacingXS)
+                            .glassSurface(
+                                cornerRadius: NeoGymTheme.radiusMD,
+                                material: .ultraThin,
+                                tint: NeoGymTheme.glassFill,
+                                shadow: false
                             )
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
                         Text("Markdown supported — use **bold**, - lists, headings, and more.")
                             .font(.caption)
                             .foregroundColor(NeoGymTheme.mutedText)
@@ -663,11 +665,10 @@ private struct JournalEntryFormScreen: View {
                 }
             }
             .frame(maxWidth: 680)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 
     private var actions: some View {
@@ -744,7 +745,14 @@ private struct JournalLabelInputView: View {
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
                     .foregroundColor(.accentColor)
-                    .background(Color.accentColor.opacity(0.12), in: Capsule())
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(NeoGymTheme.accentMuted)
+                            .overlay(
+                                Capsule(style: .continuous)
+                                    .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
+                            )
+                    )
                 }
             }
             HStack(spacing: 8) {
@@ -759,9 +767,13 @@ private struct JournalLabelInputView: View {
                 Button("Add") { commitTyped() }
                     .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > journalLabelMaxLength)
             }
-            .padding(10)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .padding(NeoGymTheme.spacingSM)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassFill,
+                shadow: false
+            )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
                 VStack(alignment: .leading, spacing: 6) {
@@ -783,9 +795,14 @@ private struct JournalLabelInputView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(10)
+                .padding(NeoGymTheme.spacingSM)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusMD,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassSubtleFill,
+                    shadow: false
+                )
             }
         }
     }

@@ -91,27 +91,30 @@ struct CardioMetricsFormView: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text(state.exerciseName)) {
-                    ForEach(model.specs, id: \.key) { spec in
-                        MetricInputRow(
-                            spec: spec,
-                            value: binding(for: spec),
-                            isInvalid: invalidKey == spec.key
-                        )
+            ScreenScaffold {
+                ScrollView {
+                    VStack(spacing: NeoGymTheme.spacingMD) {
+                        metricsPanel
+                        if let errorMessage {
+                            Text(errorMessage)
+                                .font(.subheadline)
+                                .foregroundColor(NeoGymTheme.danger)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(NeoGymTheme.spacingMD)
+                                .glassSurface(
+                                    cornerRadius: NeoGymTheme.radiusLG,
+                                    material: .thin,
+                                    tint: NeoGymTheme.danger.opacity(0.06),
+                                    stroke: NeoGymTheme.danger.opacity(0.22),
+                                    shadow: false
+                                )
+                        }
+                        deleteSection
                     }
-                }
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                    }
-                }
-                if case .edit = state.mode {
-                    Section {
-                        Button("Delete entry", role: .destructive, action: onDelete)
-                            .disabled(isPending)
-                    }
+                    .frame(maxWidth: 620)
+                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle(state.title)
@@ -128,6 +131,29 @@ struct CardioMetricsFormView: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    private var metricsPanel: some View {
+        SectionShell(title: state.exerciseName, subtitle: "Cardio metrics") {
+            VStack(spacing: NeoGymTheme.spacingSM) {
+                ForEach(model.specs, id: \.key) { spec in
+                    MetricInputRow(
+                        spec: spec,
+                        value: binding(for: spec),
+                        isInvalid: invalidKey == spec.key
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var deleteSection: some View {
+        if case .edit = state.mode {
+            Button("Delete entry", role: .destructive, action: onDelete)
+                .buttonStyle(NeoGymSecondaryButtonStyle())
+                .disabled(isPending)
+        }
     }
 
     private func binding(for spec: CardioMetricSpec) -> Binding<CardioFieldState> {
@@ -174,10 +200,24 @@ private struct MetricInputRow: View {
     }
 
     private var scalarField: some View {
-        TextField(label, text: scalarBinding)
-            .keyboardType(spec.format == .decimal ? .decimalPad : .numberPad)
-            .multilineTextAlignment(.trailing)
-            .foregroundColor(isInvalid ? .red : .primary)
+        HStack(alignment: .firstTextBaseline, spacing: NeoGymTheme.spacingSM) {
+            Text(label)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(isInvalid ? .red : .primary)
+            Spacer(minLength: NeoGymTheme.spacingSM)
+            TextField("0", text: scalarBinding)
+                .keyboardType(spec.format == .decimal ? .decimalPad : .numberPad)
+                .multilineTextAlignment(.trailing)
+                .foregroundColor(isInvalid ? .red : .primary)
+        }
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: isInvalid ? NeoGymTheme.danger.opacity(0.07) : NeoGymTheme.glassSubtleFill,
+            stroke: isInvalid ? NeoGymTheme.danger.opacity(0.28) : NeoGymTheme.glassStrokeSecondary,
+            shadow: false
+        )
     }
 
     private var durationFields: some View {
@@ -193,7 +233,14 @@ private struct MetricInputRow: View {
                 durationTextField("sec", binding: durationBinding(\.seconds))
             }
         }
-        .padding(.vertical, 4)
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: isInvalid ? NeoGymTheme.danger.opacity(0.07) : NeoGymTheme.glassSubtleFill,
+            stroke: isInvalid ? NeoGymTheme.danger.opacity(0.28) : NeoGymTheme.glassStrokeSecondary,
+            shadow: false
+        )
     }
 
     private var label: String {
@@ -235,6 +282,13 @@ private struct MetricInputRow: View {
             .keyboardType(.numberPad)
             .multilineTextAlignment(.trailing)
             .foregroundColor(isInvalid ? .red : .primary)
+            .padding(NeoGymTheme.spacingXS)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusSM,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassFill,
+                shadow: false
+            )
     }
 }
 

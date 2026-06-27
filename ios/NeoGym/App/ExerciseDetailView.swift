@@ -26,11 +26,10 @@ struct ExerciseDetailView: View {
                 content
             }
             .frame(maxWidth: 700)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle(viewModel.exercise?.name ?? "Exercise")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -82,11 +81,24 @@ struct ExerciseDetailView: View {
                         }
                     }
                 }
-                Picker("Detail", selection: $selectedTab) {
-                    Text("Progress").tag(ExerciseDetailTab.progress)
-                    Text("History").tag(ExerciseDetailTab.history)
+                GlassPanel(
+                    cornerRadius: NeoGymTheme.radiusLG,
+                    material: .thin,
+                    tint: NeoGymTheme.glassSubtleFill,
+                    shadow: false,
+                    contentPadding: EdgeInsets(
+                        top: NeoGymTheme.spacingSM,
+                        leading: NeoGymTheme.spacingSM,
+                        bottom: NeoGymTheme.spacingSM,
+                        trailing: NeoGymTheme.spacingSM
+                    )
+                ) {
+                    Picker("Detail", selection: $selectedTab) {
+                        Text("Progress").tag(ExerciseDetailTab.progress)
+                        Text("History").tag(ExerciseDetailTab.history)
+                    }
+                    .pickerStyle(.segmented)
                 }
-                .pickerStyle(.segmented)
                 detailTab
             }
         }

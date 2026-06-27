@@ -37,9 +37,14 @@ struct ExerciseSummaryCard: View {
                     Text("Two-handed: recorded weight is per side; total volume doubles for session totals.")
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
-                        .padding(12)
+                        .padding(NeoGymTheme.spacingSM)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .glassSurface(
+                            cornerRadius: NeoGymTheme.radiusMD,
+                            material: .ultraThin,
+                            tint: NeoGymTheme.glassSubtleFill,
+                            shadow: false
+                        )
                 }
             }
         }
@@ -86,8 +91,13 @@ private struct ExerciseAttributesView: View {
                             .font(.caption.weight(.semibold))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(10)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .padding(NeoGymTheme.spacingSM)
+                    .glassSurface(
+                        cornerRadius: NeoGymTheme.radiusMD,
+                        material: .ultraThin,
+                        tint: NeoGymTheme.glassSubtleFill,
+                        shadow: false
+                    )
                 }
             }
         }
@@ -316,10 +326,14 @@ private struct ProgressMetricCard: View {
             Text(value)
                 .font(.title3.bold().monospacedDigit())
         }
-        .padding(12)
+        .padding(NeoGymTheme.spacingSM)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassFill,
+            shadow: false
+        )
     }
 }
 
@@ -341,8 +355,13 @@ private struct MiniTrendView: View {
             .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
         }
         .frame(height: 90)
-        .padding(10)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 }
 
@@ -366,7 +385,27 @@ private struct BadgeText: View {
         .foregroundColor(prominent ? .white : .primary)
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .background(prominent ? Color.accentColor : NeoGymTheme.mutedFill, in: Capsule())
+        .background(badgeBackground)
+    }
+
+    @ViewBuilder
+    private var badgeBackground: some View {
+        if prominent {
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.primaryActionGradient)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
+                )
+        } else {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
+        }
     }
 }
 
@@ -389,7 +428,11 @@ private extension View {
     func historyRowStyle() -> some View {
         padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassFill,
+                shadow: false
+            )
     }
 }

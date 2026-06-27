@@ -10,8 +10,13 @@ struct CardioMissingSchemaNotice: View {
             .font(.caption)
             .foregroundColor(NeoGymTheme.mutedText)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(NeoGymTheme.spacingSM)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
     }
 }
 
@@ -40,8 +45,13 @@ struct StrengthPriorSummary: View {
                     }
                 }
             }
-            .padding(10)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(NeoGymTheme.spacingSM)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
         }
     }
 
@@ -86,8 +96,13 @@ struct CardioPriorSummary: View {
                     }
                 }
             }
-            .padding(10)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(NeoGymTheme.spacingSM)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
         }
     }
 

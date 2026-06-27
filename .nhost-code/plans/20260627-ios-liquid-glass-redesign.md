@@ -371,7 +371,13 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Migrated detail, form, picker, and logging surfaces to the shared glass system across workout details/forms, exercise details/sections/picker, session logging, cardio metrics, prior history, body/journal form/detail chrome, and related sheets.
+- Converted local `GridBackground`, `Form`, `List`, and local card chrome toward `ScreenScaffold`, `GlassPanel`, and `.glassSurface` while preserving visual ownership and modal sheet backgrounds.
+- Extracted `StrengthSetEditorView` into a new app-only Swift file to keep session detail diagnostics manageable after converting the set editor sheet.
+- Preserved spent-screen dismissal, picker selection, delete confirmation, logging mutations, repositories, GraphQL documents, view models, and navigation behavior.
+- Reviewer verdict: `ACCEPT`. Reviewer verified the `StrengthSetEditorView` extraction is behavior-preserving and included by the XcodeGen source glob/build phase.
+- Autonomous decisions: accepted moving `StrengthSetEditorView` to its own file because correctness was verified by identical validation/save/delete/cancel behavior and long-term maintainability improves by reducing `SessionsView` size.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; only `ios/NeoGym/App/` files changed and generated project output was not staged. Interactive simulator render traversal remains for final QA.
 
 ### Phase 4c — Nutrition polish
 

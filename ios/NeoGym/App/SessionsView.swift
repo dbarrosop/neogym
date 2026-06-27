@@ -297,11 +297,10 @@ struct SessionDetailView: View {
                 content
             }
             .frame(maxWidth: 700)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -474,37 +473,19 @@ struct SessionDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .sheet(isPresented: $isEditingStartedAt) {
-                    NavigationView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            DatePicker(
-                                "Started at",
-                                selection: $draftStartedAt,
-                                displayedComponents: [.date, .hourAndMinute]
-                            )
-                                .datePickerStyle(.graphical)
-                            Spacer()
-                        }
-                        .padding(20)
-                        .navigationTitle("Edit date")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel") { isEditingStartedAt = false }
-                            }
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(viewModel.mutationState.isLoading ? "Saving…" : "Save") {
-                                    Task {
-                                        if await viewModel.updateStartedAt(draftStartedAt) {
-                                            isEditingStartedAt = false
-                                            onMutated()
-                                        }
-                                    }
+                    SessionStartedAtEditorSheet(
+                        startedAt: $draftStartedAt,
+                        isSaving: viewModel.mutationState.isLoading,
+                        onCancel: { isEditingStartedAt = false },
+                        onSave: {
+                            Task {
+                                if await viewModel.updateStartedAt(draftStartedAt) {
+                                    isEditingStartedAt = false
+                                    onMutated()
                                 }
-                                .disabled(viewModel.mutationState.isLoading)
                             }
                         }
-                    }
-                    .navigationViewStyle(.stack)
+                    )
                 }
             }
         }
@@ -619,6 +600,48 @@ struct SessionDetailView: View {
     }
 }
 
+private struct SessionStartedAtEditorSheet: View {
+    @Binding var startedAt: Date
+    let isSaving: Bool
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        NavigationView {
+            ScreenScaffold {
+                GlassPanel(
+                    cornerRadius: NeoGymTheme.radiusXL,
+                    material: .regular,
+                    tint: NeoGymTheme.glassStrongFill
+                ) {
+                    DatePicker(
+                        "Started at",
+                        selection: $startedAt,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .datePickerStyle(.graphical)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxWidth: 620)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            }
+            .navigationTitle("Edit date")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel", action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(isSaving ? "Saving…" : "Save", action: onSave)
+                        .disabled(isSaving)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+}
+
 private enum SessionDetailFormatters {
     static func removeExerciseMessage(_ row: SessionExerciseRow) -> String {
         let childCount = row.exercise.isCardio
@@ -662,9 +685,13 @@ private struct SessionStatCard: View {
                 .foregroundColor(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+        .padding(NeoGymTheme.spacingMD)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusLG,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassFill,
+            shadow: false
+        )
     }
 }
 
@@ -793,7 +820,12 @@ private struct StrengthSetsList: View {
                             Text("\(set.setNumber)")
                                 .font(.caption.weight(.bold))
                                 .frame(width: 28, height: 28)
-                                .background(NeoGymTheme.mutedFill, in: Circle())
+                                .glassSurface(
+                                    cornerRadius: NeoGymTheme.radiusPill,
+                                    material: .ultraThin,
+                                    tint: NeoGymTheme.glassSubtleFill,
+                                    shadow: false
+                                )
                             Text(Self.setText(set, doubleWeight: doubleWeight))
                                 .font(.subheadline.monospacedDigit())
                                 .foregroundColor(.primary)
@@ -808,8 +840,13 @@ private struct StrengthSetsList: View {
                     if set.id != sets.last?.id { Divider() }
                 }
             }
-            .padding(.horizontal, 10)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, NeoGymTheme.spacingXS)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
         }
     }
 
@@ -827,139 +864,3 @@ private struct StrengthSetsList: View {
     }
 }
 
-private struct StrengthSetEditorState: Identifiable {
-    enum Mode {
-        case add(workoutSessionExerciseId: String)
-        case edit(SessionStrengthSet)
-    }
-
-    let id = UUID()
-    let mode: Mode
-    let exerciseName: String
-    let nextSetNumber: Int
-    let previousSet: SessionStrengthSet?
-    let doubleWeight: Bool
-
-    static func add(
-        workoutSessionExerciseId: String,
-        exerciseName: String,
-        nextSetNumber: Int,
-        previousSet: SessionStrengthSet?,
-        doubleWeight: Bool
-    ) -> StrengthSetEditorState {
-        StrengthSetEditorState(
-            mode: .add(workoutSessionExerciseId: workoutSessionExerciseId),
-            exerciseName: exerciseName,
-            nextSetNumber: nextSetNumber,
-            previousSet: previousSet,
-            doubleWeight: doubleWeight
-        )
-    }
-
-    static func edit(set: SessionStrengthSet, exerciseName: String, doubleWeight: Bool) -> StrengthSetEditorState {
-        StrengthSetEditorState(
-            mode: .edit(set),
-            exerciseName: exerciseName,
-            nextSetNumber: set.setNumber,
-            previousSet: set,
-            doubleWeight: doubleWeight
-        )
-    }
-}
-
-private struct StrengthSetEditorView: View {
-    let state: StrengthSetEditorState
-    let isPending: Bool
-    let onSave: (Int, Double) -> Void
-    let onDelete: () -> Void
-    let onCancel: () -> Void
-
-    @State private var reps: String
-    @State private var weight: String
-    @State private var errorMessage: String?
-
-    init(
-        state: StrengthSetEditorState,
-        isPending: Bool,
-        onSave: @escaping (Int, Double) -> Void,
-        onDelete: @escaping () -> Void,
-        onCancel: @escaping () -> Void
-    ) {
-        self.state = state
-        self.isPending = isPending
-        self.onSave = onSave
-        self.onDelete = onDelete
-        self.onCancel = onCancel
-        let seed = state.previousSet
-        _reps = State(initialValue: seed.map { String($0.reps) } ?? "")
-        _weight = State(initialValue: seed.map { Self.formatWeight($0.weight) } ?? "")
-    }
-
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text(state.exerciseName)) {
-                    TextField("Weight (kg)\(state.doubleWeight ? " · per side" : "")", text: $weight)
-                        .keyboardType(.decimalPad)
-                    TextField("Reps", text: $reps)
-                        .keyboardType(.numberPad)
-                }
-                if state.doubleWeight {
-                    Section {
-                        Text("Volume counts both sides; enter the weight for one side to match the web app.")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
-                }
-                if let errorMessage {
-                    Section {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                    }
-                }
-                if case .edit = state.mode {
-                    Section {
-                        Button("Delete set", role: .destructive, action: onDelete)
-                            .disabled(isPending)
-                    }
-                }
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
-                        .disabled(isPending)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(isPending ? "Saving…" : "Save") { save() }
-                        .disabled(isPending)
-                }
-            }
-        }
-        .navigationViewStyle(.stack)
-    }
-
-    private var title: String {
-        switch state.mode {
-        case .add:
-            return "Add set \(state.nextSetNumber)"
-        case let .edit(set):
-            return "Edit set \(set.setNumber)"
-        }
-    }
-
-    private func save() {
-        switch SessionSetFormValidator.validate(repsText: reps, weightText: weight) {
-        case let .success(reps, weight):
-            errorMessage = nil
-            onSave(reps, weight)
-        case let .failure(message):
-            errorMessage = message
-        }
-    }
-
-    private static func formatWeight(_ weight: Double) -> String {
-        weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
-    }
-}

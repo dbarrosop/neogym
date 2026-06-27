@@ -267,11 +267,10 @@ struct BodyMeasurementDetailView: View {
         ScrollView {
             content
                 .frame(maxWidth: 640)
-                .padding(.horizontal, 20)
-                .padding(.vertical, 24)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
                 .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Measurement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -370,8 +369,13 @@ private struct BodyMeasurementStatCard: View {
                 .foregroundColor(.primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .padding(NeoGymTheme.spacingMD)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 }
 
@@ -488,7 +492,6 @@ struct BodyMeasurementEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("Edit measurement")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -561,12 +564,13 @@ private struct BodyMeasurementFormScreen: View {
                             .font(.subheadline.weight(.semibold))
                         TextEditor(text: $form.notes)
                             .frame(minHeight: 110)
-                            .padding(8)
-                            .background(
-                                NeoGymTheme.cardFill,
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .padding(NeoGymTheme.spacingXS)
+                            .glassSurface(
+                                cornerRadius: NeoGymTheme.radiusMD,
+                                material: .ultraThin,
+                                tint: NeoGymTheme.glassFill,
+                                shadow: false
                             )
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
                         Text("Optional")
                             .font(.caption)
                             .foregroundColor(NeoGymTheme.mutedText)
@@ -582,11 +586,10 @@ private struct BodyMeasurementFormScreen: View {
                 }
             }
             .frame(maxWidth: 640)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 
     private func decimalField(
@@ -607,9 +610,13 @@ private struct BodyMeasurementFormScreen: View {
                 .keyboardType(.decimalPad)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
-                .padding(12)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .padding(NeoGymTheme.spacingSM)
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusMD,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassFill,
+                    shadow: false
+                )
         }
     }
 

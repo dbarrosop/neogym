@@ -22,12 +22,15 @@ struct ExercisePickerView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 14) {
-                searchField
-                content
-                footer
+            ScreenScaffold {
+                VStack(spacing: NeoGymTheme.spacingMD) {
+                    searchField
+                    content
+                    footer
+                }
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             }
-            .padding(16)
             .navigationTitle("Add exercises")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -60,9 +63,13 @@ struct ExercisePickerView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(12)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassFill,
+            shadow: false
+        )
     }
 
     @ViewBuilder
@@ -85,35 +92,20 @@ struct ExercisePickerView: View {
                 )
                 .frame(maxHeight: .infinity)
             } else {
-                List(filteredExercises) { exercise in
-                    let isAlreadySelected = alreadySelected.contains(exercise.id)
-                    let isPicked = picked[exercise.id] != nil
-                    Button {
-                        toggle(exercise)
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: isPicked ? "checkmark.square.fill" : "square")
-                                .foregroundColor(isPicked ? .accentColor : NeoGymTheme.mutedText)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(exercise.name)
-                                    .font(.subheadline.weight(.semibold))
-                                Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
-                                    .font(.caption)
-                                    .foregroundColor(NeoGymTheme.mutedText)
-                            }
-                            Spacer()
-                            if isAlreadySelected {
-                                Text("Added")
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                ScrollView {
+                    LazyVStack(spacing: NeoGymTheme.spacingXS) {
+                        ForEach(filteredExercises) { exercise in
+                            ExercisePickerRow(
+                                exercise: exercise,
+                                isAlreadySelected: alreadySelected.contains(exercise.id),
+                                isPicked: picked[exercise.id] != nil
+                            ) {
+                                toggle(exercise)
                             }
                         }
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isAlreadySelected)
-                    .opacity(isAlreadySelected ? 0.55 : 1)
+                    .padding(.vertical, NeoGymTheme.spacingXXS)
                 }
-                .listStyle(.plain)
             }
         }
     }
@@ -128,6 +120,13 @@ struct ExercisePickerView: View {
             .buttonStyle(NeoGymPrimaryButtonStyle())
             .disabled(picked.isEmpty)
         }
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusLG,
+            material: .thin,
+            tint: NeoGymTheme.glassStrongFill,
+            shadow: true
+        )
     }
 
     private func load() async {
@@ -146,5 +145,46 @@ struct ExercisePickerView: View {
         } else {
             picked.removeValue(forKey: exercise.id)
         }
+    }
+}
+
+private struct ExercisePickerRow: View {
+    let exercise: ExerciseListItem
+    let isAlreadySelected: Bool
+    let isPicked: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            HStack(spacing: NeoGymTheme.spacingSM) {
+                Image(systemName: isPicked ? "checkmark.square.fill" : "square")
+                    .foregroundColor(isPicked ? .accentColor : NeoGymTheme.mutedText)
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                    Text(exercise.name)
+                        .font(.subheadline.weight(.semibold))
+                    Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                Spacer(minLength: 0)
+                if isAlreadySelected {
+                    Text("Added")
+                        .font(.caption2.weight(.bold))
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+            }
+            .padding(NeoGymTheme.spacingSM)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: isPicked ? NeoGymTheme.accentMuted : NeoGymTheme.glassSubtleFill,
+                stroke: isPicked ? Color.accentColor.opacity(0.28) : NeoGymTheme.glassStrokeSecondary,
+                shadow: false
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isAlreadySelected)
+        .opacity(isAlreadySelected ? 0.55 : 1)
     }
 }

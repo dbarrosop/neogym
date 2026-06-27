@@ -3,7 +3,9 @@ import SwiftUI
 
 struct WorkoutCreateView: View {
     @StateObject private var editor: WorkoutEditorViewModel
-    @StateObject private var form = WorkoutFormModel(initialValues: WorkoutFormValues(name: "", description: "", exercises: [], labels: []))
+    @StateObject private var form = WorkoutFormModel(
+        initialValues: WorkoutFormValues(name: "", description: "", exercises: [], labels: [])
+    )
     let exercisesRepository: any ExercisesRepositoryProtocol
     var onFinished: () -> Void
 
@@ -68,7 +70,9 @@ struct WorkoutEditView: View {
         onSaved: @escaping () -> Void,
         onDeleted: @escaping () -> Void
     ) {
-        _editor = StateObject(wrappedValue: WorkoutEditorViewModel(workoutId: workoutId, repository: workoutsRepository))
+        _editor = StateObject(
+            wrappedValue: WorkoutEditorViewModel(workoutId: workoutId, repository: workoutsRepository)
+        )
         self.exercisesRepository = exercisesRepository
         self.currentUserId = currentUserId
         self.onSaved = onSaved
@@ -112,7 +116,9 @@ struct WorkoutEditView: View {
                         labels: editor.labels,
                         exercisesRepository: exercisesRepository,
                         isSubmitting: editor.saveState.isLoading,
-                        errorMessage: form.errorMessage ?? editor.saveState.errorMessage ?? editor.deleteState.errorMessage,
+                        errorMessage: form.errorMessage
+                            ?? editor.saveState.errorMessage
+                            ?? editor.deleteState.errorMessage,
                         onSubmit: submit,
                         onCancel: { presentationMode.wrappedValue.dismiss() },
                         deleteAction: { confirmDelete = true }
@@ -122,7 +128,6 @@ struct WorkoutEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -182,18 +187,26 @@ private struct WorkoutFormScreen: View {
                             .font(.subheadline.weight(.semibold))
                         TextField("e.g. Upper / push day", text: $form.name)
                             .textInputAutocapitalization(.words)
-                            .padding(12)
-                            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                            .padding(NeoGymTheme.spacingSM)
+                            .glassSurface(
+                                cornerRadius: NeoGymTheme.radiusMD,
+                                material: .ultraThin,
+                                tint: NeoGymTheme.glassFill,
+                                shadow: false
+                            )
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Description")
                             .font(.subheadline.weight(.semibold))
                         TextEditor(text: $form.description)
                             .frame(minHeight: 120)
-                            .padding(8)
-                            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                            .padding(NeoGymTheme.spacingXS)
+                            .glassSurface(
+                                cornerRadius: NeoGymTheme.radiusMD,
+                                material: .ultraThin,
+                                tint: NeoGymTheme.glassFill,
+                                shadow: false
+                            )
                         Text("Markdown supported for headings, lists, and emphasis.")
                             .font(.caption)
                             .foregroundColor(NeoGymTheme.mutedText)
@@ -209,11 +222,10 @@ private struct WorkoutFormScreen: View {
                 }
             }
             .frame(maxWidth: 700)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $pickerOpen) {
@@ -245,7 +257,6 @@ private struct WorkoutFormScreen: View {
                     message: "Add one to get started.",
                     systemImage: "dumbbell"
                 )
-                .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(form.exercises.enumerated()), id: \.element.rowId) { index, exercise in
@@ -261,9 +272,13 @@ private struct WorkoutFormScreen: View {
                         if exercise.rowId != form.exercises.last?.rowId { Divider() }
                     }
                 }
-                .padding(.horizontal, 10)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+                .padding(.horizontal, NeoGymTheme.spacingXS)
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusMD,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassSubtleFill,
+                    shadow: false
+                )
             }
             Button {
                 pickerOpen = true
@@ -312,7 +327,12 @@ private struct WorkoutFormExerciseRowView: View {
             Text("\(index + 1)")
                 .font(.caption.bold())
                 .frame(width: 24, height: 24)
-                .background(NeoGymTheme.mutedFill, in: Circle())
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusPill,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassSubtleFill,
+                    shadow: false
+                )
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name)
                     .font(.subheadline.weight(.semibold))
@@ -334,4 +354,3 @@ private struct WorkoutFormExerciseRowView: View {
         .padding(.vertical, 10)
     }
 }
-

@@ -21,7 +21,12 @@ struct CardioEntriesListView: View {
                             Text("\(entry.entryNumber)")
                                 .font(.caption.weight(.bold))
                                 .frame(width: 28, height: 28)
-                                .background(NeoGymTheme.mutedFill, in: Circle())
+                                .glassSurface(
+                                    cornerRadius: NeoGymTheme.radiusPill,
+                                    material: .ultraThin,
+                                    tint: NeoGymTheme.glassSubtleFill,
+                                    shadow: false
+                                )
                             metricSummary(entry)
                             Spacer(minLength: 0)
                         }
@@ -31,8 +36,13 @@ struct CardioEntriesListView: View {
                     if entry.id != entries.last?.id { Divider() }
                 }
             }
-            .padding(.horizontal, 10)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, NeoGymTheme.spacingXS)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
         }
     }
 

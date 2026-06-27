@@ -39,11 +39,10 @@ struct WorkoutDetailView: View {
                 content
             }
             .frame(maxWidth: 700)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle(viewModel.workout?.name ?? "Workout")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarItems(trailing: editToolbarLink)
@@ -198,7 +197,12 @@ private struct WorkoutExerciseDetailRow: View {
                 Text("\(index + 1)")
                     .font(.caption2.bold())
                     .padding(4)
-                    .background(.thinMaterial, in: Circle())
+                    .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusPill,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassStrongFill,
+                    shadow: false
+                )
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.exercise.name)
@@ -229,7 +233,12 @@ private struct WorkoutVisibilityBadge: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .foregroundColor(isPublic ? .accentColor : NeoGymTheme.mutedText)
-            .background(NeoGymTheme.mutedFill, in: Capsule())
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusPill,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false
+            )
     }
 }
 
