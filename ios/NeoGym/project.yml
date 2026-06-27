@@ -33,6 +33,13 @@ targets:
         UILaunchStoryboardName: LaunchScreen
         UIRequiresFullScreen: true
         NSSupportsLiveActivities: true
+        NSHealthShareUsageDescription: >-
+          NeoGym imports your weight and body-fat percentage from Apple Health
+          to keep body measurements up to date.
+    entitlements:
+      path: App/NeoGym.entitlements
+      properties:
+        com.apple.developer.healthkit: true
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit

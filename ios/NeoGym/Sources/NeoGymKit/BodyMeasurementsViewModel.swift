@@ -4,12 +4,19 @@ import Foundation
 @MainActor
 public final class BodyMeasurementsListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[BodyMeasurement]> = .idle
+    @Published public private(set) var healthSyncState: Loadable<BodyMeasurementsHealthSyncSummary> = .idle
 
     private let repository: any BodyMeasurementsRepositoryProtocol
+    private let healthImporter: (any BodyMeasurementsHealthImporting)?
     private let calendar: Calendar
 
-    public init(repository: any BodyMeasurementsRepositoryProtocol, calendar: Calendar = .current) {
+    public init(
+        repository: any BodyMeasurementsRepositoryProtocol,
+        healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
+        calendar: Calendar = .current
+    ) {
         self.repository = repository
+        self.healthImporter = healthImporter
         self.calendar = calendar
     }
 
@@ -18,12 +25,41 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         BodyMeasurementTrendBuilder.make(from: measurements, calendar: calendar)
     }
 
-    public func load() async {
+    public func load(shouldSyncHealthMeasurements: Bool = false) async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listMeasurements())
+            let measurements = try await repository.listMeasurements()
+            state = .loaded(measurements)
+            if shouldSyncHealthMeasurements {
+                await syncHealthMeasurements(skippingExistingDatesFrom: measurements)
+            }
         } catch {
             state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
+        }
+    }
+
+    private func syncHealthMeasurements(skippingExistingDatesFrom measurements: [BodyMeasurement]) async {
+        guard let healthImporter else { return }
+        let existingDates = Set(measurements.map(\.measuredOn))
+        healthSyncState = .loading(previous: healthSyncState.value)
+        do {
+            let importedMeasurements = try await healthImporter.dailyMeasurements()
+            let importableValues = importedMeasurements.compactMap { measurement -> BodyMeasurementFormValues? in
+                guard !existingDates.contains(measurement.measuredOn) else { return nil }
+                return measurement.formValues(notes: "Imported from Apple Health")
+            }
+            for values in importableValues {
+                _ = try await repository.createMeasurement(values)
+            }
+            if !importableValues.isEmpty {
+                state = .loaded(try await repository.listMeasurements())
+            }
+            healthSyncState = .loaded(BodyMeasurementsHealthSyncSummary(
+                importedCount: importableValues.count,
+                skippedExistingCount: importedMeasurements.count - importableValues.count
+            ))
+        } catch {
+            healthSyncState = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: healthSyncState.value)
         }
     }
 }

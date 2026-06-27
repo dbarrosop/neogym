@@ -29,6 +29,7 @@ enum MeSection: String, CaseIterable, Identifiable, SecondaryTabSection {
 struct MeNavigationView: View {
     let session: StoredSession
     let bodyRepository: any BodyMeasurementsRepositoryProtocol
+    let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
     let journalRepository: any JournalRepositoryProtocol
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
@@ -60,7 +61,7 @@ struct MeNavigationView: View {
             )
             .navigationTitle("Profile")
         case .body:
-            BodyMeasurementsListView(repository: bodyRepository)
+            BodyMeasurementsListView(repository: bodyRepository, healthImporter: bodyHealthImporter)
         case .journal:
             JournalListView(repository: journalRepository)
         }

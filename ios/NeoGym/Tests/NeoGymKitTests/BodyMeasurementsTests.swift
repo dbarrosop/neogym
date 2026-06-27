@@ -178,6 +178,84 @@ final class BodyMeasurementFormModelTests: XCTestCase {
     }
 }
 
+final class HealthBodyMeasurementImportTests: XCTestCase {
+    func testGrouperUsesLatestSamplePerMetricPerDayAndSortsNewestFirst() throws {
+        let dayOneMorning = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-06-25T07:00:00Z"))
+        let dayOneEvening = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-06-25T20:00:00Z"))
+        let dayTwo = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-06-26T07:00:00Z"))
+
+        let merged = HealthBodyMeasurementGrouper.merge(
+            weights: [
+                (measuredOn: "2026-06-25", endDate: dayOneMorning, value: 81.2),
+                (measuredOn: "2026-06-25", endDate: dayOneEvening, value: 80.9)
+            ],
+            bodyFats: [
+                (measuredOn: "2026-06-26", endDate: dayTwo, value: 17.8),
+                (measuredOn: "2026-06-25", endDate: dayOneMorning, value: 18.1)
+            ]
+        )
+
+        XCTAssertEqual(merged.map(\.measuredOn), ["2026-06-26", "2026-06-25"])
+        XCTAssertNil(merged[0].weightKg)
+        XCTAssertEqual(merged[0].bodyFatPct, 17.8)
+        XCTAssertEqual(merged[1].weightKg, 80.9)
+        XCTAssertEqual(merged[1].bodyFatPct, 18.1)
+    }
+
+    func testImportedHealthMeasurementsFormatValuesAndDropOutOfRangeMetrics() {
+        let values = HealthBodyMeasurement(
+            measuredOn: "2026-06-26",
+            weightKg: 80.506,
+            bodyFatPct: 17.804
+        ).formValues(notes: "Imported from Apple Health")
+
+        XCTAssertEqual(values, BodyMeasurementFormValues(
+            measuredOn: "2026-06-26",
+            weightKg: "80.51",
+            bodyFatPct: "17.8",
+            notes: "Imported from Apple Health"
+        ))
+
+        let partialValues = HealthBodyMeasurement(
+            measuredOn: "2026-06-27",
+            weightKg: 500,
+            bodyFatPct: 18.0
+        ).formValues()
+
+        XCTAssertEqual(partialValues?.weightKg, "")
+        XCTAssertEqual(partialValues?.bodyFatPct, "18")
+    }
+}
+
+@MainActor
+final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
+    func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
+        let repository = FakeBodyMeasurementsRepository(measurements: [
+            BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
+        ])
+        let importer = FakeBodyMeasurementsHealthImporter(measurements: [
+            HealthBodyMeasurement(measuredOn: "2026-06-25", weightKg: 80.5, bodyFatPct: 18.2),
+            HealthBodyMeasurement(measuredOn: "2026-06-26", weightKg: 80.2, bodyFatPct: 18.0)
+        ])
+        let viewModel = BodyMeasurementsListViewModel(repository: repository, healthImporter: importer)
+
+        await viewModel.load(shouldSyncHealthMeasurements: true)
+
+        let createdValues = await repository.createdValuesSnapshot()
+        XCTAssertEqual(createdValues, [BodyMeasurementFormValues(
+            measuredOn: "2026-06-26",
+            weightKg: "80.2",
+            bodyFatPct: "18",
+            notes: "Imported from Apple Health"
+        )])
+        XCTAssertEqual(viewModel.measurements.map { $0.measuredOn }, ["2026-06-25", "2026-06-26"])
+        XCTAssertEqual(viewModel.healthSyncState.value, BodyMeasurementsHealthSyncSummary(
+            importedCount: 1,
+            skippedExistingCount: 1
+        ))
+    }
+}
+
 final class BodyMeasurementTrendBuilderTests: XCTestCase {
     func testTrendDataSortsAscendingAndDropsInvalidDatesWithoutTimezoneShift() throws {
         var calendar = Calendar(identifier: .gregorian)
@@ -207,6 +285,40 @@ final class BodyMeasurementTrendBuilderTests: XCTestCase {
         XCTAssertEqual(trend.weightCount, 1)
         XCTAssertFalse(trend.shouldShowChart)
     }
+
+    func testTrendTimescaleFiltersInclusiveLocalDayWindow() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-06-27T12:00:00Z"))
+        let trend = BodyMeasurementTrendBuilder.make(
+            from: [
+                BodyMeasurement(id: "old", measuredOn: "2026-06-20", weightKg: 82),
+                BodyMeasurement(id: "start", measuredOn: "2026-06-21", weightKg: 81),
+                BodyMeasurement(id: "today", measuredOn: "2026-06-27", weightKg: 80)
+            ],
+            calendar: calendar
+        )
+
+        let filtered = trend.filtered(by: .last7Days, calendar: calendar, now: now)
+
+        XCTAssertEqual(filtered.points.map { $0.id }, ["start", "today"])
+    }
+
+    func testTrendCustomRangeFiltersAndAcceptsReversedDates() {
+        let trend = BodyMeasurementTrendBuilder.make(from: [
+            BodyMeasurement(id: "before", measuredOn: "2026-06-20", weightKg: 82),
+            BodyMeasurement(id: "inside", measuredOn: "2026-06-25", weightKg: 81),
+            BodyMeasurement(id: "after", measuredOn: "2026-06-27", weightKg: 80)
+        ])
+
+        let filtered = trend.filtered(
+            by: .custom,
+            customStartISO: "2026-06-26",
+            customEndISO: "2026-06-24"
+        )
+
+        XCTAssertEqual(filtered.points.map { $0.id }, ["inside"])
+    }
 }
 
 final class BodyMeasurementsErrorMapperTests: XCTestCase {
@@ -223,6 +335,67 @@ final class BodyMeasurementsErrorMapperTests: XCTestCase {
             BodyMeasurementsErrorMapper.message(for: error),
             "You already have a measurement for this date. Edit that entry or choose another date."
         )
+    }
+}
+
+private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
+    private var measurements: [BodyMeasurement]
+    private var createdValues: [BodyMeasurementFormValues] = []
+
+    init(measurements: [BodyMeasurement]) {
+        self.measurements = measurements
+    }
+
+    func listMeasurements() async throws -> [BodyMeasurement] {
+        measurements
+    }
+
+    func measurement(id: String) async throws -> BodyMeasurement? {
+        measurements.first { $0.id == id }
+    }
+
+    func editMeasurement(id: String) async throws -> BodyMeasurement? {
+        measurements.first { $0.id == id }
+    }
+
+    func createMeasurement(_ values: BodyMeasurementFormValues) async throws -> String {
+        let id = "created-\(createdValues.count + 1)"
+        createdValues.append(values)
+        measurements.append(BodyMeasurement(
+            id: id,
+            measuredOn: values.measuredOn,
+            weightKg: Double(values.weightKg),
+            bodyFatPct: Double(values.bodyFatPct),
+            notes: values.notes.isEmpty ? nil : values.notes
+        ))
+        return id
+    }
+
+    func updateMeasurement(id: String, values: BodyMeasurementFormValues) async throws {
+        guard let index = measurements.firstIndex(where: { $0.id == id }) else { return }
+        measurements[index] = BodyMeasurement(
+            id: id,
+            measuredOn: values.measuredOn,
+            weightKg: Double(values.weightKg),
+            bodyFatPct: Double(values.bodyFatPct),
+            notes: values.notes.isEmpty ? nil : values.notes
+        )
+    }
+
+    func deleteMeasurement(id: String) async throws {
+        measurements.removeAll { $0.id == id }
+    }
+
+    func createdValuesSnapshot() -> [BodyMeasurementFormValues] {
+        createdValues
+    }
+}
+
+private struct FakeBodyMeasurementsHealthImporter: BodyMeasurementsHealthImporting {
+    let measurements: [HealthBodyMeasurement]
+
+    func dailyMeasurements() async throws -> [HealthBodyMeasurement] {
+        measurements
     }
 }
 

@@ -2,8 +2,9 @@
 
 Native SwiftUI app for NeoGym. The current milestone implements email OTP
 sign-in/sign-up, a protected seven-destination app shell, sign out, session
-bootstrap through local Nhost Swift SDK storage, and app-side PKCE email-change
-handling through the `neogym://verify` URL scheme.
+bootstrap through local Nhost Swift SDK storage, app-side PKCE email-change
+handling through the `neogym://verify` URL scheme, and read-only Apple Health
+imports for body weight/body-fat measurements.
 
 ## Layout
 
@@ -16,7 +17,7 @@ ios/NeoGym/
 │   ├── RootView.swift
 │   ├── SignInView.swift / SignUpView.swift / ProfileView.swift
 │   ├── Components/ and Theme/
-│   ├── Info.plist              # includes neogym:// URL scheme + launch screen keys
+│   ├── Info.plist              # URL scheme, HealthKit usage, launch screen
 │   ├── LaunchScreen.storyboard # required so iOS uses modern full-screen sizing
 │   └── Assets.xcassets/
 ├── Sources/NeoGymKit/          # host-testable auth/session logic
@@ -73,6 +74,20 @@ To confirm XcodeGen is supplied by Nix on Darwin:
 cd ../..
 nix develop . --command xcodegen --version
 ```
+
+## Apple Health body imports
+
+Opening the Body measurements view requests read-only Apple Health access for
+body mass and body-fat percentage, then imports the latest sample per metric per
+local calendar day. The app requests no write authorization and does not export
+NeoGym measurements back to HealthKit. If NeoGym already has a measurement for a
+day, the HealthKit sample for that day is skipped rather than merged or
+overwritten.
+
+The HealthKit capability and `NSHealthShareUsageDescription` are declared in
+`project.yml`; regenerate the Xcode project after changing them. The concrete
+HealthKit importer is compiled only for non-macOS platforms so `NeoGymKit` keeps
+building and testing on the macOS host.
 
 ## Current auth scope
 

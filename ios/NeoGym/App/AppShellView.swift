@@ -63,6 +63,7 @@ struct AppShellView: View {
             MeNavigationView(
                 session: session,
                 bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                bodyHealthImporter: Self.makeBodyHealthImporter(),
                 journalRepository: JournalRepository(graphQL: environment.graphQLService),
                 isSigningOut: isSigningOut,
                 changeEmailModel: changeEmailModel,
@@ -72,6 +73,14 @@ struct AppShellView: View {
             .tag(AppDestination.me)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
+        #if canImport(HealthKit) && !os(macOS)
+        HealthKitBodyMeasurementImporter()
+        #else
+        nil
+        #endif
     }
 }
 

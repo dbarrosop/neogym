@@ -3,10 +3,19 @@ import SwiftUI
 
 struct BodyNavigationView: View {
     let repository: any BodyMeasurementsRepositoryProtocol
+    let healthImporter: (any BodyMeasurementsHealthImporting)?
+
+    init(
+        repository: any BodyMeasurementsRepositoryProtocol,
+        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
+    ) {
+        self.repository = repository
+        self.healthImporter = healthImporter
+    }
 
     var body: some View {
         NavigationView {
-            BodyMeasurementsListView(repository: repository)
+            BodyMeasurementsListView(repository: repository, healthImporter: healthImporter)
         }
         .navigationViewStyle(.stack)
     }
@@ -15,13 +24,21 @@ struct BodyNavigationView: View {
 struct BodyMeasurementsListView: View {
     @StateObject private var viewModel: BodyMeasurementsListViewModel
     let repository: any BodyMeasurementsRepositoryProtocol
+    let healthImporter: (any BodyMeasurementsHealthImporting)?
 
     @State private var navigatedMeasurementId: String?
     @State private var isNavigatingToMeasurement = false
 
-    init(repository: any BodyMeasurementsRepositoryProtocol) {
-        _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(repository: repository))
+    init(
+        repository: any BodyMeasurementsRepositoryProtocol,
+        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
+    ) {
+        _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
+            repository: repository,
+            healthImporter: healthImporter
+        ))
         self.repository = repository
+        self.healthImporter = healthImporter
     }
 
     var body: some View {
@@ -40,10 +57,10 @@ struct BodyMeasurementsListView: View {
         .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
-                await viewModel.load()
+                await viewModel.load(shouldSyncHealthMeasurements: true)
             }
         }
-        .refreshable { await viewModel.load() }
+        .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
     }
 
     private var header: some View {
@@ -644,30 +661,91 @@ private struct BodyMeasurementFormScreen: View {
 struct BodyTrendChartView: View {
     let trendData: BodyMeasurementTrendData
 
+    @State private var timescale: BodyMeasurementTrendTimescale = .last90Days
+    @State private var customStart = Calendar.current.date(
+        byAdding: .day,
+        value: -30,
+        to: Date()
+    ) ?? Date()
+    @State private var customEnd = Date()
+
+    private var visibleTrendData: BodyMeasurementTrendData {
+        trendData.filtered(
+            by: timescale,
+            customStartISO: DateOnly.formatLocalISO(customStart),
+            customEndISO: DateOnly.formatLocalISO(customEnd)
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            GeometryReader { proxy in
-                ZStack(alignment: .topLeading) {
-                    chartGrid
-                    seriesPath(
-                        values: trendData.points.compactMap { point in
-                            point.weightKg.map { (point.time, $0) }
-                        },
-                        size: proxy.size,
-                        color: .accentColor
+            timescaleControls
+            if visibleTrendData.points.isEmpty {
+                Text("No body measurements in this range.")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                    .frame(maxWidth: .infinity, minHeight: 180)
+            } else {
+                GeometryReader { proxy in
+                    let axisWidth: CGFloat = 42
+                    let xAxisHeight: CGFloat = 24
+                    let plotSize = CGSize(
+                        width: max(proxy.size.width - axisWidth * 2 - 16, 1),
+                        height: max(proxy.size.height - xAxisHeight, 1)
                     )
-                    seriesPath(
-                        values: trendData.points.compactMap { point in
-                            point.bodyFatPct.map { (point.time, $0) }
-                        },
-                        size: proxy.size,
-                        color: .red
-                    )
+                    HStack(alignment: .top, spacing: 8) {
+                        yAxisLabels(
+                            range: metricRange(values: weightValues(in: visibleTrendData)),
+                            color: .accentColor,
+                            formatter: BodyMeasurementFormatters.axisWeight
+                        )
+                        .frame(width: axisWidth, height: plotSize.height)
+
+                        VStack(spacing: 4) {
+                            plotArea(trendData: visibleTrendData, size: plotSize)
+                                .frame(width: plotSize.width, height: plotSize.height)
+                            xAxisLabels(trendData: visibleTrendData)
+                                .frame(width: plotSize.width, height: xAxisHeight)
+                        }
+
+                        yAxisLabels(
+                            range: metricRange(values: bodyFatValues(in: visibleTrendData)),
+                            color: .red,
+                            formatter: BodyMeasurementFormatters.axisBodyFat
+                        )
+                        .frame(width: axisWidth, height: plotSize.height)
+                    }
                 }
+                .frame(minHeight: 220)
+                legend(trendData: visibleTrendData)
             }
-            .frame(minHeight: 180)
-            legend
-            dateRange
+        }
+    }
+
+    private var timescaleControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Timescale")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Spacer()
+                Picker("Timescale", selection: $timescale) {
+                    ForEach(BodyMeasurementTrendTimescale.allCases) { option in
+                        Text(option.label).tag(option)
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            if timescale == .custom {
+                HStack(spacing: 12) {
+                    DatePicker("From", selection: $customStart, displayedComponents: .date)
+                    DatePicker("To", selection: $customEnd, displayedComponents: .date)
+                }
+                .datePickerStyle(.compact)
+                .font(.caption)
+            }
         }
     }
 
@@ -681,8 +759,75 @@ struct BodyTrendChartView: View {
         }
     }
 
-    private func seriesPath(values: [(TimeInterval, Double)], size: CGSize, color: Color) -> some View {
-        let points = normalizedPoints(values: values, size: size)
+    private func plotArea(trendData: BodyMeasurementTrendData, size: CGSize) -> some View {
+        ZStack(alignment: .topLeading) {
+            chartGrid
+            chartAxes(size: size)
+            seriesPath(
+                values: weightValues(in: trendData),
+                trendData: trendData,
+                size: size,
+                color: .accentColor
+            )
+            seriesPath(
+                values: bodyFatValues(in: trendData),
+                trendData: trendData,
+                size: size,
+                color: .red
+            )
+        }
+    }
+
+    private func chartAxes(size: CGSize) -> some View {
+        Path { path in
+            path.move(to: CGPoint(x: 0, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: size.height))
+            path.addLine(to: CGPoint(x: size.width, y: size.height))
+            path.move(to: CGPoint(x: size.width, y: 0))
+            path.addLine(to: CGPoint(x: size.width, y: size.height))
+        }
+        .stroke(NeoGymTheme.mutedText.opacity(0.65), lineWidth: 1)
+    }
+
+    private func yAxisLabels(
+        range: ChartMetricRange?,
+        color: Color,
+        formatter: (Double) -> String
+    ) -> some View {
+        VStack(alignment: .trailing) {
+            Text(range.map { formatter($0.max) } ?? "—")
+            Spacer()
+            Text(range.map { formatter($0.midpoint) } ?? "—")
+            Spacer()
+            Text(range.map { formatter($0.min) } ?? "—")
+        }
+        .font(.caption2.monospacedDigit())
+        .foregroundColor(color)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private func xAxisLabels(trendData: BodyMeasurementTrendData) -> some View {
+        HStack(alignment: .top) {
+            Text(trendData.points.first.map { DateOnly.formatShort($0.measuredOn) } ?? "")
+            Spacer(minLength: 4)
+            if trendData.points.count > 2 {
+                Text(DateOnly.formatShort(trendData.points[trendData.points.count / 2].measuredOn))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Text(trendData.points.last.map { DateOnly.formatShort($0.measuredOn) } ?? "")
+        }
+        .font(.caption2)
+        .foregroundColor(NeoGymTheme.mutedText)
+    }
+
+    private func seriesPath(
+        values: [(TimeInterval, Double)],
+        trendData: BodyMeasurementTrendData,
+        size: CGSize,
+        color: Color
+    ) -> some View {
+        let points = normalizedPoints(values: values, trendData: trendData, size: size)
         return Path { path in
             guard let first = points.first else { return }
             path.move(to: first)
@@ -701,27 +846,60 @@ struct BodyTrendChartView: View {
         )
     }
 
-    private func normalizedPoints(values: [(TimeInterval, Double)], size: CGSize) -> [CGPoint] {
+    private func normalizedPoints(
+        values: [(TimeInterval, Double)],
+        trendData: BodyMeasurementTrendData,
+        size: CGSize
+    ) -> [CGPoint] {
         guard !values.isEmpty else { return [] }
         let minX = trendData.points.map(\.time).min() ?? values[0].0
         let maxX = trendData.points.map(\.time).max() ?? values[0].0
-        let minY = values.map(\.1).min() ?? values[0].1
-        let maxY = values.map(\.1).max() ?? values[0].1
+        let range = metricRange(values: values) ?? ChartMetricRange(min: values[0].1 - 1, max: values[0].1 + 1)
         let horizontalSpan = max(maxX - minX, 1)
-        let verticalSpan = max(maxY - minY, 0.000_001)
+        let verticalSpan = max(range.max - range.min, 0.000_001)
         let inset: CGFloat = 10
         let width = max(size.width - inset * 2, 1)
         let height = max(size.height - inset * 2, 1)
 
         return values.map { time, value in
             let xPosition = inset + CGFloat((time - minX) / horizontalSpan) * width
-            let yRatio = (value - minY) / verticalSpan
+            let yRatio = (value - range.min) / verticalSpan
             let yPosition = inset + CGFloat(1 - yRatio) * height
             return CGPoint(x: xPosition, y: yPosition)
         }
     }
 
-    private var legend: some View {
+    private func weightValues(in trendData: BodyMeasurementTrendData) -> [(TimeInterval, Double)] {
+        trendData.points.compactMap { point in
+            point.weightKg.map { (point.time, $0) }
+        }
+    }
+
+    private func bodyFatValues(in trendData: BodyMeasurementTrendData) -> [(TimeInterval, Double)] {
+        trendData.points.compactMap { point in
+            point.bodyFatPct.map { (point.time, $0) }
+        }
+    }
+
+    private func metricRange(values: [(TimeInterval, Double)]) -> ChartMetricRange? {
+        guard let minValue = values.map(\.1).min(), let maxValue = values.map(\.1).max() else {
+            return nil
+        }
+        if minValue == maxValue {
+            let padding = max(abs(minValue) * 0.05, 1)
+            return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
+        }
+        let padding = max((maxValue - minValue) * 0.1, 0.5)
+        return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
+    }
+
+    private struct ChartMetricRange {
+        let min: Double
+        let max: Double
+        var midpoint: Double { (min + max) / 2 }
+    }
+
+    private func legend(trendData: BodyMeasurementTrendData) -> some View {
         HStack(spacing: 14) {
             legendItem(color: .accentColor, label: "Weight (kg)", count: trendData.weightCount)
             legendItem(color: .red, label: "Body fat (%)", count: trendData.bodyFatCount)
@@ -739,7 +917,7 @@ struct BodyTrendChartView: View {
         }
     }
 
-    private var dateRange: some View {
+    private func dateRange(trendData: BodyMeasurementTrendData) -> some View {
         HStack {
             Text(trendData.points.first.map { DateOnly.formatShort($0.measuredOn) } ?? "")
             Spacer()
@@ -763,6 +941,14 @@ private enum BodyMeasurementFormatters {
 
     static func values(weightKg: Double?, bodyFatPct: Double?) -> String {
         [weight(weightKg), bodyFat(bodyFatPct)].filter { $0 != "—" }.joined(separator: " · ")
+    }
+
+    static func axisWeight(_ value: Double) -> String {
+        String(format: "%.1f", value)
+    }
+
+    static func axisBodyFat(_ value: Double) -> String {
+        String(format: "%.1f", value)
     }
 }
 

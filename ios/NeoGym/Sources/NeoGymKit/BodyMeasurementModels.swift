@@ -207,6 +207,103 @@ public struct BodyMeasurementTrendData: Sendable, Equatable {
     public var weightCount: Int { points.filter { $0.weightKg != nil }.count }
     public var bodyFatCount: Int { points.filter { $0.bodyFatPct != nil }.count }
     public var shouldShowChart: Bool { weightCount >= 2 || bodyFatCount >= 2 }
+
+    public func filtered(
+        by timescale: BodyMeasurementTrendTimescale,
+        customStartISO: String? = nil,
+        customEndISO: String? = nil,
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) -> BodyMeasurementTrendData {
+        BodyMeasurementTrendRangeFilter.filter(
+            self,
+            by: timescale,
+            customStartISO: customStartISO,
+            customEndISO: customEndISO,
+            calendar: calendar,
+            now: now
+        )
+    }
+}
+
+public enum BodyMeasurementTrendTimescale: String, CaseIterable, Identifiable, Sendable {
+    case last7Days
+    case last30Days
+    case last90Days
+    case last180Days
+    case custom
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .last7Days: "Last 7d"
+        case .last30Days: "Last 30d"
+        case .last90Days: "Last 90d"
+        case .last180Days: "Last 180d"
+        case .custom: "Custom…"
+        }
+    }
+
+    public var days: Int? {
+        switch self {
+        case .last7Days: 7
+        case .last30Days: 30
+        case .last90Days: 90
+        case .last180Days: 180
+        case .custom: nil
+        }
+    }
+}
+
+public enum BodyMeasurementTrendRangeFilter {
+    public static func filter(
+        _ trendData: BodyMeasurementTrendData,
+        by timescale: BodyMeasurementTrendTimescale,
+        customStartISO: String? = nil,
+        customEndISO: String? = nil,
+        calendar: Calendar = .current,
+        now: Date = Date()
+    ) -> BodyMeasurementTrendData {
+        guard let range = dateRange(
+            for: timescale,
+            customStartISO: customStartISO,
+            customEndISO: customEndISO,
+            calendar: calendar,
+            now: now
+        ) else { return trendData }
+
+        let filteredPoints = trendData.points.filter { point in
+            point.date >= range.start && point.date < range.endExclusive
+        }
+        return BodyMeasurementTrendData(points: filteredPoints)
+    }
+
+    private static func dateRange(
+        for timescale: BodyMeasurementTrendTimescale,
+        customStartISO: String?,
+        customEndISO: String?,
+        calendar: Calendar,
+        now: Date
+    ) -> (start: Date, endExclusive: Date)? {
+        if let days = timescale.days {
+            let today = calendar.startOfDay(for: now)
+            let start = calendar.date(byAdding: .day, value: -(days - 1), to: today) ?? today
+            let end = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            return (start, end)
+        }
+
+        guard let customStartISO,
+              let customEndISO,
+              let parsedStart = DateOnly.parse(customStartISO, calendar: calendar),
+              let parsedEnd = DateOnly.parse(customEndISO, calendar: calendar)
+        else { return nil }
+
+        let start = min(parsedStart, parsedEnd)
+        let end = max(parsedStart, parsedEnd)
+        let endExclusive = calendar.date(byAdding: .day, value: 1, to: end) ?? end
+        return (start, endExclusive)
+    }
 }
 
 public enum BodyMeasurementTrendBuilder {
