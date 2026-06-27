@@ -20,12 +20,6 @@ struct AppLoadingStateView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(NeoGymTheme.spacingLG)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusLG,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
     }
 }
 
@@ -50,13 +44,6 @@ struct AppErrorStateView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(NeoGymTheme.spacingLG)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusLG,
-            material: .thin,
-            tint: NeoGymTheme.danger.opacity(0.06),
-            stroke: NeoGymTheme.danger.opacity(0.22),
-            shadow: false
-        )
     }
 }
 
@@ -79,12 +66,6 @@ struct AppEmptyStateView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(NeoGymTheme.spacingLG)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusLG,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
     }
 }
 
@@ -97,10 +78,8 @@ struct ConfirmationPanel: View {
     let cancel: () -> Void
 
     var body: some View {
-        GlassPanel(cornerRadius: NeoGymTheme.radiusXL, material: .thin, tint: NeoGymTheme.glassStrongFill) {
+        GroupBox {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                Text(title)
-                    .font(.headline)
                 Text(message)
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -111,6 +90,10 @@ struct ConfirmationPanel: View {
                         .buttonStyle(NeoGymPrimaryButtonStyle())
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Text(title)
+                .font(.headline)
         }
     }
 }
@@ -121,32 +104,21 @@ struct SectionShell<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.radiusXL,
-            material: .regular,
-            tint: NeoGymTheme.glassFill,
-            contentPadding: EdgeInsets(
-                top: NeoGymTheme.spacingXL,
-                leading: NeoGymTheme.spacingXL,
-                bottom: NeoGymTheme.spacingXL,
-                trailing: NeoGymTheme.spacingXL
-            )
-        ) {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                    Text(title)
-                        .font(.title2.bold())
-                        .tracking(-0.4)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
+        GroupBox {
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                Text(title)
+                    .font(.title2.bold())
+                    .tracking(-0.4)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
                 }
-                GlassDivider()
-                content
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .groupBoxStyle(.automatic)
     }
 }
