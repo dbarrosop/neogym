@@ -52,7 +52,6 @@ struct AppShellView: View {
 
     var body: some View {
         content
-            .padding(.bottom, isKeyboardVisible ? 0 : NeoGymTheme.dockContentContainerPadding)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !isKeyboardVisible {
