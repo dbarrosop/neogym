@@ -33,7 +33,7 @@ struct WorkoutsSectionNavigationView: View {
     let currentUserId: String?
     @Binding var pendingSessionId: String?
 
-    @State private var selection: WorkoutAreaSection = .workouts
+    @State private var selection: WorkoutAreaSection = .sessions
 
     var body: some View {
         NavigationView {
