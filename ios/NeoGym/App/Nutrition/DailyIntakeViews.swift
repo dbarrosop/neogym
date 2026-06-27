@@ -309,7 +309,7 @@ private struct TimeSlotCard: View {
     let deleteEntry: (String) -> Void
     let deleteGroup: (String) -> Void
 
-    @State private var expanded = true
+    @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
