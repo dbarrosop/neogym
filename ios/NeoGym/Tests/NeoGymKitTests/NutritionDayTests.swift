@@ -21,6 +21,10 @@ final class NutritionDayRepositoryTests: XCTestCase {
         let requests = await fake.requestsSnapshot()
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "NutritionDaysIndex")
+        XCTAssertTrue(request.query.contains("nutritionLogMeals {"))
+        for requiredField in ["nutritionDayId", "mealId", "nutritionPlanMealId", "name", "slotTime", "position"] {
+            XCTAssertTrue(request.query.contains(requiredField), "NutritionDaysIndex should select \(requiredField)")
+        }
         XCTAssertTrue(request.query.contains("nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } })"))
     }
 

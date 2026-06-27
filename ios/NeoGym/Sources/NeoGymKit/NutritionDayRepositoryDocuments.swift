@@ -44,6 +44,12 @@ public extension NutritionFoodMealRepository {
         }
         nutritionLogMeals {
           id
+          nutritionDayId
+          mealId
+          nutritionPlanMealId
+          name
+          slotTime
+          position
           nutritionLogEntries {
             id
             grams
