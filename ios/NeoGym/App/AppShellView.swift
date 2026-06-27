@@ -147,6 +147,7 @@ private struct AppDestinationDock: View {
         .padding(.horizontal, 10)
         .padding(.top, 2)
         .padding(.bottom, 0)
+        .offset(y: 7)
         .dynamicTypeSize(...DynamicTypeSize.large)
         .accessibilityElement(children: .contain)
     }
