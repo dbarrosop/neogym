@@ -19,6 +19,7 @@ targets:
       - path: App
         excludes:
           - Info.plist
+      - path: Shared
     resources:
       - path: App/Assets.xcassets
       - path: App/LaunchScreen.storyboard
@@ -31,9 +32,12 @@ targets:
               - neogym
         UILaunchStoryboardName: LaunchScreen
         UIRequiresFullScreen: true
+        NSSupportsLiveActivities: true
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
+      - target: NeoGymWidgets
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym
@@ -41,3 +45,22 @@ targets:
         INFOPLIST_FILE: App/Info.plist
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
+  NeoGymWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: Widgets
+      - path: Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym.widgets
+        PRODUCT_NAME: NeoGymWidgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        APPLICATION_EXTENSION_API_ONLY: true

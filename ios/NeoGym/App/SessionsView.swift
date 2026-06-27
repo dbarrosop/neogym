@@ -270,6 +270,7 @@ struct SessionDetailView: View {
     @State private var pendingRemoveExercise: SessionExerciseRow?
     @State private var editingSet: StrengthSetEditorState?
     @State private var editingCardioEntry: CardioEntryEditorState?
+    @StateObject private var restTimer = RestTimerController()
     @State private var errorMessage: String?
 
     init(
@@ -293,14 +294,23 @@ struct SessionDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 18) {
-                content
+        ZStack(alignment: .bottomTrailing) {
+            ScrollView {
+                VStack(spacing: 18) {
+                    content
+                }
+                .frame(maxWidth: 700)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                .padding(.bottom, 86)
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: 700)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+
+            if viewModel.session != nil {
+                RestTimerOverlay(timer: restTimer)
+                    .padding(.trailing, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.bottom, NeoGymTheme.spacingLG)
+            }
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
