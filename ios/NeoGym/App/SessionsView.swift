@@ -120,6 +120,7 @@ struct SessionsListView: View {
                                             sessionsRepository: sessionsRepository,
                                             exercisesRepository: exercisesRepository,
                                             storageBaseURL: storageBaseURL,
+                                            onSessionStarted: openSession,
                                             onDeleted: { Task { await viewModel.load() } },
                                             onMutated: { Task { await viewModel.load() } }
                                         )
@@ -155,6 +156,7 @@ struct SessionsListView: View {
                     sessionsRepository: sessionsRepository,
                     exercisesRepository: exercisesRepository,
                     storageBaseURL: storageBaseURL,
+                    onSessionStarted: openSession,
                     onDeleted: { Task { await viewModel.load() } },
                     onMutated: { Task { await viewModel.load() } }
                 ),
@@ -168,9 +170,13 @@ struct SessionsListView: View {
 
     private func consumePendingSessionId() {
         guard let id = pendingSessionId else { return }
+        openSession(id)
+        pendingSessionId = nil
+    }
+
+    private func openSession(_ id: String) {
         navigatedSessionId = id
         isNavigatingToPendingSession = true
-        pendingSessionId = nil
     }
 }
 
@@ -247,6 +253,7 @@ struct SessionDetailView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
+    var onSessionStarted: (String) -> Void
     var onDeleted: () -> Void
     var onMutated: () -> Void
 
@@ -265,13 +272,17 @@ struct SessionDetailView: View {
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
+        onSessionStarted: @escaping (String) -> Void,
         onDeleted: @escaping () -> Void,
         onMutated: @escaping () -> Void
     ) {
-        _viewModel = StateObject(wrappedValue: SessionDetailViewModel(sessionId: sessionId, repository: sessionsRepository))
+        _viewModel = StateObject(
+            wrappedValue: SessionDetailViewModel(sessionId: sessionId, repository: sessionsRepository)
+        )
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
+        self.onSessionStarted = onSessionStarted
         self.onDeleted = onDeleted
         self.onMutated = onMutated
     }
@@ -444,7 +455,10 @@ struct SessionDetailView: View {
     }
 
     private func summary(_ session: SessionDetailModel) -> some View {
-        SectionShell(title: session.displayName, subtitle: session.workout.map { "Started from \($0.name)" } ?? "Ad-hoc session") {
+        SectionShell(
+            title: session.displayName,
+            subtitle: session.workout.map { "Started from \($0.name)" } ?? "Ad-hoc session"
+        ) {
             VStack(alignment: .leading, spacing: 12) {
                 Button {
                     draftStartedAt = session.startedAtDate ?? Date()
@@ -458,7 +472,11 @@ struct SessionDetailView: View {
                 .sheet(isPresented: $isEditingStartedAt) {
                     NavigationView {
                         VStack(alignment: .leading, spacing: 16) {
-                            DatePicker("Started at", selection: $draftStartedAt, displayedComponents: [.date, .hourAndMinute])
+                            DatePicker(
+                                "Started at",
+                                selection: $draftStartedAt,
+                                displayedComponents: [.date, .hourAndMinute]
+                            )
                                 .datePickerStyle(.graphical)
                             Spacer()
                         }
@@ -506,7 +524,7 @@ struct SessionDetailView: View {
                         priorCardioEntries: viewModel.priorCardioByExercise[row.exercise.id] ?? [],
                         exercisesRepository: exercisesRepository,
                         storageBaseURL: storageBaseURL,
-                        onSessionStarted: { _ in },
+                        onSessionStarted: onSessionStarted,
                         onRemove: { pendingRemoveExercise = row },
                         onAddSet: {
                             editingSet = StrengthSetEditorState.add(
@@ -572,9 +590,13 @@ struct SessionDetailView: View {
     }
 
     private func removeExerciseMessage(_ row: SessionExerciseRow) -> String {
-        let childCount = row.exercise.isCardio ? row.workoutSessionCardioEntries.count : row.workoutSessionStrengthSets.count
+        let childCount = row.exercise.isCardio
+            ? row.workoutSessionCardioEntries.count
+            : row.workoutSessionStrengthSets.count
         guard childCount > 0 else { return "It will be removed from this session only." }
-        let noun = row.exercise.isCardio ? (childCount == 1 ? "entry" : "entries") : (childCount == 1 ? "set" : "sets")
+        let noun = row.exercise.isCardio
+            ? (childCount == 1 ? "entry" : "entries")
+            : (childCount == 1 ? "set" : "sets")
         return "\(childCount) logged \(noun) will be deleted with it. This can't be undone."
     }
 

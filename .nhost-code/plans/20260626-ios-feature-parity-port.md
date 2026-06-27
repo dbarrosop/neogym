@@ -1038,7 +1038,40 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Completed the Phase 12 parity audit and closed `ios/NeoGym/PARITY_CHECKLIST.md`.
+Verified every checklist row is complete or explicitly out of scope, including
+workout- and session-context exercise detail navigation, spent form dismissal,
+destructive confirmations, loading/error/empty states, refresh/refetch hooks,
+formatting helpers, storage image fallbacks, and deterministic auth/profile
+regressions. Found and fixed one cross-domain navigation defect: exercise detail
+opened from a session used a no-op `onSessionStarted`, so starting an ad-hoc
+session from that context would not route to the new session. Session detail now
+passes the same pending-session opener used by the Sessions tab.
+
+Manual live-backend smoke gaps: local Hasura responded to a health probe, and the
+Nhost MCP server was available, but interactive simulator/backend smoke for OTP
+sign-in/sign-up, email-change callback link opening, and end-to-end live CRUD/logging
+flows was not performed in this headless pass because it requires a real test user
+mailbox/OTP callback interaction and manual simulator operation. Coverage for those
+paths remains the deterministic Swift test suite plus successful app build gates.
+
+Autonomous decisions recorded:
+
+- **Correctness:** fixed the session-context exercise-detail start-session callback
+  rather than only documenting it, because it was a concrete parity defect found
+  during Phase 12 audit.
+- **Scope control:** made no backend/schema/metadata changes and did not add UI
+  automation or new product behavior beyond cross-domain parity polish.
+- **Validation:** documented unavailable interactive live-backend smoke gaps in
+  this plan log while running the full configured iOS build/test/Xcode gates.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 164 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ---
 

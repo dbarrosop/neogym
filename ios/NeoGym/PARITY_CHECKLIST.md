@@ -15,7 +15,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/_authed` layout navigation | Seven-destination native shell: Workouts, Exercises, Sessions, Body, Nutrition, Journal, Profile | 1 | ◐ scaffolded | Custom horizontal shell avoids iOS 15 `TabView` More hiding destinations. |
+| `/_authed` layout navigation | Seven-destination native shell: Workouts, Exercises, Sessions, Body, Nutrition, Journal, Profile | 1 | ☑ complete | All seven native destinations are wired and directly discoverable; custom horizontal shell avoids iOS 15 `TabView` More hiding destinations. |
 | `/profile` view | Profile destination | 1 | ☑ complete | Existing profile UI remains the only non-placeholder Phase 1 destination. |
 | Profile sign out | Profile sign-out action | 1 | ☑ complete | Existing `AuthStore.signOut()` still clears local session after remote sign-out attempt. |
 | Profile change email request | Change email sheet | 1 | ☑ complete | Existing app-side PKCE flow preserved. |
@@ -103,6 +103,6 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Cross-domain navigation/back behavior | Full app QA | 12 | ☐ planned | Verify spent forms, delete flows, refresh-on-return. |
-| Auth regression | OTP, saved session, sign-out, profile, email callback | 12 | ☐ planned | Manual smoke plus existing tests. |
-| Full parity audit | Checklist closure | 12 | ☐ planned | Every row becomes complete or explicitly out of scope. |
+| Cross-domain navigation/back behavior | Full app QA | 12 | ☑ complete | Code audit verified context exercise detail links, spent form dismissal/delete flows, and refresh-on-return hooks; full gates passed. |
+| Auth regression | OTP, saved session, sign-out, profile, email callback | 12 | ☑ complete | Existing deterministic auth/profile/email-change tests passed; unavailable interactive OTP/callback smoke gap is recorded in the Phase 12 plan log. |
+| Full parity audit | Checklist closure | 12 | ☑ complete | Every checklist row is complete or explicitly out of scope; no in-scope native parity row remains planned/scaffolded. |
