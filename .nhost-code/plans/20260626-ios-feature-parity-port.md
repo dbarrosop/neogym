@@ -883,7 +883,34 @@ Quality gate:
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented native nutrition plan management: plan models, repository documents and
+operations, list/detail/form view models, meal picker, plan list/detail/create/edit
+/delete SwiftUI screens, ordered meal slots with `slotTime`/label/position, live
+plan macro totals, and checklist updates.
+
+Reviewer verdict: `ACCEPT`. The reviewer verified all plan GraphQL operations
+match the web routes, mutation variables omit ownership/public fields, preserved
+slots update only `slotTime`/label/position, changed `mealId` slots use delete
+and insert, plan totals use live meal food values, and all build/test/Xcode gates
+passed. Accepted notes: search remains substring-based rather than Fuse.js fuzzy,
+and slot time uses a validated `HH:mm` text field rather than a native time picker.
+
+Autonomous decisions recorded:
+
+- **Correctness/security:** plan and slot mutations omit ownership/public fields
+  and never update immutable `mealId` in `_set` payloads.
+- **Correctness:** reused Phase 9 live macro totals for templates while keeping
+  logged snapshot semantics reserved for Phase 11.
+- **Long-term maintenance:** extended the Nutrition sub-navigation scaffold from
+  Phase 9 instead of introducing a separate top-level route.
+
+Quality gate:
+
+- `cd ios/NeoGym && swift build` — passed.
+- `cd ios/NeoGym && swift test` — passed, 156 tests.
+- `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` — passed.
+- `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — passed.
+- Generated `.xcodeproj` output was not staged.
 
 ### Phase 11 — Nutrition days, dashboard, and daily logging
 

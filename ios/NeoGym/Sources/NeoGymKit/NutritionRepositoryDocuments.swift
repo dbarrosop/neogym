@@ -304,7 +304,8 @@ public enum NutritionFoodMealErrorMapper {
     public static func mealMessage(for error: Error) -> String {
         let domainError = GraphQLDomainError.map(error)
         if isMealInUseByPlan(domainError) {
-            return "This meal is used by a nutrition plan. Remove it from plan slots before deleting it. Logged days do not block deletion."
+            return "This meal is used by a nutrition plan. Remove it from plan slots before deleting it. "
+                + "Logged days do not block deletion."
         }
         return domainError.localizedDescription
     }

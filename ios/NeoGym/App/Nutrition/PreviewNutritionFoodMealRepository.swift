@@ -16,6 +16,15 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     func createMeal(_ values: MealFormValues) async throws -> String { "meal-new" }
     func saveMeal(id: String, initialValues: MealFormValues, values: MealFormValues) async throws {}
     func deleteMeal(id: String) async throws {}
+    func listPlans() async throws -> [NutritionPlan] { [previewPlan] }
+    func plan(id: String) async throws -> NutritionPlan? { previewPlan }
+    func editPlan(id: String) async throws -> NutritionPlanEditPayload {
+        NutritionPlanEditPayload(plan: previewPlan, meals: [previewMeal])
+    }
+    func mealsForPlanForm() async throws -> [Meal] { [previewMeal] }
+    func createPlan(_ values: NutritionPlanFormValues) async throws -> String { "plan-new" }
+    func savePlan(id: String, initialValues: NutritionPlanFormValues, values: NutritionPlanFormValues) async throws {}
+    func deletePlan(id: String) async throws {}
 
     private var previewFoods: [Food] {
         [
@@ -65,6 +74,25 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
                     grams: .string("80"),
                     position: 1,
                     food: previewFoods[1]
+                )
+            ]
+        )
+    }
+
+    private var previewPlan: NutritionPlan {
+        NutritionPlan(
+            id: "plan-1",
+            name: "Training day",
+            description: "Higher protein template.",
+            nutritionPlanMeals: [
+                NutritionPlanMealSlot(
+                    id: "slot-1",
+                    nutritionPlanId: "plan-1",
+                    mealId: "meal-1",
+                    slotTime: "08:00:00",
+                    label: "Breakfast",
+                    position: 0,
+                    meal: previewMeal
                 )
             ]
         )

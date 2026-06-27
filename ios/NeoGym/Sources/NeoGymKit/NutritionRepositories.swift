@@ -15,6 +15,14 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func createMeal(_ values: MealFormValues) async throws -> String
     func saveMeal(id: String, initialValues: MealFormValues, values: MealFormValues) async throws
     func deleteMeal(id: String) async throws
+
+    func listPlans() async throws -> [NutritionPlan]
+    func plan(id: String) async throws -> NutritionPlan?
+    func editPlan(id: String) async throws -> NutritionPlanEditPayload
+    func mealsForPlanForm() async throws -> [Meal]
+    func createPlan(_ values: NutritionPlanFormValues) async throws -> String
+    func savePlan(id: String, initialValues: NutritionPlanFormValues, values: NutritionPlanFormValues) async throws
+    func deletePlan(id: String) async throws
 }
 
 public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
@@ -140,6 +148,73 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "DeleteMeal"
         )
     }
+
+    public func listPlans() async throws -> [NutritionPlan] {
+        let data: PlansIndexData = try await graphQL.execute(
+            query: Self.plansIndexQuery,
+            operationName: "PlansIndex"
+        )
+        return data.nutritionPlans
+    }
+
+    public func plan(id: String) async throws -> NutritionPlan? {
+        let data: NutritionPlanDetailData = try await graphQL.execute(
+            query: Self.nutritionPlanDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "NutritionPlanDetail"
+        )
+        return data.nutritionPlan
+    }
+
+    public func editPlan(id: String) async throws -> NutritionPlanEditPayload {
+        let data: EditNutritionPlanData = try await graphQL.execute(
+            query: Self.editNutritionPlanQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "EditNutritionPlan"
+        )
+        let meals = try await mealsForPlanForm()
+        return NutritionPlanEditPayload(plan: data.nutritionPlan, meals: meals)
+    }
+
+    public func mealsForPlanForm() async throws -> [Meal] {
+        let data: NutritionPlanFormMealsData = try await graphQL.execute(
+            query: Self.nutritionPlanFormMealsQuery,
+            operationName: "NutritionPlanFormMeals"
+        )
+        return data.meals
+    }
+
+    public func createPlan(_ values: NutritionPlanFormValues) async throws -> String {
+        let data: InsertNutritionPlanData = try await graphQL.execute(
+            query: Self.createNutritionPlanMutation,
+            variables: ["object": Self.nutritionPlanObject(values)],
+            operationName: "CreateNutritionPlan"
+        )
+        guard let id = data.insertNutritionPlan?.id else {
+            throw GraphQLDomainError.missingData(operationName: "CreateNutritionPlan")
+        }
+        return id
+    }
+
+    public func savePlan(
+        id: String,
+        initialValues: NutritionPlanFormValues,
+        values: NutritionPlanFormValues
+    ) async throws {
+        let _: SaveNutritionPlanData = try await graphQL.execute(
+            query: Self.saveNutritionPlanMutation,
+            variables: Self.saveNutritionPlanVariables(id: id, initialValues: initialValues, values: values),
+            operationName: "SaveNutritionPlan"
+        )
+    }
+
+    public func deletePlan(id: String) async throws {
+        let _: DeleteNutritionPlanData = try await graphQL.execute(
+            query: Self.deleteNutritionPlanMutation,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DeleteNutritionPlan"
+        )
+    }
 }
 
 private struct FoodsIndexData: Decodable, Sendable { let foods: [Food] }
@@ -167,6 +242,25 @@ private struct SaveMealData: Decodable, Sendable {
     }
 }
 private struct DeleteMealData: Decodable, Sendable { let deleteMeal: MutationIdPayload? }
+private struct PlansIndexData: Decodable, Sendable { let nutritionPlans: [NutritionPlan] }
+private struct NutritionPlanDetailData: Decodable, Sendable { let nutritionPlan: NutritionPlan? }
+private struct EditNutritionPlanData: Decodable, Sendable { let nutritionPlan: NutritionPlan? }
+private struct NutritionPlanFormMealsData: Decodable, Sendable { let meals: [Meal] }
+private struct InsertNutritionPlanData: Decodable, Sendable { let insertNutritionPlan: MutationIdPayload? }
+private struct SaveNutritionPlanData: Decodable, Sendable {
+    let updateNutritionPlan: MutationIdPayload?
+    let deleteNutritionPlanMeals: AffectedRowsPayload?
+    let insertNutritionPlanMeals: AffectedRowsPayload?
+    let updateNutritionPlanMealsMany: [AffectedRowsPayload]?
+
+    private enum CodingKeys: String, CodingKey {
+        case updateNutritionPlan
+        case deleteNutritionPlanMeals
+        case insertNutritionPlanMeals
+        case updateNutritionPlanMealsMany = "update_nutritionPlanMeals_many"
+    }
+}
+private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritionPlan: MutationIdPayload? }
 private struct MutationIdPayload: Decodable, Sendable { let id: String }
 private struct AffectedRowsPayload: Decodable, Sendable {
     let affectedRows: Int?

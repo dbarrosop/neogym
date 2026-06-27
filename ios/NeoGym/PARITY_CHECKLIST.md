@@ -89,10 +89,10 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | `/nutrition/meals/new` | Create meal form | 9 | ☑ complete | Food picker, ingredient grams, ordering, and live macro summary. |
 | `/nutrition/meals/$mealId` detail | Meal detail | 9 | ☑ complete | Ingredients and totals from live food values. |
 | `/nutrition/meals/$mealId/edit` | Edit/delete meal | 9 | ☑ complete | Ingredient updates omit immutable `foodId`; food changes use delete+insert. |
-| `/nutrition/plans` list | Plans list | 10 | ☐ planned | Plan templates. |
-| `/nutrition/plans/new` | Create plan form | 10 | ☐ planned | Ordered meal slots and slot times. |
-| `/nutrition/plans/$planId` detail | Plan detail | 10 | ☐ planned | Macro summaries from meal slots. |
-| `/nutrition/plans/$planId/edit` | Edit/delete plan | 10 | ☐ planned | Surface meal-in-plan restrict errors. |
+| `/nutrition/plans` list | Plans list | 10 | ☑ complete | Plan search/list with macro totals inside Nutrition sub-navigation. |
+| `/nutrition/plans/new` | Create plan form | 10 | ☑ complete | Meal picker, ordered slots, labels, slot times, and live macro summary. |
+| `/nutrition/plans/$planId` detail | Plan detail | 10 | ☑ complete | Timed meal slots and macro summaries from live meal values. |
+| `/nutrition/plans/$planId/edit` | Edit/delete plan | 10 | ☑ complete | Slot `mealId` changes use delete+insert; meal-in-plan restrict errors stay friendly. |
 | `/nutrition/days` list | Nutrition days list | 11 | ☐ planned | Date browsing. |
 | `/nutrition/days/$date` detail | Daily intake detail | 11 | ☐ planned | Plan suggestions, logged groups, totals. |
 | Standalone food logging | Log food sheet/action | 11 | ☐ planned | User-selected/default-now `slotTime`; snapshot totals. |

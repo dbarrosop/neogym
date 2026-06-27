@@ -103,11 +103,7 @@ struct NutritionNavigationView: View {
                 systemImage: "calendar"
             )
         case .plans:
-            NutritionPlaceholderView(
-                title: "Plans",
-                message: "Reusable nutrition plans arrive in Phase 10.",
-                systemImage: "list.bullet.rectangle"
-            )
+            PlansListView(repository: repository)
         }
     }
 }
