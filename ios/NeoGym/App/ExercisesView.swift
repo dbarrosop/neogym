@@ -46,7 +46,8 @@ struct ExercisesListView: View {
             }
             .frame(maxWidth: 700)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Exercises")
