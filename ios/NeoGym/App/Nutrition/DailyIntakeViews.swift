@@ -66,8 +66,7 @@ struct NutritionDaysView: View {
                                     if day.id != viewModel.days.last?.id { Divider() }
                                 }
                             }
-                            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+                            .nutritionGlassCard(cornerRadius: 16)
                         }
                     }
                 }
@@ -79,7 +78,6 @@ struct NutritionDaysView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .background(GridBackground())
     }
 }
 
@@ -113,7 +111,6 @@ struct DailyIntakeView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .background(GridBackground())
         .sheet(isPresented: $showLogFood) {
             LogFoodSheet(viewModel: viewModel)
         }
@@ -287,8 +284,7 @@ struct DailyIntakeView: View {
                                 if slot.id != plan.sortedSlots.last?.id { Divider() }
                             }
                         }
-                        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+                        .nutritionGlassCard(cornerRadius: 16)
                     }
                 } else {
                     Text("Pick a plan to show timed meal suggestions, or log meals and foods ad hoc.")
@@ -296,7 +292,7 @@ struct DailyIntakeView: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding()
-                        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
                 }
             }
         }
@@ -376,8 +372,7 @@ private struct TimeSlotCard: View {
                 .padding(12)
             }
         }
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+        .nutritionGlassCard(cornerRadius: 16)
     }
 }
 
@@ -417,7 +412,7 @@ private struct MealGroupRow: View {
             }
         }
         .padding(10)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
     }
 }
 
@@ -455,8 +450,7 @@ private struct EntryRow: View {
             }
         }
         .padding(10)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+        .nutritionGlassCard(cornerRadius: 12)
     }
 }
 

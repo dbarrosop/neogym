@@ -91,7 +91,6 @@ struct MealCreateView: View {
                 }
             }
         }
-        .background(GridBackground())
     }
 }
 
@@ -147,7 +146,6 @@ struct MealEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("Edit meal")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -222,7 +220,6 @@ private struct MealFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 
     private var textFields: some View {
@@ -236,8 +233,7 @@ private struct MealFormScreen: View {
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(false)
                 .padding(12)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Description")
@@ -248,8 +244,7 @@ private struct MealFormScreen: View {
                 ))
                 .frame(minHeight: 90)
                 .padding(8)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
                 Text("Optional prep notes or serving ideas.")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -272,7 +267,7 @@ private struct MealFormScreen: View {
                     .foregroundColor(NeoGymTheme.mutedText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             }
             ForEach(Array(form.ingredients.enumerated()), id: \.element.stableId) { index, ingredient in
                 MealIngredientEditorRow(
@@ -367,12 +362,11 @@ private struct MealIngredientEditorRow: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
                 .padding(12)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
             }
         }
         .padding(12)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
     }
 }

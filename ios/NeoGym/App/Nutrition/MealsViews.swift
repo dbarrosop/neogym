@@ -35,7 +35,6 @@ struct MealsListView: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
@@ -87,8 +86,7 @@ struct MealsListView: View {
             }
         }
         .padding(10)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+        .nutritionGlassCard(cornerRadius: 12)
     }
 
     @ViewBuilder

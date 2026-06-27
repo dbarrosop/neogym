@@ -419,7 +419,13 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Added Nutrition-local glass helpers wrapping shared glass primitives for iOS 15-safe nutrition cards, fields, and sheet sections.
+- Migrated Nutrition overview, foods, meals, plans, daily intake, details, pickers, and log/edit sheets away from legacy `GridBackground`, card-fill, muted-fill, and `Form` chrome toward shared glass surfaces.
+- Ensured modal log/edit sheets own their own `ScreenScaffold` roots and scrollable glass sections.
+- Preserved repository/view-model calls, nested Nutrition state, selected date, plan suggestions, logging callbacks, mutation behavior, snapshot totals, provenance, and semantics.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS`. Accepted non-blocking concern: two redundant border overlays remain in `MealEditorViews.swift` and `PlanEditorViews.swift`; they are cosmetic only and safe for Phase 5 polish.
+- Autonomous decisions: accepted the cosmetic double-border concern because correctness, logging semantics, and compile gates are unaffected; deferring to Phase 5 keeps the current phase focused on broad Nutrition migration while preserving behavior.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; all changes stayed under `ios/NeoGym/App/Nutrition/` and generated project output was not staged. Interactive Nutrition render walkthrough remains for final QA.
 
 ### Phase 5 — Accessibility, parity QA, and docs
 

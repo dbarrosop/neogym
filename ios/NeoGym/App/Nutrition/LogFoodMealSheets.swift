@@ -11,23 +11,33 @@ struct LogFoodSheet: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section("Food") {
-                    FoodPickerView(foods: viewModel.payload?.foods ?? [], foodId: $foodId, disabled: viewModel.isMutating)
-                }
-                Section("Logged amount") {
-                    TextField("Time eaten", text: $slotTime)
-                        .keyboardType(.numbersAndPunctuation)
-                    TextField("Grams consumed", text: $grams)
-                        .keyboardType(.decimalPad)
-                }
-                Section {
-                    Text("The database snapshots food nutrition when it is logged. Historical totals use those snapshot columns.")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                }
-                if let message = viewModel.mutationState.errorMessage {
-                    Section { Text(message).foregroundColor(.red) }
+            ScreenScaffold {
+                ScrollView {
+                    VStack(spacing: NeoGymTheme.spacingMD) {
+                        NutritionGlassSection("Food") {
+                            FoodPickerView(foods: viewModel.payload?.foods ?? [], foodId: $foodId, disabled: viewModel.isMutating)
+                        }
+                        NutritionGlassSection("Logged amount") {
+                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                                TextField("Time eaten", text: $slotTime)
+                                    .keyboardType(.numbersAndPunctuation)
+                                    .nutritionGlassField()
+                                TextField("Grams consumed", text: $grams)
+                                    .keyboardType(.decimalPad)
+                                    .nutritionGlassField()
+                            }
+                        }
+                        NutritionGlassSection {
+                            Text("The database snapshots food nutrition when it is logged. Historical totals use those snapshot columns.")
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        mutationError
+                    }
+                    .frame(maxWidth: 640)
+                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Log food")
@@ -51,6 +61,17 @@ struct LogFoodSheet: View {
         .navigationViewStyle(.stack)
         .onAppear { slotTime = IntakeGrouping.currentTimeInputValue() }
     }
+
+    @ViewBuilder
+    private var mutationError: some View {
+        if let message = viewModel.mutationState.errorMessage {
+            NutritionGlassSection {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.danger)
+            }
+        }
+    }
 }
 
 struct LogMealSheet: View {
@@ -69,44 +90,41 @@ struct LogMealSheet: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                if let planSlot {
-                    Section("Planned suggestion") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Planned \(IntakeGrouping.formatTimeOfDay(planSlot.slotTime)) · \(planSlot.displayLabel)")
-                                .font(.subheadline.weight(.semibold))
-                            if let meal = planSlot.meal, planSlot.label != nil {
-                                Text("Template: \(meal.name)")
-                                    .font(.caption)
-                                    .foregroundColor(NeoGymTheme.mutedText)
+            ScreenScaffold {
+                ScrollView {
+                    VStack(spacing: NeoGymTheme.spacingMD) {
+                        if let planSlot {
+                            plannedSuggestionSection(planSlot)
+                        } else {
+                            NutritionGlassSection("Meal") {
+                                MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
                             }
-                            Text("The logged time below defaults to now and is not forced to the template slot.")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
                         }
-                    }
-                } else {
-                    Section("Meal") {
-                        MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
-                    }
-                }
 
-                Section("Logged time") {
-                    TextField("Time eaten", text: $slotTime)
-                        .keyboardType(.numbersAndPunctuation)
-                }
+                        NutritionGlassSection("Logged time") {
+                            TextField("Time eaten", text: $slotTime)
+                                .keyboardType(.numbersAndPunctuation)
+                                .nutritionGlassField()
+                        }
 
-                if let selectedMeal {
-                    Section("Materialized entries") {
-                        Text("\(selectedMeal.mealIngredients.count) ingredient\(selectedMeal.mealIngredients.count == 1 ? "" : "s")")
-                        Text(NutritionMath.macroTotalsSummary(selectedMeal.macroTotals))
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                        if let selectedMeal {
+                            NutritionGlassSection("Materialized entries") {
+                                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                                    Text("\(selectedMeal.mealIngredients.count) ingredient\(selectedMeal.mealIngredients.count == 1 ? "" : "s")")
+                                        .font(.subheadline.weight(.semibold))
+                                    Text(NutritionMath.macroTotalsSummary(selectedMeal.macroTotals))
+                                        .font(.caption)
+                                        .foregroundColor(NeoGymTheme.mutedText)
+                                }
+                            }
+                        }
+
+                        mutationError
                     }
-                }
-
-                if let message = viewModel.mutationState.errorMessage {
-                    Section { Text(message).foregroundColor(.red) }
+                    .frame(maxWidth: 640)
+                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle(planSlot == nil ? "Log meal" : "Log planned meal")
@@ -139,6 +157,34 @@ struct LogMealSheet: View {
             slotTime = IntakeGrouping.currentTimeInputValue()
         }
     }
+
+    private func plannedSuggestionSection(_ planSlot: NutritionPlanMealSlot) -> some View {
+        NutritionGlassSection("Planned suggestion") {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                Text("Planned \(IntakeGrouping.formatTimeOfDay(planSlot.slotTime)) · \(planSlot.displayLabel)")
+                    .font(.subheadline.weight(.semibold))
+                if let meal = planSlot.meal, planSlot.label != nil {
+                    Text("Template: \(meal.name)")
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                Text("The logged time below defaults to now and is not forced to the template slot.")
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mutationError: some View {
+        if let message = viewModel.mutationState.errorMessage {
+            NutritionGlassSection {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.danger)
+            }
+        }
+    }
 }
 
 struct EditLogEntrySheet: View {
@@ -160,20 +206,32 @@ struct EditLogEntrySheet: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section("Entry") {
-                    Text(item.entry.snapshotFoodName)
-                    TextField("Grams", text: $grams)
-                        .keyboardType(.decimalPad)
-                    TextField("Position", text: $position)
-                        .keyboardType(.numberPad)
-                    if item.showTime {
-                        TextField("Time eaten", text: $slotTime)
-                            .keyboardType(.numbersAndPunctuation)
+            ScreenScaffold {
+                ScrollView {
+                    VStack(spacing: NeoGymTheme.spacingMD) {
+                        NutritionGlassSection("Entry") {
+                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                                Text(item.entry.snapshotFoodName)
+                                    .font(.subheadline.weight(.semibold))
+                                TextField("Grams", text: $grams)
+                                    .keyboardType(.decimalPad)
+                                    .nutritionGlassField()
+                                TextField("Position", text: $position)
+                                    .keyboardType(.numberPad)
+                                    .nutritionGlassField()
+                                if item.showTime {
+                                    TextField("Time eaten", text: $slotTime)
+                                        .keyboardType(.numbersAndPunctuation)
+                                        .nutritionGlassField()
+                                }
+                            }
+                        }
+                        mutationError
                     }
-                }
-                if let message = viewModel.mutationState.errorMessage {
-                    Section { Text(message).foregroundColor(.red) }
+                    .frame(maxWidth: 640)
+                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Edit entry")
@@ -200,6 +258,17 @@ struct EditLogEntrySheet: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    @ViewBuilder
+    private var mutationError: some View {
+        if let message = viewModel.mutationState.errorMessage {
+            NutritionGlassSection {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.danger)
+            }
+        }
     }
 
     private static func editableNumber(_ value: JSONValue?) -> String {
@@ -232,21 +301,32 @@ struct EditMealGroupSheet: View {
 
     var body: some View {
         NavigationView {
-            Form {
-                Section("Logged meal") {
-                    TextField("Name", text: $name)
-                    TextField("Time eaten", text: $slotTime)
-                        .keyboardType(.numbersAndPunctuation)
-                    TextField("Position", text: $position)
-                        .keyboardType(.numberPad)
-                }
-                Section {
-                    Text("Grouped food entries display this parent logged meal time.")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                }
-                if let message = viewModel.mutationState.errorMessage {
-                    Section { Text(message).foregroundColor(.red) }
+            ScreenScaffold {
+                ScrollView {
+                    VStack(spacing: NeoGymTheme.spacingMD) {
+                        NutritionGlassSection("Logged meal") {
+                            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                                TextField("Name", text: $name)
+                                    .nutritionGlassField()
+                                TextField("Time eaten", text: $slotTime)
+                                    .keyboardType(.numbersAndPunctuation)
+                                    .nutritionGlassField()
+                                TextField("Position", text: $position)
+                                    .keyboardType(.numberPad)
+                                    .nutritionGlassField()
+                            }
+                        }
+                        NutritionGlassSection {
+                            Text("Grouped food entries display this parent logged meal time.")
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        mutationError
+                    }
+                    .frame(maxWidth: 640)
+                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationTitle("Edit logged meal")
@@ -271,5 +351,16 @@ struct EditMealGroupSheet: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    @ViewBuilder
+    private var mutationError: some View {
+        if let message = viewModel.mutationState.errorMessage {
+            NutritionGlassSection {
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.danger)
+            }
+        }
     }
 }

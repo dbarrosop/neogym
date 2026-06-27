@@ -45,7 +45,6 @@ struct NutritionNavigationView: View {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(GridBackground())
             .navigationTitle("Nutrition")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -169,7 +168,6 @@ private struct NutritionPlaceholderView: View {
             .padding(.vertical, 40)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 }
 

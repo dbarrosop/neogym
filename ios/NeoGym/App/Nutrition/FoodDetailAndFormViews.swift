@@ -32,7 +32,6 @@ struct FoodDetailView: View {
                 .padding(.vertical, 24)
                 .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -126,7 +125,7 @@ private struct MacroPer100gGrid: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
     }
 }
 
@@ -239,7 +238,6 @@ struct FoodEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("Edit food")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -301,8 +299,7 @@ private struct FoodFormScreen: View {
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(false)
                         .padding(12)
-                        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                        .nutritionGlassField()
                     }
 
                     Text("Store nutrients using the canonical per-100g values from the package label.")
@@ -330,7 +327,6 @@ private struct FoodFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 
     private func nutrientField(_ label: String, unit: String, text: Binding<String>) -> some View {
@@ -346,8 +342,7 @@ private struct FoodFormScreen: View {
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             .padding(12)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 12)
         }
     }
 

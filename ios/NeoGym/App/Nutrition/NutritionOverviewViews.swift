@@ -58,7 +58,6 @@ struct NutritionOverviewView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .background(GridBackground())
     }
 
     private var navigationCards: some View {
@@ -108,8 +107,7 @@ struct NutritionOverviewView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
             .padding(14)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 16)
         }
         .buttonStyle(.plain)
     }
@@ -141,8 +139,7 @@ struct NutritionOverviewView: View {
                             if day.id != viewModel.days.prefix(5).last?.id { Divider() }
                         }
                     }
-                    .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+                    .nutritionGlassCard(cornerRadius: 16)
                 }
             }
         }

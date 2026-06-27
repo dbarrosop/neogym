@@ -27,7 +27,6 @@ struct FoodsListView: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 NavigationLink {
@@ -71,7 +70,7 @@ struct FoodsListView: View {
     }
 
     private func visibilityBackground(for visibility: FoodVisibilityFilter) -> Color {
-        viewModel.visibility == visibility ? Color.accentColor.opacity(0.12) : NeoGymTheme.cardFill
+        viewModel.visibility == visibility ? NeoGymTheme.accentMuted : NeoGymTheme.glassSubtleFill
     }
 
     private var filters: some View {
@@ -91,8 +90,7 @@ struct FoodsListView: View {
                 }
             }
             .padding(10)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 12)
 
             HStack(spacing: 8) {
                 ForEach(FoodVisibilityFilter.allCases, id: \.self) { visibility in

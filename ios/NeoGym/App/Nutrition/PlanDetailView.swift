@@ -29,7 +29,6 @@ struct NutritionPlanDetailView: View {
                 .padding(.vertical, 24)
                 .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -102,7 +101,7 @@ struct NutritionPlanDetailView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else {
                 VStack(spacing: 0) {
                     ForEach(slots) { slot in
@@ -110,8 +109,7 @@ struct NutritionPlanDetailView: View {
                         if slot.id != slots.last?.id { Divider() }
                     }
                 }
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
             }
         }
     }

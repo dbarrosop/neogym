@@ -44,8 +44,7 @@ struct MealPickerView: View {
                 }
             }
             .padding(10)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 12)
 
             if let selectedMeal {
                 selectedRow(meal: selectedMeal)
@@ -57,14 +56,14 @@ struct MealPickerView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else if visibleMeals.isEmpty {
                 Text("No meals match this search.")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else {
                 VStack(spacing: 0) {
                     ForEach(visibleMeals.prefix(8)) { meal in
@@ -79,8 +78,7 @@ struct MealPickerView: View {
                         if meal.id != visibleMeals.prefix(8).last?.id { Divider() }
                     }
                 }
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassCard(cornerRadius: 12)
             }
         }
     }
@@ -97,10 +95,16 @@ struct MealPickerView: View {
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
                 .foregroundColor(.accentColor)
-                .background(Color.accentColor.opacity(0.12), in: Capsule())
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusPill,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.accentMuted,
+                    stroke: Color.accentColor.opacity(0.25),
+                    shadow: false
+                )
         }
         .padding(10)
-        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.accentMuted, stroke: Color.accentColor.opacity(0.25))
     }
 }
 

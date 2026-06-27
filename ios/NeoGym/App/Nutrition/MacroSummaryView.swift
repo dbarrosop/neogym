@@ -45,8 +45,7 @@ struct MacroSummaryView: View {
                 }
             }
             .padding(14)
-            .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 16, tint: NeoGymTheme.glassSubtleFill)
         }
     }
 
@@ -71,8 +70,7 @@ struct MacroSummaryView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+        .nutritionGlassCard(cornerRadius: 12)
     }
 }
 
@@ -85,7 +83,12 @@ struct FoodVisibilityBadge: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
             .foregroundColor(isPublic ? .accentColor : NeoGymTheme.mutedText)
-            .background(isPublic ? Color.accentColor.opacity(0.12) : NeoGymTheme.cardFill, in: Capsule())
-            .overlay(Capsule().stroke(isPublic ? Color.accentColor.opacity(0.25) : NeoGymTheme.border))
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusPill,
+                material: .ultraThin,
+                tint: isPublic ? NeoGymTheme.accentMuted : NeoGymTheme.glassSubtleFill,
+                stroke: isPublic ? Color.accentColor.opacity(0.25) : NeoGymTheme.glassStrokeSecondary,
+                shadow: false
+            )
     }
 }

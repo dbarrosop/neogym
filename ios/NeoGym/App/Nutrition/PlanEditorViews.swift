@@ -91,7 +91,6 @@ struct NutritionPlanCreateView: View {
                 }
             }
         }
-        .background(GridBackground())
     }
 }
 
@@ -147,7 +146,6 @@ struct NutritionPlanEditView: View {
                 }
             }
         }
-        .background(GridBackground())
         .navigationTitle("Edit plan")
         .navigationBarTitleDisplayMode(.inline)
         .task {
@@ -222,7 +220,6 @@ private struct NutritionPlanFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
     }
 
     private var textFields: some View {
@@ -236,8 +233,7 @@ private struct NutritionPlanFormScreen: View {
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(false)
                 .padding(12)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Description")
@@ -248,8 +244,7 @@ private struct NutritionPlanFormScreen: View {
                 ))
                 .frame(minHeight: 90)
                 .padding(8)
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassField()
                 Text("Optional prep notes or when to use this one-day template.")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -272,7 +267,7 @@ private struct NutritionPlanFormScreen: View {
                     .foregroundColor(NeoGymTheme.mutedText)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             }
             ForEach(Array(form.slots.enumerated()), id: \.element.stableId) { index, slot in
                 NutritionPlanSlotEditorRow(
@@ -354,8 +349,7 @@ private struct NutritionPlanSlotEditorRow: View {
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                     .padding(12)
-                    .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                    .nutritionGlassField()
                     Text("HH:MM")
                         .font(.caption2)
                         .foregroundColor(NeoGymTheme.mutedText)
@@ -372,8 +366,7 @@ private struct NutritionPlanSlotEditorRow: View {
                     .textInputAutocapitalization(.words)
                     .disableAutocorrection(false)
                     .padding(12)
-                    .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                    .nutritionGlassField()
                     Text("Optional; meal name is shown when empty.")
                         .font(.caption2)
                         .foregroundColor(NeoGymTheme.mutedText)
@@ -390,7 +383,7 @@ private struct NutritionPlanSlotEditorRow: View {
             )
         }
         .padding(12)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
     }
 }

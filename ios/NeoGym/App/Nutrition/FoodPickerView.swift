@@ -38,8 +38,7 @@ struct FoodPickerView: View {
                 }
             }
             .padding(10)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .nutritionGlassCard(cornerRadius: 12)
 
             if let selectedFood {
                 selectedRow(food: selectedFood)
@@ -51,14 +50,14 @@ struct FoodPickerView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else if visibleFoods.isEmpty {
                 Text("No foods match this search.")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else {
                 VStack(spacing: 0) {
                     ForEach(visibleFoods.prefix(8)) { food in
@@ -73,8 +72,7 @@ struct FoodPickerView: View {
                         if food.id != visibleFoods.prefix(8).last?.id { Divider() }
                     }
                 }
-                .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+                .nutritionGlassCard(cornerRadius: 12)
             }
         }
         .onAppear {
@@ -94,7 +92,7 @@ struct FoodPickerView: View {
             FoodVisibilityBadge(isPublic: food.isPublic)
         }
         .padding(10)
-        .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.accentMuted, stroke: Color.accentColor.opacity(0.25))
     }
 }
 
