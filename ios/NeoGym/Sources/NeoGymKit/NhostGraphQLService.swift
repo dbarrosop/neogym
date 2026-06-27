@@ -23,6 +23,8 @@ public struct NhostGraphQLService: GraphQLServicing {
             )
 
             return try GraphQLResponseMapper.unwrap(response.body, operationName: operationName)
+        } catch let error as CancellationError {
+            throw error
         } catch {
             throw GraphQLDomainError.map(error)
         }

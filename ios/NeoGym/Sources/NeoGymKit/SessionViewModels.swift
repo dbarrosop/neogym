@@ -57,7 +57,7 @@ public final class SessionsListViewModel: ObservableObject {
             let loaded = try await repository.listSessions(limit: pageSize, offset: 0)
             hasNextPage = loaded.count == pageSize
             state = .loaded(loaded)
-        } catch is CancellationError {
+        } catch where GraphQLDomainError.isCancellation(error) {
             state = state.value.map(Loadable.loaded) ?? .idle
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
@@ -72,7 +72,7 @@ public final class SessionsListViewModel: ObservableObject {
             let loaded = try await repository.listSessions(limit: pageSize, offset: sessions.count)
             hasNextPage = loaded.count == pageSize
             state = .loaded(sessions + loaded)
-        } catch is CancellationError {
+        } catch where GraphQLDomainError.isCancellation(error) {
             // A view transition can cancel pagination/list reloads; keep the current list instead of surfacing it.
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
@@ -118,6 +118,8 @@ public final class SessionDetailViewModel: ObservableObject {
             }
             state = .loaded(session)
             await loadPriorHistory(for: session)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.value.map(Loadable.loaded) ?? .idle
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -215,6 +217,8 @@ public final class SessionDetailViewModel: ObservableObject {
                 excludeSessionId: session.id
             )
             priorHistoryState = .loaded(history)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            priorHistoryState = priorHistoryState.value.map(Loadable.loaded) ?? .idle
         } catch {
             // Prior history is decorative; keep the main session detail usable if it fails.
             priorHistoryState = .failed(

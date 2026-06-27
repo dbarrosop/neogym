@@ -206,13 +206,36 @@ final class SessionsViewModelTests: XCTestCase {
 
     func testListIgnoresCancelledLoads() async {
         let repository = StubSessionsRepository()
-        repository.listError = CancellationError()
+        repository.listError = mappedCancellationError
         let viewModel = SessionsListViewModel(repository: repository, pageSize: 25)
 
         await viewModel.load()
 
         XCTAssertNil(viewModel.state.errorMessage)
         XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
+    func testDetailIgnoresCancelledLoads() async {
+        let repository = StubSessionsRepository()
+        repository.detailError = mappedCancellationError
+        let viewModel = SessionDetailViewModel(sessionId: "session-1", repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.state.errorMessage)
+        XCTAssertNil(viewModel.session)
+    }
+
+    func testPriorHistoryIgnoresCancelledLoads() async throws {
+        let detail = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: detail)
+        repository.priorHistoryError = mappedCancellationError
+        let viewModel = SessionDetailViewModel(sessionId: "session-1", repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.session?.id, "session-1")
+        XCTAssertNil(viewModel.priorHistoryState.errorMessage)
     }
 
     func testDetailMutationsCallRepositoryAndReload() async throws {
@@ -435,6 +458,10 @@ private func pickerExercise(id: String) -> ExerciseListItem {
     )
 }
 
+private let mappedCancellationError = GraphQLDomainError.transport(
+    "The operation couldn't be completed. (Swift.CancellationError error 1.)"
+)
+
 private final class StubSessionsRepository: SessionsRepositoryProtocol, @unchecked Sendable {
     var sessions: [SessionListItem]
     var detail: SessionDetailModel?
@@ -448,10 +475,12 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var deletedStrengthSetIds: [String] = []
     var priorHistory = SessionPriorHistory()
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
+    var priorHistoryError: Error?
     var addedCardioEntryNumbers: [Int] = []
     var updatedCardioEntryIds: [String] = []
     var deletedCardioEntryIds: [String] = []
     var listError: Error?
+    var detailError: Error?
 
     init(sessions: [SessionListItem] = [], detail: SessionDetailModel? = nil) {
         self.sessions = sessions
@@ -465,11 +494,13 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
 
     func sessionDetail(id: String) async throws -> SessionDetailModel? {
         detailLoadCount += 1
+        if let detailError { throw detailError }
         return detail
     }
 
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory {
         priorHistoryRequests.append((exerciseIds: exerciseIds, excludeSessionId: excludeSessionId))
+        if let priorHistoryError { throw priorHistoryError }
         return priorHistory
     }
 

@@ -93,6 +93,21 @@ public enum GraphQLDomainError: Error, Equatable, Sendable {
 
         return .transport(error.localizedDescription)
     }
+
+    public static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let domainError = error as? GraphQLDomainError { return domainError.isCancellation }
+        return error.localizedDescription.localizedCaseInsensitiveContains("CancellationError")
+    }
+
+    public var isCancellation: Bool {
+        switch self {
+        case let .transport(message):
+            message.localizedCaseInsensitiveContains("CancellationError")
+        case .graphQLErrors, .missingData, .decoding:
+            false
+        }
+    }
 }
 
 extension GraphQLDomainError: LocalizedError {
