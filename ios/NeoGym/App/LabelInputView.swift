@@ -39,9 +39,13 @@ struct LabelInputView: View {
                 Button("Add") { commitTyped() }
                     .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > workoutLabelMaxLength)
             }
-            .padding(10)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
+            .padding(NeoGymTheme.spacingSM)
+            .glassSurface(
+                cornerRadius: NeoGymTheme.radiusMD,
+                material: .ultraThin,
+                tint: NeoGymTheme.glassFill,
+                shadow: false
+            )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
                 VStack(alignment: .leading, spacing: 6) {
@@ -65,9 +69,14 @@ struct LabelInputView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(10)
+                .padding(NeoGymTheme.spacingSM)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusMD,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassSubtleFill,
+                    shadow: false
+                )
             }
         }
     }
@@ -100,7 +109,14 @@ struct LabelInputView: View {
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .foregroundColor(.accentColor)
-        .background(Color.accentColor.opacity(0.12), in: Capsule())
+        .background(
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.accentMuted)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
+                )
+        )
     }
 }
 

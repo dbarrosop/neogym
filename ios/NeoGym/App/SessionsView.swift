@@ -50,11 +50,10 @@ struct SessionsListView: View {
                 content
             }
             .frame(maxWidth: 760)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Sessions")
         .background(pendingNavigationLink)
         .task {
@@ -232,7 +231,12 @@ private struct SessionDateBadge: View {
                 .foregroundColor(.primary)
         }
         .frame(width: 52, height: 52)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 
     private var month: String {
@@ -405,7 +409,7 @@ struct SessionDetailView: View {
         .alert(item: $pendingRemoveExercise) { row in
             Alert(
                 title: Text("Remove \(row.exercise.name)?"),
-                message: Text(removeExerciseMessage(row)),
+                message: Text(SessionDetailFormatters.removeExerciseMessage(row)),
                 primaryButton: .destructive(Text("Remove")) {
                     Task {
                         if await viewModel.removeExercise(id: row.id) {
@@ -464,7 +468,7 @@ struct SessionDetailView: View {
                     draftStartedAt = session.startedAtDate ?? Date()
                     isEditingStartedAt = true
                 } label: {
-                    Label(Self.fullDate(session.startedAtDate), systemImage: "calendar")
+                    Label(SessionDetailFormatters.fullDate(session.startedAtDate), systemImage: "calendar")
                         .font(.subheadline.weight(.semibold))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -510,7 +514,11 @@ struct SessionDetailView: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
             SessionStatCard(title: "Sets", value: "\(totals.sets)", systemImage: "number")
             SessionStatCard(title: "Reps", value: "\(totals.reps)", systemImage: "repeat")
-            SessionStatCard(title: "Volume", value: "\(Self.formatVolume(totals.volume)) kg", systemImage: "flame")
+            SessionStatCard(
+                title: "Volume",
+                value: "\(SessionDetailFormatters.volume(totals.volume)) kg",
+                systemImage: "flame"
+            )
         }
     }
 
@@ -518,59 +526,80 @@ struct SessionDetailView: View {
         SectionShell(title: "Exercises", subtitle: "Add or remove exercises for this session only.") {
             VStack(spacing: 0) {
                 ForEach(session.workoutSessionExercises) { row in
-                    SessionExerciseCard(
-                        row: row,
-                        priorStrengthEntries: viewModel.priorStrengthByExercise[row.exercise.id] ?? [],
-                        priorCardioEntries: viewModel.priorCardioByExercise[row.exercise.id] ?? [],
-                        exercisesRepository: exercisesRepository,
-                        storageBaseURL: storageBaseURL,
-                        onSessionStarted: onSessionStarted,
-                        onRemove: { pendingRemoveExercise = row },
-                        onAddSet: {
-                            editingSet = StrengthSetEditorState.add(
-                                workoutSessionExerciseId: row.id,
-                                exerciseName: row.exercise.name,
-                                nextSetNumber: (row.workoutSessionStrengthSets.map(\.setNumber).max() ?? 0) + 1,
-                                previousSet: row.workoutSessionStrengthSets.last,
-                                doubleWeight: row.exercise.doubleWeight
-                            )
-                        },
-                        onEditSet: { set in
-                            editingSet = StrengthSetEditorState.edit(
-                                set: set,
-                                exerciseName: row.exercise.name,
-                                doubleWeight: row.exercise.doubleWeight
-                            )
-                        },
-                        onAddCardioEntry: { schema in
-                            editingCardioEntry = CardioEntryEditorState.add(
-                                workoutSessionExerciseId: row.id,
-                                exerciseName: row.exercise.name,
-                                schema: schema,
-                                nextEntryNumber: (row.workoutSessionCardioEntries.map(\.entryNumber).max() ?? 0) + 1,
-                                previousMetrics: row.workoutSessionCardioEntries.last?.metrics
-                            )
-                        },
-                        onEditCardioEntry: { entry, schema in
-                            editingCardioEntry = CardioEntryEditorState.edit(
-                                entry: entry,
-                                exerciseName: row.exercise.name,
-                                schema: schema
-                            )
-                        }
-                    )
-                    if row.id != session.workoutSessionExercises.last?.id { Divider() }
+                    sessionExerciseRow(row, lastRowId: session.workoutSessionExercises.last?.id)
                 }
-                Button {
-                    isShowingExercisePicker = true
-                } label: {
-                    Label("Add exercise", systemImage: "plus")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .padding(.top, session.workoutSessionExercises.isEmpty ? 0 : 12)
+                addExerciseButton(isFirstRow: session.workoutSessionExercises.isEmpty)
             }
         }
+    }
+
+    @ViewBuilder
+    private func sessionExerciseRow(_ row: SessionExerciseRow, lastRowId: String?) -> some View {
+        SessionExerciseCard(
+            row: row,
+            priorStrengthEntries: viewModel.priorStrengthByExercise[row.exercise.id] ?? [],
+            priorCardioEntries: viewModel.priorCardioByExercise[row.exercise.id] ?? [],
+            exercisesRepository: exercisesRepository,
+            storageBaseURL: storageBaseURL,
+            onSessionStarted: onSessionStarted,
+            onRemove: { pendingRemoveExercise = row },
+            onAddSet: { startAddingSet(for: row) },
+            onEditSet: { startEditingSet($0, for: row) },
+            onAddCardioEntry: { startAddingCardioEntry(schema: $0, for: row) },
+            onEditCardioEntry: { startEditingCardioEntry($0, schema: $1, for: row) }
+        )
+        if row.id != lastRowId { Divider() }
+    }
+
+    private func addExerciseButton(isFirstRow: Bool) -> some View {
+        Button {
+            isShowingExercisePicker = true
+        } label: {
+            Label("Add exercise", systemImage: "plus")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(NeoGymSecondaryButtonStyle())
+        .padding(.top, isFirstRow ? 0 : 12)
+    }
+
+    private func startAddingSet(for row: SessionExerciseRow) {
+        editingSet = StrengthSetEditorState.add(
+            workoutSessionExerciseId: row.id,
+            exerciseName: row.exercise.name,
+            nextSetNumber: (row.workoutSessionStrengthSets.map(\.setNumber).max() ?? 0) + 1,
+            previousSet: row.workoutSessionStrengthSets.last,
+            doubleWeight: row.exercise.doubleWeight
+        )
+    }
+
+    private func startEditingSet(_ set: SessionStrengthSet, for row: SessionExerciseRow) {
+        editingSet = StrengthSetEditorState.edit(
+            set: set,
+            exerciseName: row.exercise.name,
+            doubleWeight: row.exercise.doubleWeight
+        )
+    }
+
+    private func startAddingCardioEntry(schema: CardioMetricsSchema, for row: SessionExerciseRow) {
+        editingCardioEntry = CardioEntryEditorState.add(
+            workoutSessionExerciseId: row.id,
+            exerciseName: row.exercise.name,
+            schema: schema,
+            nextEntryNumber: (row.workoutSessionCardioEntries.map(\.entryNumber).max() ?? 0) + 1,
+            previousMetrics: row.workoutSessionCardioEntries.last?.metrics
+        )
+    }
+
+    private func startEditingCardioEntry(
+        _ entry: SessionCardioEntryShell,
+        schema: CardioMetricsSchema,
+        for row: SessionExerciseRow
+    ) {
+        editingCardioEntry = CardioEntryEditorState.edit(
+            entry: entry,
+            exerciseName: row.exercise.name,
+            schema: schema
+        )
     }
 
     private var deleteSection: some View {
@@ -588,8 +617,10 @@ struct SessionDetailView: View {
         await viewModel.load()
         onMutated()
     }
+}
 
-    private func removeExerciseMessage(_ row: SessionExerciseRow) -> String {
+private enum SessionDetailFormatters {
+    static func removeExerciseMessage(_ row: SessionExerciseRow) -> String {
         let childCount = row.exercise.isCardio
             ? row.workoutSessionCardioEntries.count
             : row.workoutSessionStrengthSets.count
@@ -600,7 +631,7 @@ struct SessionDetailView: View {
         return "\(childCount) logged \(noun) will be deleted with it. This can't be undone."
     }
 
-    private static func fullDate(_ date: Date?) -> String {
+    static func fullDate(_ date: Date?) -> String {
         guard let date else { return "Unknown date" }
         let formatter = DateFormatter()
         formatter.dateStyle = .full
@@ -608,7 +639,7 @@ struct SessionDetailView: View {
         return formatter.string(from: date)
     }
 
-    private static func formatVolume(_ volume: Double) -> String {
+    static func volume(_ volume: Double) -> String {
         if volume >= 1_000 {
             return String(format: "%.1fk", volume / 1_000)
         }

@@ -53,11 +53,10 @@ struct WorkoutsListView: View {
                 results
             }
             .frame(maxWidth: 760)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Workouts")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -93,40 +92,54 @@ struct WorkoutsListView: View {
     }
 
     private var filters: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text("Filter")
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                WorkoutFilterPill(
-                    title: "Mine",
-                    systemImage: "person",
-                    active: viewModel.visibility == .mine
-                ) { viewModel.toggleVisibility(.mine) }
-                WorkoutFilterPill(
-                    title: "Public",
-                    systemImage: "globe",
-                    active: viewModel.visibility == .public
-                ) { viewModel.toggleVisibility(.public) }
-                if viewModel.isFiltered {
-                    Button("Clear") { viewModel.clearFilters() }
-                        .font(.caption.weight(.semibold))
+        GlassPanel(
+            cornerRadius: NeoGymTheme.radiusXL,
+            material: .thin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false,
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingMD,
+                leading: NeoGymTheme.spacingMD,
+                bottom: NeoGymTheme.spacingMD,
+                trailing: NeoGymTheme.spacingMD
+            )
+        ) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    Text("Filter")
+                        .font(.caption.weight(.bold))
+                        .textCase(.uppercase)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    WorkoutFilterPill(
+                        title: "Mine",
+                        systemImage: "person",
+                        active: viewModel.visibility == .mine
+                    ) { viewModel.toggleVisibility(.mine) }
+                    WorkoutFilterPill(
+                        title: "Public",
+                        systemImage: "globe",
+                        active: viewModel.visibility == .public
+                    ) { viewModel.toggleVisibility(.public) }
+                    if viewModel.isFiltered {
+                        Button("Clear") { viewModel.clearFilters() }
+                            .font(.caption.weight(.semibold))
+                    }
                 }
-            }
-            if !viewModel.labels.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.labels) { label in
-                            WorkoutFilterPill(
-                                title: label.name,
-                                systemImage: "tag",
-                                active: viewModel.selectedLabelIds.contains(label.id)
-                            ) { viewModel.toggleLabel(label.id) }
+                if !viewModel.labels.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: NeoGymTheme.spacingXS) {
+                            ForEach(viewModel.labels) { label in
+                                WorkoutFilterPill(
+                                    title: label.name,
+                                    systemImage: "tag",
+                                    active: viewModel.selectedLabelIds.contains(label.id)
+                                ) { viewModel.toggleLabel(label.id) }
+                            }
                         }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -226,7 +239,6 @@ private struct WorkoutListRow: View {
     }
 }
 
-
 private struct WorkoutFilterPill: View {
     let title: String
     let systemImage: String
@@ -239,11 +251,30 @@ private struct WorkoutFilterPill: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
-                .foregroundColor(active ? .white : .primary)
-                .background(active ? Color.accentColor : NeoGymTheme.cardFill, in: Capsule())
-                .overlay(Capsule().stroke(active ? Color.clear : NeoGymTheme.border))
+                .foregroundColor(active ? .white : NeoGymTheme.primaryText)
+                .background(pillBackground)
+                .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
     }
-}
 
+    @ViewBuilder
+    private var pillBackground: some View {
+        if active {
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.primaryActionGradient)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
+                )
+        } else {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
+        }
+    }
+}

@@ -315,7 +315,13 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- Polished primary domain list/profile shells onto the shared glass visual system across Profile, Workouts, Exercises, Sessions, Body, Journal, and LabelInputView.
+- Removed nested `GridBackground()` from top-level primary lists so the root `ScreenScaffold` owns the canvas.
+- Updated filters, search surfaces, chips, date badges, and label inputs to use glass tokens and phone-friendly full-width margins.
+- Preserved repositories, view models, GraphQL documents, mutations, navigation links, callbacks, refresh actions, and mutation flow.
+- Reviewer verdict: `ACCEPT`. Reviewer verified the `SessionDetailView` helper/formatter extraction is behavior-identical and not Phase 4b visual scope creep.
+- Autonomous decisions: accepted the helper/formatter extraction because correctness was verified by reviewer and it improves long-term maintainability by satisfying local diagnostics without changing behavior.
+- Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; only scoped `ios/NeoGym/App/` files changed and generated project output was not staged. Interactive authenticated render traversal remains for final QA.
 
 ### Phase 4b — Detail, form, picker, and logging polish
 

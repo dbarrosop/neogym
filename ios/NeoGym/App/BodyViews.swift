@@ -31,11 +31,10 @@ struct BodyMeasurementsListView: View {
                 content
             }
             .frame(maxWidth: 760)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Body")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -180,7 +179,12 @@ private struct BodyMeasurementListRow: View {
                 Text(DateOnly.formatLong(measurement.measuredOn))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.primary)
-                Text(BodyMeasurementFormatters.values(weightKg: measurement.weightKg, bodyFatPct: measurement.bodyFatPct))
+                Text(
+                    BodyMeasurementFormatters.values(
+                        weightKg: measurement.weightKg,
+                        bodyFatPct: measurement.bodyFatPct
+                    )
+                )
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
                 if let notes = measurement.notes, !notes.isEmpty {
@@ -213,7 +217,12 @@ private struct BodyDateBadge: View {
                 .foregroundColor(.primary)
         }
         .frame(width: 52, height: 52)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 
     private var date: Date? { DateOnly.parse(measuredOn) }
@@ -318,8 +327,14 @@ struct BodyMeasurementDetailView: View {
                 SectionShell(title: DateOnly.formatLong(measurement.measuredOn), subtitle: "Measurement") {
                     VStack(alignment: .leading, spacing: 18) {
                         HStack(spacing: 12) {
-                            BodyMeasurementStatCard(label: "Weight", value: BodyMeasurementFormatters.weight(measurement.weightKg))
-                            BodyMeasurementStatCard(label: "Body fat", value: BodyMeasurementFormatters.bodyFat(measurement.bodyFatPct))
+                            BodyMeasurementStatCard(
+                                label: "Weight",
+                                value: BodyMeasurementFormatters.weight(measurement.weightKg)
+                            )
+                            BodyMeasurementStatCard(
+                                label: "Body fat",
+                                value: BodyMeasurementFormatters.bodyFat(measurement.bodyFatPct)
+                            )
                         }
                         if let notes = measurement.notes, !notes.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {
@@ -427,7 +442,9 @@ struct BodyMeasurementEditView: View {
         onSaved: @escaping () -> Void,
         onDeleted: @escaping () -> Void
     ) {
-        _editor = StateObject(wrappedValue: BodyMeasurementEditorViewModel(measurementId: measurementId, repository: repository))
+        _editor = StateObject(
+            wrappedValue: BodyMeasurementEditorViewModel(measurementId: measurementId, repository: repository)
+        )
         self.onSaved = onSaved
         self.onDeleted = onDeleted
     }
@@ -459,7 +476,9 @@ struct BodyMeasurementEditView: View {
                         submitLabel: "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading,
-                        errorMessage: form.errorMessage ?? editor.saveState.errorMessage ?? editor.deleteState.errorMessage,
+                        errorMessage: form.errorMessage
+                            ?? editor.saveState.errorMessage
+                            ?? editor.deleteState.errorMessage,
                         onSubmit: submit,
                         onCancel: { presentationMode.wrappedValue.dismiss() },
                         deleteAction: { confirmDelete = true }
@@ -543,7 +562,10 @@ private struct BodyMeasurementFormScreen: View {
                         TextEditor(text: $form.notes)
                             .frame(minHeight: 110)
                             .padding(8)
-                            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .background(
+                                NeoGymTheme.cardFill,
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
                             .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(NeoGymTheme.border))
                         Text("Optional")
                             .font(.caption)
@@ -567,7 +589,12 @@ private struct BodyMeasurementFormScreen: View {
         .background(GridBackground())
     }
 
-    private func decimalField(title: String, unit: String, placeholder: String, text: Binding<String>) -> some View {
+    private func decimalField(
+        title: String,
+        unit: String,
+        placeholder: String,
+        text: Binding<String>
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Text(title)

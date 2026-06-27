@@ -45,11 +45,10 @@ struct ExercisesListView: View {
                 results
             }
             .frame(maxWidth: 700)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Exercises")
         .task {
             if case .idle = viewModel.state {
@@ -75,59 +74,80 @@ struct ExercisesListView: View {
     }
 
     private var filterControls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(NeoGymTheme.mutedText)
-                TextField("Search exercises…", text: $viewModel.searchText)
-                    .textInputAutocapitalization(.never)
-                if !viewModel.searchText.isEmpty {
-                    Button {
-                        viewModel.searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(NeoGymTheme.mutedText)
+        GlassPanel(
+            cornerRadius: NeoGymTheme.radiusXL,
+            material: .thin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false,
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingMD,
+                leading: NeoGymTheme.spacingMD,
+                bottom: NeoGymTheme.spacingMD,
+                trailing: NeoGymTheme.spacingMD
+            )
+        ) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    TextField("Search exercises…", text: $viewModel.searchText)
+                        .textInputAutocapitalization(.never)
+                    if !viewModel.searchText.isEmpty {
+                        Button {
+                            viewModel.searchText = ""
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Clear search")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
                 }
-            }
-            .padding(12)
-            .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+                .padding(NeoGymTheme.spacingSM)
+                .glassSurface(
+                    cornerRadius: NeoGymTheme.radiusMD,
+                    material: .ultraThin,
+                    tint: NeoGymTheme.glassFill,
+                    shadow: false
+                )
 
-            HStack(spacing: 8) {
-                visibilityButton(.mine, title: "Mine", icon: "person")
-                visibilityButton(.public, title: "Public", icon: "globe")
-            }
-
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
-                ForEach(ExerciseFilterKey.allCases, id: \.self) { key in
-                    filterHeader(key)
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    visibilityButton(.mine, title: "Mine", icon: "person")
+                    visibilityButton(.public, title: "Public", icon: "globe")
                 }
-            }
 
-            if let expandedFilter {
-                filterOptions(expandedFilter)
-            }
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: NeoGymTheme.spacingXS), count: 2),
+                    spacing: NeoGymTheme.spacingXS
+                ) {
+                    ForEach(ExerciseFilterKey.allCases, id: \.self) { key in
+                        filterHeader(key)
+                    }
+                }
 
-            if viewModel.isFiltered {
-                HStack {
-                    Text(
-                        "\(viewModel.filteredExercises.count) "
-                            + "match\(viewModel.filteredExercises.count == 1 ? "" : "es")"
-                    )
-                    Spacer()
-                    Button("Clear all") {
-                        withAnimation {
-                            expandedFilter = nil
-                            viewModel.clearAll()
+                if let expandedFilter {
+                    filterOptions(expandedFilter)
+                }
+
+                if viewModel.isFiltered {
+                    HStack {
+                        Text(
+                            "\(viewModel.filteredExercises.count) "
+                                + "match\(viewModel.filteredExercises.count == 1 ? "" : "es")"
+                        )
+                        Spacer()
+                        Button("Clear all") {
+                            withAnimation {
+                                expandedFilter = nil
+                                viewModel.clearAll()
+                            }
                         }
                     }
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(NeoGymTheme.mutedText)
                 }
-                .font(.caption.weight(.medium))
-                .foregroundColor(NeoGymTheme.mutedText)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -139,9 +159,9 @@ struct ExercisesListView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .foregroundColor(viewModel.visibility == value ? .white : .primary)
-                .background(viewModel.visibility == value ? Color.accentColor : NeoGymTheme.cardFill, in: Capsule())
-                .overlay(Capsule().stroke(viewModel.visibility == value ? Color.clear : NeoGymTheme.border))
+                .foregroundColor(viewModel.visibility == value ? .white : NeoGymTheme.primaryText)
+                .background(visibilityPillBackground(isActive: viewModel.visibility == value))
+                .contentShape(Capsule(style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -175,14 +195,45 @@ struct ExercisesListView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
         .foregroundColor(value == nil ? .primary : Color.accentColor)
-        .background(
-            value == nil ? NeoGymTheme.cardFill : Color.accentColor.opacity(0.12),
-            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(value == nil ? NeoGymTheme.border : Color.accentColor.opacity(0.4))
-        )
+        .background(filterHeaderBackground(isSelected: value != nil))
+        .contentShape(RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func visibilityPillBackground(isActive: Bool) -> some View {
+        if isActive {
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.primaryActionGradient)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
+                )
+        } else {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func filterHeaderBackground(isSelected: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
+        if isSelected {
+            shape
+                .fill(NeoGymTheme.accentMuted)
+                .overlay(shape.stroke(Color.accentColor.opacity(0.38), lineWidth: NeoGymTheme.hairline))
+        } else {
+            shape
+                .fill(.ultraThinMaterial)
+                .overlay(shape.fill(NeoGymTheme.glassSubtleFill))
+                .overlay(
+                    shape.stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
+        }
     }
 
     private func filterOptions(_ key: ExerciseFilterKey) -> some View {
@@ -223,9 +274,13 @@ struct ExercisesListView: View {
                 }
             }
         }
-        .padding(10)
-        .background(NeoGymTheme.cardFill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(NeoGymTheme.border))
+        .padding(NeoGymTheme.spacingSM)
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassFill,
+            shadow: false
+        )
     }
 
     @ViewBuilder

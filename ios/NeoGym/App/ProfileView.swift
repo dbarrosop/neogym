@@ -19,7 +19,7 @@ struct ProfileView: View {
             }
             .frame(maxWidth: 640)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.spacingXL)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $isShowingChangeEmail) {
@@ -115,9 +115,11 @@ struct ProfileView: View {
                             .font(.caption.monospaced())
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .background(
-                                NeoGymTheme.glassSubtleFill,
-                                in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .glassSurface(
+                                cornerRadius: NeoGymTheme.radiusSM,
+                                material: .ultraThin,
+                                tint: NeoGymTheme.glassSubtleFill,
+                                shadow: false
                             )
                     }
                     DetailRow(label: "Member since") { Text(profile.memberSince) }

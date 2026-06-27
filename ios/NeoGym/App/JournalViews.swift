@@ -32,11 +32,10 @@ struct JournalListView: View {
                 content
             }
             .frame(maxWidth: 760)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(GridBackground())
         .navigationTitle("Journal")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -83,33 +82,47 @@ struct JournalListView: View {
     @ViewBuilder
     private var filters: some View {
         if !viewModel.labels.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Text("Filter")
-                        .font(.caption.weight(.bold))
-                        .textCase(.uppercase)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                    if viewModel.isFiltered {
-                        Button("Clear") {
-                            Task { await viewModel.clearFilters() }
+            GlassPanel(
+                cornerRadius: NeoGymTheme.radiusXL,
+                material: .thin,
+                tint: NeoGymTheme.glassSubtleFill,
+                shadow: false,
+                contentPadding: EdgeInsets(
+                    top: NeoGymTheme.spacingMD,
+                    leading: NeoGymTheme.spacingMD,
+                    bottom: NeoGymTheme.spacingMD,
+                    trailing: NeoGymTheme.spacingMD
+                )
+            ) {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                    HStack(spacing: NeoGymTheme.spacingXS) {
+                        Text("Filter")
+                            .font(.caption.weight(.bold))
+                            .textCase(.uppercase)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                        if viewModel.isFiltered {
+                            Button("Clear") {
+                                Task { await viewModel.clearFilters() }
+                            }
+                            .font(.caption.weight(.semibold))
                         }
-                        .font(.caption.weight(.semibold))
+                    }
+                    JournalLabelFlowLayout(spacing: NeoGymTheme.spacingXS) {
+                        ForEach(viewModel.labels) { label in
+                            Button {
+                                Task { await viewModel.toggleLabel(label.id) }
+                            } label: {
+                                JournalLabelChip(
+                                    name: label.name,
+                                    systemImage: "tag.fill",
+                                    selected: viewModel.selectedLabelSet.contains(label.id)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
-                JournalLabelFlowLayout(spacing: 6) {
-                    ForEach(viewModel.labels) { label in
-                        Button {
-                            Task { await viewModel.toggleLabel(label.id) }
-                        } label: {
-                            JournalLabelChip(
-                                name: label.name,
-                                systemImage: "tag.fill",
-                                selected: viewModel.selectedLabelSet.contains(label.id)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -285,7 +298,12 @@ private struct JournalDateBadge: View {
                 .foregroundColor(.primary)
         }
         .frame(width: 52, height: 52)
-        .background(NeoGymTheme.mutedFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .glassSurface(
+            cornerRadius: NeoGymTheme.radiusMD,
+            material: .ultraThin,
+            tint: NeoGymTheme.glassSubtleFill,
+            shadow: false
+        )
     }
 
     private var date: Date? { DateOnly.parse(entryDate) }
@@ -841,8 +859,28 @@ private struct JournalLabelChip: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .foregroundColor(selected ? .accentColor : NeoGymTheme.mutedText)
-            .background(selected ? Color.accentColor.opacity(0.12) : NeoGymTheme.cardFill, in: Capsule())
-            .overlay(Capsule().stroke(selected ? Color.accentColor.opacity(0.25) : NeoGymTheme.border))
+            .background(chipBackground)
+            .contentShape(Capsule(style: .continuous))
+    }
+
+    @ViewBuilder
+    private var chipBackground: some View {
+        if selected {
+            Capsule(style: .continuous)
+                .fill(NeoGymTheme.accentMuted)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
+                )
+        } else {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
+                .overlay(
+                    Capsule(style: .continuous)
+                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
+                )
+        }
     }
 }
 
