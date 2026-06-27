@@ -54,41 +54,40 @@ struct WorkoutsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
             .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Workouts")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    WorkoutCreateView(
-                        workoutsRepository: workoutsRepository,
-                        exercisesRepository: exercisesRepository,
-                        onFinished: { Task { await viewModel.load() } }
-                    )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("New workout")
-            }
-        }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Plans")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Workouts")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
-            Text("Your routines and shared community templates.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Plans")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text("Workouts")
+                    .font(.largeTitle.bold())
+                    .tracking(-0.8)
+                Text("Your routines and shared community templates.")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer(minLength: 0)
+            NavigationLink {
+                WorkoutCreateView(
+                    workoutsRepository: workoutsRepository,
+                    exercisesRepository: exercisesRepository,
+                    onFinished: { Task { await viewModel.load() } }
+                )
+            } label: {
+                HeaderActionButtonLabel()
+            }
+            .accessibilityLabel("New workout")
         }
     }
 

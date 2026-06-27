@@ -38,13 +38,12 @@ struct MeNavigationView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                SecondarySectionBar(selection: $selection)
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .navigationTitle("Me")
-            .navigationBarTitleDisplayMode(.inline)
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .top) {
+                    SecondarySectionBar(selection: $selection)
+                }
+                .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
     }

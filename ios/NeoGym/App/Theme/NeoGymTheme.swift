@@ -89,6 +89,7 @@ enum NeoGymTheme {
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
     static let dockContentExtraInset: CGFloat = 52
+    static let topSectionBarContentClearance: CGFloat = 82
     static let dockRootContentClearance: CGFloat = 80
     static let dockContentClearance: CGFloat = 140
 

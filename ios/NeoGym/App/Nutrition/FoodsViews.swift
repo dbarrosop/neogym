@@ -24,27 +24,9 @@ struct FoodsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
             .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    FoodCreateView(
-                        repository: repository,
-                        onCreated: { id in
-                            Task { await viewModel.load() }
-                            navigatedFoodId = id
-                            isNavigatingToFood = true
-                        },
-                        onFinished: { Task { await viewModel.load() } }
-                    )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("New food")
-            }
         }
         .background(pendingNavigationLink)
         .task {
@@ -56,17 +38,34 @@ struct FoodsListView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Nutrition")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Foods")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
-            Text("Search public foods and your private catalog.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Nutrition")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text("Foods")
+                    .font(.largeTitle.bold())
+                    .tracking(-0.8)
+                Text("Search public foods and your private catalog.")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer(minLength: 0)
+            NavigationLink {
+                FoodCreateView(
+                    repository: repository,
+                    onCreated: { id in
+                        Task { await viewModel.load() }
+                        navigatedFoodId = id
+                        isNavigatingToFood = true
+                    },
+                    onFinished: { Task { await viewModel.load() } }
+                )
+            } label: {
+                HeaderActionButtonLabel()
+            }
+            .accessibilityLabel("New food")
         }
     }
 

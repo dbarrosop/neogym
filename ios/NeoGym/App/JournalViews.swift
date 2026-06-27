@@ -33,29 +33,11 @@ struct JournalListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
             .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Journal")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    JournalEntryCreateView(
-                        repository: repository,
-                        onCreated: { id in
-                            Task { await viewModel.load() }
-                            navigatedEntryId = id
-                            isNavigatingToEntry = true
-                        },
-                        onFinished: { Task { await viewModel.load() } }
-                    )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("New journal entry")
-            }
-        }
         .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
@@ -66,17 +48,34 @@ struct JournalListView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Journal")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
-            Text("Notes, reflections, and anything else worth remembering.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Tracking")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text("Journal")
+                    .font(.largeTitle.bold())
+                    .tracking(-0.8)
+                Text("Notes, reflections, and anything else worth remembering.")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer(minLength: 0)
+            NavigationLink {
+                JournalEntryCreateView(
+                    repository: repository,
+                    onCreated: { id in
+                        Task { await viewModel.load() }
+                        navigatedEntryId = id
+                        isNavigatingToEntry = true
+                    },
+                    onFinished: { Task { await viewModel.load() } }
+                )
+            } label: {
+                HeaderActionButtonLabel()
+            }
+            .accessibilityLabel("New journal entry")
         }
     }
 

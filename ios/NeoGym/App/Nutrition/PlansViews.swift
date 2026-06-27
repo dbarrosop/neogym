@@ -32,25 +32,9 @@ struct PlansListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
             .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
-        }
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                NavigationLink {
-                    NutritionPlanCreateView(
-                        repository: repository,
-                        onCreated: { id in
-                            Task { await viewModel.load() }
-                            navigatedPlanId = id
-                            isNavigatingToPlan = true
-                        },
-                        onFinished: { Task { await viewModel.load() } }
-                    )
-                } label: { Image(systemName: "plus") }
-                    .accessibilityLabel("New plan")
-            }
         }
         .background(pendingNavigationLink)
         .task { if case .idle = viewModel.state { await viewModel.load() } }
@@ -58,17 +42,34 @@ struct PlansListView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Nutrition")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Plans")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
-            Text("Create reusable one-day templates made of timed meal slots. Plans are suggestions only.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Nutrition")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text("Plans")
+                    .font(.largeTitle.bold())
+                    .tracking(-0.8)
+                Text("Create reusable one-day templates made of timed meal slots. Plans are suggestions only.")
+                    .font(.subheadline)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer(minLength: 0)
+            NavigationLink {
+                NutritionPlanCreateView(
+                    repository: repository,
+                    onCreated: { id in
+                        Task { await viewModel.load() }
+                        navigatedPlanId = id
+                        isNavigatingToPlan = true
+                    },
+                    onFinished: { Task { await viewModel.load() } }
+                )
+            } label: {
+                HeaderActionButtonLabel()
+            }
+            .accessibilityLabel("New plan")
         }
     }
 
