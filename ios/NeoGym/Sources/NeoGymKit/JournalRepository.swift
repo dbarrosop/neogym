@@ -25,7 +25,7 @@ public struct JournalRepository: JournalRepositoryProtocol {
         let variables = GraphQLScalars.variables(
             ("limit", .number(Double(limit))),
             ("offset", .number(Double(offset))),
-            ("where", Self.entriesWhere(labelIds: labelIds))
+            ("where", Self.entriesWhere(labelIds: labelIds) ?? .object([:]))
         )
         let data: JournalEntriesData = try await graphQL.execute(
             query: Self.journalEntriesQuery,

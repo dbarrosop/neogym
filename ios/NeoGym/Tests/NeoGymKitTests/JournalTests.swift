@@ -20,7 +20,7 @@ final class JournalRepositoryTests: XCTestCase {
         XCTAssertEqual(payload.labels.map(\.name), ["reflection"])
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.map(\.operationName), ["JournalEntries", "JournalLabelsForForm"])
-        XCTAssertNil(requests[0].variables?["where"])
+        XCTAssertEqual(requests[0].variables?["where"], .object([:]))
     }
 
     func testListEntriesBuildsAndLabelFilterWhereClause() async throws {
