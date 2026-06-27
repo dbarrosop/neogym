@@ -57,6 +57,8 @@ public final class SessionsListViewModel: ObservableObject {
             let loaded = try await repository.listSessions(limit: pageSize, offset: 0)
             hasNextPage = loaded.count == pageSize
             state = .loaded(loaded)
+        } catch is CancellationError {
+            state = state.value.map(Loadable.loaded) ?? .idle
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -70,6 +72,8 @@ public final class SessionsListViewModel: ObservableObject {
             let loaded = try await repository.listSessions(limit: pageSize, offset: sessions.count)
             hasNextPage = loaded.count == pageSize
             state = .loaded(sessions + loaded)
+        } catch is CancellationError {
+            // A view transition can cancel pagination/list reloads; keep the current list instead of surfacing it.
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

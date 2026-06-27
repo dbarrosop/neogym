@@ -204,6 +204,17 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.monthGroups[0].sessions.map(\.id), ["session-1", "session-2"])
     }
 
+    func testListIgnoresCancelledLoads() async {
+        let repository = StubSessionsRepository()
+        repository.listError = CancellationError()
+        let viewModel = SessionsListViewModel(repository: repository, pageSize: 25)
+
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.state.errorMessage)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
     func testDetailMutationsCallRepositoryAndReload() async throws {
         let detail = try decodedSessionDetailFixture()
         let repository = StubSessionsRepository(detail: detail)
@@ -440,6 +451,7 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var addedCardioEntryNumbers: [Int] = []
     var updatedCardioEntryIds: [String] = []
     var deletedCardioEntryIds: [String] = []
+    var listError: Error?
 
     init(sessions: [SessionListItem] = [], detail: SessionDetailModel? = nil) {
         self.sessions = sessions
@@ -447,7 +459,8 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     }
 
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem] {
-        Array(sessions.dropFirst(offset).prefix(limit))
+        if let listError { throw listError }
+        return Array(sessions.dropFirst(offset).prefix(limit))
     }
 
     func sessionDetail(id: String) async throws -> SessionDetailModel? {

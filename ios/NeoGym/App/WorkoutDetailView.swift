@@ -11,7 +11,6 @@ struct WorkoutDetailView: View {
     var onDeleted: () -> Void
 
     @Environment(\.presentationMode) private var presentationMode
-    @State private var startedSessionId: String?
 
     init(
         workoutId: String,
@@ -48,18 +47,6 @@ struct WorkoutDetailView: View {
         .navigationBarItems(trailing: editToolbarLink)
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .alert(
-            "Session started",
-            isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })
-        ) {
-            Button("View Sessions") {
-                if let startedSessionId { onSessionStarted(startedSessionId) }
-                startedSessionId = nil
-            }
-            Button("Stay here", role: .cancel) { startedSessionId = nil }
-        } message: {
-            Text("Your session was created from this workout. Open it now or keep browsing this workout.")
-        }
     }
 
     @ViewBuilder
@@ -129,7 +116,7 @@ struct WorkoutDetailView: View {
                         Button {
                             Task {
                                 if let id = await viewModel.startSession() {
-                                    startedSessionId = id
+                                    onSessionStarted(id)
                                 }
                             }
                         } label: {

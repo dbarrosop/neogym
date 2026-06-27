@@ -7,7 +7,6 @@ struct ExerciseDetailView: View {
     var onSessionStarted: (String) -> Void
 
     @State private var selectedTab = ExerciseDetailTab.progress
-    @State private var startedSessionId: String?
 
     init(
         exerciseId: String,
@@ -38,20 +37,6 @@ struct ExerciseDetailView: View {
             }
         }
         .refreshable { await viewModel.load() }
-        .alert(
-            "Session started",
-            isPresented: Binding(get: { startedSessionId != nil }, set: { if !$0 { startedSessionId = nil } })
-        ) {
-            Button("View Sessions") {
-                if let startedSessionId {
-                    onSessionStarted(startedSessionId)
-                }
-                startedSessionId = nil
-            }
-            Button("Stay here", role: .cancel) { startedSessionId = nil }
-        } message: {
-            Text("Your ad-hoc session was created. Open it now or keep browsing this exercise.")
-        }
     }
 
     @ViewBuilder
@@ -77,7 +62,7 @@ struct ExerciseDetailView: View {
                 ) {
                     Task {
                         if let id = await viewModel.startAdHocSession() {
-                            startedSessionId = id
+                            onSessionStarted(id)
                         }
                     }
                 }
