@@ -253,18 +253,23 @@ private struct JournalEntryListRow: View {
                         .font(.caption.weight(.semibold))
                         .textCase(.uppercase)
                         .foregroundColor(NeoGymTheme.mutedText)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                     if let title = entry.title, !title.isEmpty {
                         Text(title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
+                            .truncationMode(.tail)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 if !entry.previewText.isEmpty {
                     Text(entry.previewText)
                         .font(.subheadline)
                         .foregroundColor(NeoGymTheme.mutedText)
                         .lineLimit(2)
+                        .truncationMode(.tail)
                 }
                 if !entry.journalEntryLabels.isEmpty {
                     JournalLabelFlowLayout(spacing: 4) {
@@ -274,7 +279,7 @@ private struct JournalEntryListRow: View {
                     }
                 }
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -873,6 +878,8 @@ private struct JournalLabelChip: View {
     var body: some View {
         Label(name, systemImage: systemImage)
             .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .foregroundColor(selected ? .accentColor : NeoGymTheme.mutedText)
@@ -906,15 +913,14 @@ private struct JournalLabelFlowLayout<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        if #available(iOS 16.0, macOS 13.0, *) {
-            AnyLayout(HStackLayout(spacing: spacing)) {
-                content
-            }
-        } else {
-            HStack(spacing: spacing) {
-                content
-            }
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 104), spacing: spacing, alignment: .leading)],
+            alignment: .leading,
+            spacing: spacing
+        ) {
+            content
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
