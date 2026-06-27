@@ -1,6 +1,5 @@
 import NeoGymKit
 import SwiftUI
-import UIKit
 
 struct StrengthSetEditorState: Identifiable {
     enum Mode {
@@ -49,9 +48,9 @@ struct StrengthSetEditorView: View {
     let onDelete: () -> Void
     let onCancel: () -> Void
 
-    @State private var reps: String
-    @State private var weight: String
-    @State private var errorMessage: String?
+    @State private var reps: Int
+    @State private var weightKilograms: Int
+    @State private var weightTenths: Int
 
     init(
         state: StrengthSetEditorState,
@@ -65,72 +64,33 @@ struct StrengthSetEditorView: View {
         self.onSave = onSave
         self.onDelete = onDelete
         self.onCancel = onCancel
+
         let seed = state.previousSet
-        _reps = State(initialValue: seed.map { String($0.reps) } ?? "")
-        _weight = State(initialValue: seed.map { Self.formatWeight($0.weight) } ?? "")
+        let initialWeight = max(0, seed?.weight ?? 0)
+        let roundedTenths = Int((initialWeight * 10).rounded())
+        _reps = State(initialValue: min(Self.maximumReps, max(0, seed?.reps ?? Self.defaultReps(from: seed))))
+        _weightKilograms = State(initialValue: min(Self.maximumKilograms, max(0, roundedTenths / 10)))
+        _weightTenths = State(initialValue: min(9, max(0, roundedTenths % 10)))
     }
 
     var body: some View {
         NavigationView {
-            ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        SectionShell(title: state.exerciseName, subtitle: title) {
-                            VStack(spacing: NeoGymTheme.spacingSM) {
-                                setField(
-                                    title: "Weight",
-                                    detail: "kg\(state.doubleWeight ? " · per side" : "")",
-                                    placeholder: "0",
-                                    text: $weight,
-                                    keyboardType: .decimalPad
-                                )
-                                setField(
-                                    title: "Reps",
-                                    detail: nil,
-                                    placeholder: "0",
-                                    text: $reps,
-                                    keyboardType: .numberPad
-                                )
-                            }
-                        }
-
-                        if state.doubleWeight {
-                            Text("Volume counts both sides; enter the weight for one side to match the web app.")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(NeoGymTheme.spacingMD)
-                                .glassSurface(
-                                    cornerRadius: NeoGymTheme.radiusLG,
-                                    material: .ultraThin,
-                                    tint: NeoGymTheme.glassSubtleFill,
-                                    shadow: false
-                                )
-                        }
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundColor(NeoGymTheme.danger)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(NeoGymTheme.spacingMD)
-                                .glassSurface(
-                                    cornerRadius: NeoGymTheme.radiusLG,
-                                    material: .thin,
-                                    tint: NeoGymTheme.danger.opacity(0.06),
-                                    stroke: NeoGymTheme.danger.opacity(0.22),
-                                    shadow: false
-                                )
-                        }
-                        if case .edit = state.mode {
-                            Button("Delete set", role: .destructive, action: onDelete)
-                                .buttonStyle(NeoGymSecondaryButtonStyle())
-                                .disabled(isPending)
-                        }
+            Form {
+                Section {
+                    wheelRow
+                } header: {
+                    Text(state.exerciseName)
+                } footer: {
+                    if state.doubleWeight {
+                        Text("Enter the weight for one side. Volume still counts both sides, matching the web app.")
                     }
-                    .frame(maxWidth: 620)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+                }
+
+                if case .edit = state.mode {
+                    Section {
+                        Button("Delete set", role: .destructive, action: onDelete)
+                            .disabled(isPending)
+                    }
                 }
             }
             .navigationTitle(title)
@@ -149,59 +109,87 @@ struct StrengthSetEditorView: View {
         .navigationViewStyle(.stack)
     }
 
-    private func setField(
-        title: String,
-        detail: String?,
-        placeholder: String,
-        text: Binding<String>,
-        keyboardType: UIKeyboardType
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: NeoGymTheme.spacingSM) {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                Text(title)
+    private var wheelRow: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Set \(state.nextSetNumber)")
+                    .font(.headline)
+                Spacer()
+                Text(summary)
                     .font(.subheadline.weight(.semibold))
-                if let detail {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+
+            HStack(spacing: NeoGymTheme.spacingXS) {
+                wheelPicker(title: "kg", selection: $weightKilograms, values: 0...Self.maximumKilograms) { value in
+                    Text("\(value)").tag(value)
+                }
+
+                wheelPicker(title: "decimal", selection: $weightTenths, values: 0...9) { value in
+                    Text(".\(value)").tag(value)
+                }
+                .frame(maxWidth: 86)
+
+                wheelPicker(title: "reps", selection: $reps, values: 0...Self.maximumReps) { value in
+                    Text("\(value)").tag(value)
                 }
             }
-            Spacer(minLength: NeoGymTheme.spacingSM)
-            TextField(placeholder, text: text)
-                .keyboardType(keyboardType)
-                .multilineTextAlignment(.trailing)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
+            .frame(height: 170)
         }
-        .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
+        .padding(.vertical, NeoGymTheme.spacingXS)
+    }
+
+    private func wheelPicker<Content: View>(
+        title: String,
+        selection: Binding<Int>,
+        values: ClosedRange<Int>,
+        @ViewBuilder label: @escaping (Int) -> Content
+    ) -> some View {
+        VStack(spacing: NeoGymTheme.spacingXXS) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(NeoGymTheme.mutedText)
+            Picker(title, selection: selection) {
+                ForEach(Array(values), id: \.self) { value in
+                    label(value)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .clipped()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var title: String {
         switch state.mode {
         case .add:
-            return "Add set \(state.nextSetNumber)"
+            return "Add set"
         case let .edit(set):
             return "Edit set \(set.setNumber)"
         }
     }
 
+    private var weight: Double {
+        Double(weightKilograms) + (Double(weightTenths) / 10)
+    }
+
+    private var summary: String {
+        "\(Self.formatWeight(weight)) kg × \(reps)"
+    }
+
     private func save() {
-        switch SessionSetFormValidator.validate(repsText: reps, weightText: weight) {
-        case let .success(reps, weight):
-            errorMessage = nil
-            onSave(reps, weight)
-        case let .failure(message):
-            errorMessage = message
-        }
+        onSave(reps, weight)
     }
 
     private static func formatWeight(_ weight: Double) -> String {
         weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
     }
+
+    private static func defaultReps(from set: SessionStrengthSet?) -> Int {
+        set?.reps ?? 10
+    }
+
+    private static let maximumReps = 200
+    private static let maximumKilograms = 500
 }
