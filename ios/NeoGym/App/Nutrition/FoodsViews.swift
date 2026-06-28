@@ -87,6 +87,7 @@ struct FoodsListView: View {
                             .foregroundColor(NeoGymTheme.mutedText)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(10)

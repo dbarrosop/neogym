@@ -412,6 +412,7 @@ private struct MealGroupRow: View {
             } label: {
                 Image(systemName: "trash")
             }
+            .accessibilityLabel("Delete meal group")
         }
         .padding(10)
         .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
@@ -450,6 +451,7 @@ private struct EntryRow: View {
             } label: {
                 Image(systemName: "trash")
             }
+            .accessibilityLabel("Delete food entry")
         }
         .padding(10)
         .nutritionGlassCard(cornerRadius: 12)

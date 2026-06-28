@@ -26,6 +26,12 @@ Run these from `ios/NeoGym/`:
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
 
+If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
+`apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
+rerun the Swift/Xcode checks from a clean Xcode environment (for example via
+`xcrun swift ...` with Xcode's `DEVELOPER_DIR`) rather than treating it as an app
+compile failure.
+
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
 letterboxed on current devices.
@@ -126,8 +132,6 @@ intact instead of inventing one-off styles.
   ignored; either apply those parameters or simplify the API.
 - `SecondaryTabSection.icon` is defined but `SecondarySectionBar` renders only
   text. Decide whether to render icons or remove the protocol requirement.
-- Some icon-only buttons, especially search clear buttons in nutrition screens,
-  lack explicit accessibility labels.
 - Error presentation, mutation progress, and disabled primary-button opacity vary
   across forms. Prefer shared conventions/components when refactoring forms.
 - Long forms with decimal pads have minimal keyboard/focus support outside the

@@ -327,14 +327,17 @@ private struct MealIngredientEditorRow: View {
                 Button { form.moveIngredient(stableId: ingredient.stableId, direction: -1) } label: {
                     Image(systemName: "arrow.up")
                 }
+                .accessibilityLabel("Move ingredient up")
                 .disabled(index == 0 || isSubmitting)
                 Button { form.moveIngredient(stableId: ingredient.stableId, direction: 1) } label: {
                     Image(systemName: "arrow.down")
                 }
+                .accessibilityLabel("Move ingredient down")
                 .disabled(index == form.ingredients.count - 1 || isSubmitting)
                 Button(role: .destructive) { form.removeIngredient(stableId: ingredient.stableId) } label: {
                     Image(systemName: "trash")
                 }
+                .accessibilityLabel("Remove ingredient")
                 .disabled(isSubmitting)
             }
 

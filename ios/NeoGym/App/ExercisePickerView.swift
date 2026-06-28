@@ -76,6 +76,7 @@ struct ExercisePickerView: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(NeoGymTheme.spacingSM)
@@ -177,6 +178,7 @@ struct ExercisePickerView: View {
                                     .foregroundColor(NeoGymTheme.mutedText)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(exercise.name)")
                         }
                         .padding(.vertical, NeoGymTheme.spacingXXS)
                     }

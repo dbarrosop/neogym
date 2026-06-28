@@ -346,10 +346,13 @@ private struct WorkoutFormExerciseRowView: View {
             }
             Spacer()
             Button(action: moveUp) { Image(systemName: "chevron.up") }
+                .accessibilityLabel("Move exercise up")
                 .disabled(isFirst)
             Button(action: moveDown) { Image(systemName: "chevron.down") }
+                .accessibilityLabel("Move exercise down")
                 .disabled(isLast)
             Button(role: .destructive, action: remove) { Image(systemName: "xmark") }
+                .accessibilityLabel("Remove exercise")
         }
         .buttonStyle(.plain)
         .padding(.vertical, 10)
