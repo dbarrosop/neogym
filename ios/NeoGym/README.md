@@ -43,10 +43,14 @@ If XcodeGen is not available from Nix on a Darwin host, install it with Homebrew
 not commit the generated `.xcodeproj`; `project.yml` is the source of truth. App
 Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
 full-screen launch screen keys, are declared under the target `info.properties`
-in `project.yml`; rerun XcodeGen after changing them. Keep
-`LaunchScreen.storyboard` wired through `UILaunchStoryboardName`; without a
-launch screen, iOS can run the app in legacy letterboxed compatibility sizing on
-modern devices.
+in `project.yml`; rerun XcodeGen after changing them. The same spec also keeps
+the shared scheme's default debug diagnostics disabled: XcodeGen writes the
+supported GPU/main-thread/thread-performance settings, then
+`Scripts/disable-xcode-debug-options.py` patches the generated `.xcscheme` for
+XPC Services, Queue Debugging/backtrace recording, and View Debugging, which
+XcodeGen does not expose directly. Keep `LaunchScreen.storyboard` wired through
+`UILaunchStoryboardName`; without a launch screen, iOS can run the app in legacy
+letterboxed compatibility sizing on modern devices.
 
 ## Commands
 

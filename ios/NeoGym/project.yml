@@ -1,6 +1,7 @@
 name: NeoGym
 options:
   minimumXcodeGenVersion: 2.44.0
+  postGenCommand: python3 Scripts/disable-xcode-debug-options.py
   deploymentTarget:
     iOS: "15.0"
 packages:
@@ -15,6 +16,12 @@ schemes:
     build:
       targets:
         NeoGym: all
+    run:
+      # Keep regenerated schemes from turning on costly default diagnostics.
+      enableGPUFrameCaptureMode: disabled
+      enableGPUValidationMode: false
+      disableMainThreadChecker: true
+      disableThreadPerformanceChecker: true
 targets:
   NeoGym:
     type: application

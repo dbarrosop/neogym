@@ -83,6 +83,9 @@ From `ios/NeoGym/`:
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
 - `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
   After adding/removing Swift app files, wait for XcodeGen to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors.
+  The spec's post-generation script patches the shared scheme to keep XPC
+  Services, Queue Debugging/backtrace recording, View Debugging, and related
+  default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
