@@ -54,15 +54,33 @@ struct AlternatingStorageImageView: View {
                             .tag(index)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .automatic))
+                .tabViewStyle(.page(indexDisplayMode: .never))
                 .aspectRatio(aspectRatio, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(alignment: .bottom) {
+                    imagePageIndicator
+                        .padding(.bottom, 6)
+                }
                 .onReceive(Timer.publish(every: interval, on: .main, in: .common).autoconnect()) { _ in
                     guard urls.count > 1 else { return }
                     activeIndex = (activeIndex + 1) % urls.count
                 }
             }
         }
+    }
+
+    private var imagePageIndicator: some View {
+        HStack(spacing: 5) {
+            ForEach(urls.indices, id: \.self) { index in
+                Circle()
+                    .fill(index == activeIndex ? Color.white : Color.white.opacity(0.45))
+                    .frame(width: 5, height: 5)
+                    .shadow(color: .black.opacity(0.3), radius: 1, y: 1)
+            }
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
     }
 }
 
