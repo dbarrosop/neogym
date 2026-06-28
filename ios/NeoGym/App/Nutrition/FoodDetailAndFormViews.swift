@@ -277,6 +277,15 @@ struct FoodEditView: View {
 }
 
 private struct FoodFormScreen: View {
+    private enum NumericField: Hashable {
+        case calories
+        case fat
+        case carbs
+        case protein
+        case fiber
+        case sugar
+    }
+
     let title: String
     let submitLabel: String
     @ObservedObject var form: FoodFormModel
@@ -285,6 +294,8 @@ private struct FoodFormScreen: View {
     let onSubmit: () -> Void
     let onCancel: () -> Void
     var deleteAction: (() -> Void)?
+
+    @FocusState private var focusedField: NumericField?
 
     var body: some View {
         ScrollView {
@@ -307,12 +318,12 @@ private struct FoodFormScreen: View {
                         .foregroundColor(NeoGymTheme.mutedText)
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        nutrientField("Calories", unit: "kcal", text: $form.kcalPer100g)
-                        nutrientField("Fat", unit: "g", text: $form.fatPer100g)
-                        nutrientField("Carbs", unit: "g", text: $form.carbsPer100g)
-                        nutrientField("Protein", unit: "g", text: $form.proteinPer100g)
-                        nutrientField("Fiber", unit: "g", text: $form.fiberPer100g)
-                        nutrientField("Sugar", unit: "g", text: $form.sugarPer100g)
+                        nutrientField("Calories", unit: "kcal", text: $form.kcalPer100g, field: .calories)
+                        nutrientField("Fat", unit: "g", text: $form.fatPer100g, field: .fat)
+                        nutrientField("Carbs", unit: "g", text: $form.carbsPer100g, field: .carbs)
+                        nutrientField("Protein", unit: "g", text: $form.proteinPer100g, field: .protein)
+                        nutrientField("Fiber", unit: "g", text: $form.fiberPer100g, field: .fiber)
+                        nutrientField("Sugar", unit: "g", text: $form.sugarPer100g, field: .sugar)
                     }
 
                     if let errorMessage {
@@ -327,14 +338,21 @@ private struct FoodFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
+        .keyboardDoneToolbar(focusedField: $focusedField)
     }
 
-    private func nutrientField(_ label: String, unit: String, text: Binding<String>) -> some View {
+    private func nutrientField(
+        _ label: String,
+        unit: String,
+        text: Binding<String>,
+        field: NumericField
+    ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(label).font(.subheadline.weight(.semibold))
             HStack {
                 TextField("0", text: text)
                     .keyboardType(.decimalPad)
+                    .numericFieldFocus(field, focusedField: $focusedField)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                 Text(unit)

@@ -112,7 +112,10 @@ intact instead of inventing one-off styles.
   autocapitalization for names/titles, `.never` plus disabled autocorrection for
   emails, IDs, labels, and numeric text; use `.decimalPad` for weights/grams and
   macro fields, `.numberPad` for integer/cardio duration parts, compact
-  `DatePicker` for dates, and wheel time pickers in modal logging sheets.
+  `DatePicker` for dates, and wheel time pickers in modal logging sheets. Actual
+  `.decimalPad`/`.numberPad` `TextField`s outside OTP should opt in to local
+  `@FocusState` plus `KeyboardDoneToolbar`/`numericFieldFocus` so the keyboard
+  has a Done dismissal affordance without moving validation into `NeoGymKit`.
   Multi-line notes/descriptions use `TextEditor` with a minimum height and muted
   helper text where useful. OTP entry uses the custom `OTPCodeField` so paste,
   one-time-code autofill, six-digit filtering, focus, and accessibility stay
@@ -142,8 +145,6 @@ intact instead of inventing one-off styles.
   mutation-progress, or submit-button presentation. Prefer
   `PrimaryActionButton`, `InlineProgressLabel`, and `FeedbackBanner` when
   refactoring those forms.
-- Long forms with decimal pads have minimal keyboard/focus support outside the
-  OTP field; consider focused-field management and a Done affordance.
 - Nutrition-specific glass helpers partially fork from generic app primitives;
   keep the fork intentional or converge naming/usage.
 - Custom time-series charts are visual-first today; add VoiceOver summaries when

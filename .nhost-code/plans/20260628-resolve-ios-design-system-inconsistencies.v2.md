@@ -411,7 +411,10 @@ useful, manage focus locally.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added `ios/NeoGym/App/Components/KeyboardDoneToolbar.swift` with opt-in `.keyboardDoneToolbar(focusedField:)` and `.numericFieldFocus(_:focusedField:)` helpers using local `@FocusState` bindings and `ToolbarItemGroup(placement: .keyboard)`. Wired local focus and Done dismissal into decimal/number-pad fields in body measurement, cardio metric scalar/duration, food nutrient, nutrition grams, and meal ingredient grams forms. Left `OTPCodeField` unchanged and kept validation/focus state out of `NeoGymKit`. Updated `ios/NeoGym/CLAUDE.md` with the numeric keyboard Done convention.
+- **Reviewer verdict:** `ACCEPT`. Reviewer independently grepped all app `.decimalPad`/`.numberPad` sites and confirmed every in-scope field was wired, `OTPCodeField` remained untouched, and plan-listed `LogFoodMealSheets`/`PlanEditorViews` were correctly unchanged because they do not directly contain decimal/number-pad text fields in scope.
+- **Autonomous decisions:** Did not add a Done toolbar to `PlanEditorViews` slot-time `.numbersAndPunctuation` because Phase 4 explicitly targeted `.decimalPad`/`.numberPad` text fields; keeping scope narrow preserves correctness and avoids behavior drift. Accepted no automated tests because this is keyboard/focus UI behavior without an existing UI automation harness; build/test plus reviewer source audit is the strongest available validation in this environment.
+- **Quality gate:** Clean Xcode environment with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: `xcrun swift build` passed, `xcrun swift test` passed, `nix develop ../.. --command xcodegen generate` passed for the new helper file, `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed, `git diff --check` passed, and `git status --short` showed only expected phase files plus this living-plan update. Manual small-simulator keyboard and OTP sanity checks were not possible in this non-interactive session.
 
 ### Phase 5 — Glass API honesty with baseline and sign-off
 

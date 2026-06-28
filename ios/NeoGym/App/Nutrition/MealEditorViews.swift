@@ -198,6 +198,8 @@ private struct MealFormScreen: View {
     let onCancel: () -> Void
     var deleteAction: (() -> Void)?
 
+    @FocusState private var focusedIngredientId: String?
+
     var body: some View {
         ScrollView {
             SectionShell(title: title, subtitle: "Meal templates") {
@@ -220,6 +222,7 @@ private struct MealFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
+        .keyboardDoneToolbar(focusedField: $focusedIngredientId)
     }
 
     private var textFields: some View {
@@ -275,7 +278,8 @@ private struct MealFormScreen: View {
                     ingredient: ingredient,
                     foods: foods,
                     isSubmitting: isSubmitting,
-                    form: form
+                    form: form,
+                    focusedIngredientId: $focusedIngredientId
                 )
             }
             Button {
@@ -315,6 +319,7 @@ private struct MealIngredientEditorRow: View {
     let foods: [Food]
     let isSubmitting: Bool
     @ObservedObject var form: MealFormModel
+    let focusedIngredientId: FocusState<String?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -358,6 +363,7 @@ private struct MealIngredientEditorRow: View {
                         set: { form.updateIngredient(stableId: ingredient.stableId, grams: $0) }
                     ))
                     .keyboardType(.decimalPad)
+                    .numericFieldFocus(ingredient.stableId, focusedField: focusedIngredientId)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                     Text("g")
