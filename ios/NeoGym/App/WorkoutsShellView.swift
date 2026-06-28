@@ -15,14 +15,6 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable, SecondaryTabSection
         case .exercises: "Exercises"
         }
     }
-
-    var icon: String {
-        switch self {
-        case .sessions: "timer"
-        case .workouts: "figure.strengthtraining.traditional"
-        case .exercises: "dumbbell"
-        }
-    }
 }
 
 struct WorkoutsSectionNavigationView: View {

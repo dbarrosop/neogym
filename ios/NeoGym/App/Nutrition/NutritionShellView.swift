@@ -19,16 +19,6 @@ enum NutritionSection: String, CaseIterable, Identifiable, SecondaryTabSection {
         case .meals: "Meals"
         }
     }
-
-    var icon: String {
-        switch self {
-        case .overview: "chart.pie"
-        case .days: "calendar"
-        case .plans: "list.bullet.rectangle"
-        case .foods: "apple.logo"
-        case .meals: "fork.knife.circle"
-        }
-    }
 }
 
 struct NutritionNavigationView: View {

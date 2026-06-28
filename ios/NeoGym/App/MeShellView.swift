@@ -16,14 +16,6 @@ enum MeSection: String, CaseIterable, Identifiable, SecondaryTabSection {
         case .journal: "Journal"
         }
     }
-
-    var icon: String {
-        switch self {
-        case .profile: "person.crop.circle"
-        case .body: "heart.text.square"
-        case .journal: "book.closed"
-        }
-    }
 }
 
 struct MeNavigationView: View {

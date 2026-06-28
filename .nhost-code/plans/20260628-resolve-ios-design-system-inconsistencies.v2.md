@@ -276,7 +276,10 @@ lowest-risk accessibility gaps first.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Removed the unused `icon` requirement from `SecondaryTabSection` and deleted the `icon` implementations from `WorkoutAreaSection`, `NutritionSection`, and `MeSection`. Kept `SecondarySectionBar` text-only rendering, accessibility label, and Dynamic Type cap unchanged. Updated `ios/NeoGym/CLAUDE.md` to document that secondary bars are intentionally text-only for compact segmented controls and removed the resolved inconsistency item.
+- **Reviewer verdict:** `ACCEPT`. Reviewer verified the diff was limited to the five in-scope files, no remaining `section.icon`/secondary `var icon` references existed, and the rendering path is unchanged because icons were never read.
+- **Autonomous decisions:** Accepted lack of manual navigation check as non-blocking because removing dead protocol/enum members cannot change the visible secondary bar rendering; this follows correctness and long-term maintenance by avoiding unnecessary rework while eliminating misleading API surface. Treated repeated acceptance-wrapper failures about missing tests as non-blocking because the phase is a no-behavior API cleanup and existing build/test gates are the meaningful validation.
+- **Quality gate:** Clean Xcode environment with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: `xcrun swift build` passed, `xcrun swift test` passed, `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed, `git diff --check` passed, and `git status --short` showed only expected phase files plus this living-plan update.
 
 ### Phase 3 — Shared representative form status and action primitives
 
