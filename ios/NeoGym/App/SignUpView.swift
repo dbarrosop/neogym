@@ -93,17 +93,13 @@ struct SignUpView: View {
                 FeedbackBanner(message: error)
             }
 
-            Button {
+            PrimaryActionButton(
+                title: "Send code",
+                busyTitle: "Sending code",
+                isBusy: model.isSending
+            ) {
                 Task { await model.requestCode() }
-            } label: {
-                if model.isSending {
-                    SignUpProgressViewLabel(title: "Sending code")
-                } else {
-                    Text("Send code")
-                }
             }
-            .buttonStyle(NeoGymPrimaryButtonStyle())
-            .disabled(model.isSending)
         }
     }
 
@@ -113,21 +109,17 @@ struct SignUpView: View {
                 verify()
             }
 
-            if model.isVerifying {
-                SignUpProgressViewLabel(title: "Verifying")
-                    .font(.footnote)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-
             if let error = model.errorMessage {
                 FeedbackBanner(message: error)
             }
 
-            Button("Verify code") {
-                verify()
-            }
-            .buttonStyle(NeoGymPrimaryButtonStyle())
-            .disabled(model.isVerifying || model.otp.count != 6)
+            PrimaryActionButton(
+                title: "Verify code",
+                busyTitle: "Verifying",
+                isBusy: model.isVerifying,
+                isEnabled: model.otp.count == 6,
+                action: verify
+            )
         }
         .frame(maxWidth: .infinity)
     }
@@ -171,17 +163,6 @@ private struct TextFieldOptions {
     let contentType: UITextContentType
     let keyboardType: UIKeyboardType
     let autocapitalization: TextInputAutocapitalization
-}
-
-private struct SignUpProgressViewLabel: View {
-    let title: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-            Text(title)
-        }
-    }
 }
 
 #Preview("Sign up") {

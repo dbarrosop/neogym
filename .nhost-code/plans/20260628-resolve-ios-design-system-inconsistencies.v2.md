@@ -346,7 +346,10 @@ presentation without changing validation or flows.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added `ios/NeoGym/App/Components/FormStatePrimitives.swift` with `InlineProgressLabel(title:)` and `PrimaryActionButton(title:busyTitle:isBusy:isEnabled:action:)`. Migrated the representative sign-in, sign-up, change-email, workout, body measurement, and food forms to the shared submit/busy primitive where appropriate and replaced representative inline red form errors with `FeedbackBanner`. Updated `ios/NeoGym/CLAUDE.md` with primitive names, usage guidance, and the intentionally limited adoption boundary.
+- **Reviewer verdict:** `ACCEPT`. Reviewer verified disabled/busy mappings are equivalent, validation remained in `NeoGymKit`, submit/callback/navigation order did not change, and later phases are not preempted.
+- **Autonomous decisions:** Accepted no new automated tests because this phase standardizes SwiftUI presentation while existing `NeoGymKit` tests cover validation semantics; correctness is better served by build/test and reviewer diff validation than by adding brittle UI-only tests without an existing harness. Accepted minor visual nuance changes as intentional standardization: disabled dimming now relies on `NeoGymPrimaryButtonStyle`/system disabled appearance and verify progress appears inside the primary button.
+- **Quality gate:** Clean Xcode environment with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: `xcrun swift build` passed, `xcrun swift test` passed, `nix develop ../.. --command xcodegen generate` passed for the new app component file, `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed, `git diff --check` passed, and `git status --short` showed only expected phase files plus this living-plan update. Manual UI disabled/progress/error checks were not possible in this non-interactive session.
 
 ### Phase 4 — Keyboard Done and focused numeric fields outside OTP
 

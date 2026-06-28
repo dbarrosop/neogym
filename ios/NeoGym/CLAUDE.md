@@ -30,7 +30,9 @@ If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
 rerun the Swift/Xcode checks from a clean Xcode environment (for example via
 `xcrun swift ...` with Xcode's `DEVELOPER_DIR`) rather than treating it as an app
-compile failure.
+compile failure. For `xcodebuild`, also unset Nix toolchain overrides such as
+`SDKROOT`, `CC`, `CXX`, `LD`, `AR`, and `LDFLAGS`; leaving `LD=ld` can make the
+simulator link step fail with `ld: -objc_abi_version '-Xlinker' not supported`.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
@@ -98,10 +100,14 @@ intact instead of inventing one-off styles.
   retained.
 - **Forms and validation**: non-trivial forms keep field state and validation in
   `NeoGymKit` `ObservableObject` form models (`valuesForSubmit()`, `canSubmit`,
-  `errorMessage`) and keep SwiftUI views focused on layout. Disable submit while
-  saving or invalid, surface validation errors near actions in danger styling or
-  `FeedbackBanner`, call parent callbacks before dismissing, and keep unit tests
-  around model-level validation rather than live services.
+  `errorMessage`) and keep SwiftUI views focused on layout. Representative
+  forms use the app-layer `PrimaryActionButton` for primary submit actions,
+  `InlineProgressLabel` for inline busy copy, and `FeedbackBanner` for
+  form-level errors near the actions. Disable submit while saving or invalid,
+  call parent callbacks before dismissing, and keep unit tests around
+  model-level validation rather than live services; a full app-wide form
+  migration is intentionally out of scope unless a view is already being
+  refactored.
 - **Inputs**: label fields with `.subheadline.weight(.semibold)`. Use `.words`
   autocapitalization for names/titles, `.never` plus disabled autocorrection for
   emails, IDs, labels, and numeric text; use `.decimalPad` for weights/grams and
@@ -132,8 +138,10 @@ intact instead of inventing one-off styles.
 
 - `GlassPanel` and `.glassSurface(...)` accept styling parameters that are partly
   ignored; either apply those parameters or simplify the API.
-- Error presentation, mutation progress, and disabled primary-button opacity vary
-  across forms. Prefer shared conventions/components when refactoring forms.
+- Some forms outside the representative migration still use local error,
+  mutation-progress, or submit-button presentation. Prefer
+  `PrimaryActionButton`, `InlineProgressLabel`, and `FeedbackBanner` when
+  refactoring those forms.
 - Long forms with decimal pads have minimal keyboard/focus support outside the
   OTP field; consider focused-field management and a Done affordance.
 - Nutrition-specific glass helpers partially fork from generic app primitives;

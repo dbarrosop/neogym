@@ -25,7 +25,9 @@ struct SignInView: View {
             subtitle: model.sentTo == nil
                 ? "Pick up your training log, body metrics, nutrition plans, and journal without a password."
                 : "Your one-time passcode keeps this device connected to the same secure account.",
-            systemImage: model.sentTo == nil ? "figure.strengthtraining.traditional" : "envelope.badge.shield.half.filled"
+            systemImage: model.sentTo == nil
+                ? "figure.strengthtraining.traditional"
+                : "envelope.badge.shield.half.filled"
         ) {
             AuthCard(
                 title: model.sentTo == nil ? "Email sign in" : "Enter your code",
@@ -79,17 +81,13 @@ struct SignInView: View {
                 FeedbackBanner(message: error)
             }
 
-            Button {
+            PrimaryActionButton(
+                title: "Send code",
+                busyTitle: "Sending code",
+                isBusy: model.isSending
+            ) {
                 Task { await model.requestCode() }
-            } label: {
-                if model.isSending {
-                    ProgressViewLabel(title: "Sending code")
-                } else {
-                    Text("Send code")
-                }
             }
-            .buttonStyle(NeoGymPrimaryButtonStyle())
-            .disabled(model.isSending)
         }
     }
 
@@ -99,21 +97,17 @@ struct SignInView: View {
                 verify()
             }
 
-            if model.isVerifying {
-                ProgressViewLabel(title: "Verifying")
-                    .font(.footnote)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-
             if let error = model.errorMessage {
                 FeedbackBanner(message: error)
             }
 
-            Button("Verify code") {
-                verify()
-            }
-            .buttonStyle(NeoGymPrimaryButtonStyle())
-            .disabled(model.isVerifying || model.otp.count != 6)
+            PrimaryActionButton(
+                title: "Verify code",
+                busyTitle: "Verifying",
+                isBusy: model.isVerifying,
+                isEnabled: model.otp.count == 6,
+                action: verify
+            )
         }
         .frame(maxWidth: .infinity)
     }
@@ -150,17 +144,6 @@ struct SignInView: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(NeoGymTheme.glassStrokeSecondary)
                 )
-        }
-    }
-}
-
-private struct ProgressViewLabel: View {
-    let title: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-            Text(title)
         }
     }
 }

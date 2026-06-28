@@ -593,9 +593,7 @@ private struct BodyMeasurementFormScreen: View {
                     }
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
 
                     actions
@@ -638,10 +636,13 @@ private struct BodyMeasurementFormScreen: View {
 
     private var actions: some View {
         VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.hasMeasurementValue)
-                .opacity(isSubmitting || !form.hasMeasurementValue ? 0.6 : 1)
+            PrimaryActionButton(
+                title: submitLabel,
+                busyTitle: "Saving",
+                isBusy: isSubmitting,
+                isEnabled: form.hasMeasurementValue,
+                action: onSubmit
+            )
             Button("Cancel", action: onCancel)
                 .buttonStyle(NeoGymSecondaryButtonStyle())
                 .disabled(isSubmitting)
@@ -683,7 +684,7 @@ struct BodyTrendChartView: View {
                     }
                 },
                 valueFormatter: BodyMeasurementFormatters.axisBodyFat
-            ),
+            )
         ]
     }
 
