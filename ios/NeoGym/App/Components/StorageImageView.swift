@@ -78,9 +78,6 @@ struct AlternatingStorageImageView: View {
                     .shadow(color: .black.opacity(0.3), radius: 1, y: 1)
             }
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 4)
-        .background(.ultraThinMaterial, in: Capsule(style: .continuous))
     }
 }
 
