@@ -15,7 +15,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/_authed` layout navigation | Seven-destination native shell: Workouts, Exercises, Sessions, Body, Nutrition, Journal, Profile | 1 | ☑ complete | All seven native destinations are wired and directly discoverable; custom horizontal shell avoids iOS 15 `TabView` More hiding destinations. |
+| `/_authed` layout navigation | Grouped native shell: Workouts, Nutrition, Me primary tabs with secondary sections for Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal | 1 | ☑ complete | All seven signed-in destinations are wired through the grouped shell; the native `TabView` uses only three primary tabs, so iOS 15 does not hide destinations behind `More`. |
 | `/profile` view | Profile destination | 1 | ☑ complete | Existing profile UI remains the only non-placeholder Phase 1 destination. |
 | Profile sign out | Profile sign-out action | 1 | ☑ complete | Existing `AuthStore.signOut()` still clears local session after remote sign-out attempt. |
 | Profile change email request | Change email sheet | 1 | ☑ complete | Existing app-side PKCE flow preserved. |

@@ -1,7 +1,12 @@
 # iOS full-screen Liquid Glass redesign
 
-**Status:** ready
+**Status:** implemented; plan-conformance amended 2026-06-28
 **Created:** 2026-06-27
+
+> 2026-06-28 amendment: the shipped shell intentionally uses a native three-tab
+> grouped IA (Workouts, Nutrition, Me) with secondary glass section bars instead
+> of the earlier seven-item custom dock. This keeps the navigation out of iOS's
+> native `More` overflow while reducing custom shell complexity.
 
 ---
 
@@ -17,7 +22,7 @@ The native iOS app now has broad feature parity, but the UI feels cramped and da
 
 - Make the iOS app use the full screen on simulator and phone, with safe-area-aware immersive backgrounds and modern native spacing.
 - Adopt a Liquid Glass-inspired visual language using iOS 15-compatible SwiftUI materials, layered gradients, translucent panels, depth, large typography, and native interactions.
-- Replace the dated signed-in top pill strip with a modern full-screen shell and a custom glass navigation dock that keeps all seven top-level destinations discoverable.
+- Replace the dated signed-in top pill strip with a modern full-screen shell that uses three native primary tabs (Workouts, Nutrition, Me) plus persistent glass secondary section bars for the seven signed-in destinations.
 - Redesign signed-out auth, loading, and error states so they are no longer small centered card experiences.
 - Refactor shared visual primitives so Workouts, Exercises, Sessions, Body, Nutrition, Journal, Profile, sheets, forms, and state panels inherit the new look without rewriting business logic.
 - Preserve auth/profile/deep-link behavior, cloud test configuration, OTP duplicate-submit guard, SDK auth verify call, GraphQL data flow, and existing feature parity behavior.
@@ -37,7 +42,7 @@ The native iOS app now has broad feature parity, but the UI feels cramped and da
 - `ios/NeoGym/App/Theme/GridBackground.swift` — evolve full-bleed background while keeping compatibility during migration.
 - `ios/NeoGym/App/Components/` — add glass primitives and restyle auth/state/buttons/banners/pickers.
 - `ios/NeoGym/App/RootView.swift` — root background ownership and full-screen loading/error states while preserving auth routing/deep links.
-- `ios/NeoGym/App/AppShellView.swift` — replace top pill strip with full-screen shell and custom dock.
+- `ios/NeoGym/App/AppShellView.swift` — replace top pill strip with a full-screen native three-tab shell.
 - `ios/NeoGym/App/Nutrition/NutritionShellView.swift` — redesign nested Nutrition navigation.
 - `ios/NeoGym/App/SignInView.swift`, `SignUpView.swift`, `ChangeEmailSheet.swift`, `ProfileView.swift` — auth/account visual treatment.
 - `ios/NeoGym/App/*.swift` and `ios/NeoGym/App/Nutrition/*.swift` — domain screen chrome, backgrounds, sheets, forms, and safe-area polish.
@@ -56,7 +61,7 @@ The native iOS app now has broad feature parity, but the UI feels cramped and da
 ### 1.6 Success criteria
 
 - The app fills modern iPhone screens and no longer reads as a small-card/old-pill layout.
-- Signed-in navigation is modern, bottom/safe-area-aware, accessible, and exposes all seven top-level destinations.
+- Signed-in navigation is modern, safe-area-aware, accessible, and keeps the seven signed-in destinations reachable through three primary groups without native `More` overflow.
 - Auth, loading, error, profile, sheets, state views, forms, lists, and Nutrition sub-navigation share a cohesive glass language.
 - Existing feature parity behavior remains intact.
 - Every phase passes `swift build && swift test`, XcodeGen, and app `xcodebuild`, or records exact blockers.
@@ -68,7 +73,7 @@ The native iOS app now has broad feature parity, but the UI feels cramped and da
 
 ### 2.1 Central design decision
 
-Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`, using semantic color tokens, layered gradients, SwiftUI `Material`, shared glass surfaces, and safe-area-aware scaffolds. Use a custom floating bottom glass dock instead of stock `TabView` so all seven primary destinations remain discoverable and no destination is hidden behind native `More`. Centralize immersive background ownership through `RootView`/`ScreenScaffold` and migrate nested/domain backgrounds away from stacked aurora layers.
+Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`, using semantic color tokens, layered gradients, SwiftUI `Material`, shared glass surfaces, and safe-area-aware scaffolds. Use a stock SwiftUI `TabView` for the three primary groups (Workouts, Nutrition, Me) so iOS never creates a native `More` tab, and expose the seven signed-in destinations through persistent glass secondary section bars inside those groups. Centralize immersive background ownership through `RootView`/`ScreenScaffold` and migrate nested/domain backgrounds away from stacked aurora layers.
 
 ### 2.2 Key constraints and invariants
 
@@ -85,7 +90,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 ### 2.3 Touched surfaces
 
 - `ios/NeoGym/App/Theme/` — visual tokens and full-bleed background.
-- `ios/NeoGym/App/Components/GlassSurface.swift` or `GlassPrimitives.swift` — new shared glass panels, modifiers, scaffold, dock helpers, field/button styling.
+- `ios/NeoGym/App/Components/GlassSurface.swift` or `GlassPrimitives.swift` — new shared glass panels, modifiers, scaffold, field/button styling, and any legacy spacing aliases needed during migration.
 - `ios/NeoGym/App/Components/AppStateViews.swift` — `SectionShell`, state views, and `ConfirmationPanel` become wrappers around shared glass primitives.
 - `ios/NeoGym/App/Components/AuthCard.swift` — repurpose or retire centered-card framing in favor of full-screen form panels.
 - `ios/NeoGym/App/AppShellView.swift` and `Nutrition/NutritionShellView.swift` — navigation redesign.
@@ -135,7 +140,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 - `cd ios/NeoGym && swift build && swift test`
 - `cd ios/NeoGym && nix develop ../.. --command xcodegen generate`
 - `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build`
-- Boot/run the simulator and visually sample at least one screen from each top-level destination to confirm Phase 1 did not make stacked backgrounds visibly worse.
+- Boot/run the simulator and visually sample each primary group plus its secondary sections to confirm Phase 1 did not make stacked backgrounds visibly worse.
 - Verify generated `.xcodeproj` output is not staged.
 
 **Definition of done:**
@@ -157,9 +162,9 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 - Autonomous decisions: accepted structural background-safety evidence in place of interactive simulator sampling for Phase 1 because correctness is covered by Xcode app compilation plus reviewer confirmation that stacked backgrounds are now idempotent; later phases retain simulator render checks.
 - Quality gate: `swift build` passed; `swift test` passed with 165 tests; `nix develop ../.. --command xcodegen generate` passed; `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed with `** BUILD SUCCEEDED **`; generated project output was not staged.
 
-### Phase 2 — Full-screen signed-in shell and glass dock
+### Phase 2 — Full-screen signed-in shell and grouped navigation
 
-**Goal:** Replace the top pill strip with a full-screen shell and custom bottom glass dock while keeping all destination routing functional.
+**Goal:** Replace the top pill strip with a full-screen grouped shell while keeping all destination routing functional.
 
 **Depends on:** Phase 1
 
@@ -169,7 +174,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Scope / files:**
 
-- `ios/NeoGym/App/AppShellView.swift` — full-screen content plus custom bottom dock.
+- `ios/NeoGym/App/AppShellView.swift` — full-screen native `TabView` shell with three primary groups.
 - `ios/NeoGym/App/Nutrition/NutritionShellView.swift` — glass secondary navigation.
 - Optional app-only appearance helper under `ios/NeoGym/App/Components/` — centralized iOS 15 bar/list appearance if needed.
 
@@ -177,39 +182,39 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 1. Remove `AppShellView`'s top horizontal pill `ScrollView` and `Divider`.
 2. Render selected destination content full-screen over the shared scaffold.
-3. Attach a custom bottom glass dock with `.safeAreaInset(edge: .bottom)` so the reserved inset propagates into nested `NavigationView`/scroll views immediately.
-4. Keep all seven destinations visible/discoverable through a horizontally scrollable or adaptive dock; do not use stock `TabView` if it hides destinations behind `More`.
+3. Use a stock SwiftUI `TabView` with exactly three primary tabs so the shell gets native tab behavior without triggering iOS's `More` overflow.
+4. Keep the seven signed-in destinations discoverable through stable secondary section bars: Sessions/Workouts/Exercises under Workouts, Nutrition subsections under Nutrition, and Profile/Body/Journal under Me.
 5. Preserve `selection`, `pendingSessionId`, and Workouts/Exercises start-session routing to Sessions.
-6. Add dock accessibility: 44x44 minimum hit targets, VoiceOver labels, selected state/traits, Dynamic Type tolerance, and narrow-screen horizontal scrolling.
+6. Keep navigation accessibility intact: native tab labels/selected state for primary groups, labeled secondary controls, and Dynamic Type tolerance.
 7. Redesign Nutrition's nested nav as a glass segmented/secondary bar while preserving `selection`, `selectedDate`, and callbacks.
-8. Verify dock-over-pushed-detail and keyboard interactions do not collide with detail/form bottom controls.
+8. Verify pushed-detail, secondary bar, and keyboard interactions do not collide with detail/form controls.
 
 **Tests and checks:**
 
 - `cd ios/NeoGym && swift build && swift test`
 - `cd ios/NeoGym && nix develop ../.. --command xcodegen generate`
 - `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build`
-- Boot simulator and manually verify all seven destinations, Nutrition sections, pushed details, narrow/tall device layouts, and Workouts/Exercises start-session routing into Sessions.
+- Boot simulator and manually verify all three primary tabs, all secondary sections, Nutrition sections, pushed details, narrow/tall device layouts, and Workouts/Exercises start-session routing into Sessions.
 - Verify generated `.xcodeproj` output is not staged.
 
 **Definition of done:**
 
-- All destinations remain reachable and selected state is visible/accessibility-friendly.
-- No content is hidden behind the dock on short and tall devices.
+- All destinations remain reachable through the grouped shell and selected state is visible/accessibility-friendly.
+- No content is obscured by tab/secondary navigation on short and tall devices.
 - Cross-tab session routing still works.
 - The app compiles via Xcode and NeoGymKit regression tests pass.
 
-**Phase commit message:** `style(ios): add full-screen glass app shell`
+**Phase commit message:** `style(ios): add grouped glass app shell`
 
 **Implementation log**
 
-- Replaced the signed-in top pill strip with a full-screen content shell and custom bottom glass dock in `AppShellView`.
-- Kept all seven destinations discoverable in a horizontally scrollable dock with selected styling, VoiceOver labels/selected state, and 44pt+ hit targets.
-- Preserved Workouts/Exercises start-session routing by keeping the existing `pendingSessionId` and `selection = .sessions` flow.
+- Replaced the signed-in top pill strip with a full-screen grouped shell in `AppShellView` using native `TabView` for Workouts, Nutrition, and Me.
+- Kept the seven signed-in destinations reachable through persistent secondary section bars: Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal.
+- Preserved Workouts/Exercises start-session routing by keeping the existing `pendingSessionId` flow into the Workouts/Sessions group.
 - Restyled Nutrition's secondary navigation as a glass segmented bar while preserving `selection`, `selectedDate`, and callbacks.
-- Added keyboard-aware dock hiding to avoid collisions with form controls.
+- Relied on native tab behavior and existing scroll padding to avoid collisions with form controls.
 - Reviewer verdict: `ACCEPT`. Non-blocking residual risk: interactive simulator walkthrough of narrow/tall and pushed-detail layouts was not performed; Phase 4b and final QA keep detail/form collision checks in scope.
-- Autonomous decisions: accepted structural `.safeAreaInset(edge: .bottom)` evidence plus reviewer verification in place of interactive simulator traversal for this non-interactive pass; correctness is supported by app build, tests, and reviewer inspection, with visual traversal retained for later phases.
+- Autonomous decisions: used three native primary tabs rather than a seven-item custom dock because the grouped IA avoids native `More`, lowers shell complexity, and keeps domain sections stable while preserving reachability.
 - Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; generated project output was not staged.
 
 ### Phase 3 — Full-screen auth, root states, and account sheets
@@ -301,7 +306,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 - `cd ios/NeoGym && swift build && swift test`
 - `cd ios/NeoGym && nix develop ../.. --command xcodegen generate`
 - `cd ios/NeoGym && xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build`
-- Boot simulator and render each touched top-level destination.
+- Boot simulator and render each touched primary group and secondary destination.
 - Diff audit: no changes under `backend/`, `frontend/`, or `ios/NeoGym/Sources/NeoGymKit/` unless explicitly justified.
 - Verify generated `.xcodeproj` output is not staged.
 
@@ -348,7 +353,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 **Implementation steps:**
 
 1. Migrate detail/form/picker/logging panels to `ScreenScaffold`/`GlassPanel` and theme tokens.
-2. Ensure dock safe-area behavior does not collide with pushed details, sheets, keyboard, or bottom action bars.
+2. Ensure tab/secondary navigation safe-area behavior does not collide with pushed details, sheets, keyboard, or bottom action bars.
 3. Preserve spent-screen dismissal, picker selection, delete confirmation, and logging mutation behavior.
 4. Confirm `ExerciseDetailSections.swift` and `LabelInputView.swift` either use shared chrome or have no local chrome requiring migration.
 
@@ -445,7 +450,7 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 
 **Implementation steps:**
 
-1. Re-walk `ios/NeoGym/PARITY_CHECKLIST.md` for navigation/back behavior, all top-level destinations, OTP, duplicate verify/send states, sign-out, `neogym://verify`, email-change PKCE, representative CRUD/logging flows, and Nutrition logging.
+1. Re-walk `ios/NeoGym/PARITY_CHECKLIST.md` for navigation/back behavior, all primary groups and secondary destinations, OTP, duplicate verify/send states, sign-out, `neogym://verify`, email-change PKCE, representative CRUD/logging flows, and Nutrition logging.
 2. Check Dynamic Type, VoiceOver labels/traits, minimum hit targets, light/dark mode contrast, Reduce Transparency, and Reduce Motion.
 3. Add/update SwiftUI previews for key redesigned surfaces where practical: auth, shell, profile, one list screen, and Nutrition shell.
 4. Review docs for stale claims about shell/navigation/design and update only if needed.
@@ -472,9 +477,9 @@ Build an iOS 15-safe Liquid Glass design system entirely under `ios/NeoGym/App/`
 **Implementation log**
 
 - Added SwiftUI previews and shared preview fixtures for the redesigned auth, shell/profile, and list surfaces.
-- Improved accessibility: OTP input now exposes one coherent VoiceOver element/value/hint; auth/profile/filter controls have 44pt hit targets/selected state; primary and Nutrition docks cap Dynamic Type to preserve reachable navigation.
+- Improved accessibility: OTP input now exposes one coherent VoiceOver element/value/hint; auth/profile/filter controls have 44pt hit targets/selected state; primary tabs and secondary bars cap Dynamic Type to preserve reachable navigation.
 - Removed redundant Nutrition editor row border overlays from the Phase 4c accepted concern.
-- Removed stale `AppShellView` placeholder/phase code and updated README/CLAUDE shell/auth wording to match the new seven-destination glass shell and full-screen auth layout.
+- Removed stale `AppShellView` placeholder/phase code and updated README/CLAUDE shell/auth wording to match the grouped three-tab shell and full-screen auth layout.
 - Reviewer verdict: `ACCEPT`. Reviewer verified preview fixtures are preview-only, AppShellView placeholder removal does not remove reachable destinations, accessibility APIs are iOS 15-safe, docs are accurate, and generated project output is not staged.
 - Autonomous decisions: accepted non-interactive simulator limitations because correctness/security-critical auth, sign-out, OTP duplicate, and PKCE behavior remain covered by deterministic model tests; screenshots/render checks were performed for signed-in shell dark mode and accessibility-size light mode, with remaining manual CRUD/OTP traversal deferred as an explicit follow-up rather than silently claimed.
 - Quality gate: `swift build` passed; `swift test` passed with 165 tests; XcodeGen passed; app `xcodebuild` passed with `** BUILD SUCCEEDED **`; diff audit showed no backend/frontend/NeoGymKit changes and no generated `.xcodeproj` output staged.
@@ -508,8 +513,8 @@ The unified agents infer language/surface guidance from files in scope and load 
 | Requirement | Phase(s) | Validation |
 | --- | --- | --- |
 | Full-screen modern visual foundation | 1 | Shared tokens/primitives, simulator visual sample, Xcode app build |
-| All destinations discoverable without native More hiding | 2 | Custom bottom dock manual check on narrow/tall devices |
-| No dock occlusion | 2, 4a-4c, 5 | `.safeAreaInset` implementation and simulator checks of lists/details/forms |
+| All destinations discoverable without native More hiding | 2 | Three-tab shell plus secondary section bars manual check on narrow/tall devices |
+| No navigation occlusion | 2, 4a-4c, 5 | Native tab/secondary-bar implementation and simulator checks of lists/details/forms |
 | Auth screens no longer small centered cards | 3 | Simulator auth flow, keyboard checks, Xcode app build |
 | Preserve OTP, SDK verify, duplicate-submit guard | 3, 5 | Existing NeoGymKit tests plus cloud/fallback simulator smoke |
 | Preserve deep-link/email-change/sign-out | 3, 5 | Manual deep-link/email-change/sign-out checklist plus existing tests |
@@ -523,7 +528,7 @@ The unified agents infer language/surface guidance from files in scope and load 
 ## 6. Risks and mitigations
 
 - **Risk:** `xcodebuild` compile passes but runtime layout is broken. — **Mitigation:** Every app phase includes simulator boot/render checks for touched screens.
-- **Risk:** Bottom dock covers content or keyboard/form controls. — **Mitigation:** Add dock with `.safeAreaInset` in the same phase and manually check lists, pushed details, forms, keyboard, short/tall devices.
+- **Risk:** Tab or secondary navigation covers content or keyboard/form controls. — **Mitigation:** Use native tab behavior, existing scroll padding, and manual checks of lists, pushed details, forms, keyboard, short/tall devices.
 - **Risk:** Background layers become visually muddy or expensive. — **Mitigation:** Centralize background ownership and migrate nested `GridBackground()` call sites; keep transition idempotent.
 - **Risk:** iOS 15 lacks common modern SwiftUI APIs. — **Mitigation:** Explicitly ban unguarded iOS 16+ APIs and use iOS 15-safe Material/appearance/list techniques.
 - **Risk:** Global UIKit appearance changes leak into sheets/pickers. — **Mitigation:** Centralize/document any appearance helpers and explicitly check modal sheets.

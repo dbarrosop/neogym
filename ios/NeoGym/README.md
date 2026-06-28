@@ -1,7 +1,8 @@
 # NeoGym iOS
 
 Native SwiftUI app for NeoGym. The current milestone implements email OTP
-sign-in/sign-up, a protected seven-destination app shell, sign out, session
+sign-in/sign-up, a protected grouped app shell with three primary tabs and
+secondary sections for the seven signed-in destinations, sign out, session
 bootstrap through local Nhost Swift SDK storage, app-side PKCE email-change
 handling through the `neogym://verify` URL scheme, and read-only Apple Health
 imports for body weight/body-fat measurements.

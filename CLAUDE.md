@@ -96,10 +96,12 @@ The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
-models and route signed-in sessions into the full-screen `AppShellView` with all
-seven top-level destinations, including `ProfileView`. Keep unit tests
-deterministic with fake auth services and the in-memory verifier store, not a
-live backend or real Keychain. Sign-out must always call `clearSession()` after
+models and route signed-in sessions into the full-screen `AppShellView`. The
+native shell uses three primary `TabView` groups (Workouts, Nutrition, Me) with
+secondary section bars for Sessions/Workouts/Exercises, Nutrition subsections,
+and Profile/Body/Journal. Keep unit tests deterministic with fake auth services
+and the in-memory verifier store, not a live backend or real Keychain. Sign-out
+must always call `clearSession()` after
 attempting remote sign-out so local persisted sessions are removed even when the
 network request fails. SwiftUI previews can set Dynamic Type with
 `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
