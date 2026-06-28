@@ -18,14 +18,17 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 | Runtime / pkg manager | Bun |
 | Codegen | graphql-codegen `client-preset` |
 | Backend | Nhost (Hasura, Auth, Storage, Postgres, MailHog) |
+| iOS | SwiftUI app generated with XcodeGen + local `NeoGymKit` SwiftPM package |
 
 ## Prerequisites
 
 - [Nix](https://nixos.org/download/) with flakes enabled
 - [Docker](https://docs.docker.com/get-docker/) (the Nhost CLI runs the local stack via Docker)
 - [Nhost CLI](https://docs.nhost.io/platform/cli) — install via `brew install nhost/cli/nhost` or the upstream installer
+- Xcode for iOS simulator builds
+- Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun` and `biome` come from the Nix devshell — no host install needed.
+`bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
 
 ## Quick start
 
@@ -51,7 +54,7 @@ Try the flow:
 
 ## Available commands
 
-All run from `frontend/` and require `nix develop ../ --command ` as a prefix unless you've already entered the devshell with `nix develop ..`.
+All run from `frontend/` and require `nix develop ../ --command` as a prefix unless you've already entered the devshell with `nix develop ..`.
 
 | Command | What it does |
 |---|---|
@@ -73,11 +76,30 @@ Backend (from `backend/`):
 | `nhost config validate` | Validate `nhost.toml` after editing |
 | `nhost logs <service>` | Tail a service's logs |
 
+Native iOS (from `ios/NeoGym/`):
+
+| Command | What it does |
+|---|---|
+| `swift build` | Build the host-compatible `NeoGymKit` package |
+| `swift test` | Run deterministic `NeoGymKit` unit tests |
+| `nix develop ../.. --command xcodegen generate` | Generate `NeoGym.xcodeproj` from `project.yml` |
+| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app |
+
+The native app supports the same local email OTP sign-in/sign-up shape as the
+web app: request a 6-digit code, copy it from MailHog, verify, view the
+protected profile, and sign out. Sign-out always clears the local SDK session
+store after the remote request attempt. Native PKCE email change uses
+`redirectTo = "neogym://verify"`; that custom scheme must stay listed in
+`auth.redirections.allowedUrls` for both local config and production overlays.
+After changing auth redirect config, restart the local Nhost stack because the
+CLI does not hot-reload `nhost.toml`.
+
 ## Project layout
 
 ```
 .
-├── flake.nix                  # Nix devshell — bun + biome
+├── flake.nix                  # Nix devshell — bun + biome + XcodeGen on Darwin
+├── ios/NeoGym/                # SwiftUI app + XcodeGen spec + NeoGymKit package
 ├── frontend/
 │   ├── src/
 │   │   ├── routes/            # File-based routes
@@ -130,6 +152,7 @@ Auth redirect config is split between local-dev defaults in `backend/nhost/nhost
 # backend/nhost/nhost.toml — local-dev baseline
 [auth.redirections]
 clientUrl = 'http://localhost:5173'
+allowedUrls = ['neogym://verify']
 ```
 
 ```json
@@ -137,10 +160,10 @@ clientUrl = 'http://localhost:5173'
 { "op": "replace", "path": "/auth/redirections/clientUrl",
   "value": "https://neogym.nhost.app" }
 { "op": "add",     "path": "/auth/redirections/allowedUrls",
-  "value": [] }
+  "value": ["neogym://verify"] }
 ```
 
-Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the email-change flow lands back on `/verify` without any extra configuration. Only redirects to a different host/port need to be added to `auth.redirections.allowedUrls` (in both files). Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts`.
+Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including the native `neogym://verify` callback, must be listed in `auth.redirections.allowedUrls` in both files. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts` and restart the local Nhost stack after redirect-config edits.
 
 ## What's not in v1 (yet)
 

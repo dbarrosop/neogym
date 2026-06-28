@@ -1,0 +1,86 @@
+name: NeoGym
+options:
+  minimumXcodeGenVersion: 2.44.0
+  postGenCommand: python3 Scripts/disable-xcode-debug-options.py
+  deploymentTarget:
+    iOS: "15.0"
+packages:
+  NeoGymKit:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: ""
+schemes:
+  NeoGym:
+    build:
+      targets:
+        NeoGym: all
+    run:
+      # Keep regenerated schemes from turning on costly default diagnostics.
+      enableGPUFrameCaptureMode: disabled
+      enableGPUValidationMode: false
+      disableMainThreadChecker: true
+      disableThreadPerformanceChecker: true
+targets:
+  NeoGym:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: App
+        excludes:
+          - Info.plist
+      - path: Shared
+    resources:
+      - path: App/Assets.xcassets
+      - path: App/LaunchScreen.storyboard
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLName: io.nhost.neogym
+            CFBundleURLSchemes:
+              - neogym
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiresFullScreen: true
+        NSSupportsLiveActivities: true
+        NSHealthShareUsageDescription: >-
+          NeoGym imports your weight and body-fat percentage from Apple Health
+          to keep body measurements up to date.
+    entitlements:
+      path: App/NeoGym.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+    dependencies:
+      - package: NeoGymKit
+        product: NeoGymKit
+      - target: NeoGymWidgets
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym
+        PRODUCT_NAME: NeoGym
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  NeoGymWidgets:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "16.2"
+    sources:
+      - path: Widgets
+      - path: Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym.widgets
+        PRODUCT_NAME: NeoGymWidgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        APPLICATION_EXTENSION_API_ONLY: true

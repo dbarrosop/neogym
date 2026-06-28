@@ -10,7 +10,8 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 
 ```
 .
-├── flake.nix          # Nix devshell — provides bun + biome
+├── flake.nix          # Nix devshell — provides bun + biome + XcodeGen on Darwin
+├── ios/NeoGym/        # SwiftUI app shell, XcodeGen spec, and host-testable NeoGymKit package
 ├── frontend/          # TanStack Start app (Vite default port 5173, bound to 0.0.0.0 for LAN/mobile)
 │   ├── src/
 │   │   ├── routes/    # File-based routes (TanStack Router)
@@ -42,7 +43,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun` and `biome` are NOT on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -50,7 +51,7 @@ nix develop ../ --command bun run <script>
 nix develop ../ --command bunx <pkg>
 ```
 
-**Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix.
+**Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix. If XcodeGen is unavailable in the pinned Nixpkgs on a Darwin host, use the documented Homebrew fallback (`brew install xcodegen`) but keep `ios/NeoGym/project.yml` as the source of truth and do not commit generated `.xcodeproj` output.
 
 ## Common commands
 
@@ -59,7 +60,7 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 | What | Command |
 |---|---|
 | Install deps | `bun install` |
-| Dev server (http://localhost:5173, also exposed on LAN) | `bun run dev` |
+| Dev server (<http://localhost:5173>, also exposed on LAN) | `bun run dev` |
 | Production build | `bun run build` |
 | Typecheck | `bun run typecheck` |
 | Lint + format check | `bun run lint` |
@@ -70,10 +71,49 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 **Always run `bun run check` after writing or modifying code.** It runs `typecheck` + `lint` + `bun test` together; fix any errors it surfaces before reporting work as done.
 
 From `backend/`:
+
 - `make dev-env-up` — boot Hasura + Auth + Postgres + MailHog locally and apply seeds (wraps `nhost up --apply-seeds`)
 - `make dev-env-down` — stop and remove volumes (wraps `nhost down --volumes`) — destroys the local DB, so the next `dev-env-up` is a clean apply of migrations + seeds. Use after editing migrations to make sure a fresh run picks them up.
 - `make test` — run backend integration tests under `backend/tests/` against the live local Hasura. Requires `dev-env-up` first. The Makefile target runs `bun install && bun test` so dependencies are resolved on a fresh clone. The tests deliberately target `https://local.hasura.local.nhost.run/v1/graphql`, not the Constellation/Nhost GraphQL proxy at `https://local.graphql.local.nhost.run/v1`; many assertions depend on Hasura error codes and metadata behavior.
 - `nhost config validate` — sanity-check `nhost.toml` after edits
+
+From `ios/NeoGym/`:
+
+- `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
+- `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
+- `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
+  After adding/removing Swift app files, wait for XcodeGen to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors.
+  The spec's post-generation script patches the shared scheme to keep XPC
+  Services, Queue Debugging/backtrace recording, View Debugging, and related
+  default diagnostics disabled after regeneration.
+- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
+
+Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
+
+The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
+
+The native app uses the same email OTP auth shape as the web app for
+sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
+`UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
+`AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
+models and route signed-in sessions into the full-screen `AppShellView`. The
+native shell uses three primary `TabView` groups (Workouts, Nutrition, Me) with
+secondary section bars for Sessions/Workouts/Exercises, Nutrition subsections,
+and Profile/Body/Journal. Keep unit tests deterministic with fake auth services
+and the in-memory verifier store, not a live backend or real Keychain. Sign-out
+must always call `clearSession()` after
+attempting remote sign-out so local persisted sessions are removed even when the
+network request fails. SwiftUI previews can set Dynamic Type with
+`.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
+`accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
+environment values; verify those modes in simulator Accessibility settings rather
+than trying to force them in preview code. Native email change uses app-side PKCE with
+`redirectTo = "neogym://verify"`, a Keychain-backed verifier, `.onOpenURL`
+deep-link handling, token exchange, and verifier clearing on all callback
+outcomes. The native callback is allowed by `auth.redirections.allowedUrls` in
+both `backend/nhost/nhost.toml` and the production overlay; restart the local
+Nhost stack after redirect config edits because the CLI does not hot-reload
+`nhost.toml`.
 
 ### Backend tests — the rule
 
@@ -101,7 +141,7 @@ A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-r
 - **shadcn components are hand-written** under `src/components/ui/`. The `bunx shadcn add` CLI was deliberately *not* used. To add a new primitive, copy from <https://ui.shadcn.com> and adjust the `cn`/import paths to `@/lib/utils`.
 - **Biome** is the only formatter/linter. ESLint and Prettier are not used. CSS parser has `tailwindDirectives: true` so `@theme inline`, `@utility`, `@custom-variant` parse cleanly.
 - **Auth state** lives client-side in `lib/nhost/auth-provider.tsx`. The Nhost client uses localStorage by default; SSR renders see `user = null` and `isAuthenticated = false`. Protected routes (`_authed.tsx`) redirect via `useEffect`, not `beforeLoad`, because the SDK's session storage is browser-only.
-- **Auth methods**: sign-in and sign-up use `nhost.auth.signInOTPEmail` / `signUpOTPEmail` + `verifySignInOTPEmail` (6-digit codes; no email link, no password). `auth.method.emailPasswordless` is disabled and `auth.method.otp.email` is enabled in `nhost.toml`. Change-email (in `_authed/profile.tsx`) is the one PKCE flow: it generates a verifier with `generatePKCEPair()` from `@nhost/nhost-js/auth`, stashes it in localStorage under `PKCE_VERIFIER_STORAGE_KEY` (`@/lib/nhost/pkce`), calls `nhost.auth.changeUserEmail({ codeChallenge, options: { redirectTo: ${origin}/verify } })`, and the user clicks the email link. The link routes through Hasura Auth to `/verify?code=...`, where `routes/verify.tsx` exchanges the code via `nhost.auth.tokenExchange({ code, codeVerifier })`. The session middleware (`updateSessionFromResponseMiddleware`) auto-persists the new session because `/token/exchange` matches its URL filter — don't manually `sessionStorage.set`. The verifier is removed from localStorage in the route's `finally`. Any subpath of `auth.redirections.clientUrl` is accepted as a `redirectTo` target by default, so per-route entries (e.g. `/verify`) don't need to be listed. Only redirects to a different host/port need to be added to `auth.redirections.allowedUrls` in both `backend/nhost/nhost.toml` (local-dev baseline) and `backend/nhost/overlays/<project-id>.json` (production overrides applied as JSON Patch at deploy time).
+- **Auth methods**: sign-in and sign-up use `nhost.auth.signInOTPEmail` / `signUpOTPEmail` + `verifySignInOTPEmail` (6-digit codes; no email link, no password). `auth.method.emailPasswordless` is disabled and `auth.method.otp.email` is enabled in `nhost.toml`. Change-email (in `_authed/profile.tsx`) is the one PKCE flow: it generates a verifier with `generatePKCEPair()` from `@nhost/nhost-js/auth`, stashes it in localStorage under `PKCE_VERIFIER_STORAGE_KEY` (`@/lib/nhost/pkce`), calls `nhost.auth.changeUserEmail({ codeChallenge, options: { redirectTo: ${origin}/verify } })`, and the user clicks the email link. The link routes through Hasura Auth to `/verify?code=...`, where `routes/verify.tsx` exchanges the code via `nhost.auth.tokenExchange({ code, codeVerifier })`. The session middleware (`updateSessionFromResponseMiddleware`) auto-persists the new session because `/token/exchange` matches its URL filter — don't manually `sessionStorage.set`. The verifier is removed from localStorage in the route's `finally`. Any subpath of `auth.redirections.clientUrl` is accepted as a `redirectTo` target by default, so per-route entries (e.g. `/verify`) don't need to be listed. Redirects to a different host/port or scheme must be added to `auth.redirections.allowedUrls` in both `backend/nhost/nhost.toml` (local-dev baseline) and `backend/nhost/overlays/<project-id>.json` (production overrides applied as JSON Patch at deploy time); the native iOS callback currently uses `neogym://verify`.
 - **GraphQL data flow**: queries/mutations are authored inline via the typed `graphql(...)` template tag. Operations are sent through the `gqlRequest` helper in `src/lib/graphql.ts`, which is what `@tanstack/react-query`'s `useQuery` / `useMutation` calls.
 - **`bun run codegen` is a two-step pipeline** — both outputs are checked in and neither should be edited by hand:
   1. `codegen:graphql-schema` (needs backend up) introspects Hasura via `rover` with `X-Hasura-Role: user` and writes the canonical SDL to `frontend/schema.user.graphqls`. This is the human-readable map of every query, mutation, type, and field the app is allowed to use; consult it (or point an LLM/IDE at it) to discover what's available before writing a new `graphql(...)` document. Do not commit schema dumps produced by ad-hoc introspection tools unless `codegen:graphql-schema` is deliberately changed to use that tool, because otherwise harmless ordering/directive differences create large generated-file diffs.
