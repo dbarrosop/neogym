@@ -10,6 +10,11 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
+schemes:
+  NeoGym:
+    build:
+      targets:
+        NeoGym: all
 targets:
   NeoGym:
     type: application
@@ -51,6 +56,7 @@ targets:
         PRODUCT_NAME: NeoGym
         INFOPLIST_FILE: App/Info.plist
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
   NeoGymWidgets:
     type: app-extension

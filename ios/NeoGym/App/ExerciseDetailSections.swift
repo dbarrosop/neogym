@@ -51,7 +51,7 @@ struct ExerciseSummaryCard: View {
     }
 
     private var muscleBadges: some View {
-        FlowLayout(spacing: 8) {
+        ExerciseFlowLayout(spacing: 8) {
             BadgeText(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup), prominent: true)
             ForEach(exercise.secondaryMuscleGroups, id: \.muscleGroup) { muscle in
                 BadgeText(ExerciseFormatters.enumValue(muscle.muscleGroup))
@@ -144,13 +144,49 @@ struct StrengthProgressSummary: View {
                         ProgressMetricCard(title: "Volume", value: "\(Int(latest.volume.rounded()).formatted()) kg", delta: deltaText(\.volume))
                         ProgressMetricCard(title: "Est. 1RM", value: String(format: "%.1f kg", latest.oneRepMax), delta: deltaText(\.oneRepMax))
                     }
-                    MiniTrendView(values: points.map(\.volume))
+                    TimeSeriesTrendChartView(
+                        series: strengthChartSeries,
+                        maxRenderedPoints: 48,
+                        emptyMessage: "No progress in this period.",
+                        initialPeriod: .last90Days
+                    )
                     Text(doubleWeight ? "Volume doubles per-side weight." : "Volume is weight × reps across all sets.")
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
             }
         }
+    }
+
+    private var strengthChartSeries: [TimeSeriesChartSeries] {
+        [
+            TimeSeriesChartSeries(
+                id: "volume",
+                name: "Volume",
+                color: .accentColor,
+                points: points.map { point in
+                    TimeSeriesChartDataPoint(
+                        id: "\(point.date.timeIntervalSince1970)-volume",
+                        date: point.date,
+                        value: point.volume
+                    )
+                },
+                valueFormatter: { "\(Int($0.rounded()).formatted())" }
+            ),
+            TimeSeriesChartSeries(
+                id: "one-rep-max",
+                name: "Est. 1RM",
+                color: .orange,
+                points: points.map { point in
+                    TimeSeriesChartDataPoint(
+                        id: "\(point.date.timeIntervalSince1970)-one-rep-max",
+                        date: point.date,
+                        value: point.oneRepMax
+                    )
+                },
+                valueFormatter: { String(format: "%.1f", $0) }
+            )
+        ]
     }
 
     private func deltaText(_ keyPath: KeyPath<StrengthProgressPoint, Double>) -> String? {
@@ -177,11 +213,38 @@ struct CardioProgressSummary: View {
                 : "total across entries"
             SectionShell(title: "\(primary.label) per session", subtitle: caption) {
                 VStack(spacing: 12) {
-                    ProgressMetricCard(title: primary.label, value: CardioMetricsSchemaHelpers.formatMetricValue(latest.value, spec: primary), delta: deltaText)
-                    MiniTrendView(values: points.map(\.value))
+                    ProgressMetricCard(
+                        title: primary.label,
+                        value: CardioMetricsSchemaHelpers.formatMetricValue(latest.value, spec: primary),
+                        delta: deltaText
+                    )
+                    TimeSeriesTrendChartView(
+                        series: cardioChartSeries,
+                        maxRenderedPoints: 48,
+                        emptyMessage: "No progress in this period.",
+                        initialPeriod: .last90Days
+                    )
                 }
             }
         }
+    }
+
+    private var cardioChartSeries: [TimeSeriesChartSeries] {
+        [
+            TimeSeriesChartSeries(
+                id: primary.key,
+                name: primary.label,
+                color: .accentColor,
+                points: points.map { point in
+                    TimeSeriesChartDataPoint(
+                        id: "\(point.date.timeIntervalSince1970)-\(primary.key)",
+                        date: point.date,
+                        value: point.value
+                    )
+                },
+                valueFormatter: { CardioMetricsSchemaHelpers.formatMetricValue($0, spec: primary) }
+            )
+        ]
     }
 
     private var deltaText: String? {
@@ -205,18 +268,34 @@ struct StrengthHistoryList: View {
                     HistoryHeader(entry: entry, fallbackName: exerciseName)
                     let totalReps = entry.workoutSessionStrengthSets.reduce(0) { $0 + $1.reps }
                     let topWeight = entry.workoutSessionStrengthSets.map(\.weight).max() ?? 0
-                    Text("\(entry.workoutSessionStrengthSets.count) sets · \(totalReps) reps" + (topWeight > 0 ? " · top \(topWeight.formatted())\(doubleWeight ? "/side" : "") kg" : ""))
+                    Text(strengthHistorySummary(entry: entry, totalReps: totalReps, topWeight: topWeight))
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
-                    FlowLayout(spacing: 6) {
+                    ExerciseFlowLayout(spacing: 6) {
                         ForEach(entry.workoutSessionStrengthSets) { set in
-                            BadgeText("\(set.setNumber). \(set.weight == 0 ? "BW" : "\(set.weight.formatted()) kg") × \(set.reps)")
+                            BadgeText(strengthSetSummary(set))
                         }
                     }
                 }
                 .historyRowStyle()
             }
         }
+    }
+
+    private func strengthHistorySummary(
+        entry: ExerciseHistoryEntry,
+        totalReps: Int,
+        topWeight: Double
+    ) -> String {
+        let base = "\(entry.workoutSessionStrengthSets.count) sets · \(totalReps) reps"
+        guard topWeight > 0 else { return base }
+        let sideLabel = doubleWeight ? "/side" : ""
+        return base + " · top \(topWeight.formatted())\(sideLabel) kg"
+    }
+
+    private func strengthSetSummary(_ set: ExerciseStrengthSet) -> String {
+        let weight = set.weight == 0 ? "BW" : "\(set.weight.formatted()) kg"
+        return "\(set.setNumber). \(weight) × \(set.reps)"
     }
 }
 
@@ -231,10 +310,10 @@ struct CardioHistoryList: View {
             ForEach(entries) { entry in
                 VStack(alignment: .leading, spacing: 8) {
                     HistoryHeader(entry: entry, fallbackName: exerciseName)
-                    Text("\(entry.workoutSessionCardioEntries.count) entr\(entry.workoutSessionCardioEntries.count == 1 ? "y" : "ies")")
+                    Text("\(entry.workoutSessionCardioEntries.count) \(entryLabel(for: entry))")
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
-                    FlowLayout(spacing: 6) {
+                    ExerciseFlowLayout(spacing: 6) {
                         ForEach(entry.workoutSessionCardioEntries) { cardioEntry in
                             let values = specs.compactMap { spec -> String? in
                                 guard let value = cardioEntry.metrics[spec.key] else { return nil }
@@ -247,6 +326,10 @@ struct CardioHistoryList: View {
                 .historyRowStyle()
             }
         }
+    }
+
+    private func entryLabel(for entry: ExerciseHistoryEntry) -> String {
+        entry.workoutSessionCardioEntries.count == 1 ? "entry" : "entries"
     }
 }
 
@@ -301,138 +384,5 @@ struct CardioSchemaMissingCard: View {
                 systemImage: "exclamationmark.triangle"
             )
         }
-    }
-}
-
-private struct ProgressMetricCard: View {
-    let title: String
-    let value: String
-    let delta: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(title)
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Spacer()
-                if let delta {
-                    Text(delta)
-                        .font(.caption.monospacedDigit())
-                        .foregroundColor(delta.hasPrefix("+") ? .green : .red)
-                }
-            }
-            Text(value)
-                .font(.title3.bold().monospacedDigit())
-        }
-        .padding(NeoGymTheme.spacingSM)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
-        )
-    }
-}
-
-private struct MiniTrendView: View {
-    let values: [Double]
-
-    var body: some View {
-        GeometryReader { proxy in
-            Path { path in
-                guard values.count >= 2, let min = values.min(), let max = values.max() else { return }
-                let span = max - min == 0 ? 1 : max - min
-                for (index, value) in values.enumerated() {
-                    let xPosition = proxy.size.width * CGFloat(index) / CGFloat(values.count - 1)
-                    let yPosition = proxy.size.height * (1 - CGFloat((value - min) / span))
-                    let point = CGPoint(x: xPosition, y: yPosition)
-                    if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                }
-            }
-            .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-        }
-        .frame(height: 90)
-        .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
-    }
-}
-
-private struct BadgeText: View {
-    let text: String
-    var systemImage: String?
-    var prominent = false
-
-    init(_ text: String, systemImage: String? = nil, prominent: Bool = false) {
-        self.text = text
-        self.systemImage = systemImage
-        self.prominent = prominent
-    }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if let systemImage { Image(systemName: systemImage) }
-            Text(text)
-        }
-        .font(.caption.weight(.semibold))
-        .foregroundColor(prominent ? .white : .primary)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .background(badgeBackground)
-    }
-
-    @ViewBuilder
-    private var badgeBackground: some View {
-        if prominent {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.primaryActionGradient)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
-    }
-}
-
-private struct FlowLayout<Content: View>: View {
-    let spacing: CGFloat
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 96), spacing: spacing)],
-            alignment: .leading,
-            spacing: spacing
-        ) {
-            content
-        }
-    }
-}
-
-private extension View {
-    func historyRowStyle() -> some View {
-        padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassSurface(
-                cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
-            )
     }
 }
