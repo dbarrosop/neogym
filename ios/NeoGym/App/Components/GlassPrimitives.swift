@@ -34,6 +34,10 @@ struct ScreenScaffold<Content: View>: View {
 }
 
 struct GlassPanel<Content: View>: View {
+    let cornerRadius: CGFloat
+    let material: GlassMaterial
+    let tint: Color
+    let shadow: Bool
     var contentPadding = EdgeInsets(
         top: NeoGymTheme.spacingLG,
         leading: NeoGymTheme.spacingLG,
@@ -55,17 +59,24 @@ struct GlassPanel<Content: View>: View {
         ),
         @ViewBuilder content: () -> Content
     ) {
+        self.cornerRadius = cornerRadius
+        self.material = material
+        self.tint = tint
+        self.shadow = shadow
         self.contentPadding = contentPadding
         self.content = content()
     }
 
     var body: some View {
-        GroupBox {
-            content
-                .padding(contentPadding)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .groupBoxStyle(.automatic)
+        content
+            .padding(contentPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassSurface(
+                cornerRadius: cornerRadius,
+                material: material,
+                tint: tint,
+                shadow: shadow
+            )
     }
 }
 
@@ -109,11 +120,38 @@ private struct GlassSurfaceModifier: ViewModifier {
 
         content
             .background {
-                if reduceTransparency {
-                    shape.fill(Color(.secondarySystemBackground))
-                } else {
-                    shape.fill(material.swiftUIMaterial)
+                ZStack {
+                    if reduceTransparency {
+                        shape
+                            .fill(NeoGymTheme.glassFallbackFill)
+                            .glassElevationShadow(shadow)
+                    } else {
+                        shape
+                            .fill(material.swiftUIMaterial)
+                            .glassElevationShadow(shadow)
+                    }
+                    shape.fill(tint)
                 }
             }
+            .overlay {
+                shape.strokeBorder(stroke, lineWidth: NeoGymTheme.hairline)
+            }
+    }
+}
+
+private extension View {
+    func glassElevationShadow(_ enabled: Bool) -> some View {
+        shadow(
+            color: enabled ? NeoGymTheme.glassShadow : .clear,
+            radius: enabled ? NeoGymTheme.elevationLowRadius : 0,
+            x: 0,
+            y: enabled ? NeoGymTheme.elevationLowY : 0
+        )
+        .shadow(
+            color: enabled ? NeoGymTheme.glassAmbientShadow : .clear,
+            radius: enabled ? NeoGymTheme.elevationMediumRadius : 0,
+            x: 0,
+            y: enabled ? NeoGymTheme.spacingXXS : 0
+        )
     }
 }

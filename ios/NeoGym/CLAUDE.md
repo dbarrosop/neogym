@@ -83,6 +83,12 @@ intact instead of inventing one-off styles.
   Cards and grouped content should use `SectionShell`, `GlassPanel`,
   `.glassSurface(...)`, or the nutrition-specific `.nutritionGlassCard()` /
   `.nutritionGlassField()` helpers rather than hard-coded backgrounds.
+  `GlassPanel` honors `cornerRadius`, `material`, `tint`, `shadow`, and
+  `contentPadding`; `.glassSurface(...)` honors `cornerRadius`, `material`,
+  `tint`, `stroke`, and `shadow`. Bare/default glass calls intentionally use the
+  declared glass defaults (regular material, glass fill, subtle stroke, and
+  shadow) rather than preserving the old flat rendering, and the Reduce
+  Transparency fallback keeps the tint and stroke over an opaque fallback fill.
 - **Loading, empty, and error states**: wrap fetch states in `SectionShell` and
   reuse `AppLoadingStateView`, `AppErrorStateView`, and `AppEmptyStateView`.
   Preserve stale data while refreshing when the view model exposes a previous
@@ -139,8 +145,6 @@ intact instead of inventing one-off styles.
 
 ## Inconsistencies worth fixing when touching nearby code
 
-- `GlassPanel` and `.glassSurface(...)` accept styling parameters that are partly
-  ignored; either apply those parameters or simplify the API.
 - Some forms outside the representative migration still use local error,
   mutation-progress, or submit-button presentation. Prefer
   `PrimaryActionButton`, `InlineProgressLabel`, and `FeedbackBanner` when
