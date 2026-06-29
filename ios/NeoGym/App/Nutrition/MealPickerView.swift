@@ -75,6 +75,7 @@ struct MealPickerView: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
     }

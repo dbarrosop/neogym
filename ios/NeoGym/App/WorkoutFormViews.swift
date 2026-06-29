@@ -214,9 +214,7 @@ private struct WorkoutFormScreen: View {
                     LabelInputView(form: form, suggestions: labels, disabled: isSubmitting)
                     exerciseRows
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
                     actions
                 }
@@ -298,9 +296,13 @@ private struct WorkoutFormScreen: View {
                 Button("Cancel", action: onCancel)
                     .buttonStyle(NeoGymSecondaryButtonStyle())
                     .disabled(isSubmitting)
-                Button(isSubmitting ? "Saving…" : submitLabel, action: onSubmit)
-                    .buttonStyle(NeoGymPrimaryButtonStyle())
-                    .disabled(isSubmitting || !form.canSubmit)
+                PrimaryActionButton(
+                    title: submitLabel,
+                    busyTitle: "Saving",
+                    isBusy: isSubmitting,
+                    isEnabled: form.canSubmit,
+                    action: onSubmit
+                )
             }
             if let deleteAction {
                 Button(role: .destructive, action: deleteAction) {
@@ -346,10 +348,13 @@ private struct WorkoutFormExerciseRowView: View {
             }
             Spacer()
             Button(action: moveUp) { Image(systemName: "chevron.up") }
+                .accessibilityLabel("Move exercise up")
                 .disabled(isFirst)
             Button(action: moveDown) { Image(systemName: "chevron.down") }
+                .accessibilityLabel("Move exercise down")
                 .disabled(isLast)
             Button(role: .destructive, action: remove) { Image(systemName: "xmark") }
+                .accessibilityLabel("Remove exercise")
         }
         .buttonStyle(.plain)
         .padding(.vertical, 10)

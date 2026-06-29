@@ -69,6 +69,7 @@ struct CardioMetricsFormView: View {
     @State private var model: CardioEntryFormModel
     @State private var errorMessage: String?
     @State private var invalidKey: String?
+    @FocusState private var focusedField: CardioMetricFocusedField?
 
     init(
         state: CardioEntryEditorState,
@@ -129,6 +130,7 @@ struct CardioMetricsFormView: View {
                         .disabled(isPending)
                 }
             }
+            .keyboardDoneToolbar(focusedField: $focusedField)
         }
         .navigationViewStyle(.stack)
     }
@@ -140,7 +142,8 @@ struct CardioMetricsFormView: View {
                     MetricInputRow(
                         spec: spec,
                         value: binding(for: spec),
-                        isInvalid: invalidKey == spec.key
+                        isInvalid: invalidKey == spec.key,
+                        focusedField: $focusedField
                     )
                 }
             }
@@ -186,10 +189,22 @@ struct CardioMetricsFormView: View {
     }
 }
 
+private enum CardioMetricFocusedField: Hashable {
+    case scalar(String)
+    case duration(String, CardioDurationComponent)
+}
+
+private enum CardioDurationComponent: Hashable {
+    case hours
+    case minutes
+    case seconds
+}
+
 private struct MetricInputRow: View {
     let spec: CardioMetricSpec
     @Binding var value: CardioFieldState
     let isInvalid: Bool
+    let focusedField: FocusState<CardioMetricFocusedField?>.Binding
 
     var body: some View {
         if spec.format == .durationSeconds {
@@ -207,6 +222,7 @@ private struct MetricInputRow: View {
             Spacer(minLength: NeoGymTheme.spacingSM)
             TextField("0", text: scalarBinding)
                 .keyboardType(spec.format == .decimal ? .decimalPad : .numberPad)
+                .numericFieldFocus(.scalar(spec.key), focusedField: focusedField)
                 .multilineTextAlignment(.trailing)
                 .foregroundColor(isInvalid ? .red : .primary)
         }
@@ -227,10 +243,10 @@ private struct MetricInputRow: View {
                 .foregroundColor(isInvalid ? .red : NeoGymTheme.mutedText)
             HStack(spacing: 8) {
                 if CardioMetricsSchemaHelpers.shouldShowHoursInput(maximum: spec.maximum) {
-                    durationTextField("h", binding: durationBinding(\.hours))
+                    durationTextField("h", binding: durationBinding(\.hours), field: .hours)
                 }
-                durationTextField("min", binding: durationBinding(\.minutes))
-                durationTextField("sec", binding: durationBinding(\.seconds))
+                durationTextField("min", binding: durationBinding(\.minutes), field: .minutes)
+                durationTextField("sec", binding: durationBinding(\.seconds), field: .seconds)
             }
         }
         .padding(NeoGymTheme.spacingSM)
@@ -277,9 +293,14 @@ private struct MetricInputRow: View {
         return DurationParts(hours: "", minutes: "", seconds: "")
     }
 
-    private func durationTextField(_ placeholder: String, binding: Binding<String>) -> some View {
+    private func durationTextField(
+        _ placeholder: String,
+        binding: Binding<String>,
+        field: CardioDurationComponent
+    ) -> some View {
         TextField(placeholder, text: binding)
             .keyboardType(.numberPad)
+            .numericFieldFocus(.duration(spec.key, field), focusedField: focusedField)
             .multilineTextAlignment(.trailing)
             .foregroundColor(isInvalid ? .red : .primary)
             .padding(NeoGymTheme.spacingXS)

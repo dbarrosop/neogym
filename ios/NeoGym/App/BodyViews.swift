@@ -547,6 +547,11 @@ struct BodyMeasurementEditView: View {
 }
 
 private struct BodyMeasurementFormScreen: View {
+    private enum FocusedField: Hashable {
+        case weight
+        case bodyFat
+    }
+
     let title: String
     let submitLabel: String
     @ObservedObject var form: BodyMeasurementFormModel
@@ -555,6 +560,8 @@ private struct BodyMeasurementFormScreen: View {
     let onSubmit: () -> Void
     let onCancel: () -> Void
     var deleteAction: (() -> Void)?
+
+    @FocusState private var focusedField: FocusedField?
 
     var body: some View {
         ScrollView {
@@ -571,8 +578,20 @@ private struct BodyMeasurementFormScreen: View {
                     .datePickerStyle(.compact)
 
                     HStack(spacing: 12) {
-                        decimalField(title: "Weight", unit: "kg", placeholder: "78.4", text: $form.weightKg)
-                        decimalField(title: "Body fat", unit: "%", placeholder: "18.5", text: $form.bodyFatPct)
+                        decimalField(
+                            title: "Weight",
+                            unit: "kg",
+                            placeholder: "78.4",
+                            text: $form.weightKg,
+                            field: .weight
+                        )
+                        decimalField(
+                            title: "Body fat",
+                            unit: "%",
+                            placeholder: "18.5",
+                            text: $form.bodyFatPct,
+                            field: .bodyFat
+                        )
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
@@ -593,9 +612,7 @@ private struct BodyMeasurementFormScreen: View {
                     }
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
 
                     actions
@@ -606,13 +623,15 @@ private struct BodyMeasurementFormScreen: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
+        .keyboardDoneToolbar(focusedField: $focusedField)
     }
 
     private func decimalField(
         title: String,
         unit: String,
         placeholder: String,
-        text: Binding<String>
+        text: Binding<String>,
+        field: FocusedField
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -624,6 +643,7 @@ private struct BodyMeasurementFormScreen: View {
             }
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
+                .numericFieldFocus(field, focusedField: $focusedField)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .padding(NeoGymTheme.spacingSM)
@@ -638,10 +658,13 @@ private struct BodyMeasurementFormScreen: View {
 
     private var actions: some View {
         VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.hasMeasurementValue)
-                .opacity(isSubmitting || !form.hasMeasurementValue ? 0.6 : 1)
+            PrimaryActionButton(
+                title: submitLabel,
+                busyTitle: "Saving",
+                isBusy: isSubmitting,
+                isEnabled: form.hasMeasurementValue,
+                action: onSubmit
+            )
             Button("Cancel", action: onCancel)
                 .buttonStyle(NeoGymSecondaryButtonStyle())
                 .disabled(isSubmitting)
@@ -683,7 +706,7 @@ struct BodyTrendChartView: View {
                     }
                 },
                 valueFormatter: BodyMeasurementFormatters.axisBodyFat
-            ),
+            )
         ]
     }
 
@@ -692,6 +715,7 @@ struct BodyTrendChartView: View {
             series: chartSeries,
             maxRenderedPoints: 48,
             emptyMessage: "No body measurements in this range.",
+            accessibilityLabel: "Body weight and body fat trend chart",
             initialPeriod: .last90Days
         )
     }

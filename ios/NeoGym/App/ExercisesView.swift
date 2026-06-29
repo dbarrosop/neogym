@@ -190,6 +190,7 @@ struct ExercisesListView: View {
                         .font(.caption2.bold())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear \(key.title) filter")
             }
         }
         .font(.caption.weight(.semibold))

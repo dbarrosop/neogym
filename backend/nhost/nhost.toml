@@ -202,7 +202,7 @@ capacity = 1
 [provider]
 
 [storage]
-version = '0.13.0'
+version = '0.15.0'
 
 [observability]
 [observability.grafana]
@@ -214,4 +214,4 @@ enabled = false
 [observability.grafana.contacts]
 
 [experimental.constellation]
-version = "0.7.0-beta1"
+version = "0.7.0"

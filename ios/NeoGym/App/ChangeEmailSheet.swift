@@ -90,7 +90,10 @@ struct ChangeEmailSheet: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .padding(12)
-                        .background(NeoGymTheme.glassSubtleFill, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .background(
+                            NeoGymTheme.glassSubtleFill,
+                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
                                 .stroke(NeoGymTheme.glassStrokeSecondary)
@@ -105,20 +108,14 @@ struct ChangeEmailSheet: View {
                     FeedbackBanner(message: message, tone: .info)
                 }
 
-                Button {
+                PrimaryActionButton(
+                    title: "Send verification link",
+                    busyTitle: "Sending link",
+                    isBusy: model.isRequesting,
+                    isEnabled: !model.isHandlingCallback
+                ) {
                     Task { await model.requestEmailChange() }
-                } label: {
-                    if model.isRequesting {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Sending link")
-                        }
-                    } else {
-                        Text("Send verification link")
-                    }
                 }
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(model.isRequesting || model.isHandlingCallback)
 
                 Text(
                     "Opening the link returns to NeoGym with a one-time PKCE code. "

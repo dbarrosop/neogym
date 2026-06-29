@@ -35,6 +35,8 @@ struct TimeSeriesTrendChartView: View {
     var maxRenderedPoints = 48
     var maxPointMarkers = 28
     var emptyMessage = "No data in this range."
+    var accessibilityLabel = "Time series chart"
+    var accessibilityValue: String?
 
     @State private var period: TimeSeriesChartPeriod
     @State private var customStart: Date
@@ -45,6 +47,8 @@ struct TimeSeriesTrendChartView: View {
         maxRenderedPoints: Int = 48,
         maxPointMarkers: Int = 28,
         emptyMessage: String = "No data in this range.",
+        accessibilityLabel: String = "Time series chart",
+        accessibilityValue: String? = nil,
         initialPeriod: TimeSeriesChartPeriod = .last90Days,
         now: Date = Date(),
         calendar: Calendar = .current
@@ -53,6 +57,8 @@ struct TimeSeriesTrendChartView: View {
         self.maxRenderedPoints = maxRenderedPoints
         self.maxPointMarkers = maxPointMarkers
         self.emptyMessage = emptyMessage
+        self.accessibilityLabel = accessibilityLabel
+        self.accessibilityValue = accessibilityValue
         _period = State(initialValue: initialPeriod)
         _customStart = State(initialValue: calendar.date(byAdding: .day, value: -30, to: now) ?? now)
         _customEnd = State(initialValue: now)
@@ -82,7 +88,9 @@ struct TimeSeriesTrendChartView: View {
                 maxPointMarkers: maxPointMarkers,
                 showsAxes: true,
                 showsLegend: true,
-                emptyMessage: emptyMessage
+                emptyMessage: emptyMessage,
+                accessibilityLabel: accessibilityLabel,
+                accessibilityValue: accessibilityValue
             )
             .frame(height: 240)
         }
@@ -130,5 +138,49 @@ struct TimeSeriesTrendChartView: View {
         let inclusiveEnd = max(startDay, endDay)
         let endExclusive = calendar.date(byAdding: .day, value: 1, to: inclusiveEnd) ?? inclusiveEnd
         return (start, endExclusive)
+    }
+}
+
+extension TimeSeriesChartView {
+    var defaultAccessibilityValue: String {
+        let visibleSeries = series.filter { !$0.points.isEmpty }
+        let visiblePoints = visibleSeries.flatMap(\.points).sorted { $0.date < $1.date }
+        let seriesNames = visibleSeries.map(\.name).joined(separator: ", ")
+        let pointsLabel = visiblePoints.count == 1 ? "point" : "points"
+        let dateRange = Self.accessibilityDateRangeDescription(for: visiblePoints)
+        let overview = "\(visibleSeries.count) visible series: \(seriesNames). "
+            + "\(visiblePoints.count) total \(pointsLabel)\(dateRange)."
+        let seriesSummaries = visibleSeries.map(Self.accessibilitySummary(for:)).joined(separator: " ")
+        return [overview, seriesSummaries].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    static func accessibilitySummary(for singleSeries: TimeSeriesChartSeries) -> String {
+        guard let latest = singleSeries.points.last else { return "" }
+        let pointCount = singleSeries.points.count
+        let pointLabel = pointCount == 1 ? "point" : "points"
+        let minValue = singleSeries.points.map(\.value).min() ?? latest.value
+        let maxValue = singleSeries.points.map(\.value).max() ?? latest.value
+        let latestDate = accessibilityDateFormatter.string(from: latest.date)
+
+        return "\(singleSeries.name): \(pointCount) \(pointLabel), "
+            + "latest \(singleSeries.valueFormatter(latest.value)) on \(latestDate), "
+            + "minimum \(singleSeries.valueFormatter(minValue)), maximum \(singleSeries.valueFormatter(maxValue))."
+    }
+
+    static func accessibilityDateRangeDescription(for points: [TimeSeriesChartDataPoint]) -> String {
+        guard let firstDate = points.first?.date, let lastDate = points.last?.date else { return "" }
+        let first = accessibilityDateFormatter.string(from: firstDate)
+        let last = accessibilityDateFormatter.string(from: lastDate)
+        if Calendar.current.isDate(firstDate, inSameDayAs: lastDate) {
+            return " on \(first)"
+        }
+        return " from \(first) to \(last)"
+    }
+
+    static var accessibilityDateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter
     }
 }

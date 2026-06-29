@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// Compact nutrition-only section chrome.
+///
+/// This is intentionally denser than `SectionShell`/`GlassPanel`: it keeps the
+/// title, content spacing, padding, ultra-thin material, subtle tint, and
+/// shadowless treatment together for nested nutrition groups and sheets.
 struct NutritionGlassSection<Content: View>: View {
     let title: String?
     @ViewBuilder let content: Content
@@ -30,6 +35,11 @@ struct NutritionGlassSection<Content: View>: View {
     }
 }
 
+/// Dense field container for nutrition editors.
+///
+/// Use this for text fields and text editors inside nutrition forms where the
+/// generic glass defaults would add too much radius/elevation for compact
+/// stacked inputs.
 struct NutritionGlassField: ViewModifier {
     func body(content: Content) -> some View {
         content
@@ -44,10 +54,16 @@ struct NutritionGlassField: ViewModifier {
 }
 
 extension View {
+    /// Applies compact nutrition field chrome around already padded input content.
     func nutritionGlassField() -> some View {
         modifier(NutritionGlassField())
     }
 
+    /// Applies nutrition card chrome with ultra-thin material and no elevation.
+    ///
+    /// Nutrition list rows, macro tiles, picker shells, and nested editor cards use
+    /// this wrapper to stay visually lighter than generic `.glassSurface(...)`
+    /// defaults while still honoring explicit tint/stroke/radius overrides.
     func nutritionGlassCard(
         cornerRadius: CGFloat = NeoGymTheme.radiusLG,
         tint: Color = NeoGymTheme.glassSubtleFill,

@@ -2,8 +2,14 @@ import NeoGymKit
 import SwiftUI
 
 struct NutritionGramTextField: View {
+    private enum FocusedField: Hashable {
+        case grams
+    }
+
     @Binding var grams: String
     var title = "Amount"
+
+    @FocusState private var focusedField: FocusedField?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: NeoGymTheme.spacingSM) {
@@ -11,11 +17,13 @@ struct NutritionGramTextField: View {
             Spacer(minLength: NeoGymTheme.spacingMD)
             TextField("0", text: $grams)
                 .keyboardType(.decimalPad)
+                .numericFieldFocus(.grams, focusedField: $focusedField)
                 .multilineTextAlignment(.trailing)
                 .frame(minWidth: 72, maxWidth: 120)
             Text("g")
                 .foregroundColor(NeoGymTheme.mutedText)
         }
+        .keyboardDoneToolbar(focusedField: $focusedField)
     }
 }
 

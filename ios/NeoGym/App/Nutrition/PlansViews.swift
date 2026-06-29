@@ -85,6 +85,7 @@ struct PlansListView: View {
                     Image(systemName: "xmark.circle.fill").foregroundColor(NeoGymTheme.mutedText)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
             }
         }
         .padding(10)

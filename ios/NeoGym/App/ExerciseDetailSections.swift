@@ -13,8 +13,10 @@ struct ExerciseSummaryCard: View {
             VStack(alignment: .leading, spacing: 14) {
                 muscleBadges
                 Button(action: start) {
-                    Label(isStarting ? "Starting…" : "Start session", systemImage: isStarting ? "hourglass" : "play.fill")
-                        .frame(maxWidth: .infinity)
+                    Label(
+                        isStarting ? "Starting…" : "Start session", systemImage: isStarting ? "hourglass" : "play.fill"
+                    )
+                    .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(NeoGymPrimaryButtonStyle())
                 .disabled(isStarting)
@@ -28,7 +30,7 @@ struct ExerciseSummaryCard: View {
                 AlternatingStorageImageView(
                     urls: [
                         URL.nhostStorageFile(baseURL: storageBaseURL, fileId: exercise.image1FileId),
-                        URL.nhostStorageFile(baseURL: storageBaseURL, fileId: exercise.image2FileId),
+                        URL.nhostStorageFile(baseURL: storageBaseURL, fileId: exercise.image2FileId)
                     ].compactMap { $0 }
                 )
                 ExerciseAttributesView(exercise: exercise)
@@ -73,7 +75,7 @@ private struct ExerciseAttributesView: View {
             ("Category", exercise.category),
             ("Equipment", exercise.equipment),
             ("Force", exercise.strength?.force),
-            ("Mechanic", exercise.strength?.mechanic),
+            ("Mechanic", exercise.strength?.mechanic)
         ].compactMap { label, value -> (String, String)? in
             guard let value else { return nil }
             return (label, ExerciseFormatters.enumValue(value))
@@ -141,13 +143,22 @@ struct StrengthProgressSummary: View {
             SectionShell(title: "Progress", subtitle: "\(points.count) session\(points.count == 1 ? "" : "s")") {
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
-                        ProgressMetricCard(title: "Volume", value: "\(Int(latest.volume.rounded()).formatted()) kg", delta: deltaText(\.volume))
-                        ProgressMetricCard(title: "Est. 1RM", value: String(format: "%.1f kg", latest.oneRepMax), delta: deltaText(\.oneRepMax))
+                        ProgressMetricCard(
+                            title: "Volume",
+                            value: "\(Int(latest.volume.rounded()).formatted()) kg",
+                            delta: deltaText(\.volume)
+                        )
+                        ProgressMetricCard(
+                            title: "Est. 1RM",
+                            value: String(format: "%.1f kg", latest.oneRepMax),
+                            delta: deltaText(\.oneRepMax)
+                        )
                     }
                     TimeSeriesTrendChartView(
                         series: strengthChartSeries,
                         maxRenderedPoints: 48,
                         emptyMessage: "No progress in this period.",
+                        accessibilityLabel: "Strength progress chart",
                         initialPeriod: .last90Days
                     )
                     Text(doubleWeight ? "Volume doubles per-side weight." : "Volume is weight × reps across all sets.")
@@ -222,6 +233,7 @@ struct CardioProgressSummary: View {
                         series: cardioChartSeries,
                         maxRenderedPoints: 48,
                         emptyMessage: "No progress in this period.",
+                        accessibilityLabel: "\(primary.label) progress chart",
                         initialPeriod: .last90Days
                     )
                 }

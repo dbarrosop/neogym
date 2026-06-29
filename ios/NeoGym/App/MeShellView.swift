@@ -16,14 +16,6 @@ enum MeSection: String, CaseIterable, Identifiable, SecondaryTabSection {
         case .journal: "Journal"
         }
     }
-
-    var icon: String {
-        switch self {
-        case .profile: "person.crop.circle"
-        case .body: "heart.text.square"
-        case .journal: "book.closed"
-        }
-    }
 }
 
 struct MeNavigationView: View {
@@ -39,7 +31,7 @@ struct MeNavigationView: View {
 
     var body: some View {
         NavigationView {
-            content
+            sectionPages
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     SecondarySectionBar(selection: $selection)
@@ -49,10 +41,8 @@ struct MeNavigationView: View {
         .navigationViewStyle(.stack)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        switch selection {
-        case .profile:
+    private var sectionPages: some View {
+        TabView(selection: $selection) {
             ProfileView(
                 session: session,
                 isSigningOut: isSigningOut,
@@ -60,10 +50,14 @@ struct MeNavigationView: View {
                 signOut: signOut
             )
             .navigationTitle("Profile")
-        case .body:
+            .tag(MeSection.profile)
+
             BodyMeasurementsListView(repository: bodyRepository, healthImporter: bodyHealthImporter)
-        case .journal:
+                .tag(MeSection.body)
+
             JournalListView(repository: journalRepository)
+                .tag(MeSection.journal)
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 }

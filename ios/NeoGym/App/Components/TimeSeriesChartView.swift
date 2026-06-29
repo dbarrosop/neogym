@@ -36,6 +36,8 @@ struct TimeSeriesChartView: View {
     var showsAxes = true
     var showsLegend = true
     var emptyMessage = "No data in this range."
+    var accessibilityLabel = "Time series chart"
+    var accessibilityValue: String?
 
     @State private var selectedPoint: PlottedChartPoint?
 
@@ -62,6 +64,9 @@ struct TimeSeriesChartView: View {
                     legend
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(accessibilityLabel))
+            .accessibilityValue(Text(accessibilityValue ?? defaultAccessibilityValue))
         }
     }
 

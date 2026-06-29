@@ -327,14 +327,17 @@ private struct NutritionPlanSlotEditorRow: View {
                 Button { form.moveSlot(stableId: slot.stableId, direction: -1) } label: {
                     Image(systemName: "arrow.up")
                 }
+                .accessibilityLabel("Move slot up")
                 .disabled(index == 0 || isSubmitting)
                 Button { form.moveSlot(stableId: slot.stableId, direction: 1) } label: {
                     Image(systemName: "arrow.down")
                 }
+                .accessibilityLabel("Move slot down")
                 .disabled(index == form.slots.count - 1 || isSubmitting)
                 Button(role: .destructive) { form.removeSlot(stableId: slot.stableId) } label: {
                     Image(systemName: "trash")
                 }
+                .accessibilityLabel("Remove slot")
                 .disabled(isSubmitting)
             }
 

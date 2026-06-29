@@ -2,7 +2,6 @@ import SwiftUI
 
 protocol SecondaryTabSection: CaseIterable, Hashable, Identifiable {
     var title: String { get }
-    var icon: String { get }
 }
 
 struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
