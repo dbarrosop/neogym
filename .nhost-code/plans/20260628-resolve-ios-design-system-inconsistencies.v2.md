@@ -543,7 +543,11 @@ primitive behavior is truthful.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Audited `NutritionGlassSection`, `.nutritionGlassField()`, and `.nutritionGlassCard(...)` after Phase 5 and retained all three because each has distinct denser defaults or structure relative to generic glass primitives. Added inline documentation in `NutritionGlassHelpers.swift` and updated `ios/NeoGym/CLAUDE.md` to document nutrition helpers as intentional ultra-thin, shadowless, compact wrappers for nested nutrition lists, picker shells, macro tiles, and form inputs. Removed the stale inconsistency note about nutrition helpers partially forking generic primitives.
+- **Helper audit decisions:** `NutritionGlassSection` kept for title chrome, compact spacing/padding, subtle tint, ultra-thin material, and shadowless section treatment. `.nutritionGlassField()` kept for compact field padding and smaller-radius shadowless ultra-thin glass around nutrition inputs. `.nutritionGlassCard(...)` kept for nutrition-specific card chrome with ultra-thin material, disabled elevation, and radius/tint/stroke overrides.
+- **Reviewer verdict:** `ACCEPT`. Reviewer verified the doc claims against generic `.glassSurface(...)` defaults and confirmed each helper remains distinct. Non-blocking notes: `NutritionGlassSection` is currently unused but distinct; manual nutrition visual pass was not possible.
+- **Autonomous decisions:** Retained the unused `NutritionGlassSection` because the plan permits keeping distinct helpers and removing it solely due lack of current consumers could reduce future maintainability without improving correctness. Accepted no new tests because the phase is documentation/helper-boundary clarification with no runtime behavior changes.
+- **Quality gate:** Clean Xcode environment with `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: `xcrun swift build` passed, `xcrun swift test` passed, `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed, `git diff --check` passed, and `git status --short` showed only expected phase files plus this living-plan update.
 
 ### Phase 7 — Time-series chart accessibility summaries
 

@@ -81,8 +81,12 @@ intact instead of inventing one-off styles.
 - **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
   colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.
   Cards and grouped content should use `SectionShell`, `GlassPanel`,
-  `.glassSurface(...)`, or the nutrition-specific `.nutritionGlassCard()` /
-  `.nutritionGlassField()` helpers rather than hard-coded backgrounds.
+  `.glassSurface(...)`, or the nutrition-specific `NutritionGlassSection`,
+  `.nutritionGlassCard()`, and `.nutritionGlassField()` helpers rather than
+  hard-coded backgrounds. The nutrition helpers are intentional denser wrappers:
+  they use ultra-thin, shadowless glass with smaller padding/radii for nested
+  nutrition lists, picker shells, macro tiles, and form inputs instead of the
+  broader generic glass defaults.
   `GlassPanel` honors `cornerRadius`, `material`, `tint`, `shadow`, and
   `contentPadding`; `.glassSurface(...)` honors `cornerRadius`, `material`,
   `tint`, `stroke`, and `shadow`. Bare/default glass calls intentionally use the
@@ -149,7 +153,5 @@ intact instead of inventing one-off styles.
   mutation-progress, or submit-button presentation. Prefer
   `PrimaryActionButton`, `InlineProgressLabel`, and `FeedbackBanner` when
   refactoring those forms.
-- Nutrition-specific glass helpers partially fork from generic app primitives;
-  keep the fork intentional or converge naming/usage.
 - Custom time-series charts are visual-first today; add VoiceOver summaries when
   changing chart code.
