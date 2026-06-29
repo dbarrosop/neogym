@@ -605,7 +605,35 @@ preserving current drawing and gestures.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added chart-level accessibility label/value support
+  to `TimeSeriesChartView` and threaded labels/override values through
+  `TimeSeriesTrendChartView`. Non-empty custom chart content is collapsed into
+  one VoiceOver element, while empty-state text remains naturally accessible.
+  Default summaries cover visible series names, total point count, date range,
+  latest values, and min/max values using each series' `valueFormatter`. Body
+  and exercise progress charts now pass domain labels. Updated
+  `ios/NeoGym/CLAUDE.md` and removed the resolved chart-accessibility
+  inconsistency.
+- **Reviewer verdict:** `ACCEPT_WITH_CONCERNS`. The reviewer verified Phase 7
+  scope and DoD, including period-filtered visible data, domain labels,
+  untouched rendering/gestures/legends/callouts, and docs. Accepted concerns:
+  manual VoiceOver validation was not possible; the default-summary extension
+  lives in `TimeSeriesTrendChartView.swift` rather than
+  `TimeSeriesChartView.swift`; the date formatter is computed on demand; and
+  `ExerciseDetailSections.swift` includes harmless formatter-driven cosmetic
+  diffs.
+- **Autonomous decisions:** Deferred per-point `AccessibilityChartDescriptor`
+  because the plan allowed deferral unless cheap and stable; a single summary is
+  the lower-risk accessibility improvement. Accepted no automated tests because
+  there is no existing app-layer accessibility/UI harness and deterministic
+  package tests do not exercise VoiceOver announcements; build/test and reviewer
+  source validation are the strongest available checks.
+- **Quality gate:** Clean Xcode environment with
+  `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`: `xcrun swift
+  build` passed, `xcrun swift test` passed, simulator `xcodebuild` passed,
+  `git diff --check` passed, and `git status --short` showed only expected phase
+  files plus this living-plan update. Manual VoiceOver pass over body/exercise
+  charts was not possible in this non-interactive session.
 
 ---
 
@@ -651,15 +679,15 @@ in scope and must read `ios/NeoGym/CLAUDE.md` before changing iOS code.
 
 | Requirement | Phase(s) | Validation |
 | --- | --- | --- |
-| Icon-only controls labeled | 1 | Audit log, VoiceOver/manual check, xcodebuild |
-| Secondary icon mismatch resolved | 2 | No `icon` requirement/impls remain, navigation manual check |
-| Form state/action consistency | 3 | Representative flows, no validation moved, swift test + xcodebuild |
-| Numeric keyboard dismissal outside OTP | 4 | Small-simulator keyboard manual checks, OTP sanity check |
-| Glass parameters truthful | 5 | Bare/explicit audit, user sign-off, baseline/post visual review |
-| Nutrition helpers intentional | 6 | Helper audit, nutrition visual pass, docs updated |
-| Chart VoiceOver summaries | 7 | VoiceOver body/exercise chart pass, xcodebuild |
-| Docs in sync | all | `ios/NeoGym/CLAUDE.md` updated in each relevant phase |
-| App remains buildable | all | exact commands below |
+| Icon-only controls labeled | 1 | Audit log and VoiceOver/manual check |
+| Secondary icon mismatch resolved | 2 | No `icon` requirement/impls remain |
+| Form state/action consistency | 3 | Representative flows and tests |
+| Numeric keyboard dismissal outside OTP | 4 | Small-simulator keyboard checks |
+| Glass parameters truthful | 5 | Audit, sign-off, visual review |
+| Nutrition helpers intentional | 6 | Helper audit and docs |
+| Chart VoiceOver summaries | 7 | VoiceOver chart pass |
+| Docs in sync | all | `ios/NeoGym/CLAUDE.md` updated |
+| App remains buildable | all | Exact commands below |
 | No out-of-scope/generated files | all | `git status --short` |
 
 Required commands from `ios/NeoGym/` for app-layer phases:
@@ -667,8 +695,10 @@ Required commands from `ios/NeoGym/` for app-layer phases:
 ```sh
 swift build
 swift test
-nix develop ../.. --command xcodegen generate # if project missing or App files added/removed
-xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build
+# If project missing or App files added/removed:
+nix develop ../.. --command xcodegen generate
+xcodebuild -project NeoGym.xcodeproj -scheme NeoGym \
+  -destination 'generic/platform=iOS Simulator' build
 git status --short
 ```
 

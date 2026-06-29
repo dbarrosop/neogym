@@ -715,6 +715,7 @@ struct BodyTrendChartView: View {
             series: chartSeries,
             maxRenderedPoints: 48,
             emptyMessage: "No body measurements in this range.",
+            accessibilityLabel: "Body weight and body fat trend chart",
             initialPeriod: .last90Days
         )
     }

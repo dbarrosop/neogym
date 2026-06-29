@@ -138,9 +138,13 @@ intact instead of inventing one-off styles.
   editing is schema-driven and highlights the invalid metric row.
 - **Graphs and summaries**: body trends use `TimeSeriesTrendChartView` /
   `TimeSeriesChartView` with a period menu, custom date pickers, sampled points,
-  axes/legend, and tap/drag callouts. Nutrition totals use `MacroSummaryView`
-  grids with monospaced digits and optional target totals. Do not introduce a new
-  chart or macro tile style unless these primitives cannot express the need.
+  axes/legend, and tap/drag callouts. Non-empty custom charts collapse their
+  decorative drawing, axes, legends, markers, and callouts into one VoiceOver
+  element with a domain label plus a summary of visible series, point counts,
+  date range, latest values, and min/max values; empty-state text remains
+  naturally accessible. Nutrition totals use `MacroSummaryView` grids with
+  monospaced digits and optional target totals. Do not introduce a new chart or
+  macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,
   preserve 44-point hit targets for tappable chips/buttons where practical, and
   keep dynamic type in mind. Previews can set `dynamicTypeSize`, color scheme,
@@ -153,5 +157,3 @@ intact instead of inventing one-off styles.
   mutation-progress, or submit-button presentation. Prefer
   `PrimaryActionButton`, `InlineProgressLabel`, and `FeedbackBanner` when
   refactoring those forms.
-- Custom time-series charts are visual-first today; add VoiceOver summaries when
-  changing chart code.
