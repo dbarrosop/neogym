@@ -67,8 +67,11 @@ intact instead of inventing one-off styles.
 - **App shell and navigation**: the signed-in app is a three-tab `TabView`
   (Workouts, Nutrition, Me). Each tab owns a stack-style `NavigationView`; broad
   areas use the top `SecondarySectionBar` segmented control rather than adding
-  more primary tabs. Secondary bars are intentionally text-only to keep crowded
-  segmented controls compact and stable. Use hidden `NavigationLink` state only
+  more primary tabs. Root secondary sections are hosted in page-style `TabView`s
+  so horizontal swipes move between adjacent sections while pushed detail screens
+  keep normal back navigation. Secondary bars are intentionally text-only to keep
+  crowded segmented controls compact and stable. Use hidden `NavigationLink`
+  state only
   for programmatic follow-up navigation after creating/opening a record, and
   reload parent lists through `onCreated`/`onSaved`/`onDeleted`/`onMutated`
   callbacks.

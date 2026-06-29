@@ -30,7 +30,7 @@ struct NutritionNavigationView: View {
 
     var body: some View {
         NavigationView {
-            content
+            sectionPages
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .safeAreaInset(edge: .top, spacing: 0) {
                     SecondarySectionBar(selection: $selection)
@@ -40,14 +40,8 @@ struct NutritionNavigationView: View {
         .navigationViewStyle(.stack)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        switch selection {
-        case .foods:
-            FoodsListView(repository: repository, currentUserId: currentUserId)
-        case .meals:
-            MealsListView(repository: repository)
-        case .overview:
+    private var sectionPages: some View {
+        TabView(selection: $selection) {
             NutritionOverviewView(
                 repository: repository,
                 openSection: { section in
@@ -59,14 +53,23 @@ struct NutritionNavigationView: View {
                     selection = .days
                 }
             )
-        case .days:
+            .tag(NutritionSection.overview)
+
             NutritionDaysView(repository: repository, selectedDate: $selectedDate)
-        case .plans:
+                .tag(NutritionSection.days)
+
             PlansListView(repository: repository)
+                .tag(NutritionSection.plans)
+
+            FoodsListView(repository: repository, currentUserId: currentUserId)
+                .tag(NutritionSection.foods)
+
+            MealsListView(repository: repository)
+                .tag(NutritionSection.meals)
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 }
-
 
 private struct NutritionPlaceholderView: View {
     let title: String

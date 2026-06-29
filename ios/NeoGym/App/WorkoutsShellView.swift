@@ -32,7 +32,7 @@ struct WorkoutsSectionNavigationView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                content
+                sectionPages
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .safeAreaInset(edge: .top, spacing: 0) {
                         SecondarySectionBar(selection: $selection)
@@ -44,17 +44,16 @@ struct WorkoutsSectionNavigationView: View {
         .navigationViewStyle(.stack)
     }
 
-    @ViewBuilder
-    private var content: some View {
-        switch selection {
-        case .sessions:
+    private var sectionPages: some View {
+        TabView(selection: $selection) {
             SessionsListView(
                 sessionsRepository: sessionsRepository,
                 exercisesRepository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 pendingSessionId: $pendingSessionId
             )
-        case .workouts:
+            .tag(WorkoutAreaSection.sessions)
+
             WorkoutsListView(
                 workoutsRepository: workoutsRepository,
                 exercisesRepository: exercisesRepository,
@@ -62,13 +61,16 @@ struct WorkoutsSectionNavigationView: View {
                 currentUserId: currentUserId,
                 onSessionStarted: openSession
             )
-        case .exercises:
+            .tag(WorkoutAreaSection.workouts)
+
             ExercisesListView(
                 repository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 onSessionStarted: openSession
             )
+            .tag(WorkoutAreaSection.exercises)
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     @ViewBuilder
