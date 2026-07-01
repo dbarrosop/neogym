@@ -102,7 +102,13 @@ public final class DailyIntakeViewModel: ObservableObject {
         }
     }
 
-    public func logFood(foodId: String, grams: String, slotTime: String, position: Int? = nil) async -> Bool {
+    public func logFood(
+        foodId: String,
+        grams: String,
+        slotTime: String,
+        position: Int? = nil,
+        nutritionPlanFoodId: String? = nil
+    ) async -> Bool {
         guard validatePositiveGrams(grams), !foodId.isEmpty else {
             mutationState = .failed(message: "Choose a food and enter grams greater than zero.", previous: nil)
             return false
@@ -119,6 +125,7 @@ public final class DailyIntakeViewModel: ObservableObject {
             _ = try await repository.logFood(LogFoodValues(
                 dayId: dayId,
                 foodId: foodId,
+                nutritionPlanFoodId: nutritionPlanFoodId,
                 grams: normalizedDecimal(grams),
                 slotTime: time,
                 position: position ?? nextEntryPosition
@@ -130,6 +137,16 @@ public final class DailyIntakeViewModel: ObservableObject {
             mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
             return false
         }
+    }
+
+    public func logPlanFood(_ planSlot: NutritionPlanFoodSlot, grams: String? = nil, slotTime: String, position: Int? = nil) async -> Bool {
+        await logFood(
+            foodId: planSlot.foodId,
+            grams: grams ?? NutritionMath.formatEditableDecimal(planSlot.grams),
+            slotTime: slotTime,
+            position: position,
+            nutritionPlanFoodId: planSlot.id
+        )
     }
 
     public func logMeal(meal: Meal, planSlot: NutritionPlanMealSlot?, slotTime: String, position: Int? = nil) async -> Bool {
