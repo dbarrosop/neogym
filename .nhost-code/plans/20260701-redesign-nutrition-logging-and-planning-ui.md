@@ -442,7 +442,31 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added reusable quick private-food and meal dialogs
+  backed by existing `FoodForm`/`MealForm` UI and typed GraphQL mutations.
+  `MealForm` now supports inline private-food create/edit, selecting newly
+  created foods into the active ingredient and refreshing edited private-food
+  macros/totals while leaving public foods read-only. `NutritionPlanForm` now
+  supports inline meal create/edit and direct private-food create/edit while
+  preserving mixed add/reorder/remove/live totals and source-FK delete+insert
+  semantics. Added focused helper tests for public/private editability, macro
+  normalization, and meal-ingredient diff behavior.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the inline composition goal
+  is satisfied, public foods remain read-only, source-FK diff semantics are
+  preserved, and automated frontend validation passes. Reviewer model differed
+  from the planned route because the requested Claude reviewer quota was
+  exhausted.
+- **Autonomous decisions:** Used `gpt-5.5` for the reviewer pass after
+  `claude-opus-4-8` failed due quota. Justification: correctness and long-term
+  maintenance — a fresh `nhost-reviewer` pass was still required before commit,
+  and continuing with an available reviewer model was safer than skipping review.
+  Deferred manual browser/mobile focus, scroll, cancel, and backend-backed smoke
+  checks to Phase 8; justification: correctness, because no live backend/browser
+  environment was available but automated checks and static review passed.
+- **Quality gate:** `cd frontend && nix develop ../ --command bun run check`
+  passed: TypeScript passed, Biome checked 106 files with no fixes, and Bun ran
+  103 tests with 0 failures. `codegen:graphql`, LSP diagnostics, and diff checks
+  also passed during implementation.
 
 ### Phase 6 — iOS NeoGymKit contract and repository parity
 
