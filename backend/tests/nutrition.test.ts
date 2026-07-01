@@ -1,8 +1,9 @@
 /// <reference path="./bun-test.d.ts" />
 
 // Backend integration tests for nutrition permissions, snapshots, and cascades.
-// Prereqs: local Nhost stack must be running with seeds applied
-// (`make dev-env-up` from backend/). Tests skip cleanly if Hasura is down.
+// Prereqs: the NeoGym local Nhost stack must be running with seeds applied
+// (`make dev-env-up` from backend/). The reachability smoke test fails when
+// Hasura is unavailable so missing/wrong local environments do not pass.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
@@ -153,6 +154,30 @@ async function createPlan(userId: string, name: string) {
 	);
 	expect(res.errors).toBeUndefined();
 	return res.data!.insertNutritionPlan.id;
+}
+
+async function createPlanFood(
+	userId: string,
+	nutritionPlanId: string,
+	foodId: string,
+	position = 0,
+) {
+	const res = await gqlAsUser<{ insertNutritionPlanFood: { id: string } }>(
+		`mutation CreatePlanFood($planId: uuid!, $foodId: uuid!, $position: Int!) {
+      insertNutritionPlanFood(object: {
+        nutritionPlanId: $planId,
+        foodId: $foodId,
+        grams: "100",
+        slotTime: "08:00:00",
+        label: "Direct food",
+        position: $position
+      }) { id }
+    }`,
+		{ planId: nutritionPlanId, foodId, position },
+		userId,
+	);
+	expect(res.errors).toBeUndefined();
+	return res.data!.insertNutritionPlanFood.id;
 }
 
 async function createDay(
@@ -320,6 +345,113 @@ describe("nutrition template ownership", () => {
 	});
 });
 
+describe("nutrition direct plan foods", () => {
+	test("plan food slots can use own/public foods but not foreign foods or plans", async () => {
+		if (!hasuraReachable) return;
+		const planId = await createPlan(TEST_USER_ID, `Food plan ${RUN_ID}`);
+		const ownFood = await createFood(TEST_USER_ID, `Own plan food ${RUN_ID}`);
+		const foreignFood = await createFood(
+			OTHER_USER_ID,
+			`Foreign plan food ${RUN_ID}`,
+		);
+		const foreignPlanId = await createPlan(
+			OTHER_USER_ID,
+			`Foreign direct food plan ${RUN_ID}`,
+		);
+
+		const ownSlot = await gqlAsUser<{
+			insertNutritionPlanFood: { id: string; foodId: string; label: string };
+		}>(
+			`mutation AddOwnFood($planId: uuid!, $foodId: uuid!) {
+        insertNutritionPlanFood(object: { nutritionPlanId: $planId, foodId: $foodId, grams: "125", slotTime: "07:30:00", label: "Pre-workout", position: 0 }) { id foodId label }
+      }`,
+			{ planId, foodId: ownFood.id },
+			TEST_USER_ID,
+		);
+		expect(ownSlot.errors).toBeUndefined();
+		expect(ownSlot.data!.insertNutritionPlanFood.foodId).toBe(ownFood.id);
+
+		const publicSlot = await gqlAsUser<{
+			insertNutritionPlanFood: { id: string };
+		}>(
+			`mutation AddPublicFood($planId: uuid!) {
+        insertNutritionPlanFood(object: { nutritionPlanId: $planId, foodId: "${PUBLIC_BANANA_ID}", grams: "80", slotTime: "10:00:00", position: 1 }) { id }
+      }`,
+			{ planId },
+			TEST_USER_ID,
+		);
+		expect(publicSlot.errors).toBeUndefined();
+
+		const foreignFoodSlot = await gqlAsUser<unknown>(
+			`mutation AddForeignFood($planId: uuid!, $foodId: uuid!) {
+        insertNutritionPlanFood(object: { nutritionPlanId: $planId, foodId: $foodId, grams: "100", slotTime: "12:00:00", position: 2 }) { id }
+      }`,
+			{ planId, foodId: foreignFood.id },
+			TEST_USER_ID,
+		);
+		expectGraphQLError(foreignFoodSlot.errors);
+
+		const foreignPlanSlot = await gqlAsUser<unknown>(
+			`mutation AddToForeignPlan($planId: uuid!) {
+        insertNutritionPlanFood(object: { nutritionPlanId: $planId, foodId: "${PUBLIC_BANANA_ID}", grams: "100", slotTime: "12:00:00", position: 3 }) { id }
+      }`,
+			{ planId: foreignPlanId },
+			TEST_USER_ID,
+		);
+		expectGraphQLError(foreignPlanSlot.errors);
+	});
+
+	test("plan food source FKs are immutable while presentation fields are editable", async () => {
+		if (!hasuraReachable) return;
+		const planId = await createPlan(
+			TEST_USER_ID,
+			`Immutable food plan ${RUN_ID}`,
+		);
+		const food = await createFood(
+			TEST_USER_ID,
+			`Immutable plan food ${RUN_ID}`,
+		);
+		const planFoodId = await createPlanFood(TEST_USER_ID, planId, food.id);
+		const otherPlanId = await createPlan(
+			TEST_USER_ID,
+			`Other immutable food plan ${RUN_ID}`,
+		);
+
+		const updateMutable = await gqlAsUser<{
+			updateNutritionPlanFood: {
+				grams: string;
+				slotTime: string;
+				label: string;
+				position: number;
+			} | null;
+		}>(
+			`mutation UpdatePlanFood($id: uuid!) {
+        updateNutritionPlanFood(pk_columns: { id: $id }, _set: { grams: "150", slotTime: "09:30:00", label: "Moved", position: 4 }) {
+          grams slotTime label position
+        }
+      }`,
+			{ id: planFoodId },
+			TEST_USER_ID,
+		);
+		expect(updateMutable.errors).toBeUndefined();
+		expect(updateMutable.data!.updateNutritionPlanFood).toEqual({
+			grams: 150,
+			slotTime: "09:30:00",
+			label: "Moved",
+			position: 4,
+		});
+
+		const updateSource = await gqlAsUser<unknown>(
+			`mutation UpdatePlanFoodSource($id: uuid!, $planId: uuid!) {
+        updateNutritionPlanFood(pk_columns: { id: $id }, _set: { foodId: "${PUBLIC_BANANA_ID}", nutritionPlanId: $planId }) { id }
+      }`,
+			{ id: planFoodId, planId: otherPlanId },
+			TEST_USER_ID,
+		);
+		expect(errorText(updateSource.errors)).toContain("foodId");
+	});
+});
+
 describe("nutrition logging snapshots", () => {
 	test("snapshot columns are trigger-populated, stable after food changes, and slot time is user-updatable", async () => {
 		if (!hasuraReachable) return;
@@ -431,6 +563,117 @@ describe("nutrition logging snapshots", () => {
 			TEST_USER_ID,
 		);
 		expectGraphQLError(foreignFoodLog.errors);
+	});
+
+	test("direct plan food logs are standalone, food-consistent, and snapshot-backed", async () => {
+		if (!hasuraReachable) return;
+		const food = await createFood(
+			TEST_USER_ID,
+			`Plan food log source ${RUN_ID}`,
+		);
+		const planId = await createPlan(
+			TEST_USER_ID,
+			`Plan food log plan ${RUN_ID}`,
+		);
+		const planFoodId = await createPlanFood(TEST_USER_ID, planId, food.id);
+		const foreignPlanId = await createPlan(
+			OTHER_USER_ID,
+			`Foreign plan food log plan ${RUN_ID}`,
+		);
+		const foreignPlanFoodId = await createPlanFood(
+			OTHER_USER_ID,
+			foreignPlanId,
+			PUBLIC_BANANA_ID,
+		);
+		const day = await createDay(TEST_USER_ID, runDate(10));
+
+		const logged = await gqlAsUser<{
+			insertNutritionLogEntry: {
+				id: string;
+				nutritionPlanFoodId: string | null;
+				nutritionLogMealId: string | null;
+				slotTime: string;
+				snapshotFoodName: string;
+			};
+		}>(
+			`mutation LogPlanFood($dayId: uuid!, $foodId: uuid!, $planFoodId: uuid!) {
+        insertNutritionLogEntry(object: {
+          nutritionDayId: $dayId,
+          foodId: $foodId,
+          nutritionPlanFoodId: $planFoodId,
+          grams: "90",
+          position: 0,
+          slotTime: "18:15:00"
+        }) { id nutritionPlanFoodId nutritionLogMealId slotTime snapshotFoodName }
+      }`,
+			{ dayId: day.id, foodId: food.id, planFoodId },
+			TEST_USER_ID,
+		);
+		expect(logged.errors).toBeUndefined();
+		expect(logged.data!.insertNutritionLogEntry).toEqual({
+			id: logged.data!.insertNutritionLogEntry.id,
+			nutritionPlanFoodId: planFoodId,
+			nutritionLogMealId: null,
+			slotTime: "18:15:00",
+			snapshotFoodName: food.name,
+		});
+
+		const mismatch = await gqlAsUser<unknown>(
+			`mutation MismatchPlanFood($dayId: uuid!, $planFoodId: uuid!) {
+        insertNutritionLogEntry(object: {
+          nutritionDayId: $dayId,
+          foodId: "${PUBLIC_BANANA_ID}",
+          nutritionPlanFoodId: $planFoodId,
+          grams: "90",
+          position: 1
+        }) { id }
+      }`,
+			{ dayId: day.id, planFoodId },
+			TEST_USER_ID,
+		);
+		expect(errorText(mismatch.errors)).toContain("must match");
+
+		const group = await gqlAsUser<{ insertNutritionLogMeal: { id: string } }>(
+			`mutation Group($dayId: uuid!) { insertNutritionLogMeal(object: { nutritionDayId: $dayId, name: "Grouped direct food", position: 1 }) { id } }`,
+			{ dayId: day.id },
+			TEST_USER_ID,
+		);
+		expect(group.errors).toBeUndefined();
+		const grouped = await gqlAsUser<unknown>(
+			`mutation GroupedPlanFood($dayId: uuid!, $groupId: uuid!, $foodId: uuid!, $planFoodId: uuid!) {
+        insertNutritionLogEntry(object: {
+          nutritionDayId: $dayId,
+          nutritionLogMealId: $groupId,
+          foodId: $foodId,
+          nutritionPlanFoodId: $planFoodId,
+          grams: "90",
+          position: 2
+        }) { id }
+      }`,
+			{
+				dayId: day.id,
+				groupId: group.data!.insertNutritionLogMeal.id,
+				foodId: food.id,
+				planFoodId,
+			},
+			TEST_USER_ID,
+		);
+		expect(errorText(grouped.errors)).toContain("standalone");
+
+		const foreignPlanFood = await gqlAsUser<unknown>(
+			`mutation ForeignPlanFood($dayId: uuid!, $planFoodId: uuid!) {
+        insertNutritionLogEntry(object: {
+          nutritionDayId: $dayId,
+          foodId: "${PUBLIC_BANANA_ID}",
+          nutritionPlanFoodId: $planFoodId,
+          grams: "90",
+          position: 3
+        }) { id }
+      }`,
+			{ dayId: day.id, planFoodId: foreignPlanFoodId },
+			TEST_USER_ID,
+		);
+		expectGraphQLError(foreignPlanFood.errors);
 	});
 
 	test("nested meal logging shape is permission-safe when every child carries the same day id", async () => {
@@ -560,6 +803,98 @@ describe("nutrition FK and cascade behavior", () => {
 		);
 		expect(retained.errors).toBeUndefined();
 		expect(retained.data!.nutritionLogEntry).toEqual({
+			foodId: null,
+			snapshotFoodName: food.name,
+		});
+	});
+
+	test("direct plan foods restrict source food deletion but provenance is nulled on template delete", async () => {
+		if (!hasuraReachable) return;
+		const food = await createFood(
+			TEST_USER_ID,
+			`Direct plan food delete semantics ${RUN_ID}`,
+		);
+		const planId = await createPlan(
+			TEST_USER_ID,
+			`Direct plan food delete plan ${RUN_ID}`,
+		);
+		const planFoodId = await createPlanFood(TEST_USER_ID, planId, food.id);
+
+		const blocked = await gqlAsUser<unknown>(
+			`mutation DeleteFood($id: uuid!) { deleteFood(id: $id) { id } }`,
+			{ id: food.id },
+			TEST_USER_ID,
+		);
+		expectGraphQLError(blocked.errors);
+
+		const day = await createDay(TEST_USER_ID, runDate(11));
+		const entry = await gqlAsUser<{
+			insertNutritionLogEntry: {
+				id: string;
+				nutritionPlanFoodId: string | null;
+				snapshotFoodName: string;
+			};
+		}>(
+			`mutation LogPlanFood($dayId: uuid!, $foodId: uuid!, $planFoodId: uuid!) {
+        insertNutritionLogEntry(object: { nutritionDayId: $dayId, foodId: $foodId, nutritionPlanFoodId: $planFoodId, grams: "75", position: 0 }) {
+          id nutritionPlanFoodId snapshotFoodName
+        }
+      }`,
+			{ dayId: day.id, foodId: food.id, planFoodId },
+			TEST_USER_ID,
+		);
+		expect(entry.errors).toBeUndefined();
+		expect(entry.data!.insertNutritionLogEntry.nutritionPlanFoodId).toBe(
+			planFoodId,
+		);
+
+		const deletePlan = await gqlAsUser<{
+			deleteNutritionPlan: { id: string } | null;
+		}>(
+			`mutation DeletePlan($id: uuid!) { deleteNutritionPlan(id: $id) { id } }`,
+			{ id: planId },
+			TEST_USER_ID,
+		);
+		expect(deletePlan.errors).toBeUndefined();
+
+		const retained = await gqlAsUser<{
+			nutritionLogEntry: {
+				nutritionPlanFoodId: string | null;
+				foodId: string | null;
+				snapshotFoodName: string;
+			} | null;
+		}>(
+			`query Entry($id: uuid!) { nutritionLogEntry(id: $id) { nutritionPlanFoodId foodId snapshotFoodName } }`,
+			{ id: entry.data!.insertNutritionLogEntry.id },
+			TEST_USER_ID,
+		);
+		expect(retained.errors).toBeUndefined();
+		expect(retained.data!.nutritionLogEntry).toEqual({
+			nutritionPlanFoodId: null,
+			foodId: food.id,
+			snapshotFoodName: food.name,
+		});
+
+		const deleteFood = await gqlAsUser<{ deleteFood: { id: string } | null }>(
+			`mutation DeleteFood($id: uuid!) { deleteFood(id: $id) { id } }`,
+			{ id: food.id },
+			TEST_USER_ID,
+		);
+		expect(deleteFood.errors).toBeUndefined();
+		expect(deleteFood.data!.deleteFood?.id).toBe(food.id);
+
+		const afterFoodDelete = await gqlAsUser<{
+			nutritionLogEntry: {
+				foodId: string | null;
+				snapshotFoodName: string;
+			} | null;
+		}>(
+			`query Entry($id: uuid!) { nutritionLogEntry(id: $id) { foodId snapshotFoodName } }`,
+			{ id: entry.data!.insertNutritionLogEntry.id },
+			TEST_USER_ID,
+		);
+		expect(afterFoodDelete.errors).toBeUndefined();
+		expect(afterFoodDelete.data!.nutritionLogEntry).toEqual({
 			foodId: null,
 			snapshotFoodName: food.name,
 		});
@@ -758,5 +1093,16 @@ describe("nutrition user-role allowlists", () => {
 			TEST_USER_ID,
 		);
 		expect(errorText(changeEntryFood.errors)).toContain("foodId");
+
+		const changeEntryPlanFood = await gqlAsUser<unknown>(
+			`mutation BadEntryPlanFoodUpdate($id: uuid!) {
+        updateNutritionLogEntry(pk_columns: { id: $id }, _set: { nutritionPlanFoodId: null }) { id }
+      }`,
+			{ id: entry.data!.insertNutritionLogEntry.id },
+			TEST_USER_ID,
+		);
+		expect(errorText(changeEntryPlanFood.errors)).toContain(
+			"nutritionPlanFoodId",
+		);
 	});
 });

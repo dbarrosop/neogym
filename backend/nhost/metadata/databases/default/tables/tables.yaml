@@ -32,6 +32,7 @@
 - "!include public_nutrition_days.yaml"
 - "!include public_nutrition_log_entries.yaml"
 - "!include public_nutrition_log_meals.yaml"
+- "!include public_nutrition_plan_foods.yaml"
 - "!include public_nutrition_plan_meals.yaml"
 - "!include public_nutrition_plans.yaml"
 - "!include public_workout_exercises.yaml"

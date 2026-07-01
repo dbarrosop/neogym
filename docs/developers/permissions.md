@@ -262,7 +262,7 @@ See [`nutrition.md`](nutrition.md) for model details. These permissions expose t
 | `user` | `select` | `id`, `name`, `user_id`, `is_public`, `kcal_per_100g`, `fat_per_100g`, `carbs_per_100g`, `protein_per_100g`, `fiber_per_100g`, `sugar_per_100g`, timestamps | filter: `_or [user_id eq self, is_public eq true]` | Users see public foods plus their private foods. |
 | `user` | `insert` | `name` and nutrient columns | check: `_and [user_id eq self, is_public eq false]`; `set: user_id = self` | Users create private foods only; they cannot set `is_public`. |
 | `user` | `update` | `name` and nutrient columns | filter & check: `_and [user_id eq self, is_public eq false]` | Users edit only their private foods. |
-| `user` | `delete` | — | filter: `_and [user_id eq self, is_public eq false]` | Users delete only their private foods. Deletion can still be blocked by `meal_ingredients.food_id ON DELETE RESTRICT`. |
+| `user` | `delete` | — | filter: `_and [user_id eq self, is_public eq false]` | Users delete only their private foods. Deletion can still be blocked by `meal_ingredients.food_id` or `nutrition_plan_foods.food_id` `ON DELETE RESTRICT`. |
 
 ### `meals`, `nutrition_plans`, `nutrition_days` — pattern **A (private per-user)**
 
@@ -283,13 +283,17 @@ See [`nutrition.md`](nutrition.md) for model details. These permissions expose t
 
 Select/update/delete walk `nutritionPlan.user_id eq self`. Insert checks both `nutritionPlan.user_id eq self` and `meal.user_id eq self`. Users may update only `slot_time`, `label`, and `position`; changing the source meal is delete+insert.
 
+### `nutrition_plan_foods` — pattern **C (owned plan + visible food)**
+
+Select/update/delete walk `nutritionPlan.user_id eq self`. Insert checks both `nutritionPlan.user_id eq self` and `food._or [user_id eq self, is_public eq true]`, so a direct plan food can reference the user's private foods or public catalog foods, never another user's private food. Users may update only `grams`, `slot_time`, `label`, and `position`; changing `nutrition_plan_id` or `food_id` is delete+insert. `food_id` is `ON DELETE RESTRICT`, so a food referenced by any direct plan slot cannot be deleted until the slot is removed.
+
 ### `nutrition_log_meals` — pattern **C (owned day, nullable provenance)**
 
 Select/update/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day and uses explicit nullable branches for provenance: `_or [meal_id is null, meal.user_id eq self]` and `_or [nutrition_plan_meal_id is null, nutritionPlanMeal.nutritionPlan.user_id eq self]`. Users may insert/update `name`, `slot_time`, and `position`; `slot_time` is the actual logged time-of-day chosen in the UI, not necessarily the source plan slot time. Users cannot reparent a logged group after insert.
 
-### `nutrition_log_entries` — pattern **C (owned day + visible food + optional same-day group)**
+### `nutrition_log_entries` — pattern **C (owned day + visible food + optional same-day group/provenance)**
 
-Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), and an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch. Users can set `slot_time` for standalone logged-food time on insert, but updates are limited to `grams` and `position`; `food_id`, `slot_time`, and all `snapshot_*` columns are not user-updatable. Snapshot columns are selectable so clients can compute historical totals.
+Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, visible food (`food._or [user_id eq self, is_public eq true]`), an explicit nullable group branch (`_or [nutrition_log_meal_id is null, nutritionLogMeal.nutritionDay.user_id eq self]`), and an explicit nullable direct-plan-food branch (`_or [nutrition_plan_food_id is null, nutritionPlanFood.nutritionPlan.user_id eq self]`). The database composite FK additionally rejects a group/day mismatch, and the plan-food provenance trigger rejects grouped plan-food rows or mismatched `food_id`. Users can set `slot_time` for standalone logged-food time on insert, but updates are limited to `grams`, `position`, and `slot_time`; `food_id`, `nutrition_plan_food_id`, and all `snapshot_*` columns are not user-updatable. Snapshot columns and `nutrition_plan_food_id` are selectable so clients can compute historical totals and display provenance.
 
 ## Storage
 
@@ -313,6 +317,8 @@ A few intentional omissions worth calling out — these are the columns and tabl
 - **`workout_exercises.kind` and `workout_session_exercises.kind`** — not insertable to the user role. The kind-sync `BEFORE INSERT` trigger populates them from the parent exercise. If `kind` were in the user-role allowlist, the security boundary would rest on the trigger alone; excluding it makes the GraphQL validator reject the field outright (see the `validation-failed` assertion in `backend/tests/kind-enforcement.test.ts`).
 - **`workout_session_strength_sets.parent_kind` and `workout_session_cardio_entries.parent_kind`** — same reasoning. Excluded from the user-role allowlist so the discriminator is structural, not client-controlled. CHECK + DEFAULT pin them server-side.
 - **`workouts.is_public` and `labels.is_public`** — not in the user-role insert/update allowlist for the same reason: only admins can promote private rows to the public catalog.
+- **`meal_ingredients.food_id`, `nutrition_plan_meals.meal_id`, and `nutrition_plan_foods.food_id` after insert** — not in user-role update allowlists. Template source changes are delete+insert so reparenting cannot silently rewrite historical or planned semantics.
+- **`nutrition_log_entries.food_id`, `nutrition_log_entries.nutrition_plan_food_id`, and all `nutrition_log_entries.snapshot_*` columns after insert** — not in the user-role update allowlist. Food snapshots and provenance are insert-time facts; users correct grams/position/time, not the source identity.
 - **All `auth.*` and `storage.buckets` / `storage.virus` tables** — admin-only. Managed by Nhost; do not edit those YAMLs unless you know what you're touching.
 
 ## Where to verify these claims

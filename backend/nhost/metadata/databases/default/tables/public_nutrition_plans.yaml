@@ -45,6 +45,13 @@ array_relationships:
         table:
           name: nutrition_days
           schema: public
+  - name: nutritionPlanFoods
+    using:
+      foreign_key_constraint_on:
+        column: nutrition_plan_id
+        table:
+          name: nutrition_plan_foods
+          schema: public
   - name: nutritionPlanMeals
     using:
       foreign_key_constraint_on:
