@@ -9,6 +9,7 @@ import {
   groupIntakeByTimeSlot,
   type IntakeEntry,
   type IntakeLoggedMealGroup,
+  intakeDraftMacroTotals,
   isFoodInUseError,
   isValidLocalDate,
   loggedMacroTotals,
@@ -168,6 +169,42 @@ describe("nutrition macro helpers", () => {
       protein: 7.5,
       fiber: 3,
       sugar: 12,
+    });
+  });
+
+  it("computes editable intake draft totals from current grams", () => {
+    expect(
+      intakeDraftMacroTotals([
+        {
+          grams: "125",
+          food: {
+            kcalPer100g: "80",
+            fatPer100g: "1",
+            carbsPer100g: "10",
+            proteinPer100g: "5",
+            fiberPer100g: "2",
+            sugarPer100g: "3",
+          },
+        },
+        {
+          grams: "75",
+          food: {
+            kcalPer100g: "120",
+            fatPer100g: "2",
+            carbsPer100g: "8",
+            proteinPer100g: "4",
+            fiberPer100g: "1",
+            sugarPer100g: "2",
+          },
+        },
+      ]),
+    ).toEqual({
+      kcal: 190,
+      fat: 2.75,
+      carbs: 18.5,
+      protein: 9.25,
+      fiber: 3.25,
+      sugar: 5.25,
     });
   });
 
