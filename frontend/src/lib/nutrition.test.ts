@@ -9,6 +9,7 @@ import {
   groupIntakeByTimeSlot,
   type IntakeEntry,
   type IntakeLoggedMealGroup,
+  isFoodInUseError,
   isValidLocalDate,
   loggedMacroTotals,
   macroSummary,
@@ -24,6 +25,7 @@ import {
   planEntriesMacroTotals,
   planEntryMacroTotals,
   planMacroTotals,
+  sortAndRenumberPlanEntriesByTime,
   timeToInputValue,
 } from "./nutrition";
 
@@ -372,6 +374,24 @@ describe("nutrition mixed plan entry helpers", () => {
       "meal:meal-b",
     ]);
   });
+
+  it("sorts drafts by time and writes shared positions per mixed time slot", () => {
+    const entries = sortAndRenumberPlanEntriesByTime([
+      { kind: "meal", id: "meal-lunch", slotTime: "12:00", position: 99 },
+      { kind: "food", id: "food-breakfast", slotTime: "08:00", position: 99 },
+      { kind: "food", id: "food-lunch", slotTime: "12:00", position: 99 },
+      { kind: "meal", id: "meal-lunch-2", slotTime: "12:00", position: 99 },
+    ]);
+
+    expect(
+      entries.map((entry) => `${entry.slotTime}:${entry.kind}:${entry.id}:${entry.position}`),
+    ).toEqual([
+      "08:00:food:food-breakfast:0",
+      "12:00:meal:meal-lunch:0",
+      "12:00:food:food-lunch:1",
+      "12:00:meal:meal-lunch-2:2",
+    ]);
+  });
 });
 
 describe("nutrition logged macro helpers", () => {
@@ -529,6 +549,14 @@ describe("nutrition time-slot grouping", () => {
       "standalone",
     ]);
     expect(slot?.mealGroups.map((group) => group.id)).toEqual(["meal-a", "meal-b"]);
+  });
+});
+
+describe("nutrition delete error helpers", () => {
+  it("recognizes direct plan food references as food-in-use delete errors", () => {
+    expect(
+      isFoodInUseError(new Error("update or delete violates nutrition_plan_foods_food_id_fkey")),
+    ).toBe(true);
   });
 });
 

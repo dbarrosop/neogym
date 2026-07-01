@@ -21,7 +21,7 @@ export const Route = createFileRoute("/_authed/nutrition/plans/new")({
 const EMPTY_PLAN: NutritionPlanFormValues = {
   name: "",
   description: "",
-  slots: [],
+  entries: [],
 };
 
 function NewNutritionPlanRoute() {
@@ -35,17 +35,31 @@ function NewNutritionPlanRoute() {
           name: values.name,
           description: values.description === "" ? null : values.description,
           nutritionPlanMeals: {
-            data: values.slots.map((slot) => ({
-              mealId: slot.mealId,
-              slotTime: slot.slotTime,
-              label: slot.label === "" ? null : slot.label,
-              position: slot.position,
-            })),
+            data: values.entries
+              .filter((entry) => entry.kind === "meal")
+              .map((entry) => ({
+                mealId: entry.mealId,
+                slotTime: entry.slotTime,
+                label: entry.label === "" ? null : entry.label,
+                position: entry.position,
+              })),
+          },
+          nutritionPlanFoods: {
+            data: values.entries
+              .filter((entry) => entry.kind === "food")
+              .map((entry) => ({
+                foodId: entry.foodId,
+                grams: entry.grams,
+                slotTime: entry.slotTime,
+                label: entry.label === "" ? null : entry.label,
+                position: entry.position,
+              })),
           },
         },
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "plans"] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days"] });
       toast.success("Plan created");
       const id = data.insertNutritionPlan?.id;
       if (id) {
