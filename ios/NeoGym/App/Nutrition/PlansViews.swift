@@ -51,7 +51,7 @@ struct PlansListView: View {
                 Text("Plans")
                     .font(.largeTitle.bold())
                     .tracking(-0.8)
-                Text("Create reusable one-day templates made of timed meal slots. Plans are suggestions only.")
+                Text("Create reusable one-day templates made of timed meal and food entries. Plans are suggestions only.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
@@ -110,8 +110,8 @@ struct PlansListView: View {
                         AppEmptyStateView(
                             title: viewModel.isFiltered ? "No plans match this search." : "No daily plans yet.",
                             message: viewModel.isFiltered
-                                ? "Clear the search or try another meal name."
-                                : "Create a reusable day template from your meal library.",
+                                ? "Clear the search or try another meal or food name."
+                                : "Create a reusable day template from meals and foods.",
                             systemImage: "list.bullet.rectangle"
                         )
                         if viewModel.isFiltered {
@@ -178,11 +178,11 @@ private struct PlanListRow: View {
     let plan: NutritionPlan
 
     var body: some View {
-        let sortedSlots = plan.sortedSlots
-        let firstSlot = sortedSlots.first
-        let firstSlotSummary = firstSlot.map { slot in
-            "\(IntakeGrouping.formatTimeOfDay(slot.slotTime)) · \(slot.displayLabel)"
-        } ?? "No slots yet"
+        let sortedEntries = plan.sortedEntries
+        let firstEntry = sortedEntries.first
+        let firstEntrySummary = firstEntry.map { entry in
+            "\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)"
+        } ?? "No entries yet"
         HStack(spacing: 12) {
             Image(systemName: "list.bullet.rectangle")
                 .font(.title3)
@@ -194,7 +194,7 @@ private struct PlanListRow: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(.primary)
                     .lineLimit(1)
-                Text("\(sortedSlots.count) slot\(sortedSlots.count == 1 ? "" : "s") · \(firstSlotSummary) · "
+                Text("\(sortedEntries.count) entr\(sortedEntries.count == 1 ? "y" : "ies") · \(firstEntrySummary) · "
                     + NutritionMath.macroTotalsSummary(plan.macroTotals))
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)

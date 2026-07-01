@@ -19,7 +19,7 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     func listPlans() async throws -> [NutritionPlan] { [previewPlan] }
     func plan(id: String) async throws -> NutritionPlan? { previewPlan }
     func editPlan(id: String) async throws -> NutritionPlanEditPayload {
-        NutritionPlanEditPayload(plan: previewPlan, meals: [previewMeal])
+        NutritionPlanEditPayload(plan: previewPlan, meals: [previewMeal], foods: previewFoods)
     }
     func mealsForPlanForm() async throws -> [Meal] { [previewMeal] }
     func createPlan(_ values: NutritionPlanFormValues) async throws -> String { "plan-new" }
@@ -160,6 +160,18 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
                     label: "Breakfast",
                     position: 0,
                     meal: previewMeal
+                )
+            ],
+            nutritionPlanFoods: [
+                NutritionPlanFoodSlot(
+                    id: "food-slot-1",
+                    nutritionPlanId: "plan-1",
+                    foodId: "food-2",
+                    grams: .string("80"),
+                    slotTime: "10:15:00",
+                    label: "Snack",
+                    position: 0,
+                    food: previewFoods[1]
                 )
             ]
         )

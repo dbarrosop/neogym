@@ -77,7 +77,7 @@ struct NutritionOverviewView: View {
             )
             overviewCard(
                 title: "Plans",
-                message: "Timed meal suggestions, not binding schedules.",
+                message: "Timed meal and food suggestions, not binding schedules.",
                 systemImage: "list.bullet.rectangle",
                 section: .plans
             )

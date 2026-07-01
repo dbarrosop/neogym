@@ -230,6 +230,25 @@ final class NutritionPlanFormTests: XCTestCase {
         XCTAssertEqual(totals.protein, 24.56, accuracy: 0.001)
     }
 
+    func testPlanFormMovesMixedEntriesWithSharedPositions() {
+        let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
+            name: "Plan",
+            description: "",
+            slots: [
+                NutritionPlanSlotFormValues(id: "meal-slot", mealId: "meal-1", slotTime: "08:00", label: "Meal", position: 0)
+            ],
+            foodSlots: [
+                NutritionPlanFoodSlotFormValues(id: "food-slot", foodId: "food-2", grams: "50", slotTime: "08:00", label: "Fruit", position: 1)
+            ]
+        ))
+
+        model.moveEntry(kind: .food, stableId: "food-slot", direction: -1)
+
+        XCTAssertEqual(model.sortedDraftEntries().map(\.kind), [.food, .meal])
+        XCTAssertEqual(model.foodSlots.first?.position, 0)
+        XCTAssertEqual(model.slots.first?.position, 1)
+    }
+
     func testPlanFormValidationRenumbersMixedEntriesPerTimeAndTotalsDirectFoods() {
         let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
             name: "Plan",

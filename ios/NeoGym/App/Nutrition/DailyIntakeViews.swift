@@ -103,8 +103,7 @@ struct DailyIntakeView: View {
     let onClose: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
-    @State private var showLogFood = false
-    @State private var showLogMeal = false
+    @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
     @State private var confirmingDayDelete = false
@@ -129,11 +128,8 @@ struct DailyIntakeView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .sheet(isPresented: $showLogFood) {
-            LogFoodSheet(viewModel: viewModel)
-        }
-        .sheet(isPresented: $showLogMeal) {
-            LogMealSheet(viewModel: viewModel, planSlot: nil)
+        .sheet(item: $logRequest) { request in
+            LogIntakeSheet(viewModel: viewModel, request: request)
         }
         .sheet(item: $editingEntry) { item in
             EditLogEntrySheet(viewModel: viewModel, item: item)
@@ -249,14 +245,14 @@ struct DailyIntakeView: View {
 
                 HStack(spacing: 10) {
                     Button {
-                        showLogMeal = true
+                        logRequest = .adHocMeal
                     } label: {
                         Label("Log meal", systemImage: "plus")
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isMutating)
                     Button {
-                        showLogFood = true
+                        logRequest = .adHocFood
                     } label: {
                         Label("Log food", systemImage: "plus")
                     }
@@ -274,9 +270,7 @@ struct DailyIntakeView: View {
                 Picker("Selected nutrition plan", selection: Binding(
                     get: { viewModel.day?.nutritionPlanId ?? "" },
                     set: { value in
-                        Task {
-                            _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value)
-                        }
+                        Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) }
                     }
                 )) {
                     Text("No plan selected").tag("")
@@ -292,21 +286,29 @@ struct DailyIntakeView: View {
                 .disabled(viewModel.day?.nutritionPlanId == nil || viewModel.isMutating)
 
                 if let plan = viewModel.selectedPlan {
-                    if plan.sortedSlots.isEmpty {
+                    if plan.sortedEntries.isEmpty {
                         AppEmptyStateView(
-                            title: "No slots",
-                            message: "This selected plan does not have meal slots yet.",
+                            title: "No entries",
+                            message: "This selected plan does not have meal or food entries yet.",
                             systemImage: "list.bullet.rectangle"
                         )
                     } else {
                         VStack(spacing: 0) {
-                            ForEach(Array(plan.sortedSlots.enumerated()), id: \.element.id) { index, slot in
+                            ForEach(Array(plan.sortedEntries.enumerated()), id: \.element.id) { index, entry in
+                                let fixedPosition = entry.kind == .meal
+                                    ? viewModel.nextGroupPosition + index
+                                    : viewModel.nextEntryPosition + index
                                 PlanSuggestionRow(
-                                    slot: slot,
-                                    nextPosition: viewModel.nextGroupPosition + index,
-                                    viewModel: viewModel
+                                    entry: entry,
+                                    nextPosition: fixedPosition,
+                                    openLogger: {
+                                        logRequest = LogIntakeSheetRequest(
+                                            source: .planEntry(entry),
+                                            fixedPosition: fixedPosition
+                                        )
+                                    }
                                 )
-                                if slot.id != plan.sortedSlots.last?.id { Divider() }
+                                if entry.id != plan.sortedEntries.last?.id { Divider() }
                             }
                         }
                         .nutritionGlassCard(cornerRadius: 16)

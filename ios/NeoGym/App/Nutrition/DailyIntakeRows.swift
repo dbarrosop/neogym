@@ -159,41 +159,63 @@ private struct EntryRow: View {
 }
 
 struct PlanSuggestionRow: View {
-    let slot: NutritionPlanMealSlot
+    let entry: NutritionPlanEntry
     let nextPosition: Int
-    @ObservedObject var viewModel: DailyIntakeViewModel
-    @State private var showLog = false
+    let openLogger: () -> Void
+
+    private var isLoggable: Bool {
+        switch entry {
+        case let .meal(slot): slot.meal != nil
+        case let .food(slot): slot.food != nil
+        }
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "clock")
+            Image(systemName: entry.kind == .meal ? "fork.knife.circle" : "apple.logo")
                 .foregroundColor(.accentColor)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 4) {
-                Text(IntakeGrouping.formatTimeOfDay(slot.slotTime))
+                Text(IntakeGrouping.formatTimeOfDay(entry.slotTime))
                     .font(.caption.weight(.bold))
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text(slot.displayLabel)
-                    .font(.subheadline.weight(.semibold))
-                if let meal = slot.meal {
-                    Text(
-                        slot.label == nil
-                            ? NutritionMath.macroTotalsSummary(meal.macroTotals)
-                            : "Template: \(meal.name) · \(NutritionMath.macroTotalsSummary(meal.macroTotals))"
-                    )
+                HStack(spacing: 6) {
+                    Text(entry.displayLabel)
+                        .font(.subheadline.weight(.semibold))
+                    Text(entry.kind == .meal ? "Meal" : "Food")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(NeoGymTheme.accentMuted, in: Capsule())
+                }
+                detailText
+            }
+            Spacer()
+            Button("Log", action: openLogger)
+                .buttonStyle(.borderedProminent)
+                .disabled(!isLoggable)
+        }
+        .padding(12)
+    }
+
+    @ViewBuilder
+    private var detailText: some View {
+        switch entry {
+        case let .meal(slot):
+            if let meal = slot.meal {
+                Text(slot.label == nil
+                    ? NutritionMath.macroTotalsSummary(meal.macroTotals)
+                    : "Template: \(meal.name) · \(NutritionMath.macroTotalsSummary(meal.macroTotals))")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .lineLimit(2)
-                }
             }
-            Spacer()
-            Button("Log") { showLog = true }
-                .buttonStyle(.borderedProminent)
-                .disabled(slot.meal == nil || viewModel.isMutating)
-        }
-        .padding(12)
-        .sheet(isPresented: $showLog) {
-            LogMealSheet(viewModel: viewModel, planSlot: slot, fixedPosition: nextPosition)
+        case let .food(slot):
+            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
+                + NutritionMath.macroTotalsSummary(slot.macroTotals))
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
+                .lineLimit(2)
         }
     }
 }
