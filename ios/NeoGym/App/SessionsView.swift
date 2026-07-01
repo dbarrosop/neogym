@@ -556,11 +556,15 @@ struct SessionDetailView: View {
     }
 
     private func startAddingSet(for row: SessionExerciseRow) {
+        let priorEntries = viewModel.priorStrengthByExercise[row.exercise.id] ?? []
         editingSet = StrengthSetEditorState.add(
             workoutSessionExerciseId: row.id,
             exerciseName: row.exercise.name,
-            nextSetNumber: (row.workoutSessionStrengthSets.map(\.setNumber).max() ?? 0) + 1,
-            previousSet: row.workoutSessionStrengthSets.last,
+            nextSetNumber: StrengthSetNumbering.nextSetNumber(currentSets: row.workoutSessionStrengthSets),
+            previousSet: StrengthSetSeeding.seedSet(
+                currentSets: row.workoutSessionStrengthSets,
+                priorEntries: priorEntries
+            ),
             doubleWeight: row.exercise.doubleWeight
         )
     }
@@ -863,12 +867,7 @@ private struct StrengthSetsList: View {
     }
 
     private static func setText(_ set: SessionStrengthSet, doubleWeight: Bool) -> String {
-        let weight = set.weight == 0 ? "BW" : "\(formatWeight(set.weight)) kg"
-        return weight + " × \(set.reps)" + (doubleWeight && set.weight > 0 ? " /side" : "")
-    }
-
-    private static func formatWeight(_ weight: Double) -> String {
-        weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
+        StrengthSetFormatting.setSummary(set, doubleWeight: doubleWeight, includeSideSuffix: true)
     }
 
     private static func formatVolume(_ volume: Double) -> String {

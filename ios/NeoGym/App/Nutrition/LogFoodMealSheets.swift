@@ -16,7 +16,8 @@ struct LogFoodSheet: View {
                     FoodPickerView(
                         foods: viewModel.payload?.foods ?? [],
                         foodId: $foodId,
-                        disabled: viewModel.isMutating
+                        disabled: viewModel.isMutating,
+                        revealWheelOnDemand: true
                     )
                 } header: {
                     Text("Food")
