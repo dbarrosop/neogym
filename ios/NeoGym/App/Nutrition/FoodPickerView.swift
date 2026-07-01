@@ -63,6 +63,14 @@ struct FoodPickerView: View {
                 message("No foods match this search.")
             }
         } else if shouldShowWheel {
+            if revealWheelOnDemand {
+                Button("Done") { collapseWheel() }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .disabled(disabled)
+            }
+
             Picker("Food", selection: $foodId) {
                 ForEach(visibleFoods) { food in
                     FoodWheelRow(food: food)
@@ -75,13 +83,7 @@ struct FoodPickerView: View {
             .clipped()
             .disabled(disabled)
 
-            if revealWheelOnDemand {
-                Button("Done") { collapseWheel() }
-                    .buttonStyle(.plain)
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .disabled(disabled)
-            } else if let selectedFood {
+            if !revealWheelOnDemand, let selectedFood {
                 selectedSummary(food: selectedFood)
             }
         }
@@ -94,8 +96,10 @@ struct FoodPickerView: View {
             TextField(selectedFood?.name ?? "Filter foods…", text: $query)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
+                .submitLabel(.done)
                 .focused($searchFocused)
                 .disabled(disabled)
+                .onSubmit { searchFocused = false }
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -110,6 +114,12 @@ struct FoodPickerView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { revealWheelIfEnabled() }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { searchFocused = false }
+            }
+        }
     }
 
     private func selectedSummary(food: Food) -> some View {
