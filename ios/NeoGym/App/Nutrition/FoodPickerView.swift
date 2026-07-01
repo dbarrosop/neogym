@@ -63,14 +63,6 @@ struct FoodPickerView: View {
                 message("No foods match this search.")
             }
         } else if shouldShowWheel {
-            if revealWheelOnDemand {
-                Button("Done") { collapseWheel() }
-                    .buttonStyle(.plain)
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .disabled(disabled)
-            }
-
             Picker("Food", selection: $foodId) {
                 ForEach(visibleFoods) { food in
                     FoodWheelRow(food: food)
@@ -99,7 +91,7 @@ struct FoodPickerView: View {
                 .submitLabel(.done)
                 .focused($searchFocused)
                 .disabled(disabled)
-                .onSubmit { searchFocused = false }
+                .onSubmit { collapseWheel() }
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -117,7 +109,7 @@ struct FoodPickerView: View {
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("Done") { searchFocused = false }
+                Button("Done") { collapseWheel() }
             }
         }
     }
@@ -160,9 +152,9 @@ struct FoodPickerView: View {
     }
 
     private func collapseWheel() {
+        searchFocused = false
         guard revealWheelOnDemand else { return }
         wheelRevealed = false
-        searchFocused = false
         query = ""
     }
 }
