@@ -1,9 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Apple, ArrowDown, ArrowUp, ChefHat, Plus, Trash2 } from "lucide-react";
+import { Apple, ArrowDown, ArrowUp, ChefHat, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, type SubmitEvent, useId, useMemo, useState } from "react";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MacroSummary } from "@/components/macro-summary";
 import { MealPicker, type MealPickerOption } from "@/components/meal-picker";
+import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
+import { QuickMealDialog } from "@/components/quick-meal-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -113,6 +115,14 @@ type EntryDraft =
       label: string;
     };
 
+type FoodDialogState =
+  | { kind: "create"; clientId: string }
+  | { kind: "edit"; clientId: string; food: FoodPickerOption };
+
+type MealDialogState =
+  | { kind: "create"; clientId: string }
+  | { kind: "edit"; clientId: string; meal: MealPickerOption };
+
 let nextEntryId = 0;
 
 function createClientId() {
@@ -122,6 +132,31 @@ function createClientId() {
 
 function sortInitialEntries(entries: NutritionPlanFormEntryValues[]) {
   return sortAndRenumberPlanEntriesByTime(entries);
+}
+
+function mergeFoodOptions(baseFoods: FoodPickerOption[], localFoods: FoodPickerOption[]) {
+  const byId = new Map<string, FoodPickerOption>();
+  for (const food of baseFoods) {
+    byId.set(food.id, food);
+  }
+  for (const food of localFoods) {
+    byId.set(food.id, food);
+  }
+  return Array.from(byId.values()).toSorted(
+    (left, right) =>
+      Number(left.isPublic) - Number(right.isPublic) || left.name.localeCompare(right.name),
+  );
+}
+
+function mergeMealOptions(baseMeals: MealPickerOption[], localMeals: MealPickerOption[]) {
+  const byId = new Map<string, MealPickerOption>();
+  for (const meal of baseMeals) {
+    byId.set(meal.id, meal);
+  }
+  for (const meal of localMeals) {
+    byId.set(meal.id, meal);
+  }
+  return Array.from(byId.values()).toSorted((left, right) => left.name.localeCompare(right.name));
 }
 
 function createDraftFromInitialEntry(entry: NutritionPlanFormEntryValues): EntryDraft {
@@ -153,6 +188,41 @@ function createDraftFromInitialEntry(entry: NutritionPlanFormEntryValues): Entry
   return draft;
 }
 
+function draftEntriesToFormValues(
+  entries: Array<EntryDraft & { position: number }>,
+): NutritionPlanFormEntryValues[] {
+  return entries.map((entry) => {
+    const common = {
+      slotTime: entry.slotTime,
+      label: entry.label.trim(),
+      position: entry.position,
+    };
+
+    if (entry.kind === "meal") {
+      const values: NutritionPlanFormEntryValues = {
+        kind: "meal",
+        mealId: entry.mealId,
+        ...common,
+      };
+      if (entry.id) {
+        values.id = entry.id;
+      }
+      return values;
+    }
+
+    const values: NutritionPlanFormEntryValues = {
+      kind: "food",
+      foodId: entry.foodId,
+      grams: parseMacroInput(entry.grams) ?? 0,
+      ...common,
+    };
+    if (entry.id) {
+      values.id = entry.id;
+    }
+    return values;
+  });
+}
+
 export function NutritionPlanForm({
   initialValues,
   submitLabel,
@@ -170,14 +240,24 @@ export function NutritionPlanForm({
     sortInitialEntries(initialValues.entries).map(createDraftFromInitialEntry),
   );
   const [submitted, setSubmitted] = useState(false);
+  const [localFoods, setLocalFoods] = useState<FoodPickerOption[]>([]);
+  const [localMeals, setLocalMeals] = useState<MealPickerOption[]>([]);
+  const [foodDialog, setFoodDialog] = useState<FoodDialogState | null>(null);
+  const [mealDialog, setMealDialog] = useState<MealDialogState | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["nutrition", "plan-form", "pickers"],
     queryFn: () => gqlRequest(NutritionPlanFormPickersQuery),
   });
 
-  const meals = useMemo<MealPickerOption[]>(() => data?.meals ?? [], [data]);
-  const foods = useMemo<FoodPickerOption[]>(() => data?.foods ?? [], [data]);
+  const meals = useMemo<MealPickerOption[]>(
+    () => mergeMealOptions(data?.meals ?? [], localMeals),
+    [data, localMeals],
+  );
+  const foods = useMemo<FoodPickerOption[]>(
+    () => mergeFoodOptions(data?.foods ?? [], localFoods),
+    [data, localFoods],
+  );
   const mealsById = useMemo(() => new Map(meals.map((meal) => [meal.id, meal])), [meals]);
   const foodsById = useMemo(() => new Map(foods.map((food) => [food.id, food])), [foods]);
 
@@ -295,6 +375,28 @@ export function NutritionPlanForm({
     });
   }
 
+  function rememberFood(food: FoodPickerOption) {
+    setLocalFoods((current) => mergeFoodOptions(current, [food]));
+  }
+
+  function rememberMeal(meal: MealPickerOption) {
+    setLocalMeals((current) => mergeMealOptions(current, [meal]));
+  }
+
+  function handleQuickFoodSaved(food: FoodPickerOption) {
+    rememberFood(food);
+    if (foodDialog?.kind === "create") {
+      updateEntry(foodDialog.clientId, { foodId: food.id });
+    }
+  }
+
+  function handleQuickMealSaved(meal: MealPickerOption) {
+    rememberMeal(meal);
+    if (mealDialog?.kind === "create") {
+      updateEntry(mealDialog.clientId, { mealId: meal.id });
+    }
+  }
+
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
@@ -308,109 +410,183 @@ export function NutritionPlanForm({
     onSubmit({
       name: trimmedName,
       description: description.trim(),
-      entries: sortedEntries.map((entry) => {
-        const common = {
-          slotTime: entry.slotTime,
-          label: entry.label.trim(),
-          position: entry.position,
-        };
-        if (entry.kind === "meal") {
-          const values: NutritionPlanFormEntryValues = {
-            kind: "meal",
-            mealId: entry.mealId,
-            ...common,
-          };
-          if (entry.id) {
-            values.id = entry.id;
-          }
-          return values;
-        }
-
-        const grams = parseMacroInput(entry.grams);
-        const values: NutritionPlanFormEntryValues = {
-          kind: "food",
-          foodId: entry.foodId,
-          grams: grams ?? 0,
-          ...common,
-        };
-        if (entry.id) {
-          values.id = entry.id;
-        }
-        return values;
-      }),
+      entries: draftEntriesToFormValues(sortedEntries),
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor={nameId} className="text-sm font-medium">
-            Plan name
-          </label>
-          <Input
-            id={nameId}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. Training day"
-            maxLength={160}
-            aria-invalid={Boolean(nameError)}
-            aria-describedby={formError ? errorId : undefined}
-            autoFocus
-            required
-          />
-        </div>
+    <>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <NutritionPlanDetailsFields
+          description={description}
+          descriptionId={descriptionId}
+          errorId={errorId}
+          formError={formError}
+          name={name}
+          nameError={nameError}
+          nameId={nameId}
+          onDescriptionChange={setDescription}
+          onNameChange={setName}
+        />
 
-        <div className="space-y-1.5">
-          <label htmlFor={descriptionId} className="text-sm font-medium">
-            Description <span className="font-normal text-muted-foreground">(optional)</span>
-          </label>
-          <Textarea
-            id={descriptionId}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="When you use this one-day template or any prep notes."
-            maxLength={1000}
-            rows={3}
-          />
+        <MacroSummary
+          totals={totals}
+          title="Daily planned totals"
+          description="Computed from each selected meal and direct food's current nutrition values."
+        />
+
+        <NutritionPlanEntriesSection
+          entries={entries}
+          error={error}
+          errorId={errorId}
+          foods={foods}
+          formError={formError}
+          isLoading={isLoading}
+          isSubmitting={isSubmitting}
+          meals={meals}
+          planEntries={planEntries}
+          onAddFood={addFoodEntry}
+          onAddMeal={addMealEntry}
+          onMove={moveEntry}
+          onRemove={removeEntry}
+          onUpdate={updateEntry}
+          onCreateFood={(clientId) => setFoodDialog({ kind: "create", clientId })}
+          onEditFood={(clientId, food) => setFoodDialog({ kind: "edit", clientId, food })}
+          onCreateMeal={(clientId) => setMealDialog({ kind: "create", clientId })}
+          onEditMeal={(clientId, meal) => setMealDialog({ kind: "edit", clientId, meal })}
+        />
+
+        <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>{extraActions}</div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {isSubmitting ? "Saving…" : submitLabel}
+            </Button>
+          </div>
         </div>
+      </form>
+      <NutritionPlanInlineDialogs
+        foodDialog={foodDialog}
+        mealDialog={mealDialog}
+        onFoodSaved={handleQuickFoodSaved}
+        onMealSaved={handleQuickMealSaved}
+        onCloseFood={() => setFoodDialog(null)}
+        onCloseMeal={() => setMealDialog(null)}
+      />
+    </>
+  );
+}
+
+function NutritionPlanDetailsFields({
+  description,
+  descriptionId,
+  errorId,
+  formError,
+  name,
+  nameError,
+  nameId,
+  onDescriptionChange,
+  onNameChange,
+}: {
+  description: string;
+  descriptionId: string;
+  errorId: string;
+  formError: string | null;
+  name: string;
+  nameError: string | null;
+  nameId: string;
+  onDescriptionChange: (description: string) => void;
+  onNameChange: (name: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <label htmlFor={nameId} className="text-sm font-medium">
+          Plan name
+        </label>
+        <Input
+          id={nameId}
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+          placeholder="e.g. Training day"
+          maxLength={160}
+          aria-invalid={Boolean(nameError)}
+          aria-describedby={formError ? errorId : undefined}
+          autoFocus
+          required
+        />
       </div>
 
-      <MacroSummary
-        totals={totals}
-        title="Daily planned totals"
-        description="Computed from each selected meal and direct food's current nutrition values."
-      />
-
-      <NutritionPlanEntriesSection
-        entries={entries}
-        error={error}
-        errorId={errorId}
-        foods={foods}
-        formError={formError}
-        isLoading={isLoading}
-        isSubmitting={isSubmitting}
-        meals={meals}
-        planEntries={planEntries}
-        onAddFood={addFoodEntry}
-        onAddMeal={addMealEntry}
-        onMove={moveEntry}
-        onRemove={removeEntry}
-        onUpdate={updateEntry}
-      />
-
-      <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>{extraActions}</div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
+      <div className="space-y-1.5">
+        <label htmlFor={descriptionId} className="text-sm font-medium">
+          Description <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <Textarea
+          id={descriptionId}
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          placeholder="When you use this one-day template or any prep notes."
+          maxLength={1000}
+          rows={3}
+        />
       </div>
-    </form>
+    </div>
+  );
+}
+
+function NutritionPlanInlineDialogs({
+  foodDialog,
+  mealDialog,
+  onCloseFood,
+  onCloseMeal,
+  onFoodSaved,
+  onMealSaved,
+}: {
+  foodDialog: FoodDialogState | null;
+  mealDialog: MealDialogState | null;
+  onCloseFood: () => void;
+  onCloseMeal: () => void;
+  onFoodSaved: (food: FoodPickerOption) => void;
+  onMealSaved: (meal: MealPickerOption) => void;
+}) {
+  return (
+    <>
+      {foodDialog ? (
+        <QuickFoodDialog
+          open={true}
+          mode={
+            foodDialog.kind === "create"
+              ? { kind: "create" }
+              : { kind: "edit", food: foodDialog.food }
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              onCloseFood();
+            }
+          }}
+          onSaved={onFoodSaved}
+        />
+      ) : null}
+      {mealDialog ? (
+        <QuickMealDialog
+          open={true}
+          mode={
+            mealDialog.kind === "create"
+              ? { kind: "create" }
+              : { kind: "edit", meal: mealDialog.meal }
+          }
+          onOpenChange={(open) => {
+            if (!open) {
+              onCloseMeal();
+            }
+          }}
+          onSaved={onMealSaved}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -429,6 +605,10 @@ function NutritionPlanEntriesSection({
   onMove,
   onRemove,
   onUpdate,
+  onCreateFood,
+  onEditFood,
+  onCreateMeal,
+  onEditMeal,
 }: {
   entries: EntryDraft[];
   error: Error | null;
@@ -444,6 +624,10 @@ function NutritionPlanEntriesSection({
   onMove: (clientId: string, direction: -1 | 1) => void;
   onRemove: (clientId: string) => void;
   onUpdate: (clientId: string, patch: Partial<EntryDraft>) => void;
+  onCreateFood: (clientId: string) => void;
+  onEditFood: (clientId: string, food: FoodPickerOption) => void;
+  onCreateMeal: (clientId: string) => void;
+  onEditMeal: (clientId: string, meal: MealPickerOption) => void;
 }) {
   return (
     <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
@@ -486,6 +670,10 @@ function NutritionPlanEntriesSection({
               onMove={onMove}
               onRemove={onRemove}
               onUpdate={onUpdate}
+              onCreateFood={onCreateFood}
+              onEditFood={onEditFood}
+              onCreateMeal={onCreateMeal}
+              onEditMeal={onEditMeal}
             />
           );
         })}
@@ -522,6 +710,10 @@ function NutritionPlanEntryCard({
   onMove,
   onRemove,
   onUpdate,
+  onCreateFood,
+  onEditFood,
+  onCreateMeal,
+  onEditMeal,
 }: {
   entry: EntryDraft;
   index: number;
@@ -533,10 +725,19 @@ function NutritionPlanEntryCard({
   onMove: (clientId: string, direction: -1 | 1) => void;
   onRemove: (clientId: string) => void;
   onUpdate: (clientId: string, patch: Partial<EntryDraft>) => void;
+  onCreateFood: (clientId: string) => void;
+  onEditFood: (clientId: string, food: FoodPickerOption) => void;
+  onCreateMeal: (clientId: string) => void;
+  onEditMeal: (clientId: string, meal: MealPickerOption) => void;
 }) {
   const timeId = `${entry.clientId}-time`;
   const labelId = `${entry.clientId}-label`;
   const gramsId = `${entry.clientId}-grams`;
+  const selectedMeal =
+    entry.kind === "meal" ? (meals.find((meal) => meal.id === entry.mealId) ?? null) : null;
+  const selectedFood =
+    entry.kind === "food" ? (foods.find((food) => food.id === entry.foodId) ?? null) : null;
+  const canEditFood = isEditablePrivateFood(selectedFood);
 
   return (
     <Card className="border-border/60 bg-muted/20">
@@ -622,34 +823,91 @@ function NutritionPlanEntryCard({
         </div>
 
         {entry.kind === "meal" ? (
-          <MealPicker
-            meals={meals}
-            value={entry.mealId}
-            onChange={(mealId) => onUpdate(entry.clientId, { mealId })}
-            disabled={isSubmitting}
-          />
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-[1fr_minmax(0,10rem)]">
-            <FoodPicker
-              foods={foods}
-              value={entry.foodId}
-              onChange={(foodId) => onUpdate(entry.clientId, { foodId })}
+          <div className="space-y-2">
+            <MealPicker
+              meals={meals}
+              value={entry.mealId}
+              onChange={(mealId) => onUpdate(entry.clientId, { mealId })}
               disabled={isSubmitting}
             />
-            <div className="space-y-1.5">
-              <label htmlFor={gramsId} className="text-sm font-medium">
-                Grams
-              </label>
-              <Input
-                id={gramsId}
-                type="text"
-                inputMode="decimal"
-                pattern={DECIMAL_INPUT_PATTERN}
-                value={entry.grams}
-                onChange={(event) => onUpdate(entry.clientId, { grams: event.target.value })}
-                placeholder="100"
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onCreateMeal(entry.clientId)}
+                disabled={isSubmitting}
+              >
+                <Plus className="h-4 w-4" />
+                New meal
+              </Button>
+              {selectedMeal ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onEditMeal(entry.clientId, selectedMeal)}
+                  disabled={isSubmitting}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit selected meal
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="grid gap-3 sm:grid-cols-[1fr_minmax(0,10rem)]">
+              <FoodPicker
+                foods={foods}
+                value={entry.foodId}
+                onChange={(foodId) => onUpdate(entry.clientId, { foodId })}
                 disabled={isSubmitting}
               />
+              <div className="space-y-1.5">
+                <label htmlFor={gramsId} className="text-sm font-medium">
+                  Grams
+                </label>
+                <Input
+                  id={gramsId}
+                  type="text"
+                  inputMode="decimal"
+                  pattern={DECIMAL_INPUT_PATTERN}
+                  value={entry.grams}
+                  onChange={(event) => onUpdate(entry.clientId, { grams: event.target.value })}
+                  placeholder="100"
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => onCreateFood(entry.clientId)}
+                disabled={isSubmitting}
+              >
+                <Plus className="h-4 w-4" />
+                New private food
+              </Button>
+              {canEditFood && selectedFood ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onEditFood(entry.clientId, selectedFood)}
+                  disabled={isSubmitting}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Edit selected food
+                </Button>
+              ) : null}
+              {selectedFood?.isPublic ? (
+                <p className="self-center text-xs text-muted-foreground">
+                  Public foods are read-only in plan composition.
+                </p>
+              ) : null}
             </div>
           </div>
         )}

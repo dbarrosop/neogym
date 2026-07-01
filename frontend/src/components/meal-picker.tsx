@@ -5,15 +5,26 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { MealTotalIngredient } from "@/lib/nutrition";
+import type { MacroFields, MealTotalIngredient } from "@/lib/nutrition";
 import { macroTotalsSummary, mealMacroTotals } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
+
+export interface MealPickerFood extends MacroFields {
+  id: string;
+  name: string;
+}
+
+export interface MealPickerIngredient extends MealTotalIngredient {
+  id: string;
+  position: number;
+  food: MealPickerFood;
+}
 
 export interface MealPickerOption {
   id: string;
   name: string;
   description?: string | null;
-  mealIngredients: MealTotalIngredient[];
+  mealIngredients: MealPickerIngredient[];
 }
 
 interface MealPickerProps {
