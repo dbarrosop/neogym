@@ -29,7 +29,7 @@ struct MealPickerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+        VStack(alignment: .leading, spacing: 4) {
             searchField
 
             if meals.isEmpty {
@@ -39,19 +39,15 @@ struct MealPickerView: View {
             } else {
                 Picker("Meal", selection: $mealId) {
                     ForEach(visibleMeals) { meal in
-                        MealWheelRow(meal: meal)
+                        MealPickerWheelRow(meal: meal)
                             .tag(meal.id)
                     }
                 }
                 .pickerStyle(.wheel)
                 .labelsHidden()
-                .frame(height: 176)
+                .frame(height: 88)
                 .clipped()
                 .disabled(disabled)
-
-                if let selectedMeal {
-                    selectedSummary(meal: selectedMeal)
-                }
             }
         }
         .onAppear(perform: syncSelectionWithFilter)
@@ -80,32 +76,6 @@ struct MealPickerView: View {
         }
     }
 
-    private func selectedSummary(meal: Meal) -> some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-            HStack(spacing: NeoGymTheme.spacingXS) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.accentColor)
-                Text(meal.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-            }
-            Text(
-                "\(meal.mealIngredients.count) ingredient\(meal.mealIngredients.count == 1 ? "" : "s") · "
-                    + NutritionMath.macroTotalsSummary(meal.macroTotals)
-            )
-            .font(.caption)
-            .foregroundColor(NeoGymTheme.mutedText)
-            .lineLimit(2)
-            if let description = meal.description, !description.isEmpty {
-                Text(description)
-                    .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     private func message(_ text: String) -> some View {
         Text(text)
             .font(.caption)
@@ -121,16 +91,23 @@ struct MealPickerView: View {
     }
 }
 
-private struct MealWheelRow: View {
+private struct MealPickerWheelRow: View {
     let meal: Meal
 
     var body: some View {
-        HStack(spacing: NeoGymTheme.spacingXS) {
-            Image(systemName: "fork.knife.circle")
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(spacing: 4) {
             Text(meal.name)
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Text("· \(meal.mealIngredients.count) ingredient\(meal.mealIngredients.count == 1 ? "" : "s") · "
+                + NutritionMath.macroTotalsSummary(meal.macroTotals))
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .multilineTextAlignment(.leading)
     }
 }

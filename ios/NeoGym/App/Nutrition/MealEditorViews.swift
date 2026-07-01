@@ -237,7 +237,6 @@ struct MealFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .keyboardDoneToolbar(focusedField: $focusedIngredientId)
         .sheet(item: $quickFood) { request in
             NavigationView {
                 QuickFoodEditorSheet(

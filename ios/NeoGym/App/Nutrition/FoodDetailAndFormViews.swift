@@ -344,7 +344,6 @@ struct FoodFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
-        .keyboardDoneToolbar(focusedField: $focusedField)
     }
 
     private func nutrientField(

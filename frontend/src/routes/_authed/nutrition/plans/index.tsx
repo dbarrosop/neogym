@@ -294,7 +294,7 @@ function PlanRow({ plan }: { plan: Plan }) {
   const firstSlot = entries[0];
   const firstSlotSource = firstSlot?.kind === "meal" ? firstSlot.meal?.name : firstSlot?.food?.name;
   const firstSlotSummary = firstSlot
-    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlot.label || firstSlotSource}`
+    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlot.label || firstSlotSource || "Untitled entry"}`
     : "No entries yet";
 
   return (

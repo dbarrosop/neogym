@@ -2,22 +2,16 @@ import NeoGymKit
 import SwiftUI
 
 struct LogIntakeSheetRequest: Identifiable {
-    enum AdHocMode: Equatable {
+    enum InitialMode: Equatable {
         case food
         case meal
     }
 
-    enum Source: Equatable {
-        case adHoc(initialMode: AdHocMode)
-        case planEntry(NutritionPlanEntry)
-    }
-
     let id = UUID().uuidString
-    let source: Source
-    var fixedPosition: Int?
+    let initialMode: InitialMode
 
-    static let adHocFood = LogIntakeSheetRequest(source: .adHoc(initialMode: .food))
-    static let adHocMeal = LogIntakeSheetRequest(source: .adHoc(initialMode: .meal))
+    static let adHocFood = LogIntakeSheetRequest(initialMode: .food)
+    static let adHocMeal = LogIntakeSheetRequest(initialMode: .meal)
 }
 
 struct LogIntakeSheet: View {
@@ -47,17 +41,12 @@ struct LogIntakeSheet: View {
     @State private var grams = "100"
     @State private var ingredientGrams: [String: String] = [:]
     @State private var slotTime = Date()
-    @State private var isTimePickerVisible = false
+    @State private var hasInitializedSlotTime = false
 
     private var foods: [Food] { viewModel.payload?.foods ?? [] }
     private var meals: [Meal] { viewModel.payload?.meals ?? [] }
     private var planEntries: [NutritionPlanEntry] { viewModel.selectedPlan?.sortedEntries ?? [] }
-    private var lockedPlanEntry: NutritionPlanEntry? {
-        if case let .planEntry(entry) = request.source { return entry }
-        return nil
-    }
     private var selectedPlanEntry: NutritionPlanEntry? {
-        if let lockedPlanEntry { return lockedPlanEntry }
         guard mode == .plan else { return nil }
         return planEntries.first { $0.id == planEntryId }
     }
@@ -109,12 +98,7 @@ struct LogIntakeSheet: View {
     init(viewModel: DailyIntakeViewModel, request: LogIntakeSheetRequest) {
         self.viewModel = viewModel
         self.request = request
-        switch request.source {
-        case let .adHoc(initialMode):
-            _mode = State(initialValue: initialMode == .meal ? .meal : .food)
-        case .planEntry:
-            _mode = State(initialValue: .plan)
-        }
+        _mode = State(initialValue: request.initialMode == .meal ? .meal : .food)
     }
 
     var body: some View {
@@ -141,7 +125,7 @@ struct LogIntakeSheet: View {
             }
         }
         .navigationViewStyle(.stack)
-        .onAppear(perform: prepareDraft)
+        .onAppear(perform: prepareInitialDraft)
         .onChange(of: mode) { _ in prepareDraft() }
         .onChange(of: foodId) { _ in prepareFoodDraft() }
         .onChange(of: mealId) { _ in prepareMealDraft() }
@@ -149,10 +133,7 @@ struct LogIntakeSheet: View {
     }
 
     private var navigationTitle: String {
-        switch request.source {
-        case .adHoc: "Log intake"
-        case .planEntry: selectedPlanEntry?.kind == .food ? "Log planned food" : "Log planned meal"
-        }
+        "Log intake"
     }
 
     private var canSave: Bool {
@@ -168,15 +149,13 @@ struct LogIntakeSheet: View {
     @ViewBuilder
     private var sourceSection: some View {
         Section {
-            if lockedPlanEntry == nil {
-                Picker("Log source", selection: $mode) {
-                    ForEach(Mode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
+            Picker("Log source", selection: $mode) {
+                ForEach(Mode.allCases) { mode in
+                    Text(mode.title).tag(mode)
                 }
-                .pickerStyle(.segmented)
-                .disabled(viewModel.isMutating)
             }
+            .pickerStyle(.segmented)
+            .disabled(viewModel.isMutating)
 
             switch mode {
             case .food:
@@ -184,23 +163,21 @@ struct LogIntakeSheet: View {
             case .meal:
                 MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
             case .plan:
-                if let lockedPlanEntry {
-                    PlanEntrySummary(entry: lockedPlanEntry)
-                } else if planEntries.isEmpty {
+                if planEntries.isEmpty {
                     Text("Select a nutrition plan for this day to log planned meal or food suggestions.")
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
                 } else {
                     Picker("Plan entry", selection: $planEntryId) {
                         ForEach(planEntries) { entry in
-                            Text("\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)")
+                            PlanEntryWheelRow(entry: entry)
                                 .tag(entry.id)
                         }
                     }
                     .pickerStyle(.wheel)
                     .labelsHidden()
-                    .frame(height: 150)
-                    PlanEntrySummary(entry: selectedPlanEntry ?? planEntries[0])
+                    .frame(height: 88)
+                    .clipped()
                 }
             }
         } header: {
@@ -212,12 +189,9 @@ struct LogIntakeSheet: View {
 
     private var timeSection: some View {
         Section {
-            CollapsibleTimeWheel(
-                title: "Time eaten",
-                time: $slotTime,
-                isExpanded: $isTimePickerVisible,
-                disabled: viewModel.isMutating
-            )
+            DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
+                .datePickerStyle(.compact)
+                .disabled(viewModel.isMutating)
         } header: {
             Text("Logged time")
         }
@@ -281,6 +255,14 @@ struct LogIntakeSheet: View {
         }
     }
 
+    private func prepareInitialDraft() {
+        if !hasInitializedSlotTime {
+            slotTime = Date()
+            hasInitializedSlotTime = true
+        }
+        prepareDraft()
+    }
+
     private func prepareDraft() {
         if foodId.isEmpty, let first = foods.first { foodId = first.id }
         if mealId.isEmpty, let first = meals.first { mealId = first.id }
@@ -294,7 +276,6 @@ struct LogIntakeSheet: View {
             if mode == .food { prepareFoodDraft() }
             if mode == .meal { prepareMealDraft() }
         }
-        slotTime = Date()
     }
 
     private func prepareFoodDraft() {
@@ -313,14 +294,14 @@ struct LogIntakeSheet: View {
         let succeeded: Bool
         switch selectedPlanEntry {
         case let .food(slot):
-            succeeded = await viewModel.logPlanFood(slot, grams: grams, slotTime: time, position: request.fixedPosition)
+            succeeded = await viewModel.logPlanFood(slot, grams: grams, slotTime: time)
         case let .meal(slot):
             guard let mealDraft else { return }
             succeeded = await viewModel.logMeal(
                 meal: mealDraft,
                 planSlot: slot,
                 slotTime: time,
-                position: request.fixedPosition
+                position: nil
             )
         case nil:
             switch mode {
@@ -337,82 +318,37 @@ struct LogIntakeSheet: View {
     }
 }
 
-private struct PlanEntrySummary: View {
+private struct PlanEntryWheelRow: View {
     let entry: NutritionPlanEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-            Label(
-                entry.kind == .meal ? "Planned meal" : "Planned food",
-                systemImage: entry.kind == .meal ? "fork.knife.circle" : "apple.logo"
-            )
-            .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Planned \(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)")
+        HStack(spacing: 4) {
+            Text("\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)")
                 .font(.subheadline.weight(.semibold))
-            Text(NutritionMath.macroTotalsSummary(entry.macroTotals))
+                .lineLimit(1)
+            Text("· \(entry.kind == .meal ? "Meal" : "Food") · \(detail)")
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .multilineTextAlignment(.leading)
+    }
+
+    private var detail: String {
+        switch entry {
+        case let .meal(slot):
+            guard let meal = slot.meal else { return "Meal template unavailable" }
+            return NutritionMath.macroTotalsSummary(meal.macroTotals)
+        case let .food(slot):
+            return "\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
+                + NutritionMath.macroTotalsSummary(slot.macroTotals)
         }
     }
 }
 
-private struct CollapsibleTimeWheel: View {
-    let title: String
-    @Binding var time: Date
-    @Binding var isExpanded: Bool
-    let disabled: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-            Button {
-                guard !disabled else { return }
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    Text(title)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Text(Self.formattedTime(time))
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundColor(NeoGymTheme.mutedText)
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(NeoGymTheme.mutedText)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .disabled(disabled)
-
-            if isExpanded {
-                DatePicker(title, selection: $time, displayedComponents: .hourAndMinute)
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    .disabled(disabled)
-
-                Button("Done") {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isExpanded = false
-                    }
-                }
-                .buttonStyle(.plain)
-                .font(.caption.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .disabled(disabled)
-            }
-        }
-    }
-
-    private static func formattedTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
-    }
-}
 
 struct EditLogEntrySheet: View {
     @ObservedObject var viewModel: DailyIntakeViewModel
@@ -447,7 +383,7 @@ struct EditLogEntrySheet: View {
                 if item.showTime {
                     Section {
                         DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
-                            .datePickerStyle(.wheel)
+                            .datePickerStyle(.compact)
                     } header: {
                         Text("Time eaten")
                     }
@@ -515,7 +451,7 @@ struct EditMealGroupSheet: View {
                 Section {
                     TextField("Name", text: $name)
                     DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
+                        .datePickerStyle(.compact)
                     Stepper("Position \(position)", value: $position, in: 1 ... 999)
                 } header: {
                     Text("Logged meal")

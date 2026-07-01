@@ -23,7 +23,6 @@ struct NutritionGramTextField: View {
             Text("g")
                 .foregroundColor(NeoGymTheme.mutedText)
         }
-        .keyboardDoneToolbar(focusedField: $focusedField)
     }
 }
 
