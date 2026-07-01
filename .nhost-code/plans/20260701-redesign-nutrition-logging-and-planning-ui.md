@@ -513,7 +513,31 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added native mixed nutrition-plan contract support in
+  NeoGymKit: direct food slots, mixed plan entries, mixed ordering by
+  `(slotTime, position, kind, id)`, mixed macro totals, and additive form values
+  for food slots. Repository documents and variable builders now load/save
+  `nutritionPlanFoods`, diff food slots separately, and avoid updating immutable
+  source IDs. Daily log models and payload builders now include
+  `nutritionPlanFoodId`, with a `logPlanFood` helper that writes actual time,
+  food id, grams, and provenance without snapshot fields. Added deterministic
+  tests for mixed decoding, totals, ordering, save variables, immutable IDs, and
+  plan-food logging payloads.
+- **Reviewer verdict:** `ACCEPT`. Reviewer reported no blocking or warning
+  findings for the Phase 6 contract/repository implementation.
+- **Autonomous decisions:** Used `gpt-5.5` for the reviewer pass because the
+  requested Claude reviewer quota had recently failed. Justification:
+  correctness and long-term maintenance — retaining an independent reviewer pass
+  was safer than skipping review. Used a clean system Swift environment for the
+  mandatory gate after plain `swift build` failed due inherited Nix
+  `SDKROOT`/compiler mismatch; justification: correctness, matching the
+  repository-documented host Swift package workflow.
+- **Quality gate:** Plain `cd ios/NeoGym && swift build` failed with
+  `no such module 'SwiftShims'` in the inherited SDK environment. The strongest
+  available equivalent passed: `swift build` and `swift test` both succeeded
+  with Nix SDK-related variables unset and system toolchain paths restored;
+  `swift test` executed 183 tests with 0 failures. `git diff --check` also
+  passed.
 
 ### Phase 7 — iOS UI parity
 

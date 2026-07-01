@@ -239,7 +239,7 @@ final class NutritionFoodMealErrorMapperTests: XCTestCase {
 
         XCTAssertEqual(
             NutritionFoodMealErrorMapper.foodMessage(for: error),
-            "This food is used by a meal template. Remove it from meals before deleting it."
+            "This food is used by a meal template or nutrition plan. Remove it from meals and plans before deleting it."
         )
     }
 

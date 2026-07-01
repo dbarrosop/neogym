@@ -41,6 +41,26 @@ public extension NutritionFoodMealRepository {
               }
             }
           }
+          nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+            id
+            slotTime
+            label
+            position
+            foodId
+            grams
+            food {
+              id
+              name
+              userId
+              isPublic
+              kcalPer100g
+              fatPer100g
+              carbsPer100g
+              proteinPer100g
+              fiberPer100g
+              sugarPer100g
+            }
+          }
         }
         nutritionLogMeals {
           id
@@ -52,6 +72,7 @@ public extension NutritionFoodMealRepository {
           position
           nutritionLogEntries {
             id
+            nutritionPlanFoodId
             grams
             position
             snapshotFoodName
@@ -65,6 +86,7 @@ public extension NutritionFoodMealRepository {
         }
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
           id
+          nutritionPlanFoodId
           grams
           position
           slotTime
@@ -97,6 +119,7 @@ public extension NutritionFoodMealRepository {
             id
             nutritionDayId
             nutritionLogMealId
+            nutritionPlanFoodId
             foodId
             grams
             position
@@ -117,6 +140,7 @@ public extension NutritionFoodMealRepository {
           id
           nutritionDayId
           nutritionLogMealId
+          nutritionPlanFoodId
           foodId
           grams
           position
@@ -162,6 +186,26 @@ public extension NutritionFoodMealRepository {
                 sugarPer100g
               }
             }
+          }
+        }
+        nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+          id
+          slotTime
+          label
+          position
+          foodId
+          grams
+          food {
+            id
+            name
+            userId
+            isPublic
+            kcalPer100g
+            fatPer100g
+            carbsPer100g
+            proteinPer100g
+            fiberPer100g
+            sugarPer100g
           }
         }
       }
@@ -287,6 +331,7 @@ public extension NutritionFoodMealRepository {
         .object([
             "nutritionDayId": GraphQLScalars.uuid(values.dayId),
             "foodId": GraphQLScalars.uuid(values.foodId),
+            "nutritionPlanFoodId": values.nutritionPlanFoodId.map(GraphQLScalars.uuid) ?? .null,
             "grams": .string(values.grams),
             "position": .number(Double(values.position)),
             "slotTime": GraphQLScalars.time(values.slotTime)

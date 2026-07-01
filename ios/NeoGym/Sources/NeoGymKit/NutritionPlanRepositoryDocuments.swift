@@ -1,12 +1,7 @@
 import Foundation
 
 public extension NutritionFoodMealRepository {
-    static let plansIndexQuery = """
-    query PlansIndex {
-      nutritionPlans(order_by: [{ updatedAt: desc }, { name: asc }]) {
-        id
-        name
-        description
+    static let planMealSlotSelection = """
         nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
           id
           slotTime
@@ -37,6 +32,39 @@ public extension NutritionFoodMealRepository {
             }
           }
         }
+    """
+
+    static let planFoodSlotSelection = """
+        nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+          id
+          slotTime
+          label
+          position
+          foodId
+          grams
+          food {
+            id
+            name
+            userId
+            isPublic
+            kcalPer100g
+            fatPer100g
+            carbsPer100g
+            proteinPer100g
+            fiberPer100g
+            sugarPer100g
+          }
+        }
+    """
+
+    static let plansIndexQuery = """
+    query PlansIndex {
+      nutritionPlans(order_by: [{ updatedAt: desc }, { name: asc }]) {
+        id
+        name
+        description
+    \(planMealSlotSelection)
+    \(planFoodSlotSelection)
       }
     }
     """
@@ -49,36 +77,8 @@ public extension NutritionFoodMealRepository {
         description
         createdAt
         updatedAt
-        nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
-          id
-          slotTime
-          label
-          position
-          mealId
-          meal {
-            id
-            name
-            description
-            mealIngredients(order_by: [{ position: asc }, { id: asc }]) {
-              id
-              foodId
-              grams
-              position
-              food {
-                id
-                name
-                userId
-                isPublic
-                kcalPer100g
-                fatPer100g
-                carbsPer100g
-                proteinPer100g
-                fiberPer100g
-                sugarPer100g
-              }
-            }
-          }
-        }
+    \(planMealSlotSelection)
+    \(planFoodSlotSelection)
       }
     }
     """
@@ -92,6 +92,14 @@ public extension NutritionFoodMealRepository {
         nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
           id
           mealId
+          slotTime
+          label
+          position
+        }
+        nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+          id
+          foodId
+          grams
           slotTime
           label
           position
@@ -146,6 +154,12 @@ public extension NutritionFoodMealRepository {
       $hasInsertSlots: Boolean!
       $slotUpdates: [nutritionPlanMeals_updates!]!
       $hasSlotUpdates: Boolean!
+      $deleteFoodSlotIds: [uuid!]!
+      $hasDeleteFoodSlots: Boolean!
+      $insertFoodSlots: [nutritionPlanFoods_insert_input!]!
+      $hasInsertFoodSlots: Boolean!
+      $foodSlotUpdates: [nutritionPlanFoods_updates!]!
+      $hasFoodSlotUpdates: Boolean!
     ) {
       updateNutritionPlan(pk_columns: { id: $id }, _set: $set) {
         id
@@ -158,6 +172,16 @@ public extension NutritionFoodMealRepository {
         affected_rows
       }
       update_nutritionPlanMeals_many(updates: $slotUpdates) @include(if: $hasSlotUpdates) {
+        affected_rows
+      }
+      deleteNutritionPlanFoods(where: { id: { _in: $deleteFoodSlotIds } })
+        @include(if: $hasDeleteFoodSlots) {
+        affected_rows
+      }
+      insertNutritionPlanFoods(objects: $insertFoodSlots) @include(if: $hasInsertFoodSlots) {
+        affected_rows
+      }
+      update_nutritionPlanFoods_many(updates: $foodSlotUpdates) @include(if: $hasFoodSlotUpdates) {
         affected_rows
       }
     }
@@ -184,6 +208,17 @@ public extension NutritionFoodMealRepository {
                         "position": .number(Double(slot.position))
                     ])
                 })
+            ]),
+            "nutritionPlanFoods": .object([
+                "data": .array(values.foodSlots.map { slot in
+                    .object([
+                        "foodId": GraphQLScalars.uuid(slot.foodId),
+                        "grams": .string(slot.grams),
+                        "slotTime": GraphQLScalars.time(slot.slotTime),
+                        "label": slot.label.isEmpty ? .null : .string(slot.label),
+                        "position": .number(Double(slot.position))
+                    ])
+                })
             ])
         ])
     }
@@ -196,9 +231,15 @@ public extension NutritionFoodMealRepository {
         let existingById = Dictionary(uniqueKeysWithValues: initialValues.slots.compactMap { slot in
             slot.id.map { ($0, slot) }
         })
+        let existingFoodsById = Dictionary(uniqueKeysWithValues: initialValues.foodSlots.compactMap { slot in
+            slot.id.map { ($0, slot) }
+        })
         var preservedIds = Set<String>()
+        var preservedFoodIds = Set<String>()
         var insertSlots: [JSONValue] = []
+        var insertFoodSlots: [JSONValue] = []
         var slotUpdates: [JSONValue] = []
+        var foodSlotUpdates: [JSONValue] = []
 
         for slot in values.slots {
             let label: JSONValue = slot.label.isEmpty ? .null : .string(slot.label)
@@ -225,7 +266,35 @@ public extension NutritionFoodMealRepository {
             }
         }
 
+        for slot in values.foodSlots {
+            let label: JSONValue = slot.label.isEmpty ? .null : .string(slot.label)
+            if let slotId = slot.id,
+               let existing = existingFoodsById[slotId],
+               existing.foodId == slot.foodId {
+                preservedFoodIds.insert(slotId)
+                foodSlotUpdates.append(.object([
+                    "where": .object(["id": .object(["_eq": GraphQLScalars.uuid(slotId)])]),
+                    "_set": .object([
+                        "grams": .string(slot.grams),
+                        "slotTime": GraphQLScalars.time(slot.slotTime),
+                        "label": label,
+                        "position": .number(Double(slot.position))
+                    ])
+                ]))
+            } else {
+                insertFoodSlots.append(.object([
+                    "nutritionPlanId": GraphQLScalars.uuid(id),
+                    "foodId": GraphQLScalars.uuid(slot.foodId),
+                    "grams": .string(slot.grams),
+                    "slotTime": GraphQLScalars.time(slot.slotTime),
+                    "label": label,
+                    "position": .number(Double(slot.position))
+                ]))
+            }
+        }
+
         let deleteSlotIds = existingById.keys.filter { !preservedIds.contains($0) }.sorted()
+        let deleteFoodSlotIds = existingFoodsById.keys.filter { !preservedFoodIds.contains($0) }.sorted()
         return [
             "id": GraphQLScalars.uuid(id),
             "set": .object([
@@ -237,8 +306,13 @@ public extension NutritionFoodMealRepository {
             "insertSlots": .array(insertSlots),
             "hasInsertSlots": .bool(!insertSlots.isEmpty),
             "slotUpdates": .array(slotUpdates),
-            "hasSlotUpdates": .bool(!slotUpdates.isEmpty)
+            "hasSlotUpdates": .bool(!slotUpdates.isEmpty),
+            "deleteFoodSlotIds": .array(deleteFoodSlotIds.map(GraphQLScalars.uuid)),
+            "hasDeleteFoodSlots": .bool(!deleteFoodSlotIds.isEmpty),
+            "insertFoodSlots": .array(insertFoodSlots),
+            "hasInsertFoodSlots": .bool(!insertFoodSlots.isEmpty),
+            "foodSlotUpdates": .array(foodSlotUpdates),
+            "hasFoodSlotUpdates": .bool(!foodSlotUpdates.isEmpty)
         ]
     }
 }
-
