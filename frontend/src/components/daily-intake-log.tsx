@@ -3,8 +3,12 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
 import { type FocusEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogFoodDialog, type LogPlanFoodSlot } from "@/components/log-food-dialog";
-import { LogMealDialog, type LogMealOption, type LogPlanSlot } from "@/components/log-meal-dialog";
+import {
+  LogIntakeDialog,
+  type LogMealOption,
+  type LogPlanFoodSlot,
+  type LogPlanSlot,
+} from "@/components/log-intake-dialog";
 import { MacroSummary } from "@/components/macro-summary";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -494,18 +498,14 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
           ))}
 
           <div className="flex flex-wrap justify-end gap-2">
-            <LogMealDialog
-              ensureDay={ensureDay}
-              date={date}
-              meals={meals}
-              nextPosition={nextGroupPosition}
-              disabled={isMutating}
-            />
-            <LogFoodDialog
+            <LogIntakeDialog
               ensureDay={ensureDay}
               date={date}
               foods={foods}
-              nextPosition={nextEntryPosition}
+              meals={meals}
+              selectedPlan={selectedPlan}
+              nextEntryPosition={nextEntryPosition}
+              nextGroupPosition={nextGroupPosition}
               disabled={isMutating}
             />
           </div>
@@ -550,6 +550,8 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               plan={selectedPlan}
               ensureDay={ensureDay}
               date={date}
+              foods={foods}
+              meals={meals}
               nextGroupPosition={nextGroupPosition}
               nextEntryPosition={nextEntryPosition}
               disabled={isMutating}
@@ -774,6 +776,8 @@ function PlanSuggestions({
   plan,
   ensureDay,
   date,
+  foods,
+  meals,
   nextGroupPosition,
   nextEntryPosition,
   disabled,
@@ -781,6 +785,8 @@ function PlanSuggestions({
   plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
+  foods: DailyFood[];
+  meals: LogMealOption[];
   nextGroupPosition: number;
   nextEntryPosition: number;
   disabled: boolean;
@@ -811,9 +817,13 @@ function PlanSuggestions({
               <PlanMealSuggestionRow
                 key={`meal:${entry.id}`}
                 slot={entry}
+                plan={plan}
                 ensureDay={ensureDay}
                 date={date}
-                nextPosition={nextPosition}
+                foods={foods}
+                meals={meals}
+                nextGroupPosition={nextPosition}
+                nextEntryPosition={nextEntryPosition + foodOffset}
                 disabled={disabled}
               />
             );
@@ -824,9 +834,13 @@ function PlanSuggestions({
             <PlanFoodSuggestionRow
               key={`food:${entry.id}`}
               slot={entry}
+              plan={plan}
               ensureDay={ensureDay}
               date={date}
-              nextPosition={nextPosition}
+              foods={foods}
+              meals={meals}
+              nextGroupPosition={nextGroupPosition + mealOffset}
+              nextEntryPosition={nextPosition}
               disabled={disabled}
             />
           );
@@ -838,15 +852,23 @@ function PlanSuggestions({
 
 function PlanMealSuggestionRow({
   slot,
+  plan,
   ensureDay,
   date,
-  nextPosition,
+  foods,
+  meals,
+  nextGroupPosition,
+  nextEntryPosition,
   disabled,
 }: {
   slot: LogPlanSlot;
+  plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
-  nextPosition: number;
+  foods: DailyFood[];
+  meals: LogMealOption[];
+  nextGroupPosition: number;
+  nextEntryPosition: number;
   disabled: boolean;
 }) {
   const totals = planEntryMacroTotals({ ...slot, kind: "meal" });
@@ -861,13 +883,18 @@ function PlanMealSuggestionRow({
         {slot.label ? <p className="text-xs text-muted-foreground">{slot.meal.name}</p> : null}
         <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
       </div>
-      <LogMealDialog
+      <LogIntakeDialog
         ensureDay={ensureDay}
         date={date}
-        meals={[slot.meal]}
-        slot={slot}
-        nextPosition={nextPosition}
+        foods={foods}
+        meals={meals}
+        selectedPlan={plan}
+        nextEntryPosition={nextEntryPosition}
+        nextGroupPosition={nextGroupPosition}
         disabled={disabled}
+        triggerLabel="Log"
+        triggerVariant="default"
+        initialSource={{ kind: "plan-meal", slot }}
       />
     </li>
   );
@@ -875,15 +902,23 @@ function PlanMealSuggestionRow({
 
 function PlanFoodSuggestionRow({
   slot,
+  plan,
   ensureDay,
   date,
-  nextPosition,
+  foods,
+  meals,
+  nextGroupPosition,
+  nextEntryPosition,
   disabled,
 }: {
   slot: LogPlanFoodSlot;
+  plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
-  nextPosition: number;
+  foods: DailyFood[];
+  meals: LogMealOption[];
+  nextGroupPosition: number;
+  nextEntryPosition: number;
   disabled: boolean;
 }) {
   const totals = planEntryMacroTotals({ ...slot, kind: "food" });
@@ -900,13 +935,18 @@ function PlanFoodSuggestionRow({
         </p>
         <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
       </div>
-      <LogFoodDialog
+      <LogIntakeDialog
         ensureDay={ensureDay}
         date={date}
-        foods={[slot.food]}
-        slot={slot}
-        nextPosition={nextPosition}
+        foods={foods}
+        meals={meals}
+        selectedPlan={plan}
+        nextEntryPosition={nextEntryPosition}
+        nextGroupPosition={nextGroupPosition}
         disabled={disabled}
+        triggerLabel="Log"
+        triggerVariant="default"
+        initialSource={{ kind: "plan-food", slot }}
       />
     </li>
   );

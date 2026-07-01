@@ -30,6 +30,11 @@ export interface MealTotalIngredient {
   food?: MacroFields | null;
 }
 
+export interface IntakeDraftMacroItem {
+  grams: unknown;
+  food?: MacroFields | null;
+}
+
 export interface PlanMealSummary {
   id?: string;
   name?: string | null;
@@ -231,6 +236,15 @@ export function mealMacroTotals(ingredients: MealTotalIngredient[]): MacroTotals
       return total;
     }
     return addMacroTotals(total, macrosForGrams(ingredient.food, ingredient.grams));
+  }, EMPTY_MACRO_TOTALS);
+}
+
+export function intakeDraftMacroTotals(items: IntakeDraftMacroItem[]): MacroTotals {
+  return items.reduce((total, item) => {
+    if (!item.food) {
+      return total;
+    }
+    return addMacroTotals(total, macrosForGrams(item.food, item.grams));
   }, EMPTY_MACRO_TOTALS);
 }
 

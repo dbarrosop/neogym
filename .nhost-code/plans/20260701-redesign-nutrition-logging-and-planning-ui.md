@@ -375,7 +375,26 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added `LogIntakeDialog` as the single web logging
+  surface with Food, Meal, and From-plan modes. The dialog materializes editable
+  gram drafts, previews aggregate macros via `intakeDraftMacroTotals`, defaults
+  actual logged time to now, and saves standalone food/plan-food entries or
+  nested meal/plan-meal groups with the correct provenance fields. Migrated daily
+  log actions and plan suggestions to the unified dialog and deleted the old
+  `log-food-dialog.tsx` and `log-meal-dialog.tsx` components.
+- **Reviewer verdict:** `ACCEPT`. Reviewer verified a single unified entry
+  point, old dialog deletion/no remaining call sites, correct standalone vs
+  grouped provenance and snapshot semantics, editable time/grams, macro preview,
+  and preserved query invalidations/daily log editing.
+- **Autonomous decisions:** Deferred manual browser and snapshot-after-source-edit
+  checks to the later cross-surface validation phase because no live backend was
+  running in this environment; justification: correctness and long-term
+  maintenance, keeping static/type/test gates authoritative while preserving the
+  planned manual smoke path.
+- **Quality gate:** `cd frontend && nix develop ../ --command bun run check`
+  passed: TypeScript passed, Biome checked 103 files with no fixes, and Bun ran
+  100 tests with 0 failures. LSP diagnostics on changed files were clean and
+  grep found no old logging-dialog imports/call sites.
 
 ### Phase 5 — Web inline create/edit for nutrition composition
 
