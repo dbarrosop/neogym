@@ -36,6 +36,27 @@ export interface PlanTotalSlot {
   } | null;
 }
 
+export interface PlanMealEntry {
+  id: string;
+  slotTime?: string | null;
+  label?: string | null;
+  position: number;
+  meal?: {
+    mealIngredients: MealTotalIngredient[];
+  } | null;
+}
+
+export interface PlanFoodEntry {
+  id: string;
+  slotTime?: string | null;
+  label?: string | null;
+  position: number;
+  grams: unknown;
+  food?: MacroFields | null;
+}
+
+export type PlanEntry = (PlanMealEntry & { kind: "meal" }) | (PlanFoodEntry & { kind: "food" });
+
 export interface LoggedSnapshotEntry {
   grams: unknown;
   snapshotKcalPer100g: unknown;
@@ -95,6 +116,11 @@ const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})/;
 const NO_TIME_SLOT_KEY = "no-time";
 const NO_TIME_SORT_KEY = "99:99";
+
+const PLAN_ENTRY_KIND_ORDER = {
+  food: 0,
+  meal: 1,
+} satisfies Record<PlanEntry["kind"], number>;
 
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
@@ -203,6 +229,36 @@ export function planMacroTotals(slots: PlanTotalSlot[]): MacroTotals {
     }
     return addMacroTotals(total, mealMacroTotals(slot.meal.mealIngredients));
   }, EMPTY_MACRO_TOTALS);
+}
+
+export function planEntryMacroTotals(entry: PlanEntry): MacroTotals {
+  if (entry.kind === "food") {
+    return entry.food ? macrosForGrams(entry.food, entry.grams) : EMPTY_MACRO_TOTALS;
+  }
+  return entry.meal ? mealMacroTotals(entry.meal.mealIngredients) : EMPTY_MACRO_TOTALS;
+}
+
+export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
+  return entries.reduce(
+    (total, entry) => addMacroTotals(total, planEntryMacroTotals(entry)),
+    EMPTY_MACRO_TOTALS,
+  );
+}
+
+/**
+ * Merge the sibling plan-entry tables into the display/editor order.
+ * Editors must write `position` as a global value within each plan/time slot
+ * across both tables; `kind` and `id` are deterministic fallbacks for legacy
+ * or imported collisions where two entries share the same time and position.
+ */
+export function mergePlanEntriesByTime(
+  mealEntries: PlanMealEntry[],
+  foodEntries: PlanFoodEntry[],
+): PlanEntry[] {
+  return [
+    ...mealEntries.map((entry) => ({ ...entry, kind: "meal" as const })),
+    ...foodEntries.map((entry) => ({ ...entry, kind: "food" as const })),
+  ].toSorted(comparePlanEntries);
 }
 
 export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
@@ -352,6 +408,15 @@ function compareIntakeSourceUnits<TEntry extends IntakeEntry>(
   );
 }
 
+function comparePlanEntries(left: PlanEntry, right: PlanEntry): number {
+  return (
+    comparePlanSlotTime(left.slotTime, right.slotTime) ||
+    compareSortPosition(left.position, right.position) ||
+    comparePlanEntryKind(left.kind, right.kind) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
 function compareIntakeEntries(left: IntakeEntry, right: IntakeEntry): number {
   return compareSortPosition(left.position, right.position) || left.id.localeCompare(right.id);
 }
@@ -365,6 +430,18 @@ function compareSourceKind(
     number
   >;
   return sourceKindOrder[left] - sourceKindOrder[right];
+}
+
+function comparePlanEntryKind(left: PlanEntry["kind"], right: PlanEntry["kind"]): number {
+  return PLAN_ENTRY_KIND_ORDER[left] - PLAN_ENTRY_KIND_ORDER[right];
+}
+
+function comparePlanSlotTime(left: unknown, right: unknown): number {
+  return normalizePlanSlotTime(left).localeCompare(normalizePlanSlotTime(right));
+}
+
+function normalizePlanSlotTime(value: unknown): string {
+  return timeToInputValue(value) || NO_TIME_SORT_KEY;
 }
 
 function compareSortPosition(left: number, right: number): number {

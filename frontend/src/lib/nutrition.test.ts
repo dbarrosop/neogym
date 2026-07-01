@@ -15,9 +15,14 @@ import {
   macrosForGrams,
   macroTotalsSummary,
   mealMacroTotals,
+  mergePlanEntriesByTime,
   normalizeMacros,
   normalizeNumeric,
+  type PlanFoodEntry,
+  type PlanMealEntry,
   parseMacroInput,
+  planEntriesMacroTotals,
+  planEntryMacroTotals,
   planMacroTotals,
   timeToInputValue,
 } from "./nutrition";
@@ -52,6 +57,34 @@ function loggedMeal(
     slotTime: overrides.slotTime ?? null,
     position: overrides.position ?? 0,
     nutritionLogEntries: overrides.nutritionLogEntries ?? [],
+  };
+}
+
+function planMeal(overrides: Partial<PlanMealEntry> & Pick<PlanMealEntry, "id">): PlanMealEntry {
+  return {
+    id: overrides.id,
+    slotTime: overrides.slotTime ?? "08:00:00",
+    label: overrides.label ?? null,
+    position: overrides.position ?? 0,
+    meal: overrides.meal ?? { mealIngredients: [] },
+  };
+}
+
+function planFood(overrides: Partial<PlanFoodEntry> & Pick<PlanFoodEntry, "id">): PlanFoodEntry {
+  return {
+    id: overrides.id,
+    slotTime: overrides.slotTime ?? "08:00:00",
+    label: overrides.label ?? null,
+    position: overrides.position ?? 0,
+    grams: overrides.grams ?? 100,
+    food: overrides.food ?? {
+      kcalPer100g: 100,
+      fatPer100g: 1,
+      carbsPer100g: 2,
+      proteinPer100g: 3,
+      fiberPer100g: 4,
+      sugarPer100g: 5,
+    },
   };
 }
 
@@ -110,7 +143,9 @@ describe("nutrition numeric and macro helpers", () => {
       }),
     ).toBe("120 kcal · 3.5 g fat · 20 g carbs · 4 g protein · 2.3 g fiber · 5 g sugar");
   });
+});
 
+describe("nutrition macro helpers", () => {
   it("scales live food macros by grams", () => {
     expect(
       macrosForGrams(
@@ -220,7 +255,126 @@ describe("nutrition numeric and macro helpers", () => {
       sugar: 5,
     });
   });
+});
 
+describe("nutrition mixed plan entry helpers", () => {
+  it("computes direct plan food macros from grams and live food nutrition", () => {
+    expect(
+      planEntryMacroTotals({
+        ...planFood({
+          id: "banana-slot",
+          grams: "150",
+          food: {
+            kcalPer100g: "200",
+            fatPer100g: "10",
+            carbsPer100g: "20",
+            proteinPer100g: "5",
+            fiberPer100g: "2",
+            sugarPer100g: "8",
+          },
+        }),
+        kind: "food",
+      }),
+    ).toEqual({
+      kcal: 300,
+      fat: 15,
+      carbs: 30,
+      protein: 7.5,
+      fiber: 3,
+      sugar: 12,
+    });
+  });
+
+  it("computes mixed plan totals while normalizing Hasura numeric strings", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({
+          id: "breakfast-meal",
+          meal: {
+            mealIngredients: [
+              {
+                grams: "50",
+                food: {
+                  kcalPer100g: "100",
+                  fatPer100g: "2",
+                  carbsPer100g: "10",
+                  proteinPer100g: "4",
+                  fiberPer100g: "1",
+                  sugarPer100g: "3",
+                },
+              },
+            ],
+          },
+        }),
+      ],
+      [
+        planFood({
+          id: "snack-food",
+          grams: "25",
+          food: {
+            kcalPer100g: "200",
+            fatPer100g: "4",
+            carbsPer100g: "20",
+            proteinPer100g: "8",
+            fiberPer100g: "2",
+            sugarPer100g: "6",
+          },
+        }),
+      ],
+    );
+
+    expect(planEntriesMacroTotals(entries)).toEqual({
+      kcal: 100,
+      fat: 2,
+      carbs: 10,
+      protein: 4,
+      fiber: 1,
+      sugar: 3,
+    });
+  });
+
+  it("merges meal and food entries with global positions within each time slot", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({ id: "meal-later", slotTime: "12:00:00", position: 1 }),
+        planMeal({ id: "meal-last", slotTime: "12:00:00", position: 2 }),
+      ],
+      [
+        planFood({ id: "food-earlier-time", slotTime: "08:00:00", position: 5 }),
+        planFood({ id: "food-first-at-noon", slotTime: "12:00:00", position: 0 }),
+      ],
+    );
+
+    expect(entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-earlier-time",
+      "food:food-first-at-noon",
+      "meal:meal-later",
+      "meal:meal-last",
+    ]);
+  });
+
+  it("uses kind and id as stable fallbacks when mixed positions collide", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({ id: "meal-b", slotTime: "09:00:00", position: 1 }),
+        planMeal({ id: "meal-a", slotTime: "09:00:00", position: 1 }),
+      ],
+      [
+        planFood({ id: "food-z", slotTime: "09:00:00", position: 1 }),
+        planFood({ id: "food-a", slotTime: "09:00:00", position: 1 }),
+      ],
+    );
+
+    expect(entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-a",
+      "food:food-z",
+      "meal:meal-a",
+      "meal:meal-b",
+    ]);
+  });
+});
+
+describe("nutrition logged macro helpers", () => {
   it("computes logged totals from trusted snapshot columns", () => {
     expect(
       loggedMacroTotals([

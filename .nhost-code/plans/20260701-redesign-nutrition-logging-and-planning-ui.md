@@ -227,7 +227,28 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added mixed plan-entry types and helpers in
+  `frontend/src/lib/nutrition.ts`: `PlanMealEntry`, `PlanFoodEntry`,
+  `PlanEntry`, `planEntryMacroTotals`, `planEntriesMacroTotals`, and
+  `mergePlanEntriesByTime`. The existing meal-only `planMacroTotals` helper was
+  preserved for current callers. Added `frontend/src/lib/nutrition.test.ts`
+  coverage for direct-food macros, mixed totals with Hasura numeric strings,
+  global per-slot positions, and collision fallback ordering.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the helpers satisfy the
+  phase definition of done, match the plan-wide `(slotTime, position, kind, id)`
+  ordering contract, and do not widen scope.
+- **Autonomous decisions:** Treated Phase 1 as satisfied by existing HEAD commit
+  `c545a60a` despite its nonstandard message (`asd`). Justification:
+  correctness and long-term maintenance — the Phase 1 files are present in HEAD
+  and prior reviewers accepted them statically, so duplicating Phase 1 would be
+  riskier than continuing the dependency chain. Accepted the helper's documented
+  fallback kind order (`food` before `meal`) because the plan requires a stable
+  fallback but does not mandate which kind wins; justification: long-term
+  maintenance through deterministic behavior.
+- **Quality gate:** `cd frontend && nix develop ../ --command bun run check`
+  passed after installing frontend dependencies and generating the ignored route
+  tree: TypeScript passed, Biome checked 104 files with no fixes, and Bun ran 97
+  tests with 0 failures.
 
 ### Phase 3 — Web mixed plan display and baseline authoring
 
