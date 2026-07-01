@@ -441,14 +441,23 @@ describe("nutrition direct plan foods", () => {
 			position: 4,
 		});
 
-		const updateSource = await gqlAsUser<unknown>(
-			`mutation UpdatePlanFoodSource($id: uuid!, $planId: uuid!) {
-        updateNutritionPlanFood(pk_columns: { id: $id }, _set: { foodId: "${PUBLIC_BANANA_ID}", nutritionPlanId: $planId }) { id }
+		const updateFoodSource = await gqlAsUser<unknown>(
+			`mutation UpdatePlanFoodSource($id: uuid!) {
+        updateNutritionPlanFood(pk_columns: { id: $id }, _set: { foodId: "${PUBLIC_BANANA_ID}" }) { id }
+      }`,
+			{ id: planFoodId },
+			TEST_USER_ID,
+		);
+		expect(errorText(updateFoodSource.errors)).toContain("foodId");
+
+		const updatePlanSource = await gqlAsUser<unknown>(
+			`mutation UpdatePlanFoodParent($id: uuid!, $planId: uuid!) {
+        updateNutritionPlanFood(pk_columns: { id: $id }, _set: { nutritionPlanId: $planId }) { id }
       }`,
 			{ id: planFoodId, planId: otherPlanId },
 			TEST_USER_ID,
 		);
-		expect(errorText(updateSource.errors)).toContain("foodId");
+		expect(errorText(updatePlanSource.errors)).toContain("nutritionPlanId");
 	});
 });
 

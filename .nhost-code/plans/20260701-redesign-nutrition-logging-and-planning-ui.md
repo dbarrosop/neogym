@@ -660,7 +660,32 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Performed Phase 8 validation/cleanup only. Re-ran
+  backend, frontend, generated GraphQL, and iOS gates; confirmed full codegen
+  left `frontend/schema.user.graphqls` and `frontend/src/gql/` unchanged;
+  confirmed `log-food-dialog.tsx` / `log-meal-dialog.tsx` are absent with no
+  remaining imports; and re-checked documentation coverage for direct plan
+  foods, provenance, delete restrictions, and mixed ordering. Tightened one
+  backend nutrition test so immutable `nutritionPlanFood.foodId` and
+  `nutritionPlanFood.nutritionPlanId` are asserted independently instead of
+  depending on Hasura's validation-error ordering.
+- **Reviewer verdict:** `ACCEPT_WITH_CONCERNS`. Reviewer accepted the backend test cleanup, generated-artifact/dead-code checks, docs coverage, and automated gates, with one residual concern: the browser/manual end-to-end smoke path was not run and should be completed by a human/browser-capable pass before shipping.
+- **Autonomous decisions:** Did not attempt to regenerate from any unrelated
+  schema; the available local NeoGym GraphQL endpoint was reachable and full
+  `bun run codegen` produced no diff. The browser/manual smoke path was not run
+  because this subagent has no browser/simulator interaction channel for the
+  web UI; backend snapshot/provenance invariants and web/iOS payload behavior
+  are covered by the automated gates listed below, and the missing manual UI
+  smoke remains the only residual validation gap.
+- **Quality gate:** `cd backend && make test` passed after the test assertion
+  cleanup (70 tests, 0 failures); one orchestrator rerun initially saw a transient
+  kind-enforcement reachability failure, and an immediate rerun passed. `cd frontend && nix develop ../ --command bun
+  run codegen` passed with no generated diff, and `cd frontend && nix develop
+  ../ --command bun run check` passed (TypeScript, Biome, and 103 Bun tests).
+  Clean-Xcode-environment `xcrun swift build`, `xcrun swift test`, and
+  `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination
+  'generic/platform=iOS Simulator' build` all passed; Swift test executed 185
+  tests with 0 failures.
 
 ---
 
