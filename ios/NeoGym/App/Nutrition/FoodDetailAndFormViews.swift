@@ -252,7 +252,10 @@ struct FoodEditView: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete food", role: .destructive) { deleteFood() }
         } message: {
-            Text("Food used by meal templates cannot be deleted until those references are removed.")
+            Text(
+                "Food used by meal templates or nutrition plan food entries cannot be deleted "
+                    + "until those references are removed."
+            )
         }
     }
 
@@ -276,7 +279,7 @@ struct FoodEditView: View {
     }
 }
 
-private struct FoodFormScreen: View {
+struct FoodFormScreen: View {
     private enum NumericField: Hashable {
         case calories
         case fat

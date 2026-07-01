@@ -317,6 +317,41 @@ public struct NutritionPlanFoodSlotFormValues: Identifiable, Sendable, Equatable
     }
 }
 
+public enum NutritionPlanDraftEntry: Identifiable, Sendable, Equatable {
+    case meal(NutritionPlanSlotFormValues)
+    case food(NutritionPlanFoodSlotFormValues)
+
+    public var id: String { stableId }
+
+    public var stableId: String {
+        switch self {
+        case let .meal(slot): slot.stableId
+        case let .food(slot): slot.stableId
+        }
+    }
+
+    public var kind: NutritionPlanEntryKind {
+        switch self {
+        case .meal: .meal
+        case .food: .food
+        }
+    }
+
+    public var slotTime: String {
+        switch self {
+        case let .meal(slot): slot.slotTime
+        case let .food(slot): slot.slotTime
+        }
+    }
+
+    public var position: Int {
+        switch self {
+        case let .meal(slot): slot.position
+        case let .food(slot): slot.position
+        }
+    }
+}
+
 public struct NutritionPlanFormValues: Sendable, Equatable {
     public let name: String
     public let description: String
@@ -506,21 +541,24 @@ public final class NutritionPlanFormModel: ObservableObject {
     }
 
     public func moveSlot(stableId: String, direction: Int) {
-        guard let index = slots.firstIndex(where: { $0.stableId == stableId }) else { return }
-        let target = index + direction
-        guard target >= 0, target < slots.count else { return }
-        let item = slots.remove(at: index)
-        slots.insert(item, at: target)
-        renumber()
+        moveEntry(kind: .meal, stableId: stableId, direction: direction)
     }
 
     public func moveFoodSlot(stableId: String, direction: Int) {
-        guard let index = foodSlots.firstIndex(where: { $0.stableId == stableId }) else { return }
+        moveEntry(kind: .food, stableId: stableId, direction: direction)
+    }
+
+    public func sortedDraftEntries() -> [NutritionPlanDraftEntry] {
+        sortDraftEntries(mealSlots: slots, foodSlots: foodSlots)
+    }
+
+    public func moveEntry(kind: NutritionPlanEntryKind, stableId: String, direction: Int) {
+        var entries = sortedDraftEntries()
+        guard let index = entries.firstIndex(where: { $0.kind == kind && $0.stableId == stableId }) else { return }
         let target = index + direction
-        guard target >= 0, target < foodSlots.count else { return }
-        let item = foodSlots.remove(at: index)
-        foodSlots.insert(item, at: target)
-        renumber()
+        guard target >= 0, target < entries.count else { return }
+        entries.swapAt(index, target)
+        apply(entries: entries)
     }
 
     public func valuesForSubmit(availableMeals: [Meal], availableFoods: [Food] = []) -> NutritionPlanFormValues? {
@@ -584,6 +622,42 @@ public final class NutritionPlanFormModel: ObservableObject {
         slots = renumbered.mealSlots
         foodSlots = renumbered.foodSlots
     }
+
+    private func apply(entries: [NutritionPlanDraftEntry]) {
+        var nextPositionByTime: [String: Int] = [:]
+        var nextMeals: [NutritionPlanSlotFormValues] = []
+        var nextFoods: [NutritionPlanFoodSlotFormValues] = []
+
+        for entry in entries {
+            let normalizedTime = IntakeGrouping.timeToInputValue(entry.slotTime)
+            let position = nextPositionByTime[normalizedTime, default: 0]
+            nextPositionByTime[normalizedTime] = position + 1
+            switch entry {
+            case let .meal(slot):
+                nextMeals.append(NutritionPlanSlotFormValues(
+                    id: slot.id,
+                    clientId: slot.clientId,
+                    mealId: slot.mealId,
+                    slotTime: slot.slotTime,
+                    label: slot.label,
+                    position: position
+                ))
+            case let .food(slot):
+                nextFoods.append(NutritionPlanFoodSlotFormValues(
+                    id: slot.id,
+                    clientId: slot.clientId,
+                    foodId: slot.foodId,
+                    grams: slot.grams,
+                    slotTime: slot.slotTime,
+                    label: slot.label,
+                    position: position
+                ))
+            }
+        }
+
+        slots = nextMeals
+        foodSlots = nextFoods
+    }
 }
 
 private enum NutritionPlanFormEntryReference {
@@ -617,6 +691,25 @@ private enum NutritionPlanFormEntryReference {
         case let .food(slot): slot.stableId
         }
     }
+}
+
+private func sortDraftEntries(
+    mealSlots: [NutritionPlanSlotFormValues],
+    foodSlots: [NutritionPlanFoodSlotFormValues]
+) -> [NutritionPlanDraftEntry] {
+    (mealSlots.map(NutritionPlanDraftEntry.meal) + foodSlots.map(NutritionPlanDraftEntry.food))
+        .sorted { left, right in
+            NutritionMath.mixedPlanEntrySortsBefore(
+                leftSlotTime: left.slotTime,
+                leftPosition: left.position,
+                leftKind: left.kind.rawValue,
+                leftId: left.stableId,
+                rightSlotTime: right.slotTime,
+                rightPosition: right.position,
+                rightKind: right.kind.rawValue,
+                rightId: right.stableId
+            )
+        }
 }
 
 private func renumberMixedSlots(

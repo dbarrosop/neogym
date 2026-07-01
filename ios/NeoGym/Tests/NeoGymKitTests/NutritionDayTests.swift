@@ -231,9 +231,50 @@ final class DailyIntakeViewModelTests: XCTestCase {
         let didLog = await viewModel.logFood(foodId: "food-1", grams: "100", slotTime: "14:05")
 
         XCTAssertTrue(didLog)
+        XCTAssertNotNil(
+            viewModel.selectedPlan,
+            "Fixture must keep a selected plan to cover ad-hoc logging on planned days."
+        )
         let requests = await fake.requestsSnapshot()
         let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["foodId"], .string("food-1"))
+        XCTAssertEqual(object["nutritionPlanFoodId"], .null)
         XCTAssertEqual(object["position"], .number(2))
+    }
+
+    func testViewModelLogsAdHocMealOnPlannedDayWithoutPlanMealProvenance() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ])),
+            .json(.object(["insertNutritionLogMeal": .object(["id": .string("group-new")])])),
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ]))
+        ])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+
+        await viewModel.load()
+        XCTAssertNotNil(
+            viewModel.selectedPlan,
+            "Fixture must keep a selected plan to cover ad-hoc logging on planned days."
+        )
+        let didLog = await viewModel.logMeal(meal: mealFixtureModel, planSlot: nil, slotTime: "16:20")
+
+        XCTAssertTrue(didLog)
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["mealId"], .string("meal-1"))
+        XCTAssertEqual(object["nutritionPlanMealId"], .null)
+        XCTAssertEqual(object["slotTime"], .string("16:20"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionPlanFoodId"))
     }
 
     func testViewModelLogsPlanFoodWithActualTimeAndPlanFoodProvenance() async throws {
@@ -321,8 +362,20 @@ private let mealFixture: JSONValue = .object([
     "name": .string("Breakfast bowl"),
     "description": .string("Yogurt with berries."),
     "mealIngredients": .array([
-        .object(["id": .string("ingredient-1"), "foodId": .string("food-1"), "grams": .string("100"), "position": .number(0), "food": snapshotFoodFixture]),
-        .object(["id": .string("ingredient-2"), "foodId": .string("food-2"), "grams": .string("50"), "position": .number(1), "food": secondFoodFixture])
+        .object([
+            "id": .string("ingredient-1"),
+            "foodId": .string("food-1"),
+            "grams": .string("100"),
+            "position": .number(0),
+            "food": snapshotFoodFixture
+        ]),
+        .object([
+            "id": .string("ingredient-2"),
+            "foodId": .string("food-2"),
+            "grams": .string("50"),
+            "position": .number(1),
+            "food": secondFoodFixture
+        ])
     ])
 ])
 

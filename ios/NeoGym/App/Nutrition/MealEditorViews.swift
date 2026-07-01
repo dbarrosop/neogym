@@ -17,7 +17,10 @@ struct MealCreateView: View {
         _editor = StateObject(wrappedValue: MealEditorViewModel(mealId: nil, repository: repository))
         self.onCreated = onCreated
         self.onFinished = onFinished
+        self.editorRepository = repository
     }
+
+    private let editorRepository: any NutritionFoodMealRepositoryProtocol
 
     var body: some View {
         mealEditorBody(
@@ -81,6 +84,8 @@ struct MealCreateView: View {
                         submitLabel: submitLabel,
                         form: form,
                         foods: editor.foods,
+                        repository: editorRepository,
+                        reloadOptions: { await editor.load() },
                         isSubmitting: editor.saveState.isLoading,
                         errorMessage: form.errorMessage ?? editor.saveState.errorMessage,
                         onSubmit: onSubmit,
@@ -112,7 +117,10 @@ struct MealEditView: View {
         _editor = StateObject(wrappedValue: MealEditorViewModel(mealId: mealId, repository: repository))
         self.onSaved = onSaved
         self.onDeleted = onDeleted
+        self.editorRepository = repository
     }
+
+    private let editorRepository: any NutritionFoodMealRepositoryProtocol
 
     var body: some View {
         Group {
@@ -133,6 +141,8 @@ struct MealEditView: View {
                         submitLabel: "Save changes",
                         form: form,
                         foods: editor.foods,
+                        repository: editorRepository,
+                        reloadOptions: { await editor.load() },
                         isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
@@ -187,11 +197,13 @@ struct MealEditView: View {
     }
 }
 
-private struct MealFormScreen: View {
+struct MealFormScreen: View {
     let title: String
     let submitLabel: String
     @ObservedObject var form: MealFormModel
     let foods: [Food]
+    let repository: any NutritionFoodMealRepositoryProtocol
+    let reloadOptions: () async -> Void
     let isSubmitting: Bool
     let errorMessage: String?
     let onSubmit: () -> Void
@@ -199,6 +211,7 @@ private struct MealFormScreen: View {
     var deleteAction: (() -> Void)?
 
     @FocusState private var focusedIngredientId: String?
+    @State private var quickFood: QuickFoodSheetRequest?
 
     var body: some View {
         ScrollView {
@@ -223,6 +236,23 @@ private struct MealFormScreen: View {
             .frame(maxWidth: .infinity)
         }
         .keyboardDoneToolbar(focusedField: $focusedIngredientId)
+        .sheet(item: $quickFood) { request in
+            NavigationView {
+                QuickFoodEditorSheet(
+                    repository: repository,
+                    foodId: request.foodId,
+                    onSaved: { id in
+                        Task {
+                            await reloadOptions()
+                            if let stableId = request.ingredientStableId {
+                                form.updateIngredient(stableId: stableId, foodId: id)
+                            }
+                        }
+                    }
+                )
+            }
+            .navigationViewStyle(.stack)
+        }
     }
 
     private var textFields: some View {
@@ -279,7 +309,9 @@ private struct MealFormScreen: View {
                     foods: foods,
                     isSubmitting: isSubmitting,
                     form: form,
-                    focusedIngredientId: $focusedIngredientId
+                    focusedIngredientId: $focusedIngredientId,
+                    createFood: { quickFood = QuickFoodSheetRequest(ingredientStableId: ingredient.stableId) },
+                    editFood: { foodId in quickFood = QuickFoodSheetRequest(foodId: foodId, ingredientStableId: ingredient.stableId) }
                 )
             }
             Button {
@@ -320,6 +352,10 @@ private struct MealIngredientEditorRow: View {
     let isSubmitting: Bool
     @ObservedObject var form: MealFormModel
     let focusedIngredientId: FocusState<String?>.Binding
+    let createFood: () -> Void
+    let editFood: (String) -> Void
+
+    private var selectedFood: Food? { foods.first { $0.id == ingredient.foodId } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -352,8 +388,19 @@ private struct MealIngredientEditorRow: View {
                     get: { ingredient.foodId },
                     set: { form.updateIngredient(stableId: ingredient.stableId, foodId: $0) }
                 ),
-                disabled: isSubmitting
+                disabled: isSubmitting,
+                revealWheelOnDemand: true
             )
+
+            HStack(spacing: 8) {
+                Button("New food", action: createFood)
+                    .buttonStyle(.bordered)
+                if let selectedFood, !selectedFood.isPublic {
+                    Button("Edit selected", action: { editFood(selectedFood.id) })
+                        .buttonStyle(.bordered)
+                }
+            }
+            .disabled(isSubmitting)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Grams").font(.subheadline.weight(.semibold))
@@ -379,3 +426,86 @@ private struct MealIngredientEditorRow: View {
     }
 }
 
+
+struct QuickFoodSheetRequest: Identifiable {
+    let id = UUID().uuidString
+    var foodId: String?
+    var ingredientStableId: String?
+    var planFoodSlotStableId: String?
+}
+
+struct QuickFoodEditorSheet: View {
+    @StateObject private var editor: FoodEditorViewModel
+    let foodId: String?
+    let onSaved: (String) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var form: FoodFormModel?
+
+    init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        foodId: String?,
+        onSaved: @escaping (String) -> Void
+    ) {
+        _editor = StateObject(wrappedValue: FoodEditorViewModel(foodId: foodId, repository: repository))
+        self.foodId = foodId
+        self.onSaved = onSaved
+    }
+
+    var body: some View {
+        Group {
+            switch editor.state {
+            case .idle:
+                AppLoadingStateView(title: foodId == nil ? "Preparing food" : "Loading food")
+            case .loading where form == nil:
+                AppLoadingStateView(title: "Loading food")
+            case let .failed(message, _) where form == nil:
+                SectionShell(title: foodId == nil ? "New food" : "Edit food") {
+                    AppErrorStateView(title: "Failed to load food", message: message) { Task { await loadIfNeeded() } }
+                }
+                .padding(20)
+            default:
+                if let form {
+                    FoodFormScreen(
+                        title: foodId == nil ? "New food" : "Edit food",
+                        submitLabel: foodId == nil ? "Create food" : "Save changes",
+                        form: form,
+                        isSubmitting: editor.saveState.isLoading,
+                        errorMessage: form.errorMessage ?? editor.saveState.errorMessage,
+                        onSubmit: submit,
+                        onCancel: { dismiss() }
+                    )
+                } else {
+                    AppLoadingStateView(title: "Preparing form")
+                }
+            }
+        }
+        .navigationTitle(foodId == nil ? "New food" : "Edit food")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await loadIfNeeded() }
+    }
+
+    private func loadIfNeeded() async {
+        if case .idle = editor.state {
+            await editor.load()
+            if let initialValues = editor.initialValues, form == nil {
+                form = FoodFormModel(initialValues: initialValues)
+            }
+        }
+    }
+
+    private func submit() {
+        guard let values = form?.valuesForSubmit() else { return }
+        Task {
+            if let foodId {
+                if await editor.save(values: values) {
+                    onSaved(foodId)
+                    dismiss()
+                }
+            } else if let id = await editor.create(values: values) {
+                onSaved(id)
+                dismiss()
+            }
+        }
+    }
+}

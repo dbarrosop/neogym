@@ -588,7 +588,32 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Updated native plan lists, details, overview, and daily
+  suggestions to display mixed meal/direct-food plan entries with mixed totals.
+  Reworked native plan editing for mixed meal and food rows, direct-food grams,
+  global per-slot ordering, and inline meal/private-food create/edit flows.
+  Replaced split food/meal logging sheets with `LogIntakeSheet`, supporting food,
+  meal, plan-meal, and plan-food sources with editable actual time, editable
+  grams, macro preview, and correct provenance. Added inline private-food
+  creation/editing in meal composition, updated delete copy, preview fixtures,
+  and deterministic tests for shared positions and planned-day ad-hoc logging
+  without accidental provenance.
+- **Reviewer verdict:** Initial review `REJECT` for a provenance bug where ad-hoc
+  Food/Meal modes could inherit a selected plan entry, plus a warning that Log
+  meal opened on the Food tab. Follow-up review `ACCEPT` after gating plan-entry
+  selection to locked/Plan mode, adding `adHocMeal`/`adHocFood` requests, and
+  adding tests for ad-hoc planned-day logs without plan provenance.
+- **Autonomous decisions:** Used `gpt-5.5` for reviewer passes because the
+  requested Claude reviewer quota had recently failed. Justification:
+  correctness and long-term maintenance — independent review was required before
+  commit. Used a clean Xcode toolchain environment for gates after plain
+  `swift build` failed in the inherited Nix SDK environment; justification:
+  correctness and consistency with the repo's host Swift workflow.
+- **Quality gate:** Clean-env `xcrun swift build`, `xcrun swift test`, and
+  `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination
+  'generic/platform=iOS Simulator' build` all passed. No app files were added or
+  removed, so XcodeGen was not needed. Manual simulator smoke was not run and is
+  left for Phase 8.
 
 ### Phase 8 — Cross-surface validation and cleanup
 
