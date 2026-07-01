@@ -9,6 +9,7 @@ struct FoodPickerView: View {
 
     @State private var query = ""
     @State private var wheelRevealed = false
+    @State private var suppressNextSelectionCollapse = false
     @FocusState private var searchFocused: Bool
 
     private var selectedFood: Food? {
@@ -47,6 +48,7 @@ struct FoodPickerView: View {
             syncSelectionWithFilter()
         }
         .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
+        .onChange(of: foodId) { _ in collapseWheelAfterUserSelection() }
         .onChange(of: searchFocused) { focused in
             if focused {
                 revealWheelIfEnabled()
@@ -134,13 +136,29 @@ struct FoodPickerView: View {
     private func syncSelectionWithFilter() {
         guard let firstVisible = visibleFoods.first else { return }
         if foodId.isEmpty || !visibleFoods.contains(where: { $0.id == foodId }) {
+            suppressNextSelectionCollapse = true
             foodId = firstVisible.id
+            DispatchQueue.main.async {
+                suppressNextSelectionCollapse = false
+            }
         }
     }
 
     private func revealWheelIfEnabled() {
         guard revealWheelOnDemand, !disabled else { return }
         wheelRevealed = true
+    }
+
+    private func collapseWheelAfterUserSelection() {
+        guard revealWheelOnDemand else { return }
+        if suppressNextSelectionCollapse {
+            suppressNextSelectionCollapse = false
+            return
+        }
+        guard wheelRevealed else { return }
+        wheelRevealed = false
+        searchFocused = false
+        query = ""
     }
 }
 

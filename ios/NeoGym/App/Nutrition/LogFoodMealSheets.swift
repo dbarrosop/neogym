@@ -8,6 +8,7 @@ struct LogFoodSheet: View {
     @State private var foodId = ""
     @State private var grams = "100"
     @State private var slotTime = Date()
+    @State private var isTimePickerVisible = false
 
     var body: some View {
         NavigationView {
@@ -24,8 +25,12 @@ struct LogFoodSheet: View {
                 }
 
                 Section {
-                    DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
+                    CollapsibleTimeWheel(
+                        title: "Time eaten",
+                        time: $slotTime,
+                        isExpanded: $isTimePickerVisible,
+                        disabled: viewModel.isMutating
+                    )
                 } header: {
                     Text("Time eaten")
                 }
@@ -86,6 +91,7 @@ struct LogMealSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var mealId = ""
     @State private var slotTime = Date()
+    @State private var isTimePickerVisible = false
 
     private var meals: [Meal] { viewModel.payload?.meals ?? [] }
     private var selectedMeal: Meal? {
@@ -110,8 +116,12 @@ struct LogMealSheet: View {
                 }
 
                 Section {
-                    DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
-                        .datePickerStyle(.wheel)
+                    CollapsibleTimeWheel(
+                        title: "Time eaten",
+                        time: $slotTime,
+                        isExpanded: $isTimePickerVisible,
+                        disabled: viewModel.isMutating
+                    )
                 } header: {
                     Text("Logged time")
                 }
@@ -190,6 +200,63 @@ struct LogMealSheet: View {
                     .foregroundColor(NeoGymTheme.danger)
             }
         }
+    }
+}
+
+private struct CollapsibleTimeWheel: View {
+    let title: String
+    @Binding var time: Date
+    @Binding var isExpanded: Bool
+    let disabled: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            Button {
+                guard !disabled else { return }
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text(title)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text(Self.formattedTime(time))
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(disabled)
+
+            if isExpanded {
+                DatePicker(title, selection: $time, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .disabled(disabled)
+
+                Button("Done") {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded = false
+                    }
+                }
+                .buttonStyle(.plain)
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .disabled(disabled)
+            }
+        }
+    }
+
+    private static func formattedTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 }
 
