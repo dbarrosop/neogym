@@ -15,6 +15,8 @@ configuration:
       custom_name: nutritionDayId
     nutrition_log_meal_id:
       custom_name: nutritionLogMealId
+    nutrition_plan_food_id:
+      custom_name: nutritionPlanFoodId
     position:
       custom_name: position
     slot_time:
@@ -42,6 +44,7 @@ configuration:
     id: id
     nutrition_day_id: nutritionDayId
     nutrition_log_meal_id: nutritionLogMealId
+    nutrition_plan_food_id: nutritionPlanFoodId
     position: position
     slot_time: slotTime
     snapshot_carbs_per_100g: snapshotCarbsPer100g
@@ -85,6 +88,9 @@ object_relationships:
         remote_table:
           name: nutrition_log_meals
           schema: public
+  - name: nutritionPlanFood
+    using:
+      foreign_key_constraint_on: nutrition_plan_food_id
 insert_permissions:
   - role: user
     permission:
@@ -106,9 +112,17 @@ insert_permissions:
                     _eq: X-Hasura-User-Id
                 - is_public:
                     _eq: true
+          - _or:
+              - nutrition_plan_food_id:
+                  _is_null: true
+              - nutritionPlanFood:
+                  nutritionPlan:
+                    user_id:
+                      _eq: X-Hasura-User-Id
       columns:
         - nutrition_day_id
         - nutrition_log_meal_id
+        - nutrition_plan_food_id
         - food_id
         - grams
         - position
@@ -120,6 +134,7 @@ select_permissions:
         - id
         - nutrition_day_id
         - nutrition_log_meal_id
+        - nutrition_plan_food_id
         - food_id
         - grams
         - position

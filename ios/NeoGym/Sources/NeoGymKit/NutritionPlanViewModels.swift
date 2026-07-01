@@ -29,17 +29,17 @@ public final class NutritionPlansListViewModel: ObservableObject {
                             ingredient.food?.name.lowercased().contains(query) ?? false
                         } ?? false)
                 }
+                || plan.nutritionPlanFoods.contains { slot in
+                    (slot.label?.lowercased().contains(query) ?? false)
+                        || (slot.food?.name.lowercased().contains(query) ?? false)
+                }
         }
     }
 
     public var filteredTotals: MacroTotals {
-        NutritionMath.planMacroTotals(filteredPlans.flatMap { plan in
-            plan.nutritionPlanMeals.map { slot in
-                PlanTotalSlot(mealIngredients: slot.meal?.mealIngredients.map { ingredient in
-                    MealTotalIngredient(grams: ingredient.grams, food: ingredient.food?.macroFields)
-                })
-            }
-        })
+        filteredPlans.reduce(.empty) { total, plan in
+            NutritionMath.addMacroTotals(total, plan.macroTotals)
+        }
     }
 
     public func clearSearch() { searchText = "" }
@@ -98,6 +98,7 @@ public final class NutritionPlanEditorViewModel: ObservableObject {
 
     public var plan: NutritionPlan? { state.value?.plan }
     public var meals: [Meal] { state.value?.meals ?? [] }
+    public var foods: [Food] { state.value?.foods ?? [] }
     public var initialValues: NutritionPlanFormValues? {
         if let plan { return NutritionPlanFormModel.values(from: plan) }
         return planId == nil ? .empty : nil
@@ -115,7 +116,8 @@ public final class NutritionPlanEditorViewModel: ObservableObject {
                 state = .loaded(payload)
             } else {
                 let meals = try await repository.mealsForPlanForm()
-                state = .loaded(NutritionPlanEditPayload(plan: nil, meals: meals))
+                let foods = try await repository.foodsForMealForm()
+                state = .loaded(NutritionPlanEditPayload(plan: nil, meals: meals, foods: foods))
             }
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)

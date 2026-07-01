@@ -87,8 +87,7 @@ struct DailyIntakeView: View {
     let onClose: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
-    @State private var showLogFood = false
-    @State private var showLogMeal = false
+    @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
     @State private var confirmingDayDelete = false
@@ -113,11 +112,8 @@ struct DailyIntakeView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .sheet(isPresented: $showLogFood) {
-            LogFoodSheet(viewModel: viewModel)
-        }
-        .sheet(isPresented: $showLogMeal) {
-            LogMealSheet(viewModel: viewModel, planSlot: nil)
+        .sheet(item: $logRequest) { request in
+            LogIntakeSheet(viewModel: viewModel, request: request)
         }
         .sheet(item: $editingEntry) { item in
             EditLogEntrySheet(viewModel: viewModel, item: item)
@@ -205,7 +201,9 @@ struct DailyIntakeView: View {
         MacroSummaryView(
             totals: viewModel.payload?.loggedTotals ?? .empty,
             title: "Logged totals",
-            description: viewModel.selectedPlan == nil ? "No target plan selected." : "Compared with selected plan suggestions.",
+            description: viewModel.selectedPlan == nil
+                ? "No target plan selected."
+                : "Compared with selected plan suggestions.",
             targetTotals: viewModel.payload?.targetTotals
         )
     }
@@ -234,14 +232,14 @@ struct DailyIntakeView: View {
 
                 HStack(spacing: 10) {
                     Button {
-                        showLogMeal = true
+                        logRequest = .adHocMeal
                     } label: {
                         Label("Log meal", systemImage: "plus")
                     }
                     .buttonStyle(.bordered)
                     .disabled(viewModel.isMutating)
                     Button {
-                        showLogFood = true
+                        logRequest = .adHocFood
                     } label: {
                         Label("Log food", systemImage: "plus")
                     }
@@ -258,7 +256,9 @@ struct DailyIntakeView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Picker("Selected nutrition plan", selection: Binding(
                     get: { viewModel.day?.nutritionPlanId ?? "" },
-                    set: { value in Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) } }
+                    set: { value in
+                        Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) }
+                    }
                 )) {
                     Text("No plan selected").tag("")
                     ForEach(viewModel.payload?.nutritionPlans ?? []) { plan in
@@ -273,17 +273,29 @@ struct DailyIntakeView: View {
                 .disabled(viewModel.day?.nutritionPlanId == nil || viewModel.isMutating)
 
                 if let plan = viewModel.selectedPlan {
-                    if plan.sortedSlots.isEmpty {
+                    if plan.sortedEntries.isEmpty {
                         AppEmptyStateView(
-                            title: "No slots",
-                            message: "This selected plan does not have meal slots yet.",
+                            title: "No entries",
+                            message: "This selected plan does not have meal or food entries yet.",
                             systemImage: "list.bullet.rectangle"
                         )
                     } else {
                         VStack(spacing: 0) {
-                            ForEach(Array(plan.sortedSlots.enumerated()), id: \.element.id) { index, slot in
-                                PlanSuggestionRow(slot: slot, nextPosition: viewModel.nextGroupPosition + index, viewModel: viewModel)
-                                if slot.id != plan.sortedSlots.last?.id { Divider() }
+                            ForEach(Array(plan.sortedEntries.enumerated()), id: \.element.id) { index, entry in
+                                let fixedPosition = entry.kind == .meal
+                                    ? viewModel.nextGroupPosition + index
+                                    : viewModel.nextEntryPosition + index
+                                PlanSuggestionRow(
+                                    entry: entry,
+                                    nextPosition: fixedPosition,
+                                    openLogger: {
+                                        logRequest = LogIntakeSheetRequest(
+                                            source: .planEntry(entry),
+                                            fixedPosition: fixedPosition
+                                        )
+                                    }
+                                )
+                                if entry.id != plan.sortedEntries.last?.id { Divider() }
                             }
                         }
                         .nutritionGlassCard(cornerRadius: 16)
@@ -459,37 +471,63 @@ private struct EntryRow: View {
 }
 
 private struct PlanSuggestionRow: View {
-    let slot: NutritionPlanMealSlot
+    let entry: NutritionPlanEntry
     let nextPosition: Int
-    @ObservedObject var viewModel: DailyIntakeViewModel
-    @State private var showLog = false
+    let openLogger: () -> Void
+
+    private var isLoggable: Bool {
+        switch entry {
+        case let .meal(slot): slot.meal != nil
+        case let .food(slot): slot.food != nil
+        }
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "clock")
+            Image(systemName: entry.kind == .meal ? "fork.knife.circle" : "apple.logo")
                 .foregroundColor(.accentColor)
                 .frame(width: 22)
             VStack(alignment: .leading, spacing: 4) {
-                Text(IntakeGrouping.formatTimeOfDay(slot.slotTime))
+                Text(IntakeGrouping.formatTimeOfDay(entry.slotTime))
                     .font(.caption.weight(.bold))
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text(slot.displayLabel)
-                    .font(.subheadline.weight(.semibold))
-                if let meal = slot.meal {
-                    Text(slot.label == nil ? NutritionMath.macroTotalsSummary(meal.macroTotals) : "Template: \(meal.name) · \(NutritionMath.macroTotalsSummary(meal.macroTotals))")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .lineLimit(2)
+                HStack(spacing: 6) {
+                    Text(entry.displayLabel)
+                        .font(.subheadline.weight(.semibold))
+                    Text(entry.kind == .meal ? "Meal" : "Food")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(NeoGymTheme.accentMuted, in: Capsule())
                 }
+                detailText
             }
             Spacer()
-            Button("Log") { showLog = true }
+            Button("Log", action: openLogger)
                 .buttonStyle(.borderedProminent)
-                .disabled(slot.meal == nil || viewModel.isMutating)
+                .disabled(!isLoggable)
         }
         .padding(12)
-        .sheet(isPresented: $showLog) {
-            LogMealSheet(viewModel: viewModel, planSlot: slot, fixedPosition: nextPosition)
+    }
+
+    @ViewBuilder
+    private var detailText: some View {
+        switch entry {
+        case let .meal(slot):
+            if let meal = slot.meal {
+                Text(slot.label == nil
+                    ? NutritionMath.macroTotalsSummary(meal.macroTotals)
+                    : "Template: \(meal.name) · \(NutritionMath.macroTotalsSummary(meal.macroTotals))")
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                    .lineLimit(2)
+            }
+        case let .food(slot):
+            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
+                + NutritionMath.macroTotalsSummary(slot.macroTotals))
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
+                .lineLimit(2)
         }
     }
 }

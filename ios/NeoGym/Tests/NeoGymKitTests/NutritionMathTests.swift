@@ -156,6 +156,58 @@ final class NutritionMathTests: XCTestCase {
         )
     }
 
+    func testComputesMixedPlanTotalsAndOrderingFallbacks() {
+        let mealSlot = PlanTotalSlot(mealIngredients: [
+            MealTotalIngredient(
+                grams: .number(200),
+                food: MacroFields(
+                    kcalPer100g: .number(50),
+                    fatPer100g: .number(1),
+                    carbsPer100g: .number(5),
+                    proteinPer100g: .number(3),
+                    fiberPer100g: .number(1),
+                    sugarPer100g: .number(2)
+                )
+            )
+        ])
+        let foodSlot = PlanFoodTotalSlot(
+            grams: .string("50"),
+            food: MacroFields(
+                kcalPer100g: .string("80"),
+                fatPer100g: .string("2"),
+                carbsPer100g: .string("6"),
+                proteinPer100g: .string("4"),
+                fiberPer100g: .string("1"),
+                sugarPer100g: .string("2")
+            )
+        )
+
+        XCTAssertEqual(
+            NutritionMath.mixedPlanMacroTotals(mealSlots: [mealSlot], foodSlots: [foodSlot]),
+            MacroTotals(kcal: 140, fat: 3, carbs: 13, protein: 8, fiber: 2.5, sugar: 5)
+        )
+        XCTAssertTrue(NutritionMath.mixedPlanEntrySortsBefore(
+            leftSlotTime: "08:00:00",
+            leftPosition: 0,
+            leftKind: "food",
+            leftId: "food-slot",
+            rightSlotTime: "08:00",
+            rightPosition: 0,
+            rightKind: "meal",
+            rightId: "meal-slot"
+        ))
+        XCTAssertTrue(NutritionMath.mixedPlanEntrySortsBefore(
+            leftSlotTime: "08:00",
+            leftPosition: 1,
+            leftKind: "meal",
+            leftId: "a",
+            rightSlotTime: "12:00",
+            rightPosition: 0,
+            rightKind: "food",
+            rightId: "b"
+        ))
+    }
+
     func testComputesLoggedTotalsFromTrustedSnapshotColumns() {
         XCTAssertEqual(
             NutritionMath.loggedMacroTotals([

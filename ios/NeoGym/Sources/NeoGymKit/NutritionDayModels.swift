@@ -5,6 +5,7 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
     public let id: String
     public let nutritionDayId: String?
     public let nutritionLogMealId: String?
+    public let nutritionPlanFoodId: String?
     public let foodId: String?
     public let grams: JSONValue
     public let position: Int
@@ -23,6 +24,7 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         id: String,
         nutritionDayId: String? = nil,
         nutritionLogMealId: String? = nil,
+        nutritionPlanFoodId: String? = nil,
         foodId: String? = nil,
         grams: JSONValue,
         position: Int,
@@ -40,6 +42,7 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         self.id = id
         self.nutritionDayId = nutritionDayId
         self.nutritionLogMealId = nutritionLogMealId
+        self.nutritionPlanFoodId = nutritionPlanFoodId
         self.foodId = foodId
         self.grams = grams
         self.position = position
@@ -213,13 +216,22 @@ public struct DailyIntakePayload: Sendable, Equatable {
 public struct LogFoodValues: Sendable, Equatable {
     public let dayId: String
     public let foodId: String
+    public let nutritionPlanFoodId: String?
     public let grams: String
     public let slotTime: String
     public let position: Int
 
-    public init(dayId: String, foodId: String, grams: String, slotTime: String, position: Int) {
+    public init(
+        dayId: String,
+        foodId: String,
+        nutritionPlanFoodId: String? = nil,
+        grams: String,
+        slotTime: String,
+        position: Int
+    ) {
         self.dayId = dayId
         self.foodId = foodId
+        self.nutritionPlanFoodId = nutritionPlanFoodId
         self.grams = grams
         self.slotTime = slotTime
         self.position = position

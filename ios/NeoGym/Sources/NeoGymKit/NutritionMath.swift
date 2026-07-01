@@ -88,6 +88,34 @@ public struct PlanTotalSlot: Sendable {
     }
 }
 
+public struct PlanFoodTotalSlot: Sendable {
+    public var grams: JSONValue?
+    public var food: MacroFields?
+
+    public init(grams: JSONValue?, food: MacroFields?) {
+        self.grams = grams
+        self.food = food
+    }
+}
+
+public struct PlanTotalEntry: Sendable {
+    public var mealIngredients: [MealTotalIngredient]?
+    public var foodGrams: JSONValue?
+    public var food: MacroFields?
+
+    public init(mealIngredients: [MealTotalIngredient]?) {
+        self.mealIngredients = mealIngredients
+        foodGrams = nil
+        food = nil
+    }
+
+    public init(foodGrams: JSONValue?, food: MacroFields?) {
+        mealIngredients = nil
+        self.foodGrams = foodGrams
+        self.food = food
+    }
+}
+
 public struct LoggedSnapshotEntry: Sendable {
     public var grams: JSONValue?
     public var snapshotKcalPer100g: JSONValue?
@@ -204,6 +232,65 @@ public enum NutritionMath {
         }
     }
 
+    public static func planFoodMacroTotals(_ slot: PlanFoodTotalSlot) -> MacroTotals {
+        guard let food = slot.food else { return .empty }
+        return macrosForGrams(input: food, grams: slot.grams)
+    }
+
+    public static func planEntryMacroTotals(_ entry: PlanTotalEntry) -> MacroTotals {
+        if let ingredients = entry.mealIngredients {
+            return mealMacroTotals(ingredients)
+        }
+        guard let food = entry.food else { return .empty }
+        return macrosForGrams(input: food, grams: entry.foodGrams)
+    }
+
+    public static func planEntriesMacroTotals(_ entries: [PlanTotalEntry]) -> MacroTotals {
+        entries.reduce(.empty) { total, entry in
+            addMacroTotals(total, planEntryMacroTotals(entry))
+        }
+    }
+
+    public static func mixedPlanMacroTotals(
+        mealSlots: [PlanTotalSlot],
+        foodSlots: [PlanFoodTotalSlot]
+    ) -> MacroTotals {
+        addMacroTotals(
+            planMacroTotals(mealSlots),
+            foodSlots.reduce(.empty) { total, slot in
+                addMacroTotals(total, planFoodMacroTotals(slot))
+            }
+        )
+    }
+
+    public static func mixedPlanEntrySortsBefore(
+        leftSlotTime: String,
+        leftPosition: Int,
+        leftKind: String,
+        leftId: String,
+        rightSlotTime: String,
+        rightPosition: Int,
+        rightKind: String,
+        rightId: String
+    ) -> Bool {
+        let leftTime = IntakeGrouping.timeToInputValue(leftSlotTime)
+        let rightTime = IntakeGrouping.timeToInputValue(rightSlotTime)
+        if leftTime != rightTime { return leftTime < rightTime }
+        if leftPosition != rightPosition { return leftPosition < rightPosition }
+        if leftKind != rightKind { return leftKind < rightKind }
+        return leftId < rightId
+    }
+
+    public static func formatEditableDecimal(_ value: JSONValue?) -> String {
+        let number = normalizeNumeric(value)
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 3
+        formatter.usesGroupingSeparator = false
+        return formatter.string(from: NSNumber(value: number)) ?? String(number)
+    }
+
     public static func loggedEntryMacroTotals(_ entry: LoggedSnapshotEntry) -> MacroTotals {
         macrosForGrams(
             input: MacroFields(
@@ -251,6 +338,7 @@ public enum NutritionMath {
         let message = errorMessage.lowercased()
         return message.contains("foreign key")
             || message.contains("meal_ingredients")
+            || message.contains("nutrition_plan_foods")
             || message.contains("nutrition_log_entries")
             || message.contains("violates constraint")
     }

@@ -185,7 +185,8 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "EditNutritionPlan"
         )
         let meals = try await mealsForPlanForm()
-        return NutritionPlanEditPayload(plan: data.nutritionPlan, meals: meals)
+        let foods = try await foodsForMealForm()
+        return NutritionPlanEditPayload(plan: data.nutritionPlan, meals: meals, foods: foods)
     }
 
     public func mealsForPlanForm() async throws -> [Meal] {
@@ -373,12 +374,18 @@ private struct SaveNutritionPlanData: Decodable, Sendable {
     let deleteNutritionPlanMeals: AffectedRowsPayload?
     let insertNutritionPlanMeals: AffectedRowsPayload?
     let updateNutritionPlanMealsMany: [AffectedRowsPayload]?
+    let deleteNutritionPlanFoods: AffectedRowsPayload?
+    let insertNutritionPlanFoods: AffectedRowsPayload?
+    let updateNutritionPlanFoodsMany: [AffectedRowsPayload]?
 
     private enum CodingKeys: String, CodingKey {
         case updateNutritionPlan
         case deleteNutritionPlanMeals
         case insertNutritionPlanMeals
         case updateNutritionPlanMealsMany = "update_nutritionPlanMeals_many"
+        case deleteNutritionPlanFoods
+        case insertNutritionPlanFoods
+        case updateNutritionPlanFoodsMany = "update_nutritionPlanFoods_many"
     }
 }
 private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritionPlan: MutationIdPayload? }
