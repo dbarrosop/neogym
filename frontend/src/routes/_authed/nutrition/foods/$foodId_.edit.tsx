@@ -118,7 +118,7 @@ function EditFoodRoute() {
     },
     onError: (error) => {
       const message = isFoodInUseError(error)
-        ? "This food is used by a meal template. Remove it from meals before deleting it."
+        ? "This food is used by a meal template or nutrition plan. Remove those references before deleting it."
         : `Failed to delete food: ${error.message}`;
       toast.error(message);
     },
@@ -183,7 +183,8 @@ function EditFoodRoute() {
               {food?.name
                 ? `"${food.name}" will be removed from your private food catalog.`
                 : "This food will be removed from your private food catalog."}{" "}
-              Food used by meal templates cannot be deleted until those references are removed.
+              Food used by meal templates or nutrition plans cannot be deleted until those
+              references are removed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

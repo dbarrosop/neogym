@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarClock, ChefHat, Pencil } from "lucide-react";
+import { Apple, CalendarClock, ChefHat, Pencil } from "lucide-react";
 import { MacroSummary } from "@/components/macro-summary";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,8 +12,10 @@ import {
   formatMacro,
   formatTimeOfDay,
   macroTotalsSummary,
-  mealMacroTotals,
-  planMacroTotals,
+  mergePlanEntriesByTime,
+  type PlanEntry,
+  planEntriesMacroTotals,
+  planEntryMacroTotals,
 } from "@/lib/nutrition";
 
 const NutritionPlanDetailQuery = graphql(`
@@ -25,6 +28,7 @@ const NutritionPlanDetailQuery = graphql(`
       updatedAt
       nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
         id
+        mealId
         slotTime
         label
         position
@@ -47,6 +51,24 @@ const NutritionPlanDetailQuery = graphql(`
               sugarPer100g
             }
           }
+        }
+      }
+      nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+        id
+        foodId
+        grams
+        slotTime
+        label
+        position
+        food {
+          id
+          name
+          kcalPer100g
+          fatPer100g
+          carbsPer100g
+          proteinPer100g
+          fiberPer100g
+          sugarPer100g
         }
       }
     }
@@ -77,7 +99,8 @@ function NutritionPlanDetailRoute() {
     }
 
     const plan = data.nutritionPlan;
-    const totals = planMacroTotals(plan.nutritionPlanMeals);
+    const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
+    const totals = planEntriesMacroTotals(entries);
 
     return (
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -110,46 +133,22 @@ function NutritionPlanDetailRoute() {
 
           <section className="space-y-3">
             <div>
-              <h2 className="text-sm font-medium">Timed meal slots</h2>
+              <h2 className="text-sm font-medium">Timed plan entries</h2>
               <p className="text-xs text-muted-foreground">
-                Slots sort by time of day, then position. Remove slots before deleting a meal that a
-                plan uses.
+                Entries sort by time of day, then shared position across meal and direct food slots.
+                Remove entries before deleting meals or foods that a plan uses.
               </p>
             </div>
-            {plan.nutritionPlanMeals.length === 0 ? (
+            {entries.length === 0 ? (
               <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-                This plan does not have meal slots yet.
+                This plan does not have meal or food entries yet.
               </p>
             ) : (
               <div className="overflow-hidden rounded-md border border-border/60">
                 <ul className="divide-y divide-border/50">
-                  {plan.nutritionPlanMeals.map((slot) => {
-                    const slotTotals = mealMacroTotals(slot.meal.mealIngredients);
-                    return (
-                      <li key={slot.id} className="px-3 py-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 space-y-1">
-                            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-                              {formatTimeOfDay(slot.slotTime)}
-                            </p>
-                            <p className="truncate text-sm font-medium">
-                              {slot.label || slot.meal.name}
-                            </p>
-                            {slot.label ? (
-                              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                                <ChefHat className="h-3 w-3" />
-                                {slot.meal.name}
-                              </p>
-                            ) : null}
-                          </div>
-                          <div className="text-right text-xs text-muted-foreground tabular-nums">
-                            <p>{formatMacro(slotTotals.kcal, "kcal")}</p>
-                            <p className="max-w-56">{macroTotalsSummary(slotTotals)}</p>
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
+                  {entries.map((entry) => (
+                    <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
+                  ))}
                 </ul>
               </div>
             )}
@@ -160,6 +159,63 @@ function NutritionPlanDetailRoute() {
   }
 
   return <div className="space-y-4">{renderContent()}</div>;
+}
+
+function PlanEntryRow({ entry }: { entry: PlanEntry }) {
+  const entryTotals = planEntryMacroTotals(entry);
+  const sourceName = entry.kind === "meal" ? entry.meal?.name : entry.food?.name;
+  const subtitle = renderPlanEntrySubtitle(entry);
+
+  return (
+    <li className="px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+            {formatTimeOfDay(entry.slotTime)}
+          </p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Badge variant={entry.kind === "meal" ? "primary" : "success"}>
+              {entry.kind === "meal" ? (
+                <ChefHat className="h-3 w-3" />
+              ) : (
+                <Apple className="h-3 w-3" />
+              )}
+              {entry.kind === "meal" ? "Meal" : "Food"}
+            </Badge>
+            <p className="truncate text-sm font-medium">
+              {entry.label || sourceName || "Untitled entry"}
+            </p>
+          </div>
+          {subtitle}
+        </div>
+        <div className="text-right text-xs text-muted-foreground tabular-nums">
+          <p>{formatMacro(entryTotals.kcal, "kcal")}</p>
+          <p className="max-w-56">{macroTotalsSummary(entryTotals)}</p>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function renderPlanEntrySubtitle(entry: PlanEntry) {
+  if (entry.kind === "food") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {formatMacro(entry.grams, "g")} · {entry.food?.name ?? "Food"}
+      </p>
+    );
+  }
+
+  if (!entry.label) {
+    return null;
+  }
+
+  return (
+    <p className="flex items-center gap-1 text-xs text-muted-foreground">
+      <ChefHat className="h-3 w-3" />
+      {entry.meal?.name}
+    </p>
+  );
 }
 
 function NutritionPlanDetailSkeleton() {

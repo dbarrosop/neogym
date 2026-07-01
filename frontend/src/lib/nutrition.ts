@@ -30,29 +30,41 @@ export interface MealTotalIngredient {
   food?: MacroFields | null;
 }
 
+export interface PlanMealSummary {
+  id?: string;
+  name?: string | null;
+  description?: string | null;
+  mealIngredients: MealTotalIngredient[];
+}
+
+export interface PlanFoodSummary extends MacroFields {
+  id?: string;
+  name?: string | null;
+  userId?: string | null;
+  isPublic?: boolean;
+}
+
 export interface PlanTotalSlot {
-  meal?: {
-    mealIngredients: MealTotalIngredient[];
-  } | null;
+  meal?: PlanMealSummary | null;
 }
 
 export interface PlanMealEntry {
   id: string;
+  mealId?: string;
   slotTime?: string | null;
   label?: string | null;
   position: number;
-  meal?: {
-    mealIngredients: MealTotalIngredient[];
-  } | null;
+  meal?: PlanMealSummary | null;
 }
 
 export interface PlanFoodEntry {
   id: string;
+  foodId?: string;
   slotTime?: string | null;
   label?: string | null;
   position: number;
   grams: unknown;
-  food?: MacroFields | null;
+  food?: PlanFoodSummary | null;
 }
 
 export type PlanEntry = (PlanMealEntry & { kind: "meal" }) | (PlanFoodEntry & { kind: "food" });
@@ -259,6 +271,31 @@ export function mergePlanEntriesByTime(
     ...mealEntries.map((entry) => ({ ...entry, kind: "meal" as const })),
     ...foodEntries.map((entry) => ({ ...entry, kind: "food" as const })),
   ].toSorted(comparePlanEntries);
+}
+
+/**
+ * Sort draft plan entries by time while preserving current draft order within
+ * the same time, then assign global positions per time slot across both entry
+ * tables. These positions are what Hasura stores in `nutrition_plan_meals` and
+ * `nutrition_plan_foods` for deterministic mixed display.
+ */
+export function sortAndRenumberPlanEntriesByTime<TEntry extends { slotTime?: string | null }>(
+  entries: TEntry[],
+): Array<TEntry & { position: number }> {
+  const nextPositionByTime = new Map<string, number>();
+
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .toSorted(
+      (left, right) =>
+        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
+    )
+    .map(({ entry }) => {
+      const timeKey = normalizePlanSlotTime(entry.slotTime);
+      const position = nextPositionByTime.get(timeKey) ?? 0;
+      nextPositionByTime.set(timeKey, position + 1);
+      return { ...entry, position };
+    });
 }
 
 export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
@@ -567,6 +604,7 @@ export function isFoodInUseError(error: Error): boolean {
   return (
     message.includes("foreign key") ||
     message.includes("meal_ingredients") ||
+    message.includes("nutrition_plan_foods") ||
     message.includes("nutrition_log_entries") ||
     message.includes("violates constraint")
   );

@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
 import { type FocusEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogFoodDialog } from "@/components/log-food-dialog";
+import { LogFoodDialog, type LogPlanFoodSlot } from "@/components/log-food-dialog";
 import { LogMealDialog, type LogMealOption, type LogPlanSlot } from "@/components/log-meal-dialog";
 import { MacroSummary } from "@/components/macro-summary";
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,11 @@ import {
   loggedEntryMacroTotals,
   loggedMacroTotals,
   macroTotalsSummary,
+  mergePlanEntriesByTime,
   normalizeNumeric,
   parseMacroInput,
-  planMacroTotals,
+  planEntriesMacroTotals,
+  planEntryMacroTotals,
 } from "@/lib/nutrition";
 
 const DailyIntakeLogQuery = graphql(`
@@ -112,6 +114,25 @@ const DailyIntakeLogQuery = graphql(`
               sugarPer100g
             }
           }
+        }
+      }
+      nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+        id
+        slotTime
+        label
+        position
+        grams
+        food {
+          id
+          name
+          userId
+          isPublic
+          kcalPer100g
+          fatPer100g
+          carbsPer100g
+          proteinPer100g
+          fiberPer100g
+          sugarPer100g
         }
       }
     }
@@ -243,6 +264,7 @@ type DailyPlan = {
   name: string;
   description?: string | null;
   nutritionPlanMeals: LogPlanSlot[];
+  nutritionPlanFoods: LogPlanFoodSlot[];
 };
 
 type DailyDay = {
@@ -407,7 +429,10 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const selectedPlan = day?.nutritionPlanId
     ? (nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null)
     : null;
-  const targetTotals = selectedPlan ? planMacroTotals(selectedPlan.nutritionPlanMeals) : null;
+  const selectedPlanEntries = selectedPlan
+    ? mergePlanEntriesByTime(selectedPlan.nutritionPlanMeals, selectedPlan.nutritionPlanFoods)
+    : [];
+  const targetTotals = selectedPlan ? planEntriesMacroTotals(selectedPlanEntries) : null;
   const nextEntryPosition = allEntries.length;
   const nextGroupPosition = loggedMeals.length;
   const isMutating =
@@ -526,6 +551,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               ensureDay={ensureDay}
               date={date}
               nextGroupPosition={nextGroupPosition}
+              nextEntryPosition={nextEntryPosition}
               disabled={isMutating}
             />
           ) : (
@@ -742,54 +768,67 @@ function formatGroupCount(count: number): string {
   return `${count.toLocaleString()} ${count === 1 ? "meal group" : "meal groups"}`;
 }
 
+type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
+
 function PlanSuggestions({
   plan,
   ensureDay,
   date,
   nextGroupPosition,
+  nextEntryPosition,
   disabled,
 }: {
   plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
   nextGroupPosition: number;
+  nextEntryPosition: number;
   disabled: boolean;
 }) {
-  if (plan.nutritionPlanMeals.length === 0) {
+  const entries = mergePlanEntriesByTime(
+    plan.nutritionPlanMeals,
+    plan.nutritionPlanFoods,
+  ) as DailyPlanEntry[];
+  if (entries.length === 0) {
     return (
       <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-        This selected plan does not have meal slots yet.
+        This selected plan does not have meal or food entries yet.
       </p>
     );
   }
 
+  let mealOffset = 0;
+  let foodOffset = 0;
+
   return (
     <div className="overflow-hidden rounded-md border border-border/60">
       <ul className="divide-y divide-border/50">
-        {plan.nutritionPlanMeals.map((slot, index) => {
-          const totals = mealMacroTotalsSafe(slot.meal);
-          return (
-            <li key={slot.id} className="flex items-start justify-between gap-3 px-3 py-3">
-              <div className="min-w-0 space-y-1">
-                <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-                  <Clock className="h-3 w-3" />
-                  {formatTimeOfDay(slot.slotTime)}
-                </p>
-                <p className="truncate text-sm font-medium">{slot.label || slot.meal.name}</p>
-                {slot.label ? (
-                  <p className="text-xs text-muted-foreground">{slot.meal.name}</p>
-                ) : null}
-                <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
-              </div>
-              <LogMealDialog
+        {entries.map((entry) => {
+          if (entry.kind === "meal") {
+            const nextPosition = nextGroupPosition + mealOffset;
+            mealOffset += 1;
+            return (
+              <PlanMealSuggestionRow
+                key={`meal:${entry.id}`}
+                slot={entry}
                 ensureDay={ensureDay}
                 date={date}
-                meals={[slot.meal]}
-                slot={slot}
-                nextPosition={nextGroupPosition + index}
+                nextPosition={nextPosition}
                 disabled={disabled}
               />
-            </li>
+            );
+          }
+          const nextPosition = nextEntryPosition + foodOffset;
+          foodOffset += 1;
+          return (
+            <PlanFoodSuggestionRow
+              key={`food:${entry.id}`}
+              slot={entry}
+              ensureDay={ensureDay}
+              date={date}
+              nextPosition={nextPosition}
+              disabled={disabled}
+            />
           );
         })}
       </ul>
@@ -797,17 +836,79 @@ function PlanSuggestions({
   );
 }
 
-function mealMacroTotalsSafe(meal: LogMealOption) {
-  return loggedMacroTotals(
-    meal.mealIngredients.map((ingredient) => ({
-      grams: ingredient.grams,
-      snapshotKcalPer100g: ingredient.food.kcalPer100g,
-      snapshotFatPer100g: ingredient.food.fatPer100g,
-      snapshotCarbsPer100g: ingredient.food.carbsPer100g,
-      snapshotProteinPer100g: ingredient.food.proteinPer100g,
-      snapshotFiberPer100g: ingredient.food.fiberPer100g,
-      snapshotSugarPer100g: ingredient.food.sugarPer100g,
-    })),
+function PlanMealSuggestionRow({
+  slot,
+  ensureDay,
+  date,
+  nextPosition,
+  disabled,
+}: {
+  slot: LogPlanSlot;
+  ensureDay: () => Promise<string>;
+  date: string;
+  nextPosition: number;
+  disabled: boolean;
+}) {
+  const totals = planEntryMacroTotals({ ...slot, kind: "meal" });
+  return (
+    <li className="flex items-start justify-between gap-3 px-3 py-3">
+      <div className="min-w-0 space-y-1">
+        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+          <Clock className="h-3 w-3" />
+          {formatTimeOfDay(slot.slotTime)} · Meal
+        </p>
+        <p className="truncate text-sm font-medium">{slot.label || slot.meal.name}</p>
+        {slot.label ? <p className="text-xs text-muted-foreground">{slot.meal.name}</p> : null}
+        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+      </div>
+      <LogMealDialog
+        ensureDay={ensureDay}
+        date={date}
+        meals={[slot.meal]}
+        slot={slot}
+        nextPosition={nextPosition}
+        disabled={disabled}
+      />
+    </li>
+  );
+}
+
+function PlanFoodSuggestionRow({
+  slot,
+  ensureDay,
+  date,
+  nextPosition,
+  disabled,
+}: {
+  slot: LogPlanFoodSlot;
+  ensureDay: () => Promise<string>;
+  date: string;
+  nextPosition: number;
+  disabled: boolean;
+}) {
+  const totals = planEntryMacroTotals({ ...slot, kind: "food" });
+  return (
+    <li className="flex items-start justify-between gap-3 px-3 py-3">
+      <div className="min-w-0 space-y-1">
+        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+          <Clock className="h-3 w-3" />
+          {formatTimeOfDay(slot.slotTime)} · Food
+        </p>
+        <p className="truncate text-sm font-medium">{slot.label || slot.food.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatMacro(slot.grams, "g")} · {slot.food.name}
+        </p>
+        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+      </div>
+      <LogFoodDialog
+        ensureDay={ensureDay}
+        date={date}
+        foods={[slot.food]}
+        slot={slot}
+        nextPosition={nextPosition}
+        disabled={disabled}
+      />
+    </li>
   );
 }
 

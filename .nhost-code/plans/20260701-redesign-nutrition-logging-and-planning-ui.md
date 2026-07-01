@@ -300,7 +300,32 @@ _(filled by `nhost-implement` during execution: implementation notes, reviewer v
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added web mixed meal/food nutrition-plan support across
+  plan creation, editing, detail, list summaries, and daily selected-plan
+  suggestions. `NutritionPlanForm` now edits a mixed draft union with meal and
+  food entries, direct-food grams, merged per-time position renumbering, and
+  Phase 2 total/order helpers. Plan create/edit mutations now write both
+  `nutritionPlanMeals` and `nutritionPlanFoods` and preserve source-FK
+  immutability by delete+insert on source changes. Added a baseline plan-food
+  logging path through the existing food logging dialog, including editable
+  actual time and standalone `nutritionPlanFoodId` provenance, and updated food
+  delete copy/tests for plan-food restrictions.
+- **Reviewer verdict:** `ACCEPT`. Reviewer verified the Phase 3 definition of
+  done, including mixed create/edit, merged detail/day suggestions and totals,
+  baseline plan-food logging, source-FK immutable edit diffs, and schema/gql
+  additions matching Phase 1 metadata.
+- **Autonomous decisions:** Kept `planMacroTotals`/`PlanTotalSlot` even though
+  production callers migrated, deferring removal to Phase 8 cleanup because the
+  plan explicitly preserved compatibility; justification: long-term maintenance
+  and minimizing phase scope. Used `codegen:graphql` against the checked-in SDL
+  rather than full live introspection because the local backend remains an
+  unrelated schema; justification: correctness/security, avoiding generated
+  artifacts from the wrong backend while keeping TypeScript documents current
+  with the Phase 1 SDL additions.
+- **Quality gate:** `cd frontend && nix develop ../ --command bun run check`
+  passed: TypeScript passed, Biome checked 104 files with no fixes, and Bun ran
+  99 tests with 0 failures. Full live `bun run codegen` and manual browser smoke
+  remain pending for a correctly configured NeoGym backend environment.
 
 ### Phase 4 — Unified web logging flow
 
