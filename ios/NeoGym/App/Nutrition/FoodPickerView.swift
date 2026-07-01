@@ -5,8 +5,11 @@ struct FoodPickerView: View {
     let foods: [Food]
     @Binding var foodId: String
     var disabled = false
+    var revealWheelOnDemand = false
 
     @State private var query = ""
+    @State private var wheelRevealed = false
+    @FocusState private var searchFocused: Bool
 
     private var selectedFood: Food? {
         foods.first { $0.id == foodId }
@@ -22,35 +25,60 @@ struct FoodPickerView: View {
         foods.map(\.id)
     }
 
+    private var shouldShowWheel: Bool {
+        !revealWheelOnDemand || wheelRevealed
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
             searchField
 
-            if foods.isEmpty {
-                message("No foods are available yet. Create a private food first.")
-            } else if visibleFoods.isEmpty {
-                message("No foods match this search.")
-            } else {
-                Picker("Food", selection: $foodId) {
-                    ForEach(visibleFoods) { food in
-                        FoodWheelRow(food: food)
-                            .tag(food.id)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .labelsHidden()
-                .frame(height: 176)
-                .clipped()
-                .disabled(disabled)
-
-                if let selectedFood {
-                    selectedSummary(food: selectedFood)
-                }
+            if revealWheelOnDemand, let selectedFood {
+                selectedSummary(food: selectedFood)
             }
+
+            pickerContent
         }
         .onAppear(perform: syncSelectionWithFilter)
-        .onChange(of: query) { _ in syncSelectionWithFilter() }
+        .onChange(of: query) { _ in
+            if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                revealWheelIfEnabled()
+            }
+            syncSelectionWithFilter()
+        }
         .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
+        .onChange(of: searchFocused) { focused in
+            if focused {
+                revealWheelIfEnabled()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pickerContent: some View {
+        if foods.isEmpty {
+            message("No foods are available yet. Create a private food first.")
+        } else if visibleFoods.isEmpty {
+            if !revealWheelOnDemand || wheelRevealed || !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                message("No foods match this search.")
+            }
+        } else if shouldShowWheel {
+            Picker("Food", selection: $foodId) {
+                ForEach(visibleFoods) { food in
+                    FoodWheelRow(food: food)
+                        .tag(food.id)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .frame(height: 176)
+            .clipped()
+            .disabled(disabled)
+
+            if !revealWheelOnDemand, let selectedFood {
+                selectedSummary(food: selectedFood)
+            }
+        }
     }
 
     private var searchField: some View {
@@ -60,6 +88,7 @@ struct FoodPickerView: View {
             TextField(selectedFood?.name ?? "Filter foods…", text: $query)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
+                .focused($searchFocused)
                 .disabled(disabled)
             if !query.isEmpty {
                 Button {
@@ -69,9 +98,12 @@ struct FoodPickerView: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
                 .buttonStyle(.plain)
+                .disabled(disabled)
                 .accessibilityLabel("Clear search")
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { revealWheelIfEnabled() }
     }
 
     private func selectedSummary(food: Food) -> some View {
@@ -104,6 +136,11 @@ struct FoodPickerView: View {
         if foodId.isEmpty || !visibleFoods.contains(where: { $0.id == foodId }) {
             foodId = firstVisible.id
         }
+    }
+
+    private func revealWheelIfEnabled() {
+        guard revealWheelOnDemand, !disabled else { return }
+        wheelRevealed = true
     }
 }
 

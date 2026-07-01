@@ -157,7 +157,7 @@ public final class SessionDetailViewModel: ObservableObject {
 
     public func addStrengthSet(workoutSessionExerciseId: String, reps: Int, weight: Double) async -> Bool {
         let row = session?.workoutSessionExercises.first { $0.id == workoutSessionExerciseId }
-        let nextSetNumber = (row?.workoutSessionStrengthSets.map(\.setNumber).max() ?? 0) + 1
+        let nextSetNumber = StrengthSetNumbering.nextSetNumber(currentSets: row?.workoutSessionStrengthSets ?? [])
         return await mutate(label: "InsertWorkoutSessionStrengthSet", reload: true) {
             _ = try await repository.addStrengthSet(
                 workoutSessionExerciseId: workoutSessionExerciseId,

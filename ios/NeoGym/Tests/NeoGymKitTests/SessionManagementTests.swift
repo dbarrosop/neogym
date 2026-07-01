@@ -307,6 +307,160 @@ final class SessionsViewModelTests: XCTestCase {
     }
 }
 
+final class StrengthSetHelperTests: XCTestCase {
+    func testSeedingPrefersHighestNumberedCurrentSet() {
+        let seed = StrengthSetSeeding.seedSet(
+            currentSets: [
+                makeSessionSet(id: "current-1", number: 1, reps: 5, weight: 100),
+                makeSessionSet(id: "current-3", number: 3, reps: 7, weight: 110),
+                makeSessionSet(id: "current-2", number: 2, reps: 6, weight: 105)
+            ],
+            priorEntries: [
+                makePriorStrengthEntry(
+                    id: "prior-newer",
+                    startedAt: "2026-06-30T12:00:00Z",
+                    sets: [makeSessionSet(id: "prior-9", number: 9, reps: 3, weight: 120)]
+                )
+            ]
+        )
+
+        XCTAssertEqual(seed?.id, "current-3")
+    }
+
+    func testSeedingUsesNewestNonEmptyPriorEntryHighestNumberedSet() {
+        let seed = StrengthSetSeeding.seedSet(
+            currentSets: [],
+            priorEntries: [
+                makePriorStrengthEntry(
+                    id: "older-heavy",
+                    startedAt: "2026-06-01T12:00:00Z",
+                    sets: [makeSessionSet(id: "older-9", number: 9, reps: 3, weight: 140)]
+                ),
+                makePriorStrengthEntry(
+                    id: "newest-empty",
+                    startedAt: "2026-06-30T12:00:00Z",
+                    sets: []
+                ),
+                makePriorStrengthEntry(
+                    id: "newer-with-sets",
+                    startedAt: "2026-06-20T12:00:00Z",
+                    sets: [
+                        makeSessionSet(id: "newer-1", number: 1, reps: 8, weight: 95),
+                        makeSessionSet(id: "newer-4", number: 4, reps: 5, weight: 100),
+                        makeSessionSet(id: "newer-2", number: 2, reps: 6, weight: 97.5)
+                    ]
+                )
+            ]
+        )
+
+        XCTAssertEqual(seed?.id, "newer-4")
+    }
+
+    func testSeedingReturnsNilWithoutCurrentOrPriorSets() {
+        let seed = StrengthSetSeeding.seedSet(
+            currentSets: [],
+            priorEntries: [makePriorStrengthEntry(id: "empty", startedAt: "2026-06-20T12:00:00Z", sets: [])]
+        )
+
+        XCTAssertNil(seed)
+    }
+
+    func testNumberingUsesOnlyCurrentSets() {
+        XCTAssertEqual(StrengthSetNumbering.nextSetNumber(currentSets: []), 1)
+        XCTAssertEqual(
+            StrengthSetNumbering.nextSetNumber(currentSets: [
+                makeSessionSet(id: "set-5", number: 5, reps: 5, weight: 100),
+                makeSessionSet(id: "set-2", number: 2, reps: 5, weight: 100)
+            ]),
+            6
+        )
+
+        let priorSeed = StrengthSetSeeding.seedSet(
+            currentSets: [],
+            priorEntries: [
+                makePriorStrengthEntry(
+                    id: "prior",
+                    startedAt: "2026-06-20T12:00:00Z",
+                    sets: [makeSessionSet(id: "prior-5", number: 5, reps: 5, weight: 100)]
+                )
+            ]
+        )
+        XCTAssertEqual(priorSeed?.setNumber, 5)
+        XCTAssertEqual(StrengthSetNumbering.nextSetNumber(currentSets: []), 1)
+    }
+
+    func testFormattingSetSummaries() {
+        XCTAssertEqual(
+            StrengthSetFormatting.setSummary(
+                makeSessionSet(id: "integer", number: 1, reps: 5, weight: 100),
+                doubleWeight: false,
+                includeSideSuffix: false
+            ),
+            "100 kg × 5"
+        )
+        XCTAssertEqual(
+            StrengthSetFormatting.setSummary(
+                makeSessionSet(id: "fractional", number: 1, reps: 8, weight: 42.5),
+                doubleWeight: false,
+                includeSideSuffix: false
+            ),
+            "42.5 kg × 8"
+        )
+        XCTAssertEqual(
+            StrengthSetFormatting.setSummary(
+                makeSessionSet(id: "bodyweight", number: 1, reps: 5, weight: 0),
+                doubleWeight: true,
+                includeSideSuffix: true
+            ),
+            "BW × 5"
+        )
+        XCTAssertEqual(
+            StrengthSetFormatting.setSummary(
+                makeSessionSet(id: "side", number: 1, reps: 10, weight: 25),
+                doubleWeight: true,
+                includeSideSuffix: true
+            ),
+            "25 kg × 10 /side"
+        )
+    }
+
+    func testFormattingRecentSummaries() {
+        XCTAssertEqual(StrengthSetFormatting.recentSummary([], doubleWeight: false), "no sets")
+        XCTAssertEqual(
+            StrengthSetFormatting.recentSummary(
+                [
+                    makeSessionSet(id: "set-1", number: 1, reps: 5, weight: 100),
+                    makeSessionSet(id: "set-2", number: 2, reps: 8, weight: 42.5)
+                ],
+                doubleWeight: false
+            ),
+            "100 kg × 5, 42.5 kg × 8"
+        )
+        XCTAssertEqual(
+            StrengthSetFormatting.recentSummary(
+                [
+                    makeSessionSet(id: "weighted", number: 1, reps: 10, weight: 25),
+                    makeSessionSet(id: "bodyweight", number: 2, reps: 6, weight: 0)
+                ],
+                doubleWeight: true
+            ),
+            "25 kg × 10, BW × 6 /side"
+        )
+    }
+}
+
+private func makeSessionSet(id: String, number: Int, reps: Int, weight: Double) -> SessionStrengthSet {
+    SessionStrengthSet(id: id, setNumber: number, reps: reps, weight: weight)
+}
+
+private func makePriorStrengthEntry(
+    id: String,
+    startedAt: String,
+    sets: [SessionStrengthSet]
+) -> SessionPriorStrengthEntry {
+    SessionPriorStrengthEntry(id: id, startedAt: startedAt, sets: sets)
+}
+
 private let sessionListFixture: JSONValue = .object([
     "id": .string("session-1"),
     "startedAt": .string("2026-06-26T12:00:00Z"),
