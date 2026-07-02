@@ -56,9 +56,14 @@ public enum StrengthSetFormatting {
         guard !sets.isEmpty else { return "no sets" }
         let hasWeightedSet = sets.contains { $0.weight > 0 }
         let summary = sets
-            .map { setSummary($0, doubleWeight: doubleWeight, includeSideSuffix: false) }
+            .map(compactSetSummary)
             .joined(separator: ", ")
         return summary + (doubleWeight && hasWeightedSet ? " /side" : "")
+    }
+
+    private static func compactSetSummary(_ set: SessionStrengthSet) -> String {
+        let weight = set.weight == 0 ? "BW" : formatWeight(set.weight)
+        return "\(weight)x\(set.reps)"
     }
 
     public static func formatWeight(_ weight: Double) -> String {

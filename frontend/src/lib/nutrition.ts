@@ -74,10 +74,6 @@ export interface PlanFoodSummary extends MacroFields {
   isPublic?: boolean;
 }
 
-export interface PlanTotalSlot {
-  meal?: PlanMealSummary | null;
-}
-
 export interface PlanMealEntry {
   id: string;
   mealId?: string;
@@ -404,15 +400,6 @@ export function intakeDraftMacroTotals(items: IntakeDraftMacroItem[]): MacroTota
       return total;
     }
     return addMacroTotals(total, macrosForGrams(item.food, item.grams));
-  }, EMPTY_MACRO_TOTALS);
-}
-
-export function planMacroTotals(slots: PlanTotalSlot[]): MacroTotals {
-  return slots.reduce((total, slot) => {
-    if (!slot.meal) {
-      return total;
-    }
-    return addMacroTotals(total, mealMacroTotals(slot.meal.mealIngredients));
   }, EMPTY_MACRO_TOTALS);
 }
 

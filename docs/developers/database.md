@@ -188,9 +188,10 @@ erDiagram
     MEAL_INGREDIENTS { uuid id PK uuid meal_id FK uuid food_id FK numeric grams int position }
     NUTRITION_PLANS { uuid id PK uuid user_id text name text description }
     NUTRITION_PLAN_MEALS { uuid id PK uuid nutrition_plan_id FK uuid meal_id FK time slot_time text label int position }
+    NUTRITION_PLAN_FOODS { uuid id PK uuid nutrition_plan_id FK uuid food_id FK numeric grams time slot_time text label int position }
     NUTRITION_DAYS { uuid id PK uuid user_id date log_date uuid nutrition_plan_id "nullable template link" }
     NUTRITION_LOG_MEALS { uuid id PK uuid nutrition_day_id FK uuid meal_id "nullable provenance" uuid nutrition_plan_meal_id "nullable provenance" text name time slot_time "logged time" int position }
-    NUTRITION_LOG_ENTRIES { uuid id PK uuid nutrition_day_id FK uuid nutrition_log_meal_id "nullable group" uuid food_id "nullable after food delete" text source "food or ad_hoc" numeric grams time slot_time "standalone logged time" text snapshot_food_name numeric snapshot_kcal_per_100g }
+    NUTRITION_LOG_ENTRIES { uuid id PK uuid nutrition_day_id FK uuid nutrition_log_meal_id "nullable group" uuid food_id "nullable after food delete" uuid nutrition_plan_food_id "nullable provenance" text source "food or ad_hoc" numeric grams time slot_time "standalone logged time" text snapshot_food_name numeric snapshot_kcal_per_100g }
 
     USERS ||--o{ FOODS : "owns private"
     USERS ||--o{ MEALS : owns
@@ -200,6 +201,8 @@ erDiagram
     MEALS ||--o{ MEAL_INGREDIENTS : contains
     MEALS ||--o{ NUTRITION_PLAN_MEALS : "plan slot (RESTRICT delete)"
     NUTRITION_PLANS ||--o{ NUTRITION_PLAN_MEALS : contains
+    NUTRITION_PLANS ||--o{ NUTRITION_PLAN_FOODS : contains
+    FOODS ||--o{ NUTRITION_PLAN_FOODS : "direct plan food (RESTRICT delete)"
     NUTRITION_PLANS ||--o{ NUTRITION_DAYS : "selected template; SET NULL on delete"
     NUTRITION_DAYS ||--o{ NUTRITION_LOG_MEALS : groups
     NUTRITION_DAYS ||--o{ NUTRITION_LOG_ENTRIES : entries
@@ -207,9 +210,10 @@ erDiagram
     MEALS ||--o{ NUTRITION_LOG_MEALS : "nullable provenance; SET NULL"
     NUTRITION_PLAN_MEALS ||--o{ NUTRITION_LOG_MEALS : "nullable provenance; SET NULL"
     FOODS ||--o{ NUTRITION_LOG_ENTRIES : "nullable provenance; SET NULL"
+    NUTRITION_PLAN_FOODS ||--o{ NUTRITION_LOG_ENTRIES : "nullable provenance; SET NULL"
 ```
 
-Foods reuse the owner-or-public catalog visibility invariant (`is_public = true` iff `user_id IS NULL`) and `UNIQUE NULLS NOT DISTINCT (user_id, name)`. Meal and plan templates are private roots. Logged day entries are historical facts: `nutrition_log_entries` has `source = 'food' | 'ad_hoc'` plus non-null `snapshot_*` food name/nutrient columns. Food-backed rows are populated by an insert-only trigger from `foods`; later food updates/deletes do not change those snapshots, and `food_id` can become null only after source-food deletion. Ad-hoc rows are standalone log-only snapshots with no `food_id`, `nutrition_plan_food_id`, or `nutrition_log_meal_id`, so they never join reusable catalogs or grouped/template provenance. Log `slot_time` values record the actual user-selected time-of-day (defaulting to now); planned meal provenance stays in `nutrition_plan_meal_id` and should not force the logged time to the template slot time. The day-scoped ordering indexes for `nutrition_log_meals` and `nutrition_log_entries` are `(nutrition_day_id, slot_time, position, id)`, matching the slot-time-first daily intake display.
+Foods reuse the owner-or-public catalog visibility invariant (`is_public = true` iff `user_id IS NULL`) and `UNIQUE NULLS NOT DISTINCT (user_id, name)`. Meal and plan templates are private roots. Plans can contain both meal slots (`nutrition_plan_meals`) and direct food slots (`nutrition_plan_foods`); clients merge those children by `(slot_time, position, kind, id)` using a shared per-slot `position` sequence. Logged day entries are historical facts: `nutrition_log_entries` has `source = 'food' | 'ad_hoc'` plus non-null `snapshot_*` food name/nutrient columns. Food-backed rows are populated by an insert-only trigger from `foods`; later food updates/deletes do not change those snapshots, and `food_id` can become null only after source-food deletion. Direct plan-food logs are standalone food-backed entries with nullable `nutrition_plan_food_id` provenance; a trigger rejects combining that provenance with a logged meal group or a mismatched `food_id`. Ad-hoc rows are standalone log-only snapshots with no `food_id`, `nutrition_plan_food_id`, or `nutrition_log_meal_id`, so they never join reusable catalogs or grouped/template provenance. Log `slot_time` values record the actual user-selected time-of-day (defaulting to now); planned meal provenance stays in `nutrition_plan_meal_id`, direct food provenance stays in `nutrition_plan_food_id`, and neither should force the logged time to the template slot time. The day-scoped ordering indexes for `nutrition_log_meals` and `nutrition_log_entries` are `(nutrition_day_id, slot_time, position, id)`, matching the slot-time-first daily intake display.
 
 `nutrition_log_entries` also has a composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`. With default `MATCH SIMPLE`, standalone entries (`nutrition_log_meal_id IS NULL`) skip that composite FK while still using the direct `nutrition_day_id` FK; grouped entries must point at a group on the same day. Because `nutrition_day_id` is present in both the direct and composite FKs, Hasura/Nhost metadata uses manual relationships for the affected day/group links rather than auto-tracking the ambiguous constraints.
 
@@ -239,9 +243,12 @@ Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
 | `meal_ingredients.food_id` → `foods.id` | `ON DELETE RESTRICT` | A food used by any meal template cannot be deleted until the template reference is removed. This includes public foods referenced by users. |
 | `nutrition_plan_meals.meal_id` → `meals.id` | `ON DELETE RESTRICT` | A meal used by a daily plan template cannot be deleted until the plan slot is removed. |
+| `nutrition_plan_foods.nutrition_plan_id` → `nutrition_plans.id` | `ON DELETE CASCADE` | Direct food slots are owned children of the reusable plan template and are removed with it. |
+| `nutrition_plan_foods.food_id` → `foods.id` | `ON DELETE RESTRICT` | A food used directly in a daily plan template cannot be deleted until the plan-food slot is removed. This includes public foods referenced by users. |
 | `nutrition_days.nutrition_plan_id` → `nutrition_plans.id` | `ON DELETE SET NULL` | Selected plans are suggestions/templates only; deleting a plan detaches historical days. |
 | `nutrition_log_meals.meal_id` / `nutrition_plan_meal_id` | `ON DELETE SET NULL` | Logged meal provenance detaches when templates are removed; historical log groups remain. |
 | `nutrition_log_entries.food_id` → `foods.id` | `ON DELETE SET NULL` | Food-backed log provenance detaches when a source food is deleted; `source = 'food'` and trusted snapshot columns remain. Ad-hoc rows have `food_id IS NULL` from insert. |
+| `nutrition_log_entries.nutrition_plan_food_id` → `nutrition_plan_foods.id` | `ON DELETE SET NULL` | Direct plan-food provenance detaches when the template slot is removed; consumed grams and trusted snapshots remain historical facts. |
 | `nutrition_log_entries (nutrition_log_meal_id, nutrition_day_id)` → `nutrition_log_meals(id, nutrition_day_id)` | `ON DELETE CASCADE` | Deleting a logged meal group deletes its grouped entries and the composite FK rejects wrong-day group children. |
 
 ## Triggers
@@ -257,5 +264,6 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 | `exercises_strength`, `exercises_cardio` | `<sidecar>_no_orphan_parent` | `CONSTRAINT TRIGGER — AFTER DELETE, DEFERRABLE INITIALLY DEFERRED (fires at commit)` | At commit, raises `23503` if the deleted sidecar's parent exercise still exists. CASCADE from `DELETE FROM exercises` removes both atomically (parent gone, check passes); standalone sidecar DELETEs trip the check and roll back. |
 | `nutrition_log_entries` | `populate_public_nutrition_log_entry_food_snapshot` | `BEFORE INSERT` | Branches on `source`. Food-backed rows require a non-null `food_id` and copy food name plus per-100g nutrients into trusted `snapshot_*` columns, overwriting client input. Ad-hoc rows preserve user-supplied standalone snapshots and are validated by table checks. |
 | `nutrition_log_entries` | `guard_public_nutrition_log_entry_snapshot_immutability` | `BEFORE UPDATE OF source, snapshot_*` | Rejects `source` changes and protects food-backed snapshot/name columns while allowing ad-hoc snapshot edits and ordinary grams/position/slot_time corrections. |
+| `nutrition_log_entries` | `check_public_nutrition_log_entry_plan_food_provenance` | `BEFORE INSERT OR UPDATE OF nutrition_plan_food_id, nutrition_log_meal_id, food_id` | Allows `nutrition_plan_food_id` only on standalone log entries and rejects rows whose `food_id` differs from the referenced direct plan-food slot. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.

@@ -434,7 +434,7 @@ final class StrengthSetHelperTests: XCTestCase {
                 ],
                 doubleWeight: false
             ),
-            "100 kg × 5, 42.5 kg × 8"
+            "100x5, 42.5x8"
         )
         XCTAssertEqual(
             StrengthSetFormatting.recentSummary(
@@ -444,7 +444,7 @@ final class StrengthSetHelperTests: XCTestCase {
                 ],
                 doubleWeight: true
             ),
-            "25 kg × 10, BW × 6 /side"
+            "25x10, BWx6 /side"
         )
     }
 }

@@ -29,7 +29,6 @@ import {
   parseMacroInput,
   planEntriesMacroTotals,
   planEntryMacroTotals,
-  planMacroTotals,
   sortAndRenumberPlanEntriesByTime,
   timeToInputValue,
   validateAdHocNutritionDraft,
@@ -250,54 +249,6 @@ describe("nutrition macro helpers", () => {
     expect(macroTotalsSummary(totals)).toBe(
       "140 kcal · 2 g fat · 13 g carbs · 7 g protein · 2.5 g fiber · 4 g sugar",
     );
-  });
-
-  it("computes daily plan totals from each slot's live meal ingredients", () => {
-    expect(
-      planMacroTotals([
-        {
-          meal: {
-            mealIngredients: [
-              {
-                grams: 200,
-                food: {
-                  kcalPer100g: 50,
-                  fatPer100g: 1,
-                  carbsPer100g: 5,
-                  proteinPer100g: 3,
-                  fiberPer100g: 1,
-                  sugarPer100g: 2,
-                },
-              },
-            ],
-          },
-        },
-        {
-          meal: {
-            mealIngredients: [
-              {
-                grams: "100",
-                food: {
-                  kcalPer100g: "25",
-                  fatPer100g: "0.5",
-                  carbsPer100g: "4",
-                  proteinPer100g: "2",
-                  fiberPer100g: "1.5",
-                  sugarPer100g: "1",
-                },
-              },
-            ],
-          },
-        },
-      ]),
-    ).toEqual({
-      kcal: 125,
-      fat: 2.5,
-      carbs: 14,
-      protein: 8,
-      fiber: 3.5,
-      sugar: 5,
-    });
   });
 });
 
