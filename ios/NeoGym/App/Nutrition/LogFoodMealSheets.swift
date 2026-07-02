@@ -12,8 +12,6 @@ struct LogIntakeSheetRequest: Identifiable {
     let initialMode: InitialMode
 
     static let adHocFood = LogIntakeSheetRequest(initialMode: .food)
-    static let adHocMeal = LogIntakeSheetRequest(initialMode: .meal)
-    static let customFood = LogIntakeSheetRequest(initialMode: .adHoc)
 }
 
 struct LogIntakeSheet: View {
@@ -182,11 +180,14 @@ struct LogIntakeSheet: View {
         .onChange(of: planEntryId) { _ in prepareDraft() }
     }
 
-    private var navigationTitle: String {
+}
+
+private extension LogIntakeSheet {
+    var navigationTitle: String {
         "Log intake"
     }
 
-    private var canSave: Bool {
+    var canSave: Bool {
         if isLoggingFoodDraft {
             return selectedFood != nil && (NutritionMath.parseMacroInput(grams) ?? 0) > 0
         }
@@ -246,7 +247,7 @@ struct LogIntakeSheet: View {
         }
     }
 
-    private var timeSection: some View {
+    var timeSection: some View {
         Section {
             DatePicker("Time eaten", selection: $slotTime, displayedComponents: .hourAndMinute)
                 .datePickerStyle(.compact)
@@ -310,7 +311,7 @@ struct LogIntakeSheet: View {
         }
     }
 
-    private var macroSection: some View {
+    var macroSection: some View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 Text(NutritionMath.formatMacro(previewTotals.kcal, unit: "kcal"))
@@ -335,7 +336,7 @@ struct LogIntakeSheet: View {
         }
     }
 
-    private func prepareInitialDraft() {
+    func prepareInitialDraft() {
         if !hasInitializedSlotTime {
             slotTime = Date()
             hasInitializedSlotTime = true
@@ -343,7 +344,7 @@ struct LogIntakeSheet: View {
         prepareDraft()
     }
 
-    private func prepareDraft() {
+    func prepareDraft() {
         if foodId.isEmpty, let first = foods.first { foodId = first.id }
         if mealId.isEmpty, let first = meals.first { mealId = first.id }
         if mode == .plan, planEntryId.isEmpty, let first = planEntries.first { planEntryId = first.id }
@@ -358,18 +359,18 @@ struct LogIntakeSheet: View {
         }
     }
 
-    private func prepareFoodDraft() {
+    func prepareFoodDraft() {
         if mode == .food { grams = "100" }
     }
 
-    private func prepareMealDraft() {
+    func prepareMealDraft() {
         guard let selectedMeal else { return }
         ingredientGrams = Dictionary(uniqueKeysWithValues: selectedMeal.mealIngredients.map { ingredient in
             (ingredient.id, NutritionMath.formatEditableDecimal(ingredient.grams))
         })
     }
 
-    private func save() async {
+    func save() async {
         let time = NutritionLogTime.inputValue(from: slotTime)
         let succeeded: Bool
         switch selectedPlanEntry {

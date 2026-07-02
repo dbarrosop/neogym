@@ -266,23 +266,13 @@ struct DailyIntakeView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
-                    Button {
-                        logRequest = .customFood
-                    } label: {
-                        Label("Log custom", systemImage: "plus.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isMutating)
-
-                    Button {
-                        logRequest = .adHocFood
-                    } label: {
-                        Label("Log food or meal", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isMutating)
+                Button {
+                    logRequest = .adHocFood
+                } label: {
+                    Label("Log", systemImage: "plus")
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isMutating)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }

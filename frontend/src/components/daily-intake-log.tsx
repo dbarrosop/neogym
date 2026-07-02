@@ -1156,13 +1156,11 @@ function AdHocEntryEditDialog({
   const [slotTime, setSlotTime] = useState(() => timeToInputValue(entry.slotTime));
   const previewTotals = adHocNutritionDraftTotals(draft);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
+  function openDialog() {
     setDraft(adHocDraftFromEntry(entry));
     setSlotTime(timeToInputValue(entry.slotTime));
-  }, [open, entry]);
+    setOpen(true);
+  }
 
   function updateDraft(key: keyof AdHocNutritionDraft, value: string) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -1179,13 +1177,7 @@ function AdHocEntryEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-      >
+      <Button type="button" size="sm" variant="outline" onClick={openDialog} disabled={disabled}>
         <Pencil className="h-4 w-4" />
         Edit
       </Button>

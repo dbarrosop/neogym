@@ -158,67 +158,6 @@ private struct EntryRow: View {
     }
 }
 
-struct PlanSuggestionRow: View {
-    let entry: NutritionPlanEntry
-    let nextPosition: Int
-    let openLogger: () -> Void
-
-    private var isLoggable: Bool {
-        switch entry {
-        case let .meal(slot): slot.meal != nil
-        case let .food(slot): slot.food != nil
-        }
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: entry.kind == .meal ? "fork.knife.circle" : "apple.logo")
-                .foregroundColor(.accentColor)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(IntakeGrouping.formatTimeOfDay(entry.slotTime))
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(NeoGymTheme.mutedText)
-                HStack(spacing: 6) {
-                    Text(entry.displayLabel)
-                        .font(.subheadline.weight(.semibold))
-                    Text(entry.kind == .meal ? "Meal" : "Food")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(NeoGymTheme.accentMuted, in: Capsule())
-                }
-                detailText
-            }
-            Spacer()
-            Button("Log", action: openLogger)
-                .buttonStyle(.borderedProminent)
-                .disabled(!isLoggable)
-        }
-        .padding(12)
-    }
-
-    @ViewBuilder
-    private var detailText: some View {
-        switch entry {
-        case let .meal(slot):
-            if let meal = slot.meal {
-                Text(slot.label == nil
-                    ? NutritionMath.macroTotalsSummary(meal.macroTotals)
-                    : "Template: \(meal.name) · \(NutritionMath.macroTotalsSummary(meal.macroTotals))")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .lineLimit(2)
-            }
-        case let .food(slot):
-            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
-                + NutritionMath.macroTotalsSummary(slot.macroTotals))
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
-                .lineLimit(2)
-        }
-    }
-}
 
 struct EditingEntrySheetItem: Identifiable {
     let entry: IntakeEntry

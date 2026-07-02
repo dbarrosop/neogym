@@ -8,6 +8,8 @@ struct FoodPickerView: View {
     var revealWheelOnDemand = false
 
     @State private var query = ""
+    @State private var wheelRevealed = false
+    @FocusState private var searchFocused: Bool
 
     private var selectedFood: Food? {
         foods.first { $0.id == foodId }
@@ -30,8 +32,15 @@ struct FoodPickerView: View {
             pickerContent
         }
         .onAppear(perform: syncSelectionWithFilter)
-        .onChange(of: query) { _ in syncSelectionWithFilter() }
+        .onChange(of: query) { _ in
+            revealWheelIfSearching()
+            syncSelectionWithFilter()
+        }
         .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
+        .onChange(of: searchFocused) { isFocused in
+            if isFocused { revealWheel() }
+        }
+        .onChange(of: disabled) { _ in revealWheelIfSearching() }
     }
 
     @ViewBuilder
@@ -40,7 +49,7 @@ struct FoodPickerView: View {
             message("No foods are available yet. Create a private food first.")
         } else if visibleFoods.isEmpty {
             message("No foods match this search.")
-        } else {
+        } else if shouldShowWheel {
             Picker("Food", selection: $foodId) {
                 ForEach(visibleFoods) { food in
                     FoodPickerWheelRow(food: food)
@@ -60,10 +69,12 @@ struct FoodPickerView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(NeoGymTheme.mutedText)
             TextField(selectedFood?.name ?? "Filter foods…", text: $query)
+                .focused($searchFocused)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .submitLabel(.search)
                 .disabled(disabled)
+                .onTapGesture(perform: revealWheel)
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -83,6 +94,21 @@ struct FoodPickerView: View {
             .font(.caption)
             .foregroundColor(NeoGymTheme.mutedText)
             .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var shouldShowWheel: Bool {
+        !revealWheelOnDemand || wheelRevealed
+    }
+
+    private func revealWheel() {
+        guard revealWheelOnDemand, !disabled else { return }
+        wheelRevealed = true
+    }
+
+    private func revealWheelIfSearching() {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            revealWheel()
+        }
     }
 
     private func syncSelectionWithFilter() {
