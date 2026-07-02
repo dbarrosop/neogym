@@ -5920,7 +5920,7 @@ export type NutritionDays_Updates = {
   where: NutritionDays_Bool_Exp;
 };
 
-/** Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only. */
+/** Historical food log rows. source=food rows copy trusted snapshot_* values from foods at insert time; source=ad_hoc rows store standalone user-supplied snapshot values. Daily totals use snapshots, not live foods. */
 export type NutritionLogEntries = {
   __typename?: 'nutritionLogEntries';
   createdAt: Scalars['timestamptz']['output'];
@@ -5949,6 +5949,8 @@ export type NutritionLogEntries = {
   snapshotKcalPer100g: Scalars['numeric']['output'];
   snapshotProteinPer100g: Scalars['numeric']['output'];
   snapshotSugarPer100g: Scalars['numeric']['output'];
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source: Scalars['String']['output'];
   updatedAt: Scalars['timestamptz']['output'];
 };
 
@@ -6067,6 +6069,8 @@ export type NutritionLogEntries_Bool_Exp = {
   snapshotKcalPer100g?: InputMaybe<Numeric_Comparison_Exp>;
   snapshotProteinPer100g?: InputMaybe<Numeric_Comparison_Exp>;
   snapshotSugarPer100g?: InputMaybe<Numeric_Comparison_Exp>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<String_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
 };
 
@@ -6080,6 +6084,12 @@ export enum NutritionLogEntries_Constraint {
 export type NutritionLogEntries_Inc_Input = {
   grams?: InputMaybe<Scalars['numeric']['input']>;
   position?: InputMaybe<Scalars['Int']['input']>;
+  snapshotCarbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotKcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotProteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotSugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** input type for inserting data into table "nutrition_log_entries" */
@@ -6097,6 +6107,15 @@ export type NutritionLogEntries_Insert_Input = {
   position?: InputMaybe<Scalars['Int']['input']>;
   /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
   slotTime?: InputMaybe<Scalars['time']['input']>;
+  snapshotCarbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFoodName?: InputMaybe<Scalars['String']['input']>;
+  snapshotKcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotProteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotSugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** aggregate max on columns */
@@ -6120,6 +6139,8 @@ export type NutritionLogEntries_Max_Fields = {
   snapshotKcalPer100g?: Maybe<Scalars['numeric']['output']>;
   snapshotProteinPer100g?: Maybe<Scalars['numeric']['output']>;
   snapshotSugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -6143,6 +6164,8 @@ export type NutritionLogEntries_Max_Order_By = {
   snapshotKcalPer100g?: InputMaybe<Order_By>;
   snapshotProteinPer100g?: InputMaybe<Order_By>;
   snapshotSugarPer100g?: InputMaybe<Order_By>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
 
@@ -6167,6 +6190,8 @@ export type NutritionLogEntries_Min_Fields = {
   snapshotKcalPer100g?: Maybe<Scalars['numeric']['output']>;
   snapshotProteinPer100g?: Maybe<Scalars['numeric']['output']>;
   snapshotSugarPer100g?: Maybe<Scalars['numeric']['output']>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: Maybe<Scalars['String']['output']>;
   updatedAt?: Maybe<Scalars['timestamptz']['output']>;
 };
 
@@ -6190,6 +6215,8 @@ export type NutritionLogEntries_Min_Order_By = {
   snapshotKcalPer100g?: InputMaybe<Order_By>;
   snapshotProteinPer100g?: InputMaybe<Order_By>;
   snapshotSugarPer100g?: InputMaybe<Order_By>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
 
@@ -6233,6 +6260,8 @@ export type NutritionLogEntries_Order_By = {
   snapshotKcalPer100g?: InputMaybe<Order_By>;
   snapshotProteinPer100g?: InputMaybe<Order_By>;
   snapshotSugarPer100g?: InputMaybe<Order_By>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
 };
 
@@ -6275,6 +6304,8 @@ export enum NutritionLogEntries_Select_Column {
   SnapshotProteinPer100g = 'snapshotProteinPer100g',
   /** column name */
   SnapshotSugarPer100g = 'snapshotSugarPer100g',
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  Source = 'source',
   /** column name */
   UpdatedAt = 'updatedAt'
 }
@@ -6285,6 +6316,13 @@ export type NutritionLogEntries_Set_Input = {
   position?: InputMaybe<Scalars['Int']['input']>;
   /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
   slotTime?: InputMaybe<Scalars['time']['input']>;
+  snapshotCarbsPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFatPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFiberPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotFoodName?: InputMaybe<Scalars['String']['input']>;
+  snapshotKcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotProteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  snapshotSugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
 };
 
 /** aggregate stddev on columns */
@@ -6390,6 +6428,8 @@ export type NutritionLogEntries_Stream_Cursor_Value_Input = {
   snapshotKcalPer100g?: InputMaybe<Scalars['numeric']['input']>;
   snapshotProteinPer100g?: InputMaybe<Scalars['numeric']['input']>;
   snapshotSugarPer100g?: InputMaybe<Scalars['numeric']['input']>;
+  /** Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs. */
+  source?: InputMaybe<Scalars['String']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
 };
 
@@ -6425,7 +6465,21 @@ export enum NutritionLogEntries_Update_Column {
   /** column name */
   Position = 'position',
   /** Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time. */
-  SlotTime = 'slotTime'
+  SlotTime = 'slotTime',
+  /** column name */
+  SnapshotCarbsPer100g = 'snapshotCarbsPer100g',
+  /** column name */
+  SnapshotFatPer100g = 'snapshotFatPer100g',
+  /** column name */
+  SnapshotFiberPer100g = 'snapshotFiberPer100g',
+  /** column name */
+  SnapshotFoodName = 'snapshotFoodName',
+  /** column name */
+  SnapshotKcalPer100g = 'snapshotKcalPer100g',
+  /** column name */
+  SnapshotProteinPer100g = 'snapshotProteinPer100g',
+  /** column name */
+  SnapshotSugarPer100g = 'snapshotSugarPer100g'
 }
 
 export type NutritionLogEntries_Updates = {

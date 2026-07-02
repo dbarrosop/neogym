@@ -35,6 +35,8 @@ configuration:
       custom_name: snapshotProteinPer100g
     snapshot_sugar_per_100g:
       custom_name: snapshotSugarPer100g
+    source:
+      custom_name: source
     updated_at:
       custom_name: updatedAt
   custom_column_names:
@@ -54,6 +56,7 @@ configuration:
     snapshot_kcal_per_100g: snapshotKcalPer100g
     snapshot_protein_per_100g: snapshotProteinPer100g
     snapshot_sugar_per_100g: snapshotSugarPer100g
+    source: source
     updated_at: updatedAt
   custom_name: nutritionLogEntries
   custom_root_fields:
@@ -106,12 +109,15 @@ insert_permissions:
                   nutritionDay:
                     user_id:
                       _eq: X-Hasura-User-Id
-          - food:
-              _or:
-                - user_id:
-                    _eq: X-Hasura-User-Id
-                - is_public:
-                    _eq: true
+          - _or:
+              - food_id:
+                  _is_null: true
+              - food:
+                  _or:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - is_public:
+                        _eq: true
           - _or:
               - nutrition_plan_food_id:
                   _is_null: true
@@ -124,9 +130,17 @@ insert_permissions:
         - nutrition_log_meal_id
         - nutrition_plan_food_id
         - food_id
+        - source
         - grams
         - position
         - slot_time
+        - snapshot_food_name
+        - snapshot_kcal_per_100g
+        - snapshot_fat_per_100g
+        - snapshot_carbs_per_100g
+        - snapshot_protein_per_100g
+        - snapshot_fiber_per_100g
+        - snapshot_sugar_per_100g
 select_permissions:
   - role: user
     permission:
@@ -136,6 +150,7 @@ select_permissions:
         - nutrition_log_meal_id
         - nutrition_plan_food_id
         - food_id
+        - source
         - grams
         - position
         - slot_time
@@ -160,6 +175,13 @@ update_permissions:
         - grams
         - position
         - slot_time
+        - snapshot_food_name
+        - snapshot_kcal_per_100g
+        - snapshot_fat_per_100g
+        - snapshot_carbs_per_100g
+        - snapshot_protein_per_100g
+        - snapshot_fiber_per_100g
+        - snapshot_sugar_per_100g
       filter:
         nutritionDay:
           user_id:

@@ -215,7 +215,11 @@ Add a persisted `nutrition_log_entries.source` discriminator with values `food` 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implemented:** Added the Phase 1 backend contract for ad-hoc nutrition log entries: `nutrition_log_entries.source`, source/ad-hoc shape checks, snapshot name validation, food/ad-hoc insert branching, and a food-backed snapshot immutability guard. Updated Hasura user-role metadata, backend nutrition tests, generated user GraphQL schema/types, and nutrition/database/permissions/CLAUDE docs.
+- **Reviewer verdict:** `ACCEPT` after one improvement pass. Initial review was `ACCEPT_WITH_CONCERNS` because the plan enumerated a missing negative test for `source: "ad_hoc"` with non-null `foodId`; the implementer added that test and the reviewer accepted the phase.
+- **Autonomous decisions:** Accepted the initial reviewer concern instead of treating it as a non-blocking follow-up because correctness and long-term maintenance favor matching the explicit test matrix before committing. No requirements-level assumptions were changed.
+- **Quality gate:** `cd backend && make dev-env-down && make dev-env-up` passed; `cd backend && make test` passed (72 tests); `cd frontend && nix develop ../ --command bun run codegen` passed; `cd frontend && nix develop ../ --command bun run check` passed (103 tests, Biome clean).
+- **Notes:** Implementer self-reported model as `unknown-gpt` / `unknown-openai` across passes; model attribution warning is informational only. Web/iOS UI work remains intentionally deferred to Phases 2 and 3.
 
 ### Phase 2 — Web ad-hoc logging and editing
 

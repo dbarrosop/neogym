@@ -2960,7 +2960,7 @@ type nutritionDays_mutation_response {
   "data from the rows affected by the mutation"
   returning: [nutritionDays!]!
 }
-"Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only."
+"Historical food log rows. source=food rows copy trusted snapshot_* values from foods at insert time; source=ad_hoc rows store standalone user-supplied snapshot values. Daily totals use snapshots, not live foods."
 type nutritionLogEntries {
   id: uuid!
   nutritionDayId: uuid!
@@ -2981,6 +2981,8 @@ type nutritionLogEntries {
   updatedAt: timestamptz!
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String!
   "An object relationship"
   food: foods
   "An object relationship"
@@ -3045,6 +3047,8 @@ type nutritionLogEntries_max_fields {
   updatedAt: timestamptz
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 "aggregate min on columns"
 type nutritionLogEntries_min_fields {
@@ -3067,6 +3071,8 @@ type nutritionLogEntries_min_fields {
   updatedAt: timestamptz
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 """
 response of any mutation on the table "nutrition_log_entries"
@@ -7675,6 +7681,8 @@ enum nutritionLogEntries_select_column {
   updatedAt
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source
 }
 """
 update columns of table "nutrition_log_entries"
@@ -7686,6 +7694,20 @@ enum nutritionLogEntries_update_column {
   position
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime
+  "column name"
+  snapshotFoodName
+  "column name"
+  snapshotKcalPer100g
+  "column name"
+  snapshotFatPer100g
+  "column name"
+  snapshotCarbsPer100g
+  "column name"
+  snapshotProteinPer100g
+  "column name"
+  snapshotFiberPer100g
+  "column name"
+  snapshotSugarPer100g
 }
 """
 unique or primary key constraints on table "nutrition_log_meals"
@@ -10300,6 +10322,8 @@ input nutritionLogEntries_bool_exp {
   updatedAt: timestamptz_comparison_exp
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid_comparison_exp
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String_comparison_exp
   food: foods_bool_exp
   nutritionDay: nutritionDays_bool_exp
   nutritionLogMeal: nutritionLogMeals_bool_exp
@@ -10311,6 +10335,12 @@ input type for incrementing numeric columns in table "nutrition_log_entries"
 input nutritionLogEntries_inc_input {
   grams: numeric
   position: Int
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
 }
 """
 input type for inserting data into table "nutrition_log_entries"
@@ -10323,8 +10353,17 @@ input nutritionLogEntries_insert_input {
   position: Int
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime: time
+  snapshotFoodName: String
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
   food: foods_obj_rel_insert_input
   nutritionDay: nutritionDays_obj_rel_insert_input
   nutritionLogMeal: nutritionLogMeals_obj_rel_insert_input
@@ -10353,6 +10392,8 @@ input nutritionLogEntries_max_order_by {
   updatedAt: order_by
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
 }
 """
 order by min() on columns of table "nutrition_log_entries"
@@ -10377,6 +10418,8 @@ input nutritionLogEntries_min_order_by {
   updatedAt: order_by
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
 }
 """
 on_conflict condition type for table "nutrition_log_entries"
@@ -10409,6 +10452,8 @@ input nutritionLogEntries_order_by {
   updatedAt: order_by
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
   food: foods_order_by
   nutritionDay: nutritionDays_order_by
   nutritionLogMeal: nutritionLogMeals_order_by
@@ -10426,6 +10471,13 @@ input nutritionLogEntries_set_input {
   position: Int
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime: time
+  snapshotFoodName: String
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
 }
 """
 order by stddev() on columns of table "nutrition_log_entries"
@@ -10496,6 +10548,8 @@ input nutritionLogEntries_stream_cursor_value_input {
   updatedAt: timestamptz
   "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
   nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 """
 order by sum() on columns of table "nutrition_log_entries"
