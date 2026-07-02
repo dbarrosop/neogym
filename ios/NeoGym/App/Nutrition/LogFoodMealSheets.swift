@@ -5,6 +5,7 @@ struct LogIntakeSheetRequest: Identifiable {
     enum InitialMode: Equatable {
         case food
         case meal
+        case adHoc
     }
 
     let id = UUID().uuidString
@@ -12,6 +13,7 @@ struct LogIntakeSheetRequest: Identifiable {
 
     static let adHocFood = LogIntakeSheetRequest(initialMode: .food)
     static let adHocMeal = LogIntakeSheetRequest(initialMode: .meal)
+    static let customFood = LogIntakeSheetRequest(initialMode: .adHoc)
 }
 
 struct LogIntakeSheet: View {
@@ -19,6 +21,7 @@ struct LogIntakeSheet: View {
         case food
         case meal
         case plan
+        case adHoc
 
         var id: String { rawValue }
         var title: String {
@@ -26,6 +29,7 @@ struct LogIntakeSheet: View {
             case .food: "Food"
             case .meal: "Meal"
             case .plan: "From plan"
+            case .adHoc: "Custom"
             }
         }
     }
@@ -39,6 +43,13 @@ struct LogIntakeSheet: View {
     @State private var mealId = ""
     @State private var planEntryId = ""
     @State private var grams = "100"
+    @State private var adHocName = ""
+    @State private var adHocKcal = "0"
+    @State private var adHocFat = "0"
+    @State private var adHocCarbs = "0"
+    @State private var adHocProtein = "0"
+    @State private var adHocFiber = "0"
+    @State private var adHocSugar = "0"
     @State private var ingredientGrams: [String: String] = [:]
     @State private var slotTime = Date()
     @State private var hasInitializedSlotTime = false
@@ -57,6 +68,36 @@ struct LogIntakeSheet: View {
     private var selectedMeal: Meal? {
         if case let .meal(slot) = selectedPlanEntry { return slot.meal }
         return meals.first { $0.id == mealId }
+    }
+    private var adHocMacroFields: MacroFields {
+        MacroFields(
+            kcalPer100g: .string(adHocKcal),
+            fatPer100g: .string(adHocFat),
+            carbsPer100g: .string(adHocCarbs),
+            proteinPer100g: .string(adHocProtein),
+            fiberPer100g: .string(adHocFiber),
+            sugarPer100g: .string(adHocSugar)
+        )
+    }
+    private var adHocNutrientInputs: [String] {
+        [adHocKcal, adHocFat, adHocCarbs, adHocProtein, adHocFiber, adHocSugar]
+    }
+    private var adHocDraft: AdHocFoodDraftValues {
+        AdHocFoodDraftValues(
+            name: adHocName,
+            grams: grams,
+            slotTime: NutritionLogTime.inputValue(from: slotTime),
+            macros: Per100gMacroStrings(
+                kcalPer100g: adHocKcal,
+                grams: GramMacroStrings(
+                    fatPer100g: adHocFat,
+                    carbsPer100g: adHocCarbs,
+                    proteinPer100g: adHocProtein,
+                    fiberPer100g: adHocFiber,
+                    sugarPer100g: adHocSugar
+                )
+            )
+        )
     }
     private var isLoggingFoodDraft: Bool {
         if let selectedPlanEntry { return selectedPlanEntry.kind == .food }
@@ -92,13 +133,22 @@ struct LogIntakeSheet: View {
             guard let selectedFood else { return .empty }
             return NutritionMath.macrosForGrams(input: selectedFood.macroFields, grams: .string(grams))
         }
+        if mode == .adHoc {
+            return NutritionMath.macrosForGrams(input: adHocMacroFields, grams: .string(grams))
+        }
         return isLoggingMealDraft ? mealDraft?.macroTotals ?? .empty : .empty
     }
 
     init(viewModel: DailyIntakeViewModel, request: LogIntakeSheetRequest) {
         self.viewModel = viewModel
         self.request = request
-        _mode = State(initialValue: request.initialMode == .meal ? .meal : .food)
+        _mode = State(initialValue: {
+            switch request.initialMode {
+            case .food: .food
+            case .meal: .meal
+            case .adHoc: .adHoc
+            }
+        }())
     }
 
     var body: some View {
@@ -143,6 +193,11 @@ struct LogIntakeSheet: View {
         if isLoggingMealDraft {
             return mealDraft != nil && ingredientGrams.values.allSatisfy { (NutritionMath.parseMacroInput($0) ?? 0) > 0 }
         }
+        if mode == .adHoc {
+            return !adHocName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && (NutritionMath.parseMacroInput(grams) ?? 0) > 0
+                && adHocNutrientInputs.allSatisfy { NutritionMath.parseMacroInput($0) != nil }
+        }
         return false
     }
 
@@ -179,6 +234,10 @@ struct LogIntakeSheet: View {
                     .frame(height: 88)
                     .clipped()
                 }
+            case .adHoc:
+                Text("Enter a one-off food below. It is saved only on this day and will not appear in food pickers.")
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
             }
         } header: {
             Text("What are you logging?")
@@ -206,6 +265,27 @@ struct LogIntakeSheet: View {
                 Text("Logged amount")
             } footer: {
                 Text("Plan-food logs save as standalone entries with provenance; snapshots are filled by the database.")
+            }
+        } else if mode == .adHoc {
+            Section {
+                TextField("Food name", text: Binding(
+                    get: { adHocName },
+                    set: { adHocName = String($0.prefix(160)) }
+                ))
+                .textInputAutocapitalization(.words)
+                NutritionGramTextField(grams: $grams, title: "Grams consumed")
+                AdHocNutrientFields(
+                    kcal: $adHocKcal,
+                    fat: $adHocFat,
+                    carbs: $adHocCarbs,
+                    protein: $adHocProtein,
+                    fiber: $adHocFiber,
+                    sugar: $adHocSugar
+                )
+            } header: {
+                Text("Custom food")
+            } footer: {
+                Text("Enter nutrients per 100g. Custom foods are log-only snapshots and are editable later.")
             }
         } else if isLoggingMealDraft, let mealDraft {
             Section {
@@ -310,11 +390,72 @@ struct LogIntakeSheet: View {
             case .meal:
                 guard let mealDraft else { return }
                 succeeded = await viewModel.logMeal(meal: mealDraft, planSlot: nil, slotTime: time)
+            case .adHoc:
+                succeeded = await viewModel.logAdHocFood(adHocDraft)
             case .plan:
                 return
             }
         }
         if succeeded { dismiss() }
+    }
+}
+
+private struct AdHocNutrientFields: View {
+    private enum FocusedField: Hashable {
+        case kcal
+        case fat
+        case carbs
+        case protein
+        case fiber
+        case sugar
+    }
+
+    @Binding var kcal: String
+    @Binding var fat: String
+    @Binding var carbs: String
+    @Binding var protein: String
+    @Binding var fiber: String
+    @Binding var sugar: String
+
+    @FocusState private var focusedField: FocusedField?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Per 100g nutrients")
+                .font(.subheadline.weight(.semibold))
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                nutrientField("Calories", unit: "kcal", text: $kcal, field: .kcal)
+                nutrientField("Fat", unit: "g", text: $fat, field: .fat)
+                nutrientField("Carbs", unit: "g", text: $carbs, field: .carbs)
+                nutrientField("Protein", unit: "g", text: $protein, field: .protein)
+                nutrientField("Fiber", unit: "g", text: $fiber, field: .fiber)
+                nutrientField("Sugar", unit: "g", text: $sugar, field: .sugar)
+            }
+        }
+    }
+
+    private func nutrientField(
+        _ label: String,
+        unit: String,
+        text: Binding<String>,
+        field: FocusedField
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(NeoGymTheme.mutedText)
+            HStack(spacing: 4) {
+                TextField("0", text: text)
+                    .keyboardType(.decimalPad)
+                    .numericFieldFocus(field, focusedField: $focusedField)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+                    .multilineTextAlignment(.trailing)
+                Text(unit)
+                    .font(.caption2)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+        }
     }
 }
 
@@ -355,29 +496,68 @@ struct EditLogEntrySheet: View {
     let item: EditingEntrySheetItem
     @Environment(\.dismiss) private var dismiss
 
+    @State private var name: String
     @State private var grams: String
     @State private var position: Int
     @State private var slotTime: Date
+    @State private var kcal: String
+    @State private var fat: String
+    @State private var carbs: String
+    @State private var protein: String
+    @State private var fiber: String
+    @State private var sugar: String
 
     init(viewModel: DailyIntakeViewModel, item: EditingEntrySheetItem) {
         self.viewModel = viewModel
         self.item = item
 
+        _name = State(initialValue: item.entry.snapshotFoodName)
         _grams = State(initialValue: NutritionLogAmount.editableNumber(item.entry.grams))
         _position = State(initialValue: max(1, Int(item.entry.position)))
         _slotTime = State(initialValue: NutritionLogTime.date(from: item.entry.slotTime))
+        _kcal = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotKcalPer100g))
+        _fat = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotFatPer100g))
+        _carbs = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotCarbsPer100g))
+        _protein = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotProteinPer100g))
+        _fiber = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotFiberPer100g))
+        _sugar = State(initialValue: NutritionLogAmount.editableNumber(item.entry.snapshotSugarPer100g))
     }
 
     var body: some View {
         NavigationView {
             Form {
                 Section {
-                    Text(item.entry.snapshotFoodName)
-                        .font(.subheadline.weight(.semibold))
+                    if item.entry.isAdHoc {
+                        TextField("Food name", text: Binding(
+                            get: { name },
+                            set: { name = String($0.prefix(160)) }
+                        ))
+                        .textInputAutocapitalization(.words)
+                    } else {
+                        Text(item.entry.snapshotFoodName)
+                            .font(.subheadline.weight(.semibold))
+                    }
                     NutritionGramTextField(grams: $grams, title: "Grams")
                     Stepper("Position \(position)", value: $position, in: 1 ... 999)
                 } header: {
                     Text("Entry")
+                }
+
+                if item.entry.isAdHoc {
+                    Section {
+                        AdHocNutrientFields(
+                            kcal: $kcal,
+                            fat: $fat,
+                            carbs: $carbs,
+                            protein: $protein,
+                            fiber: $fiber,
+                            sugar: $sugar
+                        )
+                    } header: {
+                        Text("Custom nutrients")
+                    } footer: {
+                        Text("Ad-hoc snapshot nutrients are editable because this entry is not backed by a catalog food.")
+                    }
                 }
 
                 if item.showTime {
@@ -399,14 +579,23 @@ struct EditLogEntrySheet: View {
                     Button("Save") {
                         Task {
                             let nextTime = item.showTime ? NutritionLogTime.inputValue(from: slotTime) : nil
-                            if await viewModel.updateEntry(
-                                id: item.entry.id,
-                                grams: grams,
-                                position: position,
-                                slotTime: nextTime
-                            ) {
-                                dismiss()
+                            let didSave: Bool
+                            if item.entry.isAdHoc {
+                                didSave = await viewModel.updateAdHocEntry(
+                                    id: item.entry.id,
+                                    draft: adHocDraft(nextTime: nextTime),
+                                    position: position,
+                                    includeSlotTime: item.showTime
+                                )
+                            } else {
+                                didSave = await viewModel.updateEntry(
+                                    id: item.entry.id,
+                                    grams: grams,
+                                    position: position,
+                                    slotTime: nextTime
+                                )
                             }
+                            if didSave { dismiss() }
                         }
                     }
                     .disabled(viewModel.isMutating)
@@ -414,6 +603,24 @@ struct EditLogEntrySheet: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    private func adHocDraft(nextTime: String?) -> AdHocFoodDraftValues {
+        AdHocFoodDraftValues(
+            name: name,
+            grams: grams,
+            slotTime: nextTime ?? NutritionLogTime.inputValue(from: slotTime),
+            macros: Per100gMacroStrings(
+                kcalPer100g: kcal,
+                grams: GramMacroStrings(
+                    fatPer100g: fat,
+                    carbsPer100g: carbs,
+                    proteinPer100g: protein,
+                    fiberPer100g: fiber,
+                    sugarPer100g: sugar
+                )
+            )
+        )
     }
 
     @ViewBuilder

@@ -30,6 +30,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
     func deleteNutritionDay(id: String) async throws
     func logFood(_ values: LogFoodValues) async throws -> String
+    func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String
     func logMeal(_ values: LogMealValues) async throws -> String
     func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws
     func updateLogMeal(id: String, values: LogMealUpdateValues) async throws
@@ -286,6 +287,18 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         let data: InsertNutritionLogEntryData = try await graphQL.execute(
             query: Self.logFoodMutation,
             variables: ["object": Self.logFoodObject(values)],
+            operationName: "LogFood"
+        )
+        guard let id = data.insertNutritionLogEntry?.id else {
+            throw GraphQLDomainError.missingData(operationName: "LogFood")
+        }
+        return id
+    }
+
+    public func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String {
+        let data: InsertNutritionLogEntryData = try await graphQL.execute(
+            query: Self.logFoodMutation,
+            variables: ["object": Self.logAdHocFoodObject(values)],
             operationName: "LogFood"
         )
         guard let id = data.insertNutritionLogEntry?.id else {

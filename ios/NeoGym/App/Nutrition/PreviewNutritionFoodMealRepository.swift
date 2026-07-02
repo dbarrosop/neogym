@@ -33,6 +33,7 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws {}
     func deleteNutritionDay(id: String) async throws {}
     func logFood(_ values: LogFoodValues) async throws -> String { "entry-new" }
+    func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String { "entry-custom" }
     func logMeal(_ values: LogMealValues) async throws -> String { "group-new" }
     func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {}
     func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {}
@@ -130,17 +131,17 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
                 NutritionLogEntry(
                     id: "entry-2",
                     nutritionDayId: "day-1",
-                    foodId: "food-2",
+                    source: .adHoc,
                     grams: .string("80"),
                     position: 1,
                     slotTime: "10:15:00",
-                    snapshotFoodName: "Blueberries",
-                    snapshotKcalPer100g: .string("57"),
-                    snapshotFatPer100g: .string("0.3"),
-                    snapshotCarbsPer100g: .string("14"),
-                    snapshotProteinPer100g: .string("0.7"),
-                    snapshotFiberPer100g: .string("2.4"),
-                    snapshotSugarPer100g: .string("10")
+                    snapshotFoodName: "Restaurant bowl",
+                    snapshotKcalPer100g: .string("180"),
+                    snapshotFatPer100g: .string("7"),
+                    snapshotCarbsPer100g: .string("18"),
+                    snapshotProteinPer100g: .string("10"),
+                    snapshotFiberPer100g: .string("3"),
+                    snapshotSugarPer100g: .string("4")
                 )
             ]
         )

@@ -73,6 +73,7 @@ public extension NutritionFoodMealRepository {
           nutritionLogEntries {
             id
             nutritionPlanFoodId
+            source
             grams
             position
             snapshotFoodName
@@ -87,6 +88,7 @@ public extension NutritionFoodMealRepository {
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
           id
           nutritionPlanFoodId
+          source
           grams
           position
           slotTime
@@ -121,6 +123,7 @@ public extension NutritionFoodMealRepository {
             nutritionLogMealId
             nutritionPlanFoodId
             foodId
+            source
             grams
             position
             slotTime
@@ -142,6 +145,7 @@ public extension NutritionFoodMealRepository {
           nutritionLogMealId
           nutritionPlanFoodId
           foodId
+          source
           grams
           position
           slotTime
@@ -338,6 +342,23 @@ public extension NutritionFoodMealRepository {
         ])
     }
 
+    static func logAdHocFoodObject(_ values: LogAdHocFoodValues) -> JSONValue {
+        .object([
+            "nutritionDayId": GraphQLScalars.uuid(values.dayId),
+            "source": .string(NutritionLogEntrySource.adHoc.rawValue),
+            "snapshotFoodName": .string(values.draft.name),
+            "snapshotKcalPer100g": .string(values.draft.macros.kcalPer100g),
+            "snapshotFatPer100g": .string(values.draft.macros.grams.fatPer100g),
+            "snapshotCarbsPer100g": .string(values.draft.macros.grams.carbsPer100g),
+            "snapshotProteinPer100g": .string(values.draft.macros.grams.proteinPer100g),
+            "snapshotFiberPer100g": .string(values.draft.macros.grams.fiberPer100g),
+            "snapshotSugarPer100g": .string(values.draft.macros.grams.sugarPer100g),
+            "grams": .string(values.draft.grams),
+            "position": .number(Double(values.position)),
+            "slotTime": GraphQLScalars.time(values.draft.slotTime)
+        ])
+    }
+
     static func logMealObject(_ values: LogMealValues) -> JSONValue {
         .object([
             "nutritionDayId": GraphQLScalars.uuid(values.dayId),
@@ -365,6 +386,15 @@ public extension NutritionFoodMealRepository {
         if let grams = values.grams { set["grams"] = .string(grams) }
         if let position = values.position { set["position"] = .number(Double(position)) }
         if let slotTime = values.slotTime { set["slotTime"] = GraphQLScalars.time(slotTime) }
+        if let adHocDraft = values.adHocDraft {
+            set["snapshotFoodName"] = .string(adHocDraft.name)
+            set["snapshotKcalPer100g"] = .string(adHocDraft.macros.kcalPer100g)
+            set["snapshotFatPer100g"] = .string(adHocDraft.macros.grams.fatPer100g)
+            set["snapshotCarbsPer100g"] = .string(adHocDraft.macros.grams.carbsPer100g)
+            set["snapshotProteinPer100g"] = .string(adHocDraft.macros.grams.proteinPer100g)
+            set["snapshotFiberPer100g"] = .string(adHocDraft.macros.grams.fiberPer100g)
+            set["snapshotSugarPer100g"] = .string(adHocDraft.macros.grams.sugarPer100g)
+        }
         return .object(set)
     }
 

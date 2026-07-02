@@ -3,6 +3,7 @@ import Foundation
 public struct IntakeEntry: Sendable {
     public var id: String
     public var nutritionLogMealId: String?
+    public var source: NutritionLogEntrySource
     public var grams: JSONValue?
     public var position: Double
     public var slotTime: String?
@@ -17,6 +18,7 @@ public struct IntakeEntry: Sendable {
     public init(
         id: String,
         nutritionLogMealId: String? = nil,
+        source: NutritionLogEntrySource = .food,
         grams: JSONValue? = nil,
         position: Double = 0,
         slotTime: String? = nil,
@@ -30,6 +32,7 @@ public struct IntakeEntry: Sendable {
     ) {
         self.id = id
         self.nutritionLogMealId = nutritionLogMealId
+        self.source = source
         self.grams = grams
         self.position = position
         self.slotTime = slotTime
@@ -41,6 +44,8 @@ public struct IntakeEntry: Sendable {
         self.snapshotFiberPer100g = snapshotFiberPer100g
         self.snapshotSugarPer100g = snapshotSugarPer100g
     }
+
+    public var isAdHoc: Bool { source == .adHoc }
 
     public var loggedSnapshot: LoggedSnapshotEntry {
         LoggedSnapshotEntry(

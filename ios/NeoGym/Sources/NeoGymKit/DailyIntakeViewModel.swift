@@ -149,6 +149,26 @@ public final class DailyIntakeViewModel: ObservableObject {
         )
     }
 
+    public func logAdHocFood(_ draft: AdHocFoodDraftValues, position: Int? = nil) async -> Bool {
+        guard let normalizedDraft = validateAdHocDraft(draft) else { return false }
+
+        mutationState = .loading(previous: mutationState.value)
+        do {
+            let dayId = try await ensureDay()
+            _ = try await repository.logAdHocFood(LogAdHocFoodValues(
+                dayId: dayId,
+                position: position ?? nextEntryPosition,
+                draft: normalizedDraft
+            ))
+            mutationState = .loaded("Custom food logged")
+            await load()
+            return true
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+    }
+
     public func logMeal(meal: Meal, planSlot: NutritionPlanMealSlot?, slotTime: String, position: Int? = nil) async -> Bool {
         guard !meal.mealIngredients.isEmpty else {
             mutationState = .failed(message: "This meal has no ingredients to log.", previous: nil)
@@ -199,6 +219,32 @@ public final class DailyIntakeViewModel: ObservableObject {
                 slotTime: normalizedTime
             ))
             mutationState = .loaded("Entry updated")
+            await load()
+            return true
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+    }
+
+    public func updateAdHocEntry(
+        id: String,
+        draft: AdHocFoodDraftValues,
+        position: Int,
+        includeSlotTime: Bool
+    ) async -> Bool {
+        guard let normalizedDraft = validateAdHocDraft(draft) else { return false }
+        let normalizedTime = includeSlotTime ? normalizedDraft.slotTime : nil
+
+        mutationState = .loading(previous: mutationState.value)
+        do {
+            try await repository.updateLogEntry(id: id, values: LogEntryUpdateValues(
+                grams: normalizedDraft.grams,
+                position: position,
+                slotTime: normalizedTime,
+                adHocDraft: normalizedDraft
+            ))
+            mutationState = .loaded("Custom food updated")
             await load()
             return true
         } catch {
@@ -279,6 +325,58 @@ public final class DailyIntakeViewModel: ObservableObject {
     private func validatePositiveGrams(_ value: String) -> Bool {
         guard let parsed = NutritionMath.parseMacroInput(value) else { return false }
         return parsed > 0
+    }
+
+    private func validateAdHocDraft(_ draft: AdHocFoodDraftValues) -> AdHocFoodDraftValues? {
+        let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            mutationState = .failed(message: "Enter a custom food name.", previous: nil)
+            return nil
+        }
+        guard trimmedName.count <= 160 else {
+            mutationState = .failed(message: "Custom food name must be 160 characters or fewer.", previous: nil)
+            return nil
+        }
+        guard validatePositiveGrams(draft.grams) else {
+            mutationState = .failed(message: "Enter grams greater than zero.", previous: nil)
+            return nil
+        }
+        let time = IntakeGrouping.timeToInputValue(draft.slotTime)
+        guard !time.isEmpty else {
+            mutationState = .failed(message: "Choose a valid time.", previous: nil)
+            return nil
+        }
+        guard
+            let normalizedKcal = normalizedNonnegativeMacro(draft.macros.kcalPer100g),
+            let normalizedFat = normalizedNonnegativeMacro(draft.macros.grams.fatPer100g),
+            let normalizedCarbs = normalizedNonnegativeMacro(draft.macros.grams.carbsPer100g),
+            let normalizedProtein = normalizedNonnegativeMacro(draft.macros.grams.proteinPer100g),
+            let normalizedFiber = normalizedNonnegativeMacro(draft.macros.grams.fiberPer100g),
+            let normalizedSugar = normalizedNonnegativeMacro(draft.macros.grams.sugarPer100g)
+        else {
+            mutationState = .failed(message: "Enter nonnegative numbers for all custom food nutrients.", previous: nil)
+            return nil
+        }
+        return AdHocFoodDraftValues(
+            name: trimmedName,
+            grams: normalizedDecimal(draft.grams),
+            slotTime: time,
+            macros: Per100gMacroStrings(
+                kcalPer100g: normalizedKcal,
+                grams: GramMacroStrings(
+                    fatPer100g: normalizedFat,
+                    carbsPer100g: normalizedCarbs,
+                    proteinPer100g: normalizedProtein,
+                    fiberPer100g: normalizedFiber,
+                    sugarPer100g: normalizedSugar
+                )
+            )
+        )
+    }
+
+    private func normalizedNonnegativeMacro(_ value: String) -> String? {
+        guard NutritionMath.parseMacroInput(value) != nil else { return nil }
+        return normalizedDecimal(value)
     }
 
     private func normalizedDecimal(_ value: String) -> String {

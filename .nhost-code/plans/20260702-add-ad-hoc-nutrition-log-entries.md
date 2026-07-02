@@ -352,7 +352,12 @@ Add a persisted `nutrition_log_entries.source` discriminator with values `food` 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implemented:** Added iOS/NeoGymKit support for ad-hoc nutrition entries: typed `NutritionLogEntrySource` with defensive `.food` default decoding, ad-hoc log/update value models, `source` in all log-entry GraphQL selections, ad-hoc insert/update variable builders, repository and `DailyIntakeViewModel` log/edit flows, SwiftUI Custom logging mode, and ad-hoc-only snapshot edit UI. Updated the preview repository and deterministic nutrition-day tests.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed all Phase 3 steps and definition-of-done items were satisfied, including source decoding, ad-hoc payload shape, validation, UI gating, preview conformance, and existing food/meal/plan path coverage.
+- **Accepted concerns:** Reviewer noted a cosmetic whitespace/indentation nit in `NutritionDayTests.swift`; accepted as non-blocking because Swift tests/builds and app build validation pass and no Swift lint gate is configured.
+- **Autonomous decisions:** Used a clean Xcode environment (`env -u SDKROOT -u CC -u CXX -u LD -u AR -u LDFLAGS DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun ...`) for Swift package gates because plain `swift test` inherits a Nix SDK/compiler mismatch. This favors correctness by validating against the actual Xcode toolchain used for iOS builds while documenting the environment limitation.
+- **Quality gate:** Clean-Xcode `xcrun swift test` passed (189 tests); clean-Xcode `xcrun swift build` passed; `nix develop ../.. --command xcodegen generate` passed; clean-Xcode `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed.
+- **Notes:** Implementer self-reported model as `unknown-openai`; model attribution warning is informational only. Phase 3 completes the final planned phase.
 
 ---
 
