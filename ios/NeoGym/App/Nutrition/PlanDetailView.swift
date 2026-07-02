@@ -90,14 +90,17 @@ struct NutritionPlanDetailView: View {
 
     private func slotsList(_ plan: NutritionPlan) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Timed meal slots")
+            Text("Timed plan entries")
                 .font(.subheadline.weight(.semibold))
-            Text("Slots sort by time of day, then position. Remove slots before deleting a meal that a plan uses.")
+            Text(
+                "Entries sort by time of day, then shared position across meals and direct foods. "
+                    + "Remove entries before deleting referenced foods or meals."
+            )
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
-            let slots = plan.sortedSlots
-            if slots.isEmpty {
-                Text("This plan does not have meal slots yet.")
+            let entries = plan.sortedEntries
+            if entries.isEmpty {
+                Text("This plan does not have meal or food entries yet.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .frame(maxWidth: .infinity)
@@ -105,9 +108,9 @@ struct NutritionPlanDetailView: View {
                     .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(slots) { slot in
-                        NutritionPlanSlotDetailRow(slot: slot)
-                        if slot.id != slots.last?.id { Divider() }
+                    ForEach(entries) { entry in
+                        NutritionPlanEntryDetailRow(entry: entry)
+                        if entry.id != entries.last?.id { Divider() }
                     }
                 }
                 .nutritionGlassField()
@@ -116,26 +119,31 @@ struct NutritionPlanDetailView: View {
     }
 }
 
-private struct NutritionPlanSlotDetailRow: View {
-    let slot: NutritionPlanMealSlot
+private struct NutritionPlanEntryDetailRow: View {
+    let entry: NutritionPlanEntry
 
     var body: some View {
-        let totals = slot.macroTotals
+        let totals = entry.macroTotals
         HStack(alignment: .top, spacing: 10) {
+            Image(systemName: entry.kind == .meal ? "fork.knife.circle" : "apple.logo")
+                .foregroundColor(.accentColor)
+                .frame(width: 24)
             VStack(alignment: .leading, spacing: 4) {
-                Text(IntakeGrouping.formatTimeOfDay(slot.slotTime))
+                Text(IntakeGrouping.formatTimeOfDay(entry.slotTime))
                     .font(.caption.weight(.bold))
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .monospacedDigit()
-                Text(slot.displayLabel)
-                    .font(.subheadline.weight(.semibold))
-                if slot.label?.isEmpty == false, let mealName = slot.meal?.name {
-                    Label(mealName, systemImage: "fork.knife.circle")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(entry.displayLabel)
+                        .font(.subheadline.weight(.semibold))
+                    Text(entry.kind == .meal ? "Meal" : "Food")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(NeoGymTheme.accentMuted, in: Capsule())
                 }
+                detailLine
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
@@ -149,5 +157,23 @@ private struct NutritionPlanSlotDetailRow: View {
             .frame(maxWidth: 220, alignment: .trailing)
         }
         .padding(12)
+    }
+
+    @ViewBuilder
+    private var detailLine: some View {
+        switch entry {
+        case let .meal(slot):
+            if slot.label?.isEmpty == false, let mealName = slot.meal?.name {
+                Text("Template: \(mealName)")
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                    .lineLimit(1)
+            }
+        case let .food(slot):
+            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g"))")
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
+                .lineLimit(1)
+        }
     }
 }

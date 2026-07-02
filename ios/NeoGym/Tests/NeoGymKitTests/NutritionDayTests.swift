@@ -26,6 +26,11 @@ final class NutritionDayRepositoryTests: XCTestCase {
             XCTAssertTrue(request.query.contains(requiredField), "NutritionDaysIndex should select \(requiredField)")
         }
         XCTAssertTrue(request.query.contains("nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } })"))
+        XCTAssertTrue(request.query.contains("nutritionPlanFoods"))
+        XCTAssertTrue(request.query.contains("nutritionPlanFoodId"))
+        XCTAssertTrue(request.query.contains("source"))
+        XCTAssertEqual(days[0].allLogEntries.map(\.source), [.adHoc, .food])
+        XCTAssertTrue(days[0].nutritionLogEntries[0].isAdHoc)
     }
 
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {
@@ -68,6 +73,7 @@ final class NutritionDayRepositoryTests: XCTestCase {
         let object = try XCTUnwrap(requests.first?.variables?["object"])
         XCTAssertEqual(object["nutritionDayId"], .string("day-1"))
         XCTAssertEqual(object["foodId"], .string("food-1"))
+        XCTAssertEqual(object["nutritionPlanFoodId"], .null)
         XCTAssertEqual(object["grams"], .string("125.5"))
         XCTAssertEqual(object["slotTime"], .string("09:45"))
         XCTAssertEqual(object["position"], .number(3))
@@ -75,6 +81,67 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(object.recursivelyContainsKey("snapshotFoodName"))
         XCTAssertFalse(object.recursivelyContainsKey("snapshotKcalPer100g"))
         XCTAssertFalse(object.recursivelyContainsKey("isPublic"))
+    }
+
+    func testLogPlanFoodVariablesUseStandaloneProvenanceActualTimeAndNoSnapshotWrites() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "insertNutritionLogEntry": .object(["id": .string("entry-new")])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+
+        let id = try await repository.logFood(LogFoodValues(
+            dayId: "day-1",
+            foodId: "food-2",
+            nutritionPlanFoodId: "plan-food-1",
+            grams: "80",
+            slotTime: "14:30",
+            position: 5
+        ))
+
+        XCTAssertEqual(id, "entry-new")
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests.first?.variables?["object"])
+        XCTAssertEqual(object["nutritionDayId"], .string("day-1"))
+        XCTAssertEqual(object["foodId"], .string("food-2"))
+        XCTAssertEqual(object["nutritionPlanFoodId"], .string("plan-food-1"))
+        XCTAssertEqual(object["grams"], .string("80"))
+        XCTAssertEqual(object["slotTime"], .string("14:30"))
+        XCTAssertNotEqual(object["slotTime"], .string("08:00:00"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionLogMealId"))
+        XCTAssertFalse(object.recursivelyContainsKey("snapshotFoodName"))
+        XCTAssertFalse(object.recursivelyContainsKey("snapshotKcalPer100g"))
+    }
+
+    func testLogAdHocFoodVariablesIncludeSnapshotsAndOmitFoodProvenance() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "insertNutritionLogEntry": .object(["id": .string("entry-custom")])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+
+        let id = try await repository.logAdHocFood(LogAdHocFoodValues(
+            dayId: "day-1",
+            position: 7,
+            draft: adHocDraftFixture
+        ))
+
+        XCTAssertEqual(id, "entry-custom")
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests.first?.variables?["object"])
+        XCTAssertEqual(object["nutritionDayId"], .string("day-1"))
+        XCTAssertEqual(object["source"], .string("ad_hoc"))
+        XCTAssertEqual(object["snapshotFoodName"], .string("Restaurant bowl"))
+        XCTAssertEqual(object["snapshotKcalPer100g"], .string("180"))
+        XCTAssertEqual(object["snapshotFatPer100g"], .string("7"))
+        XCTAssertEqual(object["snapshotCarbsPer100g"], .string("18"))
+        XCTAssertEqual(object["snapshotProteinPer100g"], .string("10"))
+        XCTAssertEqual(object["snapshotFiberPer100g"], .string("3"))
+        XCTAssertEqual(object["snapshotSugarPer100g"], .string("4"))
+        XCTAssertEqual(object["grams"], .string("80"))
+        XCTAssertEqual(object["slotTime"], .string("12:45"))
+        XCTAssertEqual(object["position"], .number(7))
+        XCTAssertFalse(object.recursivelyContainsKey("foodId"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionPlanFoodId"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionLogMealId"))
     }
 
     func testLogMealVariablesUseNestedInsertSameDayIdAndNoSnapshotWrites() async throws {
@@ -119,10 +186,11 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(object.recursivelyContainsKey("snapshotProteinPer100g"))
     }
 
-    func testUpdateVariablesSupportGramsPositionsAndTimesOnly() async throws {
+    func testUpdateVariablesSupportFoodBackedAndAdHocEditableFields() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["updateNutritionLogEntry": .object(["id": .string("entry-1")])])),
-            .json(.object(["updateNutritionLogMeal": .object(["id": .string("group-1")])]))
+            .json(.object(["updateNutritionLogMeal": .object(["id": .string("group-1")])])),
+            .json(.object(["updateNutritionLogEntry": .object(["id": .string("entry-adhoc")])]))
         ])
         let repository = NutritionFoodMealRepository(graphQL: fake)
 
@@ -143,8 +211,26 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(entrySet.recursivelyContainsKey("foodId"))
         XCTAssertFalse(entrySet.recursivelyContainsKey("nutritionDayId"))
         XCTAssertFalse(entrySet.recursivelyContainsKey("snapshotFoodName"))
-
-        let groupSet = try XCTUnwrap(requests[1].variables?["set"])
+        try await repository.updateLogEntry(
+            id: "entry-adhoc",
+            values: LogEntryUpdateValues(grams: "80", position: 4, slotTime: "12:45", adHocDraft: adHocDraftFixture)
+        )
+        let updatedRequests = await fake.requestsSnapshot()
+        let adHocSet = try XCTUnwrap(updatedRequests[2].variables?["set"])
+        XCTAssertEqual(adHocSet["grams"], .string("80"))
+        XCTAssertEqual(adHocSet["position"], .number(4))
+        XCTAssertEqual(adHocSet["slotTime"], .string("12:45"))
+        XCTAssertEqual(adHocSet["snapshotFoodName"], .string("Restaurant bowl"))
+        XCTAssertEqual(adHocSet["snapshotKcalPer100g"], .string("180"))
+        XCTAssertEqual(adHocSet["snapshotFatPer100g"], .string("7"))
+        XCTAssertEqual(adHocSet["snapshotCarbsPer100g"], .string("18"))
+        XCTAssertEqual(adHocSet["snapshotProteinPer100g"], .string("10"))
+        XCTAssertEqual(adHocSet["snapshotFiberPer100g"], .string("3"))
+        XCTAssertEqual(adHocSet["snapshotSugarPer100g"], .string("4"))
+        XCTAssertFalse(adHocSet.recursivelyContainsKey("source"))
+        XCTAssertFalse(adHocSet.recursivelyContainsKey("foodId"))
+ 
+         let groupSet = try XCTUnwrap(requests[1].variables?["set"])
         XCTAssertEqual(groupSet["name"], .string("Brunch"))
         XCTAssertEqual(groupSet["position"], .number(1))
         XCTAssertEqual(groupSet["slotTime"], .string("11:15"))
@@ -199,13 +285,152 @@ final class DailyIntakeViewModelTests: XCTestCase {
         let didLog = await viewModel.logFood(foodId: "food-1", grams: "100", slotTime: "14:05")
 
         XCTAssertTrue(didLog)
+        XCTAssertNotNil(
+            viewModel.selectedPlan,
+            "Fixture must keep a selected plan to cover ad-hoc logging on planned days."
+        )
         let requests = await fake.requestsSnapshot()
         let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["foodId"], .string("food-1"))
+        XCTAssertEqual(object["nutritionPlanFoodId"], .null)
         XCTAssertEqual(object["position"], .number(2))
+    }
+
+    func testViewModelLogsAdHocMealOnPlannedDayWithoutPlanMealProvenance() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ])),
+            .json(.object(["insertNutritionLogMeal": .object(["id": .string("group-new")])])),
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ]))
+        ])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+
+        await viewModel.load()
+        XCTAssertNotNil(
+            viewModel.selectedPlan,
+            "Fixture must keep a selected plan to cover ad-hoc logging on planned days."
+        )
+        let didLog = await viewModel.logMeal(meal: mealFixtureModel, planSlot: nil, slotTime: "16:20")
+
+        XCTAssertTrue(didLog)
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["mealId"], .string("meal-1"))
+        XCTAssertEqual(object["nutritionPlanMealId"], .null)
+        XCTAssertEqual(object["slotTime"], .string("16:20"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionPlanFoodId"))
+    }
+
+    func testViewModelLogsAdHocFoodWithDefaultNextPositionAndRefreshes() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ])),
+            .json(.object(["insertNutritionLogEntry": .object(["id": .string("entry-custom")])])),
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ]))
+        ])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+
+        await viewModel.load()
+        let didLog = await viewModel.logAdHocFood(adHocDraftFixture)
+
+        XCTAssertTrue(didLog)
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["source"], .string("ad_hoc"))
+        XCTAssertEqual(object["snapshotFoodName"], .string("Restaurant bowl"))
+        XCTAssertEqual(object["position"], .number(2))
+        XCTAssertFalse(object.recursivelyContainsKey("foodId"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionPlanFoodId"))
+        XCTAssertFalse(object.recursivelyContainsKey("nutritionLogMealId"))
+    }
+
+    func testViewModelRejectsInvalidAdHocDraftsBeforeMutation() async throws {
+        let fake = FakeGraphQLService()
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+
+        let blankNameAccepted = await viewModel.logAdHocFood(adHocDraft(name: "   "))
+        let zeroGramsAccepted = await viewModel.logAdHocFood(adHocDraft(grams: "0"))
+        let negativeMacroAccepted = await viewModel.logAdHocFood(adHocDraft(kcal: "-1"))
+        let invalidTimeAccepted = await viewModel.logAdHocFood(adHocDraft(slotTime: "25:99"))
+        let requests = await fake.requestsSnapshot()
+
+        XCTAssertFalse(blankNameAccepted)
+        XCTAssertFalse(zeroGramsAccepted)
+        XCTAssertFalse(negativeMacroAccepted)
+        XCTAssertFalse(invalidTimeAccepted)
+        XCTAssertTrue(requests.isEmpty)
+    }
+
+    func testViewModelLogsPlanFoodWithActualTimeAndPlanFoodProvenance() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ])),
+            .json(.object(["insertNutritionLogEntry": .object(["id": .string("entry-new")])])),
+            .json(.object([
+                "nutritionDays": .array([nutritionDayFixture]),
+                "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]),
+                "foods": .array([snapshotFoodFixture])
+            ]))
+        ])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+
+        await viewModel.load()
+        let slot = try XCTUnwrap(viewModel.selectedPlan?.sortedFoodSlots.first)
+        let didLog = await viewModel.logPlanFood(slot, slotTime: "15:45")
+
+        XCTAssertTrue(didLog)
+        let requests = await fake.requestsSnapshot()
+        let object = try XCTUnwrap(requests[1].variables?["object"])
+        XCTAssertEqual(object["foodId"], .string("food-2"))
+        XCTAssertEqual(object["nutritionPlanFoodId"], .string("plan-food-1"))
+        XCTAssertEqual(object["grams"], .string("80"))
+        XCTAssertEqual(object["slotTime"], .string("15:45"))
+        XCTAssertNotEqual(object["slotTime"], .string(slot.slotTime))
     }
 }
 
 final class NutritionDayGroupingTests: XCTestCase {
+    func testNutritionLogEntrySourceDecodesAndMissingSourceDefaultsToFood() throws {
+        let encodedAdHoc = try JSONEncoder().encode(standaloneEntryJSONFixture)
+        let adHocEntry = try JSONDecoder().decode(NutritionLogEntry.self, from: encodedAdHoc)
+        XCTAssertEqual(adHocEntry.source, .adHoc)
+        XCTAssertTrue(adHocEntry.isAdHoc)
+
+        var object = try XCTUnwrap(standaloneEntryJSONFixture.objectValue)
+        object.removeValue(forKey: "source")
+        let encodedMissingSource = try JSONEncoder().encode(JSONValue.object(object))
+        let missingSourceEntry = try JSONDecoder().decode(NutritionLogEntry.self, from: encodedMissingSource)
+        XCTAssertEqual(missingSourceEntry.source, .food)
+        XCTAssertFalse(missingSourceEntry.isAdHoc)
+    }
+
     func testDayIntakeSlotsGroupBySupportedTimesAndUseSnapshotTotals() {
         let day = NutritionDay(
             id: "day-1",
@@ -256,8 +481,20 @@ private let mealFixture: JSONValue = .object([
     "name": .string("Breakfast bowl"),
     "description": .string("Yogurt with berries."),
     "mealIngredients": .array([
-        .object(["id": .string("ingredient-1"), "foodId": .string("food-1"), "grams": .string("100"), "position": .number(0), "food": snapshotFoodFixture]),
-        .object(["id": .string("ingredient-2"), "foodId": .string("food-2"), "grams": .string("50"), "position": .number(1), "food": secondFoodFixture])
+        .object([
+            "id": .string("ingredient-1"),
+            "foodId": .string("food-1"),
+            "grams": .string("100"),
+            "position": .number(0),
+            "food": snapshotFoodFixture
+        ]),
+        .object([
+            "id": .string("ingredient-2"),
+            "foodId": .string("food-2"),
+            "grams": .string("50"),
+            "position": .number(1),
+            "food": secondFoodFixture
+        ])
     ])
 ])
 
@@ -274,6 +511,17 @@ private let planFixture: JSONValue = .object([
             "position": .number(0),
             "meal": mealFixture
         ])
+    ]),
+    "nutritionPlanFoods": .array([
+        .object([
+            "id": .string("plan-food-1"),
+            "foodId": .string("food-2"),
+            "grams": .string("80"),
+            "slotTime": .string("08:00:00"),
+            "label": .string("Blueberries"),
+            "position": .number(1),
+            "food": secondFoodFixture
+        ])
     ])
 ])
 
@@ -282,6 +530,7 @@ private let groupedEntryFixture: JSONValue = .object([
     "nutritionDayId": .string("day-1"),
     "nutritionLogMealId": .string("log-meal-1"),
     "foodId": .string("food-1"),
+    "source": .string("food"),
     "grams": .string("150"),
     "position": .number(0),
     "slotTime": .string("08:30:00"),
@@ -298,7 +547,9 @@ private let standaloneEntryJSONFixture: JSONValue = .object([
     "id": .string("entry-2"),
     "nutritionDayId": .string("day-1"),
     "nutritionLogMealId": .null,
-    "foodId": .string("food-2"),
+    "nutritionPlanFoodId": .null,
+    "foodId": .null,
+    "source": .string("ad_hoc"),
     "grams": .string("50"),
     "position": .number(1),
     "slotTime": .string("10:15:00"),
@@ -331,6 +582,45 @@ private let nutritionDayFixture: JSONValue = .object([
     ]),
     "nutritionLogEntries": .array([standaloneEntryJSONFixture])
 ])
+
+private let adHocDraftFixture = AdHocFoodDraftValues(
+    name: "Restaurant bowl",
+    grams: "80",
+    slotTime: "12:45",
+    macros: Per100gMacroStrings(
+        kcalPer100g: "180",
+        grams: GramMacroStrings(
+            fatPer100g: "7",
+            carbsPer100g: "18",
+            proteinPer100g: "10",
+            fiberPer100g: "3",
+            sugarPer100g: "4"
+        )
+    )
+)
+
+private func adHocDraft(
+    name: String = "Restaurant bowl",
+    grams: String = "80",
+    slotTime: String = "12:45",
+    kcal: String = "180"
+) -> AdHocFoodDraftValues {
+    AdHocFoodDraftValues(
+        name: name,
+        grams: grams,
+        slotTime: slotTime,
+        macros: Per100gMacroStrings(
+            kcalPer100g: kcal,
+            grams: GramMacroStrings(
+                fatPer100g: "7",
+                carbsPer100g: "18",
+                proteinPer100g: "10",
+                fiberPer100g: "3",
+                sugarPer100g: "4"
+            )
+        )
+    )
+}
 
 private let mealFixtureModel = Meal(
     id: "meal-1",
@@ -376,6 +666,7 @@ private let loggedMealFixture = NutritionLogMeal(
         nutritionDayId: "day-1",
         nutritionLogMealId: "log-meal-1",
         foodId: "food-1",
+        source: .food,
         grams: .string("150"),
         position: 0,
         slotTime: "08:30:00",
@@ -392,7 +683,7 @@ private let loggedMealFixture = NutritionLogMeal(
 private let standaloneEntryFixture = NutritionLogEntry(
     id: "entry-2",
     nutritionDayId: "day-1",
-    foodId: "food-2",
+    source: .adHoc,
     grams: .string("50"),
     position: 1,
     slotTime: "10:15:00",

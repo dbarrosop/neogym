@@ -16,6 +16,17 @@ export interface NormalizedMacros {
   sugarPer100g: number;
 }
 
+export type NutrientKey = keyof NormalizedMacros;
+
+export const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string }[] = [
+  { key: "kcalPer100g", label: "Calories", suffix: "kcal" },
+  { key: "fatPer100g", label: "Fat", suffix: "g" },
+  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
+  { key: "proteinPer100g", label: "Protein", suffix: "g" },
+  { key: "fiberPer100g", label: "Fiber", suffix: "g" },
+  { key: "sugarPer100g", label: "Sugar", suffix: "g" },
+];
+
 export interface MacroTotals {
   kcal: number;
   fat: number;
@@ -25,16 +36,64 @@ export interface MacroTotals {
   sugar: number;
 }
 
+export interface AdHocNutritionDraft extends Record<NutrientKey, string> {
+  name: string;
+  grams: string;
+}
+
+export interface AdHocNutritionValues extends NormalizedMacros {
+  name: string;
+  grams: number;
+}
+
+export type AdHocNutritionDraftValidation =
+  | { valid: true; values: AdHocNutritionValues; message: "" }
+  | { valid: false; values: null; message: string };
+
 export interface MealTotalIngredient {
   grams: unknown;
   food?: MacroFields | null;
 }
 
-export interface PlanTotalSlot {
-  meal?: {
-    mealIngredients: MealTotalIngredient[];
-  } | null;
+export interface IntakeDraftMacroItem {
+  grams: unknown;
+  food?: MacroFields | null;
 }
+
+export interface PlanMealSummary {
+  id?: string;
+  name?: string | null;
+  description?: string | null;
+  mealIngredients: MealTotalIngredient[];
+}
+
+export interface PlanFoodSummary extends MacroFields {
+  id?: string;
+  name?: string | null;
+  userId?: string | null;
+  isPublic?: boolean;
+}
+
+export interface PlanMealEntry {
+  id: string;
+  mealId?: string;
+  slotTime?: string | null;
+  label?: string | null;
+  position: number;
+  meal?: PlanMealSummary | null;
+}
+
+export interface PlanFoodEntry {
+  id: string;
+  foodId?: string;
+  slotTime?: string | null;
+  label?: string | null;
+  position: number;
+  grams: unknown;
+  food?: PlanFoodSummary | null;
+}
+
+export type PlanEntry = (PlanMealEntry & { kind: "meal" }) | (PlanFoodEntry & { kind: "food" });
 
 export interface LoggedSnapshotEntry {
   grams: unknown;
@@ -45,6 +104,26 @@ export interface LoggedSnapshotEntry {
   snapshotFiberPer100g: unknown;
   snapshotSugarPer100g: unknown;
 }
+
+export type AdHocLogEntryInsertInput = {
+  nutritionDayId: string;
+  source: "ad_hoc";
+  grams: number;
+  position: number;
+  slotTime: string;
+  snapshotFoodName: string;
+  snapshotKcalPer100g: number;
+  snapshotFatPer100g: number;
+  snapshotCarbsPer100g: number;
+  snapshotProteinPer100g: number;
+  snapshotFiberPer100g: number;
+  snapshotSugarPer100g: number;
+};
+
+export type AdHocLogEntryUpdateSet = Omit<
+  AdHocLogEntryInsertInput,
+  "nutritionDayId" | "source" | "position"
+>;
 
 export interface IntakeEntry extends LoggedSnapshotEntry {
   id: string;
@@ -96,6 +175,11 @@ const TIME_OF_DAY_PATTERN = /^(\d{2}):(\d{2})/;
 const NO_TIME_SLOT_KEY = "no-time";
 const NO_TIME_SORT_KEY = "99:99";
 
+const PLAN_ENTRY_KIND_ORDER = {
+  food: 0,
+  meal: 1,
+} satisfies Record<PlanEntry["kind"], number>;
+
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
   fatPer100g: "fat",
@@ -115,6 +199,19 @@ export const EMPTY_MACRO_TOTALS: MacroTotals = {
 };
 
 export const DECIMAL_INPUT_PATTERN = "[0-9]*[.,]?[0-9]*";
+
+export function createEmptyAdHocNutritionDraft(): AdHocNutritionDraft {
+  return {
+    name: "",
+    grams: "100",
+    kcalPer100g: "0",
+    fatPer100g: "0",
+    carbsPer100g: "0",
+    proteinPer100g: "0",
+    fiberPer100g: "0",
+    sugarPer100g: "0",
+  };
+}
 
 function normalizeDecimalInput(value: string): string {
   return value.trim().replace(",", ".");
@@ -152,6 +249,107 @@ export function parseMacroInput(value: string): number | null {
     return null;
   }
   return parsed;
+}
+
+export function validateAdHocNutritionDraft(
+  draft: AdHocNutritionDraft,
+): AdHocNutritionDraftValidation {
+  const name = draft.name.trim();
+  if (name.length === 0) {
+    return { valid: false, values: null, message: "Food name is required." };
+  }
+
+  const grams = parseMacroInput(draft.grams);
+  if (grams === null || grams <= 0) {
+    return { valid: false, values: null, message: "Enter grams greater than zero." };
+  }
+
+  const values = { name, grams } as AdHocNutritionValues;
+  for (const field of NUTRIENT_FIELDS) {
+    const parsed = parseMacroInput(draft[field.key]);
+    if (parsed === null) {
+      return {
+        valid: false,
+        values: null,
+        message: `${field.label} must be zero or greater.`,
+      };
+    }
+    values[field.key] = parsed;
+  }
+
+  return { valid: true, values, message: "" };
+}
+
+export function adHocNutritionDraftTotals(draft: AdHocNutritionDraft): MacroTotals {
+  const grams = parseMacroInput(draft.grams) ?? 0;
+  const food = {} as NormalizedMacros;
+  for (const field of NUTRIENT_FIELDS) {
+    food[field.key] = parseMacroInput(draft[field.key]) ?? 0;
+  }
+  return macrosForGrams(food, grams);
+}
+
+export function buildAdHocLogEntryInsertInput({
+  draft,
+  nutritionDayId,
+  position,
+  slotTime,
+}: {
+  draft: AdHocNutritionDraft;
+  nutritionDayId: string;
+  position: number;
+  slotTime: string;
+}): AdHocLogEntryInsertInput {
+  const validation = validateAdHocNutritionDraft(draft);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+  if (!slotTime) {
+    throw new Error("Choose the time eaten.");
+  }
+
+  return {
+    nutritionDayId,
+    source: "ad_hoc",
+    grams: validation.values.grams,
+    position,
+    slotTime,
+    ...snapshotInputFromAdHocValues(validation.values),
+  };
+}
+
+export function buildAdHocLogEntryUpdateSet({
+  draft,
+  slotTime,
+}: {
+  draft: AdHocNutritionDraft;
+  slotTime: string;
+}): AdHocLogEntryUpdateSet {
+  const validation = validateAdHocNutritionDraft(draft);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+  if (!slotTime) {
+    throw new Error("Choose the time eaten.");
+  }
+
+  return {
+    grams: validation.values.grams,
+    slotTime,
+    ...snapshotInputFromAdHocValues(validation.values),
+  };
+}
+
+function snapshotInputFromAdHocValues(values: AdHocNutritionValues) {
+  return {
+    snapshotFoodName: values.name,
+    snapshotKcalPer100g: values.kcalPer100g,
+    snapshotFatPer100g: values.fatPer100g,
+    snapshotCarbsPer100g: values.carbsPer100g,
+    snapshotProteinPer100g: values.proteinPer100g,
+    snapshotFiberPer100g: values.fiberPer100g,
+    snapshotSugarPer100g: values.sugarPer100g,
+  };
 }
 
 export function formatMacro(value: unknown, unit: "g" | "kcal"): string {
@@ -196,13 +394,68 @@ export function mealMacroTotals(ingredients: MealTotalIngredient[]): MacroTotals
   }, EMPTY_MACRO_TOTALS);
 }
 
-export function planMacroTotals(slots: PlanTotalSlot[]): MacroTotals {
-  return slots.reduce((total, slot) => {
-    if (!slot.meal) {
+export function intakeDraftMacroTotals(items: IntakeDraftMacroItem[]): MacroTotals {
+  return items.reduce((total, item) => {
+    if (!item.food) {
       return total;
     }
-    return addMacroTotals(total, mealMacroTotals(slot.meal.mealIngredients));
+    return addMacroTotals(total, macrosForGrams(item.food, item.grams));
   }, EMPTY_MACRO_TOTALS);
+}
+
+export function planEntryMacroTotals(entry: PlanEntry): MacroTotals {
+  if (entry.kind === "food") {
+    return entry.food ? macrosForGrams(entry.food, entry.grams) : EMPTY_MACRO_TOTALS;
+  }
+  return entry.meal ? mealMacroTotals(entry.meal.mealIngredients) : EMPTY_MACRO_TOTALS;
+}
+
+export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
+  return entries.reduce(
+    (total, entry) => addMacroTotals(total, planEntryMacroTotals(entry)),
+    EMPTY_MACRO_TOTALS,
+  );
+}
+
+/**
+ * Merge the sibling plan-entry tables into the display/editor order.
+ * Editors must write `position` as a global value within each plan/time slot
+ * across both tables; `kind` and `id` are deterministic fallbacks for legacy
+ * or imported collisions where two entries share the same time and position.
+ */
+export function mergePlanEntriesByTime(
+  mealEntries: PlanMealEntry[],
+  foodEntries: PlanFoodEntry[],
+): PlanEntry[] {
+  return [
+    ...mealEntries.map((entry) => ({ ...entry, kind: "meal" as const })),
+    ...foodEntries.map((entry) => ({ ...entry, kind: "food" as const })),
+  ].toSorted(comparePlanEntries);
+}
+
+/**
+ * Sort draft plan entries by time while preserving current draft order within
+ * the same time, then assign global positions per time slot across both entry
+ * tables. These positions are what Hasura stores in `nutrition_plan_meals` and
+ * `nutrition_plan_foods` for deterministic mixed display.
+ */
+export function sortAndRenumberPlanEntriesByTime<TEntry extends { slotTime?: string | null }>(
+  entries: TEntry[],
+): Array<TEntry & { position: number }> {
+  const nextPositionByTime = new Map<string, number>();
+
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .toSorted(
+      (left, right) =>
+        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
+    )
+    .map(({ entry }) => {
+      const timeKey = normalizePlanSlotTime(entry.slotTime);
+      const position = nextPositionByTime.get(timeKey) ?? 0;
+      nextPositionByTime.set(timeKey, position + 1);
+      return { ...entry, position };
+    });
 }
 
 export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
@@ -352,6 +605,15 @@ function compareIntakeSourceUnits<TEntry extends IntakeEntry>(
   );
 }
 
+function comparePlanEntries(left: PlanEntry, right: PlanEntry): number {
+  return (
+    comparePlanSlotTime(left.slotTime, right.slotTime) ||
+    compareSortPosition(left.position, right.position) ||
+    comparePlanEntryKind(left.kind, right.kind) ||
+    left.id.localeCompare(right.id)
+  );
+}
+
 function compareIntakeEntries(left: IntakeEntry, right: IntakeEntry): number {
   return compareSortPosition(left.position, right.position) || left.id.localeCompare(right.id);
 }
@@ -365,6 +627,18 @@ function compareSourceKind(
     number
   >;
   return sourceKindOrder[left] - sourceKindOrder[right];
+}
+
+function comparePlanEntryKind(left: PlanEntry["kind"], right: PlanEntry["kind"]): number {
+  return PLAN_ENTRY_KIND_ORDER[left] - PLAN_ENTRY_KIND_ORDER[right];
+}
+
+function comparePlanSlotTime(left: unknown, right: unknown): number {
+  return normalizePlanSlotTime(left).localeCompare(normalizePlanSlotTime(right));
+}
+
+function normalizePlanSlotTime(value: unknown): string {
+  return timeToInputValue(value) || NO_TIME_SORT_KEY;
 }
 
 function compareSortPosition(left: number, right: number): number {
@@ -490,6 +764,7 @@ export function isFoodInUseError(error: Error): boolean {
   return (
     message.includes("foreign key") ||
     message.includes("meal_ingredients") ||
+    message.includes("nutrition_plan_foods") ||
     message.includes("nutrition_log_entries") ||
     message.includes("violates constraint")
   );

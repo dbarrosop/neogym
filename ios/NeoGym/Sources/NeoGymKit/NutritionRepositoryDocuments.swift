@@ -296,7 +296,7 @@ public enum NutritionFoodMealErrorMapper {
     public static func foodMessage(for error: Error) -> String {
         let domainError = GraphQLDomainError.map(error)
         if isFoodInUse(domainError) {
-            return "This food is used by a meal template. Remove it from meals before deleting it."
+            return "This food is used by a meal template or nutrition plan. Remove it from meals and plans before deleting it."
         }
         return domainError.localizedDescription
     }
@@ -316,6 +316,7 @@ public enum NutritionFoodMealErrorMapper {
         return details.contains { detail in
             let constraint = detail.constraintName?.lowercased() ?? ""
             return constraint.contains("meal_ingredients")
+                || constraint.contains("nutrition_plan_foods")
                 || constraint.contains("nutrition_log_entries")
                 || NutritionMath.isFoodInUseError(detail.message)
         }

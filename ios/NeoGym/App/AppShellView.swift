@@ -73,6 +73,7 @@ struct AppShellView: View {
             .tag(AppDestination.me)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {

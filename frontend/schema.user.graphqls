@@ -2321,6 +2321,61 @@ type mutation_root {
     updates: [nutritionLogMeals_updates!]!
   ): [nutritionLogMeals_mutation_response]
   """
+  delete single row from the table: "nutrition_plan_foods"
+  """
+  deleteNutritionPlanFood(id: uuid!): nutritionPlanFoods
+  """
+  delete data from the table: "nutrition_plan_foods"
+  """
+  deleteNutritionPlanFoods(
+    "filter the rows which have to be deleted"
+    where: nutritionPlanFoods_bool_exp!
+  ): nutritionPlanFoods_mutation_response
+  """
+  insert a single row into the table: "nutrition_plan_foods"
+  """
+  insertNutritionPlanFood(
+    "the row to be inserted"
+    object: nutritionPlanFoods_insert_input!,
+    "upsert condition"
+    on_conflict: nutritionPlanFoods_on_conflict
+  ): nutritionPlanFoods
+  """
+  insert data into the table: "nutrition_plan_foods"
+  """
+  insertNutritionPlanFoods(
+    "the rows to be inserted"
+    objects: [nutritionPlanFoods_insert_input!]!,
+    "upsert condition"
+    on_conflict: nutritionPlanFoods_on_conflict
+  ): nutritionPlanFoods_mutation_response
+  """
+  update single row of the table: "nutrition_plan_foods"
+  """
+  updateNutritionPlanFood(
+    "increments the numeric columns with given value of the filtered values"
+    _inc: nutritionPlanFoods_inc_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: nutritionPlanFoods_set_input,pk_columns: nutritionPlanFoods_pk_columns_input!  ): nutritionPlanFoods
+  """
+  update data of the table: "nutrition_plan_foods"
+  """
+  updateNutritionPlanFoods(
+    "increments the numeric columns with given value of the filtered values"
+    _inc: nutritionPlanFoods_inc_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: nutritionPlanFoods_set_input,
+    "filter the rows which have to be updated"
+    where: nutritionPlanFoods_bool_exp!
+  ): nutritionPlanFoods_mutation_response
+  """
+  update multiples rows of table: "nutrition_plan_foods"
+  """
+  update_nutritionPlanFoods_many(
+    "updates to execute, in order"
+    updates: [nutritionPlanFoods_updates!]!
+  ): [nutritionPlanFoods_mutation_response]
+  """
   delete single row from the table: "nutrition_plan_meals"
   """
   deleteNutritionPlanMeal(id: uuid!): nutritionPlanMeals
@@ -2905,7 +2960,7 @@ type nutritionDays_mutation_response {
   "data from the rows affected by the mutation"
   returning: [nutritionDays!]!
 }
-"Historical food log rows. The trusted snapshot_* columns are populated by an insert-only trigger from foods and stay stable after source food edits/deletes; users can edit grams/position only."
+"Historical food log rows. source=food rows copy trusted snapshot_* values from foods at insert time; source=ad_hoc rows store standalone user-supplied snapshot values. Daily totals use snapshots, not live foods."
 type nutritionLogEntries {
   id: uuid!
   nutritionDayId: uuid!
@@ -2924,12 +2979,18 @@ type nutritionLogEntries {
   snapshotSugarPer100g: numeric!
   createdAt: timestamptz!
   updatedAt: timestamptz!
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String!
   "An object relationship"
   food: foods
   "An object relationship"
   nutritionDay: nutritionDays
   "An object relationship"
   nutritionLogMeal: nutritionLogMeals
+  "An object relationship"
+  nutritionPlanFood: nutritionPlanFoods
 }
 """
 aggregated selection of "nutrition_log_entries"
@@ -2984,6 +3045,10 @@ type nutritionLogEntries_max_fields {
   snapshotSugarPer100g: numeric
   createdAt: timestamptz
   updatedAt: timestamptz
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 "aggregate min on columns"
 type nutritionLogEntries_min_fields {
@@ -3004,6 +3069,10 @@ type nutritionLogEntries_min_fields {
   snapshotSugarPer100g: numeric
   createdAt: timestamptz
   updatedAt: timestamptz
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 """
 response of any mutation on the table "nutrition_log_entries"
@@ -3228,6 +3297,147 @@ type nutritionLogMeals_var_samp_fields {
 type nutritionLogMeals_variance_fields {
   position: Float
 }
+"Direct food entries in reusable nutrition plan templates. Mixed meal/food plan ordering is client-managed with slot_time plus a global per-slot position across nutrition_plan_meals and nutrition_plan_foods."
+type nutritionPlanFoods {
+  id: uuid!
+  nutritionPlanId: uuid!
+  foodId: uuid!
+  grams: numeric!
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time!
+  label: String
+  position: Int!
+  createdAt: timestamptz!
+  updatedAt: timestamptz!
+  "An object relationship"
+  food: foods!
+  "An object relationship"
+  nutritionPlan: nutritionPlans!
+  "An array relationship"
+  nutritionLogEntries(
+    "distinct select on columns"
+    distinct_on: [nutritionLogEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionLogEntries_order_by!],
+    "filter the rows returned"
+    where: nutritionLogEntries_bool_exp
+  ): [nutritionLogEntries!]!
+  "An aggregate relationship"
+  nutritionLogEntries_aggregate(
+    "distinct select on columns"
+    distinct_on: [nutritionLogEntries_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionLogEntries_order_by!],
+    "filter the rows returned"
+    where: nutritionLogEntries_bool_exp
+  ): nutritionLogEntries_aggregate!
+}
+"""
+aggregated selection of "nutrition_plan_foods"
+"""
+type nutritionPlanFoods_aggregate {
+  aggregate: nutritionPlanFoods_aggregate_fields
+  nodes: [nutritionPlanFoods!]!
+}
+"""
+aggregate fields of "nutrition_plan_foods"
+"""
+type nutritionPlanFoods_aggregate_fields {
+  count(columns: [nutritionPlanFoods_select_column!], distinct: Boolean): Int!
+  max: nutritionPlanFoods_max_fields
+  min: nutritionPlanFoods_min_fields
+  avg: nutritionPlanFoods_avg_fields
+  stddev: nutritionPlanFoods_stddev_fields
+  stddev_pop: nutritionPlanFoods_stddev_pop_fields
+  stddev_samp: nutritionPlanFoods_stddev_samp_fields
+  sum: nutritionPlanFoods_sum_fields
+  var_pop: nutritionPlanFoods_var_pop_fields
+  var_samp: nutritionPlanFoods_var_samp_fields
+  variance: nutritionPlanFoods_variance_fields
+}
+"aggregate avg on columns"
+type nutritionPlanFoods_avg_fields {
+  grams: Float
+  position: Float
+}
+"aggregate max on columns"
+type nutritionPlanFoods_max_fields {
+  id: uuid
+  nutritionPlanId: uuid
+  foodId: uuid
+  grams: numeric
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time
+  label: String
+  position: Int
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+"aggregate min on columns"
+type nutritionPlanFoods_min_fields {
+  id: uuid
+  nutritionPlanId: uuid
+  foodId: uuid
+  grams: numeric
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time
+  label: String
+  position: Int
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+"""
+response of any mutation on the table "nutrition_plan_foods"
+"""
+type nutritionPlanFoods_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [nutritionPlanFoods!]!
+}
+"aggregate stddev on columns"
+type nutritionPlanFoods_stddev_fields {
+  grams: Float
+  position: Float
+}
+"aggregate stddev_pop on columns"
+type nutritionPlanFoods_stddev_pop_fields {
+  grams: Float
+  position: Float
+}
+"aggregate stddev_samp on columns"
+type nutritionPlanFoods_stddev_samp_fields {
+  grams: Float
+  position: Float
+}
+"aggregate sum on columns"
+type nutritionPlanFoods_sum_fields {
+  grams: numeric
+  position: Int
+}
+"aggregate var_pop on columns"
+type nutritionPlanFoods_var_pop_fields {
+  grams: Float
+  position: Float
+}
+"aggregate var_samp on columns"
+type nutritionPlanFoods_var_samp_fields {
+  grams: Float
+  position: Float
+}
+"aggregate variance on columns"
+type nutritionPlanFoods_variance_fields {
+  grams: Float
+  position: Float
+}
 """
 columns and relationships of "nutrition_plan_meals"
 """
@@ -3393,6 +3603,32 @@ type nutritionPlans {
     "filter the rows returned"
     where: nutritionDays_bool_exp
   ): nutritionDays_aggregate!
+  "An array relationship"
+  nutritionPlanFoods(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): [nutritionPlanFoods!]!
+  "An aggregate relationship"
+  nutritionPlanFoods_aggregate(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): nutritionPlanFoods_aggregate!
   "An array relationship"
   nutritionPlanMeals(
     "distinct select on columns"
@@ -4177,6 +4413,40 @@ type query_root {
     "filter the rows returned"
     where: nutritionLogMeals_bool_exp
   ): nutritionLogMeals_aggregate!
+  """
+  fetch data from the table: "nutrition_plan_foods"
+  """
+  nutritionPlanFoods(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): [nutritionPlanFoods!]!
+  """
+  fetch data from the table: "nutrition_plan_foods" using primary key columns
+  """
+  nutritionPlanFood(id: uuid!): nutritionPlanFoods
+  """
+  fetch aggregated fields from the table: "nutrition_plan_foods"
+  """
+  nutritionPlanFoodsAggregate(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): nutritionPlanFoods_aggregate!
   """
   fetch data from the table: "nutrition_plan_meals"
   """
@@ -5449,6 +5719,51 @@ type subscription_root {
     "filter the rows returned"
     where: nutritionLogMeals_bool_exp
   ): [nutritionLogMeals!]!
+  """
+  fetch data from the table: "nutrition_plan_foods"
+  """
+  nutritionPlanFoods(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): [nutritionPlanFoods!]!
+  """
+  fetch data from the table: "nutrition_plan_foods" using primary key columns
+  """
+  nutritionPlanFood(id: uuid!): nutritionPlanFoods
+  """
+  fetch aggregated fields from the table: "nutrition_plan_foods"
+  """
+  nutritionPlanFoodsAggregate(
+    "distinct select on columns"
+    distinct_on: [nutritionPlanFoods_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [nutritionPlanFoods_order_by!],
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): nutritionPlanFoods_aggregate!
+  """
+  fetch data from the table in a streaming manner: "nutrition_plan_foods"
+  """
+  nutritionPlanFoods_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [nutritionPlanFoods_stream_cursor_input]!,
+    "filter the rows returned"
+    where: nutritionPlanFoods_bool_exp
+  ): [nutritionPlanFoods!]!
   """
   fetch data from the table: "nutrition_plan_meals"
   """
@@ -7364,6 +7679,10 @@ enum nutritionLogEntries_select_column {
   createdAt
   "column name"
   updatedAt
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source
 }
 """
 update columns of table "nutrition_log_entries"
@@ -7375,6 +7694,20 @@ enum nutritionLogEntries_update_column {
   position
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime
+  "column name"
+  snapshotFoodName
+  "column name"
+  snapshotKcalPer100g
+  "column name"
+  snapshotFatPer100g
+  "column name"
+  snapshotCarbsPer100g
+  "column name"
+  snapshotProteinPer100g
+  "column name"
+  snapshotFiberPer100g
+  "column name"
+  snapshotSugarPer100g
 }
 """
 unique or primary key constraints on table "nutrition_log_meals"
@@ -7420,6 +7753,51 @@ enum nutritionLogMeals_update_column {
   name
   "Client-supplied logged time-of-day for the meal group. For planned meals this defaults to now, not the template slot time."
   slotTime
+  "column name"
+  position
+}
+"""
+unique or primary key constraints on table "nutrition_plan_foods"
+"""
+enum nutritionPlanFoods_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  nutrition_plan_foods_pkey
+}
+"""
+select columns of table "nutrition_plan_foods"
+"""
+enum nutritionPlanFoods_select_column {
+  "column name"
+  id
+  "column name"
+  nutritionPlanId
+  "column name"
+  foodId
+  "column name"
+  grams
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime
+  "column name"
+  label
+  "column name"
+  position
+  "column name"
+  createdAt
+  "column name"
+  updatedAt
+}
+"""
+update columns of table "nutrition_plan_foods"
+"""
+enum nutritionPlanFoods_update_column {
+  "column name"
+  grams
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime
+  "column name"
+  label
   "column name"
   position
 }
@@ -9942,9 +10320,14 @@ input nutritionLogEntries_bool_exp {
   snapshotSugarPer100g: numeric_comparison_exp
   createdAt: timestamptz_comparison_exp
   updatedAt: timestamptz_comparison_exp
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid_comparison_exp
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String_comparison_exp
   food: foods_bool_exp
   nutritionDay: nutritionDays_bool_exp
   nutritionLogMeal: nutritionLogMeals_bool_exp
+  nutritionPlanFood: nutritionPlanFoods_bool_exp
 }
 """
 input type for incrementing numeric columns in table "nutrition_log_entries"
@@ -9952,6 +10335,12 @@ input type for incrementing numeric columns in table "nutrition_log_entries"
 input nutritionLogEntries_inc_input {
   grams: numeric
   position: Int
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
 }
 """
 input type for inserting data into table "nutrition_log_entries"
@@ -9964,9 +10353,21 @@ input nutritionLogEntries_insert_input {
   position: Int
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime: time
+  snapshotFoodName: String
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
   food: foods_obj_rel_insert_input
   nutritionDay: nutritionDays_obj_rel_insert_input
   nutritionLogMeal: nutritionLogMeals_obj_rel_insert_input
+  nutritionPlanFood: nutritionPlanFoods_obj_rel_insert_input
 }
 """
 order by max() on columns of table "nutrition_log_entries"
@@ -9989,6 +10390,10 @@ input nutritionLogEntries_max_order_by {
   snapshotSugarPer100g: order_by
   createdAt: order_by
   updatedAt: order_by
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
 }
 """
 order by min() on columns of table "nutrition_log_entries"
@@ -10011,6 +10416,10 @@ input nutritionLogEntries_min_order_by {
   snapshotSugarPer100g: order_by
   createdAt: order_by
   updatedAt: order_by
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
 }
 """
 on_conflict condition type for table "nutrition_log_entries"
@@ -10041,9 +10450,14 @@ input nutritionLogEntries_order_by {
   snapshotSugarPer100g: order_by
   createdAt: order_by
   updatedAt: order_by
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: order_by
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: order_by
   food: foods_order_by
   nutritionDay: nutritionDays_order_by
   nutritionLogMeal: nutritionLogMeals_order_by
+  nutritionPlanFood: nutritionPlanFoods_order_by
 }
 "primary key columns input for table: nutrition_log_entries"
 input nutritionLogEntries_pk_columns_input {
@@ -10057,6 +10471,13 @@ input nutritionLogEntries_set_input {
   position: Int
   "Client-supplied logged time-of-day for standalone entries. Grouped entries inherit display time from nutrition_log_meals.slot_time."
   slotTime: time
+  snapshotFoodName: String
+  snapshotKcalPer100g: numeric
+  snapshotFatPer100g: numeric
+  snapshotCarbsPer100g: numeric
+  snapshotProteinPer100g: numeric
+  snapshotFiberPer100g: numeric
+  snapshotSugarPer100g: numeric
 }
 """
 order by stddev() on columns of table "nutrition_log_entries"
@@ -10125,6 +10546,10 @@ input nutritionLogEntries_stream_cursor_value_input {
   snapshotSugarPer100g: numeric
   createdAt: timestamptz
   updatedAt: timestamptz
+  "Nullable provenance pointer for standalone logs created from a direct food entry in a nutrition plan. Deleting the plan/template nulls this pointer while snapshots remain."
+  nutritionPlanFoodId: uuid
+  "Discriminator for log-entry snapshot provenance. food rows snapshot a foods row at insert time; ad_hoc rows are standalone user-supplied snapshots and never appear in reusable food catalogs."
+  source: String
 }
 """
 order by sum() on columns of table "nutrition_log_entries"
@@ -10420,6 +10845,247 @@ order by variance() on columns of table "nutrition_log_meals"
 input nutritionLogMeals_variance_order_by {
   position: order_by
 }
+input nutritionPlanFoods_aggregate_bool_exp {
+  count: nutritionPlanFoods_aggregate_bool_exp_count
+}
+input nutritionPlanFoods_aggregate_bool_exp_count {
+  arguments: [nutritionPlanFoods_select_column!]
+  distinct: Boolean
+  filter: nutritionPlanFoods_bool_exp
+  predicate: Int_comparison_exp!
+}
+"""
+order by aggregate values of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_aggregate_order_by {
+  count: order_by
+  max: nutritionPlanFoods_max_order_by
+  min: nutritionPlanFoods_min_order_by
+  avg: nutritionPlanFoods_avg_order_by
+  stddev: nutritionPlanFoods_stddev_order_by
+  stddev_pop: nutritionPlanFoods_stddev_pop_order_by
+  stddev_samp: nutritionPlanFoods_stddev_samp_order_by
+  sum: nutritionPlanFoods_sum_order_by
+  var_pop: nutritionPlanFoods_var_pop_order_by
+  var_samp: nutritionPlanFoods_var_samp_order_by
+  variance: nutritionPlanFoods_variance_order_by
+}
+"""
+input type for inserting array relation for remote table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_arr_rel_insert_input {
+  data: [nutritionPlanFoods_insert_input!]!
+  "upsert condition"
+  on_conflict: nutritionPlanFoods_on_conflict
+}
+"""
+order by avg() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_avg_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+Boolean expression to filter rows from the table "nutrition_plan_foods". All fields are combined with a logical 'AND'.
+"""
+input nutritionPlanFoods_bool_exp {
+  _and: [nutritionPlanFoods_bool_exp!]
+  _not: nutritionPlanFoods_bool_exp
+  _or: [nutritionPlanFoods_bool_exp!]
+  id: uuid_comparison_exp
+  nutritionPlanId: uuid_comparison_exp
+  foodId: uuid_comparison_exp
+  grams: numeric_comparison_exp
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time_comparison_exp
+  label: String_comparison_exp
+  position: Int_comparison_exp
+  createdAt: timestamptz_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+  food: foods_bool_exp
+  nutritionPlan: nutritionPlans_bool_exp
+  nutritionLogEntries: nutritionLogEntries_bool_exp
+  nutritionLogEntries_aggregate: nutritionLogEntries_aggregate_bool_exp
+}
+"""
+input type for incrementing numeric columns in table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_inc_input {
+  grams: numeric
+  position: Int
+}
+"""
+input type for inserting data into table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_insert_input {
+  nutritionPlanId: uuid
+  foodId: uuid
+  grams: numeric
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time
+  label: String
+  position: Int
+  food: foods_obj_rel_insert_input
+  nutritionPlan: nutritionPlans_obj_rel_insert_input
+  nutritionLogEntries: nutritionLogEntries_arr_rel_insert_input
+}
+"""
+order by max() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_max_order_by {
+  id: order_by
+  nutritionPlanId: order_by
+  foodId: order_by
+  grams: order_by
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: order_by
+  label: order_by
+  position: order_by
+  createdAt: order_by
+  updatedAt: order_by
+}
+"""
+order by min() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_min_order_by {
+  id: order_by
+  nutritionPlanId: order_by
+  foodId: order_by
+  grams: order_by
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: order_by
+  label: order_by
+  position: order_by
+  createdAt: order_by
+  updatedAt: order_by
+}
+"""
+input type for inserting object relation for remote table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_obj_rel_insert_input {
+  data: nutritionPlanFoods_insert_input!
+  "upsert condition"
+  on_conflict: nutritionPlanFoods_on_conflict
+}
+"""
+on_conflict condition type for table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_on_conflict {
+  constraint: nutritionPlanFoods_constraint!
+  update_columns: [nutritionPlanFoods_update_column!]! = []
+  where: nutritionPlanFoods_bool_exp
+}
+"""
+Ordering options when selecting data from "nutrition_plan_foods".
+"""
+input nutritionPlanFoods_order_by {
+  id: order_by
+  nutritionPlanId: order_by
+  foodId: order_by
+  grams: order_by
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: order_by
+  label: order_by
+  position: order_by
+  createdAt: order_by
+  updatedAt: order_by
+  food: foods_order_by
+  nutritionPlan: nutritionPlans_order_by
+  nutritionLogEntries_aggregate: nutritionLogEntries_aggregate_order_by
+}
+"primary key columns input for table: nutrition_plan_foods"
+input nutritionPlanFoods_pk_columns_input {
+  id: uuid!
+}
+"""
+input type for updating data in table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_set_input {
+  grams: numeric
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time
+  label: String
+  position: Int
+}
+"""
+order by stddev() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_stddev_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+order by stddev_pop() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_stddev_pop_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+order by stddev_samp() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_stddev_samp_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+Streaming cursor of the table "nutritionPlanFoods"
+"""
+input nutritionPlanFoods_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: nutritionPlanFoods_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input nutritionPlanFoods_stream_cursor_value_input {
+  id: uuid
+  nutritionPlanId: uuid
+  foodId: uuid
+  grams: numeric
+  "Template suggestion time. Logging from this entry should default the actual consumed time to now and keep this only as provenance/suggestion."
+  slotTime: time
+  label: String
+  position: Int
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+"""
+order by sum() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_sum_order_by {
+  grams: order_by
+  position: order_by
+}
+input nutritionPlanFoods_updates {
+  "increments the numeric columns with given value of the filtered values"
+  _inc: nutritionPlanFoods_inc_input
+  "sets the columns of the filtered rows to the given values"
+  _set: nutritionPlanFoods_set_input
+  "filter the rows which have to be updated"
+  where: nutritionPlanFoods_bool_exp!
+}
+"""
+order by var_pop() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_var_pop_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+order by var_samp() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_var_samp_order_by {
+  grams: order_by
+  position: order_by
+}
+"""
+order by variance() on columns of table "nutrition_plan_foods"
+"""
+input nutritionPlanFoods_variance_order_by {
+  grams: order_by
+  position: order_by
+}
 input nutritionPlanMeals_aggregate_bool_exp {
   count: nutritionPlanMeals_aggregate_bool_exp_count
 }
@@ -10653,6 +11319,8 @@ input nutritionPlans_bool_exp {
   updatedAt: timestamptz_comparison_exp
   nutritionDays: nutritionDays_bool_exp
   nutritionDays_aggregate: nutritionDays_aggregate_bool_exp
+  nutritionPlanFoods: nutritionPlanFoods_bool_exp
+  nutritionPlanFoods_aggregate: nutritionPlanFoods_aggregate_bool_exp
   nutritionPlanMeals: nutritionPlanMeals_bool_exp
   nutritionPlanMeals_aggregate: nutritionPlanMeals_aggregate_bool_exp
 }
@@ -10663,6 +11331,7 @@ input nutritionPlans_insert_input {
   name: String
   description: String
   nutritionDays: nutritionDays_arr_rel_insert_input
+  nutritionPlanFoods: nutritionPlanFoods_arr_rel_insert_input
   nutritionPlanMeals: nutritionPlanMeals_arr_rel_insert_input
 }
 """
@@ -10692,6 +11361,7 @@ input nutritionPlans_order_by {
   createdAt: order_by
   updatedAt: order_by
   nutritionDays_aggregate: nutritionDays_aggregate_order_by
+  nutritionPlanFoods_aggregate: nutritionPlanFoods_aggregate_order_by
   nutritionPlanMeals_aggregate: nutritionPlanMeals_aggregate_order_by
 }
 "primary key columns input for table: nutrition_plans"

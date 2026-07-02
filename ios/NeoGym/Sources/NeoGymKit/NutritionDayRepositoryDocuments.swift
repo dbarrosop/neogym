@@ -41,6 +41,26 @@ public extension NutritionFoodMealRepository {
               }
             }
           }
+          nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+            id
+            slotTime
+            label
+            position
+            foodId
+            grams
+            food {
+              id
+              name
+              userId
+              isPublic
+              kcalPer100g
+              fatPer100g
+              carbsPer100g
+              proteinPer100g
+              fiberPer100g
+              sugarPer100g
+            }
+          }
         }
         nutritionLogMeals {
           id
@@ -52,6 +72,8 @@ public extension NutritionFoodMealRepository {
           position
           nutritionLogEntries {
             id
+            nutritionPlanFoodId
+            source
             grams
             position
             snapshotFoodName
@@ -65,6 +87,8 @@ public extension NutritionFoodMealRepository {
         }
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
           id
+          nutritionPlanFoodId
+          source
           grams
           position
           slotTime
@@ -97,7 +121,9 @@ public extension NutritionFoodMealRepository {
             id
             nutritionDayId
             nutritionLogMealId
+            nutritionPlanFoodId
             foodId
+            source
             grams
             position
             slotTime
@@ -117,7 +143,9 @@ public extension NutritionFoodMealRepository {
           id
           nutritionDayId
           nutritionLogMealId
+          nutritionPlanFoodId
           foodId
+          source
           grams
           position
           slotTime
@@ -162,6 +190,26 @@ public extension NutritionFoodMealRepository {
                 sugarPer100g
               }
             }
+          }
+        }
+        nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+          id
+          slotTime
+          label
+          position
+          foodId
+          grams
+          food {
+            id
+            name
+            userId
+            isPublic
+            kcalPer100g
+            fatPer100g
+            carbsPer100g
+            proteinPer100g
+            fiberPer100g
+            sugarPer100g
           }
         }
       }
@@ -287,9 +335,27 @@ public extension NutritionFoodMealRepository {
         .object([
             "nutritionDayId": GraphQLScalars.uuid(values.dayId),
             "foodId": GraphQLScalars.uuid(values.foodId),
+            "nutritionPlanFoodId": values.nutritionPlanFoodId.map(GraphQLScalars.uuid) ?? .null,
             "grams": .string(values.grams),
             "position": .number(Double(values.position)),
             "slotTime": GraphQLScalars.time(values.slotTime)
+        ])
+    }
+
+    static func logAdHocFoodObject(_ values: LogAdHocFoodValues) -> JSONValue {
+        .object([
+            "nutritionDayId": GraphQLScalars.uuid(values.dayId),
+            "source": .string(NutritionLogEntrySource.adHoc.rawValue),
+            "snapshotFoodName": .string(values.draft.name),
+            "snapshotKcalPer100g": .string(values.draft.macros.kcalPer100g),
+            "snapshotFatPer100g": .string(values.draft.macros.grams.fatPer100g),
+            "snapshotCarbsPer100g": .string(values.draft.macros.grams.carbsPer100g),
+            "snapshotProteinPer100g": .string(values.draft.macros.grams.proteinPer100g),
+            "snapshotFiberPer100g": .string(values.draft.macros.grams.fiberPer100g),
+            "snapshotSugarPer100g": .string(values.draft.macros.grams.sugarPer100g),
+            "grams": .string(values.draft.grams),
+            "position": .number(Double(values.position)),
+            "slotTime": GraphQLScalars.time(values.draft.slotTime)
         ])
     }
 
@@ -320,6 +386,15 @@ public extension NutritionFoodMealRepository {
         if let grams = values.grams { set["grams"] = .string(grams) }
         if let position = values.position { set["position"] = .number(Double(position)) }
         if let slotTime = values.slotTime { set["slotTime"] = GraphQLScalars.time(slotTime) }
+        if let adHocDraft = values.adHocDraft {
+            set["snapshotFoodName"] = .string(adHocDraft.name)
+            set["snapshotKcalPer100g"] = .string(adHocDraft.macros.kcalPer100g)
+            set["snapshotFatPer100g"] = .string(adHocDraft.macros.grams.fatPer100g)
+            set["snapshotCarbsPer100g"] = .string(adHocDraft.macros.grams.carbsPer100g)
+            set["snapshotProteinPer100g"] = .string(adHocDraft.macros.grams.proteinPer100g)
+            set["snapshotFiberPer100g"] = .string(adHocDraft.macros.grams.fiberPer100g)
+            set["snapshotSugarPer100g"] = .string(adHocDraft.macros.grams.sugarPer100g)
+        }
         return .object(set)
     }
 

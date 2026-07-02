@@ -56,16 +56,7 @@ struct StrengthPriorSummary: View {
     }
 
     private static func setSummary(_ sets: [SessionStrengthSet], doubleWeight: Bool) -> String {
-        guard sets.isEmpty == false else { return "no sets" }
-        let hasWeight = sets.contains { $0.weight > 0 }
-        let summary = sets.map { set in
-            set.weight == 0 ? "\(set.reps)×BW" : "\(set.reps)×\(formatWeight(set.weight))kg"
-        }.joined(separator: ", ")
-        return summary + (doubleWeight && hasWeight ? " /side" : "")
-    }
-
-    private static func formatWeight(_ weight: Double) -> String {
-        weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
+        StrengthSetFormatting.recentSummary(sets, doubleWeight: doubleWeight)
     }
 }
 

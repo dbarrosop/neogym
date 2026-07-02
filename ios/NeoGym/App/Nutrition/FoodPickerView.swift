@@ -5,8 +5,11 @@ struct FoodPickerView: View {
     let foods: [Food]
     @Binding var foodId: String
     var disabled = false
+    var revealWheelOnDemand = false
 
     @State private var query = ""
+    @State private var wheelRevealed = false
+    @FocusState private var searchFocused: Bool
 
     private var selectedFood: Food? {
         foods.first { $0.id == foodId }
@@ -23,34 +26,42 @@ struct FoodPickerView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+        VStack(alignment: .leading, spacing: 4) {
             searchField
 
-            if foods.isEmpty {
-                message("No foods are available yet. Create a private food first.")
-            } else if visibleFoods.isEmpty {
-                message("No foods match this search.")
-            } else {
-                Picker("Food", selection: $foodId) {
-                    ForEach(visibleFoods) { food in
-                        FoodWheelRow(food: food)
-                            .tag(food.id)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .labelsHidden()
-                .frame(height: 176)
-                .clipped()
-                .disabled(disabled)
-
-                if let selectedFood {
-                    selectedSummary(food: selectedFood)
-                }
-            }
+            pickerContent
         }
         .onAppear(perform: syncSelectionWithFilter)
-        .onChange(of: query) { _ in syncSelectionWithFilter() }
+        .onChange(of: query) { _ in
+            revealWheelIfSearching()
+            syncSelectionWithFilter()
+        }
         .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
+        .onChange(of: searchFocused) { isFocused in
+            if isFocused { revealWheel() }
+        }
+        .onChange(of: disabled) { _ in revealWheelIfSearching() }
+    }
+
+    @ViewBuilder
+    private var pickerContent: some View {
+        if foods.isEmpty {
+            message("No foods are available yet. Create a private food first.")
+        } else if visibleFoods.isEmpty {
+            message("No foods match this search.")
+        } else if shouldShowWheel {
+            Picker("Food", selection: $foodId) {
+                ForEach(visibleFoods) { food in
+                    FoodPickerWheelRow(food: food)
+                        .tag(food.id)
+                }
+            }
+            .pickerStyle(.wheel)
+            .labelsHidden()
+            .frame(height: 88)
+            .clipped()
+            .disabled(disabled)
+        }
     }
 
     private var searchField: some View {
@@ -58,9 +69,12 @@ struct FoodPickerView: View {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(NeoGymTheme.mutedText)
             TextField(selectedFood?.name ?? "Filter foods…", text: $query)
+                .focused($searchFocused)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
+                .submitLabel(.search)
                 .disabled(disabled)
+                .onTapGesture(perform: revealWheel)
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -69,27 +83,10 @@ struct FoodPickerView: View {
                         .foregroundColor(NeoGymTheme.mutedText)
                 }
                 .buttonStyle(.plain)
+                .disabled(disabled)
                 .accessibilityLabel("Clear search")
             }
         }
-    }
-
-    private func selectedSummary(food: Food) -> some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-            HStack(spacing: NeoGymTheme.spacingXS) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.accentColor)
-                Text(food.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                FoodVisibilityBadge(isPublic: food.isPublic)
-            }
-            Text(NutritionMath.macroSummary(food.macroFields) + " per 100g")
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
-                .lineLimit(2)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func message(_ text: String) -> some View {
@@ -99,24 +96,46 @@ struct FoodPickerView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var shouldShowWheel: Bool {
+        !revealWheelOnDemand || wheelRevealed
+    }
+
+    private func revealWheel() {
+        guard revealWheelOnDemand, !disabled else { return }
+        wheelRevealed = true
+    }
+
+    private func revealWheelIfSearching() {
+        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            revealWheel()
+        }
+    }
+
     private func syncSelectionWithFilter() {
         guard let firstVisible = visibleFoods.first else { return }
         if foodId.isEmpty || !visibleFoods.contains(where: { $0.id == foodId }) {
             foodId = firstVisible.id
         }
     }
+
 }
 
-private struct FoodWheelRow: View {
+private struct FoodPickerWheelRow: View {
     let food: Food
 
     var body: some View {
-        HStack(spacing: NeoGymTheme.spacingXS) {
-            Image(systemName: "apple.logo")
-                .foregroundColor(NeoGymTheme.mutedText)
+        HStack(spacing: 4) {
             Text(food.name)
-                .font(.body.weight(.semibold))
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Text("· " + NutritionMath.macroSummary(food.macroFields))
+                .font(.caption)
+                .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .multilineTextAlignment(.leading)
     }
 }

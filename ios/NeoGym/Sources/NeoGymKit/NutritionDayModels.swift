@@ -1,11 +1,18 @@
 import Combine
 import Foundation
 
+public enum NutritionLogEntrySource: String, Codable, Sendable, Equatable {
+    case food
+    case adHoc = "ad_hoc"
+}
+
 public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
     public let id: String
     public let nutritionDayId: String?
     public let nutritionLogMealId: String?
+    public let nutritionPlanFoodId: String?
     public let foodId: String?
+    public let source: NutritionLogEntrySource
     public let grams: JSONValue
     public let position: Int
     public let slotTime: String?
@@ -23,7 +30,9 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         id: String,
         nutritionDayId: String? = nil,
         nutritionLogMealId: String? = nil,
+        nutritionPlanFoodId: String? = nil,
         foodId: String? = nil,
+        source: NutritionLogEntrySource = .food,
         grams: JSONValue,
         position: Int,
         slotTime: String? = nil,
@@ -40,7 +49,9 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         self.id = id
         self.nutritionDayId = nutritionDayId
         self.nutritionLogMealId = nutritionLogMealId
+        self.nutritionPlanFoodId = nutritionPlanFoodId
         self.foodId = foodId
+        self.source = source
         self.grams = grams
         self.position = position
         self.slotTime = slotTime
@@ -54,6 +65,8 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
+
+    public var isAdHoc: Bool { source == .adHoc }
 
     public var loggedSnapshot: LoggedSnapshotEntry {
         LoggedSnapshotEntry(
@@ -71,6 +84,7 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
         IntakeEntry(
             id: id,
             nutritionLogMealId: nutritionLogMealId,
+            source: source,
             grams: grams,
             position: Double(position),
             slotTime: slotTime,
@@ -82,6 +96,49 @@ public struct NutritionLogEntry: Decodable, Identifiable, Sendable, Equatable {
             snapshotFiberPer100g: snapshotFiberPer100g,
             snapshotSugarPer100g: snapshotSugarPer100g
         )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case nutritionDayId
+        case nutritionLogMealId
+        case nutritionPlanFoodId
+        case foodId
+        case source
+        case grams
+        case position
+        case slotTime
+        case snapshotFoodName
+        case snapshotKcalPer100g
+        case snapshotFatPer100g
+        case snapshotCarbsPer100g
+        case snapshotProteinPer100g
+        case snapshotFiberPer100g
+        case snapshotSugarPer100g
+        case createdAt
+        case updatedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        nutritionDayId = try container.decodeIfPresent(String.self, forKey: .nutritionDayId)
+        nutritionLogMealId = try container.decodeIfPresent(String.self, forKey: .nutritionLogMealId)
+        nutritionPlanFoodId = try container.decodeIfPresent(String.self, forKey: .nutritionPlanFoodId)
+        foodId = try container.decodeIfPresent(String.self, forKey: .foodId)
+        source = try container.decodeIfPresent(NutritionLogEntrySource.self, forKey: .source) ?? .food
+        grams = try container.decode(JSONValue.self, forKey: .grams)
+        position = try container.decode(Int.self, forKey: .position)
+        slotTime = try container.decodeIfPresent(String.self, forKey: .slotTime)
+        snapshotFoodName = try container.decode(String.self, forKey: .snapshotFoodName)
+        snapshotKcalPer100g = try container.decode(JSONValue.self, forKey: .snapshotKcalPer100g)
+        snapshotFatPer100g = try container.decode(JSONValue.self, forKey: .snapshotFatPer100g)
+        snapshotCarbsPer100g = try container.decode(JSONValue.self, forKey: .snapshotCarbsPer100g)
+        snapshotProteinPer100g = try container.decode(JSONValue.self, forKey: .snapshotProteinPer100g)
+        snapshotFiberPer100g = try container.decode(JSONValue.self, forKey: .snapshotFiberPer100g)
+        snapshotSugarPer100g = try container.decode(JSONValue.self, forKey: .snapshotSugarPer100g)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
     }
 }
 
@@ -213,16 +270,83 @@ public struct DailyIntakePayload: Sendable, Equatable {
 public struct LogFoodValues: Sendable, Equatable {
     public let dayId: String
     public let foodId: String
+    public let nutritionPlanFoodId: String?
     public let grams: String
     public let slotTime: String
     public let position: Int
 
-    public init(dayId: String, foodId: String, grams: String, slotTime: String, position: Int) {
+    public init(
+        dayId: String,
+        foodId: String,
+        nutritionPlanFoodId: String? = nil,
+        grams: String,
+        slotTime: String,
+        position: Int
+    ) {
         self.dayId = dayId
         self.foodId = foodId
+        self.nutritionPlanFoodId = nutritionPlanFoodId
         self.grams = grams
         self.slotTime = slotTime
         self.position = position
+    }
+}
+
+public struct GramMacroStrings: Sendable, Equatable {
+    public let fatPer100g: String
+    public let carbsPer100g: String
+    public let proteinPer100g: String
+    public let fiberPer100g: String
+    public let sugarPer100g: String
+
+    public init(
+        fatPer100g: String,
+        carbsPer100g: String,
+        proteinPer100g: String,
+        fiberPer100g: String,
+        sugarPer100g: String
+    ) {
+        self.fatPer100g = fatPer100g
+        self.carbsPer100g = carbsPer100g
+        self.proteinPer100g = proteinPer100g
+        self.fiberPer100g = fiberPer100g
+        self.sugarPer100g = sugarPer100g
+    }
+}
+
+public struct Per100gMacroStrings: Sendable, Equatable {
+    public let kcalPer100g: String
+    public let grams: GramMacroStrings
+
+    public init(kcalPer100g: String, grams: GramMacroStrings) {
+        self.kcalPer100g = kcalPer100g
+        self.grams = grams
+    }
+}
+
+public struct AdHocFoodDraftValues: Sendable, Equatable {
+    public let name: String
+    public let grams: String
+    public let slotTime: String
+    public let macros: Per100gMacroStrings
+
+    public init(name: String, grams: String, slotTime: String, macros: Per100gMacroStrings) {
+        self.name = name
+        self.grams = grams
+        self.slotTime = slotTime
+        self.macros = macros
+    }
+}
+
+public struct LogAdHocFoodValues: Sendable, Equatable {
+    public let dayId: String
+    public let position: Int
+    public let draft: AdHocFoodDraftValues
+
+    public init(dayId: String, position: Int, draft: AdHocFoodDraftValues) {
+        self.dayId = dayId
+        self.position = position
+        self.draft = draft
     }
 }
 
@@ -255,11 +379,18 @@ public struct LogEntryUpdateValues: Sendable, Equatable {
     public let grams: String?
     public let position: Int?
     public let slotTime: String?
+    public let adHocDraft: AdHocFoodDraftValues?
 
-    public init(grams: String? = nil, position: Int? = nil, slotTime: String? = nil) {
+    public init(
+        grams: String? = nil,
+        position: Int? = nil,
+        slotTime: String? = nil,
+        adHocDraft: AdHocFoodDraftValues? = nil
+    ) {
         self.grams = grams
         self.position = position
         self.slotTime = slotTime
+        self.adHocDraft = adHocDraft
     }
 }
 

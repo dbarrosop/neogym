@@ -103,8 +103,7 @@ struct DailyIntakeView: View {
     let onClose: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
-    @State private var showLogFood = false
-    @State private var showLogMeal = false
+    @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
     @State private var confirmingDayDelete = false
@@ -129,11 +128,8 @@ struct DailyIntakeView: View {
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
-        .sheet(isPresented: $showLogFood) {
-            LogFoodSheet(viewModel: viewModel)
-        }
-        .sheet(isPresented: $showLogMeal) {
-            LogMealSheet(viewModel: viewModel, planSlot: nil)
+        .sheet(item: $logRequest) { request in
+            LogIntakeSheet(viewModel: viewModel, request: request)
         }
         .sheet(item: $editingEntry) { item in
             EditLogEntrySheet(viewModel: viewModel, item: item)
@@ -201,7 +197,6 @@ struct DailyIntakeView: View {
         case .loaded:
             totalsSection
             intakeSection
-            planSection
             if viewModel.day != nil {
                 Button(role: .destructive) {
                     confirmingDayDelete = true
@@ -215,14 +210,38 @@ struct DailyIntakeView: View {
     }
 
     private var totalsSection: some View {
-        MacroSummaryView(
-            totals: viewModel.payload?.loggedTotals ?? .empty,
-            title: "Logged totals",
-            description: viewModel.selectedPlan == nil
-                ? "No target plan selected."
-                : "Compared with selected plan suggestions.",
-            targetTotals: viewModel.payload?.targetTotals
-        )
+        SectionShell(title: "Logged totals", subtitle: "Snapshot totals with an optional plan target") {
+            VStack(alignment: .leading, spacing: 14) {
+                planPicker
+                MacroSummaryView(
+                    totals: viewModel.payload?.loggedTotals ?? .empty,
+                    title: "Logged",
+                    description: viewModel.selectedPlan == nil
+                        ? "Choose a plan to compare this day with its target totals."
+                        : "Compared with \(viewModel.selectedPlan?.name ?? "selected plan").",
+                    targetTotals: viewModel.payload?.targetTotals
+                )
+            }
+        }
+    }
+
+    private var planPicker: some View {
+        HStack(spacing: 10) {
+            Picker("Plan", selection: Binding(
+                get: { viewModel.day?.nutritionPlanId ?? "" },
+                set: { value in
+                    Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) }
+                }
+            )) {
+                Text("No plan").tag("")
+                ForEach(viewModel.payload?.nutritionPlans ?? []) { plan in
+                    Text(plan.name).tag(plan.id)
+                }
+            }
+            .pickerStyle(.menu)
+            .disabled(viewModel.isMutating)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var intakeSection: some View {
@@ -247,79 +266,16 @@ struct DailyIntakeView: View {
                     }
                 }
 
-                HStack(spacing: 10) {
-                    Button {
-                        showLogMeal = true
-                    } label: {
-                        Label("Log meal", systemImage: "plus")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isMutating)
-                    Button {
-                        showLogFood = true
-                    } label: {
-                        Label("Log food", systemImage: "plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.isMutating)
+                Button {
+                    logRequest = .adHocFood
+                } label: {
+                    Label("Log", systemImage: "plus")
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.isMutating)
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
     }
 
-    private var planSection: some View {
-        SectionShell(title: "Plan suggestions", subtitle: "Suggestions only, not a schedule") {
-            VStack(alignment: .leading, spacing: 14) {
-                Picker("Selected nutrition plan", selection: Binding(
-                    get: { viewModel.day?.nutritionPlanId ?? "" },
-                    set: { value in
-                        Task {
-                            _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value)
-                        }
-                    }
-                )) {
-                    Text("No plan selected").tag("")
-                    ForEach(viewModel.payload?.nutritionPlans ?? []) { plan in
-                        Text(plan.name).tag(plan.id)
-                    }
-                }
-                .pickerStyle(.menu)
-                Button("Clear plan") {
-                    Task { _ = await viewModel.updatePlan(nutritionPlanId: nil) }
-                }
-                .buttonStyle(.bordered)
-                .disabled(viewModel.day?.nutritionPlanId == nil || viewModel.isMutating)
-
-                if let plan = viewModel.selectedPlan {
-                    if plan.sortedSlots.isEmpty {
-                        AppEmptyStateView(
-                            title: "No slots",
-                            message: "This selected plan does not have meal slots yet.",
-                            systemImage: "list.bullet.rectangle"
-                        )
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(Array(plan.sortedSlots.enumerated()), id: \.element.id) { index, slot in
-                                PlanSuggestionRow(
-                                    slot: slot,
-                                    nextPosition: viewModel.nextGroupPosition + index,
-                                    viewModel: viewModel
-                                )
-                                if slot.id != plan.sortedSlots.last?.id { Divider() }
-                            }
-                        }
-                        .nutritionGlassCard(cornerRadius: 16)
-                    }
-                } else {
-                    Text("Pick a plan to show timed meal suggestions, or log meals and foods ad hoc.")
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding()
-                        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
-                }
-            }
-        }
-    }
 }

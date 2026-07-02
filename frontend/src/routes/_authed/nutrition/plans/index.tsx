@@ -11,7 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { formatTimeOfDay, macroTotalsSummary, planMacroTotals } from "@/lib/nutrition";
+import {
+  formatTimeOfDay,
+  macroTotalsSummary,
+  mergePlanEntriesByTime,
+  planEntriesMacroTotals,
+} from "@/lib/nutrition";
 
 const PlansIndexQuery = graphql(`
   query PlansIndex {
@@ -43,6 +48,23 @@ const PlansIndexQuery = graphql(`
               sugarPer100g
             }
           }
+        }
+      }
+      nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+        id
+        slotTime
+        label
+        position
+        grams
+        food {
+          id
+          name
+          kcalPer100g
+          fatPer100g
+          carbsPer100g
+          proteinPer100g
+          fiberPer100g
+          sugarPer100g
         }
       }
     }
@@ -86,6 +108,23 @@ type Plan = {
           sugarPer100g: unknown;
         };
       }>;
+    };
+  }>;
+  nutritionPlanFoods: Array<{
+    id: string;
+    slotTime: string;
+    label?: string | null;
+    position: number;
+    grams: unknown;
+    food: {
+      id: string;
+      name: string;
+      kcalPer100g: unknown;
+      fatPer100g: unknown;
+      carbsPer100g: unknown;
+      proteinPer100g: unknown;
+      fiberPer100g: unknown;
+      sugarPer100g: unknown;
     };
   }>;
 };
@@ -186,7 +225,11 @@ function PlansIndexRoute() {
     );
   }
 
-  const allTotals = planMacroTotals(filteredPlans.flatMap((plan) => plan.nutritionPlanMeals));
+  const allTotals = planEntriesMacroTotals(
+    filteredPlans.flatMap((plan) =>
+      mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods),
+    ),
+  );
 
   return (
     <div className="space-y-5">
@@ -194,7 +237,8 @@ function PlansIndexRoute() {
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">Plans</h2>
           <p className="text-sm text-muted-foreground">
-            Create reusable one-day templates made of timed meal slots. Plans are suggestions only.
+            Create reusable one-day templates made of timed meals and direct foods. Plans are
+            suggestions only.
           </p>
         </div>
         <Button asChild size="sm" className="shrink-0">
@@ -245,11 +289,13 @@ function PlansIndexRoute() {
 }
 
 function PlanRow({ plan }: { plan: Plan }) {
-  const totals = planMacroTotals(plan.nutritionPlanMeals);
-  const firstSlot = plan.nutritionPlanMeals[0];
+  const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
+  const totals = planEntriesMacroTotals(entries);
+  const firstSlot = entries[0];
+  const firstSlotSource = firstSlot?.kind === "meal" ? firstSlot.meal?.name : firstSlot?.food?.name;
   const firstSlotSummary = firstSlot
-    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlot.label || firstSlot.meal.name}`
-    : "No slots yet";
+    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlot.label || firstSlotSource || "Untitled entry"}`
+    : "No entries yet";
 
   return (
     <li>
@@ -265,8 +311,7 @@ function PlanRow({ plan }: { plan: Plan }) {
           <span className="min-w-0 space-y-1">
             <span className="truncate text-sm font-medium">{plan.name}</span>
             <span className="line-clamp-2 text-xs text-muted-foreground">
-              {plan.nutritionPlanMeals.length} slot
-              {plan.nutritionPlanMeals.length === 1 ? "" : "s"} · {firstSlotSummary} ·{" "}
+              {entries.length} entr{entries.length === 1 ? "y" : "ies"} · {firstSlotSummary} ·{" "}
               {macroTotalsSummary(totals)}
             </span>
             {plan.description ? (

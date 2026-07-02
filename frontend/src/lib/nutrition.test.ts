@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
   addLocalDateDays,
+  adHocNutritionDraftTotals,
+  buildAdHocLogEntryInsertInput,
+  buildAdHocLogEntryUpdateSet,
+  createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   formatLocalDate,
   formatLocalDateLabel,
@@ -9,17 +13,25 @@ import {
   groupIntakeByTimeSlot,
   type IntakeEntry,
   type IntakeLoggedMealGroup,
+  intakeDraftMacroTotals,
+  isFoodInUseError,
   isValidLocalDate,
   loggedMacroTotals,
   macroSummary,
   macrosForGrams,
   macroTotalsSummary,
   mealMacroTotals,
+  mergePlanEntriesByTime,
   normalizeMacros,
   normalizeNumeric,
+  type PlanFoodEntry,
+  type PlanMealEntry,
   parseMacroInput,
-  planMacroTotals,
+  planEntriesMacroTotals,
+  planEntryMacroTotals,
+  sortAndRenumberPlanEntriesByTime,
   timeToInputValue,
+  validateAdHocNutritionDraft,
 } from "./nutrition";
 
 const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
@@ -52,6 +64,34 @@ function loggedMeal(
     slotTime: overrides.slotTime ?? null,
     position: overrides.position ?? 0,
     nutritionLogEntries: overrides.nutritionLogEntries ?? [],
+  };
+}
+
+function planMeal(overrides: Partial<PlanMealEntry> & Pick<PlanMealEntry, "id">): PlanMealEntry {
+  return {
+    id: overrides.id,
+    slotTime: overrides.slotTime ?? "08:00:00",
+    label: overrides.label ?? null,
+    position: overrides.position ?? 0,
+    meal: overrides.meal ?? { mealIngredients: [] },
+  };
+}
+
+function planFood(overrides: Partial<PlanFoodEntry> & Pick<PlanFoodEntry, "id">): PlanFoodEntry {
+  return {
+    id: overrides.id,
+    slotTime: overrides.slotTime ?? "08:00:00",
+    label: overrides.label ?? null,
+    position: overrides.position ?? 0,
+    grams: overrides.grams ?? 100,
+    food: overrides.food ?? {
+      kcalPer100g: 100,
+      fatPer100g: 1,
+      carbsPer100g: 2,
+      proteinPer100g: 3,
+      fiberPer100g: 4,
+      sugarPer100g: 5,
+    },
   };
 }
 
@@ -110,7 +150,9 @@ describe("nutrition numeric and macro helpers", () => {
       }),
     ).toBe("120 kcal · 3.5 g fat · 20 g carbs · 4 g protein · 2.3 g fiber · 5 g sugar");
   });
+});
 
+describe("nutrition macro helpers", () => {
   it("scales live food macros by grams", () => {
     expect(
       macrosForGrams(
@@ -131,6 +173,42 @@ describe("nutrition numeric and macro helpers", () => {
       protein: 7.5,
       fiber: 3,
       sugar: 12,
+    });
+  });
+
+  it("computes editable intake draft totals from current grams", () => {
+    expect(
+      intakeDraftMacroTotals([
+        {
+          grams: "125",
+          food: {
+            kcalPer100g: "80",
+            fatPer100g: "1",
+            carbsPer100g: "10",
+            proteinPer100g: "5",
+            fiberPer100g: "2",
+            sugarPer100g: "3",
+          },
+        },
+        {
+          grams: "75",
+          food: {
+            kcalPer100g: "120",
+            fatPer100g: "2",
+            carbsPer100g: "8",
+            proteinPer100g: "4",
+            fiberPer100g: "1",
+            sugarPer100g: "2",
+          },
+        },
+      ]),
+    ).toEqual({
+      kcal: 190,
+      fat: 2.75,
+      carbs: 18.5,
+      protein: 9.25,
+      fiber: 3.25,
+      sugar: 5.25,
     });
   });
 
@@ -172,55 +250,237 @@ describe("nutrition numeric and macro helpers", () => {
       "140 kcal · 2 g fat · 13 g carbs · 7 g protein · 2.5 g fiber · 4 g sugar",
     );
   });
+});
 
-  it("computes daily plan totals from each slot's live meal ingredients", () => {
-    expect(
-      planMacroTotals([
-        {
-          meal: {
-            mealIngredients: [
-              {
-                grams: 200,
-                food: {
-                  kcalPer100g: 50,
-                  fatPer100g: 1,
-                  carbsPer100g: 5,
-                  proteinPer100g: 3,
-                  fiberPer100g: 1,
-                  sugarPer100g: 2,
-                },
-              },
-            ],
-          },
-        },
-        {
-          meal: {
-            mealIngredients: [
-              {
-                grams: "100",
-                food: {
-                  kcalPer100g: "25",
-                  fatPer100g: "0.5",
-                  carbsPer100g: "4",
-                  proteinPer100g: "2",
-                  fiberPer100g: "1.5",
-                  sugarPer100g: "1",
-                },
-              },
-            ],
-          },
-        },
-      ]),
-    ).toEqual({
-      kcal: 125,
-      fat: 2.5,
-      carbs: 14,
-      protein: 8,
-      fiber: 3.5,
-      sugar: 5,
+describe("ad-hoc nutrition log helpers", () => {
+  const draft = {
+    ...createEmptyAdHocNutritionDraft(),
+    name: "  Street tacos  ",
+    grams: "150",
+    kcalPer100g: "200",
+    fatPer100g: "8",
+    carbsPer100g: "20",
+    proteinPer100g: "10",
+    fiberPer100g: "3",
+    sugarPer100g: "4",
+  };
+
+  it("validates one-off food snapshots and trims the display name", () => {
+    expect(validateAdHocNutritionDraft(draft)).toEqual({
+      valid: true,
+      message: "",
+      values: {
+        name: "Street tacos",
+        grams: 150,
+        kcalPer100g: 200,
+        fatPer100g: 8,
+        carbsPer100g: 20,
+        proteinPer100g: 10,
+        fiberPer100g: 3,
+        sugarPer100g: 4,
+      },
+    });
+
+    expect(validateAdHocNutritionDraft({ ...draft, name: "   " })).toMatchObject({
+      valid: false,
+      message: "Food name is required.",
+    });
+    expect(validateAdHocNutritionDraft({ ...draft, grams: "0" })).toMatchObject({
+      valid: false,
+      message: "Enter grams greater than zero.",
+    });
+    expect(validateAdHocNutritionDraft({ ...draft, sugarPer100g: "oops" })).toMatchObject({
+      valid: false,
+      message: "Sugar must be zero or greater.",
     });
   });
 
+  it("computes ad-hoc preview totals from entered per-100g macros", () => {
+    expect(adHocNutritionDraftTotals(draft)).toEqual({
+      kcal: 300,
+      fat: 12,
+      carbs: 30,
+      protein: 15,
+      fiber: 4.5,
+      sugar: 6,
+    });
+  });
+
+  it("builds standalone ad-hoc insert payloads without food provenance", () => {
+    expect(
+      buildAdHocLogEntryInsertInput({
+        draft,
+        nutritionDayId: "day-1",
+        position: 3,
+        slotTime: "12:30",
+      }),
+    ).toEqual({
+      nutritionDayId: "day-1",
+      source: "ad_hoc",
+      grams: 150,
+      position: 3,
+      slotTime: "12:30",
+      snapshotFoodName: "Street tacos",
+      snapshotKcalPer100g: 200,
+      snapshotFatPer100g: 8,
+      snapshotCarbsPer100g: 20,
+      snapshotProteinPer100g: 10,
+      snapshotFiberPer100g: 3,
+      snapshotSugarPer100g: 4,
+    });
+  });
+
+  it("builds ad-hoc update sets with only mutable snapshot fields", () => {
+    expect(buildAdHocLogEntryUpdateSet({ draft, slotTime: "13:45" })).toEqual({
+      grams: 150,
+      slotTime: "13:45",
+      snapshotFoodName: "Street tacos",
+      snapshotKcalPer100g: 200,
+      snapshotFatPer100g: 8,
+      snapshotCarbsPer100g: 20,
+      snapshotProteinPer100g: 10,
+      snapshotFiberPer100g: 3,
+      snapshotSugarPer100g: 4,
+    });
+  });
+});
+
+describe("nutrition mixed plan entry helpers", () => {
+  it("computes direct plan food macros from grams and live food nutrition", () => {
+    expect(
+      planEntryMacroTotals({
+        ...planFood({
+          id: "banana-slot",
+          grams: "150",
+          food: {
+            kcalPer100g: "200",
+            fatPer100g: "10",
+            carbsPer100g: "20",
+            proteinPer100g: "5",
+            fiberPer100g: "2",
+            sugarPer100g: "8",
+          },
+        }),
+        kind: "food",
+      }),
+    ).toEqual({
+      kcal: 300,
+      fat: 15,
+      carbs: 30,
+      protein: 7.5,
+      fiber: 3,
+      sugar: 12,
+    });
+  });
+
+  it("computes mixed plan totals while normalizing Hasura numeric strings", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({
+          id: "breakfast-meal",
+          meal: {
+            mealIngredients: [
+              {
+                grams: "50",
+                food: {
+                  kcalPer100g: "100",
+                  fatPer100g: "2",
+                  carbsPer100g: "10",
+                  proteinPer100g: "4",
+                  fiberPer100g: "1",
+                  sugarPer100g: "3",
+                },
+              },
+            ],
+          },
+        }),
+      ],
+      [
+        planFood({
+          id: "snack-food",
+          grams: "25",
+          food: {
+            kcalPer100g: "200",
+            fatPer100g: "4",
+            carbsPer100g: "20",
+            proteinPer100g: "8",
+            fiberPer100g: "2",
+            sugarPer100g: "6",
+          },
+        }),
+      ],
+    );
+
+    expect(planEntriesMacroTotals(entries)).toEqual({
+      kcal: 100,
+      fat: 2,
+      carbs: 10,
+      protein: 4,
+      fiber: 1,
+      sugar: 3,
+    });
+  });
+
+  it("merges meal and food entries with global positions within each time slot", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({ id: "meal-later", slotTime: "12:00:00", position: 1 }),
+        planMeal({ id: "meal-last", slotTime: "12:00:00", position: 2 }),
+      ],
+      [
+        planFood({ id: "food-earlier-time", slotTime: "08:00:00", position: 5 }),
+        planFood({ id: "food-first-at-noon", slotTime: "12:00:00", position: 0 }),
+      ],
+    );
+
+    expect(entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-earlier-time",
+      "food:food-first-at-noon",
+      "meal:meal-later",
+      "meal:meal-last",
+    ]);
+  });
+
+  it("uses kind and id as stable fallbacks when mixed positions collide", () => {
+    const entries = mergePlanEntriesByTime(
+      [
+        planMeal({ id: "meal-b", slotTime: "09:00:00", position: 1 }),
+        planMeal({ id: "meal-a", slotTime: "09:00:00", position: 1 }),
+      ],
+      [
+        planFood({ id: "food-z", slotTime: "09:00:00", position: 1 }),
+        planFood({ id: "food-a", slotTime: "09:00:00", position: 1 }),
+      ],
+    );
+
+    expect(entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-a",
+      "food:food-z",
+      "meal:meal-a",
+      "meal:meal-b",
+    ]);
+  });
+
+  it("sorts drafts by time and writes shared positions per mixed time slot", () => {
+    const entries = sortAndRenumberPlanEntriesByTime([
+      { kind: "meal", id: "meal-lunch", slotTime: "12:00", position: 99 },
+      { kind: "food", id: "food-breakfast", slotTime: "08:00", position: 99 },
+      { kind: "food", id: "food-lunch", slotTime: "12:00", position: 99 },
+      { kind: "meal", id: "meal-lunch-2", slotTime: "12:00", position: 99 },
+    ]);
+
+    expect(
+      entries.map((entry) => `${entry.slotTime}:${entry.kind}:${entry.id}:${entry.position}`),
+    ).toEqual([
+      "08:00:food:food-breakfast:0",
+      "12:00:meal:meal-lunch:0",
+      "12:00:food:food-lunch:1",
+      "12:00:meal:meal-lunch-2:2",
+    ]);
+  });
+});
+
+describe("nutrition logged macro helpers", () => {
   it("computes logged totals from trusted snapshot columns", () => {
     expect(
       loggedMacroTotals([
@@ -375,6 +635,14 @@ describe("nutrition time-slot grouping", () => {
       "standalone",
     ]);
     expect(slot?.mealGroups.map((group) => group.id)).toEqual(["meal-a", "meal-b"]);
+  });
+});
+
+describe("nutrition delete error helpers", () => {
+  it("recognizes direct plan food references as food-in-use delete errors", () => {
+    expect(
+      isFoodInUseError(new Error("update or delete violates nutrition_plan_foods_food_id_fkey")),
+    ).toBe(true);
   });
 });
 
