@@ -19,6 +19,16 @@ enum NutritionSection: String, CaseIterable, Identifiable, SecondaryTabSection {
         case .meals: "Meals"
         }
     }
+
+    var systemImage: String? {
+        switch self {
+        case .overview: "chart.pie"
+        case .days: "calendar"
+        case .plans: "list.bullet.rectangle.portrait"
+        case .foods: "carrot"
+        case .meals: "fork.knife"
+        }
+    }
 }
 
 struct NutritionNavigationView: View {
@@ -32,16 +42,20 @@ struct NutritionNavigationView: View {
         NavigationView {
             sectionPages
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    SecondarySectionBar(selection: $selection)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        SecondarySectionBar(selection: $selection)
+                    }
                 }
-                .navigationBarHidden(true)
         }
         .navigationViewStyle(.stack)
     }
 
+    @ViewBuilder
     private var sectionPages: some View {
-        TabView(selection: $selection) {
+        switch selection {
+        case .overview:
             NutritionOverviewView(
                 repository: repository,
                 openSection: { section in
@@ -53,21 +67,15 @@ struct NutritionNavigationView: View {
                     selection = .days
                 }
             )
-            .tag(NutritionSection.overview)
-
+        case .days:
             NutritionDaysView(repository: repository, selectedDate: $selectedDate)
-                .tag(NutritionSection.days)
-
+        case .plans:
             PlansListView(repository: repository)
-                .tag(NutritionSection.plans)
-
+        case .foods:
             FoodsListView(repository: repository, currentUserId: currentUserId)
-                .tag(NutritionSection.foods)
-
+        case .meals:
             MealsListView(repository: repository)
-                .tag(NutritionSection.meals)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 }
 

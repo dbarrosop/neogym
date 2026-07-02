@@ -15,6 +15,14 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable, SecondaryTabSection
         case .exercises: "Exercises"
         }
     }
+
+    var systemImage: String? {
+        switch self {
+        case .sessions: "calendar.badge.clock"
+        case .workouts: "figure.strengthtraining.traditional"
+        case .exercises: "list.bullet.clipboard"
+        }
+    }
 }
 
 struct WorkoutsSectionNavigationView: View {
@@ -34,26 +42,29 @@ struct WorkoutsSectionNavigationView: View {
             ZStack {
                 sectionPages
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        SecondarySectionBar(selection: $selection)
-                    }
                 startedSessionNavigationLink
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SecondarySectionBar(selection: $selection)
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }
 
+    @ViewBuilder
     private var sectionPages: some View {
-        TabView(selection: $selection) {
+        switch selection {
+        case .sessions:
             SessionsListView(
                 sessionsRepository: sessionsRepository,
                 exercisesRepository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 pendingSessionId: $pendingSessionId
             )
-            .tag(WorkoutAreaSection.sessions)
-
+        case .workouts:
             WorkoutsListView(
                 workoutsRepository: workoutsRepository,
                 exercisesRepository: exercisesRepository,
@@ -61,16 +72,13 @@ struct WorkoutsSectionNavigationView: View {
                 currentUserId: currentUserId,
                 onSessionStarted: openSession
             )
-            .tag(WorkoutAreaSection.workouts)
-
+        case .exercises:
             ExercisesListView(
                 repository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 onSessionStarted: openSession
             )
-            .tag(WorkoutAreaSection.exercises)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     @ViewBuilder
