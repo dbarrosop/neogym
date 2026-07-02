@@ -16,6 +16,17 @@ export interface NormalizedMacros {
   sugarPer100g: number;
 }
 
+export type NutrientKey = keyof NormalizedMacros;
+
+export const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string }[] = [
+  { key: "kcalPer100g", label: "Calories", suffix: "kcal" },
+  { key: "fatPer100g", label: "Fat", suffix: "g" },
+  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
+  { key: "proteinPer100g", label: "Protein", suffix: "g" },
+  { key: "fiberPer100g", label: "Fiber", suffix: "g" },
+  { key: "sugarPer100g", label: "Sugar", suffix: "g" },
+];
+
 export interface MacroTotals {
   kcal: number;
   fat: number;
@@ -24,6 +35,20 @@ export interface MacroTotals {
   fiber: number;
   sugar: number;
 }
+
+export interface AdHocNutritionDraft extends Record<NutrientKey, string> {
+  name: string;
+  grams: string;
+}
+
+export interface AdHocNutritionValues extends NormalizedMacros {
+  name: string;
+  grams: number;
+}
+
+export type AdHocNutritionDraftValidation =
+  | { valid: true; values: AdHocNutritionValues; message: "" }
+  | { valid: false; values: null; message: string };
 
 export interface MealTotalIngredient {
   grams: unknown;
@@ -83,6 +108,26 @@ export interface LoggedSnapshotEntry {
   snapshotFiberPer100g: unknown;
   snapshotSugarPer100g: unknown;
 }
+
+export type AdHocLogEntryInsertInput = {
+  nutritionDayId: string;
+  source: "ad_hoc";
+  grams: number;
+  position: number;
+  slotTime: string;
+  snapshotFoodName: string;
+  snapshotKcalPer100g: number;
+  snapshotFatPer100g: number;
+  snapshotCarbsPer100g: number;
+  snapshotProteinPer100g: number;
+  snapshotFiberPer100g: number;
+  snapshotSugarPer100g: number;
+};
+
+export type AdHocLogEntryUpdateSet = Omit<
+  AdHocLogEntryInsertInput,
+  "nutritionDayId" | "source" | "position"
+>;
 
 export interface IntakeEntry extends LoggedSnapshotEntry {
   id: string;
@@ -159,6 +204,19 @@ export const EMPTY_MACRO_TOTALS: MacroTotals = {
 
 export const DECIMAL_INPUT_PATTERN = "[0-9]*[.,]?[0-9]*";
 
+export function createEmptyAdHocNutritionDraft(): AdHocNutritionDraft {
+  return {
+    name: "",
+    grams: "100",
+    kcalPer100g: "0",
+    fatPer100g: "0",
+    carbsPer100g: "0",
+    proteinPer100g: "0",
+    fiberPer100g: "0",
+    sugarPer100g: "0",
+  };
+}
+
 function normalizeDecimalInput(value: string): string {
   return value.trim().replace(",", ".");
 }
@@ -195,6 +253,107 @@ export function parseMacroInput(value: string): number | null {
     return null;
   }
   return parsed;
+}
+
+export function validateAdHocNutritionDraft(
+  draft: AdHocNutritionDraft,
+): AdHocNutritionDraftValidation {
+  const name = draft.name.trim();
+  if (name.length === 0) {
+    return { valid: false, values: null, message: "Food name is required." };
+  }
+
+  const grams = parseMacroInput(draft.grams);
+  if (grams === null || grams <= 0) {
+    return { valid: false, values: null, message: "Enter grams greater than zero." };
+  }
+
+  const values = { name, grams } as AdHocNutritionValues;
+  for (const field of NUTRIENT_FIELDS) {
+    const parsed = parseMacroInput(draft[field.key]);
+    if (parsed === null) {
+      return {
+        valid: false,
+        values: null,
+        message: `${field.label} must be zero or greater.`,
+      };
+    }
+    values[field.key] = parsed;
+  }
+
+  return { valid: true, values, message: "" };
+}
+
+export function adHocNutritionDraftTotals(draft: AdHocNutritionDraft): MacroTotals {
+  const grams = parseMacroInput(draft.grams) ?? 0;
+  const food = {} as NormalizedMacros;
+  for (const field of NUTRIENT_FIELDS) {
+    food[field.key] = parseMacroInput(draft[field.key]) ?? 0;
+  }
+  return macrosForGrams(food, grams);
+}
+
+export function buildAdHocLogEntryInsertInput({
+  draft,
+  nutritionDayId,
+  position,
+  slotTime,
+}: {
+  draft: AdHocNutritionDraft;
+  nutritionDayId: string;
+  position: number;
+  slotTime: string;
+}): AdHocLogEntryInsertInput {
+  const validation = validateAdHocNutritionDraft(draft);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+  if (!slotTime) {
+    throw new Error("Choose the time eaten.");
+  }
+
+  return {
+    nutritionDayId,
+    source: "ad_hoc",
+    grams: validation.values.grams,
+    position,
+    slotTime,
+    ...snapshotInputFromAdHocValues(validation.values),
+  };
+}
+
+export function buildAdHocLogEntryUpdateSet({
+  draft,
+  slotTime,
+}: {
+  draft: AdHocNutritionDraft;
+  slotTime: string;
+}): AdHocLogEntryUpdateSet {
+  const validation = validateAdHocNutritionDraft(draft);
+  if (!validation.valid) {
+    throw new Error(validation.message);
+  }
+  if (!slotTime) {
+    throw new Error("Choose the time eaten.");
+  }
+
+  return {
+    grams: validation.values.grams,
+    slotTime,
+    ...snapshotInputFromAdHocValues(validation.values),
+  };
+}
+
+function snapshotInputFromAdHocValues(values: AdHocNutritionValues) {
+  return {
+    snapshotFoodName: values.name,
+    snapshotKcalPer100g: values.kcalPer100g,
+    snapshotFatPer100g: values.fatPer100g,
+    snapshotCarbsPer100g: values.carbsPer100g,
+    snapshotProteinPer100g: values.proteinPer100g,
+    snapshotFiberPer100g: values.fiberPer100g,
+    snapshotSugarPer100g: values.sugarPer100g,
+  };
 }
 
 export function formatMacro(value: unknown, unit: "g" | "kcal"): string {

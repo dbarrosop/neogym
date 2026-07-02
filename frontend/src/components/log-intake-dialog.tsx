@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Apple, ChefHat, ClipboardList, Clock, Plus, Search } from "lucide-react";
+import { Apple, ChefHat, ClipboardList, Clock, Plus, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
@@ -20,6 +20,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
+  type AdHocNutritionDraft,
+  adHocNutritionDraftTotals,
+  buildAdHocLogEntryInsertInput,
+  createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   DECIMAL_INPUT_PATTERN,
   formatMacro,
@@ -27,9 +31,11 @@ import {
   intakeDraftMacroTotals,
   macroTotalsSummary,
   mergePlanEntriesByTime,
+  NUTRIENT_FIELDS,
   normalizeNumeric,
   parseMacroInput,
   timeToInputValue,
+  validateAdHocNutritionDraft,
 } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +120,7 @@ interface LogIntakeDialogProps {
   initialSource?: LogIntakeInitialSource;
 }
 
-type DialogMode = "food" | "meal" | "plan";
+type DialogMode = "food" | "meal" | "plan" | "ad-hoc";
 
 type PlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
 
@@ -172,7 +178,6 @@ export function LogIntakeDialog({
   triggerVariant = "outline",
   initialSource,
 }: LogIntakeDialogProps) {
-  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<DialogMode>(initialSource ? "plan" : "food");
   const [foodId, setFoodId] = useState("");
@@ -181,6 +186,9 @@ export function LogIntakeDialog({
   const [planQuery, setPlanQuery] = useState("");
   const [slotTime, setSlotTime] = useState(() => currentTimeInputValue());
   const [draftItems, setDraftItems] = useState<DraftItem[]>([]);
+  const [adHocDraft, setAdHocDraft] = useState<AdHocNutritionDraft>(() =>
+    createEmptyAdHocNutritionDraft(),
+  );
 
   const initialSourceKind = initialSource?.kind ?? null;
   const hasInitialSource = initialSourceKind !== null;
@@ -214,6 +222,7 @@ export function LogIntakeDialog({
 
     setSlotTime(currentTimeInputValue());
     setPlanQuery("");
+    setAdHocDraft(createEmptyAdHocNutritionDraft());
 
     if (hasInitialSource) {
       setMode("plan");
@@ -252,10 +261,142 @@ export function LogIntakeDialog({
   }, [open, selectedSource]);
 
   const draftValidity = validateDraftItems(draftItems);
-  const previewTotals = intakeDraftMacroTotals(
-    draftItems.map((item) => ({ food: item.food, grams: parseMacroInput(item.grams) ?? 0 })),
+  const adHocValidation = validateAdHocNutritionDraft(adHocDraft);
+  const previewTotals =
+    mode === "ad-hoc"
+      ? adHocNutritionDraftTotals(adHocDraft)
+      : intakeDraftMacroTotals(
+          draftItems.map((item) => ({ food: item.food, grams: parseMacroInput(item.grams) ?? 0 })),
+        );
+  const canSave =
+    mode === "ad-hoc"
+      ? adHocValidation.valid && Boolean(slotTime)
+      : Boolean(selectedSource) && draftValidity.valid && Boolean(slotTime);
+
+  const mutations = useLogIntakeMutations({
+    date,
+    ensureDay,
+    selectedSource,
+    draftItems,
+    draftValidity,
+    adHocDraft,
+    nextEntryPosition,
+    nextGroupPosition,
+    slotTime,
+    onLogged: () => setOpen(false),
+  });
+  const isPending = mutations.isPending;
+
+  function saveDraft() {
+    if (mode === "ad-hoc") {
+      if (!canSave) {
+        toast.error(adHocValidation.message || "Choose the time eaten.");
+        return;
+      }
+      mutations.logAdHoc();
+      return;
+    }
+    if (!selectedSource) {
+      toast.error("Choose something to log.");
+      return;
+    }
+    if (!canSave) {
+      toast.error(draftValidity.message || "Choose the time eaten.");
+      return;
+    }
+    if (selectedSource.kind === "food" || selectedSource.kind === "plan-food") {
+      mutations.logFood();
+      return;
+    }
+    mutations.logMeal();
+  }
+
+  function updateDraftGrams(key: string, grams: string) {
+    setDraftItems((items) => items.map((item) => (item.key === key ? { ...item, grams } : item)));
+  }
+
+  function updateAdHocDraft(key: keyof AdHocNutritionDraft, value: string) {
+    setAdHocDraft((draft) => ({ ...draft, [key]: value }));
+  }
+
+  const buttonLabel = triggerLabel ?? "Add intake";
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant={triggerVariant} disabled={disabled}>
+          <LogIntakeTriggerIcon initialSourceKind={initialSourceKind} />
+          {buttonLabel}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-3xl">
+        <LogIntakeDialogContents
+          mode={mode}
+          onModeChange={setMode}
+          foods={foods}
+          foodId={foodId}
+          onFoodIdChange={setFoodId}
+          meals={meals}
+          mealId={mealId}
+          onMealIdChange={setMealId}
+          selectedPlanName={selectedPlan?.name ?? null}
+          planEntries={visiblePlanEntries}
+          planSourceKey={planSourceKey}
+          planQuery={planQuery}
+          onPlanQueryChange={setPlanQuery}
+          onPlanSourceKeyChange={setPlanSourceKey}
+          initialSourceKind={initialSourceKind}
+          initialPlanEntry={initialPlanEntry}
+          slotTime={slotTime}
+          onSlotTimeChange={setSlotTime}
+          selectedSource={selectedSource}
+          draftItems={draftItems}
+          adHocDraft={adHocDraft}
+          adHocValidationMessage={adHocValidation.message}
+          previewSummary={macroTotalsSummary(previewTotals)}
+          onGramsChange={updateDraftGrams}
+          onAdHocDraftChange={updateAdHocDraft}
+          canSave={canSave}
+          isPending={isPending}
+          onCancel={() => setOpen(false)}
+          onSave={saveDraft}
+        />
+      </DialogContent>
+    </Dialog>
   );
-  const canSave = Boolean(selectedSource) && draftValidity.valid && Boolean(slotTime);
+}
+
+function useLogIntakeMutations({
+  date,
+  ensureDay,
+  selectedSource,
+  draftItems,
+  draftValidity,
+  adHocDraft,
+  nextEntryPosition,
+  nextGroupPosition,
+  slotTime,
+  onLogged,
+}: {
+  date: string;
+  ensureDay: () => Promise<string>;
+  selectedSource: SelectedSource | null;
+  draftItems: DraftItem[];
+  draftValidity: { valid: boolean; message: string };
+  adHocDraft: AdHocNutritionDraft;
+  nextEntryPosition: number;
+  nextGroupPosition: number;
+  slotTime: string;
+  onLogged: () => void;
+}) {
+  const queryClient = useQueryClient();
+
+  function handleLoggedSuccess(label: string) {
+    queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
+    queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+    toast.success(`${label} logged`);
+    onLogged();
+  }
 
   const logFoodMutation = useMutation({
     mutationFn: async () => {
@@ -291,6 +432,24 @@ export function LogIntakeDialog({
       handleLoggedSuccess(selectedSource?.kind === "plan-food" ? "Planned food" : "Food"),
     onError: (error) => {
       toast.error(`Failed to log food: ${error.message}`);
+    },
+  });
+
+  const logAdHocMutation = useMutation({
+    mutationFn: async () => {
+      const dayId = await ensureDay();
+      return gqlRequest(LogFoodMutation, {
+        object: buildAdHocLogEntryInsertInput({
+          draft: adHocDraft,
+          nutritionDayId: dayId,
+          position: nextEntryPosition,
+          slotTime,
+        }),
+      });
+    },
+    onSuccess: () => handleLoggedSuccess("Custom food"),
+    onError: (error) => {
+      toast.error(`Failed to log custom food: ${error.message}`);
     },
   });
 
@@ -342,77 +501,12 @@ export function LogIntakeDialog({
     },
   });
 
-  const isPending = logFoodMutation.isPending || logMealMutation.isPending;
-
-  function handleLoggedSuccess(label: string) {
-    queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
-    queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
-    toast.success(`${label} logged`);
-    setOpen(false);
-  }
-
-  function saveDraft() {
-    if (!selectedSource) {
-      toast.error("Choose something to log.");
-      return;
-    }
-    if (!canSave) {
-      toast.error(draftValidity.message || "Choose the time eaten.");
-      return;
-    }
-    if (selectedSource.kind === "food" || selectedSource.kind === "plan-food") {
-      logFoodMutation.mutate();
-      return;
-    }
-    logMealMutation.mutate();
-  }
-
-  function updateDraftGrams(key: string, grams: string) {
-    setDraftItems((items) => items.map((item) => (item.key === key ? { ...item, grams } : item)));
-  }
-
-  const buttonLabel = triggerLabel ?? "Add intake";
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" size="sm" variant={triggerVariant} disabled={disabled}>
-          <LogIntakeTriggerIcon initialSourceKind={initialSourceKind} />
-          {buttonLabel}
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-3xl">
-        <LogIntakeDialogContents
-          mode={mode}
-          onModeChange={setMode}
-          foods={foods}
-          foodId={foodId}
-          onFoodIdChange={setFoodId}
-          meals={meals}
-          mealId={mealId}
-          onMealIdChange={setMealId}
-          selectedPlanName={selectedPlan?.name ?? null}
-          planEntries={visiblePlanEntries}
-          planSourceKey={planSourceKey}
-          planQuery={planQuery}
-          onPlanQueryChange={setPlanQuery}
-          onPlanSourceKeyChange={setPlanSourceKey}
-          initialSourceKind={initialSourceKind}
-          initialPlanEntry={initialPlanEntry}
-          slotTime={slotTime}
-          onSlotTimeChange={setSlotTime}
-          selectedSource={selectedSource}
-          draftItems={draftItems}
-          previewSummary={macroTotalsSummary(previewTotals)}
-          onGramsChange={updateDraftGrams}
-          canSave={canSave}
-          isPending={isPending}
-          onCancel={() => setOpen(false)}
-          onSave={saveDraft}
-        />
-      </DialogContent>
-    </Dialog>
-  );
+  return {
+    isPending: logFoodMutation.isPending || logAdHocMutation.isPending || logMealMutation.isPending,
+    logFood: logFoodMutation.mutate,
+    logAdHoc: logAdHocMutation.mutate,
+    logMeal: logMealMutation.mutate,
+  };
 }
 
 function LogIntakeDialogContents({
@@ -436,8 +530,11 @@ function LogIntakeDialogContents({
   onSlotTimeChange,
   selectedSource,
   draftItems,
+  adHocDraft,
+  adHocValidationMessage,
   previewSummary,
   onGramsChange,
+  onAdHocDraftChange,
   canSave,
   isPending,
   onCancel,
@@ -463,8 +560,11 @@ function LogIntakeDialogContents({
   onSlotTimeChange: (slotTime: string) => void;
   selectedSource: SelectedSource | null;
   draftItems: DraftItem[];
+  adHocDraft: AdHocNutritionDraft;
+  adHocValidationMessage: string;
   previewSummary: string;
   onGramsChange: (key: string, grams: string) => void;
+  onAdHocDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
   canSave: boolean;
   isPending: boolean;
   onCancel: () => void;
@@ -499,6 +599,8 @@ function LogIntakeDialogContents({
           disabled={isPending}
           initialSourceKind={initialSourceKind}
           initialPlanEntry={initialPlanEntry}
+          adHocDraft={adHocDraft}
+          onAdHocDraftChange={onAdHocDraftChange}
         />
 
         <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
@@ -531,13 +633,20 @@ function LogIntakeDialogContents({
           ) : null}
         </div>
 
-        <DraftReview
-          selectedSource={selectedSource}
-          draftItems={draftItems}
-          previewSummary={previewSummary}
-          disabled={isPending}
-          onGramsChange={onGramsChange}
-        />
+        {mode === "ad-hoc" ? (
+          <AdHocDraftReview
+            previewSummary={previewSummary}
+            validationMessage={adHocValidationMessage}
+          />
+        ) : (
+          <DraftReview
+            selectedSource={selectedSource}
+            draftItems={draftItems}
+            previewSummary={previewSummary}
+            disabled={isPending}
+            onGramsChange={onGramsChange}
+          />
+        )}
       </div>
 
       <DialogFooter>
@@ -584,6 +693,8 @@ function LogIntakeSourceTabs({
   disabled,
   initialSourceKind,
   initialPlanEntry,
+  adHocDraft,
+  onAdHocDraftChange,
 }: {
   mode: DialogMode;
   onModeChange: (mode: DialogMode) => void;
@@ -602,6 +713,8 @@ function LogIntakeSourceTabs({
   disabled: boolean;
   initialSourceKind: LogIntakeInitialSource["kind"] | null;
   initialPlanEntry: PlanEntry | null;
+  adHocDraft: AdHocNutritionDraft;
+  onAdHocDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
 }) {
   return (
     <Tabs value={mode} onValueChange={(value) => onModeChange(value as DialogMode)}>
@@ -614,6 +727,9 @@ function LogIntakeSourceTabs({
         </TabsTrigger>
         <TabsTrigger value="plan" disabled={!selectedPlanName && !initialSourceKind}>
           <ClipboardList className="h-3.5 w-3.5" /> From plan
+        </TabsTrigger>
+        <TabsTrigger value="ad-hoc">
+          <Sparkles className="h-3.5 w-3.5" /> Custom
         </TabsTrigger>
       </TabsList>
 
@@ -645,6 +761,17 @@ function LogIntakeSourceTabs({
             disabled={disabled}
           />
         </div>
+      </TabsContent>
+
+      <TabsContent value="ad-hoc" className="space-y-3">
+        <AdHocNutritionFields
+          draft={adHocDraft}
+          onDraftChange={(key, value) => {
+            onModeChange("ad-hoc");
+            onAdHocDraftChange(key, value);
+          }}
+          disabled={disabled}
+        />
       </TabsContent>
 
       <TabsContent value="plan" className="space-y-3">
@@ -770,6 +897,98 @@ function PlanSourcePicker({
   );
 }
 
+function AdHocNutritionFields({
+  draft,
+  onDraftChange,
+  disabled,
+}: {
+  draft: AdHocNutritionDraft;
+  onDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+        <div className="space-y-1.5">
+          <Label htmlFor="log-intake-ad-hoc-name">Food name</Label>
+          <Input
+            id="log-intake-ad-hoc-name"
+            value={draft.name}
+            onChange={(event) => onDraftChange("name", event.target.value)}
+            placeholder="e.g. Restaurant noodles"
+            maxLength={160}
+            disabled={disabled}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="log-intake-ad-hoc-grams">Grams eaten</Label>
+          <Input
+            id="log-intake-ad-hoc-grams"
+            type="text"
+            inputMode="decimal"
+            pattern={DECIMAL_INPUT_PATTERN}
+            value={draft.grams}
+            onChange={(event) => onDraftChange("grams", event.target.value)}
+            disabled={disabled}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-medium">Nutrition per 100 g</h3>
+          <p className="text-xs text-muted-foreground">
+            Saved only on this log entry; it will not create or update reusable foods.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {NUTRIENT_FIELDS.map((field) => (
+            <div key={field.key} className="space-y-1.5">
+              <Label htmlFor={`log-intake-ad-hoc-${field.key}`}>{field.label}</Label>
+              <div className="relative">
+                <Input
+                  id={`log-intake-ad-hoc-${field.key}`}
+                  type="text"
+                  inputMode="decimal"
+                  pattern={DECIMAL_INPUT_PATTERN}
+                  value={draft[field.key]}
+                  onChange={(event) => onDraftChange(field.key, event.target.value)}
+                  className="pr-12"
+                  disabled={disabled}
+                  required
+                />
+                <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+                  {field.suffix}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdHocDraftReview({
+  previewSummary,
+  validationMessage,
+}: {
+  previewSummary: string;
+  validationMessage: string;
+}) {
+  return (
+    <div className="space-y-2 rounded-md border border-border/60 p-3">
+      <div className="space-y-1">
+        <p className="text-sm font-medium">Review custom food</p>
+        <p className="text-xs text-muted-foreground">{previewSummary}</p>
+      </div>
+      {validationMessage ? <p className="text-xs text-destructive">{validationMessage}</p> : null}
+    </div>
+  );
+}
+
 function DraftReview({
   selectedSource,
   draftItems,
@@ -879,6 +1098,10 @@ function resolveSelectedSource({
           nutritionPlanFoodId: null,
         }
       : null;
+  }
+
+  if (mode === "ad-hoc") {
+    return null;
   }
 
   if (mode === "meal") {

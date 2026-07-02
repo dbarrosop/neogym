@@ -278,7 +278,12 @@ Add a persisted `nutrition_log_entries.source` discriminator with values `food` 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implemented:** Added the web Custom/ad-hoc intake mode, ad-hoc form validation and preview totals, ad-hoc insert/update payload builders, `source` querying in the daily log, and conditional ad-hoc edit UI for snapshot name/macros/grams/time. Regenerated typed GraphQL outputs after document changes.
+- **Reviewer verdict:** `ACCEPT`. Reviewer confirmed the insert payload uses `source: "ad_hoc"`, includes snapshot fields and omits food/plan/group provenance; food-backed picker flows remain unchanged; ad-hoc edit UI is gated on `source === "ad_hoc"`.
+- **Accepted concerns:** Reviewer noted that `AdHocEntryEditDialog` resets draft state if the `entry` object identity changes while the dialog is open, which could discard in-progress edits on a background refetch. Accepted as non-blocking because it has no correctness/security impact, normal mutation flow does not refetch mid-edit, and long-term maintenance favors shipping the planned feature without widening this phase.
+- **Autonomous decisions:** Accepted the minor reviewer observation as a follow-up-level concern under correctness > security > long-term maintenance; no requirements-level assumptions changed. Manual browser smoke testing was not performed in this orchestrated environment, so the automated frontend gate is the validation evidence for this phase.
+- **Quality gate:** `cd frontend && nix develop ../ --command bun run codegen` passed; `cd frontend && nix develop ../ --command bun run check` passed (107 tests, Biome clean).
+- **Notes:** Implementer self-reported model as `unknown-openai`; model attribution warning is informational only.
 
 ### Phase 3 — iOS ad-hoc logging and editing
 

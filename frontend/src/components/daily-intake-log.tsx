@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Trash2, X } from "lucide-react";
-import { type FocusEvent, useEffect, useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Pencil,
+  Trash2,
+  X,
+} from "lucide-react";
+import { type FocusEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   LogIntakeDialog,
@@ -25,7 +34,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
+  type AdHocLogEntryUpdateSet,
+  type AdHocNutritionDraft,
   addLocalDateDays,
+  adHocNutritionDraftTotals,
+  buildAdHocLogEntryUpdateSet,
+  createEmptyAdHocNutritionDraft,
   DECIMAL_INPUT_PATTERN,
   formatLocalDateLabel,
   formatMacro,
@@ -36,10 +50,12 @@ import {
   loggedMacroTotals,
   macroTotalsSummary,
   mergePlanEntriesByTime,
+  NUTRIENT_FIELDS,
   normalizeNumeric,
   parseMacroInput,
   planEntriesMacroTotals,
   planEntryMacroTotals,
+  timeToInputValue,
 } from "@/lib/nutrition";
 
 const DailyIntakeLogQuery = graphql(`
@@ -57,6 +73,7 @@ const DailyIntakeLogQuery = graphql(`
         position
         nutritionLogEntries(order_by: [{ position: asc }, { createdAt: asc }]) {
           id
+          source
           nutritionLogMealId
           foodId
           grams
@@ -76,6 +93,7 @@ const DailyIntakeLogQuery = graphql(`
         order_by: [{ slotTime: asc }, { position: asc }, { createdAt: asc }]
       ) {
         id
+        source
         nutritionLogMealId
         foodId
         grams
@@ -239,6 +257,7 @@ type DailyFood = {
 
 type DailyEntry = {
   id: string;
+  source: string;
   nutritionLogMealId?: string | null;
   foodId?: string | null;
   grams: unknown;
@@ -289,6 +308,8 @@ type DailyIntakeLogData = {
 type DailyIntakeLogQueryData = Omit<DailyIntakeLogData, "day"> & {
   nutritionDays: DailyDay[];
 };
+
+type EntryUpdateSet = { grams: number } | AdHocLogEntryUpdateSet;
 
 interface DailyIntakeLogProps {
   date: string;
@@ -359,10 +380,11 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   });
 
   const updateEntryMutation = useMutation({
-    mutationFn: ({ id, grams }: { id: string; grams: number }) =>
-      gqlRequest(UpdateNutritionLogEntryMutation, { id, set: { grams } }),
+    mutationFn: ({ id, set }: { id: string; set: EntryUpdateSet }) =>
+      gqlRequest(UpdateNutritionLogEntryMutation, { id, set }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
       toast.success("Entry updated");
     },
     onError: (error) => {
@@ -490,7 +512,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               slot={slot}
               isExpanded={expandedSlots.has(slot.key)}
               onToggle={() => toggleSlot(slot.key)}
-              onUpdateEntry={(entryId, grams) => updateEntryMutation.mutate({ id: entryId, grams })}
+              onUpdateEntry={(entryId, set) => updateEntryMutation.mutate({ id: entryId, set })}
               onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
               onDeleteGroup={(groupId) => deleteGroupMutation.mutate(groupId)}
               disabled={isMutating}
@@ -663,7 +685,7 @@ function TimeSlotSection({
   slot: IntakeTimeSlot<DailyEntry>;
   isExpanded: boolean;
   onToggle: () => void;
-  onUpdateEntry: (entryId: string, grams: number) => void;
+  onUpdateEntry: (entryId: string, set: EntryUpdateSet) => void;
   onDeleteEntry: (entryId: string) => void;
   onDeleteGroup: (groupId: string) => void;
   disabled: boolean;
@@ -742,7 +764,7 @@ function TimeSlotSection({
                   <EntryRow
                     key={slotEntry.entry.id}
                     entry={slotEntry.entry}
-                    onUpdate={(grams) => onUpdateEntry(slotEntry.entry.id, grams)}
+                    onUpdate={(set) => onUpdateEntry(slotEntry.entry.id, set)}
                     onDelete={() => onDeleteEntry(slotEntry.entry.id)}
                     disabled={disabled}
                     showTime={false}
@@ -961,7 +983,7 @@ function EntryRow({
   provenance,
 }: {
   entry: DailyEntry;
-  onUpdate: (grams: number) => void;
+  onUpdate: (set: EntryUpdateSet) => void;
   onDelete: () => void;
   disabled: boolean;
   showTime?: boolean;
@@ -992,7 +1014,7 @@ function EntryRow({
       return false;
     }
     if (parsedGrams !== entryGrams) {
-      onUpdate(parsedGrams);
+      onUpdate({ grams: parsedGrams });
       return true;
     }
     setIsEditingGrams(false);
@@ -1010,6 +1032,81 @@ function EntryRow({
     save();
   }
 
+  const isAdHoc = entry.source === "ad_hoc";
+  let editControl: ReactNode;
+  if (isAdHoc) {
+    editControl = <AdHocEntryEditDialog entry={entry} onSave={onUpdate} disabled={disabled} />;
+  } else if (isEditingGrams) {
+    editControl = (
+      <div className="flex flex-wrap items-center gap-1">
+        <Input
+          id={`grams-${entry.id}`}
+          type="text"
+          inputMode="decimal"
+          pattern={DECIMAL_INPUT_PATTERN}
+          value={grams}
+          onChange={(event) => setGrams(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              save();
+            }
+            if (event.key === "Escape") {
+              cancelEdit();
+            }
+          }}
+          onBlur={handleGramsBlur}
+          disabled={disabled}
+          className="h-9 w-24"
+          aria-label={`Grams for ${entry.snapshotFoodName}`}
+          aria-describedby={gramsHelpId}
+          autoFocus
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-9 gap-1 px-2"
+          onClick={save}
+          disabled={disabled}
+          data-grams-editor-action-for={entry.id}
+        >
+          <Check className="h-4 w-4" />
+          Save
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-9 px-2"
+          onClick={cancelEdit}
+          disabled={disabled}
+          data-grams-editor-action-for={entry.id}
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">Cancel editing grams</span>
+        </Button>
+        <span id={gramsHelpId} className="sr-only">
+          Press Enter or Save to update grams. Press Escape to cancel.
+        </span>
+      </div>
+    );
+  } else {
+    editControl = (
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="tabular-nums"
+        onClick={() => setIsEditingGrams(true)}
+        disabled={disabled}
+        title="Click to edit grams"
+      >
+        {displayGrams}
+      </Button>
+    );
+  }
+
   return (
     <li className="space-y-3 px-3 py-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
       <div className="min-w-0 space-y-1">
@@ -1018,75 +1115,17 @@ function EntryRow({
           {showTime && entry.slotTime ? `${formatTimeOfDay(entry.slotTime)} · ` : ""}
           {macroTotalsSummary(totals)}
         </p>
+        {isAdHoc ? (
+          <p className="text-xs text-muted-foreground">Custom one-off entry</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Snapshot per 100 g: {snapshotMacroSummary(entry)}
+          </p>
+        )}
         {provenance ? <p className="text-xs text-muted-foreground">{provenance}</p> : null}
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {isEditingGrams ? (
-          <div className="flex flex-wrap items-center gap-1">
-            <Input
-              id={`grams-${entry.id}`}
-              type="text"
-              inputMode="decimal"
-              pattern={DECIMAL_INPUT_PATTERN}
-              value={grams}
-              onChange={(event) => setGrams(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  save();
-                }
-                if (event.key === "Escape") {
-                  cancelEdit();
-                }
-              }}
-              onBlur={handleGramsBlur}
-              disabled={disabled}
-              className="h-9 w-24"
-              aria-label={`Grams for ${entry.snapshotFoodName}`}
-              aria-describedby={gramsHelpId}
-              autoFocus
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-9 gap-1 px-2"
-              onClick={save}
-              disabled={disabled}
-              data-grams-editor-action-for={entry.id}
-            >
-              <Check className="h-4 w-4" />
-              Save
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-9 px-2"
-              onClick={cancelEdit}
-              disabled={disabled}
-              data-grams-editor-action-for={entry.id}
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Cancel editing grams</span>
-            </Button>
-            <span id={gramsHelpId} className="sr-only">
-              Press Enter or Save to update grams. Press Escape to cancel.
-            </span>
-          </div>
-        ) : (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="tabular-nums"
-            onClick={() => setIsEditingGrams(true)}
-            disabled={disabled}
-            title="Click to edit grams"
-          >
-            {displayGrams}
-          </Button>
-        )}
+        {editControl}
         <Button
           type="button"
           size="sm"
@@ -1101,6 +1140,180 @@ function EntryRow({
       </div>
     </li>
   );
+}
+
+function AdHocEntryEditDialog({
+  entry,
+  onSave,
+  disabled,
+}: {
+  entry: DailyEntry;
+  onSave: (set: AdHocLogEntryUpdateSet) => void;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<AdHocNutritionDraft>(() => adHocDraftFromEntry(entry));
+  const [slotTime, setSlotTime] = useState(() => timeToInputValue(entry.slotTime));
+  const previewTotals = adHocNutritionDraftTotals(draft);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    setDraft(adHocDraftFromEntry(entry));
+    setSlotTime(timeToInputValue(entry.slotTime));
+  }, [open, entry]);
+
+  function updateDraft(key: keyof AdHocNutritionDraft, value: string) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
+
+  function save() {
+    try {
+      onSave(buildAdHocLogEntryUpdateSet({ draft, slotTime }));
+      setOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Invalid custom food details.");
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+      >
+        <Pencil className="h-4 w-4" />
+        Edit
+      </Button>
+      <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit custom food</DialogTitle>
+          <DialogDescription>
+            Update the one-off snapshot for this log entry. This does not create or modify a
+            reusable food.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
+            <div className="space-y-1.5">
+              <label htmlFor={`ad-hoc-edit-name-${entry.id}`} className="text-sm font-medium">
+                Food name
+              </label>
+              <Input
+                id={`ad-hoc-edit-name-${entry.id}`}
+                value={draft.name}
+                onChange={(event) => updateDraft("name", event.target.value)}
+                maxLength={160}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor={`ad-hoc-edit-grams-${entry.id}`} className="text-sm font-medium">
+                Grams eaten
+              </label>
+              <Input
+                id={`ad-hoc-edit-grams-${entry.id}`}
+                type="text"
+                inputMode="decimal"
+                pattern={DECIMAL_INPUT_PATTERN}
+                value={draft.grams}
+                onChange={(event) => updateDraft("grams", event.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor={`ad-hoc-edit-time-${entry.id}`} className="text-sm font-medium">
+              Time eaten
+            </label>
+            <Input
+              id={`ad-hoc-edit-time-${entry.id}`}
+              type="time"
+              value={slotTime}
+              onChange={(event) => setSlotTime(event.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">Nutrition per 100 g</h3>
+              <p className="text-xs text-muted-foreground">
+                Totals preview: {macroTotalsSummary(previewTotals)}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {NUTRIENT_FIELDS.map((field) => (
+                <div key={field.key} className="space-y-1.5">
+                  <label
+                    htmlFor={`ad-hoc-edit-${entry.id}-${field.key}`}
+                    className="text-sm font-medium"
+                  >
+                    {field.label}
+                  </label>
+                  <div className="relative">
+                    <Input
+                      id={`ad-hoc-edit-${entry.id}-${field.key}`}
+                      type="text"
+                      inputMode="decimal"
+                      pattern={DECIMAL_INPUT_PATTERN}
+                      value={draft[field.key]}
+                      onChange={(event) => updateDraft(field.key, event.target.value)}
+                      className="pr-12"
+                      required
+                    />
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
+                      {field.suffix}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={save}>
+            Save custom food
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function adHocDraftFromEntry(entry: DailyEntry): AdHocNutritionDraft {
+  return {
+    ...createEmptyAdHocNutritionDraft(),
+    name: entry.snapshotFoodName,
+    grams: String(entry.grams),
+    kcalPer100g: String(entry.snapshotKcalPer100g),
+    fatPer100g: String(entry.snapshotFatPer100g),
+    carbsPer100g: String(entry.snapshotCarbsPer100g),
+    proteinPer100g: String(entry.snapshotProteinPer100g),
+    fiberPer100g: String(entry.snapshotFiberPer100g),
+    sugarPer100g: String(entry.snapshotSugarPer100g),
+  };
+}
+
+function snapshotMacroSummary(entry: DailyEntry): string {
+  return macroTotalsSummary({
+    kcal: normalizeNumeric(entry.snapshotKcalPer100g),
+    fat: normalizeNumeric(entry.snapshotFatPer100g),
+    carbs: normalizeNumeric(entry.snapshotCarbsPer100g),
+    protein: normalizeNumeric(entry.snapshotProteinPer100g),
+    fiber: normalizeNumeric(entry.snapshotFiberPer100g),
+    sugar: normalizeNumeric(entry.snapshotSugarPer100g),
+  });
 }
 
 function DailyIntakeLogSkeleton() {

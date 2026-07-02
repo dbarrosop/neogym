@@ -1,7 +1,12 @@
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DECIMAL_INPUT_PATTERN, parseMacroInput } from "@/lib/nutrition";
+import {
+  DECIMAL_INPUT_PATTERN,
+  NUTRIENT_FIELDS,
+  type NutrientKey,
+  parseMacroInput,
+} from "@/lib/nutrition";
 
 export interface FoodFormValues {
   name: string;
@@ -21,17 +26,6 @@ interface FoodFormProps {
   onCancel: () => void;
   extraActions?: React.ReactNode;
 }
-
-type NutrientKey = Exclude<keyof FoodFormValues, "name">;
-
-const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string }[] = [
-  { key: "kcalPer100g", label: "Calories", suffix: "kcal" },
-  { key: "fatPer100g", label: "Fat", suffix: "g" },
-  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
-  { key: "proteinPer100g", label: "Protein", suffix: "g" },
-  { key: "fiberPer100g", label: "Fiber", suffix: "g" },
-  { key: "sugarPer100g", label: "Sugar", suffix: "g" },
-];
 
 function numberToInput(value: number): string {
   return Number.isFinite(value) ? String(value) : "0";

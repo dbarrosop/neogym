@@ -1,6 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import {
   addLocalDateDays,
+  adHocNutritionDraftTotals,
+  buildAdHocLogEntryInsertInput,
+  buildAdHocLogEntryUpdateSet,
+  createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   formatLocalDate,
   formatLocalDateLabel,
@@ -28,6 +32,7 @@ import {
   planMacroTotals,
   sortAndRenumberPlanEntriesByTime,
   timeToInputValue,
+  validateAdHocNutritionDraft,
 } from "./nutrition";
 
 const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
@@ -292,6 +297,99 @@ describe("nutrition macro helpers", () => {
       protein: 8,
       fiber: 3.5,
       sugar: 5,
+    });
+  });
+});
+
+describe("ad-hoc nutrition log helpers", () => {
+  const draft = {
+    ...createEmptyAdHocNutritionDraft(),
+    name: "  Street tacos  ",
+    grams: "150",
+    kcalPer100g: "200",
+    fatPer100g: "8",
+    carbsPer100g: "20",
+    proteinPer100g: "10",
+    fiberPer100g: "3",
+    sugarPer100g: "4",
+  };
+
+  it("validates one-off food snapshots and trims the display name", () => {
+    expect(validateAdHocNutritionDraft(draft)).toEqual({
+      valid: true,
+      message: "",
+      values: {
+        name: "Street tacos",
+        grams: 150,
+        kcalPer100g: 200,
+        fatPer100g: 8,
+        carbsPer100g: 20,
+        proteinPer100g: 10,
+        fiberPer100g: 3,
+        sugarPer100g: 4,
+      },
+    });
+
+    expect(validateAdHocNutritionDraft({ ...draft, name: "   " })).toMatchObject({
+      valid: false,
+      message: "Food name is required.",
+    });
+    expect(validateAdHocNutritionDraft({ ...draft, grams: "0" })).toMatchObject({
+      valid: false,
+      message: "Enter grams greater than zero.",
+    });
+    expect(validateAdHocNutritionDraft({ ...draft, sugarPer100g: "oops" })).toMatchObject({
+      valid: false,
+      message: "Sugar must be zero or greater.",
+    });
+  });
+
+  it("computes ad-hoc preview totals from entered per-100g macros", () => {
+    expect(adHocNutritionDraftTotals(draft)).toEqual({
+      kcal: 300,
+      fat: 12,
+      carbs: 30,
+      protein: 15,
+      fiber: 4.5,
+      sugar: 6,
+    });
+  });
+
+  it("builds standalone ad-hoc insert payloads without food provenance", () => {
+    expect(
+      buildAdHocLogEntryInsertInput({
+        draft,
+        nutritionDayId: "day-1",
+        position: 3,
+        slotTime: "12:30",
+      }),
+    ).toEqual({
+      nutritionDayId: "day-1",
+      source: "ad_hoc",
+      grams: 150,
+      position: 3,
+      slotTime: "12:30",
+      snapshotFoodName: "Street tacos",
+      snapshotKcalPer100g: 200,
+      snapshotFatPer100g: 8,
+      snapshotCarbsPer100g: 20,
+      snapshotProteinPer100g: 10,
+      snapshotFiberPer100g: 3,
+      snapshotSugarPer100g: 4,
+    });
+  });
+
+  it("builds ad-hoc update sets with only mutable snapshot fields", () => {
+    expect(buildAdHocLogEntryUpdateSet({ draft, slotTime: "13:45" })).toEqual({
+      grams: 150,
+      slotTime: "13:45",
+      snapshotFoodName: "Street tacos",
+      snapshotKcalPer100g: 200,
+      snapshotFatPer100g: 8,
+      snapshotCarbsPer100g: 20,
+      snapshotProteinPer100g: 10,
+      snapshotFiberPer100g: 3,
+      snapshotSugarPer100g: 4,
     });
   });
 });
