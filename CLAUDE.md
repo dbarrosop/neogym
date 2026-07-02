@@ -79,6 +79,10 @@ From `backend/`:
 
 From `ios/NeoGym/`:
 
+The `NeoGym` app target is iOS 26-only. Keep the widget extension and the
+host-testable `NeoGymKit` package at their lower deployment floors unless their
+own code needs newer APIs.
+
 - `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
 - `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
@@ -97,10 +101,15 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
 models and route signed-in sessions into the full-screen `AppShellView`. The
-native shell uses three primary `TabView` groups (Workouts, Nutrition, Me) with
-secondary section bars for Sessions/Workouts/Exercises, Nutrition subsections,
-and Profile/Body/Journal. Keep unit tests deterministic with fake auth services
-and the in-memory verifier store, not a live backend or real Keychain. Sign-out
+native shell is in an iOS 26 navigation migration: it still uses three primary
+root areas (Workouts, Nutrition, Me) with secondary section bars for
+Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal,
+while pushed routes are being moved toward typed navigation and native bottom
+actions. The temporary `.hidesBottomTabBarWhenPushed()` modifier is only a
+source-compatible alias for `.toolbar(.hidden, for: .tabBar)`; do not add older
+OS fallbacks or UIKit parent-chain tab-bar hiding. Keep unit tests
+deterministic with fake auth services and the in-memory verifier store, not a
+live backend or real Keychain. Sign-out
 must always call `clearSession()` after
 attempting remote sign-out so local persisted sessions are removed even when the
 network request fails. SwiftUI previews can set Dynamic Type with

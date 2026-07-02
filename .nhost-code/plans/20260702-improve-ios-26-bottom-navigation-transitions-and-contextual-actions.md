@@ -159,7 +159,10 @@ Adopt an iOS 26 native-first strategy. First remove old platform constraints and
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- Implementation notes: raised the main `NeoGym` app target in `ios/NeoGym/project.yml` from iOS 15.0 to iOS 26.0 while intentionally leaving `NeoGymWidgets` at 16.2 and `NeoGymKit` package platforms unchanged. Replaced the old `NavigationChrome.hidesBottomTabBarWhenPushed()` UIKit/availability bridge with a temporary SwiftUI-only alias to `toolbar(.hidden, for: .tabBar)`. Updated root and iOS `CLAUDE.md` docs to state the app is iOS 26-only, that the hide modifier is transitional, and that new navigation work should not add older-OS fallbacks or UIKit parent-chain hiding.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS`. Accepted concerns: the reviewer’s inherited Nix shell could not produce a clean `xcodebuild` because a Nix linker/SDK environment shadowed Xcode; this reproduced on the base commit and was not a Phase 1 regression. Remaining always-true `#available` checks outside `NavigationChrome.swift` and `UIRequiresFullScreen` deprecation are deferred to later cleanup because Phase 1 scope was navigation chrome/target/docs.
+- Autonomous decisions: kept `NeoGymWidgets` at 16.2 and `NeoGymKit` at their existing platform floors (long-term maintenance: avoid narrowing unrelated targets/packages without code need); used a clean Xcode environment outside the inherited Nix shell for the app gate after the Nix shell failed with SDK/linker mismatches (correctness: validates the iOS app with the actual Xcode 26 SDK/toolchain required by this phase).
+- Quality gate: `xcodebuild -version` reported Xcode 26.6; clean `xcrun` reported iPhoneOS/iPhoneSimulator SDK 26.5; `swift test` passed 189 tests; `nix develop ../.. --command xcodegen generate` passed; inherited-shell `xcodebuild` failed due Nix SDK/linker environment; sanitized Xcode environment `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO` passed.
 
 ### Phase 2 — Complete typed navigation inventory and root-stack migration
 

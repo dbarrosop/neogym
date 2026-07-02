@@ -14,6 +14,10 @@ navigation, and presentation.
 
 Run these from `ios/NeoGym/`:
 
+The `NeoGym` app target is iOS 26-only. Keep `NeoGymWidgets` and the
+host-testable `NeoGymKit` package at their lower deployment floors unless their
+own code needs newer APIs.
+
 - `swift build` — build the host-compatible `NeoGymKit` package. Keep
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
@@ -64,17 +68,24 @@ changes.
 When editing SwiftUI under `App/`, keep the existing native design language
 intact instead of inventing one-off styles.
 
-- **App shell and navigation**: the signed-in app is a three-tab `TabView`
-  (Workouts, Nutrition, Me). Each tab owns a stack-style `NavigationView`; broad
+- **App shell and navigation**: the signed-in app has three primary root areas
+  (Workouts, Nutrition, Me). This shell is in an iOS 26-only migration: it still
+  uses `TabView` and stack-style `NavigationView` in places, but new navigation
+  work should move pushed flows toward typed `NavigationStack(path:)` state,
+  modern `Tab` roots, and route-local native bottom/toolbar actions. Broad
   areas use the top `SecondarySectionBar` segmented control rather than adding
   more primary tabs. Root secondary sections are selected from the navigation
   toolbar and hosted by `SecondarySectionContentHost`, which keeps visited root
   sections mounted while animating opacity/scale transitions; horizontal swipes
   are not part of secondary-section navigation. Secondary bars use compact SF
   Symbol labels when a section supplies `systemImage`, with the section title
-  kept as the accessibility label. Use hidden `NavigationLink` state only for
-  programmatic follow-up navigation after creating/opening a record, and reload
-  parent lists through `onCreated`/`onSaved`/`onDeleted`/`onMutated` callbacks.
+  kept as the accessibility label. The temporary `.hidesBottomTabBarWhenPushed()`
+  modifier is only a source-compatible alias for `.toolbar(.hidden, for: .tabBar)`;
+  do not add older-OS availability branches, UIKit parent-chain tab-bar hiding,
+  or new hidden-link navigation. Existing hidden `NavigationLink` state remains
+  transitional for programmatic follow-up navigation until the typed-path pass,
+  and parent lists still reload through `onCreated`/`onSaved`/`onDeleted`/
+  `onMutated` callbacks.
 - **Screen structure**: list and detail screens are usually `ScrollView` →
   leading `VStack(spacing: 18)` → max width around `700–760` →
   `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
