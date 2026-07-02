@@ -640,7 +640,6 @@ private struct SessionStartedAtEditorSheet: View {
             }
             .navigationTitle("Edit date")
             .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)

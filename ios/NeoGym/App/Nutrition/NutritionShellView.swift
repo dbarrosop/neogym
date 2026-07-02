@@ -40,13 +40,10 @@ struct NutritionNavigationView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                sectionPages
-                    .id(selection)
-                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            SecondarySectionContentHost(selection: $selection) { section in
+                sectionPage(for: section)
             }
-            .animation(.easeInOut(duration: 0.28), value: selection)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -58,8 +55,8 @@ struct NutritionNavigationView: View {
     }
 
     @ViewBuilder
-    private var sectionPages: some View {
-        switch selection {
+    private func sectionPage(for section: NutritionSection) -> some View {
+        switch section {
         case .overview:
             NutritionOverviewView(
                 repository: repository,

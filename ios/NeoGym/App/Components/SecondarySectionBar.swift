@@ -51,3 +51,44 @@ struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.All
         }
     }
 }
+
+struct SecondarySectionContentHost<Section: SecondaryTabSection, Content: View>: View
+where Section.AllCases: RandomAccessCollection {
+    @Binding private var selection: Section
+    @State private var activeSections: Set<Section>
+
+    private let content: (Section) -> Content
+
+    init(
+        selection: Binding<Section>,
+        @ViewBuilder content: @escaping (Section) -> Content
+    ) {
+        _selection = selection
+        _activeSections = State(initialValue: [selection.wrappedValue])
+        self.content = content
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(Section.allCases) { section in
+                if shouldKeepAlive(section) {
+                    content(section)
+                        .opacity(selection == section ? 1 : 0)
+                        .scaleEffect(selection == section ? 1 : 0.985)
+                        .zIndex(selection == section ? 1 : 0)
+                        .allowsHitTesting(selection == section)
+                        .accessibilityHidden(selection != section)
+                }
+            }
+        }
+        .animation(.easeInOut(duration: 0.28), value: selection)
+        .onAppear { activeSections.insert(selection) }
+        .onChange(of: selection) { newValue in
+            activeSections.insert(newValue)
+        }
+    }
+
+    private func shouldKeepAlive(_ section: Section) -> Bool {
+        activeSections.contains(section) || section == selection
+    }
+}
