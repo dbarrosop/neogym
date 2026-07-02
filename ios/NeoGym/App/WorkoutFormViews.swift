@@ -115,7 +115,7 @@ struct WorkoutEditView: View {
                         form: form,
                         labels: editor.labels,
                         exercisesRepository: exercisesRepository,
-                        isSubmitting: editor.saveState.isLoading,
+                        isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
                             ?? editor.deleteState.errorMessage,
@@ -216,7 +216,6 @@ private struct WorkoutFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-                    actions
                 }
             }
             .frame(maxWidth: 700)
@@ -227,7 +226,15 @@ private struct WorkoutFormScreen: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            deleteLabel: deleteAction == nil ? nil : "Delete workout",
+            onCancel: onCancel,
+            onSubmit: onSubmit,
+            onDelete: deleteAction
+        )
         .sheet(isPresented: $pickerOpen) {
             ExercisePickerView(
                 repository: exercisesRepository,
@@ -291,30 +298,6 @@ private struct WorkoutFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(NeoGymSecondaryButtonStyle())
-                    .disabled(isSubmitting)
-                PrimaryActionButton(
-                    title: submitLabel,
-                    busyTitle: "Saving",
-                    isBusy: isSubmitting,
-                    isEnabled: form.canSubmit,
-                    action: onSubmit
-                )
-            }
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete workout", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
 
 private struct WorkoutFormExerciseRowView: View {

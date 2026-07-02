@@ -72,6 +72,7 @@ struct AppShellView: View {
                 )
             }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

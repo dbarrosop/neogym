@@ -371,7 +371,6 @@ struct BodyMeasurementCreateView: View {
         )
         .navigationTitle("New measurement")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -433,7 +432,7 @@ struct BodyMeasurementEditView: View {
                         title: "Edit measurement",
                         submitLabel: "Save changes",
                         form: form,
-                        isSubmitting: editor.saveState.isLoading,
+                        isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
                             ?? editor.deleteState.errorMessage,
@@ -448,7 +447,6 @@ struct BodyMeasurementEditView: View {
         }
         .navigationTitle("Edit measurement")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -553,8 +551,6 @@ private struct BodyMeasurementFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
                 }
             }
             .frame(maxWidth: 640)
@@ -563,6 +559,15 @@ private struct BodyMeasurementFormScreen: View {
             .frame(maxWidth: .infinity)
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.hasMeasurementValue,
+            deleteLabel: deleteAction == nil ? nil : "Delete measurement",
+            onCancel: onCancel,
+            onSubmit: onSubmit,
+            onDelete: deleteAction
+        )
     }
 
     private func decimalField(
@@ -595,28 +600,6 @@ private struct BodyMeasurementFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            PrimaryActionButton(
-                title: submitLabel,
-                busyTitle: "Saving",
-                isBusy: isSubmitting,
-                isEnabled: form.hasMeasurementValue,
-                action: onSubmit
-            )
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete measurement", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
 
 struct BodyTrendChartView: View {
