@@ -1,37 +1,16 @@
 import NeoGymKit
 import SwiftUI
 
-struct BodyNavigationView: View {
-    let repository: any BodyMeasurementsRepositoryProtocol
-    let healthImporter: (any BodyMeasurementsHealthImporting)?
-
-    init(
-        repository: any BodyMeasurementsRepositoryProtocol,
-        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
-    ) {
-        self.repository = repository
-        self.healthImporter = healthImporter
-    }
-
-    var body: some View {
-        NavigationView {
-            BodyMeasurementsListView(repository: repository, healthImporter: healthImporter)
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct BodyMeasurementsListView: View {
     @StateObject private var viewModel: BodyMeasurementsListViewModel
     let repository: any BodyMeasurementsRepositoryProtocol
     let healthImporter: (any BodyMeasurementsHealthImporting)?
-
-    @State private var navigatedMeasurementId: String?
-    @State private var isNavigatingToMeasurement = false
+    let reloadToken: Int
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
-        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
+        healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
+        reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: repository,
@@ -39,6 +18,7 @@ struct BodyMeasurementsListView: View {
         ))
         self.repository = repository
         self.healthImporter = healthImporter
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -54,12 +34,12 @@ struct BodyMeasurementsListView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Body")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load(shouldSyncHealthMeasurements: true)
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
     }
 
@@ -78,17 +58,7 @@ struct BodyMeasurementsListView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             Spacer(minLength: 0)
-            NavigationLink {
-                BodyMeasurementCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedMeasurementId = id
-                        isNavigatingToMeasurement = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
+            NavigationLink(value: MeRoute.bodyMeasurementCreate) {
                 HeaderActionButtonLabel()
             }
             .accessibilityLabel("New measurement")
@@ -121,17 +91,7 @@ struct BodyMeasurementsListView: View {
                             message: "Log your first measurement to start seeing trends.",
                             systemImage: "heart.text.square"
                         )
-                        NavigationLink {
-                            BodyMeasurementCreateView(
-                                repository: repository,
-                                onCreated: { id in
-                                    Task { await viewModel.load() }
-                                    navigatedMeasurementId = id
-                                    isNavigatingToMeasurement = true
-                                },
-                                onFinished: { Task { await viewModel.load() } }
-                            )
-                        } label: {
+                        NavigationLink(value: MeRoute.bodyMeasurementCreate) {
                             Label("Log your first measurement", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -147,14 +107,7 @@ struct BodyMeasurementsListView: View {
                     SectionShell(title: "Measurements", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.measurements) { measurement in
-                                NavigationLink {
-                                    BodyMeasurementDetailView(
-                                        measurementId: measurement.id,
-                                        repository: repository,
-                                        onDeleted: { Task { await viewModel.load() } },
-                                        onMutated: { Task { await viewModel.load() } }
-                                    )
-                                } label: {
+                                NavigationLink(value: MeRoute.bodyMeasurementDetail(measurement.id)) {
                                     BodyMeasurementListRow(measurement: measurement)
                                 }
                                 if measurement.id != viewModel.measurements.last?.id { Divider() }
@@ -166,23 +119,6 @@ struct BodyMeasurementsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let measurementId = navigatedMeasurementId {
-            NavigationLink(
-                destination: BodyMeasurementDetailView(
-                    measurementId: measurementId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToMeasurement
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
 }
 
 private struct BodyMeasurementListRow: View {
@@ -749,7 +685,9 @@ private enum BodyMeasurementFormatters {
 }
 
 #Preview("Body") {
-    BodyNavigationView(repository: PreviewBodyMeasurementsRepository())
+    NavigationStack {
+        BodyMeasurementsListView(repository: PreviewBodyMeasurementsRepository(), reloadToken: 0)
+    }
 }
 
 private struct PreviewBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {

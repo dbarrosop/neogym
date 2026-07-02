@@ -101,13 +101,15 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
 models and route signed-in sessions into the full-screen `AppShellView`. The
-native shell is in an iOS 26 navigation migration: it still uses three primary
-root areas (Workouts, Nutrition, Me) with secondary section bars for
-Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal,
-while pushed routes are being moved toward typed navigation and native bottom
-actions. The temporary `.hidesBottomTabBarWhenPushed()` modifier is only a
-source-compatible alias for `.toolbar(.hidden, for: .tabBar)`; do not add older
-OS fallbacks or UIKit parent-chain tab-bar hiding. Keep unit tests
+native shell is in an iOS 26 navigation migration: it uses modern value-based
+root tabs for the three primary areas (Workouts, Nutrition, Me), typed per-root
+`NavigationStack(path:)` state, and root-only secondary section bars for
+Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal;
+pushed screens are still being moved toward native bottom actions. Sheet-local
+`NavigationView` wrappers remain intentional for modal editors/pickers. The
+temporary `.hidesBottomTabBarWhenPushed()` modifier is only a source-compatible
+alias for `.toolbar(.hidden, for: .tabBar)`; do not add older OS fallbacks,
+UIKit parent-chain tab-bar hiding, or new hidden-link navigation. Keep unit tests
 deterministic with fake auth services and the in-memory verifier store, not a
 live backend or real Keychain. Sign-out
 must always call `clearSession()` after

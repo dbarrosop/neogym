@@ -42,38 +42,37 @@ struct AppShellView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            WorkoutsSectionNavigationView(
-                workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
-                sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
-                exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
-                storageBaseURL: environment.client.serviceURLs.storage,
-                currentUserId: session.user?.id,
-                pendingSessionId: $pendingSessionId
-            )
-            .tabItem { AppDestination.workouts.label }
-            .tag(AppDestination.workouts)
+            Tab(AppDestination.workouts.title, systemImage: AppDestination.workouts.icon, value: AppDestination.workouts) {
+                WorkoutsSectionNavigationView(
+                    workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
+                    sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
+                    exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
+                    storageBaseURL: environment.client.serviceURLs.storage,
+                    currentUserId: session.user?.id,
+                    pendingSessionId: $pendingSessionId
+                )
+            }
 
-            NutritionNavigationView(
-                repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
-                currentUserId: session.user?.id
-            )
-            .tabItem { AppDestination.nutrition.label }
-            .tag(AppDestination.nutrition)
+            Tab(AppDestination.nutrition.title, systemImage: AppDestination.nutrition.icon, value: AppDestination.nutrition) {
+                NutritionNavigationView(
+                    repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
+                    currentUserId: session.user?.id
+                )
+            }
 
-            MeNavigationView(
-                session: session,
-                bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
-                bodyHealthImporter: Self.makeBodyHealthImporter(),
-                journalRepository: JournalRepository(graphQL: environment.graphQLService),
-                isSigningOut: isSigningOut,
-                changeEmailModel: changeEmailModel,
-                signOut: signOut
-            )
-            .tabItem { AppDestination.me.label }
-            .tag(AppDestination.me)
+            Tab(AppDestination.me.title, systemImage: AppDestination.me.icon, value: AppDestination.me) {
+                MeNavigationView(
+                    session: session,
+                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                    bodyHealthImporter: Self.makeBodyHealthImporter(),
+                    journalRepository: JournalRepository(graphQL: environment.graphQLService),
+                    isSigningOut: isSigningOut,
+                    changeEmailModel: changeEmailModel,
+                    signOut: signOut
+                )
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea(.container, edges: .bottom)
     }
 
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {

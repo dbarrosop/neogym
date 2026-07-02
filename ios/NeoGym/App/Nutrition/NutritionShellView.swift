@@ -37,21 +37,31 @@ struct NutritionNavigationView: View {
 
     @State private var selection: NutritionSection = .overview
     @State private var selectedDate: String?
+    @State private var path: [NutritionRoute] = []
+    @State private var reloadToken = 0
 
     var body: some View {
-        NavigationView {
-            SecondarySectionContentHost(selection: $selection) { section in
-                sectionPage(for: section)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
+        NavigationStack(path: $path) {
+            rootContent
+                .navigationDestination(for: NutritionRoute.self) { route in
+                    routeDestination(for: route)
+                }
+        }
+    }
+
+    private var rootContent: some View {
+        SecondarySectionContentHost(selection: $selection) { section in
+            sectionPage(for: section)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if path.isEmpty {
                 ToolbarItem(placement: .principal) {
                     SecondarySectionBar(selection: $selection)
                 }
             }
         }
-        .navigationViewStyle(.stack)
     }
 
     @ViewBuilder
@@ -74,32 +84,101 @@ struct NutritionNavigationView: View {
                 }
             )
         case .days:
-            NutritionDaysView(repository: repository, selectedDate: $selectedDate)
+            NutritionDaysView(
+                repository: repository,
+                selectedDate: $selectedDate,
+                reloadToken: reloadToken,
+                openRoute: openRoute
+            )
         case .plans:
-            PlansListView(repository: repository)
+            PlansListView(repository: repository, reloadToken: reloadToken)
         case .foods:
-            FoodsListView(repository: repository, currentUserId: currentUserId)
+            FoodsListView(
+                repository: repository,
+                currentUserId: currentUserId,
+                reloadToken: reloadToken
+            )
         case .meals:
-            MealsListView(repository: repository)
+            MealsListView(repository: repository, reloadToken: reloadToken)
         }
     }
-}
 
-private struct NutritionPlaceholderView: View {
-    let title: String
-    let message: String
-    let systemImage: String
-
-    var body: some View {
-        ScrollView {
-            SectionShell(title: title, subtitle: "Nutrition") {
-                AppEmptyStateView(title: "Coming next", message: message, systemImage: systemImage)
+    @ViewBuilder
+    private func routeDestination(for route: NutritionRoute) -> some View {
+        switch route {
+        case let .day(date):
+            DailyIntakeView(repository: repository, date: date) {
+                popRoute()
+                invalidateLists()
             }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 40)
-            .frame(maxWidth: .infinity)
+        case let .planDetail(planId):
+            NutritionPlanDetailView(
+                planId: planId,
+                repository: repository,
+                onDeleted: invalidateLists,
+                onMutated: invalidateLists
+            )
+        case .planCreate:
+            NutritionPlanCreateView(
+                repository: repository,
+                onCreated: { id in
+                    invalidateLists()
+                    openRouteAfterCurrentTransition(.planDetail(id))
+                },
+                onFinished: invalidateLists
+            )
+        case let .foodDetail(foodId):
+            FoodDetailView(
+                foodId: foodId,
+                repository: repository,
+                currentUserId: currentUserId,
+                onDeleted: invalidateLists,
+                onMutated: invalidateLists
+            )
+        case .foodCreate:
+            FoodCreateView(
+                repository: repository,
+                onCreated: { id in
+                    invalidateLists()
+                    openRouteAfterCurrentTransition(.foodDetail(id))
+                },
+                onFinished: invalidateLists
+            )
+        case let .mealDetail(mealId):
+            MealDetailView(
+                mealId: mealId,
+                repository: repository,
+                onDeleted: invalidateLists,
+                onMutated: invalidateLists
+            )
+        case .mealCreate:
+            MealCreateView(
+                repository: repository,
+                onCreated: { id in
+                    invalidateLists()
+                    openRouteAfterCurrentTransition(.mealDetail(id))
+                },
+                onFinished: invalidateLists
+            )
         }
+    }
+
+    private func openRoute(_ route: NutritionRoute) {
+        path.append(route)
+    }
+
+    private func openRouteAfterCurrentTransition(_ route: NutritionRoute) {
+        DispatchQueue.main.async {
+            path = [route]
+        }
+    }
+
+    private func popRoute() {
+        if !path.isEmpty { path.removeLast() }
+    }
+
+    private func invalidateLists() {
+        reloadToken += 1
     }
 }
 

@@ -4,42 +4,35 @@ import SwiftUI
 struct NutritionDaysView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     @Binding var selectedDate: String?
+    let reloadToken: Int
+    var openRoute: (NutritionRoute) -> Void
 
     @StateObject private var viewModel: NutritionDaysListViewModel
 
-    init(repository: any NutritionFoodMealRepositoryProtocol, selectedDate: Binding<String?>) {
+    init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        selectedDate: Binding<String?>,
+        reloadToken: Int,
+        openRoute: @escaping (NutritionRoute) -> Void
+    ) {
         self.repository = repository
         _selectedDate = selectedDate
+        self.reloadToken = reloadToken
+        self.openRoute = openRoute
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
     }
 
     var body: some View {
         daysList
-            .background(dayNavigationLink)
+            .onAppear(perform: consumeSelectedDate)
+            .onChange(of: selectedDate) { consumeSelectedDate() }
+            .onChange(of: reloadToken) { Task { await viewModel.load() } }
     }
 
-    @ViewBuilder
-    private var dayNavigationLink: some View {
-        if let selectedDate {
-            NavigationLink(
-                destination: DailyIntakeView(repository: repository, date: selectedDate) {
-                    self.selectedDate = nil
-                    Task { await viewModel.load() }
-                },
-                isActive: Binding(
-                    get: { self.selectedDate != nil },
-                    set: { isActive in
-                        if !isActive {
-                            self.selectedDate = nil
-                            Task { await viewModel.load() }
-                        }
-                    }
-                )
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
+    private func consumeSelectedDate() {
+        guard let selectedDate else { return }
+        openRoute(.day(selectedDate))
+        self.selectedDate = nil
     }
 
     private var daysList: some View {
@@ -50,7 +43,7 @@ struct NutritionDaysView: View {
                         .font(.subheadline)
                         .foregroundColor(NeoGymTheme.mutedText)
                     Button {
-                        selectedDate = IntakeGrouping.formatLocalDate()
+                        openRoute(.day(IntakeGrouping.formatLocalDate()))
                     } label: {
                         Label("Open today", systemImage: "calendar.badge.plus")
                     }
@@ -73,12 +66,9 @@ struct NutritionDaysView: View {
                         } else {
                             VStack(spacing: 0) {
                                 ForEach(viewModel.days) { day in
-                                    Button {
-                                        selectedDate = day.logDate
-                                    } label: {
+                                    NavigationLink(value: NutritionRoute.day(day.logDate)) {
                                         NutritionDayRow(day: day)
                                     }
-                                    .buttonStyle(.plain)
                                     if day.id != viewModel.days.last?.id { Divider() }
                                 }
                             }

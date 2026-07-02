@@ -1,27 +1,15 @@
 import NeoGymKit
 import SwiftUI
 
-struct JournalNavigationView: View {
-    let repository: any JournalRepositoryProtocol
-
-    var body: some View {
-        NavigationView {
-            JournalListView(repository: repository)
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct JournalListView: View {
     @StateObject private var viewModel: JournalListViewModel
     let repository: any JournalRepositoryProtocol
+    let reloadToken: Int
 
-    @State private var navigatedEntryId: String?
-    @State private var isNavigatingToEntry = false
-
-    init(repository: any JournalRepositoryProtocol) {
+    init(repository: any JournalRepositoryProtocol, reloadToken: Int) {
         _viewModel = StateObject(wrappedValue: JournalListViewModel(repository: repository))
         self.repository = repository
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -38,12 +26,12 @@ struct JournalListView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Journal")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
@@ -62,17 +50,7 @@ struct JournalListView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             Spacer(minLength: 0)
-            NavigationLink {
-                JournalEntryCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedEntryId = id
-                        isNavigatingToEntry = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
+            NavigationLink(value: MeRoute.journalEntryCreate) {
                 HeaderActionButtonLabel()
             }
             .accessibilityLabel("New journal entry")
@@ -158,17 +136,7 @@ struct JournalListView: View {
                             systemImage: "book.closed"
                         )
                         if !viewModel.isFiltered {
-                            NavigationLink {
-                                JournalEntryCreateView(
-                                    repository: repository,
-                                    onCreated: { id in
-                                        Task { await viewModel.load() }
-                                        navigatedEntryId = id
-                                        isNavigatingToEntry = true
-                                    },
-                                    onFinished: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: MeRoute.journalEntryCreate) {
                                 Label("Write your first entry", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -182,14 +150,7 @@ struct JournalListView: View {
                 ) {
                     VStack(spacing: 0) {
                         ForEach(viewModel.entries) { entry in
-                            NavigationLink {
-                                JournalEntryDetailView(
-                                    entryId: entry.id,
-                                    repository: repository,
-                                    onDeleted: { Task { await viewModel.load() } },
-                                    onMutated: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
                                 JournalEntryListRow(entry: entry)
                             }
                             if entry.id != viewModel.entries.last?.id { Divider() }
@@ -222,23 +183,6 @@ struct JournalListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let entryId = navigatedEntryId {
-            NavigationLink(
-                destination: JournalEntryDetailView(
-                    entryId: entryId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToEntry
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
 }
 
 private struct JournalEntryListRow: View {
@@ -928,7 +872,9 @@ private struct JournalLabelFlowLayout<Content: View>: View {
 }
 
 #Preview("Journal") {
-    JournalNavigationView(repository: PreviewJournalRepository())
+    NavigationStack {
+        JournalListView(repository: PreviewJournalRepository(), reloadToken: 0)
+    }
 }
 
 private struct PreviewJournalRepository: JournalRepositoryProtocol {

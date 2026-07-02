@@ -88,12 +88,11 @@ enum NeoGymTheme {
 
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
-    // Root section pages live inside a page-style TabView. On iOS the custom
-    // section bar and floating dock do not reliably propagate as safe-area
-    // insets through that pager, so scroll views reserve the chrome height
-    // explicitly to avoid clipped first/last rows.
+    // Root section pages keep a compact top reserve for the secondary segmented
+    // toolbar. Bottom spacing comes from the native iOS tab bar safe area now
+    // that the root shell no longer ignores the container bottom edge.
     static let topSectionBarContentClearance: CGFloat = 32
-    static let dockRootContentClearance: CGFloat = 56
+    static let dockRootContentClearance: CGFloat = 0
     static let dockContentClearance: CGFloat = 0
 
     static let radiusSM: CGFloat = 12

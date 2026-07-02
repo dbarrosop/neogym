@@ -1,25 +1,6 @@
 import NeoGymKit
 import SwiftUI
 
-struct SessionsNavigationView: View {
-    let sessionsRepository: any SessionsRepositoryProtocol
-    let exercisesRepository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    @Binding var pendingSessionId: String?
-
-    var body: some View {
-        NavigationView {
-            SessionsListView(
-                sessionsRepository: sessionsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                pendingSessionId: $pendingSessionId
-            )
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct SessionsListView: View {
     @StateObject private var viewModel: SessionsListViewModel
     let sessionsRepository: any SessionsRepositoryProtocol
@@ -27,20 +8,24 @@ struct SessionsListView: View {
     let storageBaseURL: URL
     @Binding var pendingSessionId: String?
 
-    @State private var navigatedSessionId: String?
-    @State private var isNavigatingToPendingSession = false
+    let reloadToken: Int
+    var onSessionOpened: (String) -> Void
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
-        pendingSessionId: Binding<String?>
+        pendingSessionId: Binding<String?>,
+        reloadToken: Int,
+        onSessionOpened: @escaping (String) -> Void
     ) {
         _viewModel = StateObject(wrappedValue: SessionsListViewModel(repository: sessionsRepository))
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
         _pendingSessionId = pendingSessionId
+        self.reloadToken = reloadToken
+        self.onSessionOpened = onSessionOpened
     }
 
     var body: some View {
@@ -56,14 +41,14 @@ struct SessionsListView: View {
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Sessions")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
             consumePendingSessionId()
         }
-        .onChange(of: pendingSessionId) { _ in consumePendingSessionId() }
+        .onChange(of: pendingSessionId) { consumePendingSessionId() }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
@@ -114,17 +99,7 @@ struct SessionsListView: View {
                         SectionShell(title: group.title) {
                             VStack(spacing: 0) {
                                 ForEach(group.sessions) { session in
-                                    NavigationLink {
-                                        SessionDetailView(
-                                            sessionId: session.id,
-                                            sessionsRepository: sessionsRepository,
-                                            exercisesRepository: exercisesRepository,
-                                            storageBaseURL: storageBaseURL,
-                                            onSessionStarted: openSession,
-                                            onDeleted: { Task { await viewModel.load() } },
-                                            onMutated: { Task { await viewModel.load() } }
-                                        )
-                                    } label: {
+                                    NavigationLink(value: WorkoutsRoute.sessionDetail(session.id)) {
                                         SessionListRow(session: session)
                                     }
                                     if session.id != group.sessions.last?.id { Divider() }
@@ -147,36 +122,10 @@ struct SessionsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let sessionId = navigatedSessionId {
-            NavigationLink(
-                destination: SessionDetailView(
-                    sessionId: sessionId,
-                    sessionsRepository: sessionsRepository,
-                    exercisesRepository: exercisesRepository,
-                    storageBaseURL: storageBaseURL,
-                    onSessionStarted: openSession,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToPendingSession
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
-
     private func consumePendingSessionId() {
         guard let id = pendingSessionId else { return }
-        openSession(id)
+        onSessionOpened(id)
         pendingSessionId = nil
-    }
-
-    private func openSession(_ id: String) {
-        navigatedSessionId = id
-        isNavigatingToPendingSession = true
     }
 }
 

@@ -4,13 +4,12 @@ import SwiftUI
 struct MealsListView: View {
     @StateObject private var viewModel: MealsListViewModel
     let repository: any NutritionFoodMealRepositoryProtocol
+    let reloadToken: Int
 
-    @State private var navigatedMealId: String?
-    @State private var isNavigatingToMeal = false
-
-    init(repository: any NutritionFoodMealRepositoryProtocol) {
+    init(repository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
         _viewModel = StateObject(wrappedValue: MealsListViewModel(repository: repository))
         self.repository = repository
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -36,8 +35,8 @@ struct MealsListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
             .frame(maxWidth: .infinity)
         }
-        .background(pendingNavigationLink)
         .task { if case .idle = viewModel.state { await viewModel.load() } }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
@@ -56,17 +55,7 @@ struct MealsListView: View {
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             Spacer(minLength: 0)
-            NavigationLink {
-                MealCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedMealId = id
-                        isNavigatingToMeal = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
+            NavigationLink(value: NutritionRoute.mealCreate) {
                 HeaderActionButtonLabel()
             }
             .accessibilityLabel("New meal")
@@ -118,17 +107,7 @@ struct MealsListView: View {
                             Button("Clear search") { viewModel.clearSearch() }
                                 .buttonStyle(NeoGymSecondaryButtonStyle())
                         } else {
-                            NavigationLink {
-                                MealCreateView(
-                                    repository: repository,
-                                    onCreated: { id in
-                                        Task { await viewModel.load() }
-                                        navigatedMealId = id
-                                        isNavigatingToMeal = true
-                                    },
-                                    onFinished: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.mealCreate) {
                                 Label("Create your first meal", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -139,14 +118,7 @@ struct MealsListView: View {
                 SectionShell(title: "Meals", subtitle: viewModel.isFiltered ? "Filtered" : "Newest updated first") {
                     VStack(spacing: 0) {
                         ForEach(viewModel.filteredMeals) { meal in
-                            NavigationLink {
-                                MealDetailView(
-                                    mealId: meal.id,
-                                    repository: repository,
-                                    onDeleted: { Task { await viewModel.load() } },
-                                    onMutated: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.mealDetail(meal.id)) {
                                 MealListRow(meal: meal)
                             }
                             if meal.id != viewModel.filteredMeals.last?.id { Divider() }
@@ -157,21 +129,6 @@ struct MealsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let mealId = navigatedMealId {
-            NavigationLink(
-                destination: MealDetailView(
-                    mealId: mealId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToMeal
-            ) { EmptyView() }
-            .hidden()
-        }
-    }
 }
 
 private struct MealListRow: View {
