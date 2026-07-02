@@ -289,6 +289,7 @@ struct BodyMeasurementDetailView: View {
         }
         .navigationTitle("Measurement")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let measurement = viewModel.measurement {
@@ -434,6 +435,7 @@ struct BodyMeasurementCreateView: View {
         )
         .navigationTitle("New measurement")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -510,6 +512,7 @@ struct BodyMeasurementEditView: View {
         }
         .navigationTitle("Edit measurement")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()

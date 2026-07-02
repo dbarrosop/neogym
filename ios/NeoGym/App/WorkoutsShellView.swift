@@ -41,9 +41,12 @@ struct WorkoutsSectionNavigationView: View {
         NavigationView {
             ZStack {
                 sectionPages
+                    .id(selection)
+                    .transition(.opacity.combined(with: .scale(scale: 0.985)))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 startedSessionNavigationLink
             }
+            .animation(.easeInOut(duration: 0.28), value: selection)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {

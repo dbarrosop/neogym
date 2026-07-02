@@ -314,6 +314,7 @@ struct SessionDetailView: View {
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -639,6 +640,7 @@ private struct SessionStartedAtEditorSheet: View {
             }
             .navigationTitle("Edit date")
             .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)

@@ -32,6 +32,7 @@ struct NutritionPlanCreateView: View {
         )
         .navigationTitle("New plan")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task { await loadIfNeeded() }
     }
 
@@ -148,6 +149,7 @@ struct NutritionPlanEditView: View {
         }
         .navigationTitle("Edit plan")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()

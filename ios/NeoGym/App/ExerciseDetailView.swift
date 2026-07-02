@@ -31,6 +31,7 @@ struct ExerciseDetailView: View {
         }
         .navigationTitle(viewModel.exercise?.name ?? "Exercise")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
