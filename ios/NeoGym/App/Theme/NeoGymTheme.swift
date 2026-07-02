@@ -88,12 +88,10 @@ enum NeoGymTheme {
 
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
-    // Root section pages keep a compact top reserve for the secondary segmented
-    // toolbar. Bottom spacing comes from the native iOS tab bar safe area now
-    // that the root shell no longer ignores the container bottom edge.
+    // Root section pages keep a compact top reserve for the native toolbar
+    // hosting the secondary segmented control. Bottom spacing is handled by the
+    // native tab bar and route-local bottom toolbars through SwiftUI safe areas.
     static let topSectionBarContentClearance: CGFloat = 32
-    static let dockRootContentClearance: CGFloat = 0
-    static let dockContentClearance: CGFloat = 0
 
     static let radiusSM: CGFloat = 12
     static let radiusMD: CGFloat = 14

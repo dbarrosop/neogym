@@ -221,7 +221,7 @@ private struct WorkoutFormScreen: View {
             .frame(maxWidth: 700)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
             .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockContentClearance)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle(title)

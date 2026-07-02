@@ -10,6 +10,8 @@ extension SecondaryTabSection {
 }
 
 struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Binding var selection: Section
 
     var body: some View {
@@ -30,11 +32,15 @@ struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.All
         Binding(
             get: { selection },
             set: { newValue in
-                withAnimation(.easeInOut(duration: 0.28)) {
+                withAnimation(sectionTransitionAnimation) {
                     selection = newValue
                 }
             }
         )
+    }
+
+    private var sectionTransitionAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.24)
     }
 
     private var pickerWidth: CGFloat {
@@ -54,6 +60,8 @@ struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.All
 
 struct SecondarySectionContentHost<Section: SecondaryTabSection, Content: View>: View
 where Section.AllCases: RandomAccessCollection {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @Binding private var selection: Section
     @State private var activeSections: Set<Section>
 
@@ -74,18 +82,27 @@ where Section.AllCases: RandomAccessCollection {
                 if shouldKeepAlive(section) {
                     content(section)
                         .opacity(selection == section ? 1 : 0)
-                        .scaleEffect(selection == section ? 1 : 0.985)
+                        .scaleEffect(scale(for: section))
                         .zIndex(selection == section ? 1 : 0)
                         .allowsHitTesting(selection == section)
                         .accessibilityHidden(selection != section)
                 }
             }
         }
-        .animation(.easeInOut(duration: 0.28), value: selection)
+        .animation(sectionTransitionAnimation, value: selection)
         .onAppear { activeSections.insert(selection) }
         .onChange(of: selection) { newValue in
             activeSections.insert(newValue)
         }
+    }
+
+    private var sectionTransitionAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.24)
+    }
+
+    private func scale(for section: Section) -> CGFloat {
+        guard !reduceMotion else { return 1 }
+        return selection == section ? 1 : 0.985
     }
 
     private func shouldKeepAlive(_ section: Section) -> Bool {

@@ -37,6 +37,8 @@ struct AppShellView: View {
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var selection: AppDestination = .workouts
     @State private var pendingSessionId: String?
 
@@ -72,7 +74,7 @@ struct AppShellView: View {
                 )
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        .tabBarMinimizeBehavior(reduceMotion ? .never : .onScrollDown)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

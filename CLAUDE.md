@@ -106,8 +106,12 @@ native shell uses iOS 26 value-based root tabs for the three primary areas
 root-only secondary section bars for Sessions/Workouts/Exercises, Nutrition
 subsections, and Profile/Body/Journal. Pushed detail/form routes use native
 bottom toolbar actions (`.bottomBar`, confirmation/cancellation/destructive
-roles where appropriate) instead of hiding the tab bar. Sheet-local
-`NavigationView` wrappers remain intentional for modal editors/pickers. Do not
+roles where appropriate) instead of hiding the tab bar. Root list pages rely on
+native tab bar safe-area insets plus the top secondary-toolbar clearance; do not
+add custom dock clearance constants or extra bottom padding for custom bottom chrome.
+Reduce Motion should suppress custom section scaling/animated tab-minimize polish
+while preserving native navigation structure. Sheet-local `NavigationView`
+wrappers remain intentional for modal editors/pickers. Do not
 add older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
 `.hidesBottomTabBarWhenPushed()` alias, or new hidden-link navigation. Keep
 unit tests deterministic with fake auth services and the in-memory verifier

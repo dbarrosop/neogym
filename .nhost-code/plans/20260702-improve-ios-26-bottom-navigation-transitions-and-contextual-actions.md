@@ -359,7 +359,11 @@ Adopt an iOS 26 native-first strategy. First remove old platform constraints and
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- Implementation notes: removed stale `dockRootContentClearance` and `dockContentClearance` constants from `NeoGymTheme` and replaced all zero-additive consumers with direct `screenVerticalPadding`. Kept `topSectionBarContentClearance` for root section list pages only and removed it from pushed `DailyIntakeView`. Updated native navigation polish so tab-bar minimize is disabled under Reduce Motion, and secondary section transitions use no animation/no scale under Reduce Motion.
+- Documentation notes: updated root and iOS `CLAUDE.md` guidance to describe the final iOS 26 native `Tab` + typed `NavigationStack` + native bottom toolbar convention, native tab safe-area ownership, no custom dock padding, and no compatibility shims/tab-hide alias.
+- Reviewer verdict: `ACCEPT`. Reviewer confirmed stale constants/comments are gone, root-only top-section clearance is correctly scoped, Reduce Motion behavior is coherent, docs are updated, and build/checks pass.
+- Autonomous decisions: left the pre-existing `UIRequiresFullScreen` iOS 26 deprecation warning out of this phase because it is outside the listed files/scope and unrelated to bottom navigation (long-term maintenance: avoid widening a polish phase into unrelated plist/project cleanup). Recorded that authenticated visual/manual matrix remains unperformed in the headless session instead of treating structural checks as full product verification (correctness: preserve honest validation state).
+- Quality gate: stale-string grep for `dockRootContentClearance`, `dockContentClearance`, `floating dock`, and `page-style` across `ios/NeoGym/App`, `ios/NeoGym/CLAUDE.md`, and root `CLAUDE.md` returned no matches; sanitized Xcode environment `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO` passed; `git diff --check` passed. Manual authenticated matrix, small/large device visual checks, and root-list scroll-to-edge inspection remain residual manual validation items.
 
 ---
 

@@ -54,7 +54,7 @@ struct NutritionOverviewView: View {
             .frame(maxWidth: 720)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
             .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .task { await viewModel.load() }

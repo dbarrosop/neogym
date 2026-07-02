@@ -81,7 +81,11 @@ intact instead of inventing one-off styles.
   section title kept as the accessibility label, and are shown only at each root
   stack's top level. Pushed detail/form routes use native iOS 26 bottom toolbar
   actions (`.bottomBar`, plus confirmation/cancellation/destructive roles where
-  appropriate) instead of hiding the tab bar. Sheet-local `NavigationView`
+  appropriate) instead of hiding the tab bar. Root list pages rely on native tab
+  bar safe-area insets plus the top secondary-toolbar clearance; do not add
+  custom dock clearance constants or extra bottom padding for custom bottom chrome.
+  Reduce Motion should suppress custom section scaling/animated tab-minimize
+  polish while preserving native navigation structure. Sheet-local `NavigationView`
   wrappers are still intentional for modal editors/pickers until those sheets
   are separately revisited. Do not add older-OS availability branches, UIKit
   parent-chain tab-bar hiding, the removed `.hidesBottomTabBarWhenPushed()`

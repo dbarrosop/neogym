@@ -35,6 +35,8 @@ struct NutritionNavigationView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let currentUserId: String?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var selection: NutritionSection = .overview
     @State private var selectedDate: String?
     @State private var path: [NutritionRoute] = []
@@ -71,16 +73,12 @@ struct NutritionNavigationView: View {
             NutritionOverviewView(
                 repository: repository,
                 openSection: { section in
-                    withAnimation(.easeInOut(duration: 0.28)) {
-                        selection = section
-                    }
+                    setSection(section)
                     if section != .days { selectedDate = nil }
                 },
                 openDay: { date in
                     selectedDate = date
-                    withAnimation(.easeInOut(duration: 0.28)) {
-                        selection = .days
-                    }
+                    setSection(.days)
                 }
             )
         case .days:
@@ -170,6 +168,16 @@ struct NutritionNavigationView: View {
     private func openRouteAfterCurrentTransition(_ route: NutritionRoute) {
         DispatchQueue.main.async {
             path = [route]
+        }
+    }
+
+    private var sectionTransitionAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.24)
+    }
+
+    private func setSection(_ section: NutritionSection) {
+        withAnimation(sectionTransitionAnimation) {
+            selection = section
         }
     }
 
