@@ -34,6 +34,7 @@ struct FoodDetailView: View {
         }
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let food = viewModel.food, food.canEdit(currentUserId: currentUserId) {
@@ -162,6 +163,7 @@ struct FoodCreateView: View {
         )
         .navigationTitle("New food")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -240,6 +242,7 @@ struct FoodEditView: View {
         }
         .navigationTitle("Edit food")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()

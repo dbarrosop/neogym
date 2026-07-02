@@ -32,6 +32,7 @@ struct MealCreateView: View {
         )
         .navigationTitle("New meal")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task { await loadIfNeeded() }
     }
 
@@ -148,6 +149,7 @@ struct MealEditView: View {
         }
         .navigationTitle("Edit meal")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()

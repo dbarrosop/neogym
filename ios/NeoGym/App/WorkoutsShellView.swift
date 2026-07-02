@@ -15,6 +15,14 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable, SecondaryTabSection
         case .exercises: "Exercises"
         }
     }
+
+    var systemImage: String? {
+        switch self {
+        case .sessions: "calendar.badge.clock"
+        case .workouts: "figure.strengthtraining.traditional"
+        case .exercises: "list.bullet.clipboard"
+        }
+    }
 }
 
 struct WorkoutsSectionNavigationView: View {
@@ -32,28 +40,33 @@ struct WorkoutsSectionNavigationView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                sectionPages
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .safeAreaInset(edge: .top, spacing: 0) {
-                        SecondarySectionBar(selection: $selection)
-                    }
+                SecondarySectionContentHost(selection: $selection) { section in
+                    sectionPage(for: section)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 startedSessionNavigationLink
             }
-            .navigationBarHidden(true)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    SecondarySectionBar(selection: $selection)
+                }
+            }
         }
         .navigationViewStyle(.stack)
     }
 
-    private var sectionPages: some View {
-        TabView(selection: $selection) {
+    @ViewBuilder
+    private func sectionPage(for section: WorkoutAreaSection) -> some View {
+        switch section {
+        case .sessions:
             SessionsListView(
                 sessionsRepository: sessionsRepository,
                 exercisesRepository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 pendingSessionId: $pendingSessionId
             )
-            .tag(WorkoutAreaSection.sessions)
-
+        case .workouts:
             WorkoutsListView(
                 workoutsRepository: workoutsRepository,
                 exercisesRepository: exercisesRepository,
@@ -61,16 +74,13 @@ struct WorkoutsSectionNavigationView: View {
                 currentUserId: currentUserId,
                 onSessionStarted: openSession
             )
-            .tag(WorkoutAreaSection.workouts)
-
+        case .exercises:
             ExercisesListView(
                 repository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
                 onSessionStarted: openSession
             )
-            .tag(WorkoutAreaSection.exercises)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     @ViewBuilder

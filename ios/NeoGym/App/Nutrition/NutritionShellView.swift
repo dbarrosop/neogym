@@ -19,6 +19,16 @@ enum NutritionSection: String, CaseIterable, Identifiable, SecondaryTabSection {
         case .meals: "Meals"
         }
     }
+
+    var systemImage: String? {
+        switch self {
+        case .overview: "chart.pie"
+        case .days: "calendar"
+        case .plans: "list.bullet.rectangle.portrait"
+        case .foods: "carrot"
+        case .meals: "fork.knife"
+        }
+    }
 }
 
 struct NutritionNavigationView: View {
@@ -30,44 +40,48 @@ struct NutritionNavigationView: View {
 
     var body: some View {
         NavigationView {
-            sectionPages
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .safeAreaInset(edge: .top, spacing: 0) {
+            SecondarySectionContentHost(selection: $selection) { section in
+                sectionPage(for: section)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
                     SecondarySectionBar(selection: $selection)
                 }
-                .navigationBarHidden(true)
+            }
         }
         .navigationViewStyle(.stack)
     }
 
-    private var sectionPages: some View {
-        TabView(selection: $selection) {
+    @ViewBuilder
+    private func sectionPage(for section: NutritionSection) -> some View {
+        switch section {
+        case .overview:
             NutritionOverviewView(
                 repository: repository,
                 openSection: { section in
-                    selection = section
+                    withAnimation(.easeInOut(duration: 0.28)) {
+                        selection = section
+                    }
                     if section != .days { selectedDate = nil }
                 },
                 openDay: { date in
                     selectedDate = date
-                    selection = .days
+                    withAnimation(.easeInOut(duration: 0.28)) {
+                        selection = .days
+                    }
                 }
             )
-            .tag(NutritionSection.overview)
-
+        case .days:
             NutritionDaysView(repository: repository, selectedDate: $selectedDate)
-                .tag(NutritionSection.days)
-
+        case .plans:
             PlansListView(repository: repository)
-                .tag(NutritionSection.plans)
-
+        case .foods:
             FoodsListView(repository: repository, currentUserId: currentUserId)
-                .tag(NutritionSection.foods)
-
+        case .meals:
             MealsListView(repository: repository)
-                .tag(NutritionSection.meals)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 }
 

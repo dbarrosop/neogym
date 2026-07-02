@@ -356,6 +356,7 @@ struct JournalEntryDetailView: View {
         }
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let entry = viewModel.entry {
@@ -477,6 +478,7 @@ struct JournalEntryCreateView: View {
         }
         .navigationTitle("New entry")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -554,6 +556,7 @@ struct JournalEntryEditView: View {
         }
         .navigationTitle("Edit entry")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()

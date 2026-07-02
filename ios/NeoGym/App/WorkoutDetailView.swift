@@ -44,6 +44,7 @@ struct WorkoutDetailView: View {
         }
         .navigationTitle(viewModel.workout?.name ?? "Workout")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .navigationBarItems(trailing: editToolbarLink)
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }

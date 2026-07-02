@@ -31,6 +31,7 @@ struct MealDetailView: View {
         }
         .navigationTitle("Meal")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let meal = viewModel.meal {

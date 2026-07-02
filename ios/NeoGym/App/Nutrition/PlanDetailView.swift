@@ -31,6 +31,7 @@ struct NutritionPlanDetailView: View {
         }
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let plan = viewModel.plan {

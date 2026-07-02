@@ -314,6 +314,7 @@ struct SessionDetailView: View {
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()

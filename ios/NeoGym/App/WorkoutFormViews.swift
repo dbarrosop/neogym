@@ -227,6 +227,7 @@ private struct WorkoutFormScreen: View {
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+        .hidesBottomTabBarWhenPushed()
         .sheet(isPresented: $pickerOpen) {
             ExercisePickerView(
                 repository: exercisesRepository,
