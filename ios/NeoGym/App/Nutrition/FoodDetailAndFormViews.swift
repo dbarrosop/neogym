@@ -34,9 +34,9 @@ struct FoodDetailView: View {
         }
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let food = viewModel.food, food.canEdit(currentUserId: currentUserId) {
                     NavigationLink {
                         FoodEditView(
@@ -53,9 +53,8 @@ struct FoodDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit food", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit food")
                 }
             }
         }

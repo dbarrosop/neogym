@@ -79,12 +79,14 @@ intact instead of inventing one-off styles.
   horizontal swipes are not part of secondary-section navigation. Secondary bars
   use compact SF Symbol labels when a section supplies `systemImage`, with the
   section title kept as the accessibility label, and are shown only at each root
-  stack's top level. Sheet-local `NavigationView` wrappers are still intentional
-  for modal editors/pickers until those sheets are separately revisited. The
-  temporary `.hidesBottomTabBarWhenPushed()` modifier is only a source-compatible
-  alias for `.toolbar(.hidden, for: .tabBar)`; do not add older-OS availability
-  branches, UIKit parent-chain tab-bar hiding, or new hidden-link navigation.
-  Parent lists reload from root invalidation tokens and detail callbacks after
+  stack's top level. Pushed detail/form routes use native iOS 26 bottom toolbar
+  actions (`.bottomBar`, plus confirmation/cancellation/destructive roles where
+  appropriate) instead of hiding the tab bar. Sheet-local `NavigationView`
+  wrappers are still intentional for modal editors/pickers until those sheets
+  are separately revisited. Do not add older-OS availability branches, UIKit
+  parent-chain tab-bar hiding, the removed `.hidesBottomTabBarWhenPushed()`
+  alias, or new hidden-link navigation. Parent lists reload from root
+  invalidation tokens and detail callbacks after
   create/save/delete/mutation flows.
 - **Screen structure**: list and detail screens are usually `ScrollView` →
   leading `VStack(spacing: 18)` → max width around `700–760` →

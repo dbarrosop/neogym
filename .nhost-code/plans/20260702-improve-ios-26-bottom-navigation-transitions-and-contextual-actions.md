@@ -314,7 +314,12 @@ Adopt an iOS 26 native-first strategy. First remove old platform constraints and
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- Implementation notes: audited the remaining production `hidesBottomTabBarWhenPushed` call sites and removed the transitional API. Pushed detail screens now keep the native tab bar and expose route-local actions through `.bottomBar`: session detail has Delete/Add Exercise while the rest timer is lifted above the bottom toolbar; workout and exercise detail expose Start Session; editable food/meal/plan/body/journal detail screens expose Edit. Journal, meal, and plan pushed forms now use the shared native form bottom toolbar for Cancel/Save/Delete instead of inline action stacks. Sheet-local `NavigationView` editors/pickers were left intact.
+- Documentation notes: updated root and iOS `CLAUDE.md` navigation guidance to describe the post-rollout bottom-action convention and to forbid reintroducing the removed hide alias.
+- Reviewer verdict: `ACCEPT`. Reviewer confirmed no production hide-call API remains, converted screens use native bottom/action toolbars consistently, sheets retain local actions, and the rest timer collision is handled.
+- Autonomous decisions: kept manual matrix limitation as a documented residual risk rather than blocking the code rollout because the reviewer accepted code-level correctness and the plan's final Phase 5 still includes manual polish validation (correctness/long-term maintenance: preserve honest validation state while continuing scoped rollout).
+- Validation notes: `grep -R "hidesBottomTabBarWhenPushed" ios/NeoGym/App` returned no production calls or definition. LSP diagnostics for edited Swift app files returned no diagnostics. Sanitized Xcode environment `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO` passed against Xcode 26.6 / iOS Simulator SDK 26.5. `git diff --check` passed.
+- Manual validation limitation: a full authenticated simulator matrix for Workouts, Nutrition, Me, keyboard forms, VoiceOver, Dynamic Type, Reduce Motion, and Reduce Transparency was not completed in this headless pass; this remains a reviewer/manual validation priority before treating the rollout as product-verified.
 
 ### Phase 5 — Theme, spacing, and documentation polish
 

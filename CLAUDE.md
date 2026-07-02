@@ -101,17 +101,17 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
 models and route signed-in sessions into the full-screen `AppShellView`. The
-native shell is in an iOS 26 navigation migration: it uses modern value-based
-root tabs for the three primary areas (Workouts, Nutrition, Me), typed per-root
-`NavigationStack(path:)` state, and root-only secondary section bars for
-Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal;
-pushed screens are still being moved toward native bottom actions. Sheet-local
-`NavigationView` wrappers remain intentional for modal editors/pickers. The
-temporary `.hidesBottomTabBarWhenPushed()` modifier is only a source-compatible
-alias for `.toolbar(.hidden, for: .tabBar)`; do not add older OS fallbacks,
-UIKit parent-chain tab-bar hiding, or new hidden-link navigation. Keep unit tests
-deterministic with fake auth services and the in-memory verifier store, not a
-live backend or real Keychain. Sign-out
+native shell uses iOS 26 value-based root tabs for the three primary areas
+(Workouts, Nutrition, Me), typed per-root `NavigationStack(path:)` state, and
+root-only secondary section bars for Sessions/Workouts/Exercises, Nutrition
+subsections, and Profile/Body/Journal. Pushed detail/form routes use native
+bottom toolbar actions (`.bottomBar`, confirmation/cancellation/destructive
+roles where appropriate) instead of hiding the tab bar. Sheet-local
+`NavigationView` wrappers remain intentional for modal editors/pickers. Do not
+add older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
+`.hidesBottomTabBarWhenPushed()` alias, or new hidden-link navigation. Keep
+unit tests deterministic with fake auth services and the in-memory verifier
+store, not a live backend or real Keychain. Sign-out
 must always call `clearSession()` after
 attempting remote sign-out so local persisted sessions are removed even when the
 network request fails. SwiftUI previews can set Dynamic Type with

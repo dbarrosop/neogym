@@ -44,33 +44,42 @@ struct WorkoutDetailView: View {
         }
         .navigationTitle(viewModel.workout?.name ?? "Workout")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
-        .navigationBarItems(trailing: editToolbarLink)
+        .toolbar { bottomActionToolbar }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
     }
 
-    @ViewBuilder
-    private var editToolbarLink: some View {
-        if viewModel.workout?.canEdit(currentUserId: currentUserId) == true {
-            NavigationLink {
-                WorkoutEditView(
-                    workoutId: viewModel.workoutId,
-                    workoutsRepository: workoutsRepository,
-                    exercisesRepository: exercisesRepository,
-                    currentUserId: currentUserId,
-                    onSaved: { Task { await viewModel.load() } },
-                    onDeleted: {
-                        onDeleted()
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                )
-            } label: {
-                Image(systemName: "pencil")
+    @ToolbarContentBuilder
+    private var bottomActionToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if viewModel.workout?.canEdit(currentUserId: currentUserId) == true {
+                NavigationLink {
+                    WorkoutEditView(
+                        workoutId: viewModel.workoutId,
+                        workoutsRepository: workoutsRepository,
+                        exercisesRepository: exercisesRepository,
+                        currentUserId: currentUserId,
+                        onSaved: { Task { await viewModel.load() } },
+                        onDeleted: {
+                            onDeleted()
+                            presentationMode.wrappedValue.dismiss()
+                        }
+                    )
+                } label: {
+                    Label("Edit workout", systemImage: "pencil")
+                }
             }
-            .accessibilityLabel("Edit workout")
-        } else {
-            EmptyView()
+            Spacer()
+            if viewModel.workout != nil {
+                Button(action: startSession) {
+                    Label(
+                        viewModel.startState.isLoading ? "Starting…" : "Start session",
+                        systemImage: "play.fill"
+                    )
+                }
+                .fontWeight(.semibold)
+                .disabled(viewModel.startState.isLoading)
+            }
         }
     }
 
@@ -114,21 +123,6 @@ struct WorkoutDetailView: View {
                         )
                             .font(.caption)
                             .foregroundColor(NeoGymTheme.mutedText)
-                        Button {
-                            Task {
-                                if let id = await viewModel.startSession() {
-                                    onSessionStarted(id)
-                                }
-                            }
-                        } label: {
-                            Label(
-                                viewModel.startState.isLoading ? "Starting…" : "Start session",
-                                systemImage: "play.fill"
-                            )
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
-                        .disabled(viewModel.startState.isLoading)
                         if let error = viewModel.startState.errorMessage {
                             Text(error)
                                 .font(.caption)
@@ -161,6 +155,14 @@ struct WorkoutDetailView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private func startSession() {
+        Task {
+            if let id = await viewModel.startSession() {
+                onSessionStarted(id)
             }
         }
     }

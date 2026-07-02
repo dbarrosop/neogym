@@ -129,7 +129,7 @@ struct DailyIntakeView: View {
         }
         .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .toolbar { dailyIntakeBottomToolbar }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
                 Task {
@@ -187,15 +187,6 @@ struct DailyIntakeView: View {
         case .loaded:
             totalsSection
             intakeSection
-            if viewModel.day != nil {
-                Button(role: .destructive) {
-                    confirmingDayDelete = true
-                } label: {
-                    Label("Clear day log", systemImage: "trash")
-                }
-                .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
         }
     }
 
@@ -255,17 +246,37 @@ struct DailyIntakeView: View {
                         )
                     }
                 }
+            }
+        }
+    }
 
+    @ToolbarContentBuilder
+    private var dailyIntakeBottomToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if isLoaded {
+                if viewModel.day != nil {
+                    Button(role: .destructive) {
+                        confirmingDayDelete = true
+                    } label: {
+                        Label("Clear day log", systemImage: "trash")
+                    }
+                    .disabled(viewModel.isMutating)
+                    Spacer()
+                }
                 Button {
                     logRequest = .adHocFood
                 } label: {
                     Label("Log", systemImage: "plus")
                 }
-                .buttonStyle(.borderedProminent)
+                .fontWeight(.semibold)
                 .disabled(viewModel.isMutating)
-                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
+    }
+
+    private var isLoaded: Bool {
+        if case .loaded = viewModel.state { return true }
+        return false
     }
 
 }

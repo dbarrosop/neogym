@@ -251,19 +251,19 @@ struct SessionDetailView: View {
                 .frame(maxWidth: 700)
                 .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
                 .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                .padding(.bottom, 86)
+                .padding(.bottom, 120)
                 .frame(maxWidth: .infinity)
             }
 
             if viewModel.session != nil {
                 RestTimerOverlay(timer: restTimer)
                     .padding(.trailing, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.bottom, NeoGymTheme.spacingLG)
+                    .padding(.bottom, 72)
             }
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .toolbar { sessionBottomActionToolbar }
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -407,7 +407,6 @@ struct SessionDetailView: View {
                     strengthTotals(viewModel.totals)
                 }
                 exerciseSection(session)
-                deleteSection
                 if let message = viewModel.mutationState.errorMessage ?? errorMessage {
                     Text(message)
                         .font(.caption)
@@ -466,11 +465,18 @@ struct SessionDetailView: View {
 
     private func exerciseSection(_ session: SessionDetailModel) -> some View {
         SectionShell(title: "Exercises", subtitle: "Add or remove exercises for this session only.") {
-            VStack(spacing: 0) {
-                ForEach(session.workoutSessionExercises) { row in
-                    sessionExerciseRow(row, lastRowId: session.workoutSessionExercises.last?.id)
+            if session.workoutSessionExercises.isEmpty {
+                AppEmptyStateView(
+                    title: "No exercises yet",
+                    message: "Use Add exercise to build this session.",
+                    systemImage: "dumbbell"
+                )
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(session.workoutSessionExercises) { row in
+                        sessionExerciseRow(row, lastRowId: session.workoutSessionExercises.last?.id)
+                    }
                 }
-                addExerciseButton(isFirstRow: session.workoutSessionExercises.isEmpty)
             }
         }
     }
@@ -491,17 +497,6 @@ struct SessionDetailView: View {
             onEditCardioEntry: { startEditingCardioEntry($0, schema: $1, for: row) }
         )
         if row.id != lastRowId { Divider() }
-    }
-
-    private func addExerciseButton(isFirstRow: Bool) -> some View {
-        Button {
-            isShowingExercisePicker = true
-        } label: {
-            Label("Add exercise", systemImage: "plus")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(NeoGymSecondaryButtonStyle())
-        .padding(.top, isFirstRow ? 0 : 12)
     }
 
     private func startAddingSet(for row: SessionExerciseRow) {
@@ -548,20 +543,42 @@ struct SessionDetailView: View {
         )
     }
 
-    private var deleteSection: some View {
-        Button(role: .destructive) {
-            isConfirmingDelete = true
-        } label: {
-            Label("Delete session", systemImage: "trash")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(NeoGymSecondaryButtonStyle())
-        .tint(.red)
+    private var sessionBottomActionToolbar: some ToolbarContent {
+        SessionDetailBottomToolbar(
+            isVisible: viewModel.session != nil,
+            isMutating: viewModel.mutationState.isLoading,
+            onDelete: { isConfirmingDelete = true },
+            onAddExercise: { isShowingExercisePicker = true }
+        )
     }
 
     private func reloadAll() async {
         await viewModel.load()
         onMutated()
+    }
+}
+
+private struct SessionDetailBottomToolbar: ToolbarContent {
+    let isVisible: Bool
+    let isMutating: Bool
+    let onDelete: () -> Void
+    let onAddExercise: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if isVisible {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete session", systemImage: "trash")
+                }
+                .disabled(isMutating)
+                Spacer()
+                Button(action: onAddExercise) {
+                    Label("Add exercise", systemImage: "plus")
+                }
+                .fontWeight(.semibold)
+                .disabled(isMutating)
+            }
+        }
     }
 }
 
@@ -823,4 +840,3 @@ private struct StrengthSetsList: View {
         volume.rounded() == volume ? String(format: "%.0f", volume) : String(format: "%.1f", volume)
     }
 }
-

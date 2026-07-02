@@ -300,9 +300,9 @@ struct JournalEntryDetailView: View {
         }
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let entry = viewModel.entry {
                     NavigationLink {
                         JournalEntryEditView(
@@ -318,9 +318,8 @@ struct JournalEntryDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit entry", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit entry")
                 }
             }
         }
@@ -422,7 +421,6 @@ struct JournalEntryCreateView: View {
         }
         .navigationTitle("New entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -500,7 +498,6 @@ struct JournalEntryEditView: View {
         }
         .navigationTitle("Edit entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -608,12 +605,8 @@ private struct JournalEntryFormScreen: View {
                     JournalLabelInputView(form: form, suggestions: suggestions, disabled: isSubmitting)
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
                 }
             }
             .frame(maxWidth: 680)
@@ -621,26 +614,15 @@ private struct JournalEntryFormScreen: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-    }
-
-    private var actions: some View {
-        VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.canSubmit)
-                .opacity(isSubmitting || !form.canSubmit ? 0.6 : 1)
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete entry", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            deleteLabel: deleteAction == nil ? nil : "Delete entry",
+            onCancel: onCancel,
+            onSubmit: onSubmit,
+            onDelete: deleteAction
+        )
     }
 }
 

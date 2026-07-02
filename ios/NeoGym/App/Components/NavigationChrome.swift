@@ -30,13 +30,7 @@ private struct NativeFormActionToolbar: ViewModifier {
 }
 
 extension View {
-    /// Temporary source-compatible alias while pushed screens migrate to typed
-    /// navigation and route-local bottom actions.
-    func hidesBottomTabBarWhenPushed() -> some View {
-        toolbar(.hidden, for: .tabBar)
-    }
-
-    /// Native iOS 26 pushed-form action surface used by the canary rollout.
+    /// Native iOS 26 pushed-form action surface for route-local actions.
     /// It keeps the primary tab bar native and exposes cancel/save/delete through
     /// the system bottom toolbar instead of hiding the tab bar for the route.
     func nativeFormActionToolbar(

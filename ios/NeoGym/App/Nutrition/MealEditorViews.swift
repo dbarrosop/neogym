@@ -35,7 +35,6 @@ struct MealCreateView: View {
         )
         .navigationTitle("New meal")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task { await loadIfNeeded() }
     }
 
@@ -159,7 +158,6 @@ struct MealEditView: View {
         }
         .navigationTitle("Edit meal")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -227,9 +225,8 @@ struct MealFormScreen: View {
                     )
                     ingredients
                     if let errorMessage {
-                        Text(errorMessage).font(.caption).foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
-                    actions
                 }
             }
             .frame(maxWidth: 680)
@@ -237,6 +234,15 @@ struct MealFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            deleteLabel: deleteAction == nil ? nil : "Delete meal",
+            onCancel: onCancel,
+            onSubmit: onSubmit,
+            onDelete: deleteAction
+        )
         .sheet(item: $quickFood) { request in
             NavigationView {
                 QuickFoodEditorSheet(
@@ -325,25 +331,6 @@ struct MealFormScreen: View {
             .disabled(isSubmitting)
         }
     }
-
-    private var actions: some View {
-        VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.canSubmit)
-                .opacity(isSubmitting || !form.canSubmit ? 0.6 : 1)
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete meal", systemImage: "trash").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
 
 private struct MealIngredientEditorRow: View {
@@ -426,7 +413,6 @@ private struct MealIngredientEditorRow: View {
         .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
     }
 }
-
 
 struct QuickFoodSheetRequest: Identifiable {
     let id = UUID().uuidString
