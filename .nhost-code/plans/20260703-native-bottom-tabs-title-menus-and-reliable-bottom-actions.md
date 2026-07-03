@@ -281,6 +281,13 @@ Baseline for the audit. "Header +" = in-scroll `HeaderActionButtonLabel` icon (t
 
 **Phase commit message:** `feat(ios): integrate rest timer into session bottom actions`
 
+#### Phase 3 implementation log
+
+- Implementation notes: removed the floating `RestTimerOverlay` composition and manual bottom padding hacks from `SessionDetailView`; introduced `RestTimerToolbarControl` in the session `.bottomBar` with idle `Start rest`, running monospaced timer, and clear controls; moved Delete session to a top-trailing overflow menu while preserving the existing confirmation; kept Edit date in the summary card; re-hosted scene-phase refresh and preset dialog on the surviving timer control.
+- Reviewer verdict: `ACCEPT` (nhost-reviewer). Non-blocking notes: tiny controller/ticker cleanup went slightly beyond byte-for-byte but no behavioral regression; manual authenticated timer/accessibility validation remains residual.
+- Quality gate: `git diff --check` passed; grep confirmed removed floating-overlay/manual-padding patterns are absent; targeted LSP diagnostics for `SessionsView.swift` and `RestTimerOverlay.swift` passed; sanitized `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO` passed. `swift test` was not run because no pure `NeoGymKit` timer logic was extracted.
+- Autonomous decisions: kept Edit date in the summary card to preserve locality and minimize churn (long-term maintenance); did not extract pure timer logic because the controller behavior stayed in app SwiftUI code and extraction would widen scope without improving this phase's correctness (long-term maintenance > unnecessary churn); accepted wrapper-failed implementer pass because independent review and gates verified the phase (correctness > long-term maintenance).
+
 ### Phase 4 — Consistency audit, accessibility, and docs
 
 **Goal:** Sweep all detail/form/root action surfaces for consistency, resolve stale clearance/inconsistencies, and update documentation.

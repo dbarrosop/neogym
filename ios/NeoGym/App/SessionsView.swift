@@ -239,23 +239,14 @@ struct SessionDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    content
-                }
-                .frame(maxWidth: 700)
-                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                .padding(.bottom, 120)
-                .frame(maxWidth: .infinity)
+        ScrollView {
+            VStack(spacing: 18) {
+                content
             }
-
-            if viewModel.session != nil {
-                RestTimerOverlay(timer: restTimer)
-                    .padding(.trailing, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.bottom, 72)
-            }
+            .frame(maxWidth: 700)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
@@ -539,11 +530,17 @@ struct SessionDetailView: View {
         )
     }
 
+    @ToolbarContentBuilder
     private var sessionBottomActionToolbar: some ToolbarContent {
+        SessionDetailOverflowToolbar(
+            isVisible: viewModel.session != nil,
+            isMutating: viewModel.mutationState.isLoading,
+            onDelete: { isConfirmingDelete = true }
+        )
         SessionDetailBottomToolbar(
             isVisible: viewModel.session != nil,
             isMutating: viewModel.mutationState.isLoading,
-            onDelete: { isConfirmingDelete = true },
+            restTimer: restTimer,
             onAddExercise: { isShowingExercisePicker = true }
         )
     }
@@ -554,19 +551,39 @@ struct SessionDetailView: View {
     }
 }
 
-private struct SessionDetailBottomToolbar: ToolbarContent {
+private struct SessionDetailOverflowToolbar: ToolbarContent {
     let isVisible: Bool
     let isMutating: Bool
     let onDelete: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            if isVisible {
+                Menu {
+                    Button(role: .destructive, action: onDelete) {
+                        Label("Delete session", systemImage: "trash")
+                    }
+                    .disabled(isMutating)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .accessibilityLabel("Session actions")
+                .disabled(isMutating)
+            }
+        }
+    }
+}
+
+private struct SessionDetailBottomToolbar: ToolbarContent {
+    let isVisible: Bool
+    let isMutating: Bool
+    let restTimer: RestTimerController
     let onAddExercise: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isVisible {
-                Button(role: .destructive, action: onDelete) {
-                    Label("Delete session", systemImage: "trash")
-                }
-                .disabled(isMutating)
+                RestTimerToolbarControl(timer: restTimer)
                 Spacer()
                 Button(action: onAddExercise) {
                     Label("Add exercise", systemImage: "plus")
