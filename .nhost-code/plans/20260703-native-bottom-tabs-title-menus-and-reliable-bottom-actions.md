@@ -318,6 +318,32 @@ Baseline for the audit. "Header +" = in-scroll `HeaderActionButtonLabel` icon (t
 
 **Phase commit message:** `docs(ios): document title-menu nav and reliable bottom actions`
 
+#### Phase 4 implementation log
+
+- Implementation notes: audited the §3 action inventory and found root primary
+  actions in shell-owned `.bottomBar` toolbars, pushed detail/form actions in
+  native bottom toolbars, destructive operations behind alerts/dialogs, and
+  sheet actions sheet-local. Removed the now-zero `topSectionBarContentClearance`
+  constant and its root-list call sites; `NutritionDaysView` now uses normal
+  root screen padding and pushed `DailyIntakeView` remains on normal screen
+  padding with no root-only clearance.
+- Documentation notes: updated root `CLAUDE.md` and `ios/NeoGym/CLAUDE.md` to
+  describe title-menu secondary navigation, root `.bottomBar` actions, session
+  timer + Add exercise bottom chrome, Delete session overflow, bottom-integrated
+  rest timer, and the continued ban on custom dock/tab-bar hiding patterns.
+- Accessibility notes: static audit confirmed label-based root/detail actions,
+  title-menu row labels with current checkmark state, a labeled session overflow
+  menu, labeled timer start/running/clear controls, Reduce Motion-aware section
+  transitions, and no custom bottom padding hacks. Full authenticated VoiceOver,
+  Dynamic Type, Reduce Motion/Transparency, and small/large-device safe-area
+  simulator validation was not possible in this headless pass and remains a
+  manual residual.
+- Quality gate: `git diff --check` passed; targeted LSP diagnostics for changed
+  Swift files passed; grep confirmed no `topSectionBarContentClearance`, no
+  `HeaderActionButtonLabel`, no principal `SecondarySectionBar`/floating timer
+  overlay/manual bottom padding patterns in app code, and no contradictory
+  secondary-tab-bar guidance in docs; sanitized quiet `xcodebuild` passed.
+
 ---
 
 ## 5. Validation

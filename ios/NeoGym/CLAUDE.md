@@ -73,31 +73,37 @@ intact instead of inventing one-off styles.
   roots and per-root typed `NavigationStack(path:)` state; new pushed flows
   should use the existing root route enums instead of hidden `NavigationLink`
   state. Broad areas use inline navigation title menus rather than adding more
-  primary tabs. Root secondary sections are selected from `.toolbarTitleMenu`
-  rows and hosted by `SecondarySectionContentHost`, which keeps visited root
-  sections mounted while animating opacity/scale transitions; horizontal swipes
-  are not part of secondary-section navigation. Title menu rows use SF Symbols
-  when a section supplies `systemImage`, and the active row carries a current
-  checkmark indication; title menus are shown only at each root stack's top
-  level. Pushed detail/form routes use native iOS 26 bottom toolbar actions
+  primary tabs or persistent secondary bars. Root secondary sections are selected
+  from `.toolbarTitleMenu` rows and hosted by `SecondarySectionContentHost`,
+  which keeps visited root sections mounted while animating opacity/scale
+  transitions; horizontal swipes are not part of secondary-section navigation.
+  Title menu rows use SF Symbols when a section supplies `systemImage`, and the
+  active row carries a current checkmark indication; title menus are shown only
+  at each root stack's top level. Root primary actions (New workout, New food,
+  New meal, New plan, Log measurement, New entry) are shell-owned `.bottomBar`
+  toolbar items keyed on `path.isEmpty && selection`, not in-scroll header
+  glyphs. Pushed detail/form routes use native iOS 26 bottom toolbar actions
   (`.bottomBar`, plus confirmation/cancellation/destructive roles where
-  appropriate) instead of hiding the tab bar. Root list pages rely on standard
-  navigation-title spacing and native tab bar safe-area insets; do not add
-  custom dock clearance constants or extra bottom padding for custom bottom chrome.
-  Reduce Motion should suppress custom section scaling/animated tab-minimize
-  polish while preserving native navigation structure. Sheet-local `NavigationView`
-  wrappers are still intentional for modal editors/pickers until those sheets
-  are separately revisited. Do not add older-OS availability branches, UIKit
-  parent-chain tab-bar hiding, the removed `.hidesBottomTabBarWhenPushed()`
-  alias, or new hidden-link navigation. Parent lists reload from root
-  invalidation tokens and detail callbacks after
-  create/save/delete/mutation flows.
+  appropriate) instead of hiding the tab bar. Session detail bottom chrome is the
+  rest timer control plus Add exercise; Delete session belongs in the
+  top-trailing overflow menu and remains confirmed. The rest timer is
+  bottom-integrated and must not be reintroduced as a floating overlay. Root list
+  pages rely on standard navigation-title spacing and native tab bar safe-area
+  insets; do not add custom dock clearance constants or extra bottom padding for
+  custom bottom chrome. Reduce Motion should suppress custom section
+  scaling/animated tab-minimize polish while preserving native navigation
+  structure. Sheet-local `NavigationView` wrappers are still intentional for
+  modal editors/pickers until those sheets are separately revisited. Do not add
+  older-OS availability branches, UIKit parent-chain tab-bar hiding, the removed
+  `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
+  navigation. Parent lists reload from root invalidation tokens and detail
+  callbacks after create/save/delete/mutation flows.
 - **Screen structure**: list and detail screens are usually `ScrollView` →
   leading `VStack(spacing: 18)` → max width around `700–760` →
   `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
-  list headers use an uppercase caption eyebrow, a `.largeTitle.bold()` title
-  with slight negative tracking, muted explanatory copy, and
-  `HeaderActionButtonLabel` for icon-only create actions.
+  list headers use an uppercase caption eyebrow plus muted explanatory copy;
+  the active section title comes from the inline navigation title menu, and
+  create/log actions belong to the shell bottom toolbar.
 - **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
   colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.
   Cards and grouped content should use `SectionShell`, `GlassPanel`,

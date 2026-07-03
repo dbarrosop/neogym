@@ -88,12 +88,6 @@ enum NeoGymTheme {
 
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
-    // Root section pages use the standard inline navigation title menu, so they
-    // do not need an extra top reserve for custom secondary chrome. Bottom
-    // spacing is handled by the native tab bar and route-local bottom toolbars
-    // through SwiftUI safe areas.
-    static let topSectionBarContentClearance: CGFloat = 0
-
     static let radiusSM: CGFloat = 12
     static let radiusMD: CGFloat = 14
     static let radiusLG: CGFloat = 18
