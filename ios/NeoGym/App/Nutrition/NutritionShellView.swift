@@ -56,12 +56,11 @@ struct NutritionNavigationView: View {
             sectionPage(for: section)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .navigationTitle(selection.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
+        .toolbarTitleMenu {
             if path.isEmpty {
-                ToolbarItem(placement: .principal) {
-                    SecondarySectionBar(selection: $selection)
-                }
+                SectionTitleMenuContent(selection: $selection)
             }
         }
     }

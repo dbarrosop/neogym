@@ -40,7 +40,6 @@ struct SessionsListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Sessions")
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -58,9 +57,6 @@ struct SessionsListView: View {
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .foregroundColor(NeoGymTheme.mutedText)
-            Text("Sessions")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
             Text("Every workout you've logged, newest first. Start a new one from a workout or exercise.")
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)

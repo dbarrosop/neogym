@@ -47,11 +47,11 @@ struct PlansListView: View {
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text("Plans")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Create reusable one-day templates made of timed meal and food entries. Plans are suggestions only.")
-                    .font(.subheadline)
+                Text(
+                    "Create reusable one-day templates made of timed meal and food entries. "
+                        + "Plans are suggestions only."
+                )
+                .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             Spacer(minLength: 0)

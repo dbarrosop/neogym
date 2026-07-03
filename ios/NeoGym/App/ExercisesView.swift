@@ -36,7 +36,6 @@ struct ExercisesListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Exercises")
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -52,9 +51,6 @@ struct ExercisesListView: View {
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .foregroundColor(NeoGymTheme.mutedText)
-            Text("Exercises")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
             Text("Search by name, or narrow the catalog by muscle, category, equipment, and level.")
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)

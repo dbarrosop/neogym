@@ -9,52 +9,37 @@ extension SecondaryTabSection {
     var systemImage: String? { nil }
 }
 
-struct SecondarySectionBar<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
+struct SectionTitleMenuContent<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Binding var selection: Section
 
     var body: some View {
-        Picker("Section", selection: animatedSelection) {
-            ForEach(Section.allCases) { section in
-                sectionLabel(section)
-                    .tag(section)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: pickerWidth)
-        .dynamicTypeSize(...DynamicTypeSize.large)
-        .accessibilityLabel("Section navigation")
-    }
-
-    private var animatedSelection: Binding<Section> {
-        Binding(
-            get: { selection },
-            set: { newValue in
-                withAnimation(sectionTransitionAnimation) {
-                    selection = newValue
+        ForEach(Section.allCases) { section in
+            Button {
+                select(section)
+            } label: {
+                HStack {
+                    Label(section.title, systemImage: section.systemImage ?? "circle")
+                    if section == selection {
+                        Spacer()
+                        Image(systemName: "checkmark")
+                    }
                 }
             }
-        )
+            .accessibilityLabel(section.title)
+            .accessibilityValue(section == selection ? "Current section" : "")
+        }
+    }
+
+    private func select(_ section: Section) {
+        withAnimation(sectionTransitionAnimation) {
+            selection = section
+        }
     }
 
     private var sectionTransitionAnimation: Animation? {
         reduceMotion ? nil : .easeInOut(duration: 0.24)
-    }
-
-    private var pickerWidth: CGFloat {
-        Section.allCases.count > 3 ? 300 : 260
-    }
-
-    @ViewBuilder
-    private func sectionLabel(_ section: Section) -> some View {
-        if let systemImage = section.systemImage {
-            Image(systemName: systemImage)
-                .accessibilityLabel(section.title)
-        } else {
-            Text(section.title)
-        }
     }
 }
 

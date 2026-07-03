@@ -72,17 +72,17 @@ intact instead of inventing one-off styles.
   (Workouts, Nutrition, Me). The iOS 26 shell uses modern value-based `Tab`
   roots and per-root typed `NavigationStack(path:)` state; new pushed flows
   should use the existing root route enums instead of hidden `NavigationLink`
-  state. Broad areas use the top `SecondarySectionBar` segmented control rather
-  than adding more primary tabs. Root secondary sections are selected from the
-  navigation toolbar and hosted by `SecondarySectionContentHost`, which keeps
-  visited root sections mounted while animating opacity/scale transitions;
-  horizontal swipes are not part of secondary-section navigation. Secondary bars
-  use compact SF Symbol labels when a section supplies `systemImage`, with the
-  section title kept as the accessibility label, and are shown only at each root
-  stack's top level. Pushed detail/form routes use native iOS 26 bottom toolbar
-  actions (`.bottomBar`, plus confirmation/cancellation/destructive roles where
-  appropriate) instead of hiding the tab bar. Root list pages rely on native tab
-  bar safe-area insets plus the top secondary-toolbar clearance; do not add
+  state. Broad areas use inline navigation title menus rather than adding more
+  primary tabs. Root secondary sections are selected from `.toolbarTitleMenu`
+  rows and hosted by `SecondarySectionContentHost`, which keeps visited root
+  sections mounted while animating opacity/scale transitions; horizontal swipes
+  are not part of secondary-section navigation. Title menu rows use SF Symbols
+  when a section supplies `systemImage`, and the active row carries a current
+  checkmark indication; title menus are shown only at each root stack's top
+  level. Pushed detail/form routes use native iOS 26 bottom toolbar actions
+  (`.bottomBar`, plus confirmation/cancellation/destructive roles where
+  appropriate) instead of hiding the tab bar. Root list pages rely on standard
+  navigation-title spacing and native tab bar safe-area insets; do not add
   custom dock clearance constants or extra bottom padding for custom bottom chrome.
   Reduce Motion should suppress custom section scaling/animated tab-minimize
   polish while preserving native navigation structure. Sheet-local `NavigationView`

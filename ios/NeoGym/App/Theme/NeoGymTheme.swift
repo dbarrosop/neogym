@@ -57,7 +57,7 @@ enum NeoGymTheme {
             colors: [
                 Color(.systemBackground),
                 Color(.secondarySystemBackground),
-                Color(.systemBackground),
+                Color(.systemBackground)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -88,10 +88,11 @@ enum NeoGymTheme {
 
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
-    // Root section pages keep a compact top reserve for the native toolbar
-    // hosting the secondary segmented control. Bottom spacing is handled by the
-    // native tab bar and route-local bottom toolbars through SwiftUI safe areas.
-    static let topSectionBarContentClearance: CGFloat = 32
+    // Root section pages use the standard inline navigation title menu, so they
+    // do not need an extra top reserve for custom secondary chrome. Bottom
+    // spacing is handled by the native tab bar and route-local bottom toolbars
+    // through SwiftUI safe areas.
+    static let topSectionBarContentClearance: CGFloat = 0
 
     static let radiusSM: CGFloat = 12
     static let radiusMD: CGFloat = 14

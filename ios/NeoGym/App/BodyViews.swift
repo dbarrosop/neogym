@@ -33,7 +33,6 @@ struct BodyMeasurementsListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Body")
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load(shouldSyncHealthMeasurements: true)
@@ -50,9 +49,6 @@ struct BodyMeasurementsListView: View {
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text("Body")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
                 Text("Log your weight and body fat over time.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)

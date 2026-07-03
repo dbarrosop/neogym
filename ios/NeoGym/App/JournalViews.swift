@@ -25,7 +25,6 @@ struct JournalListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Journal")
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -42,9 +41,6 @@ struct JournalListView: View {
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text("Journal")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
                 Text("Notes, reflections, and anything else worth remembering.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)

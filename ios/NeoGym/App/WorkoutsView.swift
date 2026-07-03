@@ -40,7 +40,6 @@ struct WorkoutsListView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Workouts")
         .task { await viewModel.load() }
         .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
@@ -53,9 +52,6 @@ struct WorkoutsListView: View {
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text("Workouts")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
                 Text("Your routines and shared community templates.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
