@@ -9,6 +9,32 @@ extension SecondaryTabSection {
     var systemImage: String? { nil }
 }
 
+struct SectionTitleMenu<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
+    @Binding var selection: Section
+
+    var body: some View {
+        Menu {
+            SectionTitleMenuContent(selection: $selection)
+        } label: {
+            HStack(spacing: NeoGymTheme.spacingXXS) {
+                if let systemImage = selection.systemImage {
+                    Image(systemName: systemImage)
+                        .imageScale(.small)
+                }
+                Text(selection.title)
+                    .fontWeight(.semibold)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+            .lineLimit(1)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .accessibilityLabel("Choose section")
+        .accessibilityValue(selection.title)
+    }
+}
+
 struct SectionTitleMenuContent<Section: SecondaryTabSection>: View where Section.AllCases: RandomAccessCollection {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

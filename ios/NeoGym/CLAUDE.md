@@ -72,14 +72,15 @@ intact instead of inventing one-off styles.
   (Workouts, Nutrition, Me). The iOS 26 shell uses modern value-based `Tab`
   roots and per-root typed `NavigationStack(path:)` state; new pushed flows
   should use the existing root route enums instead of hidden `NavigationLink`
-  state. Broad areas use inline navigation title menus rather than adding more
-  primary tabs or persistent secondary bars. Root secondary sections are selected
-  from `.toolbarTitleMenu` rows and hosted by `SecondarySectionContentHost`,
-  which keeps visited root sections mounted while animating opacity/scale
-  transitions; horizontal swipes are not part of secondary-section navigation.
-  Title menu rows use SF Symbols when a section supplies `systemImage`, and the
-  active row carries a current checkmark indication; title menus are shown only
-  at each root stack's top level. Root primary actions (New workout, New food,
+  state. Broad areas use centered, collapsed section menus in the navigation
+  bar's principal slot rather than adding more primary tabs or persistent
+  secondary bars. Root secondary sections are selected from those principal menu
+  rows and hosted by `SecondarySectionContentHost`, which keeps visited root
+  sections mounted while animating opacity/scale transitions; horizontal swipes
+  are not part of secondary-section navigation. Title menu rows use SF Symbols
+  when a section supplies `systemImage`, and the active row carries a current
+  checkmark indication; title menus are shown only at each root stack's top
+  level. Root primary actions (New workout, New food,
   New meal, New plan, Log measurement, New entry) are shell-owned `.bottomBar`
   toolbar items keyed on `path.isEmpty && selection`, not in-scroll header
   glyphs. Pushed detail/form routes use native iOS 26 bottom toolbar actions
@@ -102,7 +103,7 @@ intact instead of inventing one-off styles.
   leading `VStack(spacing: 18)` → max width around `700–760` →
   `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
   list headers use an uppercase caption eyebrow plus muted explanatory copy;
-  the active section title comes from the inline navigation title menu, and
+  the active section title comes from the centered collapsed section menu, and
   create/log actions belong to the shell bottom toolbar.
 - **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
   colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.

@@ -103,8 +103,9 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 models and route signed-in sessions into the full-screen `AppShellView`. The
 native shell uses iOS 26 value-based root tabs for the three primary areas
 (Workouts, Nutrition, Me), typed per-root `NavigationStack(path:)` state, and
-root-only inline navigation title menus for Sessions/Workouts/Exercises,
-Nutrition subsections, and Profile/Body/Journal. Root primary actions (New
+root-only centered, collapsed section menus in the navigation bar's principal
+slot for Sessions/Workouts/Exercises, Nutrition subsections, and
+Profile/Body/Journal. Root primary actions (New
 workout/food/meal/plan, Log measurement, New entry) live in shell-owned
 `.bottomBar` toolbars keyed to the active top-level section. Pushed detail/form
 routes use native bottom toolbar actions (`.bottomBar`,

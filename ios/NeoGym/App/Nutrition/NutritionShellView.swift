@@ -58,12 +58,19 @@ struct NutritionNavigationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(selection.title)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarTitleMenu {
-            if path.isEmpty {
-                SectionTitleMenuContent(selection: $selection)
+        .toolbar {
+            rootSectionToolbar
+            rootActionToolbar
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var rootSectionToolbar: some ToolbarContent {
+        if path.isEmpty {
+            ToolbarItem(placement: .principal) {
+                SectionTitleMenu(selection: $selection)
             }
         }
-        .toolbar { rootActionToolbar }
     }
 
     @ToolbarContentBuilder
