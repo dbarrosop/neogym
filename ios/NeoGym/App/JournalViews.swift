@@ -35,21 +35,14 @@ struct JournalListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tracking")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Notes, reflections, and anything else worth remembering.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: MeRoute.journalEntryCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New journal entry")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Tracking")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Notes, reflections, and anything else worth remembering.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 

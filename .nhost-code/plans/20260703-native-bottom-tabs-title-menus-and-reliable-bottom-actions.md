@@ -241,6 +241,13 @@ Baseline for the audit. "Header +" = in-scroll `HeaderActionButtonLabel` icon (t
 
 **Phase commit message:** `feat(ios): move root create actions into reliable toolbar chrome`
 
+#### Phase 2 implementation log
+
+- Implementation notes: selected root `.bottomBar` placement based on Phase 1 spike; added a shared `RootPrimaryActionToolbar`; moved New workout/food/meal/plan, New entry, and Body `Log measurement` into shell-owned bottom toolbars keyed on `path.isEmpty && selection`; removed in-scroll header plus buttons; deleted unused `HeaderActionButtonLabel.swift`.
+- Reviewer verdict: `ACCEPT_WITH_CONCERNS` (nhost-reviewer). Accepted concerns: `ios/NeoGym/CLAUDE.md` still has a dangling `HeaderActionButtonLabel` doc reference, intentionally deferred to Phase 4 docs sweep; authenticated kept-alive/VoiceOver/scroll-minimize validation remains manual.
+- Quality gate: `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` passed after deleting a Swift App file; `git diff --check` passed; targeted LSP diagnostics for changed Swift files passed; sanitized `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO` passed.
+- Autonomous decisions: used `.bottomBar` instead of the top fallback because Phase 1 spike showed at-rest coexistence and consistent bottom actions better satisfy long-term navigation/action separation (correctness > long-term maintenance); accepted wrapper-failed implementer/reviewer results because their reports and independent gates were complete and no automated tests were appropriate for this SwiftUI chrome phase (correctness > long-term maintenance).
+
 ### Phase 3 — Session bottom actions + rest-timer integration
 
 **Goal:** Declutter the session bottom bar and integrate the rest timer into reliable bottom chrome, removing the floating overlay and manual padding hacks.

@@ -63,6 +63,32 @@ struct NutritionNavigationView: View {
                 SectionTitleMenuContent(selection: $selection)
             }
         }
+        .toolbar { rootActionToolbar }
+    }
+
+    @ToolbarContentBuilder
+    private var rootActionToolbar: some ToolbarContent {
+        if path.isEmpty, selection == .plans {
+            RootPrimaryActionToolbar(
+                title: "New plan",
+                systemImage: "plus",
+                action: openPlanCreate
+            )
+        }
+        if path.isEmpty, selection == .foods {
+            RootPrimaryActionToolbar(
+                title: "New food",
+                systemImage: "plus",
+                action: openFoodCreate
+            )
+        }
+        if path.isEmpty, selection == .meals {
+            RootPrimaryActionToolbar(
+                title: "New meal",
+                systemImage: "plus",
+                action: openMealCreate
+            )
+        }
     }
 
     @ViewBuilder
@@ -158,6 +184,18 @@ struct NutritionNavigationView: View {
                 onFinished: invalidateLists
             )
         }
+    }
+
+    private func openPlanCreate() {
+        path.append(.planCreate)
+    }
+
+    private func openFoodCreate() {
+        path.append(.foodCreate)
+    }
+
+    private func openMealCreate() {
+        path.append(.mealCreate)
     }
 
     private func openRoute(_ route: NutritionRoute) {

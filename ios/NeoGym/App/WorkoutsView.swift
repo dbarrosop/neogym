@@ -46,21 +46,14 @@ struct WorkoutsListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Plans")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Your routines and shared community templates.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: WorkoutsRoute.workoutCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New workout")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Plans")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Your routines and shared community templates.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 

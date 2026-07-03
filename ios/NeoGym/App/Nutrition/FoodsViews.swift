@@ -37,21 +37,14 @@ struct FoodsListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nutrition")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Search public foods and your private catalog.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: NutritionRoute.foodCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New food")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Nutrition")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Search public foods and your private catalog.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 

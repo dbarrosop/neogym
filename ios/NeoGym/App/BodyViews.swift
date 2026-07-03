@@ -43,21 +43,14 @@ struct BodyMeasurementsListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tracking")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Log your weight and body fat over time.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: MeRoute.bodyMeasurementCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New measurement")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Tracking")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Log your weight and body fat over time.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 

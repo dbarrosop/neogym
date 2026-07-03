@@ -58,6 +58,18 @@ struct WorkoutsSectionNavigationView: View {
                 SectionTitleMenuContent(selection: $selection)
             }
         }
+        .toolbar { rootActionToolbar }
+    }
+
+    @ToolbarContentBuilder
+    private var rootActionToolbar: some ToolbarContent {
+        if path.isEmpty, selection == .workouts {
+            RootPrimaryActionToolbar(
+                title: "New workout",
+                systemImage: "plus",
+                action: openWorkoutCreate
+            )
+        }
     }
 
     @ViewBuilder
@@ -128,6 +140,10 @@ struct WorkoutsSectionNavigationView: View {
                 onSessionStarted: openSession
             )
         }
+    }
+
+    private func openWorkoutCreate() {
+        path.append(.workoutCreate)
     }
 
     private func openSession(_ sessionId: String) {

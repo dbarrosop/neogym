@@ -41,24 +41,17 @@ struct PlansListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nutrition")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text(
-                    "Create reusable one-day templates made of timed meal and food entries. "
-                        + "Plans are suggestions only."
-                )
-                .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: NutritionRoute.planCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New plan")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Nutrition")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text(
+                "Create reusable one-day templates made of timed meal and food entries. "
+                    + "Plans are suggestions only."
+            )
+            .font(.subheadline)
+            .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 

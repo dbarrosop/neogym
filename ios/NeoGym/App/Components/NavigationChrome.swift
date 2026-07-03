@@ -1,5 +1,22 @@
 import SwiftUI
 
+struct RootPrimaryActionToolbar: ToolbarContent {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            Spacer()
+            Button(action: action) {
+                Label(title, systemImage: systemImage)
+            }
+            .fontWeight(.semibold)
+            .accessibilityLabel(title)
+        }
+    }
+}
+
 private struct NativeFormActionToolbar: ViewModifier {
     let submitLabel: String
     let isSubmitting: Bool

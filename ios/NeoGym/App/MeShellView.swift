@@ -60,6 +60,25 @@ struct MeNavigationView: View {
                 SectionTitleMenuContent(selection: $selection)
             }
         }
+        .toolbar { rootActionToolbar }
+    }
+
+    @ToolbarContentBuilder
+    private var rootActionToolbar: some ToolbarContent {
+        if path.isEmpty, selection == .body {
+            RootPrimaryActionToolbar(
+                title: "Log measurement",
+                systemImage: "plus",
+                action: openBodyMeasurementCreate
+            )
+        }
+        if path.isEmpty, selection == .journal {
+            RootPrimaryActionToolbar(
+                title: "New entry",
+                systemImage: "plus",
+                action: openJournalEntryCreate
+            )
+        }
     }
 
     @ViewBuilder
@@ -121,8 +140,12 @@ struct MeNavigationView: View {
         }
     }
 
-    private func openRoute(_ route: MeRoute) {
-        path.append(route)
+    private func openBodyMeasurementCreate() {
+        path.append(.bodyMeasurementCreate)
+    }
+
+    private func openJournalEntryCreate() {
+        path.append(.journalEntryCreate)
     }
 
     private func openRouteAfterCurrentTransition(_ route: MeRoute) {

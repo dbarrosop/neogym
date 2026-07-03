@@ -41,21 +41,14 @@ struct MealsListView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nutrition")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Compose reusable private meal templates from foods.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink(value: NutritionRoute.mealCreate) {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New meal")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Nutrition")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Compose reusable private meal templates from foods.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
