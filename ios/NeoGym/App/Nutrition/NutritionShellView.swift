@@ -34,6 +34,7 @@ enum NutritionSection: String, CaseIterable, Identifiable, SecondaryTabSection {
 struct NutritionNavigationView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let currentUserId: String?
+    @Binding var areaSelection: AppDestination
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -58,6 +59,11 @@ struct NutritionNavigationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(selection.title)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) {
+            if path.isEmpty {
+                AppAreaSwitcher(selection: $areaSelection)
+            }
+        }
         .toolbar {
             rootSectionToolbar
             rootActionToolbar
@@ -235,5 +241,9 @@ struct NutritionNavigationView: View {
 }
 
 #Preview("Nutrition") {
-    NutritionNavigationView(repository: PreviewNutritionFoodMealRepository(), currentUserId: "user-1")
+    NutritionNavigationView(
+        repository: PreviewNutritionFoodMealRepository(),
+        currentUserId: "user-1",
+        areaSelection: .constant(.nutrition)
+    )
 }

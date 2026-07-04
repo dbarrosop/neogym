@@ -31,8 +31,9 @@ struct WorkoutsSectionNavigationView: View {
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
     let currentUserId: String?
+    @Binding var areaSelection: AppDestination
+    let restTimer: RestTimerController
     @Binding var pendingSessionId: String?
-    @Binding var hasSessionDetail: Bool
 
     @State private var selection: WorkoutAreaSection = .sessions
     @State private var path: [WorkoutsRoute] = []
@@ -45,11 +46,6 @@ struct WorkoutsSectionNavigationView: View {
                     routeDestination(for: route)
                 }
         }
-        .onChange(of: path) { _, newPath in
-            hasSessionDetail = newPath.contains { route in
-                if case .sessionDetail = route { true } else { false }
-            }
-        }
     }
 
     private var rootContent: some View {
@@ -59,6 +55,11 @@ struct WorkoutsSectionNavigationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(selection.title)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) {
+            if path.isEmpty {
+                AppAreaSwitcher(selection: $areaSelection)
+            }
+        }
         .toolbar {
             rootSectionToolbar
             rootActionToolbar
@@ -125,6 +126,7 @@ struct WorkoutsSectionNavigationView: View {
                 sessionsRepository: sessionsRepository,
                 exercisesRepository: exercisesRepository,
                 storageBaseURL: storageBaseURL,
+                restTimer: restTimer,
                 onSessionStarted: openSession,
                 onDeleted: closeStartedSession,
                 onMutated: invalidateLists

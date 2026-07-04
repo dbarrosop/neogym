@@ -37,35 +37,34 @@ struct AppShellView: View {
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     @State private var selection: AppDestination = .workouts
     @State private var pendingSessionId: String?
-    @State private var workoutsHasSessionDetail = false
     @StateObject private var restTimer = RestTimerController()
 
     var body: some View {
-        TabView(selection: $selection) {
-            Tab(AppDestination.workouts.title, systemImage: AppDestination.workouts.icon, value: AppDestination.workouts) {
+        ZStack {
+            areaView(.workouts) {
                 WorkoutsSectionNavigationView(
                     workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
                     sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
                     exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                     storageBaseURL: environment.client.serviceURLs.storage,
                     currentUserId: session.user?.id,
-                    pendingSessionId: $pendingSessionId,
-                    hasSessionDetail: $workoutsHasSessionDetail
+                    areaSelection: $selection,
+                    restTimer: restTimer,
+                    pendingSessionId: $pendingSessionId
                 )
             }
 
-            Tab(AppDestination.nutrition.title, systemImage: AppDestination.nutrition.icon, value: AppDestination.nutrition) {
+            areaView(.nutrition) {
                 NutritionNavigationView(
                     repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
-                    currentUserId: session.user?.id
+                    currentUserId: session.user?.id,
+                    areaSelection: $selection
                 )
             }
 
-            Tab(AppDestination.me.title, systemImage: AppDestination.me.icon, value: AppDestination.me) {
+            areaView(.me) {
                 MeNavigationView(
                     session: session,
                     bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
@@ -73,17 +72,21 @@ struct AppShellView: View {
                     journalRepository: JournalRepository(graphQL: environment.graphQLService),
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,
-                    signOut: signOut
+                    signOut: signOut,
+                    areaSelection: $selection
                 )
             }
         }
-        .tabBarMinimizeBehavior(reduceMotion ? .never : .onScrollDown)
-        .tabViewBottomAccessory {
-            if selection == .workouts, workoutsHasSessionDetail {
-                RestTimerToolbarControl(timer: restTimer)
-            }
-        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private func areaView(_ destination: AppDestination, @ViewBuilder content: () -> some View) -> some View {
+        let isActive = selection == destination
+        content()
+            .opacity(isActive ? 1 : 0)
+            .accessibilityHidden(!isActive)
+            .allowsHitTesting(isActive)
     }
 
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
@@ -92,6 +95,26 @@ struct AppShellView: View {
         #else
         nil
         #endif
+    }
+}
+
+/// Transitional Phase-1 area switcher. Each area root hosts it via
+/// `.safeAreaInset(edge: .top)` while the principal `SectionTitleMenu` still
+/// drives subsection selection; both are folded into per-area hubs in Phase 2/3.
+struct AppAreaSwitcher: View {
+    @Binding var selection: AppDestination
+
+    var body: some View {
+        Picker("Area", selection: $selection) {
+            ForEach(AppDestination.allCases) { destination in
+                Text(destination.title).tag(destination)
+            }
+        }
+        .pickerStyle(.segmented)
+        .frame(minHeight: 44)
+        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+        .padding(.vertical, NeoGymTheme.spacingSM)
+        .accessibilityLabel("Primary area")
     }
 }
 

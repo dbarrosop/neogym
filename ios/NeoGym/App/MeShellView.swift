@@ -34,6 +34,7 @@ struct MeNavigationView: View {
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
+    @Binding var areaSelection: AppDestination
 
     @State private var selection: MeSection = .profile
     @State private var path: [MeRoute] = []
@@ -55,6 +56,11 @@ struct MeNavigationView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(selection.title)
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) {
+            if path.isEmpty {
+                AppAreaSwitcher(selection: $areaSelection)
+            }
+        }
         .toolbar {
             rootSectionToolbar
             rootActionToolbar

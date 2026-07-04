@@ -72,45 +72,53 @@ When editing SwiftUI under `App/`, keep the existing native design language
 intact instead of inventing one-off styles.
 
 - **App shell and navigation**: the signed-in app has three primary root areas
-  (Workouts, Nutrition, Me). The iOS 26 shell uses modern value-based `Tab`
-  roots and per-root typed `NavigationStack(path:)` state; new pushed flows
-  should use the existing root route enums instead of hidden `NavigationLink`
-  state. Broad areas use centered, collapsed section menus in the navigation
-  bar's principal slot rather than adding more primary tabs or persistent
-  secondary bars. Root secondary sections are selected from those principal menu
-  rows and hosted by `SecondarySectionContentHost`, which keeps visited root
-  sections mounted while animating opacity/scale transitions; horizontal swipes
-  are not part of secondary-section navigation. Title menu rows use SF Symbols
-  when a section supplies `systemImage`, and the active row carries a current
-  checkmark indication; title menus are shown only at each root stack's top
-  level. Root primary actions (New workout, New food,
-  New meal, New plan, Log measurement, New entry) are shell-owned `.bottomBar`
-  toolbar items keyed on `path.isEmpty && selection`, not in-scroll header
-  glyphs. Pushed form routes put Cancel in the top-leading
-  `.cancellationAction`, Save in the top-trailing `.confirmationAction`, and
-  destructive Delete in a top-trailing overflow menu. Pushed detail routes still
-  use native iOS 26 bottom toolbar actions (`.bottomBar`, plus
-  confirmation/destructive roles where appropriate) instead of hiding the tab
-  bar. A session detail's `.bottomBar` holds only Add exercise; Delete session
-  belongs in the top-trailing overflow menu and remains confirmed. The rest
-  timer is a shell-owned
-  `tabViewBottomAccessory` (iOS 26.0 content-only overload, since the
-  `isEnabled:` overload is 26.1+) that `AppShellView` shows only while a session
-  detail is on the Workouts stack (`selection == .workouts &&
-  workoutsHasSessionDetail`, kept in sync from
-  `WorkoutsSectionNavigationView`'s `.onChange(of: path)`). The accessory sits
-  above the tab bar and minimizes together with it, which avoids the earlier
-  collision where the leading-anchored minimized tab pill covered a leading
-  `.bottomBar` rest-timer control; the minimized pill's leading anchor and size
-  are system-owned and not adjustable. Do not move the rest timer back into the
-  session `.bottomBar` or reintroduce it as a floating overlay. Root list
-  pages rely on standard navigation-title spacing and native tab bar safe-area
-  insets; do not add custom dock clearance constants or extra bottom padding for
-  custom bottom chrome. Reduce Motion should suppress custom section
-  scaling/animated tab-minimize polish while preserving native navigation
-  structure. Sheet-local `NavigationView` wrappers are still intentional for
-  modal editors/pickers until those sheets are separately revisited. Do not add
-  older-OS availability branches, UIKit parent-chain tab-bar hiding, the removed
+  (Workouts, Nutrition, Me). There is NO `TabView`: `AppShellView` hosts the
+  three areas keep-warm as a ZStack of per-area `NavigationStack(path:)` views
+  keyed by `@State selection: AppDestination`. The active area is shown; the
+  others stay mounted but `opacity(0)`, `accessibilityHidden(true)`, and
+  `allowsHitTesting(false)` so each area's typed stack path survives area
+  switches. New pushed flows should use the existing root route enums instead of
+  hidden `NavigationLink` state. Areas are switched with a segmented `Picker`
+  (`AppAreaSwitcher`, `.pickerStyle(.segmented)`, 44pt) bound to the shell
+  `selection`; it is shown at each area's stack root only, gated on that area's
+  `path.isEmpty`, and disappears when a route is pushed. **Phase 1 (interim,
+  transitional):** each area root hosts the switcher via
+  `.safeAreaInset(edge: .top)` while the principal, collapsed `SectionTitleMenu`
+  still drives subsection selection; this placement is explicitly temporary and
+  is folded into per-area hubs in a later phase (subsections are still inline
+  keep-warm this phase). Root secondary sections are selected from those
+  principal menu rows and hosted by `SecondarySectionContentHost`, which keeps
+  visited root sections mounted while animating opacity/scale transitions;
+  horizontal swipes are not part of secondary-section navigation. Title menu rows
+  use SF Symbols when a section supplies `systemImage`, and the active row
+  carries a current checkmark indication; title menus are shown only at each root
+  stack's top level. Root primary actions (New workout, New food, New meal, New
+  plan, Log measurement, New entry) are shell-owned `.bottomBar` toolbar items
+  keyed on `path.isEmpty && selection`, not in-scroll header glyphs. Pushed form
+  routes put Cancel in the top-leading `.cancellationAction`, Save in the
+  top-trailing `.confirmationAction`, and destructive Delete in a top-trailing
+  overflow menu. Pushed detail routes use native iOS 26 bottom toolbar actions
+  (`.bottomBar`, plus confirmation/destructive roles where appropriate). A
+  session detail's single `.bottomBar` holds the rest timer as its **leading**
+  item, a `Spacer()`, then Add exercise trailing; Delete session belongs in the
+  top-trailing overflow menu and remains confirmed. The rest timer is a
+  shell-owned `@StateObject RestTimerController` in `AppShellView` (survives area
+  switches and drill navigation), injected down through
+  `WorkoutsSectionNavigationView` into `SessionDetailView`, which renders
+  `RestTimerToolbarControl(timer:)` in that leading bottom-bar slot. With no
+  `TabView` there is no minimized tab pill, so a leading bottom-bar control
+  cannot be covered — this is why the rest timer now lives in the session
+  `.bottomBar` rather than a tab-view accessory. If the user navigates off the
+  session detail while the timer runs, the on-screen pill disappears but the
+  timer keeps running via its Live Activity + local notification. Root list
+  pages rely on standard navigation-title spacing and native safe-area insets; do
+  not add custom dock clearance constants or extra bottom padding for custom
+  bottom chrome. Reduce Motion should suppress custom section scaling polish
+  while preserving native navigation structure. Sheet-local `NavigationView`
+  wrappers are still intentional for modal editors/pickers until those sheets are
+  separately revisited. Do not reintroduce a `TabView`,
+  `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, older-OS availability
+  branches, UIKit parent-chain tab-bar hiding, the removed
   `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
   navigation. Parent lists reload from root invalidation tokens and detail
   callbacks after create/save/delete/mutation flows.

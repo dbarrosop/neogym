@@ -101,33 +101,36 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
 models and route signed-in sessions into the full-screen `AppShellView`. The
-native shell uses iOS 26 value-based root tabs for the three primary areas
-(Workouts, Nutrition, Me), typed per-root `NavigationStack(path:)` state, and
-root-only centered, collapsed section menus in the navigation bar's principal
-slot for Sessions/Workouts/Exercises, Nutrition subsections, and
-Profile/Body/Journal. Root primary actions (New
+native shell has NO `TabView`: the three primary areas (Workouts, Nutrition, Me)
+are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
+keyed by `@State selection: AppDestination` (the active area is shown; the others
+stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so each
+area's stack path survives area switches). Areas are switched via a segmented
+`Picker` (`AppAreaSwitcher`) shown at each area's stack root only (gated on the
+area's `path.isEmpty`); Phase 1 hosts it transitionally via
+`.safeAreaInset(edge: .top)` at each root while the principal, collapsed
+`SectionTitleMenu` still selects subsections (Sessions/Workouts/Exercises,
+Nutrition subsections, Profile/Body/Journal) — that interim placement is folded
+into per-area hubs in a later phase. Root primary actions (New
 workout/food/meal/plan, Log measurement, New entry) live in shell-owned
 `.bottomBar` toolbars keyed to the active top-level section. Pushed form routes
 put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
 `.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
-Pushed detail routes still use native bottom toolbar actions (`.bottomBar`,
-confirmation/destructive roles where appropriate) instead of hiding the tab bar;
-a session detail's `.bottomBar` holds only Add exercise, with Delete session in
-the top-trailing overflow menu. The rest timer is a
-shell-owned `tabViewBottomAccessory` (iOS 26.0 content-only overload) rendered
-only while a session detail is on the Workouts stack (`AppShellView` gates it on
-`selection == .workouts && workoutsHasSessionDetail`, the latter kept in sync
-by `WorkoutsSectionNavigationView` via `.onChange(of: path)`). The accessory
-sits above the tab bar and minimizes together with it, so it never collides with
-a leading bottom-bar control — do not move the rest timer back into the session
-`.bottomBar` or reintroduce it as a floating overlay. The tab bar's minimized
-pill is system-anchored to the leading edge and its size is system-owned;
-neither is adjustable. Root list pages rely on standard
-navigation-title spacing and native tab bar safe-area insets; do not add custom
+Pushed detail routes use native bottom toolbar actions (`.bottomBar`,
+confirmation/destructive roles where appropriate); a session detail's single
+`.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, then
+"Add exercise" trailing, with Delete session in the top-trailing overflow menu.
+The rest timer is a shell-owned `@StateObject RestTimerController` (survives area
+switches and drill navigation) injected down into `WorkoutsSectionNavigationView`
+→ `SessionDetailView`, which renders `RestTimerToolbarControl(timer:)` in that
+leading bottom-bar slot. With no tab bar there is no minimized tab pill, so a
+leading bottom-bar control cannot be covered. Root list pages rely on standard
+navigation-title spacing and native safe-area insets; do not add custom
 dock clearance constants or extra bottom padding for custom bottom chrome.
-Reduce Motion should suppress custom section scaling/animated tab-minimize polish
+Reduce Motion should suppress custom section scaling polish
 while preserving native navigation structure. Sheet-local `NavigationView`
-wrappers remain intentional for modal editors/pickers. Do not add older OS
+wrappers remain intentional for modal editors/pickers. Do not reintroduce a
+`TabView`, `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, older OS
 fallbacks, UIKit parent-chain tab-bar hiding, the removed
 `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
 navigation. Keep

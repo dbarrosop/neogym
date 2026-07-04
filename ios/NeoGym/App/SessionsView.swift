@@ -203,6 +203,7 @@ struct SessionDetailView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
+    let restTimer: RestTimerController
     var onSessionStarted: (String) -> Void
     var onDeleted: () -> Void
     var onMutated: () -> Void
@@ -222,6 +223,7 @@ struct SessionDetailView: View {
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
+        restTimer: RestTimerController,
         onSessionStarted: @escaping (String) -> Void,
         onDeleted: @escaping () -> Void,
         onMutated: @escaping () -> Void
@@ -232,6 +234,7 @@ struct SessionDetailView: View {
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
+        self.restTimer = restTimer
         self.onSessionStarted = onSessionStarted
         self.onDeleted = onDeleted
         self.onMutated = onMutated
@@ -539,6 +542,7 @@ struct SessionDetailView: View {
         SessionDetailBottomToolbar(
             isVisible: viewModel.session != nil,
             isMutating: viewModel.mutationState.isLoading,
+            restTimer: restTimer,
             onAddExercise: { isShowingExercisePicker = true }
         )
     }
@@ -575,11 +579,13 @@ private struct SessionDetailOverflowToolbar: ToolbarContent {
 private struct SessionDetailBottomToolbar: ToolbarContent {
     let isVisible: Bool
     let isMutating: Bool
+    let restTimer: RestTimerController
     let onAddExercise: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isVisible {
+                RestTimerToolbarControl(timer: restTimer)
                 Spacer()
                 Button(action: onAddExercise) {
                     Label("Add exercise", systemImage: "plus")
