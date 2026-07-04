@@ -37,6 +37,9 @@ rerun the Swift/Xcode checks from a clean Xcode environment (for example via
 compile failure. For `xcodebuild`, also unset Nix toolchain overrides such as
 `SDKROOT`, `CC`, `CXX`, `LD`, `AR`, and `LDFLAGS`; leaving `LD=ld` can make the
 simulator link step fail with `ld: -objc_abi_version '-Xlinker' not supported`.
+When invoking `xcodebuild` through `nix develop --command`, put the cleanup `env
+-u ...` both before `nix develop` and immediately after `--command` if the shell
+reintroduces linker variables.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
@@ -83,11 +86,14 @@ intact instead of inventing one-off styles.
   level. Root primary actions (New workout, New food,
   New meal, New plan, Log measurement, New entry) are shell-owned `.bottomBar`
   toolbar items keyed on `path.isEmpty && selection`, not in-scroll header
-  glyphs. Pushed detail/form routes use native iOS 26 bottom toolbar actions
-  (`.bottomBar`, plus confirmation/cancellation/destructive roles where
-  appropriate) instead of hiding the tab bar. A session detail's `.bottomBar`
-  holds only Add exercise; Delete session belongs in the top-trailing overflow
-  menu and remains confirmed. The rest timer is a shell-owned
+  glyphs. Pushed form routes put Cancel in the top-leading
+  `.cancellationAction`, Save in the top-trailing `.confirmationAction`, and
+  destructive Delete in a top-trailing overflow menu. Pushed detail routes still
+  use native iOS 26 bottom toolbar actions (`.bottomBar`, plus
+  confirmation/destructive roles where appropriate) instead of hiding the tab
+  bar. A session detail's `.bottomBar` holds only Add exercise; Delete session
+  belongs in the top-trailing overflow menu and remains confirmed. The rest
+  timer is a shell-owned
   `tabViewBottomAccessory` (iOS 26.0 content-only overload, since the
   `isEnabled:` overload is 26.1+) that `AppShellView` shows only while a session
   detail is on the Workouts stack (`selection == .workouts &&

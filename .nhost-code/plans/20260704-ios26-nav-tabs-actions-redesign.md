@@ -1,6 +1,6 @@
 # iOS 26 navigation, tabs & actions redesign
 
-Status: proposed (awaiting user sign-off on open questions)
+Status: active (user sign-off received 2026-07-04; open questions resolved)
 Date: 2026-07-04
 Area: `ios/NeoGym/App/` (SwiftUI shell; iOS 26.0-only app target)
 
@@ -281,6 +281,42 @@ timer only). Phases 2–4 then all use top-trailing uniformly.
    switcher form is therefore gated on the Phase 0 result.
 2. **iPad/sidebar:** later follow-up. `.sidebarAdaptable` / Paradigm B are explicitly out of this
    migration; ship the iPhone redesign first.
+
+## Execution notes
+
+**Ordering decision (orchestrator, correctness pillar):** Phase 0 is a human visual gate — its
+GO/NO-GO and the switcher-form pick require judging a running simulator, which cannot be done by an
+autonomous agent/subagent. Phase 1 (the reported-collision form-toolbar fix) is the only phase
+independent of Phase 0's visual decisions, so it is executed first. Phases 1a/2–5 remain gated on
+the user's Phase 0 validation.
+
+### Phase 1 — Implementation log
+
+**Status: complete.** Reworked the single shared `NativeFormActionToolbar` modifier
+(`ios/NeoGym/App/Components/NavigationChrome.swift`): Cancel → top-leading
+`.cancellationAction`, Save → top-trailing `.confirmationAction` (semibold + loading/`isSubmitEnabled`
+disabled logic preserved), optional destructive Delete → top-trailing overflow `Menu`
+(`ellipsis.circle`, `.accessibilityLabel("More actions")`, disabled during submit). Removed
+`.bottomBar` from the modifier. Signature unchanged, so all six call sites (`WorkoutFormViews`,
+`BodyViews`, `JournalViews`, `Nutrition/FoodDetailAndFormViews`, `Nutrition/MealEditorViews`,
+`Nutrition/PlanEditorViews`) inherit the fix with no argument changes. Updated the form-toolbar
+sentences in both `CLAUDE.md` and `ios/NeoGym/CLAUDE.md` to the new state (detail `.bottomBar`
+sentences intentionally left for later phases), plus a Nix/xcodebuild `env -u` friction note.
+
+**Reviewer verdict:** ACCEPT (no blockers; scope confirmed clean — no later-phase bleed).
+
+**Quality gate (orchestrator, clean env `env -u ... -u NIX_LDFLAGS -u NIX_CFLAGS_COMPILE -u NIX_CFLAGS_LINK`):**
+`swift build` ✓ · `swift test` 3-suite ✓ (189 XCTest + 3 swift-testing across the package per
+subagents) · `xcodebuild -scheme NeoGym -destination 'generic/platform=iOS Simulator' build`
+**BUILD SUCCEEDED** ✓.
+
+**Autonomous decisions:** (1) Delete placed in a top-trailing overflow menu rather than a bare
+top-trailing destructive item — keeps the destructive action discoverable but out of the primary
+Save slot (long-term maintenance + reduces mis-tap risk). (2) Accepted the implementer's extra
+`env -u` Nix/xcodebuild doc note as in-scope toolchain guidance (maintenance). (3) No automated App
+UI test added — there is no XCUITest harness for `App/`; build + code validation is the honest
+ceiling, visual acceptance deferred to the Phase 0 human gate (correctness/honesty over false
+coverage).
 
 ## Phase 0 result
 

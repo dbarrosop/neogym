@@ -107,11 +107,13 @@ root-only centered, collapsed section menus in the navigation bar's principal
 slot for Sessions/Workouts/Exercises, Nutrition subsections, and
 Profile/Body/Journal. Root primary actions (New
 workout/food/meal/plan, Log measurement, New entry) live in shell-owned
-`.bottomBar` toolbars keyed to the active top-level section. Pushed detail/form
-routes use native bottom toolbar actions (`.bottomBar`,
-confirmation/cancellation/destructive roles where appropriate) instead of hiding
-the tab bar; a session detail's `.bottomBar` holds only Add exercise, with
-Delete session in the top-trailing overflow menu. The rest timer is a
+`.bottomBar` toolbars keyed to the active top-level section. Pushed form routes
+put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
+`.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
+Pushed detail routes still use native bottom toolbar actions (`.bottomBar`,
+confirmation/destructive roles where appropriate) instead of hiding the tab bar;
+a session detail's `.bottomBar` holds only Add exercise, with Delete session in
+the top-trailing overflow menu. The rest timer is a
 shell-owned `tabViewBottomAccessory` (iOS 26.0 content-only overload) rendered
 only while a session detail is on the Workouts stack (`AppShellView` gates it on
 `selection == .workouts && workoutsHasSessionDetail`, the latter kept in sync

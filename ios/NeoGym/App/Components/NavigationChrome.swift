@@ -28,16 +28,27 @@ private struct NativeFormActionToolbar: ViewModifier {
 
     func body(content: Content) -> some View {
         content.toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
+            ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", role: .cancel, action: onCancel)
                     .disabled(isSubmitting)
-                Spacer()
-                if let deleteLabel, let onDelete {
-                    Button(role: .destructive, action: onDelete) {
-                        Label(deleteLabel, systemImage: "trash")
+            }
+
+            if let deleteLabel, let onDelete {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button(role: .destructive, action: onDelete) {
+                            Label(deleteLabel, systemImage: "trash")
+                        }
+                        .disabled(isSubmitting)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
+                    .accessibilityLabel("More actions")
                     .disabled(isSubmitting)
                 }
+            }
+
+            ToolbarItem(placement: .confirmationAction) {
                 Button(isSubmitting ? "Saving…" : submitLabel, action: onSubmit)
                     .fontWeight(.semibold)
                     .disabled(isSubmitting || !isSubmitEnabled)
@@ -49,7 +60,7 @@ private struct NativeFormActionToolbar: ViewModifier {
 extension View {
     /// Native iOS 26 pushed-form action surface for route-local actions.
     /// It keeps the primary tab bar native and exposes cancel/save/delete through
-    /// the system bottom toolbar instead of hiding the tab bar for the route.
+    /// top navigation placements instead of hiding the tab bar for the route.
     func nativeFormActionToolbar(
         submitLabel: String,
         isSubmitting: Bool,
