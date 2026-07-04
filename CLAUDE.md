@@ -112,17 +112,28 @@ hub:** its root is a native `List` of tappable glass rows
 (`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area
 segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
-"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Workouts no
-longer uses `SecondarySectionContentHost` or `SectionTitleMenu`. The
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Workouts and
+Nutrition no longer use `SecondarySectionContentHost` or `SectionTitleMenu`. The
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
 root so a pending session opens regardless of which subsection is showing.
-**Nutrition and Me (Phase 1 interim)** still host the switcher transitionally via
-`.safeAreaInset(edge: .top)` at each root while the principal, collapsed
-`SectionTitleMenu` selects their subsections (Nutrition subsections,
-Profile/Body/Journal) and their root primary actions (New food/meal/plan, Log
-measurement, New entry) live in shell-owned `.bottomBar` toolbars keyed to the
-active section — those interim placements fold into per-area hubs in Phase
-2b/2c. Pushed form routes
+**Nutrition (Phase 2b) is now a hub too:** its root is a native `List` of
+tappable glass rows (Overview/Days/Plans/Foods/Meals) that push subsection-list
+routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`)
+via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
+area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
+and New plan/food/meal live on their subsection list's own `.bottomBar`. The
+Overview screen (a pushed route) cross-links by PUSHing routes —
+`openSection(section)` pushes that section's subsection-list route and
+`openDay(date)` pushes `.day(date)` directly (no more `selectedDate` handoff, so
+`NutritionDaysView` no longer takes that binding); after a create the shell
+replaces only the top create route with the new detail route so Back returns to
+the subsection list, not the hub.
+**Me (Phase 1 interim)** still hosts the switcher transitionally via
+`.safeAreaInset(edge: .top)` at its root while the principal, collapsed
+`SectionTitleMenu` selects its subsections (Profile/Body/Journal) and its root
+primary actions (Log measurement, New entry) live in shell-owned `.bottomBar`
+toolbars keyed to the active section — those interim placements fold into a
+per-area hub in Phase 2c. Pushed form routes
 put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
 `.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
 Pushed detail routes use native bottom toolbar actions (`.bottomBar`,

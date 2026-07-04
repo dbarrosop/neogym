@@ -11,6 +11,11 @@ enum WorkoutsRoute: Hashable {
 }
 
 enum NutritionRoute: Hashable {
+    case overview
+    case daysList
+    case plansList
+    case foodsList
+    case mealsList
     case day(String)
     case planDetail(String)
     case planCreate

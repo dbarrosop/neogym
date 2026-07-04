@@ -90,27 +90,49 @@ intact instead of inventing one-off styles.
   area segmented `Picker` lives in the hub's nav-bar **principal** slot (chosen
   over `.safeAreaInset` so there is exactly one top row: the segmented control
   replaces the inline title text, while `navigationTitle("Workouts")` still labels
-  the back button on pushed subsections). Workouts no longer uses
-  `SecondarySectionContentHost` or `SectionTitleMenu` (both are still used by
-  Nutrition and Me until their Phase 2b/2c conversions). "New workout" lives on
+  the back button on pushed subsections). Workouts and Nutrition no longer use
+  `SecondarySectionContentHost` or `SectionTitleMenu` (both are still used by Me
+  until its Phase 2c conversion). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;
-  `SessionsListView` no longer takes that binding. **Nutrition/Me (Phase 1
-  interim, transitional):** each area root still hosts the switcher via
-  `.safeAreaInset(edge: .top)` while the principal, collapsed `SectionTitleMenu`
-  still drives subsection selection; this placement is explicitly temporary and
-  is folded into per-area hubs in Phase 2b/2c (their subsections are still inline
-  keep-warm this phase). Those areas' root secondary sections are selected from
-  those principal menu rows and hosted by `SecondarySectionContentHost`, which
-  keeps visited root sections mounted while animating opacity/scale transitions;
-  horizontal swipes are not part of secondary-section navigation. Title menu rows
+  `SessionsListView` no longer takes that binding. **Nutrition (Phase 2b,
+  shipped):** `NutritionNavigationView` mirrors the Workouts hub — its root is a
+  native `List` of the same glass rows (`NutritionHubRow`: Overview / Days /
+  Plans / Foods / Meals, each SF Symbol + title + chevron, ≥44pt, accessibility
+  labels) that PUSH subsection-list routes (`NutritionRoute.overview` /
+  `.daysList` / `.plansList` / `.foodsList` / `.mealsList`) via
+  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
+  area segmented `Picker` lives in the Nutrition hub's nav-bar **principal**
+  slot, matching 2a exactly. New plan / New food / New meal live on their
+  subsection list's own `.bottomBar` via `RootPrimaryActionToolbar` (not
+  shell-owned). The Overview screen (a pushed route) cross-links by PUSHing
+  routes: `openSection(section)` appends that section's subsection-list route and
+  `openDay(date)` appends `.day(date)` (DailyIntakeView) directly — there is no
+  more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
+  `selectedDate` binding. Post-create, the create view pops itself via
+  `dismiss()` (removing the top create route) and the shell's
+  `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
+  runloop tick (e.g. `[.foodsList, .foodCreate]` → `[.foodsList]` →
+  `[.foodsList, .foodDetail(id)]`) so Back returns to the subsection list, not
+  the hub. Do not re-add a `removeLast()` there — the create view's `dismiss()`
+  already removes the create route, so an extra pop would strand Back on the hub. Nutrition no longer uses `SecondarySectionContentHost` or
+  `SectionTitleMenu`. **Me (Phase 1 interim, transitional):** the Me area root
+  still hosts the switcher via `.safeAreaInset(edge: .top)` while the principal,
+  collapsed `SectionTitleMenu` still drives subsection selection; this placement
+  is explicitly temporary and is folded into a per-area hub in Phase 2c (its
+  subsections are still inline keep-warm this phase). Me's root secondary
+  sections are selected from those principal menu rows and hosted by
+  `SecondarySectionContentHost`, which keeps visited root sections mounted while
+  animating opacity/scale transitions; horizontal swipes are not part of
+  secondary-section navigation. Title menu rows
   use SF Symbols when a section supplies `systemImage`, and the active row
   carries a current checkmark indication; title menus are shown only at each root
-  stack's top level. Root primary actions (New workout, New food, New meal, New
-  plan, Log measurement, New entry) are shell-owned `.bottomBar` toolbar items
-  keyed on `path.isEmpty && selection`, not in-scroll header glyphs. Pushed form
+  stack's top level. Me's root primary actions (Log measurement, New entry) are
+  still shell-owned `.bottomBar` toolbar items keyed on `path.isEmpty &&
+  selection`, not in-scroll header glyphs; Workouts and Nutrition create actions
+  live on their subsection list `.bottomBar`s instead. Pushed form
   routes put Cancel in the top-leading `.cancellationAction`, Save in the
   top-trailing `.confirmationAction`, and destructive Delete in a top-trailing
   overflow menu. Pushed detail routes use native iOS 26 bottom toolbar actions
@@ -126,9 +148,11 @@ intact instead of inventing one-off styles.
   cannot be covered — this is why the rest timer now lives in the session
   `.bottomBar` rather than a tab-view accessory. If the user navigates off the
   session detail while the timer runs, the on-screen pill disappears but the
-  timer keeps running via its Live Activity + local notification. Workouts
-  subsection lists own their create/log in the single `.bottomBar` (New workout
-  on `.workoutsList`); Nutrition/Me root create/log stay shell-owned this phase.
+  timer keeps running via its Live Activity + local notification. Workouts and
+  Nutrition subsection lists own their create/log in the single `.bottomBar` (New
+  workout on `.workoutsList`; New plan/food/meal on
+  `.plansList`/`.foodsList`/`.mealsList`); Me root create/log stay shell-owned
+  this phase.
   Root list
   pages rely on standard navigation-title spacing and native safe-area insets; do
   not add custom dock clearance constants or extra bottom padding for custom
@@ -145,11 +169,11 @@ intact instead of inventing one-off styles.
   leading `VStack(spacing: 18)` → max width around `700–760` →
   `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
   list headers use an uppercase caption eyebrow plus muted explanatory copy.
-  For Workouts (hub model) the subsection title is the pushed route's own
-  `navigationTitle` and create/log lives on that subsection's `.bottomBar`; for
-  Nutrition/Me (still interim) the active section title comes from the centered
-  collapsed section menu and create/log actions belong to the shell bottom
-  toolbar.
+  For Workouts and Nutrition (hub model) the subsection title is the pushed
+  route's own `navigationTitle` and create/log lives on that subsection's
+  `.bottomBar`; for Me (still interim) the active section title comes from the
+  centered collapsed section menu and create/log actions belong to the shell
+  bottom toolbar.
 - **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
   colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.
   Cards and grouped content should use `SectionShell`, `GlassPanel`,

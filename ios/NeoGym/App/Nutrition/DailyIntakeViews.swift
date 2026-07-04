@@ -3,7 +3,6 @@ import SwiftUI
 
 struct NutritionDaysView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
-    @Binding var selectedDate: String?
     let reloadToken: Int
     var openRoute: (NutritionRoute) -> Void
 
@@ -11,12 +10,10 @@ struct NutritionDaysView: View {
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
-        selectedDate: Binding<String?>,
         reloadToken: Int,
         openRoute: @escaping (NutritionRoute) -> Void
     ) {
         self.repository = repository
-        _selectedDate = selectedDate
         self.reloadToken = reloadToken
         self.openRoute = openRoute
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
@@ -24,15 +21,7 @@ struct NutritionDaysView: View {
 
     var body: some View {
         daysList
-            .onAppear(perform: consumeSelectedDate)
-            .onChange(of: selectedDate) { consumeSelectedDate() }
             .onChange(of: reloadToken) { Task { await viewModel.load() } }
-    }
-
-    private func consumeSelectedDate() {
-        guard let selectedDate else { return }
-        openRoute(.day(selectedDate))
-        self.selectedDate = nil
     }
 
     private var daysList: some View {

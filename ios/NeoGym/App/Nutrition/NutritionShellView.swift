@@ -36,10 +36,6 @@ struct NutritionNavigationView: View {
     let currentUserId: String?
     @Binding var areaSelection: AppDestination
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @State private var selection: NutritionSection = .overview
-    @State private var selectedDate: String?
     @State private var path: [NutritionRoute] = []
     @State private var reloadToken = 0
 
@@ -53,95 +49,59 @@ struct NutritionNavigationView: View {
     }
 
     private var rootContent: some View {
-        SecondarySectionContentHost(selection: $selection) { section in
-            sectionPage(for: section)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(selection.title)
-        .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .top) {
-            if path.isEmpty {
-                AppAreaSwitcher(selection: $areaSelection)
-            }
-        }
-        .toolbar {
-            rootSectionToolbar
-            rootActionToolbar
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var rootSectionToolbar: some ToolbarContent {
-        if path.isEmpty {
-            ToolbarItem(placement: .principal) {
-                SectionTitleMenu(selection: $selection)
-            }
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var rootActionToolbar: some ToolbarContent {
-        if path.isEmpty, selection == .plans {
-            RootPrimaryActionToolbar(
-                title: "New plan",
-                systemImage: "plus",
-                action: openPlanCreate
-            )
-        }
-        if path.isEmpty, selection == .foods {
-            RootPrimaryActionToolbar(
-                title: "New food",
-                systemImage: "plus",
-                action: openFoodCreate
-            )
-        }
-        if path.isEmpty, selection == .meals {
-            RootPrimaryActionToolbar(
-                title: "New meal",
-                systemImage: "plus",
-                action: openMealCreate
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func sectionPage(for section: NutritionSection) -> some View {
-        switch section {
-        case .overview:
-            NutritionOverviewView(
-                repository: repository,
-                openSection: { section in
-                    setSection(section)
-                    if section != .days { selectedDate = nil }
-                },
-                openDay: { date in
-                    selectedDate = date
-                    setSection(.days)
+        List {
+            ForEach(NutritionSection.allCases) { section in
+                Button {
+                    path.append(subsectionRoute(for: section))
+                } label: {
+                    NutritionHubRow(section: section)
                 }
-            )
-        case .days:
-            NutritionDaysView(
-                repository: repository,
-                selectedDate: $selectedDate,
-                reloadToken: reloadToken,
-                openRoute: openRoute
-            )
-        case .plans:
-            PlansListView(repository: repository, reloadToken: reloadToken)
-        case .foods:
-            FoodsListView(
-                repository: repository,
-                currentUserId: currentUserId,
-                reloadToken: reloadToken
-            )
-        case .meals:
-            MealsListView(repository: repository, reloadToken: reloadToken)
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(
+                    top: NeoGymTheme.spacingXS,
+                    leading: NeoGymTheme.screenHorizontalPadding,
+                    bottom: NeoGymTheme.spacingXS,
+                    trailing: NeoGymTheme.screenHorizontalPadding
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .accessibilityLabel(section.title)
+                .accessibilityHint("Opens \(section.title)")
+                .accessibilityAddTraits(.isButton)
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Nutrition")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Area", selection: $areaSelection) {
+                    ForEach(AppDestination.allCases) { destination in
+                        Text(destination.title).tag(destination)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Primary area")
+            }
+        }
+    }
+
+    private func subsectionRoute(for section: NutritionSection) -> NutritionRoute {
+        switch section {
+        case .overview: .overview
+        case .days: .daysList
+        case .plans: .plansList
+        case .foods: .foodsList
+        case .meals: .mealsList
         }
     }
 
     @ViewBuilder
     private func routeDestination(for route: NutritionRoute) -> some View {
         switch route {
+        case .overview, .daysList, .plansList, .foodsList, .mealsList:
+            subsectionListDestination(for: route)
         case let .day(date):
             DailyIntakeView(repository: repository, date: date) {
                 popRoute()
@@ -199,6 +159,71 @@ struct NutritionNavigationView: View {
         }
     }
 
+    @ViewBuilder
+    private func subsectionListDestination(for route: NutritionRoute) -> some View {
+        switch route {
+        case .overview:
+            NutritionOverviewView(
+                repository: repository,
+                openSection: { section in
+                    path.append(subsectionRoute(for: section))
+                },
+                openDay: { date in
+                    path.append(.day(date))
+                }
+            )
+            .navigationTitle("Overview")
+            .navigationBarTitleDisplayMode(.inline)
+        case .daysList:
+            NutritionDaysView(
+                repository: repository,
+                reloadToken: reloadToken,
+                openRoute: openRoute
+            )
+            .navigationTitle("Days")
+            .navigationBarTitleDisplayMode(.inline)
+        case .plansList:
+            PlansListView(repository: repository, reloadToken: reloadToken)
+                .navigationTitle("Plans")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    RootPrimaryActionToolbar(
+                        title: "New plan",
+                        systemImage: "plus",
+                        action: openPlanCreate
+                    )
+                }
+        case .foodsList:
+            FoodsListView(
+                repository: repository,
+                currentUserId: currentUserId,
+                reloadToken: reloadToken
+            )
+            .navigationTitle("Foods")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                RootPrimaryActionToolbar(
+                    title: "New food",
+                    systemImage: "plus",
+                    action: openFoodCreate
+                )
+            }
+        case .mealsList:
+            MealsListView(repository: repository, reloadToken: reloadToken)
+                .navigationTitle("Meals")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    RootPrimaryActionToolbar(
+                        title: "New meal",
+                        systemImage: "plus",
+                        action: openMealCreate
+                    )
+                }
+        case .day, .planDetail, .planCreate, .foodDetail, .foodCreate, .mealDetail, .mealCreate:
+            EmptyView()
+        }
+    }
+
     private func openPlanCreate() {
         path.append(.planCreate)
     }
@@ -216,18 +241,11 @@ struct NutritionNavigationView: View {
     }
 
     private func openRouteAfterCurrentTransition(_ route: NutritionRoute) {
+        // The create view calls `dismiss()` right after `onCreated`, which pops the
+        // create route synchronously; deferring the append to the next runloop tick
+        // lands the new detail above its subsection list (Back returns to the list).
         DispatchQueue.main.async {
-            path = [route]
-        }
-    }
-
-    private var sectionTransitionAnimation: Animation? {
-        reduceMotion ? nil : .easeInOut(duration: 0.24)
-    }
-
-    private func setSection(_ section: NutritionSection) {
-        withAnimation(sectionTransitionAnimation) {
-            selection = section
+            path.append(route)
         }
     }
 
@@ -237,6 +255,36 @@ struct NutritionNavigationView: View {
 
     private func invalidateLists() {
         reloadToken += 1
+    }
+}
+
+private struct NutritionHubRow: View {
+    let section: NutritionSection
+
+    var body: some View {
+        GlassPanel(
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingMD,
+                leading: NeoGymTheme.spacingLG,
+                bottom: NeoGymTheme.spacingMD,
+                trailing: NeoGymTheme.spacingLG
+            )
+        ) {
+            HStack(spacing: NeoGymTheme.spacingMD) {
+                Image(systemName: section.systemImage ?? "circle")
+                    .font(.title3)
+                    .foregroundStyle(NeoGymTheme.accent)
+                    .frame(width: 32)
+                Text(section.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.primaryText)
+                Spacer(minLength: NeoGymTheme.spacingSM)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.mutedText)
+            }
+            .frame(minHeight: 44)
+        }
     }
 }
 
