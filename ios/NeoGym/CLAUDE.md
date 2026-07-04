@@ -79,16 +79,32 @@ intact instead of inventing one-off styles.
   `allowsHitTesting(false)` so each area's typed stack path survives area
   switches. New pushed flows should use the existing root route enums instead of
   hidden `NavigationLink` state. Areas are switched with a segmented `Picker`
-  (`AppAreaSwitcher`, `.pickerStyle(.segmented)`, 44pt) bound to the shell
-  `selection`; it is shown at each area's stack root only, gated on that area's
-  `path.isEmpty`, and disappears when a route is pushed. **Phase 1 (interim,
-  transitional):** each area root hosts the switcher via
+  (`.pickerStyle(.segmented)`, 44pt) bound to the shell
+  `selection`; it is shown at each area's stack root only and disappears when a
+  route is pushed. **Workouts (Phase 2a, shipped):** `WorkoutsSectionNavigationView`
+  is now a HUB — its root is a native `List` of glass rows (Sessions / Workouts /
+  Exercises, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
+  that PUSH subsection-list routes (`WorkoutsRoute.sessionsList` /
+  `.workoutsList` / `.exercisesList`) rendered through
+  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
+  area segmented `Picker` lives in the hub's nav-bar **principal** slot (chosen
+  over `.safeAreaInset` so there is exactly one top row: the segmented control
+  replaces the inline title text, while `navigationTitle("Workouts")` still labels
+  the back button on pushed subsections). Workouts no longer uses
+  `SecondarySectionContentHost` or `SectionTitleMenu` (both are still used by
+  Nutrition and Me until their Phase 2b/2c conversions). "New workout" lives on
+  the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
+  The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
+  root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
+  pending session opens regardless of which subsection (if any) is showing;
+  `SessionsListView` no longer takes that binding. **Nutrition/Me (Phase 1
+  interim, transitional):** each area root still hosts the switcher via
   `.safeAreaInset(edge: .top)` while the principal, collapsed `SectionTitleMenu`
   still drives subsection selection; this placement is explicitly temporary and
-  is folded into per-area hubs in a later phase (subsections are still inline
-  keep-warm this phase). Root secondary sections are selected from those
-  principal menu rows and hosted by `SecondarySectionContentHost`, which keeps
-  visited root sections mounted while animating opacity/scale transitions;
+  is folded into per-area hubs in Phase 2b/2c (their subsections are still inline
+  keep-warm this phase). Those areas' root secondary sections are selected from
+  those principal menu rows and hosted by `SecondarySectionContentHost`, which
+  keeps visited root sections mounted while animating opacity/scale transitions;
   horizontal swipes are not part of secondary-section navigation. Title menu rows
   use SF Symbols when a section supplies `systemImage`, and the active row
   carries a current checkmark indication; title menus are shown only at each root
@@ -110,7 +126,10 @@ intact instead of inventing one-off styles.
   cannot be covered — this is why the rest timer now lives in the session
   `.bottomBar` rather than a tab-view accessory. If the user navigates off the
   session detail while the timer runs, the on-screen pill disappears but the
-  timer keeps running via its Live Activity + local notification. Root list
+  timer keeps running via its Live Activity + local notification. Workouts
+  subsection lists own their create/log in the single `.bottomBar` (New workout
+  on `.workoutsList`); Nutrition/Me root create/log stay shell-owned this phase.
+  Root list
   pages rely on standard navigation-title spacing and native safe-area insets; do
   not add custom dock clearance constants or extra bottom padding for custom
   bottom chrome. Reduce Motion should suppress custom section scaling polish
@@ -125,9 +144,12 @@ intact instead of inventing one-off styles.
 - **Screen structure**: list and detail screens are usually `ScrollView` →
   leading `VStack(spacing: 18)` → max width around `700–760` →
   `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
-  list headers use an uppercase caption eyebrow plus muted explanatory copy;
-  the active section title comes from the centered collapsed section menu, and
-  create/log actions belong to the shell bottom toolbar.
+  list headers use an uppercase caption eyebrow plus muted explanatory copy.
+  For Workouts (hub model) the subsection title is the pushed route's own
+  `navigationTitle` and create/log lives on that subsection's `.bottomBar`; for
+  Nutrition/Me (still interim) the active section title comes from the centered
+  collapsed section menu and create/log actions belong to the shell bottom
+  toolbar.
 - **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
   colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.
   Cards and grouped content should use `SectionShell`, `GlassPanel`,

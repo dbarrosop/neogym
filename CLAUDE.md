@@ -106,14 +106,23 @@ are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
 keyed by `@State selection: AppDestination` (the active area is shown; the others
 stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so each
 area's stack path survives area switches). Areas are switched via a segmented
-`Picker` (`AppAreaSwitcher`) shown at each area's stack root only (gated on the
-area's `path.isEmpty`); Phase 1 hosts it transitionally via
+`Picker` shown at each area's stack root only. **Workouts (Phase 2a) is now a
+hub:** its root is a native `List` of tappable glass rows
+(Sessions/Workouts/Exercises) that push subsection-list routes
+(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
+`.navigationDestination(for:)`, each with its own `navigationTitle`; the area
+segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Workouts no
+longer uses `SecondarySectionContentHost` or `SectionTitleMenu`. The
+`pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
+root so a pending session opens regardless of which subsection is showing.
+**Nutrition and Me (Phase 1 interim)** still host the switcher transitionally via
 `.safeAreaInset(edge: .top)` at each root while the principal, collapsed
-`SectionTitleMenu` still selects subsections (Sessions/Workouts/Exercises,
-Nutrition subsections, Profile/Body/Journal) — that interim placement is folded
-into per-area hubs in a later phase. Root primary actions (New
-workout/food/meal/plan, Log measurement, New entry) live in shell-owned
-`.bottomBar` toolbars keyed to the active top-level section. Pushed form routes
+`SectionTitleMenu` selects their subsections (Nutrition subsections,
+Profile/Body/Journal) and their root primary actions (New food/meal/plan, Log
+measurement, New entry) live in shell-owned `.bottomBar` toolbars keyed to the
+active section — those interim placements fold into per-area hubs in Phase
+2b/2c. Pushed form routes
 put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
 `.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
 Pushed detail routes use native bottom toolbar actions (`.bottomBar`,

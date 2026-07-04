@@ -6,26 +6,20 @@ struct SessionsListView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
-    @Binding var pendingSessionId: String?
 
     let reloadToken: Int
-    var onSessionOpened: (String) -> Void
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
-        pendingSessionId: Binding<String?>,
-        reloadToken: Int,
-        onSessionOpened: @escaping (String) -> Void
+        reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: SessionsListViewModel(repository: sessionsRepository))
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
-        _pendingSessionId = pendingSessionId
         self.reloadToken = reloadToken
-        self.onSessionOpened = onSessionOpened
     }
 
     var body: some View {
@@ -44,9 +38,7 @@ struct SessionsListView: View {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
-            consumePendingSessionId()
         }
-        .onChange(of: pendingSessionId) { consumePendingSessionId() }
         .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
@@ -118,11 +110,6 @@ struct SessionsListView: View {
         }
     }
 
-    private func consumePendingSessionId() {
-        guard let id = pendingSessionId else { return }
-        onSessionOpened(id)
-        pendingSessionId = nil
-    }
 }
 
 private struct SessionListRow: View {

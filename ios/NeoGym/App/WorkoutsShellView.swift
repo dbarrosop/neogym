@@ -35,7 +35,6 @@ struct WorkoutsSectionNavigationView: View {
     let restTimer: RestTimerController
     @Binding var pendingSessionId: String?
 
-    @State private var selection: WorkoutAreaSection = .sessions
     @State private var path: [WorkoutsRoute] = []
     @State private var reloadToken = 0
 
@@ -46,80 +45,62 @@ struct WorkoutsSectionNavigationView: View {
                     routeDestination(for: route)
                 }
         }
+        .task { consumePendingSessionId() }
+        .onChange(of: pendingSessionId) { consumePendingSessionId() }
     }
 
     private var rootContent: some View {
-        SecondarySectionContentHost(selection: $selection) { section in
-            sectionPage(for: section)
+        List {
+            ForEach(WorkoutAreaSection.allCases) { section in
+                Button {
+                    path.append(subsectionRoute(for: section))
+                } label: {
+                    WorkoutHubRow(section: section)
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(
+                    top: NeoGymTheme.spacingXS,
+                    leading: NeoGymTheme.screenHorizontalPadding,
+                    bottom: NeoGymTheme.spacingXS,
+                    trailing: NeoGymTheme.screenHorizontalPadding
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .accessibilityLabel(section.title)
+                .accessibilityHint("Opens \(section.title)")
+                .accessibilityAddTraits(.isButton)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(selection.title)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Workouts")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .top) {
-            if path.isEmpty {
-                AppAreaSwitcher(selection: $areaSelection)
-            }
-        }
         .toolbar {
-            rootSectionToolbar
-            rootActionToolbar
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var rootSectionToolbar: some ToolbarContent {
-        if path.isEmpty {
             ToolbarItem(placement: .principal) {
-                SectionTitleMenu(selection: $selection)
+                Picker("Area", selection: $areaSelection) {
+                    ForEach(AppDestination.allCases) { destination in
+                        Text(destination.title).tag(destination)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Primary area")
             }
         }
     }
 
-    @ToolbarContentBuilder
-    private var rootActionToolbar: some ToolbarContent {
-        if path.isEmpty, selection == .workouts {
-            RootPrimaryActionToolbar(
-                title: "New workout",
-                systemImage: "plus",
-                action: openWorkoutCreate
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func sectionPage(for section: WorkoutAreaSection) -> some View {
+    private func subsectionRoute(for section: WorkoutAreaSection) -> WorkoutsRoute {
         switch section {
-        case .sessions:
-            SessionsListView(
-                sessionsRepository: sessionsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                pendingSessionId: $pendingSessionId,
-                reloadToken: reloadToken,
-                onSessionOpened: openSession
-            )
-        case .workouts:
-            WorkoutsListView(
-                workoutsRepository: workoutsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                currentUserId: currentUserId,
-                reloadToken: reloadToken,
-                onSessionStarted: openSession
-            )
-        case .exercises:
-            ExercisesListView(
-                repository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                reloadToken: reloadToken,
-                onSessionStarted: openSession
-            )
+        case .sessions: .sessionsList
+        case .workouts: .workoutsList
+        case .exercises: .exercisesList
         }
     }
 
     @ViewBuilder
     private func routeDestination(for route: WorkoutsRoute) -> some View {
         switch route {
+        case .sessionsList, .workoutsList, .exercisesList:
+            subsectionListDestination(for: route)
         case let .sessionDetail(sessionId):
             SessionDetailView(
                 sessionId: sessionId,
@@ -157,6 +138,50 @@ struct WorkoutsSectionNavigationView: View {
         }
     }
 
+    @ViewBuilder
+    private func subsectionListDestination(for route: WorkoutsRoute) -> some View {
+        switch route {
+        case .workoutsList:
+            WorkoutsListView(
+                workoutsRepository: workoutsRepository,
+                exercisesRepository: exercisesRepository,
+                storageBaseURL: storageBaseURL,
+                currentUserId: currentUserId,
+                reloadToken: reloadToken,
+                onSessionStarted: openSession
+            )
+            .navigationTitle("Workouts")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                RootPrimaryActionToolbar(
+                    title: "New workout",
+                    systemImage: "plus",
+                    action: openWorkoutCreate
+                )
+            }
+        case .exercisesList:
+            ExercisesListView(
+                repository: exercisesRepository,
+                storageBaseURL: storageBaseURL,
+                reloadToken: reloadToken,
+                onSessionStarted: openSession
+            )
+            .navigationTitle("Exercises")
+            .navigationBarTitleDisplayMode(.inline)
+        case .sessionsList:
+            SessionsListView(
+                sessionsRepository: sessionsRepository,
+                exercisesRepository: exercisesRepository,
+                storageBaseURL: storageBaseURL,
+                reloadToken: reloadToken
+            )
+            .navigationTitle("Sessions")
+            .navigationBarTitleDisplayMode(.inline)
+        case .sessionDetail, .workoutDetail, .workoutCreate, .exerciseDetail:
+            EmptyView()
+        }
+    }
+
     private func openWorkoutCreate() {
         path.append(.workoutCreate)
     }
@@ -173,11 +198,45 @@ struct WorkoutsSectionNavigationView: View {
 
     private func closeStartedSession() {
         path = WorkoutSessionRouteMapping.pathAfterClosingStartedSession()
-        selection = .sessions
         invalidateLists()
+    }
+
+    private func consumePendingSessionId() {
+        guard let id = pendingSessionId else { return }
+        openSession(id)
     }
 
     private func invalidateLists() {
         reloadToken += 1
+    }
+}
+
+private struct WorkoutHubRow: View {
+    let section: WorkoutAreaSection
+
+    var body: some View {
+        GlassPanel(
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingMD,
+                leading: NeoGymTheme.spacingLG,
+                bottom: NeoGymTheme.spacingMD,
+                trailing: NeoGymTheme.spacingLG
+            )
+        ) {
+            HStack(spacing: NeoGymTheme.spacingMD) {
+                Image(systemName: section.systemImage ?? "circle")
+                    .font(.title3)
+                    .foregroundStyle(NeoGymTheme.accent)
+                    .frame(width: 32)
+                Text(section.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.primaryText)
+                Spacer(minLength: NeoGymTheme.spacingSM)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.mutedText)
+            }
+            .frame(minHeight: 44)
+        }
     }
 }
