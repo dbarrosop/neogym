@@ -596,6 +596,14 @@ private struct JournalEntryFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete entry",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 680)
@@ -607,10 +615,8 @@ private struct JournalEntryFormScreen: View {
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
             isSubmitEnabled: form.canSubmit,
-            deleteLabel: deleteAction == nil ? nil : "Delete entry",
             onCancel: onCancel,
-            onSubmit: onSubmit,
-            onDelete: deleteAction
+            onSubmit: onSubmit
         )
     }
 }

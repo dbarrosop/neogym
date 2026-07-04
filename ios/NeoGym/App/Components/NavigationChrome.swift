@@ -21,31 +21,14 @@ private struct NativeFormActionToolbar: ViewModifier {
     let submitLabel: String
     let isSubmitting: Bool
     let isSubmitEnabled: Bool
-    let deleteLabel: String?
     let onCancel: () -> Void
     let onSubmit: () -> Void
-    let onDelete: (() -> Void)?
 
     func body(content: Content) -> some View {
         content.toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel", role: .cancel, action: onCancel)
                     .disabled(isSubmitting)
-            }
-
-            if let deleteLabel, let onDelete {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Button(role: .destructive, action: onDelete) {
-                            Label(deleteLabel, systemImage: "trash")
-                        }
-                        .disabled(isSubmitting)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                    .accessibilityLabel("More actions")
-                    .disabled(isSubmitting)
-                }
             }
 
             ToolbarItem(placement: .confirmationAction) {
@@ -57,27 +40,47 @@ private struct NativeFormActionToolbar: ViewModifier {
     }
 }
 
+/// Full-width destructive delete action rendered in a pushed form's scroll
+/// content (Contacts-style), replacing the old top-trailing overflow menu.
+struct FormDeleteButton: View {
+    let title: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    init(title: String, isDisabled: Bool = false, action: @escaping () -> Void) {
+        self.title = title
+        self.isDisabled = isDisabled
+        self.action = action
+    }
+
+    var body: some View {
+        Button(role: .destructive, action: action) {
+            Label(title, systemImage: "trash")
+        }
+        .buttonStyle(NeoGymSecondaryButtonStyle())
+        .tint(NeoGymTheme.danger)
+        .disabled(isDisabled)
+        .accessibilityLabel(title)
+    }
+}
+
 extension View {
-    /// Native iOS 26 pushed-form action surface for route-local actions.
-    /// It keeps the primary tab bar native and exposes cancel/save/delete through
-    /// top navigation placements instead of hiding the tab bar for the route.
+    /// Native iOS 26 pushed-form action surface: Cancel in the top-leading
+    /// `.cancellationAction` and Save in the top-trailing `.confirmationAction`.
+    /// Destructive Delete is a `FormDeleteButton` in the form's scroll content.
     func nativeFormActionToolbar(
         submitLabel: String,
         isSubmitting: Bool,
         isSubmitEnabled: Bool,
-        deleteLabel: String? = nil,
         onCancel: @escaping () -> Void,
-        onSubmit: @escaping () -> Void,
-        onDelete: (() -> Void)? = nil
+        onSubmit: @escaping () -> Void
     ) -> some View {
         modifier(NativeFormActionToolbar(
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
             isSubmitEnabled: isSubmitEnabled,
-            deleteLabel: deleteLabel,
             onCancel: onCancel,
-            onSubmit: onSubmit,
-            onDelete: onDelete
+            onSubmit: onSubmit
         ))
     }
 }

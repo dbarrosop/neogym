@@ -216,6 +216,14 @@ private struct WorkoutFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete workout",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 700)
@@ -230,10 +238,8 @@ private struct WorkoutFormScreen: View {
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
             isSubmitEnabled: form.canSubmit,
-            deleteLabel: deleteAction == nil ? nil : "Delete workout",
             onCancel: onCancel,
-            onSubmit: onSubmit,
-            onDelete: deleteAction
+            onSubmit: onSubmit
         )
         .sheet(isPresented: $pickerOpen) {
             ExercisePickerView(

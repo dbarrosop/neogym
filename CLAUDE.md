@@ -141,11 +141,13 @@ returns to the subsection list, not the hub. All three areas
 (Workouts/Nutrition/Me) are hubs; there is **exactly one bottom band** holding
 create/log, the rest timer, and detail actions, and no tab bar. Pushed form routes
 put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
-`.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
+`.confirmationAction`, and destructive Delete as a full-width `FormDeleteButton`
+in the form's scroll content (no top-trailing overflow menu).
 Pushed detail routes use native bottom toolbar actions (`.bottomBar`,
 confirmation/destructive roles where appropriate); a session detail's single
-`.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, then
-"Add exercise" trailing, with Delete session in the top-trailing overflow menu.
+`.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, a
+destructive Delete-session button, another `Spacer()`, then "Add exercise"
+trailing (no overflow menu).
 The rest timer is a shell-owned `@StateObject RestTimerController` (survives area
 switches and drill navigation) injected down into `WorkoutsSectionNavigationView`
 → `SessionDetailView`, which renders `RestTimerToolbarControl(timer:)` in that

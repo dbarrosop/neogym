@@ -332,6 +332,14 @@ struct FoodFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete food",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 640)
@@ -343,10 +351,8 @@ struct FoodFormScreen: View {
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
             isSubmitEnabled: form.canSubmit,
-            deleteLabel: deleteAction == nil ? nil : "Delete food",
             onCancel: onCancel,
-            onSubmit: onSubmit,
-            onDelete: deleteAction
+            onSubmit: onSubmit
         )
     }
 

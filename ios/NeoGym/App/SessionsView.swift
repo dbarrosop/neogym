@@ -521,16 +521,12 @@ struct SessionDetailView: View {
 
     @ToolbarContentBuilder
     private var sessionBottomActionToolbar: some ToolbarContent {
-        SessionDetailOverflowToolbar(
-            isVisible: viewModel.session != nil,
-            isMutating: viewModel.mutationState.isLoading,
-            onDelete: { isConfirmingDelete = true }
-        )
         SessionDetailBottomToolbar(
             isVisible: viewModel.session != nil,
             isMutating: viewModel.mutationState.isLoading,
             restTimer: restTimer,
-            onAddExercise: { isShowingExercisePicker = true }
+            onAddExercise: { isShowingExercisePicker = true },
+            onDelete: { isConfirmingDelete = true }
         )
     }
 
@@ -540,39 +536,24 @@ struct SessionDetailView: View {
     }
 }
 
-private struct SessionDetailOverflowToolbar: ToolbarContent {
-    let isVisible: Bool
-    let isMutating: Bool
-    let onDelete: () -> Void
-
-    var body: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            if isVisible {
-                Menu {
-                    Button(role: .destructive, action: onDelete) {
-                        Label("Delete session", systemImage: "trash")
-                    }
-                    .disabled(isMutating)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .accessibilityLabel("Session actions")
-                .disabled(isMutating)
-            }
-        }
-    }
-}
-
 private struct SessionDetailBottomToolbar: ToolbarContent {
     let isVisible: Bool
     let isMutating: Bool
     let restTimer: RestTimerController
     let onAddExercise: () -> Void
+    let onDelete: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isVisible {
                 RestTimerToolbarControl(timer: restTimer)
+                Spacer()
+                Button(role: .destructive, action: onDelete) {
+                    Image(systemName: "trash")
+                }
+                .tint(NeoGymTheme.danger)
+                .disabled(isMutating)
+                .accessibilityLabel("Delete session")
                 Spacer()
                 Button(action: onAddExercise) {
                     Label("Add exercise", systemImage: "plus")

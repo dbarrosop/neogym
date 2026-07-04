@@ -539,6 +539,14 @@ private struct BodyMeasurementFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete measurement",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 640)
@@ -551,10 +559,8 @@ private struct BodyMeasurementFormScreen: View {
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
             isSubmitEnabled: form.hasMeasurementValue,
-            deleteLabel: deleteAction == nil ? nil : "Delete measurement",
             onCancel: onCancel,
-            onSubmit: onSubmit,
-            onDelete: deleteAction
+            onSubmit: onSubmit
         )
     }
 
