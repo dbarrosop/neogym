@@ -32,6 +32,7 @@ struct WorkoutsSectionNavigationView: View {
     let storageBaseURL: URL
     let currentUserId: String?
     @Binding var pendingSessionId: String?
+    @Binding var hasSessionDetail: Bool
 
     @State private var selection: WorkoutAreaSection = .sessions
     @State private var path: [WorkoutsRoute] = []
@@ -43,6 +44,11 @@ struct WorkoutsSectionNavigationView: View {
                 .navigationDestination(for: WorkoutsRoute.self) { route in
                     routeDestination(for: route)
                 }
+        }
+        .onChange(of: path) { _, newPath in
+            hasSessionDetail = newPath.contains { route in
+                if case .sessionDetail = route { true } else { false }
+            }
         }
     }
 

@@ -41,6 +41,8 @@ struct AppShellView: View {
 
     @State private var selection: AppDestination = .workouts
     @State private var pendingSessionId: String?
+    @State private var workoutsHasSessionDetail = false
+    @StateObject private var restTimer = RestTimerController()
 
     var body: some View {
         TabView(selection: $selection) {
@@ -51,7 +53,8 @@ struct AppShellView: View {
                     exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                     storageBaseURL: environment.client.serviceURLs.storage,
                     currentUserId: session.user?.id,
-                    pendingSessionId: $pendingSessionId
+                    pendingSessionId: $pendingSessionId,
+                    hasSessionDetail: $workoutsHasSessionDetail
                 )
             }
 
@@ -75,6 +78,11 @@ struct AppShellView: View {
             }
         }
         .tabBarMinimizeBehavior(reduceMotion ? .never : .onScrollDown)
+        .tabViewBottomAccessory {
+            if selection == .workouts, workoutsHasSessionDetail {
+                RestTimerToolbarControl(timer: restTimer)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

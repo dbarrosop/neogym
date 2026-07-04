@@ -85,10 +85,19 @@ intact instead of inventing one-off styles.
   toolbar items keyed on `path.isEmpty && selection`, not in-scroll header
   glyphs. Pushed detail/form routes use native iOS 26 bottom toolbar actions
   (`.bottomBar`, plus confirmation/cancellation/destructive roles where
-  appropriate) instead of hiding the tab bar. Session detail bottom chrome is the
-  rest timer control plus Add exercise; Delete session belongs in the
-  top-trailing overflow menu and remains confirmed. The rest timer is
-  bottom-integrated and must not be reintroduced as a floating overlay. Root list
+  appropriate) instead of hiding the tab bar. A session detail's `.bottomBar`
+  holds only Add exercise; Delete session belongs in the top-trailing overflow
+  menu and remains confirmed. The rest timer is a shell-owned
+  `tabViewBottomAccessory` (iOS 26.0 content-only overload, since the
+  `isEnabled:` overload is 26.1+) that `AppShellView` shows only while a session
+  detail is on the Workouts stack (`selection == .workouts &&
+  workoutsHasSessionDetail`, kept in sync from
+  `WorkoutsSectionNavigationView`'s `.onChange(of: path)`). The accessory sits
+  above the tab bar and minimizes together with it, which avoids the earlier
+  collision where the leading-anchored minimized tab pill covered a leading
+  `.bottomBar` rest-timer control; the minimized pill's leading anchor and size
+  are system-owned and not adjustable. Do not move the rest timer back into the
+  session `.bottomBar` or reintroduce it as a floating overlay. Root list
   pages rely on standard navigation-title spacing and native tab bar safe-area
   insets; do not add custom dock clearance constants or extra bottom padding for
   custom bottom chrome. Reduce Motion should suppress custom section

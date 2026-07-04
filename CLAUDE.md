@@ -110,9 +110,17 @@ workout/food/meal/plan, Log measurement, New entry) live in shell-owned
 `.bottomBar` toolbars keyed to the active top-level section. Pushed detail/form
 routes use native bottom toolbar actions (`.bottomBar`,
 confirmation/cancellation/destructive roles where appropriate) instead of hiding
-the tab bar; session details reserve bottom chrome for the rest timer plus Add
-exercise, with Delete session in the top-trailing overflow menu. The rest timer
-is bottom-integrated, not a floating overlay. Root list pages rely on standard
+the tab bar; a session detail's `.bottomBar` holds only Add exercise, with
+Delete session in the top-trailing overflow menu. The rest timer is a
+shell-owned `tabViewBottomAccessory` (iOS 26.0 content-only overload) rendered
+only while a session detail is on the Workouts stack (`AppShellView` gates it on
+`selection == .workouts && workoutsHasSessionDetail`, the latter kept in sync
+by `WorkoutsSectionNavigationView` via `.onChange(of: path)`). The accessory
+sits above the tab bar and minimizes together with it, so it never collides with
+a leading bottom-bar control — do not move the rest timer back into the session
+`.bottomBar` or reintroduce it as a floating overlay. The tab bar's minimized
+pill is system-anchored to the leading edge and its size is system-owned;
+neither is adjustable. Root list pages rely on standard
 navigation-title spacing and native tab bar safe-area insets; do not add custom
 dock clearance constants or extra bottom padding for custom bottom chrome.
 Reduce Motion should suppress custom section scaling/animated tab-minimize polish

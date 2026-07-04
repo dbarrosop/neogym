@@ -215,7 +215,6 @@ struct SessionDetailView: View {
     @State private var pendingRemoveExercise: SessionExerciseRow?
     @State private var editingSet: StrengthSetEditorState?
     @State private var editingCardioEntry: CardioEntryEditorState?
-    @StateObject private var restTimer = RestTimerController()
     @State private var errorMessage: String?
 
     init(
@@ -540,7 +539,6 @@ struct SessionDetailView: View {
         SessionDetailBottomToolbar(
             isVisible: viewModel.session != nil,
             isMutating: viewModel.mutationState.isLoading,
-            restTimer: restTimer,
             onAddExercise: { isShowingExercisePicker = true }
         )
     }
@@ -577,13 +575,11 @@ private struct SessionDetailOverflowToolbar: ToolbarContent {
 private struct SessionDetailBottomToolbar: ToolbarContent {
     let isVisible: Bool
     let isMutating: Bool
-    let restTimer: RestTimerController
     let onAddExercise: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isVisible {
-                RestTimerToolbarControl(timer: restTimer)
                 Spacer()
                 Button(action: onAddExercise) {
                     Label("Add exercise", systemImage: "plus")
