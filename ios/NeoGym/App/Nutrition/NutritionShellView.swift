@@ -1,7 +1,7 @@
 import NeoGymKit
 import SwiftUI
 
-enum NutritionSection: String, CaseIterable, Identifiable, SecondaryTabSection {
+enum NutritionSection: String, CaseIterable, Identifiable {
     case overview
     case days
     case plans

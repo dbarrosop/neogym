@@ -441,3 +441,42 @@ switcher under the principal `SectionTitleMenu`).
 so each area's root list may fetch eagerly at startup (previously lazy per-`Tab`). Acceptable
 keep-warm tradeoff; revisit with visited-set lazy mounting in a later phase if startup load is a
 problem.
+
+## Phase 2–4 — Implementation log (2026-07-04, COMPLETE)
+
+Per-area hub conversion (Paradigm 2) plus the dead-code sweep and final doc reconciliation.
+Each area was implemented + reviewed by subagents; reviewer verdicts ACCEPT (2a), ACCEPT (2b
+after fixing a post-create back-stack blocker), and self-reviewed (2c).
+
+- **2a Workouts** (`9d45acbb`): `WorkoutsSectionNavigationView` root became a hub `List` of glass
+  rows (Sessions/Workouts/Exercises) pushing `WorkoutsRoute.sessionsList`/`.workoutsList`/
+  `.exercisesList`; area segmented `Picker` moved to the hub's nav-bar principal slot; "New workout"
+  moved to the `.workoutsList` `.bottomBar`; `pendingSessionId` consumed at the stack root.
+- **2b Nutrition** (`7f6d392a`): `NutritionNavigationView` mirrored the hub with 5 rows
+  (Overview/Days/Plans/Foods/Meals → `NutritionRoute.overview`/`.daysList`/`.plansList`/
+  `.foodsList`/`.mealsList`); removed `selectedDate` handoff (Overview `openSection`/`openDay` now
+  PUSH routes; `NutritionDaysView` lost the binding). **Blocker fixed in review:**
+  `openRouteAfterCurrentTransition` had a `removeLast()` that double-popped (the create view's own
+  `dismiss()` already pops the create route), landing Back on the hub; fix was to append-only, giving
+  `[.foodsList, .foodCreate] → [.foodsList] → [.foodsList, .foodDetail(id)]`.
+- **2c Me + Phase 3/4 sweep** (this commit): `MeNavigationView` became a hub `List`
+  (Profile/Body/Journal → `MeRoute.profile`/`.bodyList`/`.journalList`) with the same append-only
+  post-create fix. With all three areas on the hub model, deleted the now-dead
+  `AppAreaSwitcher` (`AppShellView`) and the entire `App/Components/SecondarySectionBar.swift`
+  (`SecondarySectionContentHost` + `SectionTitleMenu` + `SectionTitleMenuContent` + the
+  `SecondaryTabSection` protocol; the three section enums are now plain
+  `String, CaseIterable, Identifiable`). `RootPrimaryActionToolbar` KEPT — every hub's subsection
+  list reuses it for create/log. Ran `xcodegen generate` after the file deletion.
+
+**DoD grep** (`TabView|tabViewBottomAccessory|tabBarMinimizeBehavior|SectionTitleMenu|
+SecondarySectionContentHost|AppAreaSwitcher`) returns only the unrelated photo carousel in
+`StorageImageView.swift`. Both `CLAUDE.md` files describe only the shipped end state — all three
+areas as hubs, "exactly one bottom band, no tab bar", and the deleted types added to the
+forbidden-reintroduction list.
+
+**Gates (all green, real Xcode):** `swift build` ✓ · `swift test` 189+3 ✓ ·
+`xcodebuild -scheme NeoGym` BUILD SUCCEEDED ✓.
+
+**Owed (human, simulator-only):** visual acceptance of each hub's rows, area switching from any hub
+root, post-create Back landing on the subsection list (not the hub), 44pt targets, and VoiceOver
+labels — build-green is the automated ceiling.

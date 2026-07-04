@@ -1,7 +1,7 @@
 import NeoGymKit
 import SwiftUI
 
-enum WorkoutAreaSection: String, CaseIterable, Identifiable, SecondaryTabSection {
+enum WorkoutAreaSection: String, CaseIterable, Identifiable {
     case sessions
     case workouts
     case exercises

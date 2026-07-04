@@ -2,7 +2,7 @@ import NeoGymKit
 import Nhost
 import SwiftUI
 
-enum MeSection: String, CaseIterable, Identifiable, SecondaryTabSection {
+enum MeSection: String, CaseIterable, Identifiable {
     case profile
     case body
     case journal
@@ -36,7 +36,6 @@ struct MeNavigationView: View {
     let signOut: () -> Void
     @Binding var areaSelection: AppDestination
 
-    @State private var selection: MeSection = .profile
     @State private var path: [MeRoute] = []
     @State private var reloadToken = 0
 
@@ -50,74 +49,57 @@ struct MeNavigationView: View {
     }
 
     private var rootContent: some View {
-        SecondarySectionContentHost(selection: $selection) { section in
-            sectionPage(for: section)
+        List {
+            ForEach(MeSection.allCases) { section in
+                Button {
+                    path.append(subsectionRoute(for: section))
+                } label: {
+                    MeHubRow(section: section)
+                }
+                .buttonStyle(.plain)
+                .listRowInsets(EdgeInsets(
+                    top: NeoGymTheme.spacingXS,
+                    leading: NeoGymTheme.screenHorizontalPadding,
+                    bottom: NeoGymTheme.spacingXS,
+                    trailing: NeoGymTheme.screenHorizontalPadding
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .accessibilityLabel(section.title)
+                .accessibilityHint("Opens \(section.title)")
+                .accessibilityAddTraits(.isButton)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .navigationTitle(selection.title)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .navigationTitle("Me")
         .navigationBarTitleDisplayMode(.inline)
-        .safeAreaInset(edge: .top) {
-            if path.isEmpty {
-                AppAreaSwitcher(selection: $areaSelection)
-            }
-        }
         .toolbar {
-            rootSectionToolbar
-            rootActionToolbar
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var rootSectionToolbar: some ToolbarContent {
-        if path.isEmpty {
             ToolbarItem(placement: .principal) {
-                SectionTitleMenu(selection: $selection)
+                Picker("Area", selection: $areaSelection) {
+                    ForEach(AppDestination.allCases) { destination in
+                        Text(destination.title).tag(destination)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("Primary area")
             }
         }
     }
 
-    @ToolbarContentBuilder
-    private var rootActionToolbar: some ToolbarContent {
-        if path.isEmpty, selection == .body {
-            RootPrimaryActionToolbar(
-                title: "Log measurement",
-                systemImage: "plus",
-                action: openBodyMeasurementCreate
-            )
-        }
-        if path.isEmpty, selection == .journal {
-            RootPrimaryActionToolbar(
-                title: "New entry",
-                systemImage: "plus",
-                action: openJournalEntryCreate
-            )
-        }
-    }
-
-    @ViewBuilder
-    private func sectionPage(for section: MeSection) -> some View {
+    private func subsectionRoute(for section: MeSection) -> MeRoute {
         switch section {
-        case .profile:
-            ProfileView(
-                session: session,
-                isSigningOut: isSigningOut,
-                changeEmailModel: changeEmailModel,
-                signOut: signOut
-            )
-        case .body:
-            BodyMeasurementsListView(
-                repository: bodyRepository,
-                healthImporter: bodyHealthImporter,
-                reloadToken: reloadToken
-            )
-        case .journal:
-            JournalListView(repository: journalRepository, reloadToken: reloadToken)
+        case .profile: .profile
+        case .body: .bodyList
+        case .journal: .journalList
         }
     }
 
     @ViewBuilder
     private func routeDestination(for route: MeRoute) -> some View {
         switch route {
+        case .profile, .bodyList, .journalList:
+            subsectionListDestination(for: route)
         case let .bodyMeasurementDetail(measurementId):
             BodyMeasurementDetailView(
                 measurementId: measurementId,
@@ -153,6 +135,49 @@ struct MeNavigationView: View {
         }
     }
 
+    @ViewBuilder
+    private func subsectionListDestination(for route: MeRoute) -> some View {
+        switch route {
+        case .profile:
+            ProfileView(
+                session: session,
+                isSigningOut: isSigningOut,
+                changeEmailModel: changeEmailModel,
+                signOut: signOut
+            )
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+        case .bodyList:
+            BodyMeasurementsListView(
+                repository: bodyRepository,
+                healthImporter: bodyHealthImporter,
+                reloadToken: reloadToken
+            )
+            .navigationTitle("Body")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                RootPrimaryActionToolbar(
+                    title: "Log measurement",
+                    systemImage: "plus",
+                    action: openBodyMeasurementCreate
+                )
+            }
+        case .journalList:
+            JournalListView(repository: journalRepository, reloadToken: reloadToken)
+                .navigationTitle("Journal")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    RootPrimaryActionToolbar(
+                        title: "New entry",
+                        systemImage: "plus",
+                        action: openJournalEntryCreate
+                    )
+                }
+        case .bodyMeasurementDetail, .bodyMeasurementCreate, .journalEntryDetail, .journalEntryCreate:
+            EmptyView()
+        }
+    }
+
     private func openBodyMeasurementCreate() {
         path.append(.bodyMeasurementCreate)
     }
@@ -162,12 +187,45 @@ struct MeNavigationView: View {
     }
 
     private func openRouteAfterCurrentTransition(_ route: MeRoute) {
+        // The create view calls `dismiss()` right after `onCreated`, which pops the
+        // create route synchronously; deferring the append to the next runloop tick
+        // lands the new detail above its subsection list (Back returns to the list).
         DispatchQueue.main.async {
-            path = [route]
+            path.append(route)
         }
     }
 
     private func invalidateLists() {
         reloadToken += 1
+    }
+}
+
+private struct MeHubRow: View {
+    let section: MeSection
+
+    var body: some View {
+        GlassPanel(
+            contentPadding: EdgeInsets(
+                top: NeoGymTheme.spacingMD,
+                leading: NeoGymTheme.spacingLG,
+                bottom: NeoGymTheme.spacingMD,
+                trailing: NeoGymTheme.spacingLG
+            )
+        ) {
+            HStack(spacing: NeoGymTheme.spacingMD) {
+                Image(systemName: section.systemImage ?? "circle")
+                    .font(.title3)
+                    .foregroundStyle(NeoGymTheme.accent)
+                    .frame(width: 32)
+                Text(section.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.primaryText)
+                Spacer(minLength: NeoGymTheme.spacingSM)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.mutedText)
+            }
+            .frame(minHeight: 44)
+        }
     }
 }

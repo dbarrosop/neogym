@@ -112,8 +112,9 @@ hub:** its root is a native `List` of tappable glass rows
 (`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area
 segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
-"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Workouts and
-Nutrition no longer use `SecondarySectionContentHost` or `SectionTitleMenu`. The
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. No area uses
+`SecondarySectionContentHost` or `SectionTitleMenu` anymore (both, along with
+`AppAreaSwitcher` and the interim `.safeAreaInset` switcher, are deleted). The
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
 root so a pending session opens regardless of which subsection is showing.
 **Nutrition (Phase 2b) is now a hub too:** its root is a native `List` of
@@ -128,12 +129,17 @@ Overview screen (a pushed route) cross-links by PUSHing routes —
 `NutritionDaysView` no longer takes that binding); after a create the shell
 replaces only the top create route with the new detail route so Back returns to
 the subsection list, not the hub.
-**Me (Phase 1 interim)** still hosts the switcher transitionally via
-`.safeAreaInset(edge: .top)` at its root while the principal, collapsed
-`SectionTitleMenu` selects its subsections (Profile/Body/Journal) and its root
-primary actions (Log measurement, New entry) live in shell-owned `.bottomBar`
-toolbars keyed to the active section — those interim placements fold into a
-per-area hub in Phase 2c. Pushed form routes
+**Me is now a hub too:** its root is a native `List` of tappable glass rows
+(Profile/Body/Journal) that push subsection-list routes
+(`MeRoute.profile`/`.bodyList`/`.journalList`) via `.navigationDestination(for:)`,
+each with its own `navigationTitle`; the area segmented `Picker` lives in the Me
+hub's nav-bar **principal** slot, and Log measurement/New entry live on the
+`.bodyList`/`.journalList` subsection list's own `.bottomBar` via
+`RootPrimaryActionToolbar`. After a create the shell appends only the new detail
+route (the create view's `dismiss()` already popped the create route) so Back
+returns to the subsection list, not the hub. All three areas
+(Workouts/Nutrition/Me) are hubs; there is **exactly one bottom band** holding
+create/log, the rest timer, and detail actions, and no tab bar. Pushed form routes
 put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
 `.confirmationAction`, and destructive Delete in a top-trailing overflow menu.
 Pushed detail routes use native bottom toolbar actions (`.bottomBar`,
@@ -150,8 +156,9 @@ dock clearance constants or extra bottom padding for custom bottom chrome.
 Reduce Motion should suppress custom section scaling polish
 while preserving native navigation structure. Sheet-local `NavigationView`
 wrappers remain intentional for modal editors/pickers. Do not reintroduce a
-`TabView`, `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, older OS
-fallbacks, UIKit parent-chain tab-bar hiding, the removed
+`TabView`, `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
+`SecondarySectionContentHost`, `AppAreaSwitcher`, the interim `.safeAreaInset`
+area switcher, older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
 `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
 navigation. Keep
 unit tests deterministic with fake auth services and the in-memory verifier

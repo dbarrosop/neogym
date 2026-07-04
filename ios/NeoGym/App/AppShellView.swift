@@ -98,26 +98,6 @@ struct AppShellView: View {
     }
 }
 
-/// Transitional Phase-1 area switcher. Each area root hosts it via
-/// `.safeAreaInset(edge: .top)` while the principal `SectionTitleMenu` still
-/// drives subsection selection; both are folded into per-area hubs in Phase 2/3.
-struct AppAreaSwitcher: View {
-    @Binding var selection: AppDestination
-
-    var body: some View {
-        Picker("Area", selection: $selection) {
-            ForEach(AppDestination.allCases) { destination in
-                Text(destination.title).tag(destination)
-            }
-        }
-        .pickerStyle(.segmented)
-        .frame(minHeight: 44)
-        .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-        .padding(.vertical, NeoGymTheme.spacingSM)
-        .accessibilityLabel("Primary area")
-    }
-}
-
 #Preview {
     AppShellView(
         session: NeoGymPreviewFixtures.session,
