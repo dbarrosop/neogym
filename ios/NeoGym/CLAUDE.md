@@ -136,14 +136,14 @@ intact instead of inventing one-off styles.
   routes put Cancel in the top-leading `.cancellationAction` and Save in the
   top-trailing `.confirmationAction`; there is no top-trailing overflow menu.
   Destructive Delete is a full-width `FormDeleteButton` (bordered, `.destructive`
-  role, `NeoGymTheme.danger` tint) rendered at the bottom of the form's scroll
-  content, shown only in edit mode (`deleteAction != nil`), and still opens the
-  form's existing confirm `.alert`. Pushed detail routes use native iOS 26 bottom
-  toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
+  role, `NeoGymTheme.danger` tint) rendered at the bottom of the scroll content,
+  shown only when deletion applies (edit-mode `deleteAction != nil` on forms, or
+  a loaded record on detail routes such as session detail), and still opens the
+  screen's existing confirm `.alert`. Detail routes otherwise use native iOS 26
+  bottom toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
   appropriate). A session detail's single `.bottomBar` holds the rest timer as
-  its **leading** item, a `Spacer()`, a destructive icon-only Delete-session
-  button, another `Spacer()`, then Add exercise trailing; Delete stays confirmed
-  via its `.alert` and there is no overflow menu. The rest timer is a
+  its **leading** item, a `Spacer()`, then Add exercise trailing — Delete is the
+  in-content `FormDeleteButton`, not a bottom-bar or overflow action. The rest timer is a
   shell-owned `@StateObject RestTimerController` in `AppShellView` (survives area
   switches and drill navigation), injected down through
   `WorkoutsSectionNavigationView` into `SessionDetailView`, which renders

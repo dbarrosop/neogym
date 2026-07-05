@@ -231,6 +231,14 @@ struct SessionDetailView: View {
         ScrollView {
             VStack(spacing: 18) {
                 content
+                if viewModel.session != nil {
+                    FormDeleteButton(
+                        title: "Delete session",
+                        isDisabled: viewModel.mutationState.isLoading,
+                        action: { isConfirmingDelete = true }
+                    )
+                    .padding(.top, NeoGymTheme.spacingSM)
+                }
             }
             .frame(maxWidth: 700)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
@@ -525,8 +533,7 @@ struct SessionDetailView: View {
             isVisible: viewModel.session != nil,
             isMutating: viewModel.mutationState.isLoading,
             restTimer: restTimer,
-            onAddExercise: { isShowingExercisePicker = true },
-            onDelete: { isConfirmingDelete = true }
+            onAddExercise: { isShowingExercisePicker = true }
         )
     }
 
@@ -541,19 +548,11 @@ private struct SessionDetailBottomToolbar: ToolbarContent {
     let isMutating: Bool
     let restTimer: RestTimerController
     let onAddExercise: () -> Void
-    let onDelete: () -> Void
 
     var body: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isVisible {
                 RestTimerToolbarControl(timer: restTimer)
-                Spacer()
-                Button(role: .destructive, action: onDelete) {
-                    Image(systemName: "trash")
-                }
-                .tint(NeoGymTheme.danger)
-                .disabled(isMutating)
-                .accessibilityLabel("Delete session")
                 Spacer()
                 Button(action: onAddExercise) {
                     Label("Add exercise", systemImage: "plus")
