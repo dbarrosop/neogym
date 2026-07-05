@@ -272,7 +272,7 @@ public extension SessionsRepository {
       workoutSession(id: $id) {
         id
         startedAt
-        workout { id name }
+        workout { id name description }
         workoutSessionExercises(order_by: { position: asc }) {
           id
           position
