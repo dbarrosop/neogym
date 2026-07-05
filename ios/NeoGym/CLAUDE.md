@@ -145,9 +145,10 @@ intact instead of inventing one-off styles.
   `DailyIntakeRows`) carry no inline Edit/trash buttons — the whole glass row is
   a `.buttonStyle(.plain)` `Button` (trailing `chevron.right`) that opens the
   `EditLogEntrySheet` / `EditMealGroupSheet`, and each of those modal editors
-  holds its own in-content `FormDeleteButton` (in a clear-background `Section`)
-  wired to a `.confirmationDialog` that deletes via the view model and
-  dismisses. Detail routes otherwise use native iOS 26
+  holds its own Delete as a native destructive `Button(role: .destructive)` in a
+  trailing `Section` (matching `StrengthSetEditorView`, not the scroll-content
+  `FormDeleteButton` used on pushed forms/detail routes) wired to a
+  `.confirmationDialog` that deletes via the view model and dismisses. Detail routes otherwise use native iOS 26
   bottom toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
   appropriate). A session detail's single `.bottomBar` holds the rest timer as
   its **leading** item, a `Spacer()`, then Add exercise trailing — Delete is the

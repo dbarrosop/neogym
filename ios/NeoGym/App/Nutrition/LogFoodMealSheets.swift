@@ -574,14 +574,9 @@ struct EditLogEntrySheet: View {
                 mutationError
 
                 Section {
-                    FormDeleteButton(
-                        title: "Delete entry",
-                        isDisabled: viewModel.isMutating,
-                        action: { isConfirmingDelete = true }
-                    )
+                    Button("Delete entry", role: .destructive) { isConfirmingDelete = true }
+                        .disabled(viewModel.isMutating)
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
             }
             .navigationTitle("Edit entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -696,14 +691,9 @@ struct EditMealGroupSheet: View {
                 mutationError
 
                 Section {
-                    FormDeleteButton(
-                        title: "Delete logged meal",
-                        isDisabled: viewModel.isMutating,
-                        action: { isConfirmingDelete = true }
-                    )
+                    Button("Delete logged meal", role: .destructive) { isConfirmingDelete = true }
+                        .disabled(viewModel.isMutating)
                 }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
             }
             .navigationTitle("Edit logged meal")
             .navigationBarTitleDisplayMode(.inline)
