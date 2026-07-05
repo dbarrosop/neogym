@@ -98,6 +98,14 @@ struct DailyIntakeView: View {
             VStack(spacing: 18) {
                 header
                 content
+                if isLoaded, viewModel.day != nil {
+                    FormDeleteButton(
+                        title: "Clear day log",
+                        isDisabled: viewModel.isMutating,
+                        action: { confirmingDayDelete = true }
+                    )
+                    .padding(.top, NeoGymTheme.spacingSM)
+                }
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
@@ -243,15 +251,7 @@ struct DailyIntakeView: View {
     private var dailyIntakeBottomToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .bottomBar) {
             if isLoaded {
-                if viewModel.day != nil {
-                    Button(role: .destructive) {
-                        confirmingDayDelete = true
-                    } label: {
-                        Label("Clear day log", systemImage: "trash")
-                    }
-                    .disabled(viewModel.isMutating)
-                    Spacer()
-                }
+                Spacer()
                 Button {
                     logRequest = .adHocFood
                 } label: {

@@ -138,8 +138,9 @@ intact instead of inventing one-off styles.
   Destructive Delete is a full-width `FormDeleteButton` (bordered, `.destructive`
   role, `NeoGymTheme.danger` tint) rendered at the bottom of the scroll content,
   shown only when deletion applies (edit-mode `deleteAction != nil` on forms, or
-  a loaded record on detail routes such as session detail), and still opens the
-  screen's existing confirm `.alert`. Detail routes otherwise use native iOS 26
+  a loaded record on detail routes such as session detail or the nutrition day
+  view's "Clear day log"), and still opens the screen's existing confirm
+  `.alert`/`.confirmationDialog`. Detail routes otherwise use native iOS 26
   bottom toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
   appropriate). A session detail's single `.bottomBar` holds the rest timer as
   its **leading** item, a `Spacer()`, then Add exercise trailing — Delete is the
