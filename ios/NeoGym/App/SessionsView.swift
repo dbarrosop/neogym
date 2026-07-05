@@ -407,13 +407,6 @@ struct SessionDetailView: View {
             subtitle: session.workout.map { "Started from \($0.name)" } ?? "Ad-hoc session"
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                if let description = session.workout?.description?
-                    .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
-                    Text(description)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
                 Button {
                     draftStartedAt = session.startedAtDate ?? Date()
                     isEditingStartedAt = true
@@ -437,6 +430,13 @@ struct SessionDetailView: View {
                             }
                         }
                     )
+                }
+                if let description = session.workout?.description?
+                    .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
