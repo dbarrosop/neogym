@@ -144,7 +144,11 @@ put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
 `.confirmationAction`, and destructive Delete as a full-width `FormDeleteButton`
 in the form's scroll content (no top-trailing overflow menu). Detail routes that
 can delete (e.g. session detail) use the same in-content `FormDeleteButton` at
-the bottom of their scroll content, not a bottom-bar or overflow action.
+the bottom of their scroll content, not a bottom-bar or overflow action. In the
+nutrition day view the logged intake rows (food entries and logged meal groups)
+have no inline Edit/trash buttons — the whole glass row is tappable to open its
+modal edit sheet, and each edit sheet (`EditLogEntrySheet`/`EditMealGroupSheet`)
+holds its own in-content `FormDeleteButton` wired to a confirm dialog.
 Pushed detail routes otherwise use native bottom toolbar actions (`.bottomBar`,
 confirmation/destructive roles where appropriate); a session detail's single
 `.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, then

@@ -6,8 +6,6 @@ struct TimeSlotCard: View {
     let day: NutritionDay?
     let editEntry: (EditingEntrySheetItem) -> Void
     let editGroup: (EditingGroupSheetItem) -> Void
-    let deleteEntry: (String) -> Void
-    let deleteGroup: (String) -> Void
 
     @State private var expanded = false
 
@@ -48,8 +46,7 @@ struct TimeSlotCard: View {
                             MealGroupRow(
                                 group: group,
                                 original: day?.nutritionLogMeals.first { $0.id == group.id },
-                                edit: editGroup,
-                                delete: deleteGroup
+                                edit: editGroup
                             )
                         }
                     }
@@ -65,8 +62,7 @@ struct TimeSlotCard: View {
                         ForEach(slot.entries, id: \.entry.id) { slotEntry in
                             EntryRow(
                                 slotEntry: slotEntry,
-                                edit: editEntry,
-                                delete: deleteEntry
+                                edit: editEntry
                             )
                         }
                     }
@@ -82,39 +78,38 @@ private struct MealGroupRow: View {
     let group: IntakeSlotMealGroup
     let original: NutritionLogMeal?
     let edit: (EditingGroupSheetItem) -> Void
-    let delete: (String) -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "fork.knife.circle")
-                .foregroundColor(NeoGymTheme.mutedText)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(group.name)
-                    .font(.subheadline.weight(.semibold))
-                Text("\(group.entryCount) entr\(group.entryCount == 1 ? "y" : "ies")")
+        Button {
+            edit(EditingGroupSheetItem(group: original ?? NutritionLogMeal(
+                id: group.id,
+                mealId: group.mealId,
+                nutritionPlanMealId: group.nutritionPlanMealId,
+                name: group.name,
+                slotTime: group.slotTime,
+                position: Int(group.position)
+            )))
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "fork.knife.circle")
+                    .foregroundColor(NeoGymTheme.mutedText)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(group.name)
+                        .font(.subheadline.weight(.semibold))
+                    Text("\(group.entryCount) entr\(group.entryCount == 1 ? "y" : "ies")")
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
-            Spacer()
-            Button("Edit") {
-                edit(EditingGroupSheetItem(group: original ?? NutritionLogMeal(
-                    id: group.id,
-                    mealId: group.mealId,
-                    nutritionPlanMealId: group.nutritionPlanMealId,
-                    name: group.name,
-                    slotTime: group.slotTime,
-                    position: Int(group.position)
-                )))
-            }
-            .font(.caption)
-            Button(role: .destructive) {
-                delete(group.id)
-            } label: {
-                Image(systemName: "trash")
-            }
-            .accessibilityLabel("Delete meal group")
+            .padding(10)
+            .contentShape(Rectangle())
         }
-        .padding(10)
+        .buttonStyle(.plain)
+        .accessibilityHint("Edit logged meal group")
         .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
     }
 }
@@ -122,38 +117,37 @@ private struct MealGroupRow: View {
 private struct EntryRow: View {
     let slotEntry: IntakeSlotEntry
     let edit: (EditingEntrySheetItem) -> Void
-    let delete: (String) -> Void
 
     var body: some View {
         let entry = slotEntry.entry
         let totals = NutritionMath.loggedEntryMacroTotals(entry.loggedSnapshot)
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: slotEntry.kind == .meal ? "fork.knife" : "apple.logo")
-                .foregroundColor(NeoGymTheme.mutedText)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(entry.snapshotFoodName)
-                    .font(.subheadline.weight(.semibold))
-                Text(NutritionMath.macroTotalsSummary(totals))
+        Button {
+            edit(EditingEntrySheetItem(entry: entry, showTime: slotEntry.kind == .standalone))
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: slotEntry.kind == .meal ? "fork.knife" : "apple.logo")
+                    .foregroundColor(NeoGymTheme.mutedText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(entry.snapshotFoodName)
+                        .font(.subheadline.weight(.semibold))
+                    Text(NutritionMath.macroTotalsSummary(totals))
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                    Text("\(NutritionMath.formatMacro(entry.grams, unit: "g"))"
+                        + (slotEntry.mealName.map { " · From \($0)" } ?? ""))
+                        .font(.caption2)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
-                Text("\(NutritionMath.formatMacro(entry.grams, unit: "g"))"
-                    + (slotEntry.mealName.map { " · From \($0)" } ?? ""))
-                    .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
             }
-            Spacer()
-            Button("Edit") {
-                edit(EditingEntrySheetItem(entry: entry, showTime: slotEntry.kind == .standalone))
-            }
-            .font(.caption)
-            Button(role: .destructive) {
-                delete(entry.id)
-            } label: {
-                Image(systemName: "trash")
-            }
-            .accessibilityLabel("Delete food entry")
+            .padding(10)
+            .contentShape(Rectangle())
         }
-        .padding(10)
+        .buttonStyle(.plain)
+        .accessibilityHint("Edit food entry")
         .nutritionGlassCard(cornerRadius: 12)
     }
 }

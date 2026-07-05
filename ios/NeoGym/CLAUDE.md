@@ -140,7 +140,14 @@ intact instead of inventing one-off styles.
   shown only when deletion applies (edit-mode `deleteAction != nil` on forms, or
   a loaded record on detail routes such as session detail or the nutrition day
   view's "Clear day log"), and still opens the screen's existing confirm
-  `.alert`/`.confirmationDialog`. Detail routes otherwise use native iOS 26
+  `.alert`/`.confirmationDialog`. In the nutrition day view the logged intake
+  rows (`EntryRow` food entries and `MealGroupRow` logged meal groups in
+  `DailyIntakeRows`) carry no inline Edit/trash buttons — the whole glass row is
+  a `.buttonStyle(.plain)` `Button` (trailing `chevron.right`) that opens the
+  `EditLogEntrySheet` / `EditMealGroupSheet`, and each of those modal editors
+  holds its own in-content `FormDeleteButton` (in a clear-background `Section`)
+  wired to a `.confirmationDialog` that deletes via the view model and
+  dismisses. Detail routes otherwise use native iOS 26
   bottom toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
   appropriate). A session detail's single `.bottomBar` holds the rest timer as
   its **leading** item, a `Spacer()`, then Add exercise trailing — Delete is the

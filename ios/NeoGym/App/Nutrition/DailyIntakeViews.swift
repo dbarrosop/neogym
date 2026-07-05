@@ -237,9 +237,7 @@ struct DailyIntakeView: View {
                             slot: slot,
                             day: viewModel.day,
                             editEntry: { editingEntry = $0 },
-                            editGroup: { editingGroup = $0 },
-                            deleteEntry: { entryId in Task { _ = await viewModel.deleteEntry(id: entryId) } },
-                            deleteGroup: { groupId in Task { _ = await viewModel.deleteMealGroup(id: groupId) } }
+                            editGroup: { editingGroup = $0 }
                         )
                     }
                 }

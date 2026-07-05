@@ -507,6 +507,7 @@ struct EditLogEntrySheet: View {
     @State private var protein: String
     @State private var fiber: String
     @State private var sugar: String
+    @State private var isConfirmingDelete = false
 
     init(viewModel: DailyIntakeViewModel, item: EditingEntrySheetItem) {
         self.viewModel = viewModel
@@ -571,9 +572,33 @@ struct EditLogEntrySheet: View {
                 }
 
                 mutationError
+
+                Section {
+                    FormDeleteButton(
+                        title: "Delete entry",
+                        isDisabled: viewModel.isMutating,
+                        action: { isConfirmingDelete = true }
+                    )
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             .navigationTitle("Edit entry")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog(
+                "Delete this entry?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete entry", role: .destructive) {
+                    Task {
+                        if await viewModel.deleteEntry(id: item.entry.id) { dismiss() }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This logged entry cannot be recovered.")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
@@ -644,6 +669,7 @@ struct EditMealGroupSheet: View {
     @State private var name: String
     @State private var position: Int
     @State private var slotTime: Date
+    @State private var isConfirmingDelete = false
 
     init(viewModel: DailyIntakeViewModel, item: EditingGroupSheetItem) {
         self.viewModel = viewModel
@@ -668,9 +694,33 @@ struct EditMealGroupSheet: View {
                 }
 
                 mutationError
+
+                Section {
+                    FormDeleteButton(
+                        title: "Delete logged meal",
+                        isDisabled: viewModel.isMutating,
+                        action: { isConfirmingDelete = true }
+                    )
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
             }
             .navigationTitle("Edit logged meal")
             .navigationBarTitleDisplayMode(.inline)
+            .confirmationDialog(
+                "Delete this logged meal?",
+                isPresented: $isConfirmingDelete,
+                titleVisibility: .visible
+            ) {
+                Button("Delete logged meal", role: .destructive) {
+                    Task {
+                        if await viewModel.deleteMealGroup(id: item.group.id) { dismiss() }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Grouped food entries cascade and cannot be recovered.")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
