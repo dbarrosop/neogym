@@ -165,23 +165,21 @@ struct NutritionNavigationView: View {
         case .overview:
             NutritionOverviewView(
                 repository: repository,
-                openSection: { section in
-                    path.append(subsectionRoute(for: section))
-                },
                 openDay: { date in
                     path.append(.day(date))
                 }
             )
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar { openTodayToolbar }
         case .daysList:
             NutritionDaysView(
                 repository: repository,
-                reloadToken: reloadToken,
-                openRoute: openRoute
+                reloadToken: reloadToken
             )
             .navigationTitle("Days")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar { openTodayToolbar }
         case .plansList:
             PlansListView(repository: repository, reloadToken: reloadToken)
                 .navigationTitle("Plans")
@@ -224,6 +222,18 @@ struct NutritionNavigationView: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private var openTodayToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button {
+                path.append(.day(IntakeGrouping.formatLocalDate()))
+            } label: {
+                Label("Open today", systemImage: "calendar.badge.plus")
+            }
+            .accessibilityLabel("Open today")
+        }
+    }
+
     private func openPlanCreate() {
         path.append(.planCreate)
     }
@@ -234,10 +244,6 @@ struct NutritionNavigationView: View {
 
     private func openMealCreate() {
         path.append(.mealCreate)
-    }
-
-    private func openRoute(_ route: NutritionRoute) {
-        path.append(route)
     }
 
     private func openRouteAfterCurrentTransition(_ route: NutritionRoute) {

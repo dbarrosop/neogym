@@ -3,18 +3,15 @@ import SwiftUI
 
 struct NutritionOverviewView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
-    let openSection: (NutritionSection) -> Void
     let openDay: (String) -> Void
 
     @StateObject private var viewModel: NutritionDaysListViewModel
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
-        openSection: @escaping (NutritionSection) -> Void,
         openDay: @escaping (String) -> Void
     ) {
         self.repository = repository
-        self.openSection = openSection
         self.openDay = openDay
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
     }
@@ -26,29 +23,13 @@ struct NutritionOverviewView: View {
                     title: "Nutrition",
                     subtitle: "Dashboard"
                 ) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("Create foods, build meal and plan templates, then log what you actually ate on local calendar days.")
-                            .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                        HStack(spacing: 10) {
-                            Button {
-                                openDay(IntakeGrouping.formatLocalDate())
-                            } label: {
-                                Label("Open today", systemImage: "calendar.badge.plus")
-                            }
-                            .buttonStyle(.borderedProminent)
-
-                            Button {
-                                openSection(.days)
-                            } label: {
-                                Label("Browse days", systemImage: "calendar")
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
+                    Text("Create foods, build meal and plan templates, then log what you actually ate on local calendar days.")
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                navigationCards
+                caloriesChart
                 recentDays
             }
             .frame(maxWidth: 720)
@@ -61,56 +42,40 @@ struct NutritionOverviewView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var navigationCards: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            overviewCard(
-                title: "Foods",
-                message: "Private foods and public catalog macros per 100g.",
-                systemImage: "apple.logo",
-                section: .foods
+    private var caloriesSeries: [TimeSeriesChartSeries] {
+        [
+            TimeSeriesChartSeries(
+                id: "calories",
+                name: "Calories (kcal)",
+                color: .accentColor,
+                points: viewModel.days.compactMap { day in
+                    IntakeGrouping.localDateToDate(day.logDate).map { date in
+                        TimeSeriesChartDataPoint(id: day.id, date: date, value: day.loggedTotals.kcal)
+                    }
+                },
+                valueFormatter: { String(format: "%.0f kcal", $0) }
             )
-            overviewCard(
-                title: "Meals",
-                message: "Reusable templates with live food totals.",
-                systemImage: "fork.knife.circle",
-                section: .meals
-            )
-            overviewCard(
-                title: "Plans",
-                message: "Timed meal and food suggestions, not binding schedules.",
-                systemImage: "list.bullet.rectangle",
-                section: .plans
-            )
-            overviewCard(
-                title: "Daily logs",
-                message: "Snapshot-based intake history by local date.",
-                systemImage: "calendar",
-                section: .days
-            )
-        }
+        ]
     }
 
-    private func overviewCard(title: String, message: String, systemImage: String, section: NutritionSection) -> some View {
-        Button {
-            openSection(section)
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                Text(message)
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .lineLimit(3)
+    @ViewBuilder
+    private var caloriesChart: some View {
+        SectionShell(title: "Calories consumed", subtitle: "Logged kcal per day") {
+            switch viewModel.state {
+            case .idle, .loading:
+                AppLoadingStateView(message: "Loading calories…")
+            case let .failed(message, _):
+                AppErrorStateView(title: "Failed to load calories", message: message) { Task { await viewModel.load() } }
+            case .loaded:
+                TimeSeriesTrendChartView(
+                    series: caloriesSeries,
+                    maxRenderedPoints: 48,
+                    emptyMessage: "No logged calories in this range.",
+                    accessibilityLabel: "Calories consumed per day",
+                    initialPeriod: .last30Days
+                )
             }
-            .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-            .padding(14)
-            .nutritionGlassCard(cornerRadius: 16)
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder

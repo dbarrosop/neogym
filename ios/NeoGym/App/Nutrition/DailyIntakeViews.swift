@@ -4,18 +4,15 @@ import SwiftUI
 struct NutritionDaysView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let reloadToken: Int
-    var openRoute: (NutritionRoute) -> Void
 
     @StateObject private var viewModel: NutritionDaysListViewModel
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
-        reloadToken: Int,
-        openRoute: @escaping (NutritionRoute) -> Void
+        reloadToken: Int
     ) {
         self.repository = repository
         self.reloadToken = reloadToken
-        self.openRoute = openRoute
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
     }
 
@@ -31,12 +28,6 @@ struct NutritionDaysView: View {
                     Text("Open a day to choose plan suggestions, log foods and meals, and edit historical entries.")
                         .font(.subheadline)
                         .foregroundColor(NeoGymTheme.mutedText)
-                    Button {
-                        openRoute(.day(IntakeGrouping.formatLocalDate()))
-                    } label: {
-                        Label("Open today", systemImage: "calendar.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
 
                     switch viewModel.state {
                     case .idle, .loading:
@@ -126,6 +117,7 @@ struct DailyIntakeView: View {
         }
         .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar { dailyIntakeDayNavigationToolbar }
         .toolbar { dailyIntakeBottomToolbar }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
@@ -145,20 +137,6 @@ struct DailyIntakeView: View {
                 Text("Totals use logged snapshot nutrition, so later food or template edits do not rewrite this day.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
-                HStack(spacing: 8) {
-                    Button {
-                        Task { await viewModel.moveDate(days: -1) }
-                    } label: {
-                        Label("Previous", systemImage: "chevron.left.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    Button {
-                        Task { await viewModel.moveDate(days: 1) }
-                    } label: {
-                        Label("Next", systemImage: "chevron.right.circle")
-                    }
-                    .buttonStyle(.bordered)
-                }
                 if let message = viewModel.mutationState.errorMessage {
                     Text(message)
                         .font(.caption)
@@ -242,6 +220,26 @@ struct DailyIntakeView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var dailyIntakeDayNavigationToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                Task { await viewModel.moveDate(days: -1) }
+            } label: {
+                Label("Previous day", systemImage: "chevron.left")
+            }
+            .disabled(viewModel.isMutating)
+            .accessibilityLabel("Previous day")
+            Button {
+                Task { await viewModel.moveDate(days: 1) }
+            } label: {
+                Label("Next day", systemImage: "chevron.right")
+            }
+            .disabled(viewModel.isMutating)
+            .accessibilityLabel("Next day")
         }
     }
 
