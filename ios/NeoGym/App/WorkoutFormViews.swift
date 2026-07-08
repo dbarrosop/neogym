@@ -115,7 +115,7 @@ struct WorkoutEditView: View {
                         form: form,
                         labels: editor.labels,
                         exercisesRepository: exercisesRepository,
-                        isSubmitting: editor.saveState.isLoading,
+                        isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
                             ?? editor.deleteState.errorMessage,
@@ -216,18 +216,31 @@ private struct WorkoutFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete workout",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 700)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
             .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockContentClearance)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
         .sheet(isPresented: $pickerOpen) {
             ExercisePickerView(
                 repository: exercisesRepository,
@@ -291,30 +304,6 @@ private struct WorkoutFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Button("Cancel", action: onCancel)
-                    .buttonStyle(NeoGymSecondaryButtonStyle())
-                    .disabled(isSubmitting)
-                PrimaryActionButton(
-                    title: submitLabel,
-                    busyTitle: "Saving",
-                    isBusy: isSubmitting,
-                    isEnabled: form.canSubmit,
-                    action: onSubmit
-                )
-            }
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete workout", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
 
 private struct WorkoutFormExerciseRowView: View {

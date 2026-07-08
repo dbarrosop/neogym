@@ -31,9 +31,9 @@ struct MealDetailView: View {
         }
         .navigationTitle("Meal")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let meal = viewModel.meal {
                     NavigationLink {
                         MealEditView(
@@ -48,8 +48,9 @@ struct MealDetailView: View {
                                 presentationMode.wrappedValue.dismiss()
                             }
                         )
-                    } label: { Image(systemName: "pencil") }
-                        .accessibilityLabel("Edit meal")
+                    } label: {
+                        Label("Edit meal", systemImage: "pencil")
+                    }
                 }
             }
         }
@@ -147,4 +148,3 @@ private struct IngredientDetailRow: View {
         .padding(12)
     }
 }
-

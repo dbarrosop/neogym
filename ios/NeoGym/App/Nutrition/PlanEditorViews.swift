@@ -35,7 +35,6 @@ struct NutritionPlanCreateView: View {
         )
         .navigationTitle("New plan")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task { await loadIfNeeded() }
     }
 
@@ -161,7 +160,6 @@ struct NutritionPlanEditView: View {
         }
         .navigationTitle("Edit plan")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -230,9 +228,16 @@ private struct NutritionPlanFormScreen: View {
                     )
                     entries
                     if let errorMessage {
-                        Text(errorMessage).font(.caption).foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete plan",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 680)
@@ -240,6 +245,13 @@ private struct NutritionPlanFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
         .sheet(item: $quickFood) { request in
             NavigationView {
                 QuickFoodEditorSheet(
@@ -372,25 +384,6 @@ private struct NutritionPlanFormScreen: View {
                 } label: {
                     Label("Add food", systemImage: "apple.logo")
                         .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
-
-    private var actions: some View {
-        VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.canSubmit)
-                .opacity(isSubmitting || !form.canSubmit ? 0.6 : 1)
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete plan", systemImage: "trash").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(NeoGymSecondaryButtonStyle())
                 .disabled(isSubmitting)

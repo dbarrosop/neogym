@@ -79,6 +79,10 @@ From `backend/`:
 
 From `ios/NeoGym/`:
 
+The `NeoGym` app target is iOS 26-only. Keep the widget extension and the
+host-testable `NeoGymKit` package at their lower deployment floors unless their
+own code needs newer APIs.
+
 - `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
 - `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
@@ -97,10 +101,75 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
 models and route signed-in sessions into the full-screen `AppShellView`. The
-native shell uses three primary `TabView` groups (Workouts, Nutrition, Me) with
-secondary section bars for Sessions/Workouts/Exercises, Nutrition subsections,
-and Profile/Body/Journal. Keep unit tests deterministic with fake auth services
-and the in-memory verifier store, not a live backend or real Keychain. Sign-out
+native shell has NO `TabView`: the three primary areas (Workouts, Nutrition, Me)
+are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
+keyed by `@State selection: AppDestination` (the active area is shown; the others
+stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so each
+area's stack path survives area switches). Areas are switched via a segmented
+`Picker` shown at each area's stack root only. **Workouts (Phase 2a) is now a
+hub:** its root is a native `List` of tappable glass rows
+(Sessions/Workouts/Exercises) that push subsection-list routes
+(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
+`.navigationDestination(for:)`, each with its own `navigationTitle`; the area
+segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. No area uses
+`SecondarySectionContentHost` or `SectionTitleMenu` anymore (both, along with
+`AppAreaSwitcher` and the interim `.safeAreaInset` switcher, are deleted). The
+`pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
+root so a pending session opens regardless of which subsection is showing.
+**Nutrition (Phase 2b) is now a hub too:** its root is a native `List` of
+tappable glass rows (Overview/Days/Plans/Foods/Meals) that push subsection-list
+routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`)
+via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
+area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
+and New plan/food/meal live on their subsection list's own `.bottomBar`. The
+Overview screen (a pushed route) cross-links only to individual days:
+`openDay(date)` pushes `.day(date)` directly from the recent daily logs (no more
+`selectedDate` handoff, so `NutritionDaysView` no longer takes that binding);
+after a create the shell replaces only the top create route with the new detail
+route so Back returns to the subsection list, not the hub.
+**Me is now a hub too:** its root is a native `List` of tappable glass rows
+(Profile/Body/Journal) that push subsection-list routes
+(`MeRoute.profile`/`.bodyList`/`.journalList`) via `.navigationDestination(for:)`,
+each with its own `navigationTitle`; the area segmented `Picker` lives in the Me
+hub's nav-bar **principal** slot, and Log measurement/New entry live on the
+`.bodyList`/`.journalList` subsection list's own `.bottomBar` via
+`RootPrimaryActionToolbar`. After a create the shell appends only the new detail
+route (the create view's `dismiss()` already popped the create route) so Back
+returns to the subsection list, not the hub. All three areas
+(Workouts/Nutrition/Me) are hubs; there is **exactly one bottom band** holding
+create/log, the rest timer, and detail actions, and no tab bar. Pushed form routes
+put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
+`.confirmationAction`, and destructive Delete as a full-width `FormDeleteButton`
+in the form's scroll content (no top-trailing overflow menu). Detail routes that
+can delete (e.g. session detail) use the same in-content `FormDeleteButton` at
+the bottom of their scroll content, not a bottom-bar or overflow action. In the
+nutrition day view the logged intake rows (food entries and logged meal groups)
+have no inline Edit/trash buttons — the whole glass row is tappable to open its
+modal edit sheet, and each edit sheet (`EditLogEntrySheet`/`EditMealGroupSheet`)
+holds its own Delete as a native destructive `Button(role: .destructive)` in a
+trailing `Section` (like the strength/cardio editors) wired to a confirm dialog.
+Pushed detail routes otherwise use native bottom toolbar actions (`.bottomBar`,
+confirmation/destructive roles where appropriate); a session detail's single
+`.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, then
+"Add exercise" trailing (no Delete in the bar, no overflow menu).
+The rest timer is a shell-owned `@StateObject RestTimerController` (survives area
+switches and drill navigation) injected down into `WorkoutsSectionNavigationView`
+→ `SessionDetailView`, which renders `RestTimerToolbarControl(timer:)` in that
+leading bottom-bar slot. With no tab bar there is no minimized tab pill, so a
+leading bottom-bar control cannot be covered. Root list pages rely on standard
+navigation-title spacing and native safe-area insets; do not add custom
+dock clearance constants or extra bottom padding for custom bottom chrome.
+Reduce Motion should suppress custom section scaling polish
+while preserving native navigation structure. Sheet-local `NavigationView`
+wrappers remain intentional for modal editors/pickers. Do not reintroduce a
+`TabView`, `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
+`SecondarySectionContentHost`, `AppAreaSwitcher`, the interim `.safeAreaInset`
+area switcher, older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
+`.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
+navigation. Keep
+unit tests deterministic with fake auth services and the in-memory verifier
+store, not a live backend or real Keychain. Sign-out
 must always call `clearSession()` after
 attempting remote sign-out so local persisted sessions are removed even when the
 network request fails. SwiftUI previews can set Dynamic Type with

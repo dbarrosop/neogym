@@ -31,9 +31,9 @@ struct NutritionPlanDetailView: View {
         }
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let plan = viewModel.plan {
                     NavigationLink {
                         NutritionPlanEditView(
@@ -48,8 +48,9 @@ struct NutritionPlanDetailView: View {
                                 presentationMode.wrappedValue.dismiss()
                             }
                         )
-                    } label: { Image(systemName: "pencil") }
-                        .accessibilityLabel("Edit plan")
+                    } label: {
+                        Label("Edit plan", systemImage: "pencil")
+                    }
                 }
             }
         }

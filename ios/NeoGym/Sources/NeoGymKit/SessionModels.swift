@@ -3,10 +3,12 @@ import Foundation
 public struct SessionWorkout: Decodable, Identifiable, Sendable, Equatable, Hashable {
     public let id: String
     public let name: String
+    public let description: String?
 
-    public init(id: String, name: String) {
+    public init(id: String, name: String, description: String? = nil) {
         self.id = id
         self.name = name
+        self.description = description
     }
 }
 

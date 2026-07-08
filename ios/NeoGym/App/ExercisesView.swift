@@ -1,27 +1,11 @@
 import NeoGymKit
 import SwiftUI
 
-struct ExercisesNavigationView: View {
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
-
-    var body: some View {
-        NavigationView {
-            ExercisesListView(
-                repository: repository,
-                storageBaseURL: storageBaseURL,
-                onSessionStarted: onSessionStarted
-            )
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct ExercisesListView: View {
     @StateObject private var viewModel: ExercisesListViewModel
     let repository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
+    let reloadToken: Int
     var onSessionStarted: (String) -> Void
 
     @State private var expandedFilter: ExerciseFilterKey?
@@ -29,10 +13,12 @@ struct ExercisesListView: View {
     init(
         repository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
+        reloadToken: Int,
         onSessionStarted: @escaping (String) -> Void
     ) {
         self.repository = repository
         self.storageBaseURL = storageBaseURL
+        self.reloadToken = reloadToken
         self.onSessionStarted = onSessionStarted
         _viewModel = StateObject(wrappedValue: ExercisesListViewModel(repository: repository))
     }
@@ -46,16 +32,16 @@ struct ExercisesListView: View {
             }
             .frame(maxWidth: 700)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Exercises")
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
@@ -65,9 +51,6 @@ struct ExercisesListView: View {
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .foregroundColor(NeoGymTheme.mutedText)
-            Text("Exercises")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
             Text("Search by name, or narrow the catalog by muscle, category, equipment, and level.")
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -390,14 +373,7 @@ private struct ExerciseRowLink: View {
     var onSessionStarted: (String) -> Void
 
     var body: some View {
-        NavigationLink {
-            ExerciseDetailView(
-                exerciseId: exercise.id,
-                repository: repository,
-                storageBaseURL: storageBaseURL,
-                onSessionStarted: onSessionStarted
-            )
-        } label: {
+        NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
             HStack(spacing: 12) {
                 Image(systemName: "dumbbell")
                     .foregroundColor(NeoGymTheme.mutedText)

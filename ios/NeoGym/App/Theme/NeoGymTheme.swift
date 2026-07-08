@@ -57,7 +57,7 @@ enum NeoGymTheme {
             colors: [
                 Color(.systemBackground),
                 Color(.secondarySystemBackground),
-                Color(.systemBackground),
+                Color(.systemBackground)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -88,14 +88,6 @@ enum NeoGymTheme {
 
     static let screenHorizontalPadding: CGFloat = 20
     static let screenVerticalPadding: CGFloat = 24
-    // Root section pages live inside a page-style TabView. On iOS the custom
-    // section bar and floating dock do not reliably propagate as safe-area
-    // insets through that pager, so scroll views reserve the chrome height
-    // explicitly to avoid clipped first/last rows.
-    static let topSectionBarContentClearance: CGFloat = 32
-    static let dockRootContentClearance: CGFloat = 56
-    static let dockContentClearance: CGFloat = 0
-
     static let radiusSM: CGFloat = 12
     static let radiusMD: CGFloat = 14
     static let radiusLG: CGFloat = 18

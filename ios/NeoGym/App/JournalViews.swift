@@ -1,27 +1,15 @@
 import NeoGymKit
 import SwiftUI
 
-struct JournalNavigationView: View {
-    let repository: any JournalRepositoryProtocol
-
-    var body: some View {
-        NavigationView {
-            JournalListView(repository: repository)
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct JournalListView: View {
     @StateObject private var viewModel: JournalListViewModel
     let repository: any JournalRepositoryProtocol
+    let reloadToken: Int
 
-    @State private var navigatedEntryId: String?
-    @State private var isNavigatingToEntry = false
-
-    init(repository: any JournalRepositoryProtocol) {
+    init(repository: any JournalRepositoryProtocol, reloadToken: Int) {
         _viewModel = StateObject(wrappedValue: JournalListViewModel(repository: repository))
         self.repository = repository
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -33,49 +21,28 @@ struct JournalListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Journal")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tracking")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Journal")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Notes, reflections, and anything else worth remembering.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                JournalEntryCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedEntryId = id
-                        isNavigatingToEntry = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New journal entry")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Tracking")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Notes, reflections, and anything else worth remembering.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -158,17 +125,7 @@ struct JournalListView: View {
                             systemImage: "book.closed"
                         )
                         if !viewModel.isFiltered {
-                            NavigationLink {
-                                JournalEntryCreateView(
-                                    repository: repository,
-                                    onCreated: { id in
-                                        Task { await viewModel.load() }
-                                        navigatedEntryId = id
-                                        isNavigatingToEntry = true
-                                    },
-                                    onFinished: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: MeRoute.journalEntryCreate) {
                                 Label("Write your first entry", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -182,14 +139,7 @@ struct JournalListView: View {
                 ) {
                     VStack(spacing: 0) {
                         ForEach(viewModel.entries) { entry in
-                            NavigationLink {
-                                JournalEntryDetailView(
-                                    entryId: entry.id,
-                                    repository: repository,
-                                    onDeleted: { Task { await viewModel.load() } },
-                                    onMutated: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
                                 JournalEntryListRow(entry: entry)
                             }
                             if entry.id != viewModel.entries.last?.id { Divider() }
@@ -222,23 +172,6 @@ struct JournalListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let entryId = navigatedEntryId {
-            NavigationLink(
-                destination: JournalEntryDetailView(
-                    entryId: entryId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToEntry
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
 }
 
 private struct JournalEntryListRow: View {
@@ -356,9 +289,9 @@ struct JournalEntryDetailView: View {
         }
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let entry = viewModel.entry {
                     NavigationLink {
                         JournalEntryEditView(
@@ -374,9 +307,8 @@ struct JournalEntryDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit entry", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit entry")
                 }
             }
         }
@@ -478,7 +410,6 @@ struct JournalEntryCreateView: View {
         }
         .navigationTitle("New entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -556,7 +487,6 @@ struct JournalEntryEditView: View {
         }
         .navigationTitle("Edit entry")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -664,12 +594,16 @@ private struct JournalEntryFormScreen: View {
                     JournalLabelInputView(form: form, suggestions: suggestions, disabled: isSubmitting)
 
                     if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete entry",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 680)
@@ -677,26 +611,13 @@ private struct JournalEntryFormScreen: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-    }
-
-    private var actions: some View {
-        VStack(spacing: 10) {
-            Button(submitLabel, action: onSubmit)
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isSubmitting || !form.canSubmit)
-                .opacity(isSubmitting || !form.canSubmit ? 0.6 : 1)
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete entry", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
     }
 }
 
@@ -928,7 +849,9 @@ private struct JournalLabelFlowLayout<Content: View>: View {
 }
 
 #Preview("Journal") {
-    JournalNavigationView(repository: PreviewJournalRepository())
+    NavigationStack {
+        JournalListView(repository: PreviewJournalRepository(), reloadToken: 0)
+    }
 }
 
 private struct PreviewJournalRepository: JournalRepositoryProtocol {

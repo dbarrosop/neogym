@@ -39,41 +39,54 @@ struct AppShellView: View {
 
     @State private var selection: AppDestination = .workouts
     @State private var pendingSessionId: String?
+    @StateObject private var restTimer = RestTimerController()
 
     var body: some View {
-        TabView(selection: $selection) {
-            WorkoutsSectionNavigationView(
-                workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
-                sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
-                exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
-                storageBaseURL: environment.client.serviceURLs.storage,
-                currentUserId: session.user?.id,
-                pendingSessionId: $pendingSessionId
-            )
-            .tabItem { AppDestination.workouts.label }
-            .tag(AppDestination.workouts)
+        ZStack {
+            areaView(.workouts) {
+                WorkoutsSectionNavigationView(
+                    workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
+                    sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
+                    exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
+                    storageBaseURL: environment.client.serviceURLs.storage,
+                    currentUserId: session.user?.id,
+                    areaSelection: $selection,
+                    restTimer: restTimer,
+                    pendingSessionId: $pendingSessionId
+                )
+            }
 
-            NutritionNavigationView(
-                repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
-                currentUserId: session.user?.id
-            )
-            .tabItem { AppDestination.nutrition.label }
-            .tag(AppDestination.nutrition)
+            areaView(.nutrition) {
+                NutritionNavigationView(
+                    repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
+                    currentUserId: session.user?.id,
+                    areaSelection: $selection
+                )
+            }
 
-            MeNavigationView(
-                session: session,
-                bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
-                bodyHealthImporter: Self.makeBodyHealthImporter(),
-                journalRepository: JournalRepository(graphQL: environment.graphQLService),
-                isSigningOut: isSigningOut,
-                changeEmailModel: changeEmailModel,
-                signOut: signOut
-            )
-            .tabItem { AppDestination.me.label }
-            .tag(AppDestination.me)
+            areaView(.me) {
+                MeNavigationView(
+                    session: session,
+                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                    bodyHealthImporter: Self.makeBodyHealthImporter(),
+                    journalRepository: JournalRepository(graphQL: environment.graphQLService),
+                    isSigningOut: isSigningOut,
+                    changeEmailModel: changeEmailModel,
+                    signOut: signOut,
+                    areaSelection: $selection
+                )
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .ignoresSafeArea(.container, edges: .bottom)
+    }
+
+    @ViewBuilder
+    private func areaView(_ destination: AppDestination, @ViewBuilder content: () -> some View) -> some View {
+        let isActive = selection == destination
+        content()
+            .opacity(isActive ? 1 : 0)
+            .accessibilityHidden(!isActive)
+            .allowsHitTesting(isActive)
     }
 
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {

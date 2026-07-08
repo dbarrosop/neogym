@@ -4,23 +4,12 @@ import SwiftUI
 struct ExerciseSummaryCard: View {
     let exercise: ExerciseDetailModel
     let storageBaseURL: URL
-    let isStarting: Bool
     let startError: String?
-    let start: () -> Void
 
     var body: some View {
         SectionShell(title: exercise.name, subtitle: ExerciseFormatters.enumValue(exercise.primaryMuscleGroup)) {
             VStack(alignment: .leading, spacing: 14) {
                 muscleBadges
-                Button(action: start) {
-                    Label(
-                        isStarting ? "Starting…" : "Start session", systemImage: isStarting ? "hourglass" : "play.fill"
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymPrimaryButtonStyle())
-                .disabled(isStarting)
-
                 if let startError {
                     Text(startError)
                         .font(.caption)

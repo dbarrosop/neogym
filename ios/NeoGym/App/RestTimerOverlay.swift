@@ -2,7 +2,7 @@ import ActivityKit
 import SwiftUI
 @preconcurrency import UserNotifications
 
-struct RestTimerOverlay: View {
+struct RestTimerToolbarControl: View {
     @ObservedObject var timer: RestTimerController
     @Environment(\.scenePhase) private var scenePhase
     @State private var isChoosingDuration = false
@@ -16,11 +16,7 @@ struct RestTimerOverlay: View {
             }
         }
         .confirmationDialog("Start rest timer", isPresented: $isChoosingDuration, titleVisibility: .visible) {
-            ForEach(RestTimerPreset.allCases) { preset in
-                Button(preset.title) {
-                    timer.start(seconds: preset.seconds)
-                }
-            }
+            restTimerPresetButtons
             if timer.isRunning {
                 Button("Clear timer", role: .destructive) {
                     timer.cancel()
@@ -30,9 +26,18 @@ struct RestTimerOverlay: View {
         } message: {
             Text("Choose a rest duration.")
         }
-        .onChange(of: scenePhase) { phase in
+        .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 timer.refresh()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var restTimerPresetButtons: some View {
+        ForEach(RestTimerPreset.allCases) { preset in
+            Button(preset.title) {
+                timer.start(seconds: preset.seconds)
             }
         }
     }
@@ -41,12 +46,7 @@ struct RestTimerOverlay: View {
         Button {
             isChoosingDuration = true
         } label: {
-            Image(systemName: "stopwatch.fill")
-                .font(.title2.weight(.bold))
-                .foregroundColor(.white)
-                .frame(width: 58, height: 58)
-                .background(Circle().fill(Color.accentColor))
-                .shadow(color: .black.opacity(0.28), radius: 14, y: 8)
+            Label("Start rest", systemImage: "stopwatch")
         }
         .accessibilityLabel("Start rest timer")
     }
@@ -59,23 +59,23 @@ struct RestTimerOverlay: View {
                 HStack(spacing: NeoGymTheme.spacingXS) {
                     Image(systemName: "stopwatch.fill")
                     Text(timer.formattedRemaining)
-                        .monospacedDigit()
-                        .fontWeight(.bold)
+                        .font(.headline.monospacedDigit().weight(.bold))
                 }
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Rest timer, \(timer.formattedRemaining) remaining")
+            .accessibilityHint("Opens duration choices")
 
             Button {
                 timer.cancel()
             } label: {
                 Image(systemName: "xmark.circle.fill")
+                    .imageScale(.medium)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Cancel rest timer")
+            .accessibilityLabel("Clear rest timer")
         }
-        .font(.headline)
         .padding(.horizontal, NeoGymTheme.spacingMD)
         .padding(.vertical, NeoGymTheme.spacingSM)
         .glassSurface(
@@ -83,10 +83,9 @@ struct RestTimerOverlay: View {
             material: .regular,
             tint: NeoGymTheme.glassStrongFill,
             stroke: Color.accentColor.opacity(0.3),
-            shadow: true
+            shadow: false
         )
     }
-
 }
 
 @MainActor
@@ -138,8 +137,8 @@ final class RestTimerController: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 guard !Task.isCancelled else { return }
-                await self?.updateRemaining()
-                if await self?.isRunning == false { return }
+                self?.updateRemaining()
+                if self?.isRunning == false { return }
             }
         }
     }

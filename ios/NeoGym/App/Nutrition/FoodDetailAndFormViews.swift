@@ -34,9 +34,9 @@ struct FoodDetailView: View {
         }
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let food = viewModel.food, food.canEdit(currentUserId: currentUserId) {
                     NavigationLink {
                         FoodEditView(
@@ -53,9 +53,8 @@ struct FoodDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit food", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit food")
                 }
             }
         }
@@ -163,7 +162,6 @@ struct FoodCreateView: View {
         )
         .navigationTitle("New food")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -242,7 +240,6 @@ struct FoodEditView: View {
         }
         .navigationTitle("Edit food")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -335,8 +332,14 @@ struct FoodFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete food",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 640)
@@ -344,6 +347,13 @@ struct FoodFormScreen: View {
             .padding(.vertical, 24)
             .frame(maxWidth: .infinity)
         }
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.canSubmit,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
     }
 
     private func nutrientField(
@@ -369,25 +379,4 @@ struct FoodFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            PrimaryActionButton(
-                title: submitLabel,
-                busyTitle: "Saving",
-                isBusy: isSubmitting,
-                isEnabled: form.canSubmit,
-                action: onSubmit
-            )
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete food", systemImage: "trash").frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }

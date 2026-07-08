@@ -19,8 +19,8 @@ struct ProfileView: View {
             }
             .frame(maxWidth: 640)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $isShowingChangeEmail) {

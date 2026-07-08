@@ -1,46 +1,25 @@
 import NeoGymKit
 import SwiftUI
 
-struct SessionsNavigationView: View {
-    let sessionsRepository: any SessionsRepositoryProtocol
-    let exercisesRepository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    @Binding var pendingSessionId: String?
-
-    var body: some View {
-        NavigationView {
-            SessionsListView(
-                sessionsRepository: sessionsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                pendingSessionId: $pendingSessionId
-            )
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct SessionsListView: View {
     @StateObject private var viewModel: SessionsListViewModel
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
-    @Binding var pendingSessionId: String?
 
-    @State private var navigatedSessionId: String?
-    @State private var isNavigatingToPendingSession = false
+    let reloadToken: Int
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
-        pendingSessionId: Binding<String?>
+        reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: SessionsListViewModel(repository: sessionsRepository))
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
-        _pendingSessionId = pendingSessionId
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -51,19 +30,16 @@ struct SessionsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Sessions")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
-            consumePendingSessionId()
         }
-        .onChange(of: pendingSessionId) { _ in consumePendingSessionId() }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
@@ -73,9 +49,6 @@ struct SessionsListView: View {
                 .font(.caption.weight(.semibold))
                 .textCase(.uppercase)
                 .foregroundColor(NeoGymTheme.mutedText)
-            Text("Sessions")
-                .font(.largeTitle.bold())
-                .tracking(-0.8)
             Text("Every workout you've logged, newest first. Start a new one from a workout or exercise.")
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -114,17 +87,7 @@ struct SessionsListView: View {
                         SectionShell(title: group.title) {
                             VStack(spacing: 0) {
                                 ForEach(group.sessions) { session in
-                                    NavigationLink {
-                                        SessionDetailView(
-                                            sessionId: session.id,
-                                            sessionsRepository: sessionsRepository,
-                                            exercisesRepository: exercisesRepository,
-                                            storageBaseURL: storageBaseURL,
-                                            onSessionStarted: openSession,
-                                            onDeleted: { Task { await viewModel.load() } },
-                                            onMutated: { Task { await viewModel.load() } }
-                                        )
-                                    } label: {
+                                    NavigationLink(value: WorkoutsRoute.sessionDetail(session.id)) {
                                         SessionListRow(session: session)
                                     }
                                     if session.id != group.sessions.last?.id { Divider() }
@@ -147,37 +110,6 @@ struct SessionsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let sessionId = navigatedSessionId {
-            NavigationLink(
-                destination: SessionDetailView(
-                    sessionId: sessionId,
-                    sessionsRepository: sessionsRepository,
-                    exercisesRepository: exercisesRepository,
-                    storageBaseURL: storageBaseURL,
-                    onSessionStarted: openSession,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToPendingSession
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
-
-    private func consumePendingSessionId() {
-        guard let id = pendingSessionId else { return }
-        openSession(id)
-        pendingSessionId = nil
-    }
-
-    private func openSession(_ id: String) {
-        navigatedSessionId = id
-        isNavigatingToPendingSession = true
-    }
 }
 
 private struct SessionListRow: View {
@@ -258,11 +190,11 @@ struct SessionDetailView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
+    let restTimer: RestTimerController
     var onSessionStarted: (String) -> Void
     var onDeleted: () -> Void
     var onMutated: () -> Void
 
-    @Environment(\.presentationMode) private var presentationMode
     @State private var isEditingStartedAt = false
     @State private var draftStartedAt = Date()
     @State private var isShowingExercisePicker = false
@@ -270,7 +202,6 @@ struct SessionDetailView: View {
     @State private var pendingRemoveExercise: SessionExerciseRow?
     @State private var editingSet: StrengthSetEditorState?
     @State private var editingCardioEntry: CardioEntryEditorState?
-    @StateObject private var restTimer = RestTimerController()
     @State private var errorMessage: String?
 
     init(
@@ -278,6 +209,7 @@ struct SessionDetailView: View {
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
+        restTimer: RestTimerController,
         onSessionStarted: @escaping (String) -> Void,
         onDeleted: @escaping () -> Void,
         onMutated: @escaping () -> Void
@@ -288,33 +220,33 @@ struct SessionDetailView: View {
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
+        self.restTimer = restTimer
         self.onSessionStarted = onSessionStarted
         self.onDeleted = onDeleted
         self.onMutated = onMutated
     }
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            ScrollView {
-                VStack(spacing: 18) {
-                    content
+        ScrollView {
+            VStack(spacing: 18) {
+                content
+                if viewModel.session != nil {
+                    FormDeleteButton(
+                        title: "Delete session",
+                        isDisabled: viewModel.mutationState.isLoading,
+                        action: { isConfirmingDelete = true }
+                    )
+                    .padding(.top, NeoGymTheme.spacingSM)
                 }
-                .frame(maxWidth: 700)
-                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                .padding(.bottom, 86)
-                .frame(maxWidth: .infinity)
             }
-
-            if viewModel.session != nil {
-                RestTimerOverlay(timer: restTimer)
-                    .padding(.trailing, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.bottom, NeoGymTheme.spacingLG)
-            }
+            .frame(maxWidth: 700)
+            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .toolbar { sessionBottomActionToolbar }
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -409,7 +341,6 @@ struct SessionDetailView: View {
                 Task {
                     if await viewModel.deleteSession() {
                         onDeleted()
-                        presentationMode.wrappedValue.dismiss()
                     }
                 }
             }
@@ -458,7 +389,6 @@ struct SessionDetailView: View {
                     strengthTotals(viewModel.totals)
                 }
                 exerciseSection(session)
-                deleteSection
                 if let message = viewModel.mutationState.errorMessage ?? errorMessage {
                     Text(message)
                         .font(.caption)
@@ -499,6 +429,13 @@ struct SessionDetailView: View {
                         }
                     )
                 }
+                if let description = session.workout?.description?
+                    .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
+                    Text(description)
+                        .font(.subheadline)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -517,11 +454,18 @@ struct SessionDetailView: View {
 
     private func exerciseSection(_ session: SessionDetailModel) -> some View {
         SectionShell(title: "Exercises", subtitle: "Add or remove exercises for this session only.") {
-            VStack(spacing: 0) {
-                ForEach(session.workoutSessionExercises) { row in
-                    sessionExerciseRow(row, lastRowId: session.workoutSessionExercises.last?.id)
+            if session.workoutSessionExercises.isEmpty {
+                AppEmptyStateView(
+                    title: "No exercises yet",
+                    message: "Use Add exercise to build this session.",
+                    systemImage: "dumbbell"
+                )
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(session.workoutSessionExercises) { row in
+                        sessionExerciseRow(row, lastRowId: session.workoutSessionExercises.last?.id)
+                    }
                 }
-                addExerciseButton(isFirstRow: session.workoutSessionExercises.isEmpty)
             }
         }
     }
@@ -542,17 +486,6 @@ struct SessionDetailView: View {
             onEditCardioEntry: { startEditingCardioEntry($0, schema: $1, for: row) }
         )
         if row.id != lastRowId { Divider() }
-    }
-
-    private func addExerciseButton(isFirstRow: Bool) -> some View {
-        Button {
-            isShowingExercisePicker = true
-        } label: {
-            Label("Add exercise", systemImage: "plus")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(NeoGymSecondaryButtonStyle())
-        .padding(.top, isFirstRow ? 0 : 12)
     }
 
     private func startAddingSet(for row: SessionExerciseRow) {
@@ -599,20 +532,40 @@ struct SessionDetailView: View {
         )
     }
 
-    private var deleteSection: some View {
-        Button(role: .destructive) {
-            isConfirmingDelete = true
-        } label: {
-            Label("Delete session", systemImage: "trash")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(NeoGymSecondaryButtonStyle())
-        .tint(.red)
+    @ToolbarContentBuilder
+    private var sessionBottomActionToolbar: some ToolbarContent {
+        SessionDetailBottomToolbar(
+            isVisible: viewModel.session != nil,
+            isMutating: viewModel.mutationState.isLoading,
+            restTimer: restTimer,
+            onAddExercise: { isShowingExercisePicker = true }
+        )
     }
 
     private func reloadAll() async {
         await viewModel.load()
         onMutated()
+    }
+}
+
+private struct SessionDetailBottomToolbar: ToolbarContent {
+    let isVisible: Bool
+    let isMutating: Bool
+    let restTimer: RestTimerController
+    let onAddExercise: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if isVisible {
+                RestTimerToolbarControl(timer: restTimer)
+                Spacer()
+                Button(action: onAddExercise) {
+                    Label("Add exercise", systemImage: "plus")
+                }
+                .fontWeight(.semibold)
+                .disabled(isMutating)
+            }
+        }
     }
 }
 
@@ -874,4 +827,3 @@ private struct StrengthSetsList: View {
         volume.rounded() == volume ? String(format: "%.0f", volume) : String(format: "%.1f", volume)
     }
 }
-

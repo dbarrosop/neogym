@@ -5,14 +5,13 @@ struct FoodsListView: View {
     @StateObject private var viewModel: FoodsListViewModel
     let repository: any NutritionFoodMealRepositoryProtocol
     let currentUserId: String?
+    let reloadToken: Int
 
-    @State private var navigatedFoodId: String?
-    @State private var isNavigatingToFood = false
-
-    init(repository: any NutritionFoodMealRepositoryProtocol, currentUserId: String?) {
+    init(repository: any NutritionFoodMealRepositoryProtocol, currentUserId: String?, reloadToken: Int) {
         _viewModel = StateObject(wrappedValue: FoodsListViewModel(repository: repository))
         self.repository = repository
         self.currentUserId = currentUserId
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -24,48 +23,28 @@ struct FoodsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nutrition")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Foods")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Search public foods and your private catalog.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                FoodCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedFoodId = id
-                        isNavigatingToFood = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New food")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Nutrition")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Search public foods and your private catalog.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -145,17 +124,7 @@ struct FoodsListView: View {
                             Button("Clear filters") { viewModel.clearFilters() }
                                 .buttonStyle(NeoGymSecondaryButtonStyle())
                         } else {
-                            NavigationLink {
-                                FoodCreateView(
-                                    repository: repository,
-                                    onCreated: { id in
-                                        Task { await viewModel.load() }
-                                        navigatedFoodId = id
-                                        isNavigatingToFood = true
-                                    },
-                                    onFinished: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.foodCreate) {
                                 Label("Create your first food", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -171,15 +140,7 @@ struct FoodsListView: View {
                 ) {
                     VStack(spacing: 0) {
                         ForEach(viewModel.filteredFoods) { food in
-                            NavigationLink {
-                                FoodDetailView(
-                                    foodId: food.id,
-                                    repository: repository,
-                                    currentUserId: currentUserId,
-                                    onDeleted: { Task { await viewModel.load() } },
-                                    onMutated: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.foodDetail(food.id)) {
                                 FoodListRow(food: food)
                             }
                             if food.id != viewModel.filteredFoods.last?.id { Divider() }
@@ -190,22 +151,6 @@ struct FoodsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let foodId = navigatedFoodId {
-            NavigationLink(
-                destination: FoodDetailView(
-                    foodId: foodId,
-                    repository: repository,
-                    currentUserId: currentUserId,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToFood
-            ) { EmptyView() }
-            .hidden()
-        }
-    }
 }
 
 private struct FoodListRow: View {

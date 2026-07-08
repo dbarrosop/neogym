@@ -3,43 +3,22 @@ import SwiftUI
 
 struct NutritionDaysView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
-    @Binding var selectedDate: String?
+    let reloadToken: Int
 
     @StateObject private var viewModel: NutritionDaysListViewModel
 
-    init(repository: any NutritionFoodMealRepositoryProtocol, selectedDate: Binding<String?>) {
+    init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        reloadToken: Int
+    ) {
         self.repository = repository
-        _selectedDate = selectedDate
+        self.reloadToken = reloadToken
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
     }
 
     var body: some View {
         daysList
-            .background(dayNavigationLink)
-    }
-
-    @ViewBuilder
-    private var dayNavigationLink: some View {
-        if let selectedDate {
-            NavigationLink(
-                destination: DailyIntakeView(repository: repository, date: selectedDate) {
-                    self.selectedDate = nil
-                    Task { await viewModel.load() }
-                },
-                isActive: Binding(
-                    get: { self.selectedDate != nil },
-                    set: { isActive in
-                        if !isActive {
-                            self.selectedDate = nil
-                            Task { await viewModel.load() }
-                        }
-                    }
-                )
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
+            .onChange(of: reloadToken) { Task { await viewModel.load() } }
     }
 
     private var daysList: some View {
@@ -49,12 +28,6 @@ struct NutritionDaysView: View {
                     Text("Open a day to choose plan suggestions, log foods and meals, and edit historical entries.")
                         .font(.subheadline)
                         .foregroundColor(NeoGymTheme.mutedText)
-                    Button {
-                        selectedDate = IntakeGrouping.formatLocalDate()
-                    } label: {
-                        Label("Open today", systemImage: "calendar.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
 
                     switch viewModel.state {
                     case .idle, .loading:
@@ -73,12 +46,9 @@ struct NutritionDaysView: View {
                         } else {
                             VStack(spacing: 0) {
                                 ForEach(viewModel.days) { day in
-                                    Button {
-                                        selectedDate = day.logDate
-                                    } label: {
+                                    NavigationLink(value: NutritionRoute.day(day.logDate)) {
                                         NutritionDayRow(day: day)
                                     }
-                                    .buttonStyle(.plain)
                                     if day.id != viewModel.days.last?.id { Divider() }
                                 }
                             }
@@ -89,11 +59,11 @@ struct NutritionDaysView: View {
             }
             .frame(maxWidth: 720)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .task { await viewModel.load() }
+        .task { if case .idle = viewModel.state { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 }
@@ -101,6 +71,7 @@ struct NutritionDaysView: View {
 struct DailyIntakeView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let onClose: () -> Void
+    let onMutated: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
     @State private var logRequest: LogIntakeSheetRequest?
@@ -108,9 +79,15 @@ struct DailyIntakeView: View {
     @State private var editingGroup: EditingGroupSheetItem?
     @State private var confirmingDayDelete = false
 
-    init(repository: any NutritionFoodMealRepositoryProtocol, date: String, onClose: @escaping () -> Void) {
+    init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        date: String,
+        onClose: @escaping () -> Void,
+        onMutated: @escaping () -> Void
+    ) {
         self.repository = repository
         self.onClose = onClose
+        self.onMutated = onMutated
         _viewModel = StateObject(wrappedValue: DailyIntakeViewModel(date: date, repository: repository))
     }
 
@@ -119,31 +96,43 @@ struct DailyIntakeView: View {
             VStack(spacing: 18) {
                 header
                 content
+                if isLoaded, viewModel.day != nil {
+                    FormDeleteButton(
+                        title: "Clear day log",
+                        isDisabled: viewModel.isMutating,
+                        action: { confirmingDayDelete = true }
+                    )
+                    .padding(.top, NeoGymTheme.spacingSM)
+                }
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
         .sheet(item: $logRequest) { request in
-            LogIntakeSheet(viewModel: viewModel, request: request)
+            LogIntakeSheet(viewModel: viewModel, request: request, onMutated: onMutated)
         }
         .sheet(item: $editingEntry) { item in
-            EditLogEntrySheet(viewModel: viewModel, item: item)
+            EditLogEntrySheet(viewModel: viewModel, item: item, onMutated: onMutated)
         }
         .sheet(item: $editingGroup) { item in
-            EditMealGroupSheet(viewModel: viewModel, item: item)
+            EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: onMutated)
         }
         .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .toolbar { dailyIntakeDayNavigationToolbar }
+        .toolbar { dailyIntakeBottomToolbar }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
                 Task {
-                    if await viewModel.deleteDay() { onClose() }
+                    if await viewModel.deleteDay() {
+                        onMutated()
+                        onClose()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -158,20 +147,6 @@ struct DailyIntakeView: View {
                 Text("Totals use logged snapshot nutrition, so later food or template edits do not rewrite this day.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
-                HStack(spacing: 8) {
-                    Button {
-                        Task { await viewModel.moveDate(days: -1) }
-                    } label: {
-                        Label("Previous", systemImage: "chevron.left.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    Button {
-                        Task { await viewModel.moveDate(days: 1) }
-                    } label: {
-                        Label("Next", systemImage: "chevron.right.circle")
-                    }
-                    .buttonStyle(.bordered)
-                }
                 if let message = viewModel.mutationState.errorMessage {
                     Text(message)
                         .font(.caption)
@@ -197,15 +172,6 @@ struct DailyIntakeView: View {
         case .loaded:
             totalsSection
             intakeSection
-            if viewModel.day != nil {
-                Button(role: .destructive) {
-                    confirmingDayDelete = true
-                } label: {
-                    Label("Clear day log", systemImage: "trash")
-                }
-                .buttonStyle(.bordered)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
         }
     }
 
@@ -230,7 +196,13 @@ struct DailyIntakeView: View {
             Picker("Plan", selection: Binding(
                 get: { viewModel.day?.nutritionPlanId ?? "" },
                 set: { value in
-                    Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) }
+                    let nextPlanId = value.isEmpty ? nil : value
+                    guard nextPlanId != viewModel.day?.nutritionPlanId else { return }
+                    Task {
+                        if await viewModel.updatePlan(nutritionPlanId: nextPlanId) {
+                            onMutated()
+                        }
+                    }
                 }
             )) {
                 Text("No plan").tag("")
@@ -259,23 +231,53 @@ struct DailyIntakeView: View {
                             slot: slot,
                             day: viewModel.day,
                             editEntry: { editingEntry = $0 },
-                            editGroup: { editingGroup = $0 },
-                            deleteEntry: { entryId in Task { _ = await viewModel.deleteEntry(id: entryId) } },
-                            deleteGroup: { groupId in Task { _ = await viewModel.deleteMealGroup(id: groupId) } }
+                            editGroup: { editingGroup = $0 }
                         )
                     }
                 }
+            }
+        }
+    }
 
+    @ToolbarContentBuilder
+    private var dailyIntakeDayNavigationToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                Task { await viewModel.moveDate(days: -1) }
+            } label: {
+                Label("Previous day", systemImage: "chevron.left")
+            }
+            .disabled(viewModel.isMutating)
+            .accessibilityLabel("Previous day")
+            Button {
+                Task { await viewModel.moveDate(days: 1) }
+            } label: {
+                Label("Next day", systemImage: "chevron.right")
+            }
+            .disabled(viewModel.isMutating)
+            .accessibilityLabel("Next day")
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var dailyIntakeBottomToolbar: some ToolbarContent {
+        ToolbarItemGroup(placement: .bottomBar) {
+            if isLoaded {
+                Spacer()
                 Button {
                     logRequest = .adHocFood
                 } label: {
                     Label("Log", systemImage: "plus")
                 }
-                .buttonStyle(.borderedProminent)
+                .fontWeight(.semibold)
                 .disabled(viewModel.isMutating)
-                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
+    }
+
+    private var isLoaded: Bool {
+        if case .loaded = viewModel.state { return true }
+        return false
     }
 
 }

@@ -1,33 +1,13 @@
 import NeoGymKit
 import SwiftUI
 
-struct WorkoutsNavigationView: View {
-    let workoutsRepository: any WorkoutsRepositoryProtocol
-    let exercisesRepository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    let currentUserId: String?
-    var onSessionStarted: (String) -> Void
-
-    var body: some View {
-        NavigationView {
-            WorkoutsListView(
-                workoutsRepository: workoutsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                currentUserId: currentUserId,
-                onSessionStarted: onSessionStarted
-            )
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct WorkoutsListView: View {
     @StateObject private var viewModel: WorkoutsListViewModel
     let workoutsRepository: any WorkoutsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
     let currentUserId: String?
+    let reloadToken: Int
     var onSessionStarted: (String) -> Void
 
     init(
@@ -35,6 +15,7 @@ struct WorkoutsListView: View {
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
         currentUserId: String?,
+        reloadToken: Int,
         onSessionStarted: @escaping (String) -> Void
     ) {
         _viewModel = StateObject(wrappedValue: WorkoutsListViewModel(repository: workoutsRepository))
@@ -42,6 +23,7 @@ struct WorkoutsListView: View {
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
         self.currentUserId = currentUserId
+        self.reloadToken = reloadToken
         self.onSessionStarted = onSessionStarted
     }
 
@@ -54,40 +36,24 @@ struct WorkoutsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Workouts")
         .task { await viewModel.load() }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Plans")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Workouts")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Your routines and shared community templates.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                WorkoutCreateView(
-                    workoutsRepository: workoutsRepository,
-                    exercisesRepository: exercisesRepository,
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New workout")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Plans")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Your routines and shared community templates.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -175,17 +141,7 @@ struct WorkoutsListView: View {
                 SectionShell(title: "Routines", subtitle: "\(viewModel.filteredWorkouts.count) shown") {
                     VStack(spacing: 0) {
                         ForEach(viewModel.filteredWorkouts) { workout in
-                            NavigationLink {
-                                WorkoutDetailView(
-                                    workoutId: workout.id,
-                                    workoutsRepository: workoutsRepository,
-                                    exercisesRepository: exercisesRepository,
-                                    storageBaseURL: storageBaseURL,
-                                    currentUserId: currentUserId,
-                                    onSessionStarted: onSessionStarted,
-                                    onDeleted: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: WorkoutsRoute.workoutDetail(workout.id)) {
                                 WorkoutListRow(workout: workout)
                             }
                             if workout.id != viewModel.filteredWorkouts.last?.id { Divider() }
@@ -284,12 +240,15 @@ private struct WorkoutFilterPill: View {
 
 #Preview("Workouts") {
     ScreenScaffold {
-        WorkoutsNavigationView(
-            workoutsRepository: PreviewWorkoutsRepository(),
-            exercisesRepository: PreviewExercisesRepository(),
-            storageBaseURL: URL(string: "https://storage.example.test")!,
-            currentUserId: "user-1",
-            onSessionStarted: { _ in }
-        )
+        NavigationStack {
+            WorkoutsListView(
+                workoutsRepository: PreviewWorkoutsRepository(),
+                exercisesRepository: PreviewExercisesRepository(),
+                storageBaseURL: URL(string: "https://storage.example.test")!,
+                currentUserId: "user-1",
+                reloadToken: 0,
+                onSessionStarted: { _ in }
+            )
+        }
     }
 }

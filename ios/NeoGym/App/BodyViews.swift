@@ -1,37 +1,16 @@
 import NeoGymKit
 import SwiftUI
 
-struct BodyNavigationView: View {
-    let repository: any BodyMeasurementsRepositoryProtocol
-    let healthImporter: (any BodyMeasurementsHealthImporting)?
-
-    init(
-        repository: any BodyMeasurementsRepositoryProtocol,
-        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
-    ) {
-        self.repository = repository
-        self.healthImporter = healthImporter
-    }
-
-    var body: some View {
-        NavigationView {
-            BodyMeasurementsListView(repository: repository, healthImporter: healthImporter)
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct BodyMeasurementsListView: View {
     @StateObject private var viewModel: BodyMeasurementsListViewModel
     let repository: any BodyMeasurementsRepositoryProtocol
     let healthImporter: (any BodyMeasurementsHealthImporting)?
-
-    @State private var navigatedMeasurementId: String?
-    @State private var isNavigatingToMeasurement = false
+    let reloadToken: Int
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
-        healthImporter: (any BodyMeasurementsHealthImporting)? = nil
+        healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
+        reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: repository,
@@ -39,6 +18,7 @@ struct BodyMeasurementsListView: View {
         ))
         self.repository = repository
         self.healthImporter = healthImporter
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -49,49 +29,28 @@ struct BodyMeasurementsListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Body")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load(shouldSyncHealthMeasurements: true)
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tracking")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Body")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Log your weight and body fat over time.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                BodyMeasurementCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedMeasurementId = id
-                        isNavigatingToMeasurement = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New measurement")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Tracking")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Log your weight and body fat over time.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -121,17 +80,7 @@ struct BodyMeasurementsListView: View {
                             message: "Log your first measurement to start seeing trends.",
                             systemImage: "heart.text.square"
                         )
-                        NavigationLink {
-                            BodyMeasurementCreateView(
-                                repository: repository,
-                                onCreated: { id in
-                                    Task { await viewModel.load() }
-                                    navigatedMeasurementId = id
-                                    isNavigatingToMeasurement = true
-                                },
-                                onFinished: { Task { await viewModel.load() } }
-                            )
-                        } label: {
+                        NavigationLink(value: MeRoute.bodyMeasurementCreate) {
                             Label("Log your first measurement", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -147,14 +96,7 @@ struct BodyMeasurementsListView: View {
                     SectionShell(title: "Measurements", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.measurements) { measurement in
-                                NavigationLink {
-                                    BodyMeasurementDetailView(
-                                        measurementId: measurement.id,
-                                        repository: repository,
-                                        onDeleted: { Task { await viewModel.load() } },
-                                        onMutated: { Task { await viewModel.load() } }
-                                    )
-                                } label: {
+                                NavigationLink(value: MeRoute.bodyMeasurementDetail(measurement.id)) {
                                     BodyMeasurementListRow(measurement: measurement)
                                 }
                                 if measurement.id != viewModel.measurements.last?.id { Divider() }
@@ -166,23 +108,6 @@ struct BodyMeasurementsListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let measurementId = navigatedMeasurementId {
-            NavigationLink(
-                destination: BodyMeasurementDetailView(
-                    measurementId: measurementId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToMeasurement
-            ) {
-                EmptyView()
-            }
-            .hidden()
-        }
-    }
 }
 
 private struct BodyMeasurementListRow: View {
@@ -289,9 +214,9 @@ struct BodyMeasurementDetailView: View {
         }
         .navigationTitle("Measurement")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let measurement = viewModel.measurement {
                     NavigationLink {
                         BodyMeasurementEditView(
@@ -307,9 +232,8 @@ struct BodyMeasurementDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit measurement", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit measurement")
                 }
             }
         }
@@ -435,7 +359,6 @@ struct BodyMeasurementCreateView: View {
         )
         .navigationTitle("New measurement")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -497,7 +420,7 @@ struct BodyMeasurementEditView: View {
                         title: "Edit measurement",
                         submitLabel: "Save changes",
                         form: form,
-                        isSubmitting: editor.saveState.isLoading,
+                        isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
                             ?? editor.deleteState.errorMessage,
@@ -512,7 +435,6 @@ struct BodyMeasurementEditView: View {
         }
         .navigationTitle("Edit measurement")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
@@ -617,8 +539,14 @@ private struct BodyMeasurementFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete measurement",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 640)
@@ -627,6 +555,13 @@ private struct BodyMeasurementFormScreen: View {
             .frame(maxWidth: .infinity)
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.hasMeasurementValue,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
     }
 
     private func decimalField(
@@ -659,28 +594,6 @@ private struct BodyMeasurementFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            PrimaryActionButton(
-                title: submitLabel,
-                busyTitle: "Saving",
-                isBusy: isSubmitting,
-                isEnabled: form.hasMeasurementValue,
-                action: onSubmit
-            )
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete measurement", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
 
 struct BodyTrendChartView: View {
@@ -749,7 +662,9 @@ private enum BodyMeasurementFormatters {
 }
 
 #Preview("Body") {
-    BodyNavigationView(repository: PreviewBodyMeasurementsRepository())
+    NavigationStack {
+        BodyMeasurementsListView(repository: PreviewBodyMeasurementsRepository(), reloadToken: 0)
+    }
 }
 
 private struct PreviewBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {

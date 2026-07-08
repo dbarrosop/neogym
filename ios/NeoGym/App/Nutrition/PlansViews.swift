@@ -4,13 +4,12 @@ import SwiftUI
 struct PlansListView: View {
     @StateObject private var viewModel: NutritionPlansListViewModel
     let repository: any NutritionFoodMealRepositoryProtocol
+    let reloadToken: Int
 
-    @State private var navigatedPlanId: String?
-    @State private var isNavigatingToPlan = false
-
-    init(repository: any NutritionFoodMealRepositoryProtocol) {
+    init(repository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
         _viewModel = StateObject(wrappedValue: NutritionPlansListViewModel(repository: repository))
         self.repository = repository
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -32,44 +31,27 @@ struct PlansListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.top, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .background(pendingNavigationLink)
         .task { if case .idle = viewModel.state { await viewModel.load() } }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Nutrition")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Plans")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Create reusable one-day templates made of timed meal and food entries. Plans are suggestions only.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                NutritionPlanCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedPlanId = id
-                        isNavigatingToPlan = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                HeaderActionButtonLabel()
-            }
-            .accessibilityLabel("New plan")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Nutrition")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text(
+                "Create reusable one-day templates made of timed meal and food entries. "
+                    + "Plans are suggestions only."
+            )
+            .font(.subheadline)
+            .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -118,17 +100,7 @@ struct PlansListView: View {
                             Button("Clear search") { viewModel.clearSearch() }
                                 .buttonStyle(NeoGymSecondaryButtonStyle())
                         } else {
-                            NavigationLink {
-                                NutritionPlanCreateView(
-                                    repository: repository,
-                                    onCreated: { id in
-                                        Task { await viewModel.load() }
-                                        navigatedPlanId = id
-                                        isNavigatingToPlan = true
-                                    },
-                                    onFinished: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.planCreate) {
                                 Label("Create your first plan", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -139,14 +111,7 @@ struct PlansListView: View {
                 SectionShell(title: "Plans", subtitle: viewModel.isFiltered ? "Filtered" : "Newest updated first") {
                     VStack(spacing: 0) {
                         ForEach(viewModel.filteredPlans) { plan in
-                            NavigationLink {
-                                NutritionPlanDetailView(
-                                    planId: plan.id,
-                                    repository: repository,
-                                    onDeleted: { Task { await viewModel.load() } },
-                                    onMutated: { Task { await viewModel.load() } }
-                                )
-                            } label: {
+                            NavigationLink(value: NutritionRoute.planDetail(plan.id)) {
                                 PlanListRow(plan: plan)
                             }
                             if plan.id != viewModel.filteredPlans.last?.id { Divider() }
@@ -157,21 +122,6 @@ struct PlansListView: View {
         }
     }
 
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let planId = navigatedPlanId {
-            NavigationLink(
-                destination: NutritionPlanDetailView(
-                    planId: planId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToPlan
-            ) { EmptyView() }
-            .hidden()
-        }
-    }
 }
 
 private struct PlanListRow: View {

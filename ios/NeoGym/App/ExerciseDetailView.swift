@@ -31,7 +31,21 @@ struct ExerciseDetailView: View {
         }
         .navigationTitle(viewModel.exercise?.name ?? "Exercise")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
+                if viewModel.exercise != nil {
+                    Button(action: startSession) {
+                        Label(
+                            viewModel.startState.isLoading ? "Starting…" : "Start session",
+                            systemImage: "play.fill"
+                        )
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(viewModel.startState.isLoading)
+                }
+            }
+        }
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -58,15 +72,8 @@ struct ExerciseDetailView: View {
                 ExerciseSummaryCard(
                     exercise: exercise,
                     storageBaseURL: storageBaseURL,
-                    isStarting: viewModel.startState.isLoading,
                     startError: viewModel.startState.errorMessage
-                ) {
-                    Task {
-                        if let id = await viewModel.startAdHocSession() {
-                            onSessionStarted(id)
-                        }
-                    }
-                }
+                )
                 GlassPanel(
                     cornerRadius: NeoGymTheme.radiusLG,
                     material: .thin,
@@ -119,6 +126,14 @@ struct ExerciseDetailView: View {
                     doubleWeight: viewModel.exercise?.strength?.doubleWeight ?? false,
                     exerciseName: name
                 )
+            }
+        }
+    }
+
+    private func startSession() {
+        Task {
+            if let id = await viewModel.startAdHocSession() {
+                onSessionStarted(id)
             }
         }
     }
