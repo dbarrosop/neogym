@@ -370,6 +370,270 @@ export enum Cursor_Ordering {
   Desc = 'DESC'
 }
 
+/** columns and relationships of "daily_energy" */
+export type DailyEnergy = {
+  __typename?: 'dailyEnergy';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt: Scalars['timestamptz']['output'];
+  energyOn: Scalars['date']['output'];
+  id: Scalars['uuid']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "daily_energy" */
+export type DailyEnergy_Aggregate = {
+  __typename?: 'dailyEnergy_aggregate';
+  aggregate?: Maybe<DailyEnergy_Aggregate_Fields>;
+  nodes: Array<DailyEnergy>;
+};
+
+/** aggregate fields of "daily_energy" */
+export type DailyEnergy_Aggregate_Fields = {
+  __typename?: 'dailyEnergy_aggregate_fields';
+  avg?: Maybe<DailyEnergy_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<DailyEnergy_Max_Fields>;
+  min?: Maybe<DailyEnergy_Min_Fields>;
+  stddev?: Maybe<DailyEnergy_Stddev_Fields>;
+  stddev_pop?: Maybe<DailyEnergy_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<DailyEnergy_Stddev_Samp_Fields>;
+  sum?: Maybe<DailyEnergy_Sum_Fields>;
+  var_pop?: Maybe<DailyEnergy_Var_Pop_Fields>;
+  var_samp?: Maybe<DailyEnergy_Var_Samp_Fields>;
+  variance?: Maybe<DailyEnergy_Variance_Fields>;
+};
+
+
+/** aggregate fields of "daily_energy" */
+export type DailyEnergy_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type DailyEnergy_Avg_Fields = {
+  __typename?: 'dailyEnergy_avg_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "daily_energy". All fields are combined with a logical 'AND'. */
+export type DailyEnergy_Bool_Exp = {
+  _and?: InputMaybe<Array<DailyEnergy_Bool_Exp>>;
+  _not?: InputMaybe<DailyEnergy_Bool_Exp>;
+  _or?: InputMaybe<Array<DailyEnergy_Bool_Exp>>;
+  activeKcal?: InputMaybe<Numeric_Comparison_Exp>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  energyOn?: InputMaybe<Date_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  notes?: InputMaybe<String_Comparison_Exp>;
+  restingKcal?: InputMaybe<Numeric_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "daily_energy" */
+export enum DailyEnergy_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  DailyEnergyPkey = 'daily_energy_pkey',
+  /** unique or primary key constraint on columns "user_id", "energy_on" */
+  DailyEnergyUserDateKey = 'daily_energy_user_date_key'
+}
+
+/** input type for incrementing numeric columns in table "daily_energy" */
+export type DailyEnergy_Inc_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** input type for inserting data into table "daily_energy" */
+export type DailyEnergy_Insert_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate max on columns */
+export type DailyEnergy_Max_Fields = {
+  __typename?: 'dailyEnergy_max_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  energyOn?: Maybe<Scalars['date']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type DailyEnergy_Min_Fields = {
+  __typename?: 'dailyEnergy_min_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  energyOn?: Maybe<Scalars['date']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "daily_energy" */
+export type DailyEnergy_Mutation_Response = {
+  __typename?: 'dailyEnergy_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<DailyEnergy>;
+};
+
+/** on_conflict condition type for table "daily_energy" */
+export type DailyEnergy_On_Conflict = {
+  constraint: DailyEnergy_Constraint;
+  update_columns?: Array<DailyEnergy_Update_Column>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "daily_energy". */
+export type DailyEnergy_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  createdAt?: InputMaybe<Order_By>;
+  energyOn?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  notes?: InputMaybe<Order_By>;
+  restingKcal?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: daily_energy */
+export type DailyEnergy_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "daily_energy" */
+export enum DailyEnergy_Select_Column {
+  /** column name */
+  ActiveKcal = 'activeKcal',
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  EnergyOn = 'energyOn',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Notes = 'notes',
+  /** column name */
+  RestingKcal = 'restingKcal',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "daily_energy" */
+export type DailyEnergy_Set_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type DailyEnergy_Stddev_Fields = {
+  __typename?: 'dailyEnergy_stddev_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type DailyEnergy_Stddev_Pop_Fields = {
+  __typename?: 'dailyEnergy_stddev_pop_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type DailyEnergy_Stddev_Samp_Fields = {
+  __typename?: 'dailyEnergy_stddev_samp_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "dailyEnergy" */
+export type DailyEnergy_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: DailyEnergy_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type DailyEnergy_Stream_Cursor_Value_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type DailyEnergy_Sum_Fields = {
+  __typename?: 'dailyEnergy_sum_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+};
+
+/** update columns of table "daily_energy" */
+export enum DailyEnergy_Update_Column {
+  /** column name */
+  ActiveKcal = 'activeKcal',
+  /** column name */
+  EnergyOn = 'energyOn',
+  /** column name */
+  Notes = 'notes',
+  /** column name */
+  RestingKcal = 'restingKcal'
+}
+
+export type DailyEnergy_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: DailyEnergy_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type DailyEnergy_Var_Pop_Fields = {
+  __typename?: 'dailyEnergy_var_pop_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type DailyEnergy_Var_Samp_Fields = {
+  __typename?: 'dailyEnergy_var_samp_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type DailyEnergy_Variance_Fields = {
+  __typename?: 'dailyEnergy_variance_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
 /** Boolean expression to compare columns of type "date". All fields are combined with logical 'AND'. */
 export type Date_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['date']['input']>;
@@ -4228,6 +4492,10 @@ export type Mutation_Root = {
   deleteBodyMeasurement?: Maybe<BodyMeasurements>;
   /** delete data from the table: "body_measurements" */
   deleteBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** delete data from the table: "daily_energy" */
+  deleteDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** delete single row from the table: "daily_energy" */
+  deleteDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** delete single row from the table: "exercises" */
   deleteExercise?: Maybe<Exercises>;
   /** delete data from the table: "exercises" */
@@ -4316,6 +4584,10 @@ export type Mutation_Root = {
   insertBodyMeasurement?: Maybe<BodyMeasurements>;
   /** insert data into the table: "body_measurements" */
   insertBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** insert data into the table: "daily_energy" */
+  insertDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** insert a single row into the table: "daily_energy" */
+  insertDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** insert a single row into the table: "exercises" */
   insertExercise?: Maybe<Exercises>;
   /** insert a single row into the table: "exercises_cardio" */
@@ -4412,6 +4684,10 @@ export type Mutation_Root = {
   updateBodyMeasurement?: Maybe<BodyMeasurements>;
   /** update data of the table: "body_measurements" */
   updateBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** update data of the table: "daily_energy" */
+  updateDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** update single row of the table: "daily_energy" */
+  updateDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** update single row of the table: "exercises" */
   updateExercise?: Maybe<Exercises>;
   /** update single row of the table: "exercises_cardio" */
@@ -4498,6 +4774,8 @@ export type Mutation_Root = {
   updateWorkouts?: Maybe<Workouts_Mutation_Response>;
   /** update multiples rows of table: "body_measurements" */
   update_bodyMeasurements_many?: Maybe<Array<Maybe<BodyMeasurements_Mutation_Response>>>;
+  /** update multiples rows of table: "daily_energy" */
+  update_dailyEnergy_many?: Maybe<Array<Maybe<DailyEnergy_Mutation_Response>>>;
   /** update multiples rows of table: "exercises_cardio" */
   update_exercisesCardio_many?: Maybe<Array<Maybe<ExercisesCardio_Mutation_Response>>>;
   /** update multiples rows of table: "exercises_strength" */
@@ -4552,6 +4830,18 @@ export type Mutation_RootDeleteBodyMeasurementArgs = {
 /** mutation root */
 export type Mutation_RootDeleteBodyMeasurementsArgs = {
   where: BodyMeasurements_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteDailyEnergyEntriesArgs = {
+  where: DailyEnergy_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -4820,6 +5110,20 @@ export type Mutation_RootInsertBodyMeasurementArgs = {
 export type Mutation_RootInsertBodyMeasurementsArgs = {
   objects: Array<BodyMeasurements_Insert_Input>;
   on_conflict?: InputMaybe<BodyMeasurements_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertDailyEnergyEntriesArgs = {
+  objects: Array<DailyEnergy_Insert_Input>;
+  on_conflict?: InputMaybe<DailyEnergy_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertDailyEnergyEntryArgs = {
+  object: DailyEnergy_Insert_Input;
+  on_conflict?: InputMaybe<DailyEnergy_On_Conflict>;
 };
 
 
@@ -5162,6 +5466,22 @@ export type Mutation_RootUpdateBodyMeasurementsArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateDailyEnergyEntriesArgs = {
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  where: DailyEnergy_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateDailyEnergyEntryArgs = {
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  pk_columns: DailyEnergy_Pk_Columns_Input;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateExerciseArgs = {
   _set?: InputMaybe<Exercises_Set_Input>;
   pk_columns: Exercises_Pk_Columns_Input;
@@ -5498,6 +5818,12 @@ export type Mutation_RootUpdateWorkoutsArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_BodyMeasurements_ManyArgs = {
   updates: Array<BodyMeasurements_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_DailyEnergy_ManyArgs = {
+  updates: Array<DailyEnergy_Updates>;
 };
 
 
@@ -8097,6 +8423,12 @@ export type Query_Root = {
   bodyMeasurements: Array<BodyMeasurements>;
   /** fetch aggregated fields from the table: "body_measurements" */
   bodyMeasurementsAggregate: BodyMeasurements_Aggregate;
+  /** fetch data from the table: "daily_energy" */
+  dailyEnergyEntries: Array<DailyEnergy>;
+  /** fetch aggregated fields from the table: "daily_energy" */
+  dailyEnergyEntriesAggregate: DailyEnergy_Aggregate;
+  /** fetch data from the table: "daily_energy" using primary key columns */
+  dailyEnergyEntry?: Maybe<DailyEnergy>;
   /** fetch data from the table: "exercises" using primary key columns */
   exercise?: Maybe<Exercises>;
   /** fetch data from the table: "exercises_cardio" using primary key columns */
@@ -8304,6 +8636,29 @@ export type Query_RootBodyMeasurementsAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<BodyMeasurements_Order_By>>;
   where?: InputMaybe<BodyMeasurements_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntriesArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -9023,6 +9378,14 @@ export type Subscription_Root = {
   bodyMeasurementsAggregate: BodyMeasurements_Aggregate;
   /** fetch data from the table in a streaming manner: "body_measurements" */
   bodyMeasurements_stream: Array<BodyMeasurements>;
+  /** fetch data from the table: "daily_energy" */
+  dailyEnergyEntries: Array<DailyEnergy>;
+  /** fetch aggregated fields from the table: "daily_energy" */
+  dailyEnergyEntriesAggregate: DailyEnergy_Aggregate;
+  /** fetch data from the table: "daily_energy" using primary key columns */
+  dailyEnergyEntry?: Maybe<DailyEnergy>;
+  /** fetch data from the table in a streaming manner: "daily_energy" */
+  dailyEnergy_stream: Array<DailyEnergy>;
   /** fetch data from the table: "exercises" using primary key columns */
   exercise?: Maybe<Exercises>;
   /** fetch data from the table: "exercises_cardio" using primary key columns */
@@ -9299,6 +9662,36 @@ export type Subscription_RootBodyMeasurements_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<BodyMeasurements_Stream_Cursor_Input>>;
   where?: InputMaybe<BodyMeasurements_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntriesArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootDailyEnergy_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<DailyEnergy_Stream_Cursor_Input>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
 };
 
 

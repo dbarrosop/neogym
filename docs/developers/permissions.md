@@ -39,7 +39,7 @@ The user can see, write, update, and delete only their own rows.
 - `check: { user_id: { _eq: X-Hasura-User-Id } }` on insert/update.
 - `set: { user_id: X-Hasura-User-Id }` on insert (so a malicious client can't write `user_id: someone-else`).
 
-Used for: `body_measurements`, `journal_entries`, `journal_labels`, `workout_sessions`.
+Used for: `body_measurements`, `daily_energy`, `journal_entries`, `journal_labels`, `workout_sessions`.
 
 ### B. Owner-or-public catalog
 
@@ -251,6 +251,19 @@ Weight / body fat / notes per measurement date. Always private.
 | `user` | `update` | `measured_on`, `weight_kg`, `body_fat_pct`, `notes` | filter: `user_id eq self`; check: `null` | Edit your own measurements. |
 | `user` | `delete` | — | filter: `user_id eq self` | Delete your own measurements. |
 
+## Daily energy
+
+### `daily_energy` — pattern **A (private per-user)**
+
+Active/resting kcal notes per energy date. Always private. The database additionally enforces one row per `(user_id, energy_on)`, at least one kcal value, and `0 <= active_kcal/resting_kcal < 30000`.
+
+| Role | Action | Columns | Filter / Check | Enforces |
+|---|---|---|---|---|
+| `user` | `select` | `id`, `user_id`, `energy_on`, `active_kcal`, `resting_kcal`, `notes`, `created_at`, `updated_at` | filter: `user_id eq self`; aggregations allowed | A user sees and aggregates only their own daily energy rows. |
+| `user` | `insert` | `energy_on`, `active_kcal`, `resting_kcal`, `notes` | check: `user_id eq self`; `set: user_id = self` | A user can log daily energy only for themselves. `user_id` is forced to self and cannot be supplied by the client. |
+| `user` | `update` | `energy_on`, `active_kcal`, `resting_kcal`, `notes` | filter: `user_id eq self`; check: `null` | Edit your own daily energy rows. `user_id` cannot be reassigned. |
+| `user` | `delete` | — | filter: `user_id eq self` | Delete your own daily energy rows. |
+
 ## Nutrition
 
 See [`nutrition.md`](nutrition.md) for model details. These permissions expose the full backend nutrition contract while keeping all user-owned rows private.
@@ -312,6 +325,7 @@ No insert / update / delete permissions for the user role: file lifecycle goes t
 
 A few intentional omissions worth calling out — these are the columns and tables the user role cannot reach via GraphQL:
 
+- **`daily_energy.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`, so daily energy rows are pinned to the caller and cannot be reassigned through GraphQL.
 - **`exercises.is_public`, `exercises.slug`, `exercises.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`; the others are admin-only fields.
 - **`exercises.kind`** — generated, not insertable on any role.
 - **`workout_exercises.kind` and `workout_session_exercises.kind`** — not insertable to the user role. The kind-sync `BEFORE INSERT` trigger populates them from the parent exercise. If `kind` were in the user-role allowlist, the security boundary would rest on the trigger alone; excluding it makes the GraphQL validator reject the field outright (see the `validation-failed` assertion in `backend/tests/kind-enforcement.test.ts`).

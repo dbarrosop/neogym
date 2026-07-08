@@ -155,7 +155,10 @@ Phases are implementation slices within a single change/PR. Each is independentl
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- **Implemented:** Added `public.daily_energy` migration/down migration, Hasura metadata with countable `dailyEnergyEntry/Entries` roots, table registration, backend integration tests, initial energy/database/permissions docs, and regenerated user-role GraphQL schema/types.
+- **Reviewer verdict:** `ACCEPT` — reviewer verified migration shape, metadata permissions/root fields, tests, docs, and generated schema/types; no blocking concerns.
+- **Autonomous assumptions/decisions:** Used the planned `>= 0 AND < 30000` kcal bounds, `energy_on` column, and `Entry/Entries` GraphQL roots. Justification: correctness (invalid values rejected), security (ownership pinned via permissions), and long-term maintenance (explicit countable naming avoids uncountable pluralization drift).
+- **Quality gates:** `cd backend && make test` passed (`80 pass, 0 fail`); `cd frontend && nix develop ../ --command bun run codegen` passed; `cd frontend && nix develop ../ --command bun run check` passed (`106 pass, 0 fail`); `git diff --check` passed. Implementer also ran `make dev-env-down && make dev-env-up`, YAML metadata parse checks, and LSP diagnostics successfully. Initial implementer-side plain codegen/check attempts failed due to missing installed frontend deps / ignored `routeTree.gen.ts`, then passed after `bun install` and generation.
 
 ### Phase 2 — Web CRUD (list/trend + create/edit/delete + nav)
 
