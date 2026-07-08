@@ -158,6 +158,12 @@ public extension NutritionFoodMealRepository {
           snapshotSugarPer100g
         }
       }
+      dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+      }
       nutritionPlans(order_by: [{ name: asc }]) {
         id
         name

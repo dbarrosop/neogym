@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   acceptsDailyEnergyNumericInput,
+  calculateDailyEnergyBalance,
   dailyEnergyMutationErrorMessage,
   validateDailyEnergyFormValues,
 } from "./daily-energy";
@@ -80,6 +81,44 @@ describe("daily energy form helpers", () => {
     expect(acceptsDailyEnergyNumericInput("123456")).toBe(false);
     expect(acceptsDailyEnergyNumericInput("120.123")).toBe(false);
     expect(acceptsDailyEnergyNumericInput("abc")).toBe(false);
+  });
+
+  it("computes calorie balance with daily-energy null semantics", () => {
+    expect(calculateDailyEnergyBalance({ caloriesIn: 2000, hasEnergyEntry: false })).toEqual({
+      caloriesIn: 2000,
+      caloriesOut: null,
+      net: null,
+      state: "intake-only",
+    });
+
+    expect(
+      calculateDailyEnergyBalance({ caloriesIn: 2000, activeKcal: "500", hasEnergyEntry: true }),
+    ).toEqual({ caloriesIn: 2000, caloriesOut: 500, net: 1500, state: "surplus" });
+
+    expect(
+      calculateDailyEnergyBalance({
+        caloriesIn: 0,
+        activeKcal: null,
+        restingKcal: "1800",
+        hasEnergyEntry: true,
+      }),
+    ).toEqual({ caloriesIn: 0, caloriesOut: 1800, net: -1800, state: "deficit" });
+
+    expect(
+      calculateDailyEnergyBalance({
+        caloriesIn: 2500,
+        activeKcal: "700",
+        restingKcal: "1800",
+        hasEnergyEntry: true,
+      }),
+    ).toEqual({ caloriesIn: 2500, caloriesOut: 2500, net: 0, state: "balanced" });
+
+    expect(calculateDailyEnergyBalance({ caloriesIn: 0, hasEnergyEntry: false })).toEqual({
+      caloriesIn: 0,
+      caloriesOut: null,
+      net: null,
+      state: "intake-only",
+    });
   });
 
   it("maps duplicate-date and range database errors to friendly messages", () => {

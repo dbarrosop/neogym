@@ -240,14 +240,58 @@ public struct NutritionDay: Decodable, Identifiable, Sendable, Equatable {
     }
 }
 
+public enum DailyCalorieBalanceState: Sendable, Equatable {
+    case intakeOnly
+    case deficit
+    case surplus
+    case balanced
+}
+
+public struct DailyCalorieBalance: Sendable, Equatable {
+    public let caloriesIn: Double
+    public let caloriesOut: Double?
+    public let net: Double?
+    public let state: DailyCalorieBalanceState
+
+    public init(caloriesIn: Double, dailyEnergy: DailyEnergy?) {
+        self.caloriesIn = caloriesIn
+        guard let dailyEnergy else {
+            caloriesOut = nil
+            net = nil
+            state = .intakeOnly
+            return
+        }
+
+        let output = (dailyEnergy.activeKcal ?? 0) + (dailyEnergy.restingKcal ?? 0)
+        caloriesOut = output
+        let computedNet = caloriesIn - output
+        net = computedNet
+        if computedNet < 0 {
+            state = .deficit
+        } else if computedNet > 0 {
+            state = .surplus
+        } else {
+            state = .balanced
+        }
+    }
+}
+
 public struct DailyIntakePayload: Sendable, Equatable {
     public let day: NutritionDay?
+    public let dailyEnergy: DailyEnergy?
     public let nutritionPlans: [NutritionPlan]
     public let meals: [Meal]
     public let foods: [Food]
 
-    public init(day: NutritionDay?, nutritionPlans: [NutritionPlan], meals: [Meal], foods: [Food]) {
+    public init(
+        day: NutritionDay?,
+        dailyEnergy: DailyEnergy? = nil,
+        nutritionPlans: [NutritionPlan],
+        meals: [Meal],
+        foods: [Food]
+    ) {
         self.day = day
+        self.dailyEnergy = dailyEnergy
         self.nutritionPlans = nutritionPlans
         self.meals = meals
         self.foods = foods
@@ -265,6 +309,14 @@ public struct DailyIntakePayload: Sendable, Equatable {
     public var targetTotals: MacroTotals? {
         selectedPlan?.macroTotals
     }
+
+    public var calorieBalance: DailyCalorieBalance {
+        DailyCalorieBalance(caloriesIn: loggedTotals.kcal, dailyEnergy: dailyEnergy)
+    }
+
+    public var caloriesIn: Double { calorieBalance.caloriesIn }
+    public var caloriesOut: Double? { calorieBalance.caloriesOut }
+    public var netCalories: Double? { calorieBalance.net }
 }
 
 public struct LogFoodValues: Sendable, Equatable {

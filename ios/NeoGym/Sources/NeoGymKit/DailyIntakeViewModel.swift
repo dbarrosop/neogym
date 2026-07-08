@@ -41,6 +41,12 @@ public final class DailyIntakeViewModel: ObservableObject {
     public var day: NutritionDay? { payload?.day }
     public var selectedPlan: NutritionPlan? { payload?.selectedPlan }
     public var intakeSlots: [IntakeTimeSlot] { day?.intakeSlots ?? [] }
+    public var calorieBalance: DailyCalorieBalance {
+        payload?.calorieBalance ?? DailyCalorieBalance(caloriesIn: 0, dailyEnergy: nil)
+    }
+    public var caloriesIn: Double { calorieBalance.caloriesIn }
+    public var caloriesOut: Double? { calorieBalance.caloriesOut }
+    public var netCalories: Double? { calorieBalance.net }
     public var allEntries: [NutritionLogEntry] { day?.allLogEntries ?? [] }
     public var nextEntryPosition: Int { allEntries.count }
     public var nextGroupPosition: Int { day?.nutritionLogMeals.count ?? 0 }

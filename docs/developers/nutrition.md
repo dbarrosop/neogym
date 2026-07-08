@@ -42,7 +42,13 @@ Template FKs intentionally restrict deletion: a food used by any `meal_ingredien
 - Later food deletes set `nutrition_log_entries.food_id` to null but keep `source = 'food'` and the non-null `snapshot_*` values. Do not infer ad-hoc status from `food_id IS NULL`.
 - `source = 'ad_hoc'` is for one-off log-only rows. These rows must have no `food_id`, `nutrition_plan_food_id`, or `nutrition_log_meal_id`, and must provide a nonblank `snapshot_food_name` plus all non-null, nonnegative per-100g nutrient snapshots. Users may edit those snapshot fields later.
 
-Daily totals must be computed from `grams / 100 * snapshot_*`, never from the live `foods` row. Hasura `numeric` values may arrive in clients as strings, so frontend helpers should normalize before doing macro math.
+Daily totals must be computed from `grams / 100 * snapshot_*`, never from the live `foods` row.
+The read-only calories-in/out balance on daily intake screens uses those logged snapshot kcal
+totals for "in" and the same date's `daily_energy.active_kcal + daily_energy.resting_kcal`
+for "out". If no `daily_energy` row exists, clients show intake-only rather than treating
+output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
+values may arrive in clients as strings, so frontend helpers should normalize before doing
+macro math.
 
 ## Logging from templates
 

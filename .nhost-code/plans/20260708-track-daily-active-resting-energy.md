@@ -329,7 +329,10 @@ Phases are implementation slices within a single change/PR. Each is independentl
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- **Implemented:** Added top-level `dailyEnergyEntries` selections to web and iOS daily-intake queries, shared web balance math, iOS `DailyCalorieBalance` derivation, read-only web/iOS balance UI, date-preserving `/energy/new?date=...` affordance, energy-new search-param handling, tests, and the nutrition-domain balance note.
+- **Reviewer verdict:** `ACCEPT` — reviewer verified query shape, null semantics, read-only UI, date-preserving affordance, iOS string/numeric decode and tests, nutrition docs, no Phase 6 leakage, and deliberate `refetchOnMount: "always"` cross-route staleness handling.
+- **Autonomous assumptions/decisions:** Implemented cross-route freshness with daily-intake `refetchOnMount: "always"` instead of broader query invalidation from the energy routes. Justification: correctness and long-term maintenance; it keeps the read-only derived card fresh when revisited without coupling unrelated route mutation code.
+- **Quality gates:** `cd frontend && nix develop ../ --command bun run codegen` passed; `cd frontend && nix develop ../ --command bun run check` passed (`111 pass, 0 fail`); `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift build` passed; `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift test` passed (`209 tests, 0 failures`); `git diff --check` passed. Manual browser pass was not run.
 
 ### Phase 6 — Docs + final acceptance sweep
 

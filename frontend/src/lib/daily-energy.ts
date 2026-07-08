@@ -15,6 +15,20 @@ export interface NormalizedDailyEnergyFormValues extends DailyEnergyFormValues {
 
 export type DailyEnergyNumericValue = number | string | null | undefined;
 
+export interface DailyEnergyBalanceInput {
+  caloriesIn: number;
+  activeKcal?: DailyEnergyNumericValue;
+  restingKcal?: DailyEnergyNumericValue;
+  hasEnergyEntry: boolean;
+}
+
+export interface DailyEnergyBalance {
+  caloriesIn: number;
+  caloriesOut: number | null;
+  net: number | null;
+  state: "intake-only" | "deficit" | "surplus" | "balanced";
+}
+
 const NUMERIC_INPUT = /^\d{0,5}([.,]\d{0,2})?$/;
 const NORMALIZED_KCAL = /^\d{1,5}(\.\d{0,2})?$/;
 
@@ -93,6 +107,27 @@ export function formatDailyEnergyValues(
   return parts.join(" · ");
 }
 
+export function calculateDailyEnergyBalance({
+  caloriesIn,
+  activeKcal,
+  restingKcal,
+  hasEnergyEntry,
+}: DailyEnergyBalanceInput): DailyEnergyBalance {
+  if (!hasEnergyEntry) {
+    return { caloriesIn, caloriesOut: null, net: null, state: "intake-only" };
+  }
+
+  const caloriesOut = normalizeEnergyNumber(activeKcal) + normalizeEnergyNumber(restingKcal);
+  const net = caloriesIn - caloriesOut;
+  let state: DailyEnergyBalance["state"] = "balanced";
+  if (net < 0) {
+    state = "deficit";
+  } else if (net > 0) {
+    state = "surplus";
+  }
+  return { caloriesIn, caloriesOut, net, state };
+}
+
 export function dailyEnergyMutationErrorMessage(error: Error, action: "save" | "delete"): string {
   const message = error.message;
   if (message.includes("daily_energy_user_date_key")) {
@@ -112,6 +147,14 @@ export function dailyEnergyMutationErrorMessage(error: Error, action: "save" | "
 
 function normalizeKcalInput(value: string): string {
   return value.trim().replace(",", ".");
+}
+
+function normalizeEnergyNumber(value: DailyEnergyNumericValue): number {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+  const numeric = typeof value === "number" ? value : Number(value.replace(",", "."));
+  return Number.isFinite(numeric) ? numeric : 0;
 }
 
 function validateKcalField(

@@ -246,6 +246,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
         return DailyIntakePayload(
             day: data.nutritionDays.first,
+            dailyEnergy: data.dailyEnergyEntries.first,
             nutritionPlans: data.nutritionPlans,
             meals: data.meals,
             foods: data.foods
@@ -405,6 +406,7 @@ private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritio
 private struct NutritionDaysIndexData: Decodable, Sendable { let nutritionDays: [NutritionDay] }
 private struct DailyIntakeLogData: Decodable, Sendable {
     let nutritionDays: [NutritionDay]
+    let dailyEnergyEntries: [DailyEnergy]
     let nutritionPlans: [NutritionPlan]
     let meals: [Meal]
     let foods: [Food]

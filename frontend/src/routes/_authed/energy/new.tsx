@@ -1,12 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { z } from "zod";
 import { DailyEnergyForm, type DailyEnergyFormValues } from "@/components/daily-energy-form";
 import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
 import { graphql } from "@/gql";
 import { dailyEnergyMutationErrorMessage } from "@/lib/daily-energy";
-import { todayLocalISO } from "@/lib/dates";
+import { parseDateOnly, todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+
+const searchSchema = z.object({
+  date: z.string().optional(),
+});
 
 const InsertDailyEnergyMutation = graphql(`
   mutation InsertDailyEnergy($obj: dailyEnergy_insert_input!) {
@@ -17,12 +22,15 @@ const InsertDailyEnergyMutation = graphql(`
 `);
 
 export const Route = createFileRoute("/_authed/energy/new")({
+  validateSearch: searchSchema,
   component: NewDailyEnergyRoute,
 });
 
 function NewDailyEnergyRoute() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { date } = Route.useSearch();
+  const initialEnergyOn = date && parseDateOnly(date) ? date : todayLocalISO();
 
   const createMutation = useMutation({
     mutationFn: (values: DailyEnergyFormValues) =>
@@ -53,7 +61,7 @@ function NewDailyEnergyRoute() {
       <FormCardShell eyebrow="Tracking" title="New energy day">
         <DailyEnergyForm
           initialValues={{
-            energyOn: todayLocalISO(),
+            energyOn: initialEnergyOn,
             activeKcal: "",
             restingKcal: "",
             notes: "",
