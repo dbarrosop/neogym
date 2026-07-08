@@ -108,11 +108,11 @@ intact instead of inventing one-off styles.
   area segmented `Picker` lives in the Nutrition hub's nav-bar **principal**
   slot, matching 2a exactly. New plan / New food / New meal live on their
   subsection list's own `.bottomBar` via `RootPrimaryActionToolbar` (not
-  shell-owned). The Overview screen (a pushed route) cross-links by PUSHing
-  routes: `openSection(section)` appends that section's subsection-list route and
-  `openDay(date)` appends `.day(date)` (DailyIntakeView) directly — there is no
-  more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
-  `selectedDate` binding. Post-create, the create view pops itself via
+  shell-owned). The Overview screen (a pushed route) cross-links only to
+  individual days: `openDay(date)` appends `.day(date)` (DailyIntakeView)
+  directly from the recent daily logs — there is no more `selectedDate` handoff,
+  so `NutritionDaysView` no longer takes a `selectedDate` binding. Post-create,
+  the create view pops itself via
   `dismiss()` (removing the top create route) and the shell's
   `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
   runloop tick (e.g. `[.foodsList, .foodCreate]` → `[.foodsList]` →

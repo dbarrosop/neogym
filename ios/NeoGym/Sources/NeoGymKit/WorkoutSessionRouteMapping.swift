@@ -12,5 +12,11 @@ public enum WorkoutSessionRouteMapping {
         currentPath + [makeRoute(sessionId)]
     }
 
-    public static func pathAfterClosingStartedSession<Route>() -> [Route] { [] }
+    public static func pathAfterClosingStartedSession<Route>(
+        currentPath: [Route],
+        isSessionDetailRoute: (Route) -> Bool
+    ) -> [Route] {
+        guard let lastRoute = currentPath.last, isSessionDetailRoute(lastRoute) else { return currentPath }
+        return Array(currentPath.dropLast())
+    }
 }

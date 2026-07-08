@@ -63,7 +63,7 @@ struct NutritionDaysView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .task { await viewModel.load() }
+        .task { if case .idle = viewModel.state { await viewModel.load() } }
         .refreshable { await viewModel.load() }
     }
 }
@@ -71,6 +71,7 @@ struct NutritionDaysView: View {
 struct DailyIntakeView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let onClose: () -> Void
+    let onMutated: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
     @State private var logRequest: LogIntakeSheetRequest?
@@ -78,9 +79,15 @@ struct DailyIntakeView: View {
     @State private var editingGroup: EditingGroupSheetItem?
     @State private var confirmingDayDelete = false
 
-    init(repository: any NutritionFoodMealRepositoryProtocol, date: String, onClose: @escaping () -> Void) {
+    init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        date: String,
+        onClose: @escaping () -> Void,
+        onMutated: @escaping () -> Void
+    ) {
         self.repository = repository
         self.onClose = onClose
+        self.onMutated = onMutated
         _viewModel = StateObject(wrappedValue: DailyIntakeViewModel(date: date, repository: repository))
     }
 
@@ -107,13 +114,13 @@ struct DailyIntakeView: View {
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
         .sheet(item: $logRequest) { request in
-            LogIntakeSheet(viewModel: viewModel, request: request)
+            LogIntakeSheet(viewModel: viewModel, request: request, onMutated: onMutated)
         }
         .sheet(item: $editingEntry) { item in
-            EditLogEntrySheet(viewModel: viewModel, item: item)
+            EditLogEntrySheet(viewModel: viewModel, item: item, onMutated: onMutated)
         }
         .sheet(item: $editingGroup) { item in
-            EditMealGroupSheet(viewModel: viewModel, item: item)
+            EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: onMutated)
         }
         .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
         .navigationBarTitleDisplayMode(.inline)
@@ -122,7 +129,10 @@ struct DailyIntakeView: View {
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
                 Task {
-                    if await viewModel.deleteDay() { onClose() }
+                    if await viewModel.deleteDay() {
+                        onMutated()
+                        onClose()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -186,7 +196,13 @@ struct DailyIntakeView: View {
             Picker("Plan", selection: Binding(
                 get: { viewModel.day?.nutritionPlanId ?? "" },
                 set: { value in
-                    Task { _ = await viewModel.updatePlan(nutritionPlanId: value.isEmpty ? nil : value) }
+                    let nextPlanId = value.isEmpty ? nil : value
+                    guard nextPlanId != viewModel.day?.nutritionPlanId else { return }
+                    Task {
+                        if await viewModel.updatePlan(nutritionPlanId: nextPlanId) {
+                            onMutated()
+                        }
+                    }
                 }
             )) {
                 Text("No plan").tag("")

@@ -197,7 +197,13 @@ struct WorkoutsSectionNavigationView: View {
     }
 
     private func closeStartedSession() {
-        path = WorkoutSessionRouteMapping.pathAfterClosingStartedSession()
+        path = WorkoutSessionRouteMapping.pathAfterClosingStartedSession(
+            currentPath: path,
+            isSessionDetailRoute: {
+                if case .sessionDetail = $0 { return true }
+                return false
+            }
+        )
         invalidateLists()
     }
 

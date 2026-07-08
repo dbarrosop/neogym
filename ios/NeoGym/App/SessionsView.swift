@@ -195,7 +195,6 @@ struct SessionDetailView: View {
     var onDeleted: () -> Void
     var onMutated: () -> Void
 
-    @Environment(\.presentationMode) private var presentationMode
     @State private var isEditingStartedAt = false
     @State private var draftStartedAt = Date()
     @State private var isShowingExercisePicker = false
@@ -342,7 +341,6 @@ struct SessionDetailView: View {
                 Task {
                     if await viewModel.deleteSession() {
                         onDeleted()
-                        presentationMode.wrappedValue.dismiss()
                     }
                 }
             }

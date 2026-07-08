@@ -103,10 +103,7 @@ struct NutritionNavigationView: View {
         case .overview, .daysList, .plansList, .foodsList, .mealsList:
             subsectionListDestination(for: route)
         case let .day(date):
-            DailyIntakeView(repository: repository, date: date) {
-                popRoute()
-                invalidateLists()
-            }
+            DailyIntakeView(repository: repository, date: date, onClose: popRoute, onMutated: invalidateLists)
         case let .planDetail(planId):
             NutritionPlanDetailView(
                 planId: planId,

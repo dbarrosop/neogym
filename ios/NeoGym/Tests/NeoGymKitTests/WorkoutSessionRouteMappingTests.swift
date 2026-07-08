@@ -21,9 +21,28 @@ struct WorkoutSessionRouteMappingTests {
         #expect(path == ["workout:1", "session:session-2"])
     }
 
-    @Test("closing a started session clears the root route path")
-    func closingStartedSessionClearsPath() {
-        let path: [String] = WorkoutSessionRouteMapping.pathAfterClosingStartedSession()
-        #expect(path.isEmpty)
+    @Test("closing a started session pops only the session detail route")
+    func closingStartedSessionKeepsOriginatingRoute() {
+        let fromSessionsList = WorkoutSessionRouteMapping.pathAfterClosingStartedSession(
+            currentPath: ["sessions-list", "session:session-1"],
+            isSessionDetailRoute: { $0.hasPrefix("session:") }
+        )
+        let fromWorkoutDetail = WorkoutSessionRouteMapping.pathAfterClosingStartedSession(
+            currentPath: ["workouts-list", "workout:workout-1", "session:session-2"],
+            isSessionDetailRoute: { $0.hasPrefix("session:") }
+        )
+
+        #expect(fromSessionsList == ["sessions-list"])
+        #expect(fromWorkoutDetail == ["workouts-list", "workout:workout-1"])
+    }
+
+    @Test("closing a started session leaves paths without a session detail unchanged")
+    func closingStartedSessionIgnoresNonSessionRoute() {
+        let path = WorkoutSessionRouteMapping.pathAfterClosingStartedSession(
+            currentPath: ["workouts-list", "workout:workout-1"],
+            isSessionDetailRoute: { $0.hasPrefix("session:") }
+        )
+
+        #expect(path == ["workouts-list", "workout:workout-1"])
     }
 }

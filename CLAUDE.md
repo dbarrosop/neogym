@@ -123,12 +123,11 @@ routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsL
 via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
 area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
 and New plan/food/meal live on their subsection list's own `.bottomBar`. The
-Overview screen (a pushed route) cross-links by PUSHing routes —
-`openSection(section)` pushes that section's subsection-list route and
-`openDay(date)` pushes `.day(date)` directly (no more `selectedDate` handoff, so
-`NutritionDaysView` no longer takes that binding); after a create the shell
-replaces only the top create route with the new detail route so Back returns to
-the subsection list, not the hub.
+Overview screen (a pushed route) cross-links only to individual days:
+`openDay(date)` pushes `.day(date)` directly from the recent daily logs (no more
+`selectedDate` handoff, so `NutritionDaysView` no longer takes that binding);
+after a create the shell replaces only the top create route with the new detail
+route so Back returns to the subsection list, not the hub.
 **Me is now a hub too:** its root is a native `List` of tappable glass rows
 (Profile/Body/Journal) that push subsection-list routes
 (`MeRoute.profile`/`.bodyList`/`.journalList`) via `.navigationDestination(for:)`,

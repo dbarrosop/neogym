@@ -34,6 +34,7 @@ struct LogIntakeSheet: View {
 
     @ObservedObject var viewModel: DailyIntakeViewModel
     let request: LogIntakeSheetRequest
+    let onMutated: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var mode: Mode
@@ -137,9 +138,10 @@ struct LogIntakeSheet: View {
         return isLoggingMealDraft ? mealDraft?.macroTotals ?? .empty : .empty
     }
 
-    init(viewModel: DailyIntakeViewModel, request: LogIntakeSheetRequest) {
+    init(viewModel: DailyIntakeViewModel, request: LogIntakeSheetRequest, onMutated: @escaping () -> Void) {
         self.viewModel = viewModel
         self.request = request
+        self.onMutated = onMutated
         _mode = State(initialValue: {
             switch request.initialMode {
             case .food: .food
@@ -192,7 +194,8 @@ private extension LogIntakeSheet {
             return selectedFood != nil && (NutritionMath.parseMacroInput(grams) ?? 0) > 0
         }
         if isLoggingMealDraft {
-            return mealDraft != nil && ingredientGrams.values.allSatisfy { (NutritionMath.parseMacroInput($0) ?? 0) > 0 }
+            return mealDraft != nil
+                && ingredientGrams.values.allSatisfy { (NutritionMath.parseMacroInput($0) ?? 0) > 0 }
         }
         if mode == .adHoc {
             return !adHocName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -296,7 +299,10 @@ private extension LogIntakeSheet {
                             .font(.subheadline.weight(.semibold))
                         NutritionGramTextField(
                             grams: Binding(
-                                get: { ingredientGrams[ingredient.id] ?? NutritionMath.formatEditableDecimal(ingredient.grams) },
+                                get: {
+                                    ingredientGrams[ingredient.id]
+                                        ?? NutritionMath.formatEditableDecimal(ingredient.grams)
+                                },
                                 set: { ingredientGrams[ingredient.id] = String($0.prefix(12)) }
                             ),
                             title: "Grams"
@@ -397,7 +403,10 @@ private extension LogIntakeSheet {
                 return
             }
         }
-        if succeeded { dismiss() }
+        if succeeded {
+            onMutated()
+            dismiss()
+        }
     }
 }
 
@@ -491,10 +500,10 @@ private struct PlanEntryWheelRow: View {
     }
 }
 
-
 struct EditLogEntrySheet: View {
     @ObservedObject var viewModel: DailyIntakeViewModel
     let item: EditingEntrySheetItem
+    let onMutated: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String
@@ -509,9 +518,10 @@ struct EditLogEntrySheet: View {
     @State private var sugar: String
     @State private var isConfirmingDelete = false
 
-    init(viewModel: DailyIntakeViewModel, item: EditingEntrySheetItem) {
+    init(viewModel: DailyIntakeViewModel, item: EditingEntrySheetItem, onMutated: @escaping () -> Void) {
         self.viewModel = viewModel
         self.item = item
+        self.onMutated = onMutated
 
         _name = State(initialValue: item.entry.snapshotFoodName)
         _grams = State(initialValue: NutritionLogAmount.editableNumber(item.entry.grams))
@@ -558,7 +568,9 @@ struct EditLogEntrySheet: View {
                     } header: {
                         Text("Custom nutrients")
                     } footer: {
-                        Text("Ad-hoc snapshot nutrients are editable because this entry is not backed by a catalog food.")
+                        Text(
+                            "Ad-hoc snapshot nutrients are editable because this entry is not backed by a catalog food."
+                        )
                     }
                 }
 
@@ -587,7 +599,10 @@ struct EditLogEntrySheet: View {
             ) {
                 Button("Delete entry", role: .destructive) {
                     Task {
-                        if await viewModel.deleteEntry(id: item.entry.id) { dismiss() }
+                        if await viewModel.deleteEntry(id: item.entry.id) {
+                            onMutated()
+                            dismiss()
+                        }
                     }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -616,7 +631,10 @@ struct EditLogEntrySheet: View {
                                     slotTime: nextTime
                                 )
                             }
-                            if didSave { dismiss() }
+                            if didSave {
+                                onMutated()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(viewModel.isMutating)
@@ -659,6 +677,7 @@ struct EditLogEntrySheet: View {
 struct EditMealGroupSheet: View {
     @ObservedObject var viewModel: DailyIntakeViewModel
     let item: EditingGroupSheetItem
+    let onMutated: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var name: String
@@ -666,9 +685,10 @@ struct EditMealGroupSheet: View {
     @State private var slotTime: Date
     @State private var isConfirmingDelete = false
 
-    init(viewModel: DailyIntakeViewModel, item: EditingGroupSheetItem) {
+    init(viewModel: DailyIntakeViewModel, item: EditingGroupSheetItem, onMutated: @escaping () -> Void) {
         self.viewModel = viewModel
         self.item = item
+        self.onMutated = onMutated
         _name = State(initialValue: item.group.name)
         _position = State(initialValue: max(1, item.group.position))
         _slotTime = State(initialValue: NutritionLogTime.date(from: item.group.slotTime))
@@ -704,7 +724,10 @@ struct EditMealGroupSheet: View {
             ) {
                 Button("Delete logged meal", role: .destructive) {
                     Task {
-                        if await viewModel.deleteMealGroup(id: item.group.id) { dismiss() }
+                        if await viewModel.deleteMealGroup(id: item.group.id) {
+                            onMutated()
+                            dismiss()
+                        }
                     }
                 }
                 Button("Cancel", role: .cancel) {}
@@ -722,6 +745,7 @@ struct EditMealGroupSheet: View {
                                 position: position,
                                 slotTime: NutritionLogTime.inputValue(from: slotTime)
                             ) {
+                                onMutated()
                                 dismiss()
                             }
                         }
