@@ -49,8 +49,7 @@ struct DailyEnergyListView: View {
             }
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding + NeoGymTheme.topSectionBarContentClearance)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding + NeoGymTheme.dockRootContentClearance)
+            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle("Energy")
@@ -89,7 +88,10 @@ struct DailyEnergyListView: View {
                     onFinished: { Task { await viewModel.load() } }
                 )
             } label: {
-                HeaderActionButtonLabel()
+                Image(systemName: "plus")
+                    .font(.headline.weight(.semibold))
+                    .frame(width: 44, height: 44)
+                    .glassSurface(cornerRadius: 22)
             }
             .accessibilityLabel("New energy entry")
         }

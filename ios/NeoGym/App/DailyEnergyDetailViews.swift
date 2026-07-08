@@ -34,7 +34,6 @@ struct DailyEnergyDetailView: View {
         }
         .navigationTitle("Energy")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 if let entry = viewModel.entry {

@@ -40,7 +40,6 @@ struct DailyEnergyCreateView: View {
         )
         .navigationTitle("New energy")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
     }
 
     private func submit() {
@@ -117,7 +116,6 @@ struct DailyEnergyEditView: View {
         }
         .navigationTitle("Edit energy")
         .navigationBarTitleDisplayMode(.inline)
-        .hidesBottomTabBarWhenPushed()
         .task {
             if case .idle = editor.state {
                 await editor.load()
