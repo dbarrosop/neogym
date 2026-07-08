@@ -40,23 +40,37 @@ public final class DailyEnergyListViewModel: ObservableObject {
 
     private func syncHealthEnergy(skippingExistingDatesFrom entries: [DailyEnergy]) async {
         guard let healthImporter else { return }
-        let existingDates = Set(entries.map(\.energyOn))
+        var knownDates = Set(entries.map(\.energyOn))
+        var importedCount = 0
+        var skippedExistingCount = 0
+        var shouldReload = false
         healthSyncState = .loading(previous: healthSyncState.value)
         do {
             let importedEntries = try await healthImporter.dailyEnergyEntries()
-            let importableValues = importedEntries.compactMap { entry -> DailyEnergyFormValues? in
-                guard !existingDates.contains(entry.energyOn) else { return nil }
-                return entry.formValues(notes: "Imported from Apple Health")
+            for entry in importedEntries {
+                guard !knownDates.contains(entry.energyOn) else {
+                    skippedExistingCount += 1
+                    continue
+                }
+                guard let values = entry.formValues(notes: "Imported from Apple Health") else { continue }
+
+                do {
+                    _ = try await repository.createEntry(values)
+                    knownDates.insert(values.energyOn)
+                    importedCount += 1
+                    shouldReload = true
+                } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
+                    knownDates.insert(values.energyOn)
+                    skippedExistingCount += 1
+                    shouldReload = true
+                }
             }
-            for values in importableValues {
-                _ = try await repository.createEntry(values)
-            }
-            if !importableValues.isEmpty {
+            if shouldReload {
                 state = .loaded(try await repository.listEntries())
             }
             healthSyncState = .loaded(DailyEnergyHealthSyncSummary(
-                importedCount: importableValues.count,
-                skippedExistingCount: importedEntries.count - importableValues.count
+                importedCount: importedCount,
+                skippedExistingCount: skippedExistingCount
             ))
         } catch {
             healthSyncState = .failed(

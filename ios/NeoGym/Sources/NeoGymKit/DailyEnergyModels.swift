@@ -221,6 +221,10 @@ public enum DailyEnergyErrorMapper {
         return domainError.localizedDescription
     }
 
+    public static func isDuplicateEnergyOnError(_ error: Error) -> Bool {
+        isDuplicateEnergyOnError(GraphQLDomainError.map(error))
+    }
+
     private static func isDuplicateEnergyOnError(_ error: GraphQLDomainError) -> Bool {
         guard case let .graphQLErrors(details) = error else { return false }
         return details.contains { detail in

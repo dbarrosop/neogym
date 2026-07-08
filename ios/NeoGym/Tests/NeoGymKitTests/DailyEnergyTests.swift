@@ -214,7 +214,44 @@ final class DailyEnergyHealthSyncViewModelTests: XCTestCase {
             skippedExistingCount: 1
         ))
     }
+
+    func testHealthSyncTreatsUniqueConflictOnCreateAsSkippedExisting() async throws {
+        let repository = FakeDailyEnergyRepository(
+            entries: [],
+            duplicateOnCreateDates: ["2026-06-26"]
+        )
+        let importer = FakeDailyEnergyHealthImporter(entries: [
+            HealthDailyEnergy(energyOn: "2026-06-26", activeKcal: 500, restingKcal: 1600)
+        ])
+        let viewModel = DailyEnergyListViewModel(repository: repository, healthImporter: importer)
+
+        await viewModel.load(shouldSyncHealthEnergy: true)
+
+        let createdValues = await repository.createdValuesSnapshot()
+        XCTAssertTrue(createdValues.isEmpty)
+        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
+            importedCount: 0,
+            skippedExistingCount: 1
+        ))
+        XCTAssertNil(viewModel.healthSyncState.errorMessage)
+    }
+
+    func testHealthSyncDoesNotCountUnimportableHealthRowsAsSkippedExisting() async throws {
+        let repository = FakeDailyEnergyRepository(entries: [])
+        let importer = FakeDailyEnergyHealthImporter(entries: [
+            HealthDailyEnergy(energyOn: "2026-06-26", activeKcal: .nan, restingKcal: nil)
+        ])
+        let viewModel = DailyEnergyListViewModel(repository: repository, healthImporter: importer)
+
+        await viewModel.load(shouldSyncHealthEnergy: true)
+
+        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
+            importedCount: 0,
+            skippedExistingCount: 0
+        ))
+    }
 }
+
 
 final class DailyEnergyTrendBuilderTests: XCTestCase {
     func testTrendDataSortsAscendingAndDropsInvalidDatesWithoutTimezoneShift() throws {
@@ -257,9 +294,11 @@ final class DailyEnergyErrorMapperTests: XCTestCase {
 private actor FakeDailyEnergyRepository: DailyEnergyRepositoryProtocol {
     private var entries: [DailyEnergy]
     private var createdValues: [DailyEnergyFormValues] = []
+    private let duplicateOnCreateDates: Set<String>
 
-    init(entries: [DailyEnergy]) {
+    init(entries: [DailyEnergy], duplicateOnCreateDates: Set<String> = []) {
         self.entries = entries
+        self.duplicateOnCreateDates = duplicateOnCreateDates
     }
 
     func listEntries() async throws -> [DailyEnergy] {
@@ -275,6 +314,15 @@ private actor FakeDailyEnergyRepository: DailyEnergyRepositoryProtocol {
     }
 
     func createEntry(_ values: DailyEnergyFormValues) async throws -> String {
+        if duplicateOnCreateDates.contains(values.energyOn) {
+            throw GraphQLDomainError.graphQLErrors([
+                GraphQLErrorDetail(
+                    message: "Uniqueness violation",
+                    code: "constraint-violation",
+                    constraintName: "daily_energy_user_date_key"
+                )
+            ])
+        }
         let id = "created-\(createdValues.count + 1)"
         createdValues.append(values)
         entries.append(DailyEnergy(

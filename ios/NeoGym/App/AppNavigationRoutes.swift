@@ -28,6 +28,7 @@ enum NutritionRoute: Hashable {
 enum MeRoute: Hashable {
     case profile
     case bodyList
+    case energyList
     case journalList
     case bodyMeasurementDetail(String)
     case bodyMeasurementCreate

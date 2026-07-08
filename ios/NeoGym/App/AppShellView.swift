@@ -69,6 +69,8 @@ struct AppShellView: View {
                     session: session,
                     bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
                     bodyHealthImporter: Self.makeBodyHealthImporter(),
+                    energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
+                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     journalRepository: JournalRepository(graphQL: environment.graphQLService),
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,
@@ -92,6 +94,14 @@ struct AppShellView: View {
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
         #if canImport(HealthKit) && !os(macOS)
         HealthKitBodyMeasurementImporter()
+        #else
+        nil
+        #endif
+    }
+
+    private static func makeEnergyHealthImporter() -> (any DailyEnergyHealthImporting)? {
+        #if canImport(HealthKit) && !os(macOS)
+        HealthKitDailyEnergyImporter()
         #else
         nil
         #endif

@@ -5,6 +5,7 @@ import SwiftUI
 enum MeSection: String, CaseIterable, Identifiable {
     case profile
     case body
+    case energy
     case journal
 
     var id: String { rawValue }
@@ -13,6 +14,7 @@ enum MeSection: String, CaseIterable, Identifiable {
         switch self {
         case .profile: "Profile"
         case .body: "Body"
+        case .energy: "Energy"
         case .journal: "Journal"
         }
     }
@@ -21,6 +23,7 @@ enum MeSection: String, CaseIterable, Identifiable {
         switch self {
         case .profile: "person.crop.circle"
         case .body: "scalemass"
+        case .energy: "flame"
         case .journal: "book.closed"
         }
     }
@@ -30,6 +33,8 @@ struct MeNavigationView: View {
     let session: StoredSession
     let bodyRepository: any BodyMeasurementsRepositoryProtocol
     let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
+    let energyRepository: any DailyEnergyRepositoryProtocol
+    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let journalRepository: any JournalRepositoryProtocol
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
@@ -91,6 +96,7 @@ struct MeNavigationView: View {
         switch section {
         case .profile: .profile
         case .body: .bodyList
+        case .energy: .energyList
         case .journal: .journalList
         }
     }
@@ -98,7 +104,7 @@ struct MeNavigationView: View {
     @ViewBuilder
     private func routeDestination(for route: MeRoute) -> some View {
         switch route {
-        case .profile, .bodyList, .journalList:
+        case .profile, .bodyList, .energyList, .journalList:
             subsectionListDestination(for: route)
         case let .bodyMeasurementDetail(measurementId):
             BodyMeasurementDetailView(
@@ -162,6 +168,13 @@ struct MeNavigationView: View {
                     action: openBodyMeasurementCreate
                 )
             }
+        case .energyList:
+            DailyEnergyListView(
+                repository: energyRepository,
+                healthImporter: energyHealthImporter
+            )
+            .navigationTitle("Energy")
+            .navigationBarTitleDisplayMode(.inline)
         case .journalList:
             JournalListView(repository: journalRepository, reloadToken: reloadToken)
                 .navigationTitle("Journal")
