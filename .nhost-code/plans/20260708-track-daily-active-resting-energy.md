@@ -199,7 +199,10 @@ Phases are implementation slices within a single change/PR. Each is independentl
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- **Implemented:** Added daily-energy form validation/helpers, trend chart, full `/energy` CRUD routes, navbar entry, generated GraphQL operation types, and unit tests for validation/error-message helpers.
+- **Reviewer verdict:** `ACCEPT_WITH_CONCERNS` — reviewer verified route/root names, query invalidation, `replace: true` spent-form navigation, single-axis chart, navbar wiring, and friendly error mapping. Accepted concerns were cosmetic (`NormalizedDailyEnergyFormValues` redundant field redeclaration) and manual browser pass not run.
+- **Autonomous assumptions/decisions:** Accepted extraction of validation/error helpers into `frontend/src/lib/daily-energy.ts` instead of keeping all validation inline. Justification: long-term maintenance and testability; the helper carries the migration-citing invariant comment and is unit-tested. Accepted no manual browser pass because automated codegen/typecheck/lint/tests covered the implemented behavior and manual UI verification remains documented.
+- **Quality gates:** `cd frontend && nix develop ../ --command bun run codegen` passed; `cd frontend && nix develop ../ --command bun run check` passed (`110 pass, 0 fail`); implementer also ran router generation, `git diff --check`, and LSP diagnostics successfully. Initial implementer-side check failed on Biome formatting/import ordering and passed after fixes.
 
 ### Phase 3 — iOS NeoGymKit models + repository + view models + tests (no HealthKit)
 

@@ -46,6 +46,12 @@ type Documents = {
     "\n  mutation DeleteBodyMeasurement($id: uuid!) {\n    deleteBodyMeasurement(id: $id) {\n      id\n    }\n  }\n": typeof types.DeleteBodyMeasurementDocument,
     "\n  query BodyMeasurements {\n    bodyMeasurements(order_by: { measuredOn: desc }) {\n      id\n      measuredOn\n      weightKg\n      bodyFatPct\n      notes\n    }\n  }\n": typeof types.BodyMeasurementsDocument,
     "\n  mutation InsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {\n    insertBodyMeasurement(object: $obj) {\n      id\n    }\n  }\n": typeof types.InsertBodyMeasurementDocument,
+    "\n  query DailyEnergyById($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n      updatedAt\n    }\n  }\n": typeof types.DailyEnergyByIdDocument,
+    "\n  query EditDailyEnergy($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n": typeof types.EditDailyEnergyDocument,
+    "\n  mutation UpdateDailyEnergy($id: uuid!, $set: dailyEnergy_set_input!) {\n    updateDailyEnergyEntry(pk_columns: { id: $id }, _set: $set) {\n      id\n    }\n  }\n": typeof types.UpdateDailyEnergyDocument,
+    "\n  mutation DeleteDailyEnergy($id: uuid!) {\n    deleteDailyEnergyEntry(id: $id) {\n      id\n    }\n  }\n": typeof types.DeleteDailyEnergyDocument,
+    "\n  query DailyEnergy {\n    dailyEnergyEntries(order_by: { energyOn: desc }) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n": typeof types.DailyEnergyDocument,
+    "\n  mutation InsertDailyEnergy($obj: dailyEnergy_insert_input!) {\n    insertDailyEnergyEntry(object: $obj) {\n      id\n    }\n  }\n": typeof types.InsertDailyEnergyDocument,
     "\n  query ExercisesIndex {\n    exercises(order_by: { name: asc }) {\n      id\n      name\n      strength { doubleWeight }\n      primaryMuscleGroup\n      category\n      equipment\n      level\n      isPublic\n      secondaryMuscleGroups {\n        muscleGroup\n      }\n    }\n  }\n": typeof types.ExercisesIndexDocument,
     "\n  query JournalEntryById($id: uuid!) {\n    journalEntry(id: $id) {\n      id\n      entryDate\n      title\n      body\n      journalEntryLabels {\n        labelId\n        label {\n          id\n          name\n        }\n      }\n    }\n  }\n": typeof types.JournalEntryByIdDocument,
     "\n  query EditJournalEntry($id: uuid!) {\n    journalEntry(id: $id) {\n      id\n      entryDate\n      title\n      body\n      journalEntryLabels {\n        labelId\n        label {\n          id\n          name\n        }\n      }\n    }\n    journalLabels(order_by: { name: asc }) {\n      id\n      name\n    }\n  }\n": typeof types.EditJournalEntryDocument,
@@ -128,6 +134,12 @@ const documents: Documents = {
     "\n  mutation DeleteBodyMeasurement($id: uuid!) {\n    deleteBodyMeasurement(id: $id) {\n      id\n    }\n  }\n": types.DeleteBodyMeasurementDocument,
     "\n  query BodyMeasurements {\n    bodyMeasurements(order_by: { measuredOn: desc }) {\n      id\n      measuredOn\n      weightKg\n      bodyFatPct\n      notes\n    }\n  }\n": types.BodyMeasurementsDocument,
     "\n  mutation InsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {\n    insertBodyMeasurement(object: $obj) {\n      id\n    }\n  }\n": types.InsertBodyMeasurementDocument,
+    "\n  query DailyEnergyById($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n      updatedAt\n    }\n  }\n": types.DailyEnergyByIdDocument,
+    "\n  query EditDailyEnergy($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n": types.EditDailyEnergyDocument,
+    "\n  mutation UpdateDailyEnergy($id: uuid!, $set: dailyEnergy_set_input!) {\n    updateDailyEnergyEntry(pk_columns: { id: $id }, _set: $set) {\n      id\n    }\n  }\n": types.UpdateDailyEnergyDocument,
+    "\n  mutation DeleteDailyEnergy($id: uuid!) {\n    deleteDailyEnergyEntry(id: $id) {\n      id\n    }\n  }\n": types.DeleteDailyEnergyDocument,
+    "\n  query DailyEnergy {\n    dailyEnergyEntries(order_by: { energyOn: desc }) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n": types.DailyEnergyDocument,
+    "\n  mutation InsertDailyEnergy($obj: dailyEnergy_insert_input!) {\n    insertDailyEnergyEntry(object: $obj) {\n      id\n    }\n  }\n": types.InsertDailyEnergyDocument,
     "\n  query ExercisesIndex {\n    exercises(order_by: { name: asc }) {\n      id\n      name\n      strength { doubleWeight }\n      primaryMuscleGroup\n      category\n      equipment\n      level\n      isPublic\n      secondaryMuscleGroups {\n        muscleGroup\n      }\n    }\n  }\n": types.ExercisesIndexDocument,
     "\n  query JournalEntryById($id: uuid!) {\n    journalEntry(id: $id) {\n      id\n      entryDate\n      title\n      body\n      journalEntryLabels {\n        labelId\n        label {\n          id\n          name\n        }\n      }\n    }\n  }\n": types.JournalEntryByIdDocument,
     "\n  query EditJournalEntry($id: uuid!) {\n    journalEntry(id: $id) {\n      id\n      entryDate\n      title\n      body\n      journalEntryLabels {\n        labelId\n        label {\n          id\n          name\n        }\n      }\n    }\n    journalLabels(order_by: { name: asc }) {\n      id\n      name\n    }\n  }\n": types.EditJournalEntryDocument,
@@ -320,6 +332,30 @@ export function graphql(source: "\n  query BodyMeasurements {\n    bodyMeasureme
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation InsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {\n    insertBodyMeasurement(object: $obj) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation InsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {\n    insertBodyMeasurement(object: $obj) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DailyEnergyById($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  query DailyEnergyById($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n      updatedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query EditDailyEnergy($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n"): (typeof documents)["\n  query EditDailyEnergy($id: uuid!) {\n    dailyEnergyEntry(id: $id) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateDailyEnergy($id: uuid!, $set: dailyEnergy_set_input!) {\n    updateDailyEnergyEntry(pk_columns: { id: $id }, _set: $set) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateDailyEnergy($id: uuid!, $set: dailyEnergy_set_input!) {\n    updateDailyEnergyEntry(pk_columns: { id: $id }, _set: $set) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteDailyEnergy($id: uuid!) {\n    deleteDailyEnergyEntry(id: $id) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteDailyEnergy($id: uuid!) {\n    deleteDailyEnergyEntry(id: $id) {\n      id\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query DailyEnergy {\n    dailyEnergyEntries(order_by: { energyOn: desc }) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n"): (typeof documents)["\n  query DailyEnergy {\n    dailyEnergyEntries(order_by: { energyOn: desc }) {\n      id\n      energyOn\n      activeKcal\n      restingKcal\n      notes\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation InsertDailyEnergy($obj: dailyEnergy_insert_input!) {\n    insertDailyEnergyEntry(object: $obj) {\n      id\n    }\n  }\n"): (typeof documents)["\n  mutation InsertDailyEnergy($obj: dailyEnergy_insert_input!) {\n    insertDailyEnergyEntry(object: $obj) {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
