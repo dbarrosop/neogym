@@ -241,7 +241,10 @@ Phases are implementation slices within a single change/PR. Each is independentl
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- **Implemented:** Added host-testable `DailyEnergy` models, validation, form model, formatters/trend builder, repository GraphQL CRUD documents, list/detail/editor view models, pure health-import boundary types, and deterministic NeoGymKit tests.
+- **Reviewer verdict:** `ACCEPT` — reviewer verified GraphQL roots/types against generated SDL, confirmed no SwiftUI/UIKit/HealthKit imports in the new `Sources/` files, confirmed Phase 4/5 work was not started, and noted only non-blocking observations.
+- **Autonomous assumptions/decisions:** Accepted organizing trend/chart types in `DailyEnergyTrend.swift` rather than `DailyEnergyModels.swift`. Justification: long-term maintenance; it keeps the model file smaller while preserving the required public API. Accepted the reviewer’s low-severity `skippedExistingCount` labeling observation for Phase 4 consideration because the Phase 4 grouper will drop both-nil days before sync, minimizing user-visible impact.
+- **Quality gates:** Plain `swift build`/`swift test` failed in this Nix-inherited shell due SDK/toolchain mismatch (`SwiftShims`/SDK compiler mismatch), so the strongest available equivalent was used: `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift build` passed and `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift test` passed (`202 tests, 0 failures`). `git diff --check` passed; grep confirmed no `SwiftUI`, `UIKit`, or `HealthKit` imports in new `DailyEnergy*.swift` source files.
 
 ### Phase 4 — iOS HealthKit importer + SwiftUI views + Me wiring
 
