@@ -373,7 +373,10 @@ Phases are implementation slices within a single change/PR. Each is independentl
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution.)_
+- **Implemented:** Finalized `energy.md`, updated `database.md`, root `CLAUDE.md`, and `ios/NeoGym/CLAUDE.md` for the implemented table, GraphQL roots, web/iOS `/energy` surfaces, HealthKit import semantics, nutrition balance, eight-item mobile nav, backend tests, codegen rule, and usage-string requirements.
+- **Reviewer verdict:** `ACCEPT` — first reviewer attempt failed due transient Claude API 529 overload; retry verified all doc claims, eight nav items, `permissions.md` touch points, HealthKit semantics, balance null semantics, cascade note, iOS docs, no production changes, no tracked `.xcodeproj`, and clean whitespace.
+- **Autonomous assumptions/decisions:** Accepted the docs-only implementer pass despite the subagent acceptance wrapper marking it failed for missing tests-added evidence. Justification: correctness and long-term maintenance; Phase 6 is a documentation/final-sweep phase, and the child report plus reviewer verification showed the intended docs-only work and full gates completed.
+- **Quality gates:** `cd backend && make test` passed (`80 pass, 0 fail`); `cd frontend && nix develop ../ --command bun run check` passed (`111 pass, 0 fail`); `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift build` passed; `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u TOOLCHAINS /usr/bin/xcrun swift test` passed (`209 tests, 0 failures`); `cd ios/NeoGym && env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed (`BUILD SUCCEEDED`); `git diff --check` passed; `git ls-files 'ios/NeoGym/*.xcodeproj/**' 'ios/NeoGym/*.xcodeproj'` returned no tracked generated project files.
 
 ---
 

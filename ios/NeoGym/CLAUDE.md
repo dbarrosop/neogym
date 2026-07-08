@@ -7,8 +7,8 @@ Guidance for future Claude Code sessions working inside `ios/NeoGym`.
 Native SwiftUI shell for NeoGym plus the host-testable `NeoGymKit` package.
 The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 `NeoGymKit` owns validators, auth/session models, repositories, domain view
-models, and testable form validation; SwiftUI under `App/` owns layout,
-navigation, and presentation.
+models, daily energy models/import helpers, and testable form validation;
+SwiftUI under `App/` owns layout, navigation, and presentation.
 
 ## Commands
 
@@ -43,7 +43,9 @@ reintroduces linker variables.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
-letterboxed on current devices.
+letterboxed on current devices. Keep `NSHealthShareUsageDescription` in both
+`App/Info.plist` and `project.yml` in sync; it must mention the read-only
+imports for weight, body-fat percentage, active energy, and resting energy.
 
 The package depends on the local Nhost Swift SDK at
 `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
@@ -65,6 +67,17 @@ changes.
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
   environment values; verify those modes in simulator Accessibility settings.
+- Daily energy uses `DailyEnergy*` types in `NeoGymKit` (`DailyEnergy`, form
+  values/validation, repository, list/detail/editor view models, trend builders,
+  `DailyEnergyHealthImporting`, `HealthDailyEnergy`, and
+  `DailyEnergyHealthSyncSummary`). Keep those host-testable; HealthKit itself is
+  guarded with `#if canImport(HealthKit) && !os(macOS)`.
+- `HealthKitDailyEnergyImporter` is read-only (`toShare: []`) and sums active
+  and basal/resting energy with bounded, DST-safe local-day buckets
+  (`HKStatisticsCollectionQuery`, `.cumulativeSum`, local-midnight anchor,
+  `DateComponents(day: 1)`). The pure `HealthDailyEnergyGrouper` drops
+  non-finite/`<= 0` values per metric independently and skips only days where
+  both metrics are absent.
 
 ## Native iOS design guide
 
@@ -118,15 +131,17 @@ intact instead of inventing one-off styles.
   runloop tick (e.g. `[.foodsList, .foodCreate]` → `[.foodsList]` →
   `[.foodsList, .foodDetail(id)]`) so Back returns to the subsection list, not
   the hub. Do not re-add a `removeLast()` there — the create view's `dismiss()`
-  already removes the create route, so an extra pop would strand Back on the hub. **Me (hub, shipped):**
-  `MeNavigationView` mirrors the Workouts/Nutrition hubs — its root is a native
-  `List` of the same glass rows (`MeHubRow`: Profile / Body / Journal, each SF
-  Symbol + title + chevron, ≥44pt, accessibility labels) that PUSH
-  subsection-list routes (`MeRoute.profile` / `.bodyList` / `.journalList`) via
-  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
-  area segmented `Picker` lives in the Me hub's nav-bar **principal** slot,
-  matching 2a/2b exactly. Log measurement lives on the `.bodyList` subsection
-  list's own `.bottomBar` and New entry on `.journalList`'s, both via
+  already removes the create route, so an extra pop would strand Back on the hub.
+  **Me (hub, shipped):** `MeNavigationView` mirrors the Workouts/Nutrition hubs —
+  its root is a native `List` of the same glass rows (`MeHubRow`: Profile / Body /
+  Energy / Journal, each SF Symbol + title + chevron, ≥44pt, accessibility
+  labels) that PUSH subsection-list routes (`MeRoute.profile` / `.bodyList` /
+  `.energyList` / `.journalList`) via `.navigationDestination(for:)`, each with
+  its own inline `navigationTitle`. The area segmented `Picker` lives in the Me
+  hub's nav-bar **principal** slot, matching 2a/2b exactly. Energy hosts the
+  daily active/resting kcal CRUD list, trend, and read-only HealthKit import
+  under the Me hub. Log measurement lives on the `.bodyList` subsection list's
+  own `.bottomBar` and New entry on `.journalList`'s, both via
   `RootPrimaryActionToolbar` (not shell-owned). Post-create, the create view pops
   itself via `dismiss()` (removing the top create route) and the shell's
   `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
@@ -243,15 +258,17 @@ intact instead of inventing one-off styles.
   normalized typed creation and suggestions. Strength set editing intentionally
   uses a sheet with native `Form` + wheel pickers for kg/grams/reps; cardio entry
   editing is schema-driven and highlights the invalid metric row.
-- **Graphs and summaries**: body trends use `TimeSeriesTrendChartView` /
-  `TimeSeriesChartView` with a period menu, custom date pickers, sampled points,
-  axes/legend, and tap/drag callouts. Non-empty custom charts collapse their
-  decorative drawing, axes, legends, markers, and callouts into one VoiceOver
-  element with a domain label plus a summary of visible series, point counts,
-  date range, latest values, and min/max values; empty-state text remains
-  naturally accessible. Nutrition totals use `MacroSummaryView` grids with
-  monospaced digits and optional target totals. Do not introduce a new chart or
-  macro tile style unless these primitives cannot express the need.
+- **Graphs and summaries**: body and daily-energy trends use
+  `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
+  date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
+  custom charts collapse their decorative drawing, axes, legends, markers, and
+  callouts into one VoiceOver element with a domain label plus a summary of
+  visible series, point counts, date range, latest values, and min/max values;
+  empty-state text remains naturally accessible. Nutrition totals use
+  `MacroSummaryView` grids with monospaced digits and optional target totals;
+  the daily intake balance is read-only, with calories in from logged snapshots
+  and calories out from the same date's `daily_energy` row. Do not introduce a
+  new chart or macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,
   preserve 44-point hit targets for tappable chips/buttons where practical, and
   keep dynamic type in mind. Previews can set `dynamicTypeSize`, color scheme,

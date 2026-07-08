@@ -246,10 +246,11 @@ The Hasura `user`-role select filter is `user_id = X-Hasura-User-Id OR is_public
 
 ## Cascade behavior
 
-Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a session removes its session-exercises which remove their sets/entries. The exceptions:
+Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. One direct-user cascade worth calling out here, plus the main domain exceptions:
 
 | FK | Action | Why |
 |---|---|---|
+| `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
