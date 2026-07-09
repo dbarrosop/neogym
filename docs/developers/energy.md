@@ -92,12 +92,16 @@ Import rules:
 - Each metric drops non-finite values and values `<= 0` independently. For
   example, `active = 0` with `resting = 1500` imports as a resting-only row;
   a day where both metrics are absent/zero/non-finite/negative is skipped.
-- Existing `energy_on` dates are skipped before insert so import is one-way
-  fill-missing behavior, not an overwrite/upsert. If a stale list races another
-  writer and hits `daily_energy_user_date_key`, the sync treats that conflict as
-  a skipped existing row rather than a fatal import error.
-- Imported rows use the normal GraphQL create path and carry an "Imported from
-  Apple Health" note.
+- Missing `energy_on` dates are created through the normal GraphQL create path
+  and carry an "Imported from Apple Health" note.
+- Existing dates older than the recent refresh window are skipped before insert
+  so historical import remains one-way fill-missing behavior. If a stale list
+  races another writer and hits `daily_energy_user_date_key`, the sync treats
+  that conflict as a skipped existing row rather than a fatal import error.
+- On each iOS sync, the last 7 local calendar days (today plus the previous 6
+  days) are refreshed from HealthKit **only** when the existing row still carries
+  the exact "Imported from Apple Health" note. Manual rows or edited imported
+  rows with different notes are skipped instead of overwritten.
 
 ## Nutrition balance
 

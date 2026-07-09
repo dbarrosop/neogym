@@ -2,11 +2,30 @@ import Foundation
 
 public protocol DailyEnergyRepositoryProtocol: Sendable {
     func listEntries() async throws -> [DailyEnergy]
+    func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy]
+    func listEntryDates() async throws -> [String]
+    func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy]
     func entry(id: String) async throws -> DailyEnergy?
     func editEntry(id: String) async throws -> DailyEnergy?
     func createEntry(_ values: DailyEnergyFormValues) async throws -> String
     func updateEntry(id: String, values: DailyEnergyFormValues) async throws
     func deleteEntry(id: String) async throws
+}
+
+public extension DailyEnergyRepositoryProtocol {
+    func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy] {
+        let allEntries = try await listEntries()
+        guard offset < allEntries.count else { return [] }
+        return Array(allEntries.dropFirst(offset).prefix(limit))
+    }
+
+    func listEntryDates() async throws -> [String] {
+        try await listEntries().map(\.energyOn)
+    }
+
+    func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
+        try await listEntries().filter { $0.energyOn >= energyOn }
+    }
 }
 
 public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
@@ -17,9 +36,34 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
     }
 
     public func listEntries() async throws -> [DailyEnergy] {
+        try await listEntries(limit: Self.pageSize, offset: 0)
+    }
+
+    public func listEntries(limit: Int = Self.pageSize, offset: Int = 0) async throws -> [DailyEnergy] {
         let data: DailyEnergyEntriesData = try await graphQL.execute(
             query: Self.dailyEnergyQuery,
+            variables: GraphQLScalars.variables(
+                ("limit", .number(Double(limit))),
+                ("offset", .number(Double(offset)))
+            ),
             operationName: "DailyEnergy"
+        )
+        return data.dailyEnergyEntries
+    }
+
+    public func listEntryDates() async throws -> [String] {
+        let data: DailyEnergyEntryDatesData = try await graphQL.execute(
+            query: Self.dailyEnergyEntryDatesQuery,
+            operationName: "DailyEnergyEntryDates"
+        )
+        return data.dailyEnergyEntries.map(\.energyOn)
+    }
+
+    public func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
+        let data: DailyEnergyEntriesData = try await graphQL.execute(
+            query: Self.dailyEnergyHealthRefreshEntriesQuery,
+            variables: ["since": GraphQLScalars.date(energyOn)],
+            operationName: "DailyEnergyHealthRefreshEntries"
         )
         return data.dailyEnergyEntries
     }
@@ -87,6 +131,14 @@ private struct DailyEnergyEntriesData: Decodable, Sendable {
     let dailyEnergyEntries: [DailyEnergy]
 }
 
+private struct DailyEnergyEntryDatesData: Decodable, Sendable {
+    let dailyEnergyEntries: [DailyEnergyDate]
+}
+
+private struct DailyEnergyDate: Decodable, Sendable {
+    let energyOn: String
+}
+
 private struct DailyEnergyEntryByIdData: Decodable, Sendable {
     let dailyEnergyEntry: DailyEnergy?
 }
@@ -112,9 +164,31 @@ private struct DailyEnergyMutationIdPayload: Decodable, Sendable {
 }
 
 public extension DailyEnergyRepository {
+    static let pageSize = 25
+
     static let dailyEnergyQuery = """
-    query DailyEnergy {
+    query DailyEnergy($limit: Int!, $offset: Int!) {
+      dailyEnergyEntries(order_by: { energyOn: desc }, limit: $limit, offset: $offset) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+        notes
+      }
+    }
+    """
+
+    static let dailyEnergyEntryDatesQuery = """
+    query DailyEnergyEntryDates {
       dailyEnergyEntries(order_by: { energyOn: desc }) {
+        energyOn
+      }
+    }
+    """
+
+    static let dailyEnergyHealthRefreshEntriesQuery = """
+    query DailyEnergyHealthRefreshEntries($since: date!) {
+      dailyEnergyEntries(where: { energyOn: { _gte: $since } }, order_by: { energyOn: desc }) {
         id
         energyOn
         activeKcal

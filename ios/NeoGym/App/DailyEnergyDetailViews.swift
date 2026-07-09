@@ -35,7 +35,8 @@ struct DailyEnergyDetailView: View {
         .navigationTitle("Energy")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .bottomBar) {
+                Spacer()
                 if let entry = viewModel.entry {
                     NavigationLink {
                         DailyEnergyEditView(
@@ -51,9 +52,8 @@ struct DailyEnergyDetailView: View {
                             }
                         )
                     } label: {
-                        Image(systemName: "pencil")
+                        Label("Edit energy", systemImage: "pencil")
                     }
-                    .accessibilityLabel("Edit energy entry")
                 }
             }
         }
@@ -139,4 +139,3 @@ private struct DailyEnergyStatCard: View {
         )
     }
 }
-

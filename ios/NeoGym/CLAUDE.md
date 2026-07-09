@@ -77,7 +77,9 @@ changes.
   (`HKStatisticsCollectionQuery`, `.cumulativeSum`, local-midnight anchor,
   `DateComponents(day: 1)`). The pure `HealthDailyEnergyGrouper` drops
   non-finite/`<= 0` values per metric independently and skips only days where
-  both metrics are absent.
+  both metrics are absent. Daily energy sync creates missing dates and refreshes
+  the last 7 local calendar days only for rows still carrying the exact
+  "Imported from Apple Health" note; manual or edited rows are not overwritten.
 
 ## Native iOS design guide
 

@@ -32,6 +32,8 @@ enum MeRoute: Hashable {
     case journalList
     case bodyMeasurementDetail(String)
     case bodyMeasurementCreate
+    case energyDetail(String)
+    case energyCreate
     case journalEntryDetail(String)
     case journalEntryCreate
 }

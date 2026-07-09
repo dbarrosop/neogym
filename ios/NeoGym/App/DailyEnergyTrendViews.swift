@@ -43,7 +43,9 @@ struct DailyEnergyTrendChartView: View {
 }
 
 #Preview("Daily energy") {
-    DailyEnergyNavigationView(repository: PreviewDailyEnergyRepository())
+    NavigationStack {
+        DailyEnergyListView(repository: PreviewDailyEnergyRepository(), reloadToken: 0)
+    }
 }
 
 private struct PreviewDailyEnergyRepository: DailyEnergyRepositoryProtocol {

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Plus } from "lucide-react";
 import { useMemo } from "react";
@@ -13,9 +13,11 @@ import { formatDailyEnergyValues } from "@/lib/daily-energy";
 import { formatDateLong, parseDateOnly } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
+const DAILY_ENERGY_PAGE_SIZE = 50;
+
 const DailyEnergyQuery = graphql(`
-  query DailyEnergy {
-    dailyEnergyEntries(order_by: { energyOn: desc }) {
+  query DailyEnergy($limit: Int!, $offset: Int!) {
+    dailyEnergyEntries(order_by: { energyOn: desc }, limit: $limit, offset: $offset) {
       id
       energyOn
       activeKcal
@@ -30,12 +32,22 @@ export const Route = createFileRoute("/_authed/energy/")({
 });
 
 function DailyEnergyRoute() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["daily_energy"],
-    queryFn: () => gqlRequest(DailyEnergyQuery),
-  });
+  const { data, isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: ["daily_energy"],
+      initialPageParam: 0,
+      queryFn: ({ pageParam }) =>
+        gqlRequest(DailyEnergyQuery, { limit: DAILY_ENERGY_PAGE_SIZE, offset: pageParam }),
+      getNextPageParam: (lastPage, allPages) =>
+        lastPage.dailyEnergyEntries.length === DAILY_ENERGY_PAGE_SIZE
+          ? allPages.length * DAILY_ENERGY_PAGE_SIZE
+          : undefined,
+    });
 
-  const entries = useMemo(() => data?.dailyEnergyEntries ?? [], [data]);
+  const entries = useMemo(
+    () => data?.pages.flatMap((page) => page.dailyEnergyEntries) ?? [],
+    [data],
+  );
 
   const chartPoints = useMemo<DailyEnergyPoint[]>(() => {
     return [...entries]
@@ -122,6 +134,19 @@ function DailyEnergyRoute() {
             </li>
           ))}
         </ul>
+
+        {hasNextPage ? (
+          <div className="flex justify-center pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+            >
+              {isFetchingNextPage ? "Loading…" : "Load more"}
+            </Button>
+          </div>
+        ) : null}
       </>
     );
   }

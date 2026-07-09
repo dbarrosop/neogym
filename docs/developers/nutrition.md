@@ -48,7 +48,10 @@ totals for "in" and the same date's `daily_energy.active_kcal + daily_energy.res
 for "out". If no `daily_energy` row exists, clients show intake-only rather than treating
 output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
 values may arrive in clients as strings, so frontend helpers should normalize before doing
-macro math.
+macro math. The native Nutrition overview also summarizes today with logged kcal,
+active+resting energy, and net; its 7-day rolling net average is computed from
+calendar days in the window that have both a nutrition log day and a `daily_energy`
+row, so missing energy/intake data is not silently treated as a zero-output day.
 
 ## Logging from templates
 

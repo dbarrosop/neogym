@@ -122,6 +122,10 @@ struct MeNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        case let .energyDetail(entryId):
+            dailyEnergyDetailDestination(entryId: entryId)
+        case .energyCreate:
+            dailyEnergyCreateDestination()
         case let .journalEntryDetail(entryId):
             JournalEntryDetailView(
                 entryId: entryId,
@@ -169,12 +173,7 @@ struct MeNavigationView: View {
                 )
             }
         case .energyList:
-            DailyEnergyListView(
-                repository: energyRepository,
-                healthImporter: energyHealthImporter
-            )
-            .navigationTitle("Energy")
-            .navigationBarTitleDisplayMode(.inline)
+            dailyEnergyListDestination()
         case .journalList:
             JournalListView(repository: journalRepository, reloadToken: reloadToken)
                 .navigationTitle("Journal")
@@ -186,13 +185,55 @@ struct MeNavigationView: View {
                         action: openJournalEntryCreate
                     )
                 }
-        case .bodyMeasurementDetail, .bodyMeasurementCreate, .journalEntryDetail, .journalEntryCreate:
+        case .bodyMeasurementDetail, .bodyMeasurementCreate, .energyDetail, .energyCreate, .journalEntryDetail,
+             .journalEntryCreate:
             EmptyView()
         }
     }
 
+    private func dailyEnergyListDestination() -> some View {
+        DailyEnergyListView(
+            repository: energyRepository,
+            healthImporter: energyHealthImporter,
+            reloadToken: reloadToken
+        )
+        .navigationTitle("Energy")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            RootPrimaryActionToolbar(
+                title: "Log energy",
+                systemImage: "plus",
+                action: openDailyEnergyCreate
+            )
+        }
+    }
+
+    private func dailyEnergyDetailDestination(entryId: String) -> some View {
+        DailyEnergyDetailView(
+            entryId: entryId,
+            repository: energyRepository,
+            onDeleted: invalidateLists,
+            onMutated: invalidateLists
+        )
+    }
+
+    private func dailyEnergyCreateDestination() -> some View {
+        DailyEnergyCreateView(
+            repository: energyRepository,
+            onCreated: { id in
+                invalidateLists()
+                openRouteAfterCurrentTransition(.energyDetail(id))
+            },
+            onFinished: invalidateLists
+        )
+    }
+
     private func openBodyMeasurementCreate() {
         path.append(.bodyMeasurementCreate)
+    }
+
+    private func openDailyEnergyCreate() {
+        path.append(.energyCreate)
     }
 
     private func openJournalEntryCreate() {

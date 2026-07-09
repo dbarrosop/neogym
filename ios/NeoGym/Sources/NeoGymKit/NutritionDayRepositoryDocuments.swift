@@ -101,6 +101,12 @@ public extension NutritionFoodMealRepository {
           snapshotSugarPer100g
         }
       }
+      dailyEnergyEntries(order_by: { energyOn: desc }, limit: 14) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+      }
     }
     """
 

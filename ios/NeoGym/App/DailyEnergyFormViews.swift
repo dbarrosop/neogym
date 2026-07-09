@@ -101,7 +101,7 @@ struct DailyEnergyEditView: View {
                         title: "Edit energy",
                         submitLabel: "Save changes",
                         form: form,
-                        isSubmitting: editor.saveState.isLoading,
+                        isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
                         errorMessage: form.errorMessage
                             ?? editor.saveState.errorMessage
                             ?? editor.deleteState.errorMessage,
@@ -220,8 +220,14 @@ private struct DailyEnergyFormScreen: View {
                     if let errorMessage {
                         FeedbackBanner(message: errorMessage)
                     }
-
-                    actions
+                    if let deleteAction {
+                        FormDeleteButton(
+                            title: "Delete energy",
+                            isDisabled: isSubmitting,
+                            action: deleteAction
+                        )
+                        .padding(.top, NeoGymTheme.spacingSM)
+                    }
                 }
             }
             .frame(maxWidth: 640)
@@ -230,6 +236,13 @@ private struct DailyEnergyFormScreen: View {
             .frame(maxWidth: .infinity)
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
+        .nativeFormActionToolbar(
+            submitLabel: submitLabel,
+            isSubmitting: isSubmitting,
+            isSubmitEnabled: form.hasEnergyValue,
+            onCancel: onCancel,
+            onSubmit: onSubmit
+        )
     }
 
     private func decimalField(
@@ -262,27 +275,4 @@ private struct DailyEnergyFormScreen: View {
         }
     }
 
-    private var actions: some View {
-        VStack(spacing: 10) {
-            PrimaryActionButton(
-                title: submitLabel,
-                busyTitle: "Saving",
-                isBusy: isSubmitting,
-                isEnabled: form.hasEnergyValue,
-                action: onSubmit
-            )
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            if let deleteAction {
-                Button(role: .destructive, action: deleteAction) {
-                    Label("Delete energy", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSubmitting)
-            }
-        }
-    }
 }
-

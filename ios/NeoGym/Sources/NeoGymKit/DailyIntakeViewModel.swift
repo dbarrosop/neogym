@@ -3,21 +3,35 @@ import Foundation
 
 @MainActor
 public final class NutritionDaysListViewModel: ObservableObject {
-    @Published public private(set) var state: Loadable<[NutritionDay]> = .idle
+    @Published public private(set) var state: Loadable<NutritionOverviewPayload> = .idle
 
     private let repository: any NutritionFoodMealRepositoryProtocol
 
-    public init(repository: any NutritionFoodMealRepositoryProtocol) {
-        self.repository = repository
+    public var days: [NutritionDay] { state.value?.days ?? [] }
+    public var overview: NutritionOverviewPayload { state.value ?? NutritionOverviewPayload(days: []) }
+    public var today: String { IntakeGrouping.formatLocalDate(now(), calendar: calendar) }
+    public var todayBalance: DailyCalorieBalance { overview.balance(for: today) }
+    public var sevenDayNetAverage: RollingCalorieNetAverage? {
+        overview.rollingNetAverage(endingOn: today, days: 7, calendar: calendar)
     }
 
-    public var days: [NutritionDay] { state.value ?? [] }
-    public var today: String { IntakeGrouping.formatLocalDate() }
+    private let calendar: Calendar
+    private let now: @Sendable () -> Date
+
+    public init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        calendar: Calendar = .current,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) {
+        self.repository = repository
+        self.calendar = calendar
+        self.now = now
+    }
 
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listNutritionDays())
+            state = .loaded(try await repository.nutritionOverview())
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

@@ -1,37 +1,16 @@
 import NeoGymKit
 import SwiftUI
 
-struct DailyEnergyNavigationView: View {
-    let repository: any DailyEnergyRepositoryProtocol
-    let healthImporter: (any DailyEnergyHealthImporting)?
-
-    init(
-        repository: any DailyEnergyRepositoryProtocol,
-        healthImporter: (any DailyEnergyHealthImporting)? = nil
-    ) {
-        self.repository = repository
-        self.healthImporter = healthImporter
-    }
-
-    var body: some View {
-        NavigationView {
-            DailyEnergyListView(repository: repository, healthImporter: healthImporter)
-        }
-        .navigationViewStyle(.stack)
-    }
-}
-
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
     let repository: any DailyEnergyRepositoryProtocol
     let healthImporter: (any DailyEnergyHealthImporting)?
-
-    @State private var navigatedEntryId: String?
-    @State private var isNavigatingToEntry = false
+    let reloadToken: Int
 
     init(
         repository: any DailyEnergyRepositoryProtocol,
-        healthImporter: (any DailyEnergyHealthImporting)? = nil
+        healthImporter: (any DailyEnergyHealthImporting)? = nil,
+        reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: DailyEnergyListViewModel(
             repository: repository,
@@ -39,6 +18,7 @@ struct DailyEnergyListView: View {
         ))
         self.repository = repository
         self.healthImporter = healthImporter
+        self.reloadToken = reloadToken
     }
 
     var body: some View {
@@ -52,48 +32,24 @@ struct DailyEnergyListView: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .navigationTitle("Energy")
-        .background(pendingNavigationLink)
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load(shouldSyncHealthEnergy: true)
             }
         }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load(shouldSyncHealthEnergy: true) }
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: NeoGymTheme.spacingMD) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Tracking")
-                    .font(.caption.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("Energy")
-                    .font(.largeTitle.bold())
-                    .tracking(-0.8)
-                Text("Log active and resting calories burned over time.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            Spacer(minLength: 0)
-            NavigationLink {
-                DailyEnergyCreateView(
-                    repository: repository,
-                    onCreated: { id in
-                        Task { await viewModel.load() }
-                        navigatedEntryId = id
-                        isNavigatingToEntry = true
-                    },
-                    onFinished: { Task { await viewModel.load() } }
-                )
-            } label: {
-                Image(systemName: "plus")
-                    .font(.headline.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .glassSurface(cornerRadius: 22)
-            }
-            .accessibilityLabel("New energy entry")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Tracking")
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text("Log active and resting calories burned over time.")
+                .font(.subheadline)
+                .foregroundColor(NeoGymTheme.mutedText)
         }
     }
 
@@ -123,17 +79,7 @@ struct DailyEnergyListView: View {
                             message: "Log active or resting energy to start seeing trends.",
                             systemImage: "flame"
                         )
-                        NavigationLink {
-                            DailyEnergyCreateView(
-                                repository: repository,
-                                onCreated: { id in
-                                    Task { await viewModel.load() }
-                                    navigatedEntryId = id
-                                    isNavigatingToEntry = true
-                                },
-                                onFinished: { Task { await viewModel.load() } }
-                            )
-                        } label: {
+                        NavigationLink(value: MeRoute.energyCreate) {
                             Label("Log your first energy entry", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -150,17 +96,32 @@ struct DailyEnergyListView: View {
                     SectionShell(title: "Energy", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.entries) { entry in
-                                NavigationLink {
-                                    DailyEnergyDetailView(
-                                        entryId: entry.id,
-                                        repository: repository,
-                                        onDeleted: { Task { await viewModel.load() } },
-                                        onMutated: { Task { await viewModel.load() } }
-                                    )
-                                } label: {
+                                NavigationLink(value: MeRoute.energyDetail(entry.id)) {
                                     DailyEnergyListRow(entry: entry)
                                 }
                                 if entry.id != viewModel.entries.last?.id { Divider() }
+                            }
+                            if viewModel.hasMore {
+                                Divider()
+                                Button {
+                                    Task { await viewModel.loadMore() }
+                                } label: {
+                                    if viewModel.isLoadingMore {
+                                        ProgressView()
+                                            .frame(maxWidth: .infinity)
+                                    } else {
+                                        Text("Load more")
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                }
+                                .buttonStyle(NeoGymSecondaryButtonStyle())
+                                .padding(.top, 12)
+                            }
+                            if let message = viewModel.loadMoreErrorMessage {
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundColor(.red)
+                                    .padding(.top, 8)
                             }
                         }
                     }
@@ -176,24 +137,6 @@ struct DailyEnergyListView: View {
             FeedbackBanner(message: message)
         default:
             EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var pendingNavigationLink: some View {
-        if let entryId = navigatedEntryId {
-            NavigationLink(
-                destination: DailyEnergyDetailView(
-                    entryId: entryId,
-                    repository: repository,
-                    onDeleted: { Task { await viewModel.load() } },
-                    onMutated: { Task { await viewModel.load() } }
-                ),
-                isActive: $isNavigatingToEntry
-            ) {
-                EmptyView()
-            }
-            .hidden()
         }
     }
 }

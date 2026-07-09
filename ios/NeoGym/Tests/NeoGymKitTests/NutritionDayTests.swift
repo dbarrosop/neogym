@@ -5,7 +5,8 @@ import XCTest
 final class NutritionDayRepositoryTests: XCTestCase {
     func testDecodesNutritionDayFixturesAndUsesSnapshotTotals() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
-            "nutritionDays": .array([nutritionDayFixture])
+            "nutritionDays": .array([nutritionDayFixture]),
+            "dailyEnergyEntries": .array([dailyEnergyFixture])
         ]))])
         let repository = NutritionFoodMealRepository(graphQL: fake)
 
@@ -31,6 +32,36 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertTrue(request.query.contains("source"))
         XCTAssertEqual(days[0].allLogEntries.map(\.source), [.adHoc, .food])
         XCTAssertTrue(days[0].nutritionLogEntries[0].isAdHoc)
+        XCTAssertTrue(request.query.contains("dailyEnergyEntries(order_by: { energyOn: desc }, limit: 14)"))
+    }
+
+    func testNutritionOverviewDecodesDailyEnergyAndComputesRollingNetAverage() async throws {
+        let secondDay = nutritionDayFixture.setting("id", to: .string("day-2"))
+            .setting("logDate", to: .string("2026-06-26"))
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "nutritionDays": .array([nutritionDayFixture, secondDay]),
+            "dailyEnergyEntries": .array([
+                dailyEnergyFixture,
+                dailyEnergyFixture.setting("id", to: .string("energy-2"))
+                    .setting("energyOn", to: .string("2026-06-26"))
+                    .setting("activeKcal", to: .string("100"))
+                    .setting("restingKcal", to: .string("150"))
+            ])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+
+        let overview = try await repository.nutritionOverview()
+
+        XCTAssertEqual(overview.days.count, 2)
+        XCTAssertEqual(overview.dailyEnergyEntries.count, 2)
+        let todayBalance = overview.balance(for: "2026-06-27")
+        XCTAssertEqual(todayBalance.caloriesIn, 250, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(todayBalance.caloriesOut), 2000, accuracy: 0.001)
+        let average = try XCTUnwrap(overview.rollingNetAverage(endingOn: "2026-06-27", days: 7))
+        XCTAssertEqual(average.includedDayCount, 2)
+        XCTAssertEqual(average.windowDayCount, 7)
+        XCTAssertEqual(average.averageNet, -875, accuracy: 0.001)
+        XCTAssertEqual(average.state, .deficit)
     }
 
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {
@@ -778,6 +809,12 @@ private extension JSONValue {
     subscript(key: String) -> JSONValue? {
         guard case let .object(object) = self else { return nil }
         return object[key]
+    }
+
+    func setting(_ key: String, to value: JSONValue) -> JSONValue {
+        guard case var .object(object) = self else { return self }
+        object[key] = value
+        return .object(object)
     }
 
     func recursivelyContainsKey(_ key: String) -> Bool {

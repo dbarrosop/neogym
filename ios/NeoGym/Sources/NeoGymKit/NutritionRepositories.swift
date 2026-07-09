@@ -25,6 +25,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func deletePlan(id: String) async throws
 
     func listNutritionDays() async throws -> [NutritionDay]
+    func nutritionOverview() async throws -> NutritionOverviewPayload
     func openDailyIntake(date: String) async throws -> DailyIntakePayload
     func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
@@ -36,6 +37,12 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func updateLogMeal(id: String, values: LogMealUpdateValues) async throws
     func deleteLogEntry(id: String) async throws
     func deleteLogMeal(id: String) async throws
+}
+
+public extension NutritionFoodMealRepositoryProtocol {
+    func nutritionOverview() async throws -> NutritionOverviewPayload {
+        NutritionOverviewPayload(days: try await listNutritionDays(), dailyEnergyEntries: [])
+    }
 }
 
 public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
@@ -231,11 +238,18 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     }
 
     public func listNutritionDays() async throws -> [NutritionDay] {
+        try await nutritionOverview().days
+    }
+
+    public func nutritionOverview() async throws -> NutritionOverviewPayload {
         let data: NutritionDaysIndexData = try await graphQL.execute(
             query: Self.nutritionDaysIndexQuery,
             operationName: "NutritionDaysIndex"
         )
-        return data.nutritionDays
+        return NutritionOverviewPayload(
+            days: data.nutritionDays,
+            dailyEnergyEntries: data.dailyEnergyEntries ?? []
+        )
     }
 
     public func openDailyIntake(date: String) async throws -> DailyIntakePayload {
@@ -403,7 +417,10 @@ private struct SaveNutritionPlanData: Decodable, Sendable {
     }
 }
 private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritionPlan: MutationIdPayload? }
-private struct NutritionDaysIndexData: Decodable, Sendable { let nutritionDays: [NutritionDay] }
+private struct NutritionDaysIndexData: Decodable, Sendable {
+    let nutritionDays: [NutritionDay]
+    let dailyEnergyEntries: [DailyEnergy]?
+}
 private struct DailyIntakeLogData: Decodable, Sendable {
     let nutritionDays: [NutritionDay]
     let dailyEnergyEntries: [DailyEnergy]
