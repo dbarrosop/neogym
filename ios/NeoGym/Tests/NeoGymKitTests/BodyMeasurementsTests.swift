@@ -229,6 +229,22 @@ final class HealthBodyMeasurementImportTests: XCTestCase {
 
 @MainActor
 final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
+    func testLoadIgnoresCancellationAndPreservesPreviousMeasurements() async throws {
+        let repository = FakeBodyMeasurementsRepository(measurements: [
+            BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
+        ])
+        let viewModel = BodyMeasurementsListViewModel(repository: repository)
+
+        await viewModel.load()
+        await repository.setListError(GraphQLDomainError.transport(
+            "The operation couldn't be completed. (Swift.CancellationError error 1.)"
+        ))
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.state.errorMessage)
+        XCTAssertEqual(viewModel.measurements.map(\.id), ["existing"])
+    }
+
     func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
         let repository = FakeBodyMeasurementsRepository(measurements: [
             BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
@@ -357,13 +373,19 @@ final class BodyMeasurementsErrorMapperTests: XCTestCase {
 private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
     private var measurements: [BodyMeasurement]
     private var createdValues: [BodyMeasurementFormValues] = []
+    private var listError: Error?
 
     init(measurements: [BodyMeasurement]) {
         self.measurements = measurements
     }
 
     func listMeasurements() async throws -> [BodyMeasurement] {
-        measurements
+        if let listError { throw listError }
+        return measurements
+    }
+
+    func setListError(_ error: Error?) {
+        listError = error
     }
 
     func measurement(id: String) async throws -> BodyMeasurement? {
