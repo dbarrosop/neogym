@@ -36,6 +36,8 @@ public final class WorkoutsListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.listWorkouts())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -88,6 +90,8 @@ public final class WorkoutDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(workout)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -136,6 +140,8 @@ public final class WorkoutEditorViewModel: ObservableObject {
                 let labels = try await repository.labels()
                 state = .loaded(WorkoutEditPayload(workout: nil, labels: labels))
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

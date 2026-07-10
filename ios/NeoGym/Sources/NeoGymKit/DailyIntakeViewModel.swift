@@ -32,6 +32,8 @@ public final class NutritionDaysListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.nutritionOverview())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -80,6 +82,8 @@ public final class DailyIntakeViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.openDailyIntake(date: date))
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

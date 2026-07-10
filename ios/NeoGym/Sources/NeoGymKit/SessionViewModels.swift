@@ -58,7 +58,7 @@ public final class SessionsListViewModel: ObservableObject {
             hasNextPage = loaded.count == pageSize
             state = .loaded(loaded)
         } catch where GraphQLDomainError.isCancellation(error) {
-            state = state.value.map(Loadable.loaded) ?? .idle
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -73,7 +73,7 @@ public final class SessionsListViewModel: ObservableObject {
             hasNextPage = loaded.count == pageSize
             state = .loaded(sessions + loaded)
         } catch where GraphQLDomainError.isCancellation(error) {
-            // A view transition can cancel pagination/list reloads; keep the current list instead of surfacing it.
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -119,7 +119,7 @@ public final class SessionDetailViewModel: ObservableObject {
             state = .loaded(session)
             await loadPriorHistory(for: session)
         } catch where GraphQLDomainError.isCancellation(error) {
-            state = state.value.map(Loadable.loaded) ?? .idle
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -218,7 +218,7 @@ public final class SessionDetailViewModel: ObservableObject {
             )
             priorHistoryState = .loaded(history)
         } catch where GraphQLDomainError.isCancellation(error) {
-            priorHistoryState = priorHistoryState.value.map(Loadable.loaded) ?? .idle
+            priorHistoryState = priorHistoryState.cancellationFallback
         } catch {
             // Prior history is decorative; keep the main session detail usable if it fails.
             priorHistoryState = .failed(

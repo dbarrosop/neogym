@@ -68,6 +68,8 @@ public final class ExercisesListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.listExercises())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(
                 message: GraphQLDomainError.map(error).localizedDescription,
@@ -265,6 +267,8 @@ public final class ExerciseDetailViewModel: ObservableObject {
             } else {
                 state = .failed(message: "Exercise not found.", previous: nil)
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(
                 message: GraphQLDomainError.map(error).localizedDescription,

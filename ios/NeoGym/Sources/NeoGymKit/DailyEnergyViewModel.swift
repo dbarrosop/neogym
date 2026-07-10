@@ -49,6 +49,8 @@ public final class DailyEnergyListViewModel: ObservableObject {
             if shouldSyncHealthEnergy {
                 await syncHealthEnergy(skippingExistingDatesFrom: entries)
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: DailyEnergyErrorMapper.message(for: error), previous: state.value)
         }
@@ -63,6 +65,8 @@ public final class DailyEnergyListViewModel: ObservableObject {
             let nextEntries = try await repository.listEntries(limit: pageSize, offset: entries.count)
             hasMore = nextEntries.count == pageSize
             state = .loaded(entries + nextEntries)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            loadMoreErrorMessage = nil
         } catch {
             loadMoreErrorMessage = DailyEnergyErrorMapper.message(for: error)
         }
@@ -130,6 +134,8 @@ public final class DailyEnergyListViewModel: ObservableObject {
                 updatedCount: updatedCount,
                 skippedExistingCount: skippedExistingCount
             ))
+        } catch where GraphQLDomainError.isCancellation(error) {
+            healthSyncState = healthSyncState.cancellationFallback
         } catch {
             healthSyncState = .failed(
                 message: DailyEnergyErrorMapper.message(for: error),
@@ -185,6 +191,8 @@ public final class DailyEnergyDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(entry)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: DailyEnergyErrorMapper.message(for: error), previous: state.value)
         }
@@ -230,6 +238,8 @@ public final class DailyEnergyEditorViewModel: ObservableObject {
                 return
             }
             state = .loaded(entry)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: DailyEnergyErrorMapper.message(for: error), previous: state.value)
         }

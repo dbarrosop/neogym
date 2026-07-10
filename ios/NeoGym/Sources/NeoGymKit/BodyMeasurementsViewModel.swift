@@ -33,6 +33,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
             if shouldSyncHealthMeasurements {
                 await syncHealthMeasurements(skippingExistingDatesFrom: measurements)
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
         }
@@ -58,6 +60,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                 importedCount: importableValues.count,
                 skippedExistingCount: importedMeasurements.count - importableValues.count
             ))
+        } catch where GraphQLDomainError.isCancellation(error) {
+            healthSyncState = healthSyncState.cancellationFallback
         } catch {
             healthSyncState = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: healthSyncState.value)
         }
@@ -86,6 +90,8 @@ public final class BodyMeasurementDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(measurement)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
         }
@@ -131,6 +137,8 @@ public final class BodyMeasurementEditorViewModel: ObservableObject {
                 return
             }
             state = .loaded(measurement)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
         }

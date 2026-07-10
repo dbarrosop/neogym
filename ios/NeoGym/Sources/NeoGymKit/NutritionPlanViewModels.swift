@@ -48,6 +48,8 @@ public final class NutritionPlansListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.listPlans())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -76,6 +78,8 @@ public final class NutritionPlanDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(plan)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -119,6 +123,8 @@ public final class NutritionPlanEditorViewModel: ObservableObject {
                 let foods = try await repository.foodsForMealForm()
                 state = .loaded(NutritionPlanEditPayload(plan: nil, meals: meals, foods: foods))
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

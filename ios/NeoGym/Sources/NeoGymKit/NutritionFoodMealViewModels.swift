@@ -45,6 +45,8 @@ public final class FoodsListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.listFoods())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -73,6 +75,8 @@ public final class FoodDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(food)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -122,6 +126,8 @@ public final class FoodEditorViewModel: ObservableObject {
                 return
             }
             state = .loaded(food)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -211,6 +217,8 @@ public final class MealsListViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.listMeals())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -239,6 +247,8 @@ public final class MealDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(meal)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -280,6 +290,8 @@ public final class MealEditorViewModel: ObservableObject {
                 let foods = try await repository.foodsForMealForm()
                 state = .loaded(MealEditPayload(meal: nil, foods: foods))
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
