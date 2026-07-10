@@ -77,9 +77,13 @@ changes.
   (`HKStatisticsCollectionQuery`, `.cumulativeSum`, local-midnight anchor,
   `DateComponents(day: 1)`). The pure `HealthDailyEnergyGrouper` drops
   non-finite/`<= 0` values per metric independently and skips only days where
-  both metrics are absent. Daily energy sync creates missing dates and refreshes
-  the last 7 local calendar days only for rows still carrying the exact
-  "Imported from Apple Health" note; manual or edited rows are not overwritten.
+  both metrics are absent. Daily energy sync runs from the Energy subsection and
+  from the Nutrition overview on initial load and pull-to-refresh; it creates
+  missing dates and refreshes the last 7 local calendar days only for rows still
+  carrying the exact "Imported from Apple Health" note; manual or edited rows
+  are not overwritten. Body measurement HealthKit sync likewise runs from both
+  the Body subsection and the Nutrition overview on initial load and
+  pull-to-refresh.
 
 ## Native iOS design guide
 
@@ -116,17 +120,22 @@ intact instead of inventing one-off styles.
   `SessionsListView` no longer takes that binding. **Nutrition (Phase 2b,
   shipped):** `NutritionNavigationView` mirrors the Workouts hub — its root is a
   native `List` of the same glass rows (`NutritionHubRow`: Overview / Days /
-  Plans / Foods / Meals, each SF Symbol + title + chevron, ≥44pt, accessibility
-  labels) that PUSH subsection-list routes (`NutritionRoute.overview` /
-  `.daysList` / `.plansList` / `.foodsList` / `.mealsList`) via
-  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
-  area segmented `Picker` lives in the Nutrition hub's nav-bar **principal**
-  slot, matching 2a exactly. New plan / New food / New meal live on their
-  subsection list's own `.bottomBar` via `RootPrimaryActionToolbar` (not
-  shell-owned). The Overview screen (a pushed route) cross-links only to
-  individual days: `openDay(date)` appends `.day(date)` (DailyIntakeView)
-  directly from the recent daily logs — there is no more `selectedDate` handoff,
-  so `NutritionDaysView` no longer takes a `selectedDate` binding. Post-create,
+  Plans / Foods / Meals / Body / Energy, each SF Symbol + title + chevron, ≥44pt,
+  accessibility labels) that PUSH subsection-list routes (`NutritionRoute.overview` /
+  `.daysList` / `.plansList` / `.foodsList` / `.mealsList` / `.bodyList` /
+  `.energyList`) via `.navigationDestination(for:)`, each with its own inline
+  `navigationTitle`. The area segmented `Picker` lives in the Nutrition hub's
+  nav-bar **principal** slot, matching 2a exactly. New plan / New food / New
+  meal / Log measurement / Log energy live on their subsection list's own
+  `.bottomBar` via `RootPrimaryActionToolbar` (not shell-owned). Energy hosts
+  the daily active/resting kcal CRUD list, trend, and read-only HealthKit import
+  under the Nutrition hub. The Overview screen (a pushed route) is a dashboard:
+  it auto-syncs Body measurements and Energy from HealthKit on load and
+  pull-to-refresh, then shows Energy balance, the Calories consumed chart, and
+  Body composition trends; it no longer shows the old intro copy or recent
+  daily-log list. There
+  is no more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
+  `selectedDate` binding. Post-create,
   the create view pops itself via
   `dismiss()` (removing the top create route) and the shell's
   `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
@@ -135,20 +144,17 @@ intact instead of inventing one-off styles.
   the hub. Do not re-add a `removeLast()` there — the create view's `dismiss()`
   already removes the create route, so an extra pop would strand Back on the hub.
   **Me (hub, shipped):** `MeNavigationView` mirrors the Workouts/Nutrition hubs —
-  its root is a native `List` of the same glass rows (`MeHubRow`: Profile / Body /
-  Energy / Journal, each SF Symbol + title + chevron, ≥44pt, accessibility
-  labels) that PUSH subsection-list routes (`MeRoute.profile` / `.bodyList` /
-  `.energyList` / `.journalList`) via `.navigationDestination(for:)`, each with
-  its own inline `navigationTitle`. The area segmented `Picker` lives in the Me
-  hub's nav-bar **principal** slot, matching 2a/2b exactly. Energy hosts the
-  daily active/resting kcal CRUD list, trend, and read-only HealthKit import
-  under the Me hub. Log measurement lives on the `.bodyList` subsection list's
-  own `.bottomBar` and New entry on `.journalList`'s, both via
-  `RootPrimaryActionToolbar` (not shell-owned). Post-create, the create view pops
+  its root is a native `List` of the same glass rows (`MeHubRow`: Profile /
+  Journal, each SF Symbol + title + chevron, ≥44pt, accessibility labels) that
+  PUSH subsection-list routes (`MeRoute.profile` / `.journalList`) via
+  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
+  area segmented `Picker` lives in the Me hub's nav-bar **principal** slot,
+  matching 2a/2b exactly. New entry lives on `.journalList`'s own `.bottomBar`
+  via `RootPrimaryActionToolbar` (not shell-owned). Post-create, the create view pops
   itself via `dismiss()` (removing the top create route) and the shell's
   `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
-  runloop tick (e.g. `[.bodyList, .bodyMeasurementCreate]` → `[.bodyList]` →
-  `[.bodyList, .bodyMeasurementDetail(id)]`) so Back returns to the subsection
+  runloop tick (e.g. `[.journalList, .journalEntryCreate]` → `[.journalList]` →
+  `[.journalList, .journalEntryDetail(id)]`) so Back returns to the subsection
   list, not the hub. Do not re-add a `removeLast()` there. Pushed form
   routes put Cancel in the top-leading `.cancellationAction` and Save in the
   top-trailing `.confirmationAction`; there is no top-trailing overflow menu.
@@ -180,8 +186,9 @@ intact instead of inventing one-off styles.
   session detail while the timer runs, the on-screen pill disappears but the
   timer keeps running via its Live Activity + local notification. Every hub's
   subsection lists own their create/log in the single `.bottomBar` (New workout on
-  `.workoutsList`; New plan/food/meal on `.plansList`/`.foodsList`/`.mealsList`;
-  Log measurement on `.bodyList`; New entry on `.journalList`). There is exactly
+  `.workoutsList`; New plan/food/meal, Log measurement, and Log energy on
+  Nutrition's `.plansList`/`.foodsList`/`.mealsList`/`.bodyList`/`.energyList`;
+  New entry on Me's `.journalList`). There is exactly
   one bottom band (create/log + rest timer + detail actions) and no tab bar.
   Root list
   pages rely on standard navigation-title spacing and native safe-area insets; do

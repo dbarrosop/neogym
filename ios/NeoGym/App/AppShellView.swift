@@ -59,6 +59,10 @@ struct AppShellView: View {
             areaView(.nutrition) {
                 NutritionNavigationView(
                     repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
+                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                    bodyHealthImporter: Self.makeBodyHealthImporter(),
+                    energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
+                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     currentUserId: session.user?.id,
                     areaSelection: $selection
                 )
@@ -67,10 +71,6 @@ struct AppShellView: View {
             areaView(.me) {
                 MeNavigationView(
                     session: session,
-                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
-                    bodyHealthImporter: Self.makeBodyHealthImporter(),
-                    energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
-                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     journalRepository: JournalRepository(graphQL: environment.graphQLService),
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,

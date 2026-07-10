@@ -80,7 +80,7 @@ struct BodyMeasurementsListView: View {
                             message: "Log your first measurement to start seeing trends.",
                             systemImage: "heart.text.square"
                         )
-                        NavigationLink(value: MeRoute.bodyMeasurementCreate) {
+                        NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
                             Label("Log your first measurement", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -96,7 +96,7 @@ struct BodyMeasurementsListView: View {
                     SectionShell(title: "Measurements", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.measurements) { measurement in
-                                NavigationLink(value: MeRoute.bodyMeasurementDetail(measurement.id)) {
+                                NavigationLink(value: NutritionRoute.bodyMeasurementDetail(measurement.id)) {
                                     BodyMeasurementListRow(measurement: measurement)
                                 }
                                 if measurement.id != viewModel.measurements.last?.id { Divider() }

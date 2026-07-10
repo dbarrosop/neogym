@@ -71,10 +71,11 @@ and delete flows. The primary navbar includes Energy as its own top-level item;
 the mobile tab bar is horizontally scrollable to accommodate all eight top-level
 items.
 
-The native app exposes Energy as a Me-tab subsection alongside Profile, Body,
-and Journal. `NeoGymKit` owns the host-testable `DailyEnergy*` models,
-repository, validation, view models, trend builders, and pure HealthKit grouping
-helpers; SwiftUI views under `ios/NeoGym/App/` own presentation and navigation.
+The native app exposes Energy as a Nutrition subsection alongside Overview,
+Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
+`DailyEnergy*` models, repository, validation, view models, trend builders, and
+pure HealthKit grouping helpers; SwiftUI views under `ios/NeoGym/App/` own
+presentation and navigation.
 
 ## One-way HealthKit import
 
@@ -98,6 +99,8 @@ Import rules:
   so historical import remains one-way fill-missing behavior. If a stale list
   races another writer and hits `daily_energy_user_date_key`, the sync treats
   that conflict as a skipped existing row rather than a fatal import error.
+- iOS sync runs when the Energy subsection loads, when that subsection is
+  pull-refreshed, and when the Nutrition overview loads or is pull-refreshed.
 - On each iOS sync, the last 7 local calendar days (today plus the previous 6
   days) are refreshed from HealthKit **only** when the existing row still carries
   the exact "Imported from Apple Health" note. Manual rows or edited imported

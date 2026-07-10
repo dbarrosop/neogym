@@ -120,27 +120,28 @@ segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
 root so a pending session opens regardless of which subsection is showing.
 **Nutrition (Phase 2b) is now a hub too:** its root is a native `List` of
-tappable glass rows (Overview/Days/Plans/Foods/Meals) that push subsection-list
-routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`)
+tappable glass rows (Overview/Days/Plans/Foods/Meals/Body/Energy) that push subsection-list
+routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`/`.bodyList`/`.energyList`)
 via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
 area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
-and New plan/food/meal live on their subsection list's own `.bottomBar`. The
-Overview screen (a pushed route) cross-links only to individual days:
-`openDay(date)` pushes `.day(date)` directly from the recent daily logs (no more
-`selectedDate` handoff, so `NutritionDaysView` no longer takes that binding);
-after a create the shell replaces only the top create route with the new detail
-route so Back returns to the subsection list, not the hub.
+and New plan/food/meal, Log measurement, and Log energy live on their subsection
+list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
+trend, and read-only HealthKit import under the Nutrition hub. The Overview
+screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
+Energy from HealthKit on load and pull-to-refresh, then shows Energy balance,
+the Calories consumed chart, and Body composition trends; it does not show the
+old intro copy or recent daily-log list. `NutritionDaysView` no longer takes a
+`selectedDate` binding. After a create the shell replaces only the top create
+route with the new detail route so Back returns to the subsection list, not the
+hub.
 **Me is now a hub too:** its root is a native `List` of tappable glass rows
-(Profile/Body/Energy/Journal) that push subsection-list routes
-(`MeRoute.profile`/`.bodyList`/`.energyList`/`.journalList`) via
+(Profile/Journal) that push subsection-list routes (`MeRoute.profile`/`.journalList`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area
-segmented `Picker` lives in the Me hub's nav-bar **principal** slot, and Log
-measurement/New entry live on the `.bodyList`/`.journalList` subsection list's
-own `.bottomBar` via `RootPrimaryActionToolbar`. Energy hosts the daily
-active/resting kcal CRUD list, trend, and read-only HealthKit import under the
-Me hub. After a create the shell appends only the new detail route (the create
-view's `dismiss()` already popped the create route) so Back returns to the
-subsection list, not the hub. All three areas (Workouts/Nutrition/Me) are hubs;
+segmented `Picker` lives in the Me hub's nav-bar **principal** slot, and New
+entry lives on the `.journalList` subsection list's own `.bottomBar` via
+`RootPrimaryActionToolbar`. After a create the shell appends only the new detail
+route (the create view's `dismiss()` already popped the create route) so Back
+returns to the subsection list, not the hub. All three areas (Workouts/Nutrition/Me) are hubs;
 there is **exactly one bottom band** holding create/log, the rest timer, and
 detail actions, and no tab bar. Pushed form routes put Cancel in the top-leading
 `.cancellationAction`, Save in the top-trailing `.confirmationAction`, and

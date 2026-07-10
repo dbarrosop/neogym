@@ -71,6 +71,8 @@ struct TimeSeriesTrendChartView: View {
                 id: singleSeries.id,
                 name: singleSeries.name,
                 color: singleSeries.color,
+                axis: singleSeries.axis,
+                centersAxisOnZero: singleSeries.centersAxisOnZero,
                 points: singleSeries.points.filter { point in
                     point.date >= dateRange.start && point.date < dateRange.endExclusive
                 },

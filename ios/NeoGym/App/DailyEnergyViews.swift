@@ -79,7 +79,7 @@ struct DailyEnergyListView: View {
                             message: "Log active or resting energy to start seeing trends.",
                             systemImage: "flame"
                         )
-                        NavigationLink(value: MeRoute.energyCreate) {
+                        NavigationLink(value: NutritionRoute.energyCreate) {
                             Label("Log your first energy entry", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -96,7 +96,7 @@ struct DailyEnergyListView: View {
                     SectionShell(title: "Energy", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.entries) { entry in
-                                NavigationLink(value: MeRoute.energyDetail(entry.id)) {
+                                NavigationLink(value: NutritionRoute.energyDetail(entry.id)) {
                                     DailyEnergyListRow(entry: entry)
                                 }
                                 if entry.id != viewModel.entries.last?.id { Divider() }

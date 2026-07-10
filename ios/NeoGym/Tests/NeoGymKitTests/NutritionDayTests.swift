@@ -62,6 +62,14 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertEqual(average.windowDayCount, 7)
         XCTAssertEqual(average.averageNet, -875, accuracy: 0.001)
         XCTAssertEqual(average.state, .deficit)
+        XCTAssertEqual(overview.dailyNetValues(), [
+            DatedCalorieNet(date: "2026-06-26", net: 0),
+            DatedCalorieNet(date: "2026-06-27", net: -1750)
+        ])
+        XCTAssertEqual(overview.rollingNetAverageValues(days: 7), [
+            DatedCalorieNet(date: "2026-06-26", net: 0),
+            DatedCalorieNet(date: "2026-06-27", net: -875)
+        ])
     }
 
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {

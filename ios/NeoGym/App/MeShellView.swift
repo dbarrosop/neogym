@@ -4,8 +4,6 @@ import SwiftUI
 
 enum MeSection: String, CaseIterable, Identifiable {
     case profile
-    case body
-    case energy
     case journal
 
     var id: String { rawValue }
@@ -13,8 +11,6 @@ enum MeSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .profile: "Profile"
-        case .body: "Body"
-        case .energy: "Energy"
         case .journal: "Journal"
         }
     }
@@ -22,8 +18,6 @@ enum MeSection: String, CaseIterable, Identifiable {
     var systemImage: String? {
         switch self {
         case .profile: "person.crop.circle"
-        case .body: "scalemass"
-        case .energy: "flame"
         case .journal: "book.closed"
         }
     }
@@ -31,10 +25,6 @@ enum MeSection: String, CaseIterable, Identifiable {
 
 struct MeNavigationView: View {
     let session: StoredSession
-    let bodyRepository: any BodyMeasurementsRepositoryProtocol
-    let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
-    let energyRepository: any DailyEnergyRepositoryProtocol
-    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let journalRepository: any JournalRepositoryProtocol
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
@@ -95,8 +85,6 @@ struct MeNavigationView: View {
     private func subsectionRoute(for section: MeSection) -> MeRoute {
         switch section {
         case .profile: .profile
-        case .body: .bodyList
-        case .energy: .energyList
         case .journal: .journalList
         }
     }
@@ -104,28 +92,8 @@ struct MeNavigationView: View {
     @ViewBuilder
     private func routeDestination(for route: MeRoute) -> some View {
         switch route {
-        case .profile, .bodyList, .energyList, .journalList:
+        case .profile, .journalList:
             subsectionListDestination(for: route)
-        case let .bodyMeasurementDetail(measurementId):
-            BodyMeasurementDetailView(
-                measurementId: measurementId,
-                repository: bodyRepository,
-                onDeleted: invalidateLists,
-                onMutated: invalidateLists
-            )
-        case .bodyMeasurementCreate:
-            BodyMeasurementCreateView(
-                repository: bodyRepository,
-                onCreated: { id in
-                    invalidateLists()
-                    openRouteAfterCurrentTransition(.bodyMeasurementDetail(id))
-                },
-                onFinished: invalidateLists
-            )
-        case let .energyDetail(entryId):
-            dailyEnergyDetailDestination(entryId: entryId)
-        case .energyCreate:
-            dailyEnergyCreateDestination()
         case let .journalEntryDetail(entryId):
             JournalEntryDetailView(
                 entryId: entryId,
@@ -157,23 +125,6 @@ struct MeNavigationView: View {
             )
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
-        case .bodyList:
-            BodyMeasurementsListView(
-                repository: bodyRepository,
-                healthImporter: bodyHealthImporter,
-                reloadToken: reloadToken
-            )
-            .navigationTitle("Body")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                RootPrimaryActionToolbar(
-                    title: "Log measurement",
-                    systemImage: "plus",
-                    action: openBodyMeasurementCreate
-                )
-            }
-        case .energyList:
-            dailyEnergyListDestination()
         case .journalList:
             JournalListView(repository: journalRepository, reloadToken: reloadToken)
                 .navigationTitle("Journal")
@@ -185,55 +136,9 @@ struct MeNavigationView: View {
                         action: openJournalEntryCreate
                     )
                 }
-        case .bodyMeasurementDetail, .bodyMeasurementCreate, .energyDetail, .energyCreate, .journalEntryDetail,
-             .journalEntryCreate:
+        case .journalEntryDetail, .journalEntryCreate:
             EmptyView()
         }
-    }
-
-    private func dailyEnergyListDestination() -> some View {
-        DailyEnergyListView(
-            repository: energyRepository,
-            healthImporter: energyHealthImporter,
-            reloadToken: reloadToken
-        )
-        .navigationTitle("Energy")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            RootPrimaryActionToolbar(
-                title: "Log energy",
-                systemImage: "plus",
-                action: openDailyEnergyCreate
-            )
-        }
-    }
-
-    private func dailyEnergyDetailDestination(entryId: String) -> some View {
-        DailyEnergyDetailView(
-            entryId: entryId,
-            repository: energyRepository,
-            onDeleted: invalidateLists,
-            onMutated: invalidateLists
-        )
-    }
-
-    private func dailyEnergyCreateDestination() -> some View {
-        DailyEnergyCreateView(
-            repository: energyRepository,
-            onCreated: { id in
-                invalidateLists()
-                openRouteAfterCurrentTransition(.energyDetail(id))
-            },
-            onFinished: invalidateLists
-        )
-    }
-
-    private func openBodyMeasurementCreate() {
-        path.append(.bodyMeasurementCreate)
-    }
-
-    private func openDailyEnergyCreate() {
-        path.append(.energyCreate)
     }
 
     private func openJournalEntryCreate() {
