@@ -30,6 +30,8 @@ public final class JournalListViewModel: ObservableObject {
             labels = payload.labels
             hasMore = payload.entries.count == pageSize
             state = .loaded(payload.entries)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -49,6 +51,8 @@ public final class JournalListViewModel: ObservableObject {
             if labels.isEmpty { labels = payload.labels }
             hasMore = payload.entries.count == pageSize
             state = .loaded(entries + payload.entries)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            loadMoreErrorMessage = nil
         } catch {
             loadMoreErrorMessage = GraphQLDomainError.map(error).localizedDescription
         }
@@ -91,6 +95,8 @@ public final class JournalEntryDetailViewModel: ObservableObject {
                 return
             }
             state = .loaded(entry)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -137,6 +143,8 @@ public final class JournalEntryEditorViewModel: ObservableObject {
                 let labels = try await repository.labels()
                 state = .loaded(JournalEditPayload(entry: nil, labels: labels))
             }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

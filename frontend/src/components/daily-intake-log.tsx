@@ -32,6 +32,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import {
+  calculateDailyEnergyBalance,
+  type DailyEnergyBalance,
+  type DailyEnergyNumericValue,
+} from "@/lib/daily-energy";
 import { gqlRequest } from "@/lib/graphql";
 import {
   type AdHocLogEntryUpdateSet,
@@ -107,6 +112,10 @@ const DailyIntakeLogQuery = graphql(`
         snapshotFiberPer100g
         snapshotSugarPer100g
       }
+    }
+    dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1) {
+      activeKcal
+      restingKcal
     }
     nutritionPlans(order_by: [{ name: asc }]) {
       id
@@ -298,15 +307,22 @@ type DailyDay = {
   nutritionLogEntries: DailyEntry[];
 };
 
+type DailyEnergyBalanceEntry = {
+  activeKcal?: DailyEnergyNumericValue;
+  restingKcal?: DailyEnergyNumericValue;
+};
+
 type DailyIntakeLogData = {
   day: DailyDay | null;
+  dailyEnergy: DailyEnergyBalanceEntry | null;
   nutritionPlans: DailyPlan[];
   meals: LogMealOption[];
   foods: DailyFood[];
 };
 
-type DailyIntakeLogQueryData = Omit<DailyIntakeLogData, "day"> & {
+type DailyIntakeLogQueryData = Omit<DailyIntakeLogData, "day" | "dailyEnergy"> & {
   nutritionDays: DailyDay[];
+  dailyEnergyEntries: DailyEnergyBalanceEntry[];
 };
 
 type EntryUpdateSet = { grams: number } | AdHocLogEntryUpdateSet;
@@ -342,6 +358,9 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const query = useQuery({
     queryKey: ["nutrition", "days", date],
     queryFn: () => openDay(date),
+    // Daily-energy edits use a separate route/query key; remounting this card should refetch
+    // the sibling dailyEnergyEntries selection rather than relying on cross-route invalidation.
+    refetchOnMount: "always",
   });
 
   const ensureDay = () => {
@@ -444,7 +463,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     return null;
   }
 
-  const { day, nutritionPlans, meals, foods } = query.data;
+  const { day, dailyEnergy, nutritionPlans, meals, foods } = query.data;
   const standaloneEntries = day?.nutritionLogEntries ?? [];
   const loggedMeals = day?.nutritionLogMeals ?? [];
   const allEntries = [
@@ -452,6 +471,12 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     ...loggedMeals.flatMap((meal) => meal.nutritionLogEntries),
   ];
   const totals = loggedMacroTotals(allEntries);
+  const calorieBalance = calculateDailyEnergyBalance({
+    caloriesIn: totals.kcal,
+    activeKcal: dailyEnergy?.activeKcal,
+    restingKcal: dailyEnergy?.restingKcal,
+    hasEnergyEntry: dailyEnergy !== null,
+  });
   const selectedPlan = day?.nutritionPlanId
     ? (nutritionPlans.find((plan) => plan.id === day.nutritionPlanId) ?? null)
     : null;
@@ -497,6 +522,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
       </div>
 
       <MacroSummary totals={totals} targetTotals={targetTotals} />
+      <CalorieBalanceCard balance={calorieBalance} date={date} />
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardContent className="space-y-4 p-4 sm:p-6">
@@ -638,7 +664,76 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
 async function openDay(date: string): Promise<DailyIntakeLogData> {
   const data = (await gqlRequest(DailyIntakeLogQuery, { date })) as DailyIntakeLogQueryData;
-  return { ...data, day: data.nutritionDays[0] ?? null };
+  return {
+    ...data,
+    day: data.nutritionDays[0] ?? null,
+    dailyEnergy: data.dailyEnergyEntries[0] ?? null,
+  };
+}
+
+function CalorieBalanceCard({ balance, date }: { balance: DailyEnergyBalance; date: string }) {
+  let netLabel = "Balance";
+  if (balance.state === "deficit") {
+    netLabel = "Deficit";
+  } else if (balance.state === "surplus") {
+    netLabel = "Surplus";
+  }
+
+  return (
+    <Card className="border-border/60 bg-muted/20">
+      <CardContent className="space-y-3 p-4 sm:p-6">
+        <div className="space-y-1">
+          <h2 className="text-sm font-medium">Calories in / out</h2>
+          <p className="text-xs text-muted-foreground">
+            Intake uses logged nutrition snapshots. Output uses the matching daily energy row.
+          </p>
+        </div>
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <BalanceTile label="In" value={formatBalanceKcal(balance.caloriesIn)} />
+          {balance.caloriesOut === null ? (
+            <BalanceTile label="Out" value="No energy logged" muted />
+          ) : (
+            <BalanceTile label="Out" value={formatBalanceKcal(balance.caloriesOut)} />
+          )}
+          {balance.net === null ? (
+            <div className="rounded-md border border-border/60 border-dashed bg-background/70 px-3 py-2 sm:col-span-1">
+              <p className="text-xs text-muted-foreground">Net</p>
+              <Button asChild size="sm" variant="link" className="h-auto p-0 text-xs">
+                <Link to="/energy/new" search={{ date }}>
+                  Add energy for this date
+                </Link>
+              </Button>
+            </div>
+          ) : (
+            <BalanceTile label={netLabel} value={formatBalanceKcal(Math.abs(balance.net))} />
+          )}
+        </dl>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BalanceTile({
+  label,
+  value,
+  muted = false,
+}: {
+  label: string;
+  value: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className={muted ? "text-sm text-muted-foreground" : "font-medium tabular-nums"}>
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function formatBalanceKcal(value: number): string {
+  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} kcal`;
 }
 
 async function createDay(date: string): Promise<string> {

@@ -16,6 +16,8 @@ enum NutritionRoute: Hashable {
     case plansList
     case foodsList
     case mealsList
+    case bodyList
+    case energyList
     case day(String)
     case planDetail(String)
     case planCreate
@@ -23,14 +25,15 @@ enum NutritionRoute: Hashable {
     case foodCreate
     case mealDetail(String)
     case mealCreate
+    case bodyMeasurementDetail(String)
+    case bodyMeasurementCreate
+    case energyDetail(String)
+    case energyCreate
 }
 
 enum MeRoute: Hashable {
     case profile
-    case bodyList
     case journalList
-    case bodyMeasurementDetail(String)
-    case bodyMeasurementCreate
     case journalEntryDetail(String)
     case journalEntryCreate
 }

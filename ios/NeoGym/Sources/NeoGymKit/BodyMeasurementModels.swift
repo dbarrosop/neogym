@@ -197,6 +197,22 @@ public struct BodyMeasurementChartPoint: Identifiable, Sendable, Equatable {
     }
 }
 
+public struct RollingBodyMeasurementAverage: Identifiable, Sendable, Equatable {
+    public let measuredOn: String
+    public let date: Date
+    public let averageWeightKg: Double?
+    public let averageBodyFatPct: Double?
+
+    public var id: String { measuredOn }
+
+    public init(measuredOn: String, date: Date, averageWeightKg: Double?, averageBodyFatPct: Double?) {
+        self.measuredOn = measuredOn
+        self.date = date
+        self.averageWeightKg = averageWeightKg
+        self.averageBodyFatPct = averageBodyFatPct
+    }
+}
+
 public struct BodyMeasurementTrendData: Sendable, Equatable {
     public let points: [BodyMeasurementChartPoint]
 
@@ -207,6 +223,27 @@ public struct BodyMeasurementTrendData: Sendable, Equatable {
     public var weightCount: Int { points.filter { $0.weightKg != nil }.count }
     public var bodyFatCount: Int { points.filter { $0.bodyFatPct != nil }.count }
     public var shouldShowChart: Bool { weightCount >= 2 || bodyFatCount >= 2 }
+
+    public func rollingAverageValues(days: Int, calendar: Calendar = .current) -> [RollingBodyMeasurementAverage] {
+        guard days > 0 else { return [] }
+        return points.map { point in
+            let start = calendar.date(byAdding: .day, value: -(days - 1), to: point.date) ?? point.date
+            let window = points.filter { candidate in
+                candidate.date >= start && candidate.date <= point.date
+            }
+            return RollingBodyMeasurementAverage(
+                measuredOn: point.measuredOn,
+                date: point.date,
+                averageWeightKg: Self.average(window.compactMap(\.weightKg)),
+                averageBodyFatPct: Self.average(window.compactMap(\.bodyFatPct))
+            )
+        }
+    }
+
+    private static func average(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
 
     public func filtered(
         by timescale: BodyMeasurementTrendTimescale,

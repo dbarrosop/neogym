@@ -59,6 +59,10 @@ struct AppShellView: View {
             areaView(.nutrition) {
                 NutritionNavigationView(
                     repository: NutritionFoodMealRepository(graphQL: environment.graphQLService),
+                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+                    bodyHealthImporter: Self.makeBodyHealthImporter(),
+                    energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
+                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     currentUserId: session.user?.id,
                     areaSelection: $selection
                 )
@@ -67,8 +71,6 @@ struct AppShellView: View {
             areaView(.me) {
                 MeNavigationView(
                     session: session,
-                    bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
-                    bodyHealthImporter: Self.makeBodyHealthImporter(),
                     journalRepository: JournalRepository(graphQL: environment.graphQLService),
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,
@@ -92,6 +94,14 @@ struct AppShellView: View {
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
         #if canImport(HealthKit) && !os(macOS)
         HealthKitBodyMeasurementImporter()
+        #else
+        nil
+        #endif
+    }
+
+    private static func makeEnergyHealthImporter() -> (any DailyEnergyHealthImporting)? {
+        #if canImport(HealthKit) && !os(macOS)
+        HealthKitDailyEnergyImporter()
         #else
         nil
         #endif

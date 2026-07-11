@@ -370,6 +370,270 @@ export enum Cursor_Ordering {
   Desc = 'DESC'
 }
 
+/** columns and relationships of "daily_energy" */
+export type DailyEnergy = {
+  __typename?: 'dailyEnergy';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt: Scalars['timestamptz']['output'];
+  energyOn: Scalars['date']['output'];
+  id: Scalars['uuid']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "daily_energy" */
+export type DailyEnergy_Aggregate = {
+  __typename?: 'dailyEnergy_aggregate';
+  aggregate?: Maybe<DailyEnergy_Aggregate_Fields>;
+  nodes: Array<DailyEnergy>;
+};
+
+/** aggregate fields of "daily_energy" */
+export type DailyEnergy_Aggregate_Fields = {
+  __typename?: 'dailyEnergy_aggregate_fields';
+  avg?: Maybe<DailyEnergy_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<DailyEnergy_Max_Fields>;
+  min?: Maybe<DailyEnergy_Min_Fields>;
+  stddev?: Maybe<DailyEnergy_Stddev_Fields>;
+  stddev_pop?: Maybe<DailyEnergy_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<DailyEnergy_Stddev_Samp_Fields>;
+  sum?: Maybe<DailyEnergy_Sum_Fields>;
+  var_pop?: Maybe<DailyEnergy_Var_Pop_Fields>;
+  var_samp?: Maybe<DailyEnergy_Var_Samp_Fields>;
+  variance?: Maybe<DailyEnergy_Variance_Fields>;
+};
+
+
+/** aggregate fields of "daily_energy" */
+export type DailyEnergy_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type DailyEnergy_Avg_Fields = {
+  __typename?: 'dailyEnergy_avg_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "daily_energy". All fields are combined with a logical 'AND'. */
+export type DailyEnergy_Bool_Exp = {
+  _and?: InputMaybe<Array<DailyEnergy_Bool_Exp>>;
+  _not?: InputMaybe<DailyEnergy_Bool_Exp>;
+  _or?: InputMaybe<Array<DailyEnergy_Bool_Exp>>;
+  activeKcal?: InputMaybe<Numeric_Comparison_Exp>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  energyOn?: InputMaybe<Date_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  notes?: InputMaybe<String_Comparison_Exp>;
+  restingKcal?: InputMaybe<Numeric_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "daily_energy" */
+export enum DailyEnergy_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  DailyEnergyPkey = 'daily_energy_pkey',
+  /** unique or primary key constraint on columns "user_id", "energy_on" */
+  DailyEnergyUserDateKey = 'daily_energy_user_date_key'
+}
+
+/** input type for incrementing numeric columns in table "daily_energy" */
+export type DailyEnergy_Inc_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** input type for inserting data into table "daily_energy" */
+export type DailyEnergy_Insert_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate max on columns */
+export type DailyEnergy_Max_Fields = {
+  __typename?: 'dailyEnergy_max_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  energyOn?: Maybe<Scalars['date']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type DailyEnergy_Min_Fields = {
+  __typename?: 'dailyEnergy_min_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  energyOn?: Maybe<Scalars['date']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  notes?: Maybe<Scalars['String']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "daily_energy" */
+export type DailyEnergy_Mutation_Response = {
+  __typename?: 'dailyEnergy_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<DailyEnergy>;
+};
+
+/** on_conflict condition type for table "daily_energy" */
+export type DailyEnergy_On_Conflict = {
+  constraint: DailyEnergy_Constraint;
+  update_columns?: Array<DailyEnergy_Update_Column>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "daily_energy". */
+export type DailyEnergy_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  createdAt?: InputMaybe<Order_By>;
+  energyOn?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  notes?: InputMaybe<Order_By>;
+  restingKcal?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: daily_energy */
+export type DailyEnergy_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "daily_energy" */
+export enum DailyEnergy_Select_Column {
+  /** column name */
+  ActiveKcal = 'activeKcal',
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  EnergyOn = 'energyOn',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Notes = 'notes',
+  /** column name */
+  RestingKcal = 'restingKcal',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "daily_energy" */
+export type DailyEnergy_Set_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type DailyEnergy_Stddev_Fields = {
+  __typename?: 'dailyEnergy_stddev_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type DailyEnergy_Stddev_Pop_Fields = {
+  __typename?: 'dailyEnergy_stddev_pop_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type DailyEnergy_Stddev_Samp_Fields = {
+  __typename?: 'dailyEnergy_stddev_samp_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "dailyEnergy" */
+export type DailyEnergy_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: DailyEnergy_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type DailyEnergy_Stream_Cursor_Value_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  energyOn?: InputMaybe<Scalars['date']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  restingKcal?: InputMaybe<Scalars['numeric']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type DailyEnergy_Sum_Fields = {
+  __typename?: 'dailyEnergy_sum_fields';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  restingKcal?: Maybe<Scalars['numeric']['output']>;
+};
+
+/** update columns of table "daily_energy" */
+export enum DailyEnergy_Update_Column {
+  /** column name */
+  ActiveKcal = 'activeKcal',
+  /** column name */
+  EnergyOn = 'energyOn',
+  /** column name */
+  Notes = 'notes',
+  /** column name */
+  RestingKcal = 'restingKcal'
+}
+
+export type DailyEnergy_Updates = {
+  /** increments the numeric columns with given value of the filtered values */
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: DailyEnergy_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type DailyEnergy_Var_Pop_Fields = {
+  __typename?: 'dailyEnergy_var_pop_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type DailyEnergy_Var_Samp_Fields = {
+  __typename?: 'dailyEnergy_var_samp_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type DailyEnergy_Variance_Fields = {
+  __typename?: 'dailyEnergy_variance_fields';
+  activeKcal?: Maybe<Scalars['Float']['output']>;
+  restingKcal?: Maybe<Scalars['Float']['output']>;
+};
+
 /** Boolean expression to compare columns of type "date". All fields are combined with logical 'AND'. */
 export type Date_Comparison_Exp = {
   _eq?: InputMaybe<Scalars['date']['input']>;
@@ -4228,6 +4492,10 @@ export type Mutation_Root = {
   deleteBodyMeasurement?: Maybe<BodyMeasurements>;
   /** delete data from the table: "body_measurements" */
   deleteBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** delete data from the table: "daily_energy" */
+  deleteDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** delete single row from the table: "daily_energy" */
+  deleteDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** delete single row from the table: "exercises" */
   deleteExercise?: Maybe<Exercises>;
   /** delete data from the table: "exercises" */
@@ -4316,6 +4584,10 @@ export type Mutation_Root = {
   insertBodyMeasurement?: Maybe<BodyMeasurements>;
   /** insert data into the table: "body_measurements" */
   insertBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** insert data into the table: "daily_energy" */
+  insertDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** insert a single row into the table: "daily_energy" */
+  insertDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** insert a single row into the table: "exercises" */
   insertExercise?: Maybe<Exercises>;
   /** insert a single row into the table: "exercises_cardio" */
@@ -4412,6 +4684,10 @@ export type Mutation_Root = {
   updateBodyMeasurement?: Maybe<BodyMeasurements>;
   /** update data of the table: "body_measurements" */
   updateBodyMeasurements?: Maybe<BodyMeasurements_Mutation_Response>;
+  /** update data of the table: "daily_energy" */
+  updateDailyEnergyEntries?: Maybe<DailyEnergy_Mutation_Response>;
+  /** update single row of the table: "daily_energy" */
+  updateDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** update single row of the table: "exercises" */
   updateExercise?: Maybe<Exercises>;
   /** update single row of the table: "exercises_cardio" */
@@ -4498,6 +4774,8 @@ export type Mutation_Root = {
   updateWorkouts?: Maybe<Workouts_Mutation_Response>;
   /** update multiples rows of table: "body_measurements" */
   update_bodyMeasurements_many?: Maybe<Array<Maybe<BodyMeasurements_Mutation_Response>>>;
+  /** update multiples rows of table: "daily_energy" */
+  update_dailyEnergy_many?: Maybe<Array<Maybe<DailyEnergy_Mutation_Response>>>;
   /** update multiples rows of table: "exercises_cardio" */
   update_exercisesCardio_many?: Maybe<Array<Maybe<ExercisesCardio_Mutation_Response>>>;
   /** update multiples rows of table: "exercises_strength" */
@@ -4552,6 +4830,18 @@ export type Mutation_RootDeleteBodyMeasurementArgs = {
 /** mutation root */
 export type Mutation_RootDeleteBodyMeasurementsArgs = {
   where: BodyMeasurements_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteDailyEnergyEntriesArgs = {
+  where: DailyEnergy_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -4820,6 +5110,20 @@ export type Mutation_RootInsertBodyMeasurementArgs = {
 export type Mutation_RootInsertBodyMeasurementsArgs = {
   objects: Array<BodyMeasurements_Insert_Input>;
   on_conflict?: InputMaybe<BodyMeasurements_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertDailyEnergyEntriesArgs = {
+  objects: Array<DailyEnergy_Insert_Input>;
+  on_conflict?: InputMaybe<DailyEnergy_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertDailyEnergyEntryArgs = {
+  object: DailyEnergy_Insert_Input;
+  on_conflict?: InputMaybe<DailyEnergy_On_Conflict>;
 };
 
 
@@ -5162,6 +5466,22 @@ export type Mutation_RootUpdateBodyMeasurementsArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateDailyEnergyEntriesArgs = {
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  where: DailyEnergy_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateDailyEnergyEntryArgs = {
+  _inc?: InputMaybe<DailyEnergy_Inc_Input>;
+  _set?: InputMaybe<DailyEnergy_Set_Input>;
+  pk_columns: DailyEnergy_Pk_Columns_Input;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateExerciseArgs = {
   _set?: InputMaybe<Exercises_Set_Input>;
   pk_columns: Exercises_Pk_Columns_Input;
@@ -5498,6 +5818,12 @@ export type Mutation_RootUpdateWorkoutsArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_BodyMeasurements_ManyArgs = {
   updates: Array<BodyMeasurements_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_DailyEnergy_ManyArgs = {
+  updates: Array<DailyEnergy_Updates>;
 };
 
 
@@ -8097,6 +8423,12 @@ export type Query_Root = {
   bodyMeasurements: Array<BodyMeasurements>;
   /** fetch aggregated fields from the table: "body_measurements" */
   bodyMeasurementsAggregate: BodyMeasurements_Aggregate;
+  /** fetch data from the table: "daily_energy" */
+  dailyEnergyEntries: Array<DailyEnergy>;
+  /** fetch aggregated fields from the table: "daily_energy" */
+  dailyEnergyEntriesAggregate: DailyEnergy_Aggregate;
+  /** fetch data from the table: "daily_energy" using primary key columns */
+  dailyEnergyEntry?: Maybe<DailyEnergy>;
   /** fetch data from the table: "exercises" using primary key columns */
   exercise?: Maybe<Exercises>;
   /** fetch data from the table: "exercises_cardio" using primary key columns */
@@ -8304,6 +8636,29 @@ export type Query_RootBodyMeasurementsAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<BodyMeasurements_Order_By>>;
   where?: InputMaybe<BodyMeasurements_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntriesArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Query_RootDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
 };
 
 
@@ -9023,6 +9378,14 @@ export type Subscription_Root = {
   bodyMeasurementsAggregate: BodyMeasurements_Aggregate;
   /** fetch data from the table in a streaming manner: "body_measurements" */
   bodyMeasurements_stream: Array<BodyMeasurements>;
+  /** fetch data from the table: "daily_energy" */
+  dailyEnergyEntries: Array<DailyEnergy>;
+  /** fetch aggregated fields from the table: "daily_energy" */
+  dailyEnergyEntriesAggregate: DailyEnergy_Aggregate;
+  /** fetch data from the table: "daily_energy" using primary key columns */
+  dailyEnergyEntry?: Maybe<DailyEnergy>;
+  /** fetch data from the table in a streaming manner: "daily_energy" */
+  dailyEnergy_stream: Array<DailyEnergy>;
   /** fetch data from the table: "exercises" using primary key columns */
   exercise?: Maybe<Exercises>;
   /** fetch data from the table: "exercises_cardio" using primary key columns */
@@ -9299,6 +9662,36 @@ export type Subscription_RootBodyMeasurements_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<BodyMeasurements_Stream_Cursor_Input>>;
   where?: InputMaybe<BodyMeasurements_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntriesArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntriesAggregateArgs = {
+  distinct_on?: InputMaybe<Array<DailyEnergy_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<DailyEnergy_Order_By>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
+};
+
+
+export type Subscription_RootDailyEnergyEntryArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootDailyEnergy_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<DailyEnergy_Stream_Cursor_Input>>;
+  where?: InputMaybe<DailyEnergy_Bool_Exp>;
 };
 
 
@@ -12553,7 +12946,7 @@ export type DailyIntakeLogQueryVariables = Exact<{
 }>;
 
 
-export type DailyIntakeLogQuery = { __typename?: 'query_root', nutritionDays: Array<{ __typename?: 'nutritionDays', id: any, logDate: any, nutritionPlanId?: any | null, nutritionLogMeals: Array<{ __typename?: 'nutritionLogMeals', id: any, mealId?: any | null, nutritionPlanMealId?: any | null, name: string, slotTime?: any | null, position: number, nutritionLogEntries: Array<{ __typename?: 'nutritionLogEntries', id: any, source: string, nutritionLogMealId?: any | null, foodId?: any | null, grams: any, position: number, slotTime?: any | null, snapshotFoodName: string, snapshotKcalPer100g: any, snapshotFatPer100g: any, snapshotCarbsPer100g: any, snapshotProteinPer100g: any, snapshotFiberPer100g: any, snapshotSugarPer100g: any }> }>, nutritionLogEntries: Array<{ __typename?: 'nutritionLogEntries', id: any, source: string, nutritionLogMealId?: any | null, foodId?: any | null, grams: any, position: number, slotTime?: any | null, snapshotFoodName: string, snapshotKcalPer100g: any, snapshotFatPer100g: any, snapshotCarbsPer100g: any, snapshotProteinPer100g: any, snapshotFiberPer100g: any, snapshotSugarPer100g: any }> }>, nutritionPlans: Array<{ __typename?: 'nutritionPlans', id: any, name: string, description?: string | null, nutritionPlanMeals: Array<{ __typename?: 'nutritionPlanMeals', id: any, slotTime: any, label?: string | null, position: number, meal: { __typename?: 'meals', id: any, name: string, description?: string | null, mealIngredients: Array<{ __typename?: 'mealIngredients', id: any, grams: any, position: number, food: { __typename?: 'foods', id: any, name: string, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> } }>, nutritionPlanFoods: Array<{ __typename?: 'nutritionPlanFoods', id: any, slotTime: any, label?: string | null, position: number, grams: any, food: { __typename?: 'foods', id: any, name: string, userId?: any | null, isPublic: boolean, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> }>, meals: Array<{ __typename?: 'meals', id: any, name: string, description?: string | null, mealIngredients: Array<{ __typename?: 'mealIngredients', id: any, grams: any, position: number, food: { __typename?: 'foods', id: any, name: string, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> }>, foods: Array<{ __typename?: 'foods', id: any, name: string, userId?: any | null, isPublic: boolean, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any }> };
+export type DailyIntakeLogQuery = { __typename?: 'query_root', nutritionDays: Array<{ __typename?: 'nutritionDays', id: any, logDate: any, nutritionPlanId?: any | null, nutritionLogMeals: Array<{ __typename?: 'nutritionLogMeals', id: any, mealId?: any | null, nutritionPlanMealId?: any | null, name: string, slotTime?: any | null, position: number, nutritionLogEntries: Array<{ __typename?: 'nutritionLogEntries', id: any, source: string, nutritionLogMealId?: any | null, foodId?: any | null, grams: any, position: number, slotTime?: any | null, snapshotFoodName: string, snapshotKcalPer100g: any, snapshotFatPer100g: any, snapshotCarbsPer100g: any, snapshotProteinPer100g: any, snapshotFiberPer100g: any, snapshotSugarPer100g: any }> }>, nutritionLogEntries: Array<{ __typename?: 'nutritionLogEntries', id: any, source: string, nutritionLogMealId?: any | null, foodId?: any | null, grams: any, position: number, slotTime?: any | null, snapshotFoodName: string, snapshotKcalPer100g: any, snapshotFatPer100g: any, snapshotCarbsPer100g: any, snapshotProteinPer100g: any, snapshotFiberPer100g: any, snapshotSugarPer100g: any }> }>, dailyEnergyEntries: Array<{ __typename?: 'dailyEnergy', activeKcal?: any | null, restingKcal?: any | null }>, nutritionPlans: Array<{ __typename?: 'nutritionPlans', id: any, name: string, description?: string | null, nutritionPlanMeals: Array<{ __typename?: 'nutritionPlanMeals', id: any, slotTime: any, label?: string | null, position: number, meal: { __typename?: 'meals', id: any, name: string, description?: string | null, mealIngredients: Array<{ __typename?: 'mealIngredients', id: any, grams: any, position: number, food: { __typename?: 'foods', id: any, name: string, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> } }>, nutritionPlanFoods: Array<{ __typename?: 'nutritionPlanFoods', id: any, slotTime: any, label?: string | null, position: number, grams: any, food: { __typename?: 'foods', id: any, name: string, userId?: any | null, isPublic: boolean, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> }>, meals: Array<{ __typename?: 'meals', id: any, name: string, description?: string | null, mealIngredients: Array<{ __typename?: 'mealIngredients', id: any, grams: any, position: number, food: { __typename?: 'foods', id: any, name: string, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any } }> }>, foods: Array<{ __typename?: 'foods', id: any, name: string, userId?: any | null, isPublic: boolean, kcalPer100g: any, fatPer100g: any, carbsPer100g: any, proteinPer100g: any, fiberPer100g: any, sugarPer100g: any }> };
 
 export type CreateNutritionDayMutationVariables = Exact<{
   object: NutritionDays_Insert_Input;
@@ -12718,6 +13111,50 @@ export type InsertBodyMeasurementMutationVariables = Exact<{
 
 
 export type InsertBodyMeasurementMutation = { __typename?: 'mutation_root', insertBodyMeasurement?: { __typename?: 'bodyMeasurements', id: any } | null };
+
+export type DailyEnergyByIdQueryVariables = Exact<{
+  id: Scalars['uuid']['input'];
+}>;
+
+
+export type DailyEnergyByIdQuery = { __typename?: 'query_root', dailyEnergyEntry?: { __typename?: 'dailyEnergy', id: any, energyOn: any, activeKcal?: any | null, restingKcal?: any | null, notes?: string | null, updatedAt: any } | null };
+
+export type EditDailyEnergyQueryVariables = Exact<{
+  id: Scalars['uuid']['input'];
+}>;
+
+
+export type EditDailyEnergyQuery = { __typename?: 'query_root', dailyEnergyEntry?: { __typename?: 'dailyEnergy', id: any, energyOn: any, activeKcal?: any | null, restingKcal?: any | null, notes?: string | null } | null };
+
+export type UpdateDailyEnergyMutationVariables = Exact<{
+  id: Scalars['uuid']['input'];
+  set: DailyEnergy_Set_Input;
+}>;
+
+
+export type UpdateDailyEnergyMutation = { __typename?: 'mutation_root', updateDailyEnergyEntry?: { __typename?: 'dailyEnergy', id: any } | null };
+
+export type DeleteDailyEnergyMutationVariables = Exact<{
+  id: Scalars['uuid']['input'];
+}>;
+
+
+export type DeleteDailyEnergyMutation = { __typename?: 'mutation_root', deleteDailyEnergyEntry?: { __typename?: 'dailyEnergy', id: any } | null };
+
+export type DailyEnergyQueryVariables = Exact<{
+  limit: Scalars['Int']['input'];
+  offset: Scalars['Int']['input'];
+}>;
+
+
+export type DailyEnergyQuery = { __typename?: 'query_root', dailyEnergyEntries: Array<{ __typename?: 'dailyEnergy', id: any, energyOn: any, activeKcal?: any | null, restingKcal?: any | null, notes?: string | null }> };
+
+export type InsertDailyEnergyMutationVariables = Exact<{
+  obj: DailyEnergy_Insert_Input;
+}>;
+
+
+export type InsertDailyEnergyMutation = { __typename?: 'mutation_root', insertDailyEnergyEntry?: { __typename?: 'dailyEnergy', id: any } | null };
 
 export type ExercisesIndexQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -13090,7 +13527,7 @@ export const BreadcrumbJournalEntryDocument = {"kind":"Document","definitions":[
 export const BreadcrumbFoodDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbFood"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"food"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<BreadcrumbFoodQuery, BreadcrumbFoodQueryVariables>;
 export const BreadcrumbMealDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbMeal"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"meal"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<BreadcrumbMealQuery, BreadcrumbMealQueryVariables>;
 export const BreadcrumbNutritionPlanDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BreadcrumbNutritionPlan"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"nutritionPlan"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<BreadcrumbNutritionPlanQuery, BreadcrumbNutritionPlanQueryVariables>;
-export const DailyIntakeLogDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DailyIntakeLog"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"date"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"date"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"nutritionDays"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"logDate"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"date"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"logDate"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanId"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMeals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"mealId"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanMealId"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMealId"}},{"kind":"Field","name":{"kind":"Name","value":"foodId"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFoodName"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotKcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotCarbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotProteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotSugarPer100g"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"nutritionLogMealId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":true}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMealId"}},{"kind":"Field","name":{"kind":"Name","value":"foodId"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFoodName"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotKcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotCarbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotProteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotSugarPer100g"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlans"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanMeals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"meal"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"mealIngredients"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanFoods"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"meals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"mealIngredients"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"foods"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"isPublic"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]} as unknown as DocumentNode<DailyIntakeLogQuery, DailyIntakeLogQueryVariables>;
+export const DailyIntakeLogDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DailyIntakeLog"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"date"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"date"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"nutritionDays"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"logDate"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"date"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"logDate"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanId"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMeals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"mealId"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanMealId"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMealId"}},{"kind":"Field","name":{"kind":"Name","value":"foodId"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFoodName"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotKcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotCarbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotProteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotSugarPer100g"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"nutritionLogMealId"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_is_null"},"value":{"kind":"BooleanValue","value":true}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"createdAt"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionLogMealId"}},{"kind":"Field","name":{"kind":"Name","value":"foodId"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFoodName"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotKcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotCarbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotProteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotFiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"snapshotSugarPer100g"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"dailyEnergyEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"energyOn"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"_eq"},"value":{"kind":"Variable","name":{"kind":"Name","value":"date"}}}]}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"activeKcal"}},{"kind":"Field","name":{"kind":"Name","value":"restingKcal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlans"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanMeals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"meal"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"mealIngredients"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanFoods"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"slotTime"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"slotTime"}},{"kind":"Field","name":{"kind":"Name","value":"label"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"meals"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"description"}},{"kind":"Field","name":{"kind":"Name","value":"mealIngredients"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"position"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"grams"}},{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"food"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"foods"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ListValue","values":[{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"isPublic"},"value":{"kind":"EnumValue","value":"asc"}}]},{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"userId"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"kcalPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fatPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"carbsPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"proteinPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"fiberPer100g"}},{"kind":"Field","name":{"kind":"Name","value":"sugarPer100g"}}]}}]}}]} as unknown as DocumentNode<DailyIntakeLogQuery, DailyIntakeLogQueryVariables>;
 export const CreateNutritionDayDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateNutritionDay"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"object"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"nutritionDays_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertNutritionDay"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"object"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<CreateNutritionDayMutation, CreateNutritionDayMutationVariables>;
 export const UpdateNutritionDayPlanDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateNutritionDayPlan"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"nutritionPlanId"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateNutritionDay"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"nutritionPlanId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"nutritionPlanId"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"nutritionPlanId"}}]}}]}}]} as unknown as DocumentNode<UpdateNutritionDayPlanMutation, UpdateNutritionDayPlanMutationVariables>;
 export const UpdateNutritionLogEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateNutritionLogEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"nutritionLogEntries_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateNutritionLogEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateNutritionLogEntryMutation, UpdateNutritionLogEntryMutationVariables>;
@@ -13114,6 +13551,12 @@ export const UpdateBodyMeasurementDocument = {"kind":"Document","definitions":[{
 export const DeleteBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteBodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteBodyMeasurementMutation, DeleteBodyMeasurementMutationVariables>;
 export const BodyMeasurementsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"BodyMeasurements"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bodyMeasurements"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"measuredOn"},"value":{"kind":"EnumValue","value":"desc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"measuredOn"}},{"kind":"Field","name":{"kind":"Name","value":"weightKg"}},{"kind":"Field","name":{"kind":"Name","value":"bodyFatPct"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}}]}}]}}]} as unknown as DocumentNode<BodyMeasurementsQuery, BodyMeasurementsQueryVariables>;
 export const InsertBodyMeasurementDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertBodyMeasurement"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"bodyMeasurements_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertBodyMeasurement"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertBodyMeasurementMutation, InsertBodyMeasurementMutationVariables>;
+export const DailyEnergyByIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DailyEnergyById"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dailyEnergyEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"energyOn"}},{"kind":"Field","name":{"kind":"Name","value":"activeKcal"}},{"kind":"Field","name":{"kind":"Name","value":"restingKcal"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<DailyEnergyByIdQuery, DailyEnergyByIdQueryVariables>;
+export const EditDailyEnergyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditDailyEnergy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dailyEnergyEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"energyOn"}},{"kind":"Field","name":{"kind":"Name","value":"activeKcal"}},{"kind":"Field","name":{"kind":"Name","value":"restingKcal"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}}]}}]}}]} as unknown as DocumentNode<EditDailyEnergyQuery, EditDailyEnergyQueryVariables>;
+export const UpdateDailyEnergyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateDailyEnergy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"set"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"dailyEnergy_set_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateDailyEnergyEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"pk_columns"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"_set"},"value":{"kind":"Variable","name":{"kind":"Name","value":"set"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<UpdateDailyEnergyMutation, UpdateDailyEnergyMutationVariables>;
+export const DeleteDailyEnergyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteDailyEnergy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteDailyEnergyEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<DeleteDailyEnergyMutation, DeleteDailyEnergyMutationVariables>;
+export const DailyEnergyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"DailyEnergy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"dailyEnergyEntries"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"energyOn"},"value":{"kind":"EnumValue","value":"desc"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"energyOn"}},{"kind":"Field","name":{"kind":"Name","value":"activeKcal"}},{"kind":"Field","name":{"kind":"Name","value":"restingKcal"}},{"kind":"Field","name":{"kind":"Name","value":"notes"}}]}}]}}]} as unknown as DocumentNode<DailyEnergyQuery, DailyEnergyQueryVariables>;
+export const InsertDailyEnergyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"InsertDailyEnergy"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"obj"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"dailyEnergy_insert_input"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"insertDailyEnergyEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"object"},"value":{"kind":"Variable","name":{"kind":"Name","value":"obj"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]} as unknown as DocumentNode<InsertDailyEnergyMutation, InsertDailyEnergyMutationVariables>;
 export const ExercisesIndexDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"ExercisesIndex"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"exercises"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"strength"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doubleWeight"}}]}},{"kind":"Field","name":{"kind":"Name","value":"primaryMuscleGroup"}},{"kind":"Field","name":{"kind":"Name","value":"category"}},{"kind":"Field","name":{"kind":"Name","value":"equipment"}},{"kind":"Field","name":{"kind":"Name","value":"level"}},{"kind":"Field","name":{"kind":"Name","value":"isPublic"}},{"kind":"Field","name":{"kind":"Name","value":"secondaryMuscleGroups"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"muscleGroup"}}]}}]}}]}}]} as unknown as DocumentNode<ExercisesIndexQuery, ExercisesIndexQueryVariables>;
 export const JournalEntryByIdDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"JournalEntryById"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryDate"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"journalEntryLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}}]}}]} as unknown as DocumentNode<JournalEntryByIdQuery, JournalEntryByIdQueryVariables>;
 export const EditJournalEntryDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"EditJournalEntry"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"journalEntry"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"entryDate"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"body"}},{"kind":"Field","name":{"kind":"Name","value":"journalEntryLabels"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"labelId"}},{"kind":"Field","name":{"kind":"Name","value":"label"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"journalLabels"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order_by"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"name"},"value":{"kind":"EnumValue","value":"asc"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"name"}}]}}]}}]} as unknown as DocumentNode<EditJournalEntryQuery, EditJournalEntryQueryVariables>;

@@ -7,6 +7,8 @@ enum NutritionSection: String, CaseIterable, Identifiable {
     case plans
     case foods
     case meals
+    case body
+    case energy
 
     var id: String { rawValue }
 
@@ -17,6 +19,8 @@ enum NutritionSection: String, CaseIterable, Identifiable {
         case .plans: "Plans"
         case .foods: "Foods"
         case .meals: "Meals"
+        case .body: "Body"
+        case .energy: "Energy"
         }
     }
 
@@ -27,12 +31,18 @@ enum NutritionSection: String, CaseIterable, Identifiable {
         case .plans: "list.bullet.rectangle.portrait"
         case .foods: "carrot"
         case .meals: "fork.knife"
+        case .body: "scalemass"
+        case .energy: "flame"
         }
     }
 }
 
 struct NutritionNavigationView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
+    let bodyRepository: any BodyMeasurementsRepositoryProtocol
+    let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
+    let energyRepository: any DailyEnergyRepositoryProtocol
+    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
     @Binding var areaSelection: AppDestination
 
@@ -94,13 +104,15 @@ struct NutritionNavigationView: View {
         case .plans: .plansList
         case .foods: .foodsList
         case .meals: .mealsList
+        case .body: .bodyList
+        case .energy: .energyList
         }
     }
 
     @ViewBuilder
     private func routeDestination(for route: NutritionRoute) -> some View {
         switch route {
-        case .overview, .daysList, .plansList, .foodsList, .mealsList:
+        case .overview, .daysList, .plansList, .foodsList, .mealsList, .bodyList, .energyList:
             subsectionListDestination(for: route)
         case let .day(date):
             DailyIntakeView(repository: repository, date: date, onClose: popRoute, onMutated: invalidateLists)
@@ -153,6 +165,26 @@ struct NutritionNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        case let .bodyMeasurementDetail(measurementId):
+            BodyMeasurementDetailView(
+                measurementId: measurementId,
+                repository: bodyRepository,
+                onDeleted: invalidateLists,
+                onMutated: invalidateLists
+            )
+        case .bodyMeasurementCreate:
+            BodyMeasurementCreateView(
+                repository: bodyRepository,
+                onCreated: { id in
+                    invalidateLists()
+                    openRouteAfterCurrentTransition(.bodyMeasurementDetail(id))
+                },
+                onFinished: invalidateLists
+            )
+        case let .energyDetail(entryId):
+            dailyEnergyDetailDestination(entryId: entryId)
+        case .energyCreate:
+            dailyEnergyCreateDestination()
         }
     }
 
@@ -162,9 +194,10 @@ struct NutritionNavigationView: View {
         case .overview:
             NutritionOverviewView(
                 repository: repository,
-                openDay: { date in
-                    path.append(.day(date))
-                }
+                bodyRepository: bodyRepository,
+                bodyHealthImporter: bodyHealthImporter,
+                energyRepository: energyRepository,
+                energyHealthImporter: energyHealthImporter
             )
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
@@ -214,7 +247,25 @@ struct NutritionNavigationView: View {
                         action: openMealCreate
                     )
                 }
-        case .day, .planDetail, .planCreate, .foodDetail, .foodCreate, .mealDetail, .mealCreate:
+        case .bodyList:
+            BodyMeasurementsListView(
+                repository: bodyRepository,
+                healthImporter: bodyHealthImporter,
+                reloadToken: reloadToken
+            )
+            .navigationTitle("Body")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                RootPrimaryActionToolbar(
+                    title: "Log measurement",
+                    systemImage: "plus",
+                    action: openBodyMeasurementCreate
+                )
+            }
+        case .energyList:
+            dailyEnergyListDestination()
+        case .day, .planDetail, .planCreate, .foodDetail, .foodCreate, .mealDetail, .mealCreate,
+             .bodyMeasurementDetail, .bodyMeasurementCreate, .energyDetail, .energyCreate:
             EmptyView()
         }
     }
@@ -241,6 +292,51 @@ struct NutritionNavigationView: View {
 
     private func openMealCreate() {
         path.append(.mealCreate)
+    }
+
+    private func dailyEnergyListDestination() -> some View {
+        DailyEnergyListView(
+            repository: energyRepository,
+            healthImporter: energyHealthImporter,
+            reloadToken: reloadToken
+        )
+        .navigationTitle("Energy")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            RootPrimaryActionToolbar(
+                title: "Log energy",
+                systemImage: "plus",
+                action: openDailyEnergyCreate
+            )
+        }
+    }
+
+    private func dailyEnergyDetailDestination(entryId: String) -> some View {
+        DailyEnergyDetailView(
+            entryId: entryId,
+            repository: energyRepository,
+            onDeleted: invalidateLists,
+            onMutated: invalidateLists
+        )
+    }
+
+    private func dailyEnergyCreateDestination() -> some View {
+        DailyEnergyCreateView(
+            repository: energyRepository,
+            onCreated: { id in
+                invalidateLists()
+                openRouteAfterCurrentTransition(.energyDetail(id))
+            },
+            onFinished: invalidateLists
+        )
+    }
+
+    private func openBodyMeasurementCreate() {
+        path.append(.bodyMeasurementCreate)
+    }
+
+    private func openDailyEnergyCreate() {
+        path.append(.energyCreate)
     }
 
     private func openRouteAfterCurrentTransition(_ route: NutritionRoute) {
@@ -292,8 +388,13 @@ private struct NutritionHubRow: View {
 }
 
 #Preview("Nutrition") {
+    let environment = NhostClientFactory.makeEnvironment()
     NutritionNavigationView(
         repository: PreviewNutritionFoodMealRepository(),
+        bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
+        bodyHealthImporter: nil,
+        energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
+        energyHealthImporter: nil,
         currentUserId: "user-1",
         areaSelection: .constant(.nutrition)
     )

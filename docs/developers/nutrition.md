@@ -42,7 +42,25 @@ Template FKs intentionally restrict deletion: a food used by any `meal_ingredien
 - Later food deletes set `nutrition_log_entries.food_id` to null but keep `source = 'food'` and the non-null `snapshot_*` values. Do not infer ad-hoc status from `food_id IS NULL`.
 - `source = 'ad_hoc'` is for one-off log-only rows. These rows must have no `food_id`, `nutrition_plan_food_id`, or `nutrition_log_meal_id`, and must provide a nonblank `snapshot_food_name` plus all non-null, nonnegative per-100g nutrient snapshots. Users may edit those snapshot fields later.
 
-Daily totals must be computed from `grams / 100 * snapshot_*`, never from the live `foods` row. Hasura `numeric` values may arrive in clients as strings, so frontend helpers should normalize before doing macro math.
+Daily totals must be computed from `grams / 100 * snapshot_*`, never from the live `foods` row.
+The read-only calories-in/out balance on daily intake screens uses those logged snapshot kcal
+totals for "in" and the same date's `daily_energy.active_kcal + daily_energy.resting_kcal`
+for "out". If no `daily_energy` row exists, clients show intake-only rather than treating
+output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
+values may arrive in clients as strings, so frontend helpers should normalize before doing
+macro math. The native Nutrition overview is a dashboard, not a shortcut list:
+on initial load and pull-to-refresh it triggers the same read-only Apple Health
+syncs used by the Body and Energy subsections, then shows Energy balance, the
+Calories consumed chart, and Body composition trends, with no intro/action copy
+or recent daily-log list. Energy balance summarizes today with logged kcal,
+active+resting energy, and net, and the calories chart overlays consumed kcal,
+daily net (`consumed - energy`), and 7-day average net. The 7-day rolling net
+average is computed from calendar days in the window that have both a nutrition
+log day and a `daily_energy` row, so
+missing energy/intake data is not silently treated as a zero-output day. The
+body composition chart overlays weight, body-fat percentage, and independent
+7-day rolling averages for both metrics; each rolling body point uses available
+measurements from that point's date plus the previous 6 local calendar days.
 
 ## Logging from templates
 

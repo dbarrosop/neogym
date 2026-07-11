@@ -117,7 +117,7 @@ erDiagram
     LABELS   ||--o{ WORKOUT_LABELS  : "applied to"
 ```
 
-## Auxiliary domains — body measurements and journal
+## Auxiliary domains — body measurements, journal, and daily energy
 
 These are unrelated to the workout/session model — they're separate per-user data streams attached directly to `auth.users`.
 
@@ -131,6 +131,15 @@ erDiagram
         date measured_on "UNIQUE per (user_id, measured_on)"
         numeric weight_kg "nullable; CHECK 0 < weight_kg < 500"
         numeric body_fat_pct "nullable; CHECK 0 <= body_fat_pct < 100"
+        text notes "nullable"
+    }
+
+    DAILY_ENERGY {
+        uuid id PK
+        uuid user_id "FK auth.users CASCADE"
+        date energy_on "UNIQUE per (user_id, energy_on)"
+        numeric active_kcal "nullable; CHECK 0 <= active_kcal < 30000"
+        numeric resting_kcal "nullable; CHECK 0 <= resting_kcal < 30000"
         text notes "nullable"
     }
 
@@ -154,12 +163,15 @@ erDiagram
     }
 
     USERS ||--o{ BODY_MEASUREMENTS                : "logs"
+    USERS ||--o{ DAILY_ENERGY                     : "logs"
     USERS ||--o{ JOURNAL_ENTRIES                  : "writes"
     USERS ||--o{ JOURNAL_LABELS                   : "owns (private)"
 
     JOURNAL_ENTRIES ||--o{ JOURNAL_ENTRY_LABELS   : "tagged with"
     JOURNAL_LABELS  ||--o{ JOURNAL_ENTRY_LABELS   : "applied to"
 ```
+
+`daily_energy` mirrors body measurements as a private date-keyed metric stream: at least one of `active_kcal` or `resting_kcal` is required, each kcal value must be non-negative and below `30000`, and `(user_id, energy_on)` is unique. See [`energy.md`](energy.md) for the GraphQL and import-facing contract.
 
 `workout_labels` uses the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint. `journal_labels` is strictly private per-user — no `is_public` column, `user_id NOT NULL` — see [`permissions.md`](permissions.md) pattern A.
 
@@ -234,10 +246,11 @@ The Hasura `user`-role select filter is `user_id = X-Hasura-User-Id OR is_public
 
 ## Cascade behavior
 
-Most cascades are `ON DELETE CASCADE` from a session/workout root, so deleting a session removes its session-exercises which remove their sets/entries. The exceptions:
+Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. One direct-user cascade worth calling out here, plus the main domain exceptions:
 
 | FK | Action | Why |
 |---|---|---|
+| `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |

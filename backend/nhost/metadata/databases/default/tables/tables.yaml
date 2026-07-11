@@ -12,6 +12,7 @@
 - "!include auth_user_security_keys.yaml"
 - "!include auth_users.yaml"
 - "!include public_body_measurements.yaml"
+- "!include public_daily_energy.yaml"
 - "!include public_exercise_categories.yaml"
 - "!include public_exercise_equipments.yaml"
 - "!include public_exercise_forces.yaml"

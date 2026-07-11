@@ -240,14 +240,160 @@ public struct NutritionDay: Decodable, Identifiable, Sendable, Equatable {
     }
 }
 
+public enum DailyCalorieBalanceState: Sendable, Equatable {
+    case intakeOnly
+    case deficit
+    case surplus
+    case balanced
+}
+
+public struct DailyCalorieBalance: Sendable, Equatable {
+    public let caloriesIn: Double
+    public let caloriesOut: Double?
+    public let net: Double?
+    public let state: DailyCalorieBalanceState
+
+    public init(caloriesIn: Double, dailyEnergy: DailyEnergy?) {
+        self.caloriesIn = caloriesIn
+        guard let dailyEnergy else {
+            caloriesOut = nil
+            net = nil
+            state = .intakeOnly
+            return
+        }
+
+        let output = (dailyEnergy.activeKcal ?? 0) + (dailyEnergy.restingKcal ?? 0)
+        caloriesOut = output
+        let computedNet = caloriesIn - output
+        net = computedNet
+        if computedNet < 0 {
+            state = .deficit
+        } else if computedNet > 0 {
+            state = .surplus
+        } else {
+            state = .balanced
+        }
+    }
+}
+
+public struct NutritionOverviewPayload: Sendable, Equatable {
+    public let days: [NutritionDay]
+    public let dailyEnergyEntries: [DailyEnergy]
+
+    public init(days: [NutritionDay], dailyEnergyEntries: [DailyEnergy] = []) {
+        self.days = days
+        self.dailyEnergyEntries = dailyEnergyEntries
+    }
+
+    public var daysByDate: [String: NutritionDay] {
+        Dictionary(uniqueKeysWithValues: days.map { ($0.logDate, $0) })
+    }
+
+    public var energyByDate: [String: DailyEnergy] {
+        Dictionary(uniqueKeysWithValues: dailyEnergyEntries.map { ($0.energyOn, $0) })
+    }
+
+    public func balance(for date: String) -> DailyCalorieBalance {
+        DailyCalorieBalance(
+            caloriesIn: daysByDate[date]?.loggedTotals.kcal ?? 0,
+            dailyEnergy: energyByDate[date]
+        )
+    }
+
+    public func rollingNetAverage(
+        endingOn endDate: String,
+        days count: Int = 7,
+        calendar: Calendar = .current
+    ) -> RollingCalorieNetAverage? {
+        let nets = netValues(endingOn: endDate, days: count, calendar: calendar)
+        guard !nets.isEmpty else { return nil }
+        let average = nets.reduce(0, +) / Double(nets.count)
+        return RollingCalorieNetAverage(
+            averageNet: average,
+            includedDayCount: nets.count,
+            windowDayCount: max(count, 1)
+        )
+    }
+
+    public func dailyNetValues() -> [DatedCalorieNet] {
+        let energyByDate = energyByDate
+        return days.compactMap { day in
+            guard let energy = energyByDate[day.logDate],
+                  let net = DailyCalorieBalance(caloriesIn: day.loggedTotals.kcal, dailyEnergy: energy).net
+            else { return nil }
+            return DatedCalorieNet(date: day.logDate, net: net)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    public func rollingNetAverageValues(days count: Int = 7, calendar: Calendar = .current) -> [DatedCalorieNet] {
+        days.compactMap { day in
+            guard let average = rollingNetAverage(endingOn: day.logDate, days: count, calendar: calendar) else {
+                return nil
+            }
+            return DatedCalorieNet(date: day.logDate, net: average.averageNet)
+        }
+        .sorted { $0.date < $1.date }
+    }
+
+    private func netValues(endingOn endDate: String, days count: Int, calendar: Calendar) -> [Double] {
+        let daysByDate = daysByDate
+        let energyByDate = energyByDate
+        let dates = (0..<max(count, 1)).map { offset in
+            IntakeGrouping.addLocalDateDays(endDate, days: -offset, calendar: calendar)
+        }
+
+        return dates.compactMap { date -> Double? in
+            guard let day = daysByDate[date], let energy = energyByDate[date] else { return nil }
+            return DailyCalorieBalance(caloriesIn: day.loggedTotals.kcal, dailyEnergy: energy).net
+        }
+    }
+}
+
+public struct DatedCalorieNet: Sendable, Equatable {
+    public let date: String
+    public let net: Double
+
+    public init(date: String, net: Double) {
+        self.date = date
+        self.net = net
+    }
+}
+
+public struct RollingCalorieNetAverage: Sendable, Equatable {
+    public let averageNet: Double
+    public let includedDayCount: Int
+    public let windowDayCount: Int
+
+    public init(averageNet: Double, includedDayCount: Int, windowDayCount: Int) {
+        self.averageNet = averageNet
+        self.includedDayCount = includedDayCount
+        self.windowDayCount = windowDayCount
+    }
+
+    public var state: DailyCalorieBalanceState {
+        if averageNet < 0 { return .deficit }
+        if averageNet > 0 { return .surplus }
+        return .balanced
+    }
+}
+
 public struct DailyIntakePayload: Sendable, Equatable {
     public let day: NutritionDay?
+    public let dailyEnergy: DailyEnergy?
     public let nutritionPlans: [NutritionPlan]
     public let meals: [Meal]
     public let foods: [Food]
 
-    public init(day: NutritionDay?, nutritionPlans: [NutritionPlan], meals: [Meal], foods: [Food]) {
+    public init(
+        day: NutritionDay?,
+        dailyEnergy: DailyEnergy? = nil,
+        nutritionPlans: [NutritionPlan],
+        meals: [Meal],
+        foods: [Food]
+    ) {
         self.day = day
+        self.dailyEnergy = dailyEnergy
         self.nutritionPlans = nutritionPlans
         self.meals = meals
         self.foods = foods
@@ -265,6 +411,14 @@ public struct DailyIntakePayload: Sendable, Equatable {
     public var targetTotals: MacroTotals? {
         selectedPlan?.macroTotals
     }
+
+    public var calorieBalance: DailyCalorieBalance {
+        DailyCalorieBalance(caloriesIn: loggedTotals.kcal, dailyEnergy: dailyEnergy)
+    }
+
+    public var caloriesIn: Double { calorieBalance.caloriesIn }
+    public var caloriesOut: Double? { calorieBalance.caloriesOut }
+    public var netCalories: Double? { calorieBalance.net }
 }
 
 public struct LogFoodValues: Sendable, Equatable {

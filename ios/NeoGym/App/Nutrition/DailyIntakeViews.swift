@@ -187,6 +187,7 @@ struct DailyIntakeView: View {
                         : "Compared with \(viewModel.selectedPlan?.name ?? "selected plan").",
                     targetTotals: viewModel.payload?.targetTotals
                 )
+                CalorieBalanceView(balance: viewModel.calorieBalance)
             }
         }
     }
@@ -280,4 +281,62 @@ struct DailyIntakeView: View {
         return false
     }
 
+}
+
+private struct CalorieBalanceView: View {
+    let balance: DailyCalorieBalance
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Calories in / out")
+                    .font(.subheadline.weight(.semibold))
+                Text("Intake uses logged nutrition snapshots. Output uses the matching daily energy row.")
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                balanceTile(
+                    label: "In",
+                    value: NutritionMath.formatMacro(balance.caloriesIn, unit: "kcal")
+                )
+                if let caloriesOut = balance.caloriesOut {
+                    balanceTile(label: "Out", value: NutritionMath.formatMacro(caloriesOut, unit: "kcal"))
+                } else {
+                    balanceTile(label: "Out", value: "No energy logged", muted: true)
+                }
+                if let net = balance.net {
+                    balanceTile(label: netLabel, value: NutritionMath.formatMacro(abs(net), unit: "kcal"))
+                } else {
+                    balanceTile(label: "Net", value: "Intake only", muted: true)
+                }
+            }
+        }
+        .padding(14)
+        .nutritionGlassCard(cornerRadius: 16, tint: NeoGymTheme.glassSubtleFill)
+    }
+
+    private var netLabel: String {
+        switch balance.state {
+        case .deficit: "Deficit"
+        case .surplus: "Surplus"
+        case .balanced: "Balance"
+        case .intakeOnly: "Net"
+        }
+    }
+
+    private func balanceTile(label: String, value: String, muted: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(NeoGymTheme.mutedText)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .monospacedDigit()
+                .foregroundColor(muted ? NeoGymTheme.mutedText : .primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .nutritionGlassCard(cornerRadius: 12)
+    }
 }

@@ -80,7 +80,7 @@ struct BodyMeasurementsListView: View {
                             message: "Log your first measurement to start seeing trends.",
                             systemImage: "heart.text.square"
                         )
-                        NavigationLink(value: MeRoute.bodyMeasurementCreate) {
+                        NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
                             Label("Log your first measurement", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -96,7 +96,7 @@ struct BodyMeasurementsListView: View {
                     SectionShell(title: "Measurements", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.measurements) { measurement in
-                                NavigationLink(value: MeRoute.bodyMeasurementDetail(measurement.id)) {
+                                NavigationLink(value: NutritionRoute.bodyMeasurementDetail(measurement.id)) {
                                     BodyMeasurementListRow(measurement: measurement)
                                 }
                                 if measurement.id != viewModel.measurements.last?.id { Divider() }
@@ -410,7 +410,7 @@ struct BodyMeasurementEditView: View {
             case let .failed(message, _) where editor.measurement == nil:
                 SectionShell(title: "Measurement") {
                     AppErrorStateView(title: "Failed to load measurement", message: message) {
-                        Task { await editor.load() }
+                        Task { await loadAndPrepareForm() }
                     }
                 }
                 .padding(20)
@@ -437,10 +437,7 @@ struct BodyMeasurementEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if case .idle = editor.state {
-                await editor.load()
-                if let initialValues = editor.initialValues, form == nil {
-                    form = BodyMeasurementFormModel(initialValues: initialValues)
-                }
+                await loadAndPrepareForm()
             }
         }
         .alert("Delete this measurement?", isPresented: $confirmDelete) {
@@ -449,6 +446,16 @@ struct BodyMeasurementEditView: View {
         } message: {
             Text("This entry will be removed from your body history.")
         }
+    }
+
+    private func loadAndPrepareForm() async {
+        await editor.load()
+        prepareFormIfNeeded()
+    }
+
+    private func prepareFormIfNeeded() {
+        guard form == nil, let initialValues = editor.initialValues else { return }
+        form = BodyMeasurementFormModel(initialValues: initialValues)
     }
 
     private func submit() {

@@ -3,21 +3,37 @@ import Foundation
 
 @MainActor
 public final class NutritionDaysListViewModel: ObservableObject {
-    @Published public private(set) var state: Loadable<[NutritionDay]> = .idle
+    @Published public private(set) var state: Loadable<NutritionOverviewPayload> = .idle
 
     private let repository: any NutritionFoodMealRepositoryProtocol
 
-    public init(repository: any NutritionFoodMealRepositoryProtocol) {
-        self.repository = repository
+    public var days: [NutritionDay] { state.value?.days ?? [] }
+    public var overview: NutritionOverviewPayload { state.value ?? NutritionOverviewPayload(days: []) }
+    public var today: String { IntakeGrouping.formatLocalDate(now(), calendar: calendar) }
+    public var todayBalance: DailyCalorieBalance { overview.balance(for: today) }
+    public var sevenDayNetAverage: RollingCalorieNetAverage? {
+        overview.rollingNetAverage(endingOn: today, days: 7, calendar: calendar)
     }
 
-    public var days: [NutritionDay] { state.value ?? [] }
-    public var today: String { IntakeGrouping.formatLocalDate() }
+    private let calendar: Calendar
+    private let now: @Sendable () -> Date
+
+    public init(
+        repository: any NutritionFoodMealRepositoryProtocol,
+        calendar: Calendar = .current,
+        now: @escaping @Sendable () -> Date = Date.init
+    ) {
+        self.repository = repository
+        self.calendar = calendar
+        self.now = now
+    }
 
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listNutritionDays())
+            state = .loaded(try await repository.nutritionOverview())
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
@@ -41,6 +57,12 @@ public final class DailyIntakeViewModel: ObservableObject {
     public var day: NutritionDay? { payload?.day }
     public var selectedPlan: NutritionPlan? { payload?.selectedPlan }
     public var intakeSlots: [IntakeTimeSlot] { day?.intakeSlots ?? [] }
+    public var calorieBalance: DailyCalorieBalance {
+        payload?.calorieBalance ?? DailyCalorieBalance(caloriesIn: 0, dailyEnergy: nil)
+    }
+    public var caloriesIn: Double { calorieBalance.caloriesIn }
+    public var caloriesOut: Double? { calorieBalance.caloriesOut }
+    public var netCalories: Double? { calorieBalance.net }
     public var allEntries: [NutritionLogEntry] { day?.allLogEntries ?? [] }
     public var nextEntryPosition: Int { allEntries.count }
     public var nextGroupPosition: Int { day?.nutritionLogMeals.count ?? 0 }
@@ -60,6 +82,8 @@ public final class DailyIntakeViewModel: ObservableObject {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.openDailyIntake(date: date))
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }

@@ -4,7 +4,6 @@ import SwiftUI
 
 enum MeSection: String, CaseIterable, Identifiable {
     case profile
-    case body
     case journal
 
     var id: String { rawValue }
@@ -12,7 +11,6 @@ enum MeSection: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .profile: "Profile"
-        case .body: "Body"
         case .journal: "Journal"
         }
     }
@@ -20,7 +18,6 @@ enum MeSection: String, CaseIterable, Identifiable {
     var systemImage: String? {
         switch self {
         case .profile: "person.crop.circle"
-        case .body: "scalemass"
         case .journal: "book.closed"
         }
     }
@@ -28,8 +25,6 @@ enum MeSection: String, CaseIterable, Identifiable {
 
 struct MeNavigationView: View {
     let session: StoredSession
-    let bodyRepository: any BodyMeasurementsRepositoryProtocol
-    let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
     let journalRepository: any JournalRepositoryProtocol
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
@@ -90,7 +85,6 @@ struct MeNavigationView: View {
     private func subsectionRoute(for section: MeSection) -> MeRoute {
         switch section {
         case .profile: .profile
-        case .body: .bodyList
         case .journal: .journalList
         }
     }
@@ -98,24 +92,8 @@ struct MeNavigationView: View {
     @ViewBuilder
     private func routeDestination(for route: MeRoute) -> some View {
         switch route {
-        case .profile, .bodyList, .journalList:
+        case .profile, .journalList:
             subsectionListDestination(for: route)
-        case let .bodyMeasurementDetail(measurementId):
-            BodyMeasurementDetailView(
-                measurementId: measurementId,
-                repository: bodyRepository,
-                onDeleted: invalidateLists,
-                onMutated: invalidateLists
-            )
-        case .bodyMeasurementCreate:
-            BodyMeasurementCreateView(
-                repository: bodyRepository,
-                onCreated: { id in
-                    invalidateLists()
-                    openRouteAfterCurrentTransition(.bodyMeasurementDetail(id))
-                },
-                onFinished: invalidateLists
-            )
         case let .journalEntryDetail(entryId):
             JournalEntryDetailView(
                 entryId: entryId,
@@ -147,21 +125,6 @@ struct MeNavigationView: View {
             )
             .navigationTitle("Profile")
             .navigationBarTitleDisplayMode(.inline)
-        case .bodyList:
-            BodyMeasurementsListView(
-                repository: bodyRepository,
-                healthImporter: bodyHealthImporter,
-                reloadToken: reloadToken
-            )
-            .navigationTitle("Body")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                RootPrimaryActionToolbar(
-                    title: "Log measurement",
-                    systemImage: "plus",
-                    action: openBodyMeasurementCreate
-                )
-            }
         case .journalList:
             JournalListView(repository: journalRepository, reloadToken: reloadToken)
                 .navigationTitle("Journal")
@@ -173,13 +136,9 @@ struct MeNavigationView: View {
                         action: openJournalEntryCreate
                     )
                 }
-        case .bodyMeasurementDetail, .bodyMeasurementCreate, .journalEntryDetail, .journalEntryCreate:
+        case .journalEntryDetail, .journalEntryCreate:
             EmptyView()
         }
-    }
-
-    private func openBodyMeasurementCreate() {
-        path.append(.bodyMeasurementCreate)
     }
 
     private func openJournalEntryCreate() {

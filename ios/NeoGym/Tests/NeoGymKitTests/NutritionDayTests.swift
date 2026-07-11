@@ -5,7 +5,8 @@ import XCTest
 final class NutritionDayRepositoryTests: XCTestCase {
     func testDecodesNutritionDayFixturesAndUsesSnapshotTotals() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
-            "nutritionDays": .array([nutritionDayFixture])
+            "nutritionDays": .array([nutritionDayFixture]),
+            "dailyEnergyEntries": .array([dailyEnergyFixture])
         ]))])
         let repository = NutritionFoodMealRepository(graphQL: fake)
 
@@ -31,11 +32,50 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertTrue(request.query.contains("source"))
         XCTAssertEqual(days[0].allLogEntries.map(\.source), [.adHoc, .food])
         XCTAssertTrue(days[0].nutritionLogEntries[0].isAdHoc)
+        XCTAssertTrue(request.query.contains("dailyEnergyEntries(order_by: { energyOn: desc }, limit: 14)"))
+    }
+
+    func testNutritionOverviewDecodesDailyEnergyAndComputesRollingNetAverage() async throws {
+        let secondDay = nutritionDayFixture.setting("id", to: .string("day-2"))
+            .setting("logDate", to: .string("2026-06-26"))
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "nutritionDays": .array([nutritionDayFixture, secondDay]),
+            "dailyEnergyEntries": .array([
+                dailyEnergyFixture,
+                dailyEnergyFixture.setting("id", to: .string("energy-2"))
+                    .setting("energyOn", to: .string("2026-06-26"))
+                    .setting("activeKcal", to: .string("100"))
+                    .setting("restingKcal", to: .string("150"))
+            ])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+
+        let overview = try await repository.nutritionOverview()
+
+        XCTAssertEqual(overview.days.count, 2)
+        XCTAssertEqual(overview.dailyEnergyEntries.count, 2)
+        let todayBalance = overview.balance(for: "2026-06-27")
+        XCTAssertEqual(todayBalance.caloriesIn, 250, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(todayBalance.caloriesOut), 2000, accuracy: 0.001)
+        let average = try XCTUnwrap(overview.rollingNetAverage(endingOn: "2026-06-27", days: 7))
+        XCTAssertEqual(average.includedDayCount, 2)
+        XCTAssertEqual(average.windowDayCount, 7)
+        XCTAssertEqual(average.averageNet, -875, accuracy: 0.001)
+        XCTAssertEqual(average.state, .deficit)
+        XCTAssertEqual(overview.dailyNetValues(), [
+            DatedCalorieNet(date: "2026-06-26", net: 0),
+            DatedCalorieNet(date: "2026-06-27", net: -1750)
+        ])
+        XCTAssertEqual(overview.rollingNetAverageValues(days: 7), [
+            DatedCalorieNet(date: "2026-06-26", net: 0),
+            DatedCalorieNet(date: "2026-06-27", net: -875)
+        ])
     }
 
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "nutritionDays": .array([nutritionDayFixture]),
+            "dailyEnergyEntries": .array([dailyEnergyFixture]),
             "nutritionPlans": .array([planFixture]),
             "meals": .array([mealFixture]),
             "foods": .array([snapshotFoodFixture])
@@ -48,10 +88,18 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertEqual(payload.selectedPlan?.id, "plan-1")
         XCTAssertEqual(payload.meals.map(\.name), ["Breakfast bowl"])
         XCTAssertEqual(payload.foods.map(\.name), ["Greek yogurt"])
+        XCTAssertEqual(payload.dailyEnergy?.activeKcal, 450)
+        XCTAssertEqual(payload.dailyEnergy?.restingKcal, 1550)
+        XCTAssertEqual(payload.caloriesOut, 2000)
+        XCTAssertEqual(payload.netCalories, -1750)
+        XCTAssertEqual(payload.calorieBalance.state, .deficit)
         let requests = await fake.requestsSnapshot()
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "DailyIntakeLog")
         XCTAssertEqual(request.variables?["date"], .string("2026-06-27"))
+        XCTAssertTrue(request.query.contains("dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1)"))
+        XCTAssertTrue(request.query.contains("activeKcal"))
+        XCTAssertTrue(request.query.contains("restingKcal"))
     }
 
     func testLogFoodVariablesOmitOwnershipAndSnapshotWrites() async throws {
@@ -268,14 +316,16 @@ final class DailyIntakeViewModelTests: XCTestCase {
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ])),
             .json(.object(["insertNutritionLogEntry": .object(["id": .string("entry-new")])])),
             .json(.object([
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ]))
         ])
         let repository = NutritionFoodMealRepository(graphQL: fake)
@@ -302,14 +352,16 @@ final class DailyIntakeViewModelTests: XCTestCase {
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ])),
             .json(.object(["insertNutritionLogMeal": .object(["id": .string("group-new")])])),
             .json(.object([
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ]))
         ])
         let repository = NutritionFoodMealRepository(graphQL: fake)
@@ -337,14 +389,16 @@ final class DailyIntakeViewModelTests: XCTestCase {
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ])),
             .json(.object(["insertNutritionLogEntry": .object(["id": .string("entry-custom")])])),
             .json(.object([
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ]))
         ])
         let repository = NutritionFoodMealRepository(graphQL: fake)
@@ -388,14 +442,16 @@ final class DailyIntakeViewModelTests: XCTestCase {
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ])),
             .json(.object(["insertNutritionLogEntry": .object(["id": .string("entry-new")])])),
             .json(.object([
                 "nutritionDays": .array([nutritionDayFixture]),
                 "nutritionPlans": .array([planFixture]),
                 "meals": .array([mealFixture]),
-                "foods": .array([snapshotFoodFixture])
+                "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
             ]))
         ])
         let repository = NutritionFoodMealRepository(graphQL: fake)
@@ -417,6 +473,60 @@ final class DailyIntakeViewModelTests: XCTestCase {
 }
 
 final class NutritionDayGroupingTests: XCTestCase {
+    func testDailyIntakeCalorieBalanceNullSemantics() {
+        let intakeDay = NutritionDay(
+            id: "day-balance",
+            logDate: "2026-07-08",
+            nutritionLogEntries: [standaloneEntryFixture]
+        )
+
+        let nutritionOnly = DailyIntakePayload(day: intakeDay, nutritionPlans: [], meals: [], foods: [])
+        XCTAssertEqual(nutritionOnly.caloriesIn, 100)
+        XCTAssertNil(nutritionOnly.caloriesOut)
+        XCTAssertNil(nutritionOnly.netCalories)
+        XCTAssertEqual(nutritionOnly.calorieBalance.state, .intakeOnly)
+
+        let energyOnly = DailyIntakePayload(
+            day: nil,
+            dailyEnergy: DailyEnergy(id: "energy-rest", energyOn: "2026-07-08", restingKcal: 1800),
+            nutritionPlans: [],
+            meals: [],
+            foods: []
+        )
+        XCTAssertEqual(energyOnly.caloriesIn, 0)
+        XCTAssertEqual(energyOnly.caloriesOut, 1800)
+        XCTAssertEqual(energyOnly.netCalories, -1800)
+        XCTAssertEqual(energyOnly.calorieBalance.state, .deficit)
+
+        let activeOnly = DailyIntakePayload(
+            day: intakeDay,
+            dailyEnergy: DailyEnergy(id: "energy-active", energyOn: "2026-07-08", activeKcal: 250),
+            nutritionPlans: [],
+            meals: [],
+            foods: []
+        )
+        XCTAssertEqual(activeOnly.caloriesOut, 250)
+        XCTAssertEqual(activeOnly.netCalories, -150)
+        XCTAssertEqual(activeOnly.calorieBalance.state, .deficit)
+
+        let both = DailyIntakePayload(
+            day: intakeDay,
+            dailyEnergy: DailyEnergy(id: "energy-both", energyOn: "2026-07-08", activeKcal: 40, restingKcal: 60),
+            nutritionPlans: [],
+            meals: [],
+            foods: []
+        )
+        XCTAssertEqual(both.caloriesOut, 100)
+        XCTAssertEqual(both.netCalories, 0)
+        XCTAssertEqual(both.calorieBalance.state, .balanced)
+
+        let neither = DailyIntakePayload(day: nil, nutritionPlans: [], meals: [], foods: [])
+        XCTAssertEqual(neither.caloriesIn, 0)
+        XCTAssertNil(neither.caloriesOut)
+        XCTAssertNil(neither.netCalories)
+        XCTAssertEqual(neither.calorieBalance.state, .intakeOnly)
+    }
+
     func testNutritionLogEntrySourceDecodesAndMissingSourceDefaultsToFood() throws {
         let encodedAdHoc = try JSONEncoder().encode(standaloneEntryJSONFixture)
         let adHocEntry = try JSONDecoder().decode(NutritionLogEntry.self, from: encodedAdHoc)
@@ -449,6 +559,13 @@ final class NutritionDayGroupingTests: XCTestCase {
         XCTAssertEqual(day.loggedTotals.kcal, 250)
     }
 }
+
+private let dailyEnergyFixture: JSONValue = .object([
+    "id": .string("energy-1"),
+    "energyOn": .string("2026-06-27"),
+    "activeKcal": .string("450"),
+    "restingKcal": .string("1550")
+])
 
 private let snapshotFoodFixture: JSONValue = .object([
     "id": .string("food-1"),
@@ -700,6 +817,12 @@ private extension JSONValue {
     subscript(key: String) -> JSONValue? {
         guard case let .object(object) = self else { return nil }
         return object[key]
+    }
+
+    func setting(_ key: String, to value: JSONValue) -> JSONValue {
+        guard case var .object(object) = self else { return self }
+        object[key] = value
+        return .object(object)
     }
 
     func recursivelyContainsKey(_ key: String) -> Bool {

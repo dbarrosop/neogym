@@ -17,6 +17,7 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 │   │   ├── routes/    # File-based routes (TanStack Router)
 │   │   │   ├── __root.tsx, index.tsx, signin.tsx, signup.tsx, verify.tsx
 │   │   │   ├── _authed.tsx              # pathless protected layout
+│   │   │   ├── _authed/energy/          # daily active/resting energy CRUD
 │   │   │   └── _authed/profile.tsx
 │   │   ├── components/ui/    # shadcn primitives (hand-written, NOT from CLI)
 │   │   ├── components/       # navbar, auth-card
@@ -38,6 +39,7 @@ Before changing anything in the sessions or exercises data model, read the match
 - [`docs/developers/sessions.md`](docs/developers/sessions.md) — sessions are containers with an ordered exercise list. `workout_id` is **nullable** (ad-hoc sessions) and is a *template link*, not a contract: nothing enforces that the session's exercises match the workout's, and the `workout_id` can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (FK is `ON DELETE SET NULL` — was `CASCADE` in the init migration, changed in `1790000460000` to match the template/contract framing).
 - [`docs/developers/exercises.md`](docs/developers/exercises.md) — `exercises` is the **base** catalog table with only the truly shared columns; kind-specific catalog metadata lives in two 1:1 sidecars: `exercises_strength` (`double_weight`, `force`, `mechanic`) and `exercises_cardio` (`metrics_schema`). The strength/cardio split is enforced **structurally** via composite FKs, not triggers: `exercises.kind` is a `GENERATED` column (`'cardio'` iff `category='cardio'`, else `'strength'`); `workout_exercises.kind` and `workout_session_exercises.kind` are auto-populated by a `BEFORE INSERT/UPDATE` trigger from the parent exercise; `workout_session_strength_sets.parent_kind` is pinned to `'strength'` and `workout_session_cardio_entries.parent_kind` to `'cardio'`, both composite-FK'd to `workout_session_exercises(id, kind)`. The sidecars themselves repeat the same trick: `exercises_strength.kind` is pinned to `'strength'` and `exercises_cardio.kind` to `'cardio'`, both composite-FK'd to `exercises(id, kind)` with `ON UPDATE CASCADE` — so a category flip on an exercise that already has a sidecar (which every exercise does) cascades into the sidecar's `kind`, the pinned `CHECK` rejects it, and the whole transaction rolls back. Lifecycle is also atomic: `DEFERRABLE INITIALLY DEFERRED` constraint triggers on `exercises` AFTER INSERT and on each sidecar AFTER DELETE fire at commit, refusing to commit a transaction that would leave an exercise without its sidecar or a sidecar without its parent. Clients (admin, user, seeds, migrations) insert exercise + matching sidecar together via a Hasura nested mutation (`insertExercise(object: { ..., strength: { data: {...} } })`) or a SQL CTE — Hasura nested inserts and CASCADE-on-DELETE handle the common cases, the deferred check catches anything that slips through. A strength set cannot attach to a cardio session-exercise (or vice versa) — it's an FK violation, not a runtime check. A separate `BEFORE INSERT/UPDATE` trigger on `workout_session_cardio_entries` still runs `pg_jsonschema` to validate the metrics jsonb shape against the parent exercise's `exercises_cardio.metrics_schema`. The frontend branches on `exercise.kind === 'cardio'` (not `category` — `category` keeps the richer taxonomy: cardio, strength, stretching, powerlifting, plyometrics, olympic_weightlifting, strongman).
 - [`docs/developers/nutrition.md`](docs/developers/nutrition.md) — nutrition adds owner-or-public `foods`, private `meals` and `nutrition_plans`, one `nutrition_days` row per local calendar date, optional logged meal groups, and concrete `nutrition_log_entries`. Plans contain meal slots (`nutrition_plan_meals`) and direct food slots (`nutrition_plan_foods`); mixed entries sort by `(slot_time, position, kind, id)` after clients assign a global per-slot `position` across both tables. Logged entries carry `source = 'food' | 'ad_hoc'`: food-backed rows copy trusted food name/kcal/fat/carbs/protein/fiber/sugar per 100g into non-null `snapshot_*` columns on insert and keep those snapshots immutable even after source food edits/deletes; ad-hoc rows are standalone log-only snapshots with no `food_id`, group, or plan-food provenance, and users may edit their snapshot fields. Grouped entries must carry the same `nutrition_day_id` as their `nutrition_log_meal`; the composite FK rejects wrong-day children and cascades group deletes. Direct plan-food logs are standalone food-backed entries with nullable `nutrition_plan_food_id` provenance; a trigger rejects grouped or mismatched-food provenance. `meal_ingredients.food_id`, `nutrition_plan_foods.food_id`, and `nutrition_plan_meals.meal_id` are `ON DELETE RESTRICT`, so public food/admin cleanup and meal deletes can be blocked by template references.
+- [`docs/developers/energy.md`](docs/developers/energy.md) — daily energy is a private `daily_energy` stream with one row per `(user_id, energy_on)`, nullable active/resting kcal (at least one required), user-role GraphQL roots named `dailyEnergyEntry/Entries`, body-style web/iOS CRUD, one-way read-only Apple Health import that sums cumulative samples per local day, creates missing dates, refreshes the last 7 days for rows still marked "Imported from Apple Health", and the read-only nutrition in/out/net balance contract.
 
 **Keep these docs and CLAUDE.md in sync with the code in the same change.** When you make a change, ask: does anything I wrote here or in `docs/developers/` still read true after this? If the change touches the domain model (schema, migrations, Hasura permissions, the `exercises_strength`/`exercises_cardio` sidecar shape, the `kind` discriminator, session lifecycle, auth flow, the codegen pipeline, PWA build config, navigation conventions, toolchain) — update the matching doc and/or CLAUDE.md section as part of the same commit, not as a follow-up. Don't write "TODO: update docs" or leave doc drift for later. If you're unsure whether a doc statement is still accurate after your change, re-read it; stale claims here are worse than no claims, because future sessions act on them.
 
@@ -118,61 +120,61 @@ segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
 root so a pending session opens regardless of which subsection is showing.
 **Nutrition (Phase 2b) is now a hub too:** its root is a native `List` of
-tappable glass rows (Overview/Days/Plans/Foods/Meals) that push subsection-list
-routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`)
+tappable glass rows (Overview/Days/Plans/Foods/Meals/Body/Energy) that push subsection-list
+routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsList`/`.bodyList`/`.energyList`)
 via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
 area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
-and New plan/food/meal live on their subsection list's own `.bottomBar`. The
-Overview screen (a pushed route) cross-links only to individual days:
-`openDay(date)` pushes `.day(date)` directly from the recent daily logs (no more
-`selectedDate` handoff, so `NutritionDaysView` no longer takes that binding);
-after a create the shell replaces only the top create route with the new detail
-route so Back returns to the subsection list, not the hub.
+and New plan/food/meal, Log measurement, and Log energy live on their subsection
+list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
+trend, and read-only HealthKit import under the Nutrition hub. The Overview
+screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
+Energy from HealthKit on load and pull-to-refresh, then shows Energy balance,
+the Calories consumed chart, and Body composition trends; it does not show the
+old intro copy or recent daily-log list. `NutritionDaysView` no longer takes a
+`selectedDate` binding. After a create the shell replaces only the top create
+route with the new detail route so Back returns to the subsection list, not the
+hub.
 **Me is now a hub too:** its root is a native `List` of tappable glass rows
-(Profile/Body/Journal) that push subsection-list routes
-(`MeRoute.profile`/`.bodyList`/`.journalList`) via `.navigationDestination(for:)`,
-each with its own `navigationTitle`; the area segmented `Picker` lives in the Me
-hub's nav-bar **principal** slot, and Log measurement/New entry live on the
-`.bodyList`/`.journalList` subsection list's own `.bottomBar` via
+(Profile/Journal) that push subsection-list routes (`MeRoute.profile`/`.journalList`) via
+`.navigationDestination(for:)`, each with its own `navigationTitle`; the area
+segmented `Picker` lives in the Me hub's nav-bar **principal** slot, and New
+entry lives on the `.journalList` subsection list's own `.bottomBar` via
 `RootPrimaryActionToolbar`. After a create the shell appends only the new detail
 route (the create view's `dismiss()` already popped the create route) so Back
-returns to the subsection list, not the hub. All three areas
-(Workouts/Nutrition/Me) are hubs; there is **exactly one bottom band** holding
-create/log, the rest timer, and detail actions, and no tab bar. Pushed form routes
-put Cancel in the top-leading `.cancellationAction`, Save in the top-trailing
-`.confirmationAction`, and destructive Delete as a full-width `FormDeleteButton`
-in the form's scroll content (no top-trailing overflow menu). Detail routes that
-can delete (e.g. session detail) use the same in-content `FormDeleteButton` at
-the bottom of their scroll content, not a bottom-bar or overflow action. In the
-nutrition day view the logged intake rows (food entries and logged meal groups)
-have no inline Edit/trash buttons — the whole glass row is tappable to open its
-modal edit sheet, and each edit sheet (`EditLogEntrySheet`/`EditMealGroupSheet`)
-holds its own Delete as a native destructive `Button(role: .destructive)` in a
-trailing `Section` (like the strength/cardio editors) wired to a confirm dialog.
-Pushed detail routes otherwise use native bottom toolbar actions (`.bottomBar`,
+returns to the subsection list, not the hub. All three areas (Workouts/Nutrition/Me) are hubs;
+there is **exactly one bottom band** holding create/log, the rest timer, and
+detail actions, and no tab bar. Pushed form routes put Cancel in the top-leading
+`.cancellationAction`, Save in the top-trailing `.confirmationAction`, and
+destructive Delete as a full-width `FormDeleteButton` in the form's scroll
+content (no top-trailing overflow menu). Detail routes that can delete (e.g.
+session detail) use the same in-content `FormDeleteButton` at the bottom of
+their scroll content, not a bottom-bar or overflow action. In the nutrition day
+view the logged intake rows (food entries and logged meal groups) have no inline
+Edit/trash buttons — the whole glass row is tappable to open its modal edit
+sheet, and each edit sheet (`EditLogEntrySheet`/`EditMealGroupSheet`) holds its
+own Delete as a native destructive `Button(role: .destructive)` in a trailing
+`Section` (like the strength/cardio editors) wired to a confirm dialog. Pushed
+detail routes otherwise use native bottom toolbar actions (`.bottomBar`,
 confirmation/destructive roles where appropriate); a session detail's single
 `.bottomBar` holds the rest timer as its **leading** item, a `Spacer()`, then
-"Add exercise" trailing (no Delete in the bar, no overflow menu).
-The rest timer is a shell-owned `@StateObject RestTimerController` (survives area
-switches and drill navigation) injected down into `WorkoutsSectionNavigationView`
-→ `SessionDetailView`, which renders `RestTimerToolbarControl(timer:)` in that
+"Add exercise" trailing (no Delete in the bar, no overflow menu). The rest timer
+is a shell-owned `@StateObject RestTimerController` (survives area switches and
+drill navigation) injected down into `WorkoutsSectionNavigationView` →
+`SessionDetailView`, which renders `RestTimerToolbarControl(timer:)` in that
 leading bottom-bar slot. With no tab bar there is no minimized tab pill, so a
 leading bottom-bar control cannot be covered. Root list pages rely on standard
-navigation-title spacing and native safe-area insets; do not add custom
-dock clearance constants or extra bottom padding for custom bottom chrome.
-Reduce Motion should suppress custom section scaling polish
-while preserving native navigation structure. Sheet-local `NavigationView`
-wrappers remain intentional for modal editors/pickers. Do not reintroduce a
-`TabView`, `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
+navigation-title spacing and native safe-area insets; do not add custom dock
+clearance constants or extra bottom padding for custom bottom chrome. Reduce
+Motion should suppress custom section scaling polish while preserving native
+navigation structure. Sheet-local `NavigationView` wrappers remain intentional
+for modal editors/pickers. Do not reintroduce a `TabView`,
+`.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
 `SecondarySectionContentHost`, `AppAreaSwitcher`, the interim `.safeAreaInset`
 area switcher, older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
 `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
-navigation. Keep
-unit tests deterministic with fake auth services and the in-memory verifier
-store, not a live backend or real Keychain. Sign-out
-must always call `clearSession()` after
-attempting remote sign-out so local persisted sessions are removed even when the
-network request fails. SwiftUI previews can set Dynamic Type with
+navigation. Sign-out must always call `clearSession()` after attempting remote
+sign-out so local persisted sessions are removed even when the network request
+fails. SwiftUI previews can set Dynamic Type with
 `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
 `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
 environment values; verify those modes in simulator Accessibility settings rather
@@ -188,7 +190,7 @@ Nhost stack after redirect config edits because the CLI does not hot-reload
 
 **Always run `make test` after a backend change**, the same way `bun run check` is the gate for frontend changes. "Backend change" means anything under `backend/nhost/migrations/`, `backend/nhost/metadata/`, `backend/nhost/seeds/`, or `backend/nhost.toml`. Don't report the task done until the tests pass.
 
-**Add new tests when you change the backend in a way that's already covered by the suite, or when you introduce a new invariant.** The backend suite includes `backend/tests/kind-enforcement.test.ts` for workout/exercise invariants and `backend/tests/nutrition.test.ts` for nutrition permissions, snapshots, provenance, and cascade behavior. The kind-enforcement file is organized into describes by concern:
+**Add new tests when you change the backend in a way that's already covered by the suite, or when you introduce a new invariant.** The backend suite includes `backend/tests/kind-enforcement.test.ts` for workout/exercise invariants, `backend/tests/nutrition.test.ts` for nutrition permissions, snapshots, provenance, and cascade behavior, and `backend/tests/daily-energy.test.ts` for `daily_energy` ownership, CHECK, range, UNIQUE, and root-field invariants. The kind-enforcement file is organized into describes by concern:
 
 - **kind discriminator** — that `exercises.kind` is generated correctly from `category`, the sidecar relationships resolve, and the sync trigger on `workout_session_exercises` populates `kind` from the parent exercise.
 - **composite-FK enforcement** — that strength sets can't attach to cardio session-exercises (and vice versa), and that the sync trigger can't be bypassed by a client passing a wrong `kind`.
@@ -215,10 +217,10 @@ A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-r
 - **`bun run codegen` is a two-step pipeline** — both outputs are checked in and neither should be edited by hand:
   1. `codegen:graphql-schema` (needs backend up) introspects Hasura via `rover` with `X-Hasura-Role: user` and writes the canonical SDL to `frontend/schema.user.graphqls`. This is the human-readable map of every query, mutation, type, and field the app is allowed to use; consult it (or point an LLM/IDE at it) to discover what's available before writing a new `graphql(...)` document. Do not commit schema dumps produced by ad-hoc introspection tools unless `codegen:graphql-schema` is deliberately changed to use that tool, because otherwise harmless ordering/directive differences create large generated-file diffs.
   2. `codegen:graphql` (offline) feeds that SDL plus your `graphql(...)` documents into `graphql-codegen` and writes TypeScript types + the typed `graphql()` tag to `frontend/src/gql/`. Because step 2 reads the user-role SDL, the generated types only expose what permissions actually allow — operations that admin can run but `user` can't will fail to typecheck.
-- **Re-run `bun run codegen` after any change that affects what the `user` role can see**: editing a `graphql(...)` document, applying a Hasura migration (database schema), editing Hasura metadata (permissions, relationships, exposed columns), or pulling someone else's metadata/migration changes. Stale outputs cause confusing type errors and "field not found" runtime failures.
-- **Nutrition GraphQL/logging shape**: meal logging should use one nested `insertNutritionLogMeal` with child `nutritionLogEntries`, and each child must explicitly include the same `nutritionDayId` as the parent group. Hasura nested inserts populate `nutritionLogMealId` but not the direct day FK used by permissions/composite same-day enforcement. Log time is user-selected, user-correctable, and defaults to now: planned-meal logging may keep `nutritionPlanMealId` as provenance, but must not hardcode the logged `slotTime` to the template slot. Direct plan-food logging should use a standalone food-backed `insertNutritionLogEntry` with matching `foodId` + `nutritionPlanFoodId`; it cannot be grouped under `nutritionLogMealId`, and deleting the plan/direct-food slot nulls provenance while snapshots remain. Ad-hoc one-off logs use standalone `source: "ad_hoc"` entries with no `foodId`, `nutritionPlanFoodId`, or `nutritionLogMealId`, and must send name plus kcal/fat/carbs/protein/fiber/sugar snapshot fields per 100g. Standalone entries store their own editable `slotTime`; grouped entries display the parent logged meal's editable `slotTime`. Daily nutrition totals should be computed from logged `snapshot*Per100g` columns, not live `foods`.
+- **Re-run `bun run codegen` after any change that affects what the `user` role can see**: editing a `graphql(...)` document, applying a Hasura migration (database schema), editing Hasura metadata (permissions, relationships, exposed columns), or pulling someone else's metadata/migration changes. This includes body-style metric tables such as `daily_energy` and query additions such as the daily-intake `dailyEnergyEntries` balance selection. Stale outputs cause confusing type errors and "field not found" runtime failures.
+- **Nutrition GraphQL/logging shape**: meal logging should use one nested `insertNutritionLogMeal` with child `nutritionLogEntries`, and each child must explicitly include the same `nutritionDayId` as the parent group. Hasura nested inserts populate `nutritionLogMealId` but not the direct day FK used by permissions/composite same-day enforcement. Log time is user-selected, user-correctable, and defaults to now: planned-meal logging may keep `nutritionPlanMealId` as provenance, but must not hardcode the logged `slotTime` to the template slot. Direct plan-food logging should use a standalone food-backed `insertNutritionLogEntry` with matching `foodId` + `nutritionPlanFoodId`; it cannot be grouped under `nutritionLogMealId`, and deleting the plan/direct-food slot nulls provenance while snapshots remain. Ad-hoc one-off logs use standalone `source: "ad_hoc"` entries with no `foodId`, `nutritionPlanFoodId`, or `nutritionLogMealId`, and must send name plus kcal/fat/carbs/protein/fiber/sugar snapshot fields per 100g. Standalone entries store their own editable `slotTime`; grouped entries display the parent logged meal's editable `slotTime`. Daily nutrition totals and calories-in/out balance should be computed from logged `snapshot*Per100g` columns, not live `foods`; balance output comes from same-date `daily_energy` and remains read-only.
 - **Form/picker navigation must use `replace: true`**: When a form submit, cancel, picker selection, or delete handler redirects away from a "spent" page (e.g., `/sessions/new` → `/sessions/$sessionId`, `/workouts/$id/edit` → `/workouts/$id` after save *or* cancel, `/workouts/$id/edit` → `/workouts` after delete, `/workouts/new` → `/workouts` after cancel), pass `replace: true` to `navigate(...)`. Without it, the now-spent form/picker (or the just-deleted record's detail page) stays on the history stack and the back button lands on it instead of the previous screen. A cancelled form is "spent" in the same way a submitted one is — the user explicitly abandoned it. Same rule for redirects out of invalid states (e.g., the non-owner bounce in `workouts/$workoutId/edit.tsx`) — the user was never meant to see that page, so don't leave it in history. Auth-flow redirects (`signin`/`signup` → `/profile`) are a separate case and have their own logic.
-- **Mobile primary nav can scroll horizontally**: With the Nutrition top-level item the mobile tab bar has seven entries. Keep one top-level Nutrition item (not separate Foods/Meals/Plans/Days items) and preserve usability on narrow screens with the existing horizontally scrollable tab bar/min-width items rather than hiding primary destinations.
+- **Mobile primary nav can scroll horizontally**: With the Energy and Nutrition top-level items the mobile tab bar has eight entries. Keep one top-level Nutrition item (not separate Foods/Meals/Plans/Days items) and preserve usability on narrow screens with the existing horizontally scrollable tab bar/min-width items rather than hiding primary destinations.
 - **PWA build outDir**: `vite-plugin-pwa` (≤1.3.0) reads `viteConfig.build.outDir` from the *root* config, but Vite 8's Environments API means Nitro only sets `outDir = ".output/public"` on its `client` environment — the root `build.outDir` stays at the default `"dist"`. Without the override, `sw.js` and `workbox-*.js` get written to `dist/` while everything else lands in `.output/public/`, *and* the precache glob scans `dist/` so the SW only precaches itself + 7 static icons (the actual hashed JS/CSS bundles never make it into the precache manifest). Both bugs are silent — the build succeeds, but the deployed SW is unreachable and offline mode caches nothing useful. Fix: `vite.config.ts` sets `build: { outDir: ".output/public", emptyOutDir: false }` at the root. After upgrading vite-plugin-pwa / TanStack Start / Nitro, sanity-check that `.output/public/sw.js` exists *and* contains a precache entry for `assets/*.js` (e.g. `grep -c '"url":"assets/' .output/public/sw.js` should be in the dozens). To regenerate icons from `public/logo.svg`, run `bunx pwa-assets-generator` (config in `pwa-assets.config.ts`).
 
 ## Nhost MCP

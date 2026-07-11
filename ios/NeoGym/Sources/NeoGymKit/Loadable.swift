@@ -29,6 +29,11 @@ public enum Loadable<Value: Sendable>: Sendable {
         return nil
     }
 
+    public var cancellationFallback: Loadable<Value> {
+        if let value { return .loaded(value) }
+        return .idle
+    }
+
     public func map<NewValue: Sendable>(_ transform: (Value) -> NewValue) -> Loadable<NewValue> {
         switch self {
         case .idle:

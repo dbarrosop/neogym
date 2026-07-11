@@ -229,6 +229,22 @@ final class HealthBodyMeasurementImportTests: XCTestCase {
 
 @MainActor
 final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
+    func testLoadIgnoresCancellationAndPreservesPreviousMeasurements() async throws {
+        let repository = FakeBodyMeasurementsRepository(measurements: [
+            BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
+        ])
+        let viewModel = BodyMeasurementsListViewModel(repository: repository)
+
+        await viewModel.load()
+        await repository.setListError(GraphQLDomainError.transport(
+            "The operation couldn't be completed. (Swift.CancellationError error 1.)"
+        ))
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.state.errorMessage)
+        XCTAssertEqual(viewModel.measurements.map(\.id), ["existing"])
+    }
+
     func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
         let repository = FakeBodyMeasurementsRepository(measurements: [
             BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
@@ -286,6 +302,22 @@ final class BodyMeasurementTrendBuilderTests: XCTestCase {
         XCTAssertFalse(trend.shouldShowChart)
     }
 
+    func testRollingAverageValuesUseSevenDayWindowPerMetric() throws {
+        let trend = BodyMeasurementTrendBuilder.make(from: [
+            BodyMeasurement(id: "old", measuredOn: "2026-06-01", weightKg: 90, bodyFatPct: 25),
+            BodyMeasurement(id: "start", measuredOn: "2026-06-04", weightKg: 84, bodyFatPct: nil),
+            BodyMeasurement(id: "middle", measuredOn: "2026-06-08", weightKg: 82, bodyFatPct: 20),
+            BodyMeasurement(id: "today", measuredOn: "2026-06-10", weightKg: 80, bodyFatPct: 18)
+        ])
+
+        let averages = trend.rollingAverageValues(days: 7)
+
+        XCTAssertEqual(averages.map(\.measuredOn), ["2026-06-01", "2026-06-04", "2026-06-08", "2026-06-10"])
+        let lastAverage = try XCTUnwrap(averages.last)
+        XCTAssertEqual(try XCTUnwrap(lastAverage.averageWeightKg), 82, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(lastAverage.averageBodyFatPct), 19, accuracy: 0.001)
+    }
+
     func testTrendTimescaleFiltersInclusiveLocalDayWindow() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
@@ -341,13 +373,19 @@ final class BodyMeasurementsErrorMapperTests: XCTestCase {
 private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
     private var measurements: [BodyMeasurement]
     private var createdValues: [BodyMeasurementFormValues] = []
+    private var listError: Error?
 
     init(measurements: [BodyMeasurement]) {
         self.measurements = measurements
     }
 
     func listMeasurements() async throws -> [BodyMeasurement] {
-        measurements
+        if let listError { throw listError }
+        return measurements
+    }
+
+    func setListError(_ error: Error?) {
+        listError = error
     }
 
     func measurement(id: String) async throws -> BodyMeasurement? {

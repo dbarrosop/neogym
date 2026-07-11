@@ -46,8 +46,9 @@ targets:
         UIRequiresFullScreen: true
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: >-
-          NeoGym imports your weight and body-fat percentage from Apple Health
-          to keep body measurements up to date.
+          NeoGym imports your weight, body-fat percentage, active energy, and
+          resting energy from Apple Health to keep body and energy logs up to
+          date.
     entitlements:
       path: App/NeoGym.entitlements
       properties:

@@ -6,10 +6,17 @@ struct TimeSeriesChartDataPoint: Identifiable, Equatable {
     let value: Double
 }
 
+enum TimeSeriesChartAxis: String, Hashable {
+    case left
+    case right
+}
+
 struct TimeSeriesChartSeries: Identifiable {
     let id: String
     let name: String
     let color: Color
+    let axis: TimeSeriesChartAxis
+    let centersAxisOnZero: Bool
     let points: [TimeSeriesChartDataPoint]
     let valueFormatter: (Double) -> String
 
@@ -17,12 +24,16 @@ struct TimeSeriesChartSeries: Identifiable {
         id: String,
         name: String,
         color: Color,
+        axis: TimeSeriesChartAxis = .left,
+        centersAxisOnZero: Bool = false,
         points: [TimeSeriesChartDataPoint],
         valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
     ) {
         self.id = id
         self.name = name
         self.color = color
+        self.axis = axis
+        self.centersAxisOnZero = centersAxisOnZero
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
     }
@@ -71,18 +82,20 @@ struct TimeSeriesChartView: View {
     }
 
     private func chartBody(size: CGSize) -> some View {
-        let axisSeries = Array(nonEmptySeries.prefix(showsAxes ? 2 : 0))
-        let leftAxisWidth: CGFloat = showsAxes && !axisSeries.isEmpty ? 42 : 0
-        let rightAxisWidth: CGFloat = axisSeries.count > 1 ? 42 : 0
+        let leftAxis = axisDescriptor(for: .left)
+        let rightAxis = axisDescriptor(for: .right)
+        let leftAxisWidth: CGFloat = showsAxes && leftAxis != nil ? 42 : 0
+        let rightAxisWidth: CGFloat = showsAxes && rightAxis != nil ? 42 : 0
         let xAxisHeight: CGFloat = showsAxes ? 24 : 0
         let axisSpacing: CGFloat = showsAxes ? 8 : 0
-        let horizontalAxisSpacing = axisSpacing * CGFloat(axisSeries.isEmpty ? 0 : axisSeries.count)
+        let axisCount = [leftAxis, rightAxis].compactMap { $0 }.count
+        let horizontalAxisSpacing = axisSpacing * CGFloat(axisCount)
         let plotWidth = max(size.width - leftAxisWidth - rightAxisWidth - horizontalAxisSpacing, 1)
         let plotHeight = max(size.height - xAxisHeight, 1)
 
         return HStack(alignment: .top, spacing: axisSpacing) {
-            if let leftSeries = axisSeries.first {
-                yAxisLabels(for: leftSeries)
+            if let leftAxis {
+                yAxisLabels(for: leftAxis)
                     .frame(width: leftAxisWidth, height: plotHeight)
             }
 
@@ -95,8 +108,8 @@ struct TimeSeriesChartView: View {
                 }
             }
 
-            if axisSeries.count > 1 {
-                yAxisLabels(for: axisSeries[1])
+            if let rightAxis {
+                yAxisLabels(for: rightAxis)
                     .frame(width: rightAxisWidth, height: plotHeight)
             }
         }
@@ -264,7 +277,8 @@ struct TimeSeriesChartView: View {
         guard !points.isEmpty else { return [] }
         let minX = allPoints.map { $0.date.timeIntervalSince1970 }.min() ?? points[0].date.timeIntervalSince1970
         let maxX = allPoints.map { $0.date.timeIntervalSince1970 }.max() ?? points[0].date.timeIntervalSince1970
-        let range = metricRange(values: series.points.map(\.value))
+        let range = axisDescriptor(for: series.axis)?.range
+            ?? metricRange(values: series.points.map(\.value), centersOnZero: series.centersAxisOnZero)
             ?? ChartMetricRange(min: points[0].value - 1, max: points[0].value + 1)
         let horizontalSpan = max(maxX - minX, 1)
         let verticalSpan = max(range.max - range.min, 0.000_001)
@@ -301,17 +315,16 @@ struct TimeSeriesChartView: View {
         return sampledPoints
     }
 
-    private func yAxisLabels(for singleSeries: TimeSeriesChartSeries) -> some View {
-        let range = metricRange(values: singleSeries.points.map(\.value))
-        return VStack(alignment: .trailing) {
-            Text(range.map { singleSeries.valueFormatter($0.max) } ?? "—")
+    private func yAxisLabels(for axis: ChartAxisDescriptor) -> some View {
+        VStack(alignment: .trailing) {
+            Text(axis.formatter(axis.range.max))
             Spacer()
-            Text(range.map { singleSeries.valueFormatter($0.midpoint) } ?? "—")
+            Text(axis.formatter(axis.range.midpoint))
             Spacer()
-            Text(range.map { singleSeries.valueFormatter($0.min) } ?? "—")
+            Text(axis.formatter(axis.range.min))
         }
         .font(.caption2.monospacedDigit())
-        .foregroundColor(singleSeries.color)
+        .foregroundColor(axis.color)
         .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
@@ -348,14 +361,42 @@ struct TimeSeriesChartView: View {
         .padding(.top, 2)
     }
 
-    private func metricRange(values: [Double]) -> ChartMetricRange? {
+    private func axisDescriptor(for axis: TimeSeriesChartAxis) -> ChartAxisDescriptor? {
+        let axisSeries = nonEmptySeries.filter { $0.axis == axis }
+        guard let firstSeries = axisSeries.first else { return nil }
+        let values = axisSeries.flatMap { $0.points.map(\.value) }
+        guard let range = metricRange(
+            values: values,
+            centersOnZero: axisSeries.contains(where: \.centersAxisOnZero)
+        ) else { return nil }
+        return ChartAxisDescriptor(
+            axis: axis,
+            range: range,
+            color: firstSeries.color,
+            formatter: firstSeries.valueFormatter
+        )
+    }
+
+    private func metricRange(values: [Double], centersOnZero: Bool = false) -> ChartMetricRange? {
         guard let minValue = values.min(), let maxValue = values.max() else { return nil }
+        if centersOnZero {
+            let magnitude = max(abs(minValue), abs(maxValue), 1)
+            let paddedMagnitude = magnitude * 1.1
+            return ChartMetricRange(min: -paddedMagnitude, max: paddedMagnitude)
+        }
         if minValue == maxValue {
             let padding = max(abs(minValue) * 0.05, 1)
             return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
         }
         let padding = max((maxValue - minValue) * 0.1, 0.5)
         return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
+    }
+
+    private struct ChartAxisDescriptor {
+        let axis: TimeSeriesChartAxis
+        let range: ChartMetricRange
+        let color: Color
+        let formatter: (Double) -> String
     }
 
     private struct ChartMetricRange {
