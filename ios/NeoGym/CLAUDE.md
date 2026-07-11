@@ -72,9 +72,9 @@ changes.
   signed-out bootstrap, auth errors, and user switches before new user data is
   available. The widget renders the latest snapshot as its safe fallback and can
   attempt best-effort live server refreshes through the shared keychain session
-  `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app uses a migrating
-  session backend that reads the old app-only keychain item on first access and
-  rewrites it to the shared group. The runtime access-group string comes from the
+  `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app keeps its app-only
+  keychain as the primary session store and mirrors/restores the same session to
+  or from the shared keychain best-effort for widget access. The runtime access-group string comes from the
   `NeoGymSharedKeychainAccessGroup` Info.plist key after build-setting expansion;
   do not use `SecTaskCopyValueForEntitlement` here, as it is unavailable in the
   iOS build target. Never copy tokens into App Group `UserDefaults`. The widget

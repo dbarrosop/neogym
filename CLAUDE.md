@@ -105,7 +105,8 @@ host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under
 Nutrition Overview loads and clears/reloads it on sign-out, definitive signed-out
 bootstrap, auth errors, and user switches. The widget renders that snapshot as a
 safe fallback, can perform best-effort server refreshes through the shared
-keychain session `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and never runs
+keychain session `$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the
+app's app-only primary keychain store, and never runs
 HealthKit import. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh
 button are best-effort triggers for the live-fetch provider path, not guaranteed
 freshness or cadence; keep all AppIntent/Button code availability-gated so the

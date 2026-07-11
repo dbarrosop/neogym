@@ -52,9 +52,9 @@ public enum NhostSessionStorageFactory {
 
     public static func appSharedKeychainStorage(accessGroup: String? = nil) -> any SessionStorageBackend {
         #if canImport(Security)
-        MigratingSessionStorageBackend(
-            primary: sharedKeychainStorage(accessGroup: accessGroup),
-            legacy: KeychainSessionStorageBackend()
+        MirroringSessionStorageBackend(
+            primary: KeychainSessionStorageBackend(),
+            mirror: sharedKeychainStorage(accessGroup: accessGroup)
         )
         #else
         MemorySessionStorageBackend()
@@ -62,47 +62,32 @@ public enum NhostSessionStorageFactory {
     }
 }
 
-public struct MigratingSessionStorageBackend: SessionStorageBackend {
+public struct MirroringSessionStorageBackend: SessionStorageBackend {
     private let primary: any SessionStorageBackend
-    private let legacy: any SessionStorageBackend
+    private let mirror: any SessionStorageBackend
 
-    public init(primary: any SessionStorageBackend, legacy: any SessionStorageBackend) {
+    public init(primary: any SessionStorageBackend, mirror: any SessionStorageBackend) {
         self.primary = primary
-        self.legacy = legacy
+        self.mirror = mirror
     }
 
     public func get() async throws -> StoredSession? {
-        do {
-            if let session = try await primary.get() {
-                return session
-            }
-        } catch {
-            // If the shared keychain group is not provisioned on a signed build,
-            // keep the app functional from the legacy app-only keychain. The
-            // widget will simply fall back to the cached aggregate snapshot.
+        if let session = try await primary.get() {
+            try? await mirror.set(session)
+            return session
         }
 
-        guard let legacySession = try await legacy.get() else {
+        guard let mirroredSession = try? await mirror.get() else {
             return nil
         }
 
-        do {
-            try await primary.set(legacySession)
-            try? await legacy.remove()
-        } catch {
-            // Best-effort migration: returning the legacy session avoids forcing a
-            // sign-out solely because the shared group is unavailable.
-        }
-        return legacySession
+        try await primary.set(mirroredSession)
+        return mirroredSession
     }
 
     public func set(_ value: StoredSession) async throws {
-        do {
-            try await primary.set(value)
-            try? await legacy.remove()
-        } catch {
-            try await legacy.set(value)
-        }
+        try await primary.set(value)
+        try? await mirror.set(value)
     }
 
     public func remove() async throws {
@@ -115,7 +100,7 @@ public struct MigratingSessionStorageBackend: SessionStorageBackend {
         }
 
         do {
-            try await legacy.remove()
+            try await mirror.remove()
         } catch {
             firstError = firstError ?? error
         }

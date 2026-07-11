@@ -125,8 +125,9 @@ stores only aggregate, preformatted snapshot fields in the App Group and never
 stores auth tokens. The app writes snapshots after successful Nutrition Overview
 loads, clears them on sign-out/signed-out bootstrap/auth errors/user switches,
 and asks WidgetKit to reload timelines. The widget can attempt live server
-refresh through the shared keychain session and falls back to the cached snapshot
-or signed-out/empty state on no session, auth, network, or provisioning failure.
+refresh through a shared keychain session that the app mirrors best-effort from
+its app-only primary keychain store, and falls back to the cached snapshot or
+signed-out/empty state on no session, auth, network, or provisioning failure.
 The widget does not import HealthKit data; HealthKit energy import remains
 app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
 are best-effort triggers, not guaranteed fresh server data or an exact refresh
