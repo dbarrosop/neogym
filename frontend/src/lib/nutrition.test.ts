@@ -1074,7 +1074,7 @@ describe("selected-plan bulk materialization", () => {
     ).toThrow("Choose a logged time");
   });
 
-  it("sends one combined selected-plan request with arrays even when one side is empty", async () => {
+  it("skips empty selected-plan insert fields", async () => {
     const calls: unknown[] = [];
     const result = await logSelectedPlanMaterialization(
       {
@@ -1104,6 +1104,8 @@ describe("selected-plan bulk materialization", () => {
       variables: {
         mealObjects: [],
         entryObjects: [{ nutritionDayId: "day-1", nutritionPlanFoodId: "plan-food-1" }],
+        hasMealObjects: false,
+        hasEntryObjects: true,
       },
     });
     expect(result).toEqual({ mealRows: 0, entryRows: 1 });

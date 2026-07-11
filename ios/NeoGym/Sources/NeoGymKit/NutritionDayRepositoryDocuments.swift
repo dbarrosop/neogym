@@ -300,11 +300,13 @@ public extension NutritionFoodMealRepository {
     mutation LogSelectedPlan(
       $mealObjects: [nutritionLogMeals_insert_input!]!
       $entryObjects: [nutritionLogEntries_insert_input!]!
+      $hasMealObjects: Boolean!
+      $hasEntryObjects: Boolean!
     ) {
-      insertNutritionLogMeals(objects: $mealObjects) {
+      insertNutritionLogMeals(objects: $mealObjects) @include(if: $hasMealObjects) {
         affected_rows
       }
-      insertNutritionLogEntries(objects: $entryObjects) {
+      insertNutritionLogEntries(objects: $entryObjects) @include(if: $hasEntryObjects) {
         affected_rows
       }
     }

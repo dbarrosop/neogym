@@ -7,11 +7,13 @@ export const LogSelectedPlanMutation = graphql(`
   mutation LogSelectedPlan(
     $mealObjects: [nutritionLogMeals_insert_input!]!
     $entryObjects: [nutritionLogEntries_insert_input!]!
+    $hasMealObjects: Boolean!
+    $hasEntryObjects: Boolean!
   ) {
-    insertNutritionLogMeals(objects: $mealObjects) {
+    insertNutritionLogMeals(objects: $mealObjects) @include(if: $hasMealObjects) {
       affected_rows
     }
-    insertNutritionLogEntries(objects: $entryObjects) {
+    insertNutritionLogEntries(objects: $entryObjects) @include(if: $hasEntryObjects) {
       affected_rows
     }
   }
@@ -30,6 +32,8 @@ type LogSelectedPlanMutationResult = {
 type LogSelectedPlanMutationVariables = {
   mealObjects: PlanLogMaterialization["mealObjects"];
   entryObjects: PlanLogMaterialization["entryObjects"];
+  hasMealObjects: boolean;
+  hasEntryObjects: boolean;
 };
 
 export type LogSelectedPlanRequester = (
@@ -48,6 +52,8 @@ export async function logSelectedPlanMaterialization(
   const result = await requester(document, {
     mealObjects: materialization.mealObjects,
     entryObjects: materialization.entryObjects,
+    hasMealObjects: materialization.mealObjects.length > 0,
+    hasEntryObjects: materialization.entryObjects.length > 0,
   });
 
   return {

@@ -234,27 +234,33 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(object.recursivelyContainsKey("snapshotProteinPer100g"))
     }
 
-    func testLogSelectedPlanUsesOneCombinedMutationWithEmptyArrays() async throws {
+    func testLogSelectedPlanSkipsEmptyInsertFields() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
-            "insertNutritionLogMeals": .object(["affected_rows": .number(0)]),
-            "insertNutritionLogEntries": .object(["affected_rows": .number(0)])
+            "insertNutritionLogEntries": .object(["affected_rows": .number(1)])
         ]))])
         let repository = NutritionFoodMealRepository(graphQL: fake)
 
         let result = try await repository.logSelectedPlan(PlanLogMaterialization(
             mealObjects: [],
-            entryObjects: []
+            entryObjects: [PlanLogEntryInsertValues(
+                dayId: "day-1",
+                foodId: "food-1",
+                nutritionPlanFoodId: "plan-food-1",
+                grams: .number(100),
+                position: 0,
+                slotTime: "08:00"
+            )]
         ))
 
-        XCTAssertEqual(result, PlanLogMutationResult(mealRows: 0, entryRows: 0))
+        XCTAssertEqual(result, PlanLogMutationResult(mealRows: 0, entryRows: 1))
         let requests = await fake.requestsSnapshot()
-        XCTAssertEqual(requests.count, 1)
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "LogSelectedPlan")
-        XCTAssertTrue(request.query.contains("insertNutritionLogMeals(objects: $mealObjects)"))
-        XCTAssertTrue(request.query.contains("insertNutritionLogEntries(objects: $entryObjects)"))
+        XCTAssertTrue(request.query.contains("insertNutritionLogMeals(objects: $mealObjects) @include(if: $hasMealObjects)"))
+        XCTAssertTrue(request.query.contains("insertNutritionLogEntries(objects: $entryObjects) @include(if: $hasEntryObjects)"))
         XCTAssertEqual(request.variables?["mealObjects"], .array([]))
-        XCTAssertEqual(request.variables?["entryObjects"], .array([]))
+        XCTAssertEqual(request.variables?["hasMealObjects"], .bool(false))
+        XCTAssertEqual(request.variables?["hasEntryObjects"], .bool(true))
     }
 
     func testLogSelectedPlanVariablesPreserveProvenanceAndChildDayIds() async throws {

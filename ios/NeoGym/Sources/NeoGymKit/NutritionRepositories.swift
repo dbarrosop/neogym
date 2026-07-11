@@ -340,13 +340,15 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             query: Self.logSelectedPlanMutation,
             variables: [
                 "mealObjects": Self.planLogMealObjects(materialization.mealObjects),
-                "entryObjects": Self.planLogEntryObjects(materialization.entryObjects)
+                "entryObjects": Self.planLogEntryObjects(materialization.entryObjects),
+                "hasMealObjects": .bool(!materialization.mealObjects.isEmpty),
+                "hasEntryObjects": .bool(!materialization.entryObjects.isEmpty)
             ],
             operationName: "LogSelectedPlan"
         )
         return PlanLogMutationResult(
-            mealRows: data.insertNutritionLogMeals.affectedRows ?? 0,
-            entryRows: data.insertNutritionLogEntries.affectedRows ?? 0
+            mealRows: data.insertNutritionLogMeals?.affectedRows ?? 0,
+            entryRows: data.insertNutritionLogEntries?.affectedRows ?? 0
         )
     }
 
@@ -450,8 +452,8 @@ private struct DeleteNutritionDayData: Decodable, Sendable { let deleteNutrition
 private struct InsertNutritionLogEntryData: Decodable, Sendable { let insertNutritionLogEntry: MutationIdPayload? }
 private struct InsertNutritionLogMealData: Decodable, Sendable { let insertNutritionLogMeal: MutationIdPayload? }
 private struct InsertSelectedPlanLogData: Decodable, Sendable {
-    let insertNutritionLogMeals: AffectedRowsPayload
-    let insertNutritionLogEntries: AffectedRowsPayload
+    let insertNutritionLogMeals: AffectedRowsPayload?
+    let insertNutritionLogEntries: AffectedRowsPayload?
 }
 private struct UpdateNutritionLogEntryData: Decodable, Sendable { let updateNutritionLogEntry: MutationIdPayload? }
 private struct UpdateNutritionLogMealData: Decodable, Sendable { let updateNutritionLogMeal: MutationIdPayload? }
