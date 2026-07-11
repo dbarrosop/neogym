@@ -138,52 +138,30 @@ private struct EnergyBalanceWidgetView: View {
     }
 
     private func populatedView(_ snapshot: EnergyBalanceWidgetSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text("Energy balance")
-                        .font(.headline.weight(.semibold))
+                        .font(.subheadline.weight(.semibold))
                         .lineLimit(1)
                     Text(snapshot.lastSyncedText)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "bolt.heart.fill")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.orange)
-                    .accessibilityHidden(true)
-            }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
-                metricTile(label: "Consumed", value: snapshot.consumedValue, caption: snapshot.consumedCaption)
-                metricTile(label: "Burned", value: snapshot.burnedValue, caption: snapshot.burnedCaption)
-                metricTile(
-                    label: "Net today",
-                    value: snapshot.netValue,
-                    caption: snapshot.netCaption,
-                    state: snapshot.netState
-                )
-                metricTile(
-                    label: "7-day avg net",
-                    value: snapshot.sevenDayValue,
-                    caption: snapshot.sevenDayCaption,
-                    state: snapshot.sevenDayState
-                )
-            }
-
-            HStack(alignment: .center, spacing: 8) {
-                Text("Generated \(snapshot.generatedAtText) · Tap to open NeoGym")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 4)
+                Spacer(minLength: 6)
                 refreshButton
             }
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
+                metricTile(label: "Consumed", value: snapshot.consumedValue, caption: snapshot.consumedCaption)
+                metricTile(label: "Burned", value: snapshot.burnedValue, caption: snapshot.burnedCaption)
+                metricTile(label: "Net today", value: snapshot.netValue, caption: snapshot.netCaption)
+                metricTile(label: "7-day avg", value: snapshot.sevenDayValue, caption: snapshot.sevenDayCaption)
+            }
         }
-        .padding(14)
+        .padding(12)
         .accessibilityElement(children: .contain)
     }
 
@@ -223,9 +201,10 @@ private struct EnergyBalanceWidgetView: View {
     private var refreshButton: some View {
         if #available(iOSApplicationExtension 17.0, *) {
             Button(intent: RefreshEnergyBalanceIntent()) {
-                Label("Refresh", systemImage: "arrow.clockwise")
-                    .labelStyle(.titleAndIcon)
-                    .font(.caption2.weight(.semibold))
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption.weight(.semibold))
+                    .frame(width: 28, height: 28)
+                    .contentShape(.rect)
             }
             .buttonStyle(.borderless)
             .tint(.accentColor)
@@ -234,45 +213,28 @@ private struct EnergyBalanceWidgetView: View {
         }
     }
 
-    private func metricTile(label: String, value: String, caption: String, state: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 4) {
-                Text(label)
-                    .font(.caption2.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                if let state, state != "unavailable" {
-                    Circle()
-                        .fill(color(for: state))
-                        .frame(width: 6, height: 6)
-                        .accessibilityLabel(Text(state.capitalized))
-                }
-            }
+    private func metricTile(label: String, value: String, caption: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.caption2.weight(.bold))
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Text(value)
-                .font(.system(.headline, design: .rounded).weight(.semibold))
+                .font(.system(.callout, design: .rounded).weight(.semibold))
                 .monospacedDigit()
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.65)
             Text(caption)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-
-    private func color(for state: String) -> Color {
-        switch state {
-        case "deficit": .green
-        case "surplus": .orange
-        case "balanced": .blue
-        default: .secondary
-        }
+        .padding(7)
+        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }
 
