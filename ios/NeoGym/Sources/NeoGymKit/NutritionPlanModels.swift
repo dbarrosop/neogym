@@ -733,11 +733,24 @@ public final class NutritionPlanFormModel: ObservableObject {
         sortDraftEntries(mealSlots: slots, foodSlots: foodSlots)
     }
 
+    public func canMoveEntryWithinSlot(kind: NutritionPlanEntryKind, stableId: String, direction: Int) -> Bool {
+        let entries = sortedDraftEntries()
+        guard let index = entries.firstIndex(where: { $0.kind == kind && $0.stableId == stableId }) else {
+            return false
+        }
+        let target = index + direction
+        guard target >= 0, target < entries.count else { return false }
+        return normalizedSlotKey(entries[index].slotTime) == normalizedSlotKey(entries[target].slotTime)
+    }
+
     public func moveEntry(kind: NutritionPlanEntryKind, stableId: String, direction: Int) {
         var entries = sortedDraftEntries()
         guard let index = entries.firstIndex(where: { $0.kind == kind && $0.stableId == stableId }) else { return }
         let target = index + direction
         guard target >= 0, target < entries.count else { return }
+        guard normalizedSlotKey(entries[index].slotTime) == normalizedSlotKey(entries[target].slotTime) else {
+            return
+        }
         entries.swapAt(index, target)
         apply(entries: entries)
     }
@@ -755,6 +768,11 @@ public final class NutritionPlanFormModel: ObservableObject {
             errorMessage = message
             return nil
         }
+    }
+
+    private func normalizedSlotKey(_ slotTime: String) -> String {
+        let inputValue = IntakeGrouping.timeToInputValue(slotTime)
+        return inputValue.isEmpty ? "99:99" : inputValue
     }
 
     public func macroTotals(availableMeals: [Meal], availableFoods: [Food] = []) -> MacroTotals {

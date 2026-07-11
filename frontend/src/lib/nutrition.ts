@@ -427,14 +427,14 @@ export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
   );
 }
 
-export function groupPlanEntriesByTimeSlot(entries: PlanEntry[]): PlanTimeSlot[] {
+export function groupPlanEntriesByTimeSlot(entries: readonly PlanEntry[]): PlanTimeSlot[] {
   return buildPlanTimeSlots(entries.toSorted(comparePlanEntries), planEntryMacroTotals);
 }
 
 export function groupPlanDraftEntriesByTimeSlot<
   TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] },
 >(
-  entries: TEntry[],
+  entries: readonly TEntry[],
   options: {
     getEntryTotals?: (entry: TEntry & { position: number }) => MacroTotals;
   } = {},
@@ -447,7 +447,7 @@ export function groupPlanDraftEntriesByTimeSlot<
 }
 
 function buildPlanTimeSlots<TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] }>(
-  entries: TEntry[],
+  entries: readonly TEntry[],
   entryTotals: (entry: TEntry) => MacroTotals,
 ): PlanTimeSlot<TEntry>[] {
   const slots = new Map<
@@ -498,8 +498,8 @@ function buildPlanTimeSlots<TEntry extends { slotTime?: string | null; kind: Pla
  * or imported collisions where two entries share the same time and position.
  */
 export function mergePlanEntriesByTime(
-  mealEntries: PlanMealEntry[],
-  foodEntries: PlanFoodEntry[],
+  mealEntries: readonly PlanMealEntry[],
+  foodEntries: readonly PlanFoodEntry[],
 ): PlanEntry[] {
   return [
     ...mealEntries.map((entry) => ({ ...entry, kind: "meal" as const })),
@@ -514,22 +514,59 @@ export function mergePlanEntriesByTime(
  * `nutrition_plan_foods` for deterministic mixed display.
  */
 export function sortAndRenumberPlanEntriesByTime<TEntry extends { slotTime?: string | null }>(
-  entries: TEntry[],
+  entries: readonly TEntry[],
 ): Array<TEntry & { position: number }> {
   const nextPositionByTime = new Map<string, number>();
 
-  return entries
-    .map((entry, index) => ({ entry, index }))
-    .toSorted(
-      (left, right) =>
-        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
-    )
-    .map(({ entry }) => {
-      const timeKey = normalizePlanSlotTime(entry.slotTime);
-      const position = nextPositionByTime.get(timeKey) ?? 0;
-      nextPositionByTime.set(timeKey, position + 1);
-      return { ...entry, position };
-    });
+  return sortPlanDraftEntriesByTime(entries).map(({ entry }) => {
+    const timeKey = normalizePlanSlotTime(entry.slotTime);
+    const position = nextPositionByTime.get(timeKey) ?? 0;
+    nextPositionByTime.set(timeKey, position + 1);
+    return { ...entry, position };
+  });
+}
+
+export function canMovePlanDraftEntryWithinSlot<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+  entryId: string,
+  direction: -1 | 1,
+  getEntryId: (entry: TEntry) => string,
+): boolean {
+  const sortedEntries = sortPlanDraftEntriesByTime(entries);
+  const index = sortedEntries.findIndex(({ entry }) => getEntryId(entry) === entryId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= sortedEntries.length) {
+    return false;
+  }
+
+  return (
+    normalizePlanSlotTime(sortedEntries[index]?.entry.slotTime) ===
+    normalizePlanSlotTime(sortedEntries[targetIndex]?.entry.slotTime)
+  );
+}
+
+export function movePlanDraftEntryWithinSlot<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+  entryId: string,
+  direction: -1 | 1,
+  getEntryId: (entry: TEntry) => string,
+): TEntry[] {
+  if (!canMovePlanDraftEntryWithinSlot(entries, entryId, direction, getEntryId)) {
+    return entries.slice();
+  }
+
+  const sortedEntries = sortPlanDraftEntriesByTime(entries);
+  const index = sortedEntries.findIndex(({ entry }) => getEntryId(entry) === entryId);
+  const targetIndex = index + direction;
+  const nextEntries = sortedEntries.slice();
+  const current = nextEntries[index];
+  const target = nextEntries[targetIndex];
+  if (!current || !target) {
+    return entries.slice();
+  }
+  nextEntries[index] = target;
+  nextEntries[targetIndex] = current;
+  return nextEntries.map(({ entry }) => entry);
 }
 
 export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
@@ -666,6 +703,17 @@ export function groupIntakeByTimeSlot<TEntry extends IntakeEntry>(
       };
     })
     .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+}
+
+function sortPlanDraftEntriesByTime<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+): Array<{ entry: TEntry; index: number }> {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .toSorted(
+      (left, right) =>
+        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
+    );
 }
 
 function compareIntakeSourceUnits<TEntry extends IntakeEntry>(

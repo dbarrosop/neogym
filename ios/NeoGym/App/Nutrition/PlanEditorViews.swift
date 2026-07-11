@@ -334,8 +334,13 @@ private struct NutritionPlanFormScreen: View {
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
             }
-            let draftEntries = form.sortedDraftEntries()
-            if draftEntries.isEmpty {
+            let slotGroups = NutritionPlanGrouping.groupPlanDraftEntriesByTimeSlot(
+                mealSlots: form.slots,
+                foodSlots: form.foodSlots,
+                availableMeals: meals,
+                availableFoods: foods
+            )
+            if slotGroups.isEmpty {
                 Text("Add at least one meal or food entry to define this reusable daily template.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -343,31 +348,74 @@ private struct NutritionPlanFormScreen: View {
                     .padding(.vertical, 24)
                     .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             }
-            ForEach(Array(draftEntries.enumerated()), id: \.element.id) { index, entry in
-                switch entry {
-                case let .meal(slot):
-                    NutritionPlanMealEntryEditorRow(
-                        index: index,
-                        totalCount: draftEntries.count,
-                        slot: slot,
-                        meals: meals,
-                        isSubmitting: isSubmitting,
-                        form: form,
-                        createMeal: { quickMeal = QuickMealSheetRequest(planMealSlotStableId: slot.stableId) },
-                        editMeal: { mealId in quickMeal = QuickMealSheetRequest(planMealSlotStableId: slot.stableId, mealId: mealId) }
-                    )
-                case let .food(slot):
-                    NutritionPlanFoodEntryEditorRow(
-                        index: index,
-                        totalCount: draftEntries.count,
-                        slot: slot,
-                        foods: foods,
-                        isSubmitting: isSubmitting,
-                        form: form,
-                        createFood: { quickFood = QuickFoodSheetRequest(planFoodSlotStableId: slot.stableId) },
-                        editFood: { foodId in quickFood = QuickFoodSheetRequest(foodId: foodId, planFoodSlotStableId: slot.stableId) }
-                    )
+            ForEach(slotGroups, id: \.key) { slotGroup in
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(slotGroup.label)
+                                .font(.subheadline.weight(.semibold))
+                                .monospacedDigit()
+                            Text(planSlotCountText(
+                                mealCount: slotGroup.mealCount,
+                                foodCount: slotGroup.foodCount
+                            ))
+                            .font(.caption)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        Spacer()
+                        Text(NutritionMath.macroTotalsSummary(slotGroup.totals))
+                            .font(.caption)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 260, alignment: .trailing)
+                    }
+                    ForEach(Array(slotGroup.entries.enumerated()), id: \.element.id) { index, entry in
+                        switch entry {
+                        case let .meal(slot):
+                            NutritionPlanMealEntryEditorRow(
+                                index: index,
+                                totalCount: slotGroup.entries.count,
+                                slot: slot,
+                                meals: meals,
+                                isSubmitting: isSubmitting,
+                                form: form,
+                                createMeal: {
+                                    quickMeal = QuickMealSheetRequest(
+                                        planMealSlotStableId: slot.stableId
+                                    )
+                                },
+                                editMeal: { mealId in
+                                    quickMeal = QuickMealSheetRequest(
+                                        planMealSlotStableId: slot.stableId,
+                                        mealId: mealId
+                                    )
+                                }
+                            )
+                        case let .food(slot):
+                            NutritionPlanFoodEntryEditorRow(
+                                index: index,
+                                totalCount: slotGroup.entries.count,
+                                slot: slot,
+                                foods: foods,
+                                isSubmitting: isSubmitting,
+                                form: form,
+                                createFood: {
+                                    quickFood = QuickFoodSheetRequest(
+                                        planFoodSlotStableId: slot.stableId
+                                    )
+                                },
+                                editFood: { foodId in
+                                    quickFood = QuickFoodSheetRequest(
+                                        foodId: foodId,
+                                        planFoodSlotStableId: slot.stableId
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
+                .padding(12)
+                .nutritionGlassField()
             }
             HStack(spacing: 10) {
                 Button {
@@ -390,6 +438,12 @@ private struct NutritionPlanFormScreen: View {
             }
         }
     }
+}
+
+private func planSlotCountText(mealCount: Int, foodCount: Int) -> String {
+    let mealLabel = "\(mealCount) meal\(mealCount == 1 ? "" : "s")"
+    let foodLabel = "\(foodCount) food\(foodCount == 1 ? "" : "s")"
+    return "\(mealLabel) · \(foodLabel)"
 }
 
 private struct NutritionPlanEntryChrome<Content: View>: View {

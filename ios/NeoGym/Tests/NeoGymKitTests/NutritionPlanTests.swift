@@ -373,7 +373,7 @@ final class NutritionPlanFormTests: XCTestCase {
         XCTAssertEqual(totals.protein, 24.56, accuracy: 0.001)
     }
 
-    func testPlanFormMovesMixedEntriesWithSharedPositions() {
+    func testPlanFormMovesMixedEntriesWithinSlotWithSharedPositions() {
         let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
             name: "Plan",
             description: "",
@@ -381,15 +381,86 @@ final class NutritionPlanFormTests: XCTestCase {
                 NutritionPlanSlotFormValues(id: "meal-slot", mealId: "meal-1", slotTime: "08:00", label: "Meal", position: 0)
             ],
             foodSlots: [
-                NutritionPlanFoodSlotFormValues(id: "food-slot", foodId: "food-2", grams: "50", slotTime: "08:00", label: "Fruit", position: 1)
+                NutritionPlanFoodSlotFormValues(
+                    id: "food-slot",
+                    foodId: "food-2",
+                    grams: "50",
+                    slotTime: "08:00",
+                    label: "Fruit",
+                    position: 1
+                ),
+                NutritionPlanFoodSlotFormValues(
+                    id: "lunch-food",
+                    foodId: "food-1",
+                    grams: "100",
+                    slotTime: "12:00",
+                    label: "Lunch",
+                    position: 0
+                )
             ]
         ))
 
+        XCTAssertTrue(model.canMoveEntryWithinSlot(kind: .food, stableId: "food-slot", direction: -1))
         model.moveEntry(kind: .food, stableId: "food-slot", direction: -1)
 
-        XCTAssertEqual(model.sortedDraftEntries().map(\.kind), [.food, .meal])
-        XCTAssertEqual(model.foodSlots.first?.position, 0)
-        XCTAssertEqual(model.slots.first?.position, 1)
+        XCTAssertEqual(model.sortedDraftEntries().map(\.stableId), ["food-slot", "meal-slot", "lunch-food"])
+        XCTAssertEqual(model.foodSlots.first { $0.stableId == "food-slot" }?.position, 0)
+        XCTAssertEqual(model.slots.first { $0.stableId == "meal-slot" }?.position, 1)
+        XCTAssertEqual(model.foodSlots.first { $0.stableId == "lunch-food" }?.position, 0)
+    }
+
+    func testPlanFormDisallowsMovesAcrossSlotBoundaries() {
+        let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
+            name: "Plan",
+            description: "",
+            slots: [
+                NutritionPlanSlotFormValues(
+                    id: "breakfast-meal",
+                    mealId: "meal-1",
+                    slotTime: "08:00",
+                    label: "Breakfast",
+                    position: 0
+                ),
+                NutritionPlanSlotFormValues(
+                    id: "lunch-meal",
+                    mealId: "meal-2",
+                    slotTime: "12:00",
+                    label: "Lunch",
+                    position: 0
+                )
+            ],
+            foodSlots: [
+                NutritionPlanFoodSlotFormValues(
+                    id: "lunch-food",
+                    foodId: "food-1",
+                    grams: "100",
+                    slotTime: "12:00",
+                    label: "Food",
+                    position: 1
+                )
+            ]
+        ))
+
+        XCTAssertFalse(model.canMoveEntryWithinSlot(
+            kind: .meal,
+            stableId: "breakfast-meal",
+            direction: 1
+        ))
+        XCTAssertFalse(model.canMoveEntryWithinSlot(
+            kind: .meal,
+            stableId: "lunch-meal",
+            direction: -1
+        ))
+        model.moveEntry(kind: .meal, stableId: "breakfast-meal", direction: 1)
+
+        XCTAssertEqual(
+            model.sortedDraftEntries().map(\.stableId),
+            ["breakfast-meal", "lunch-meal", "lunch-food"]
+        )
+        XCTAssertEqual(model.valuesForSubmit(
+            availableMeals: [mealFixtureModel, secondMealFixtureModel],
+            availableFoods: [foodFixtureModel]
+        )?.slots.map(\.position), [0, 0])
     }
 
     func testPlanFormValidationRenumbersMixedEntriesPerTimeAndTotalsDirectFoods() {

@@ -247,7 +247,15 @@ Build a shared plan-time-slot abstraction on both platforms, mirroring existing 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Grouped plan detail and editor UIs by normalized time slot on web and iOS. Web plan detail and `NutritionPlanForm` now render slot sections/cards with slot counts and macro summaries; iOS `PlanDetailView` and `PlanEditorViews` do the same. Added slot-local move helpers/guards on web and in `NutritionPlanFormModel` so moves cannot cross normalized time slots, while preserving existing sorted/renumbered submit payloads. Updated `docs/developers/nutrition.md` and `CLAUDE.md` to describe grouped plan display/editing and slot-local movement semantics.
+- **Tests added/updated:** Extended web and Swift nutrition plan tests for within-slot movement, boundary rejection, and per-slot renumber preservation.
+- **Reviewer verdict:** `ACCEPT` — reviewer inspected `git diff b4c35b77`, verified grouped detail/editor behavior on both platforms, model/helper-enforced slot-local movement, preserved submit shape, synced docs, and passing gates. Accepted concern: slot-level editor macro summaries for newly added draft entries may be zero until save/reload; reviewer judged this non-blocking and not a regression from pre-existing per-card behavior.
+- **Autonomous decisions:** Used Xcode toolchain commands with conflicting inherited Nix linker/SDK variables unset for Swift and xcodebuild gates. Pillar justification: correctness — inherited Nix SDK/linker variables cause unrelated SwiftPM/Xcode failures with the vendored Nhost Swift dependency, while the clean Xcode environment validates the actual iOS package/app. Ran XcodeGen because `NeoGym.xcodeproj` was absent before the app build; correctness requires regenerating the project from `project.yml` before `xcodebuild`.
+- **Quality gates:**
+  - `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS -u NIX_CC -u NIX_ENFORCE_NO_NATIVE -u NIX_DONT_SET_RPATH -u NIX_DONT_SET_RPATH_FOR_BUILD -u NIX_HARDENING_ENABLE -u MACOSX_DEPLOYMENT_TARGET -u LD -u LD_DYLD_PATH xcrun swift test` passed: 242 XCTest tests plus 4 Swift Testing tests, 0 failures.
+  - `cd frontend && nix develop ../ --command bun run check` passed: Biome/typecheck/test, 116 tests, 0 failures.
+  - `cd ios/NeoGym && nix develop ../.. --command xcodegen generate` passed.
+  - `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS -u NIX_CC -u NIX_ENFORCE_NO_NATIVE -u NIX_DONT_SET_RPATH -u NIX_DONT_SET_RPATH_FOR_BUILD -u NIX_HARDENING_ENABLE -u MACOSX_DEPLOYMENT_TARGET -u LD -u LD_DYLD_PATH xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed. Xcode emitted a pre-existing iOS 26 `UIRequiresFullScreen` deprecation warning.
 
 ### Phase 3 — Add bulk selected-plan materialization core
 

@@ -16,7 +16,10 @@ import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
   DECIMAL_INPUT_PATTERN,
+  EMPTY_MACRO_TOTALS,
+  groupPlanDraftEntriesByTimeSlot,
   macroTotalsSummary,
+  movePlanDraftEntryWithinSlot,
   type PlanEntry,
   parseMacroInput,
   planEntriesMacroTotals,
@@ -359,20 +362,9 @@ export function NutritionPlanForm({
   }
 
   function moveEntry(clientId: string, direction: -1 | 1) {
-    setEntries((current) => {
-      const index = current.findIndex((entry) => entry.clientId === clientId);
-      const targetIndex = index + direction;
-      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
-        return current;
-      }
-      const next = current.slice();
-      const [item] = next.splice(index, 1);
-      if (!item) {
-        return current;
-      }
-      next.splice(targetIndex, 0, item);
-      return next;
-    });
+    setEntries((current) =>
+      movePlanDraftEntryWithinSlot(current, clientId, direction, (entry) => entry.clientId),
+    );
   }
 
   function rememberFood(food: FoodPickerOption) {
@@ -629,13 +621,28 @@ function NutritionPlanEntriesSection({
   onCreateMeal: (clientId: string) => void;
   onEditMeal: (clientId: string, meal: MealPickerOption) => void;
 }) {
+  const planEntriesById = useMemo(
+    () => new Map(planEntries.map((entry) => [entry.id, entry])),
+    [planEntries],
+  );
+  const slotGroups = useMemo(
+    () =>
+      groupPlanDraftEntriesByTimeSlot(entries, {
+        getEntryTotals: (entry) => {
+          const matchingPlanEntry = planEntriesById.get(entry.id ?? entry.clientId);
+          return matchingPlanEntry ? planEntryMacroTotals(matchingPlanEntry) : EMPTY_MACRO_TOTALS;
+        },
+      }),
+    [entries, planEntriesById],
+  );
+
   return (
     <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
       <div>
         <h2 className="text-sm font-medium">Plan entries</h2>
         <p className="text-xs text-muted-foreground">
-          Add meal templates or direct foods. Entries sort by time; positions are shared across
-          meals and foods within each time slot.
+          Add meal templates or direct foods. Entries are grouped by time; positions are shared
+          across meals and foods within each time slot.
         </p>
       </div>
 
@@ -652,31 +659,51 @@ function NutritionPlanEntriesSection({
         </Card>
       ) : null}
 
-      <div className="space-y-3">
-        {entries.map((entry, index) => {
-          const matchingPlanEntry = planEntries.find(
-            (planEntry) => planEntry.id === (entry.id ?? entry.clientId),
-          );
-          return (
-            <NutritionPlanEntryCard
-              key={entry.clientId}
-              entry={entry}
-              index={index}
-              entryCount={entries.length}
-              meals={meals}
-              foods={foods}
-              isSubmitting={isSubmitting}
-              entryTotals={matchingPlanEntry ? planEntryMacroTotals(matchingPlanEntry) : null}
-              onMove={onMove}
-              onRemove={onRemove}
-              onUpdate={onUpdate}
-              onCreateFood={onCreateFood}
-              onEditFood={onEditFood}
-              onCreateMeal={onCreateMeal}
-              onEditMeal={onEditMeal}
-            />
-          );
-        })}
+      <div className="space-y-4">
+        {slotGroups.map((slot) => (
+          <Card key={slot.key} className="border-border/60 bg-muted/10">
+            <CardContent className="space-y-3 p-3">
+              <div className="flex flex-wrap items-start justify-between gap-3 border-border/60 border-b pb-3">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-semibold tabular-nums">{slot.label}</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {slot.mealCount} meal{slot.mealCount === 1 ? "" : "s"} · {slot.foodCount} food
+                    {slot.foodCount === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <p className="max-w-md text-right text-xs text-muted-foreground tabular-nums">
+                  {macroTotalsSummary(slot.totals)}
+                </p>
+              </div>
+              <div className="space-y-3">
+                {slot.entries.map((entry, index) => {
+                  const matchingPlanEntry = planEntriesById.get(entry.id ?? entry.clientId);
+                  return (
+                    <NutritionPlanEntryCard
+                      key={entry.clientId}
+                      entry={entry}
+                      index={index}
+                      entryCount={slot.entries.length}
+                      meals={meals}
+                      foods={foods}
+                      isSubmitting={isSubmitting}
+                      entryTotals={
+                        matchingPlanEntry ? planEntryMacroTotals(matchingPlanEntry) : null
+                      }
+                      onMove={onMove}
+                      onRemove={onRemove}
+                      onUpdate={onUpdate}
+                      onCreateFood={onCreateFood}
+                      onEditFood={onEditFood}
+                      onCreateMeal={onCreateMeal}
+                      onEditMeal={onEditMeal}
+                    />
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="flex flex-wrap justify-end gap-2">

@@ -4,6 +4,7 @@ import {
   adHocNutritionDraftTotals,
   buildAdHocLogEntryInsertInput,
   buildAdHocLogEntryUpdateSet,
+  canMovePlanDraftEntryWithinSlot,
   createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   formatLocalDate,
@@ -24,6 +25,7 @@ import {
   macroTotalsSummary,
   mealMacroTotals,
   mergePlanEntriesByTime,
+  movePlanDraftEntryWithinSlot,
   normalizeMacros,
   normalizeNumeric,
   type PlanFoodEntry,
@@ -582,6 +584,50 @@ describe("nutrition mixed plan entry helpers", () => {
       [1, 1],
       [1, 0],
     ]);
+  });
+});
+
+describe("nutrition plan draft movement helpers", () => {
+  it("moves draft entries only within their normalized time slot", () => {
+    const entries = [
+      { kind: "food", id: "breakfast-food", slotTime: "08:00", position: 0 },
+      { kind: "meal", id: "breakfast-meal", slotTime: "08:00:00", position: 1 },
+      { kind: "food", id: "lunch-food", slotTime: "12:00", position: 0 },
+    ] as const;
+
+    expect(
+      canMovePlanDraftEntryWithinSlot(entries, "breakfast-meal", -1, (entry) => entry.id),
+    ).toBe(true);
+    const moved = movePlanDraftEntryWithinSlot(entries, "breakfast-meal", -1, (entry) => entry.id);
+
+    expect(moved.map((entry) => entry.id)).toEqual([
+      "breakfast-meal",
+      "breakfast-food",
+      "lunch-food",
+    ]);
+    expect(
+      sortAndRenumberPlanEntriesByTime(moved).map(
+        (entry) => `${entry.slotTime}:${entry.id}:${entry.position}`,
+      ),
+    ).toEqual(["08:00:00:breakfast-meal:0", "08:00:breakfast-food:1", "12:00:lunch-food:0"]);
+  });
+
+  it("disallows draft entry moves across normalized time-slot boundaries", () => {
+    const entries = [
+      { kind: "food", id: "breakfast-food", slotTime: "08:00", position: 0 },
+      { kind: "meal", id: "lunch-meal", slotTime: "12:00", position: 0 },
+      { kind: "food", id: "lunch-food", slotTime: "12:00", position: 1 },
+    ] as const;
+
+    expect(canMovePlanDraftEntryWithinSlot(entries, "breakfast-food", 1, (entry) => entry.id)).toBe(
+      false,
+    );
+    expect(canMovePlanDraftEntryWithinSlot(entries, "lunch-meal", -1, (entry) => entry.id)).toBe(
+      false,
+    );
+    expect(movePlanDraftEntryWithinSlot(entries, "breakfast-food", 1, (entry) => entry.id)).toEqual(
+      [...entries],
+    );
   });
 });
 

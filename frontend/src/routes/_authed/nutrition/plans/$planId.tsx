@@ -11,6 +11,7 @@ import { gqlRequest } from "@/lib/graphql";
 import {
   formatMacro,
   formatTimeOfDay,
+  groupPlanEntriesByTimeSlot,
   macroTotalsSummary,
   mergePlanEntriesByTime,
   type PlanEntry,
@@ -100,6 +101,7 @@ function NutritionPlanDetailRoute() {
 
     const plan = data.nutritionPlan;
     const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
+    const slotGroups = groupPlanEntriesByTimeSlot(entries);
     const totals = planEntriesMacroTotals(entries);
 
     return (
@@ -144,12 +146,30 @@ function NutritionPlanDetailRoute() {
                 This plan does not have meal or food entries yet.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-md border border-border/60">
-                <ul className="divide-y divide-border/50">
-                  {entries.map((entry) => (
-                    <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
-                  ))}
-                </ul>
+              <div className="space-y-4">
+                {slotGroups.map((slot) => (
+                  <Card key={slot.key} className="border-border/60 bg-muted/10 shadow-none">
+                    <CardContent className="space-y-3 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-border/60 border-b pb-3">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold tabular-nums">{slot.label}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {slot.mealCount} meal{slot.mealCount === 1 ? "" : "s"} ·{" "}
+                            {slot.foodCount} food{slot.foodCount === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <p className="max-w-md text-right text-xs text-muted-foreground tabular-nums">
+                          {macroTotalsSummary(slot.totals)}
+                        </p>
+                      </div>
+                      <ul className="divide-y divide-border/50 overflow-hidden rounded-md border border-border/60 bg-background/60">
+                        {slot.entries.map((entry) => (
+                          <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </section>
