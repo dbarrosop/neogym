@@ -197,7 +197,8 @@ struct NutritionNavigationView: View {
                 bodyRepository: bodyRepository,
                 bodyHealthImporter: bodyHealthImporter,
                 energyRepository: energyRepository,
-                energyHealthImporter: energyHealthImporter
+                energyHealthImporter: energyHealthImporter,
+                currentUserId: currentUserId
             )
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
