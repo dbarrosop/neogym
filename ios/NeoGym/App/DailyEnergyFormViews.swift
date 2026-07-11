@@ -91,7 +91,7 @@ struct DailyEnergyEditView: View {
             case let .failed(message, _) where editor.entry == nil:
                 SectionShell(title: "Energy") {
                     AppErrorStateView(title: "Failed to load energy entry", message: message) {
-                        Task { await editor.load() }
+                        Task { await loadAndPrepareForm() }
                     }
                 }
                 .padding(20)
@@ -118,10 +118,7 @@ struct DailyEnergyEditView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             if case .idle = editor.state {
-                await editor.load()
-                if let initialValues = editor.initialValues, form == nil {
-                    form = DailyEnergyFormModel(initialValues: initialValues)
-                }
+                await loadAndPrepareForm()
             }
         }
         .alert("Delete this energy entry?", isPresented: $confirmDelete) {
@@ -130,6 +127,16 @@ struct DailyEnergyEditView: View {
         } message: {
             Text("This entry will be removed from your energy history.")
         }
+    }
+
+    private func loadAndPrepareForm() async {
+        await editor.load()
+        prepareFormIfNeeded()
+    }
+
+    private func prepareFormIfNeeded() {
+        guard form == nil, let initialValues = editor.initialValues else { return }
+        form = DailyEnergyFormModel(initialValues: initialValues)
     }
 
     private func submit() {

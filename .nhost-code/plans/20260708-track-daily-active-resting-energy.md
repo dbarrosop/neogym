@@ -3,6 +3,8 @@
 **Status:** ready
 **Created:** 2026-07-08
 
+**Historical placement note:** This plan's original iOS phase text placed daily energy under Me, but Energy moved with Body to the Nutrition hub during the later hub-navigation refactor; living docs and code now treat Energy as a Nutrition subsection.
+
 ---
 
 ## 1. Requirements

@@ -7,12 +7,6 @@ export interface DailyEnergyFormValues {
   notes: string;
 }
 
-export interface NormalizedDailyEnergyFormValues extends DailyEnergyFormValues {
-  activeKcal: string;
-  restingKcal: string;
-  notes: string;
-}
-
 export type DailyEnergyNumericValue = number | string | null | undefined;
 
 export interface DailyEnergyBalanceInput {
@@ -64,9 +58,7 @@ export function acceptsDailyEnergyNumericInput(value: string): boolean {
 
 export function validateDailyEnergyFormValues(
   values: DailyEnergyFormValues,
-):
-  | { success: true; values: NormalizedDailyEnergyFormValues }
-  | { success: false; message: string } {
+): { success: true; values: DailyEnergyFormValues } | { success: false; message: string } {
   const result = dailyEnergyFormSchema.safeParse(values);
   if (!result.success) {
     return {
