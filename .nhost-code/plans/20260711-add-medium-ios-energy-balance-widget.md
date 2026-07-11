@@ -287,7 +287,15 @@ Implemented in commit `cedeec2a`.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented in commit `e8d8ed28`.
+
+- **Implementation notes:** Added `Widgets/EnergyBalanceWidget.swift`, a medium-only `StaticConfiguration` widget that reads the Phase 2 App Group snapshot, renders the four preformatted balance metrics plus last-synced/generated freshness text, shows a safe signed-out/no-snapshot state, sets a tap-to-open `widgetURL`, and schedules best-effort 15–30 minute cache rereads. Registered `EnergyBalanceWidget()` in `NeoGymWidgetsBundle` while preserving `RestTimerLiveActivityWidget()`.
+- **Reviewer verdict:** `ACCEPT`; reviewer verified scope matches Phase 3, no `NeoGymKit` widget dependency or live auth/network was added, no refresh button was added, the widget uses `.systemMedium` only, the Live Activity remains, and the implementation compiles under extension API-only.
+- **Autonomous decisions:**
+  - Did not add automated widget tests. **Long-term maintenance:** Phase 3 intentionally keeps widget math thin and renders Phase 1/2-tested preformatted snapshot strings; build and manual preview/gateway checks are the appropriate validation surface.
+  - Used tap-to-open app as the cached-only refresh affordance. **Correctness/security:** cached-only timeline reloads cannot fetch fresh server data, so a refresh button would be misleading before Phase 4.
+  - Used `PreviewProvider` rather than `#Preview(as:)`. **Compatibility:** the widget extension deploys to iOS 16.2, and `#Preview(as:)` requires newer availability.
+- **Quality gate:** `xcrun swift build` passed; `xcrun swift test` passed (225 XCTest + 4 Swift Testing tests); `nix develop ../.. --command xcodegen generate` passed; clean-environment `xcodebuild -quiet -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' APPLICATION_EXTENSION_API_ONLY=true build` passed. Manual widget gallery rendering was not performed in the non-interactive environment and remains a manual follow-up.
 
 ### Phase 4 — Optional live widget refresh through shared session
 
