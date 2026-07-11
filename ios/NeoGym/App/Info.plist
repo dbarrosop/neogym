@@ -33,6 +33,8 @@
 	<string>NeoGym imports your weight, body-fat percentage, active energy, and resting energy from Apple Health to keep body and energy logs up to date.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NeoGymSharedKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)io.nhost.neogym.shared</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiresFullScreen</key>

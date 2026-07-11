@@ -238,6 +238,21 @@ public struct NutritionDay: Decodable, Identifiable, Sendable, Equatable {
             standaloneEntries: nutritionLogEntries.map(\.intakeEntry)
         )
     }
+
+    public var latestLoggedSlotTime: String? {
+        let mealTimes = nutritionLogMeals.compactMap { meal in
+            normalizedLoggedSlotTime(meal.slotTime)
+        }
+        let standaloneTimes = nutritionLogEntries.compactMap { entry in
+            entry.nutritionLogMealId == nil ? normalizedLoggedSlotTime(entry.slotTime) : nil
+        }
+        return (mealTimes + standaloneTimes).max()
+    }
+
+    private func normalizedLoggedSlotTime(_ slotTime: String?) -> String? {
+        let inputValue = IntakeGrouping.timeToInputValue(slotTime)
+        return inputValue.isEmpty ? nil : inputValue
+    }
 }
 
 public enum DailyCalorieBalanceState: Sendable, Equatable {
@@ -375,6 +390,102 @@ public struct RollingCalorieNetAverage: Sendable, Equatable {
         if averageNet < 0 { return .deficit }
         if averageNet > 0 { return .surplus }
         return .balanced
+    }
+}
+
+public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
+    public let date: String
+    public let caloriesIn: Double
+    public let activeKcal: Double?
+    public let restingKcal: Double?
+    public let caloriesOut: Double?
+    public let net: Double?
+    public let netState: DailyCalorieBalanceState
+    public let sevenDayAverageNet: Double?
+    public let sevenDayAverageState: DailyCalorieBalanceState?
+    public let latestLoggedSlotTime: String?
+    public let consumedValue: String
+    public let consumedCaption: String
+    public let burnedValue: String
+    public let burnedCaption: String
+    public let netTodayValue: String
+    public let netTodayCaption: String
+    public let sevenDayAverageValue: String
+    public let sevenDayAverageCaption: String
+
+    public init(
+        payload: NutritionOverviewPayload,
+        todayDate: Date = Date(),
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) {
+        self.init(
+            payload: payload,
+            today: IntakeGrouping.formatLocalDate(todayDate, calendar: calendar),
+            calendar: calendar,
+            locale: locale
+        )
+    }
+
+    public init(
+        payload: NutritionOverviewPayload,
+        today: String,
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) {
+        date = today
+        let todayDay = payload.daysByDate[today]
+        let todayEnergy = payload.energyByDate[today]
+        let balance = payload.balance(for: today)
+        let average = payload.rollingNetAverage(endingOn: today, days: 7, calendar: calendar)
+
+        caloriesIn = balance.caloriesIn
+        activeKcal = todayEnergy?.activeKcal
+        restingKcal = todayEnergy?.restingKcal
+        caloriesOut = balance.caloriesOut
+        net = balance.net
+        netState = balance.state
+        sevenDayAverageNet = average?.averageNet
+        sevenDayAverageState = average?.state
+        latestLoggedSlotTime = todayDay?.latestLoggedSlotTime
+
+        consumedValue = Self.kcalValue(balance.caloriesIn, locale: locale)
+        consumedCaption = latestLoggedSlotTime
+            .map { "As of \(IntakeGrouping.formatTimeOfDay($0, locale: locale))" }
+            ?? "No entries yet"
+        burnedValue = balance.caloriesOut.map { Self.kcalValue($0, locale: locale) } ?? "No energy"
+        burnedCaption = todayEnergy.map(Self.energySplitCaption) ?? "Log active/resting energy"
+        netTodayValue = balance.net.map { Self.signedKcalValue($0, locale: locale) } ?? "No energy"
+        netTodayCaption = Self.balanceStateCaption(for: balance.state) ?? "Needs energy"
+        sevenDayAverageValue = average.map { Self.signedKcalValue($0.averageNet, locale: locale) } ?? "No data"
+        sevenDayAverageCaption = average
+            .flatMap { Self.balanceStateCaption(for: $0.state) }
+            ?? "Log intake and energy to calculate"
+    }
+
+    public static func balanceStateCaption(for state: DailyCalorieBalanceState) -> String? {
+        switch state {
+        case .deficit: "Deficit"
+        case .surplus: "Surplus"
+        case .balanced: "Balanced"
+        case .intakeOnly: nil
+        }
+    }
+
+    private static func kcalValue(_ value: Double, locale: Locale) -> String {
+        NutritionMath.formatMacro(value, unit: "kcal", locale: locale)
+    }
+
+    private static func signedKcalValue(_ value: Double, locale: Locale) -> String {
+        if value < 0 { return "−\(kcalValue(abs(value), locale: locale))" }
+        if value > 0 { return "+\(kcalValue(value, locale: locale))" }
+        return kcalValue(0, locale: locale)
+    }
+
+    private static func energySplitCaption(_ energy: DailyEnergy) -> String {
+        let active = DailyEnergyFormatters.roundedKcal(energy.activeKcal ?? 0)
+        let resting = DailyEnergyFormatters.roundedKcal(energy.restingKcal ?? 0)
+        return "\(active) + \(resting) kcal"
     }
 }
 

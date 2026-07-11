@@ -98,6 +98,20 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
+The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
+medium Energy Balance widget. Energy Balance display math and captions live in
+host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under
+`ios/NeoGym/Shared/` to the `group.io.nhost.neogym` App Group after successful
+Nutrition Overview loads and clears/reloads it on sign-out, definitive signed-out
+bootstrap, auth errors, and user switches. The widget renders that snapshot as a
+safe fallback, can perform best-effort server refreshes through the shared
+keychain session `$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the
+app's app-only primary keychain store, and never runs
+HealthKit import. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh
+button are best-effort triggers for the live-fetch provider path, not guaranteed
+freshness or cadence; keep all AppIntent/Button code availability-gated so the
+widget extension continues to support iOS 16.2.
+
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the

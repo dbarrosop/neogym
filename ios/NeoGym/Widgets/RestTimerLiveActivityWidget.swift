@@ -5,6 +5,8 @@ import WidgetKit
 @main
 struct NeoGymWidgetsBundle: WidgetBundle {
     var body: some Widget {
+        EnergyBalanceWidget()
+
         if #available(iOSApplicationExtension 16.2, *) {
             RestTimerLiveActivityWidget()
         }

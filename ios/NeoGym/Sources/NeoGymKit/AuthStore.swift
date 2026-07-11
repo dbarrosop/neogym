@@ -25,19 +25,33 @@ public enum AuthState: Sendable {
     }
 }
 
+public enum AuthSnapshotClearReason: Sendable, Equatable {
+    case signOut
+    case signedOutBootstrap
+    case signedOutSession
+    case authError
+    case userSwitch(previousUserMarker: String?, nextUserMarker: String?)
+}
+
+public typealias AuthSnapshotClearHandler = @MainActor (AuthSnapshotClearReason) -> Void
+
 @MainActor
 public final class AuthStore: ObservableObject {
     @Published public private(set) var state: AuthState = .loading
 
     public let authService: any AuthServicing
+    private let snapshotClearHandler: AuthSnapshotClearHandler
     private var subscription: AuthSessionSubscription?
     private var bootstrapTask: Task<Void, Never>?
+    private var isClearingForExplicitSignOut = false
 
     public init(
         authService: any AuthServicing = NhostClientFactory.makeAuthService(),
-        autoBootstrap: Bool = true
+        autoBootstrap: Bool = true,
+        snapshotClearHandler: @escaping AuthSnapshotClearHandler = { _ in }
     ) {
         self.authService = authService
+        self.snapshotClearHandler = snapshotClearHandler
 
         if autoBootstrap {
             start()
@@ -73,6 +87,7 @@ public final class AuthStore: ObservableObject {
             subscription = newSubscription
             applySession(session)
         } catch {
+            snapshotClearHandler(.authError)
             state = .error(error.localizedDescription)
         }
     }
@@ -83,6 +98,9 @@ public final class AuthStore: ObservableObject {
 
     public func signOut() async {
         let refreshToken = state.session?.refreshToken
+        snapshotClearHandler(.signOut)
+        isClearingForExplicitSignOut = true
+        defer { isClearingForExplicitSignOut = false }
 
         do {
             try await authService.signOut(refreshToken: refreshToken)
@@ -101,8 +119,26 @@ public final class AuthStore: ObservableObject {
 
     private func applySession(_ session: StoredSession?) {
         if let session {
+            let previousUserMarker = state.session?.user?.id
+            let nextUserMarker = session.user?.id
+            if state.session != nil, previousUserMarker != nextUserMarker {
+                snapshotClearHandler(.userSwitch(
+                    previousUserMarker: previousUserMarker,
+                    nextUserMarker: nextUserMarker
+                ))
+            }
             state = .signedIn(session)
         } else {
+            if !isClearingForExplicitSignOut {
+                switch state {
+                case .loading:
+                    snapshotClearHandler(.signedOutBootstrap)
+                case .signedIn:
+                    snapshotClearHandler(.signedOutSession)
+                case .signedOut, .error:
+                    break
+                }
+            }
             state = .signedOut
         }
     }

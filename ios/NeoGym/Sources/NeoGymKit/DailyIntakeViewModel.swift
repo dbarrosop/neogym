@@ -15,6 +15,10 @@ public final class NutritionDaysListViewModel: ObservableObject {
         overview.rollingNetAverage(endingOn: today, days: 7, calendar: calendar)
     }
 
+    public func energyBalanceOverviewSummary(locale: Locale = .current) -> EnergyBalanceOverviewSummary {
+        EnergyBalanceOverviewSummary(payload: overview, today: today, calendar: calendar, locale: locale)
+    }
+
     private let calendar: Calendar
     private let now: @Sendable () -> Date
 
