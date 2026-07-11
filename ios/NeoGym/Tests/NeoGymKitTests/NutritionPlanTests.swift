@@ -180,6 +180,149 @@ final class NutritionPlanRepositoryTests: XCTestCase {
     }
 }
 
+final class NutritionPlanGroupingTests: XCTestCase {
+    func testGroupsPersistedPlanEntriesByTimeWithCountsTotalsAndMixedOrder() {
+        let plan = NutritionPlan(
+            id: "plan-grouped",
+            name: "Grouped day",
+            nutritionPlanMeals: [
+                NutritionPlanMealSlot(
+                    id: "meal-breakfast",
+                    mealId: "meal-1",
+                    slotTime: "08:00:00",
+                    position: 1,
+                    meal: mealFixtureModel
+                )
+            ],
+            nutritionPlanFoods: [
+                NutritionPlanFoodSlot(
+                    id: "food-breakfast",
+                    foodId: "food-2",
+                    grams: .string("50"),
+                    slotTime: "08:00:00",
+                    position: 0,
+                    food: publicFoodFixtureModel
+                ),
+                NutritionPlanFoodSlot(
+                    id: "food-lunch",
+                    foodId: "food-1",
+                    grams: .string("100"),
+                    slotTime: "12:30:00",
+                    position: 0,
+                    food: foodFixtureModel
+                )
+            ]
+        )
+
+        let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(
+            plan.sortedEntries,
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+
+        XCTAssertEqual(slots.map(\.key), ["08:00", "12:30"])
+        XCTAssertEqual(slots[0].entries.map(entryDescription), ["food:food-breakfast", "meal:meal-breakfast"])
+        XCTAssertEqual(slots[0].mealCount, 1)
+        XCTAssertEqual(slots[0].foodCount, 1)
+        XCTAssertEqual(slots[0].totals.kcal, 314.1, accuracy: 0.001)
+        XCTAssertEqual(slots[0].totals.protein, 24.91, accuracy: 0.001)
+    }
+
+    func testGroupsNoTimePlanEntriesLast() {
+        let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot([
+            .meal(NutritionPlanMealSlot(
+                id: "meal-no-time",
+                mealId: "meal-1",
+                slotTime: "",
+                position: 0,
+                meal: mealFixtureModel
+            )),
+            .food(NutritionPlanFoodSlot(
+                id: "food-timed",
+                foodId: "food-2",
+                grams: .string("50"),
+                slotTime: "07:00:00",
+                position: 0,
+                food: publicFoodFixtureModel
+            )),
+            .food(NutritionPlanFoodSlot(
+                id: "food-no-time",
+                foodId: "food-1",
+                grams: .string("25"),
+                slotTime: "",
+                position: 1,
+                food: foodFixtureModel
+            ))
+        ], locale: Locale(identifier: "en_US_POSIX"))
+
+        XCTAssertEqual(slots.map(\.key), ["07:00", "no-time"])
+        XCTAssertEqual(slots[1].label, "No time")
+        XCTAssertEqual(slots[1].entries.map(entryDescription), ["meal:meal-no-time", "food:food-no-time"])
+    }
+
+    func testGroupsDraftPlanEntriesAfterStablePerSlotRenumbering() {
+        let slots = NutritionPlanGrouping.groupPlanDraftEntriesByTimeSlot(
+            mealSlots: [
+                NutritionPlanSlotFormValues(
+                    id: "meal-lunch",
+                    mealId: "meal-1",
+                    slotTime: "12:00",
+                    label: "Lunch",
+                    position: 99
+                ),
+                NutritionPlanSlotFormValues(
+                    id: "meal-no-time",
+                    mealId: "meal-2",
+                    slotTime: "",
+                    label: "Legacy",
+                    position: 99
+                )
+            ],
+            foodSlots: [
+                NutritionPlanFoodSlotFormValues(
+                    id: "food-breakfast",
+                    foodId: "food-2",
+                    grams: "50",
+                    slotTime: "08:00",
+                    label: "Fruit",
+                    position: 99
+                ),
+                NutritionPlanFoodSlotFormValues(
+                    id: "food-lunch",
+                    foodId: "food-1",
+                    grams: "100",
+                    slotTime: "12:00",
+                    label: "Yogurt",
+                    position: 99
+                )
+            ],
+            availableMeals: [mealFixtureModel, secondMealFixtureModel],
+            availableFoods: [foodFixtureModel, publicFoodFixtureModel],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+
+        XCTAssertEqual(slots.map(\.key), ["08:00", "12:00", "no-time"])
+        XCTAssertEqual(slots.flatMap(draftEntryDescriptions), [
+            "08:00:food:food-breakfast:0",
+            "12:00:food:food-lunch:0",
+            "12:00:meal:meal-lunch:1",
+            "no-time:meal:meal-no-time:0"
+        ])
+        XCTAssertEqual(slots.map { [$0.mealCount, $0.foodCount] }, [[0, 1], [1, 1], [1, 0]])
+        XCTAssertEqual(slots[0].totals.kcal, 28.5, accuracy: 0.001)
+        XCTAssertEqual(slots[1].totals.kcal, 405.6, accuracy: 0.001)
+    }
+
+    private func entryDescription(_ entry: NutritionPlanEntry) -> String {
+        "\(entry.kind.rawValue):\(entry.id)"
+    }
+
+    private func draftEntryDescriptions(_ slot: NutritionPlanTimeSlot<NutritionPlanDraftEntry>) -> [String] {
+        slot.entries.map { entry in
+            "\(slot.key):\(entry.kind.rawValue):\(entry.stableId):\(entry.position)"
+        }
+    }
+}
+
 @MainActor
 final class NutritionPlanFormTests: XCTestCase {
     func testPlanFormValidationTrimsAndSortsSlotsByTimeThenPosition() {

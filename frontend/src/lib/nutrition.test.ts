@@ -11,6 +11,8 @@ import {
   formatMacro,
   formatTimeOfDay,
   groupIntakeByTimeSlot,
+  groupPlanDraftEntriesByTimeSlot,
+  groupPlanEntriesByTimeSlot,
   type IntakeEntry,
   type IntakeLoggedMealGroup,
   intakeDraftMacroTotals,
@@ -476,6 +478,109 @@ describe("nutrition mixed plan entry helpers", () => {
       "12:00:meal:meal-lunch:0",
       "12:00:food:food-lunch:1",
       "12:00:meal:meal-lunch-2:2",
+    ]);
+  });
+
+  it("groups persisted plan entries by normalized time slots with summaries", () => {
+    const breakfastMeal = planMeal({
+      id: "meal-breakfast",
+      slotTime: "08:00:00",
+      position: 1,
+      meal: {
+        mealIngredients: [
+          {
+            grams: 100,
+            food: {
+              kcalPer100g: 200,
+              fatPer100g: 10,
+              carbsPer100g: 20,
+              proteinPer100g: 5,
+              fiberPer100g: 2,
+              sugarPer100g: 8,
+            },
+          },
+        ],
+      },
+    });
+    const breakfastFood = planFood({
+      id: "food-breakfast",
+      slotTime: "08:00:00",
+      position: 0,
+      grams: 50,
+      food: {
+        kcalPer100g: 100,
+        fatPer100g: 2,
+        carbsPer100g: 10,
+        proteinPer100g: 4,
+        fiberPer100g: 1,
+        sugarPer100g: 3,
+      },
+    });
+    const lunchFood = planFood({ id: "food-lunch", slotTime: "12:30:00", position: 0 });
+
+    const slots = groupPlanEntriesByTimeSlot(
+      mergePlanEntriesByTime([breakfastMeal], [lunchFood, breakfastFood]),
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["08:00", "12:30"]);
+    expect(slots[0]?.entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-breakfast",
+      "meal:meal-breakfast",
+    ]);
+    expect(slots[0]?.mealCount).toBe(1);
+    expect(slots[0]?.foodCount).toBe(1);
+    expect(slots[0]?.totals).toEqual({
+      kcal: 250,
+      fat: 11,
+      carbs: 25,
+      protein: 7,
+      fiber: 2.5,
+      sugar: 9.5,
+    });
+  });
+
+  it("groups no-time plan entries last while preserving deterministic ordering", () => {
+    const slots = groupPlanEntriesByTimeSlot(
+      mergePlanEntriesByTime(
+        [{ ...planMeal({ id: "meal-no-time", position: 0 }), slotTime: null }],
+        [
+          planFood({ id: "food-timed", slotTime: "07:00:00", position: 0 }),
+          { ...planFood({ id: "food-no-time", position: 1 }), slotTime: null },
+        ],
+      ),
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["07:00", "no-time"]);
+    expect(slots[1]?.label).toBe("No time");
+    expect(slots[1]?.entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "meal:meal-no-time",
+      "food:food-no-time",
+    ]);
+  });
+
+  it("groups draft plan entries after stable per-slot renumbering", () => {
+    const slots = groupPlanDraftEntriesByTimeSlot([
+      { kind: "meal", id: "meal-lunch", slotTime: "12:00", position: 99 },
+      { kind: "food", id: "food-breakfast", slotTime: "08:00", position: 99 },
+      { kind: "food", id: "food-lunch", slotTime: "12:00", position: 99 },
+      { kind: "meal", id: "meal-no-time", slotTime: null, position: 99 },
+    ]);
+
+    expect(slots.map((slot) => slot.key)).toEqual(["08:00", "12:00", "no-time"]);
+    expect(
+      slots.flatMap((slot) =>
+        slot.entries.map((entry) => `${slot.key}:${entry.kind}:${entry.id}:${entry.position}`),
+      ),
+    ).toEqual([
+      "08:00:food:food-breakfast:0",
+      "12:00:meal:meal-lunch:0",
+      "12:00:food:food-lunch:1",
+      "no-time:meal:meal-no-time:0",
+    ]);
+    expect(slots.map((slot) => [slot.mealCount, slot.foodCount])).toEqual([
+      [0, 1],
+      [1, 1],
+      [1, 0],
     ]);
   });
 });

@@ -183,7 +183,14 @@ Build a shared plan-time-slot abstraction on both platforms, mirroring existing 
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+- **Implementation notes:** Added pure plan time-slot grouping helpers on web (`PlanTimeSlot`, `groupPlanEntriesByTimeSlot`, `groupPlanDraftEntriesByTimeSlot`) and iOS (`NutritionPlanTimeSlot`, `NutritionPlanGrouping`) without wiring them into UI. Helpers preserve existing merge/sort/renumber APIs, support the no-time fallback, and expose slot labels/sort keys, totals, and meal/food counts.
+- **Tests added/updated:** Extended `frontend/src/lib/nutrition.test.ts` and `ios/NeoGym/Tests/NeoGymKitTests/NutritionPlanTests.swift` for multi-slot bucketing, mixed intra-slot ordering, no-time-last fallback, totals/counts, and draft per-slot renumbering.
+- **Reviewer verdict:** `ACCEPT` — reviewer verified the Phase 1 diff is limited to the four planned files, helpers are covered, and no UI consumes them yet so behavior is unchanged.
+- **Autonomous decisions:** Used `xcrun swift test` with conflicting inherited Nix SDK variables unset after plain `swift test` failed before package compilation due an SDK/toolchain mismatch. Pillar justification: correctness — this uses the intended Xcode Swift toolchain for the iOS package and matches the implementer’s successful validation without changing code.
+- **Quality gates:**
+  - `cd ios/NeoGym && swift test` failed before compiling because inherited Nix `SDKROOT`/`DEVELOPER_DIR` pointed Xcode Swift at an incompatible Nix macOS SDK.
+  - `cd ios/NeoGym && env -u SDKROOT -u DEVELOPER_DIR -u NIX_CFLAGS_COMPILE -u NIX_LDFLAGS -u NIX_CC -u NIX_ENFORCE_NO_NATIVE -u NIX_DONT_SET_RPATH -u NIX_DONT_SET_RPATH_FOR_BUILD -u NIX_HARDENING_ENABLE -u MACOSX_DEPLOYMENT_TARGET xcrun swift test` passed: 241 XCTest tests plus 4 Swift Testing tests, 0 failures.
+  - `cd frontend && nix develop ../ --command bun run check` passed: Biome/typecheck/test, 114 tests, 0 failures.
 
 ### Phase 2 — Group plan detail and editor UIs
 

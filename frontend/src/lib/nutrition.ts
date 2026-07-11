@@ -95,6 +95,16 @@ export interface PlanFoodEntry {
 
 export type PlanEntry = (PlanMealEntry & { kind: "meal" }) | (PlanFoodEntry & { kind: "food" });
 
+export interface PlanTimeSlot<TEntry extends { kind: PlanEntry["kind"] } = PlanEntry> {
+  key: string;
+  label: string;
+  sortKey: string;
+  entries: TEntry[];
+  totals: MacroTotals;
+  mealCount: number;
+  foodCount: number;
+}
+
 export interface LoggedSnapshotEntry {
   grams: unknown;
   snapshotKcalPer100g: unknown;
@@ -415,6 +425,70 @@ export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
     (total, entry) => addMacroTotals(total, planEntryMacroTotals(entry)),
     EMPTY_MACRO_TOTALS,
   );
+}
+
+export function groupPlanEntriesByTimeSlot(entries: PlanEntry[]): PlanTimeSlot[] {
+  return buildPlanTimeSlots(entries.toSorted(comparePlanEntries), planEntryMacroTotals);
+}
+
+export function groupPlanDraftEntriesByTimeSlot<
+  TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] },
+>(
+  entries: TEntry[],
+  options: {
+    getEntryTotals?: (entry: TEntry & { position: number }) => MacroTotals;
+  } = {},
+): PlanTimeSlot<TEntry & { position: number }>[] {
+  const renumberedEntries = sortAndRenumberPlanEntriesByTime(entries);
+  return buildPlanTimeSlots(
+    renumberedEntries,
+    options.getEntryTotals ?? (() => EMPTY_MACRO_TOTALS),
+  );
+}
+
+function buildPlanTimeSlots<TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] }>(
+  entries: TEntry[],
+  entryTotals: (entry: TEntry) => MacroTotals,
+): PlanTimeSlot<TEntry>[] {
+  const slots = new Map<
+    string,
+    Omit<PlanTimeSlot<TEntry>, "entries" | "totals" | "mealCount" | "foodCount"> & {
+      entries: TEntry[];
+    }
+  >();
+
+  for (const entry of entries) {
+    const inputValue = timeToInputValue(entry.slotTime);
+    const key = inputValue || NO_TIME_SLOT_KEY;
+    const existing = slots.get(key);
+    const slot =
+      existing ??
+      ({
+        key,
+        label: inputValue ? formatTimeOfDay(inputValue) : "No time",
+        sortKey: inputValue || NO_TIME_SORT_KEY,
+        entries: [],
+      } satisfies Omit<PlanTimeSlot<TEntry>, "entries" | "totals" | "mealCount" | "foodCount"> & {
+        entries: TEntry[];
+      });
+    slot.entries.push(entry);
+    slots.set(key, slot);
+  }
+
+  return Array.from(slots.values())
+    .map((slot) => ({
+      key: slot.key,
+      label: slot.label,
+      sortKey: slot.sortKey,
+      entries: slot.entries,
+      totals: slot.entries.reduce(
+        (total, entry) => addMacroTotals(total, entryTotals(entry)),
+        EMPTY_MACRO_TOTALS,
+      ),
+      mealCount: slot.entries.filter((entry) => entry.kind === "meal").length,
+      foodCount: slot.entries.filter((entry) => entry.kind === "food").length,
+    }))
+    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
 }
 
 /**
