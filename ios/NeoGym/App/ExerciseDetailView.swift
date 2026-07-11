@@ -57,7 +57,11 @@ struct ExerciseDetailView: View {
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
-        case .idle, .loading where viewModel.exercise == nil:
+        case .idle:
+            SectionShell(title: "Loading exercise") {
+                AppLoadingStateView(title: "Loading exercise")
+            }
+        case .loading where viewModel.exercise == nil:
             SectionShell(title: "Loading exercise") {
                 AppLoadingStateView(title: "Loading exercise")
             }

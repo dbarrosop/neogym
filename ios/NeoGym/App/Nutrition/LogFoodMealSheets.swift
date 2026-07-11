@@ -187,10 +187,10 @@ struct LogIntakeSheet: View {
         }
         .navigationViewStyle(.stack)
         .onAppear(perform: prepareInitialDraft)
-        .onChange(of: mode) { _ in prepareDraft() }
-        .onChange(of: foodId) { _ in prepareFoodDraft() }
-        .onChange(of: mealId) { _ in prepareMealDraft() }
-        .onChange(of: planEntryId) { _ in prepareDraft() }
+        .onChange(of: mode) { prepareDraft() }
+        .onChange(of: foodId) { prepareFoodDraft() }
+        .onChange(of: mealId) { prepareMealDraft() }
+        .onChange(of: planEntryId) { prepareDraft() }
     }
 
 }

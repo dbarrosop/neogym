@@ -32,15 +32,15 @@ struct FoodPickerView: View {
             pickerContent
         }
         .onAppear(perform: syncSelectionWithFilter)
-        .onChange(of: query) { _ in
+        .onChange(of: query) {
             revealWheelIfSearching()
             syncSelectionWithFilter()
         }
-        .onChange(of: foodIds) { _ in syncSelectionWithFilter() }
-        .onChange(of: searchFocused) { isFocused in
+        .onChange(of: foodIds) { syncSelectionWithFilter() }
+        .onChange(of: searchFocused) { _, isFocused in
             if isFocused { revealWheel() }
         }
-        .onChange(of: disabled) { _ in revealWheelIfSearching() }
+        .onChange(of: disabled) { revealWheelIfSearching() }
     }
 
     @ViewBuilder
