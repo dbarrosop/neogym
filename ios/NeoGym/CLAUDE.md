@@ -270,10 +270,12 @@ intact instead of inventing one-off styles.
 - **Graphs and summaries**: body and daily-energy trends use
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
   date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
-  custom charts collapse their decorative drawing, axes, legends, markers, and
-  callouts into one VoiceOver element with a domain label plus a summary of
-  visible series, point counts, date range, latest values, and min/max values;
-  empty-state text remains naturally accessible. Nutrition totals use
+  custom chart plots collapse decorative drawing, axes, markers, and callouts
+  into one VoiceOver element with a domain label plus a summary of visible
+  series, point counts, date range, latest values, and min/max values; legends
+  stay separate tappable controls for hiding/showing series. Caller-provided
+  chart accessibility values must account for hidden series themselves.
+  Empty-state text remains naturally accessible. Nutrition totals use
   `MacroSummaryView` grids with monospaced digits and optional target totals;
   the daily intake balance is read-only, with calories in from logged snapshots
   and calories out from the same date's `daily_energy` row. Do not introduce a
