@@ -400,7 +400,16 @@ Implemented in commit `6a6eb38d`.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented in commit `22b7a036`.
+
+- **Implementation notes:** Added `RefreshEnergyBalanceIntent`, an iOS 17+ AppIntent that calls `WidgetCenter.shared.reloadTimelines(ofKind:)` for the Energy Balance widget. Added an availability-gated `Refresh` button only in the populated widget state; the button triggers the Phase 4 timeline provider path, which attempts live fetch and falls back to cache. Updated root `CLAUDE.md`, `ios/NeoGym/CLAUDE.md`, and `docs/developers/energy.md` to describe the final widget architecture, App Group aggregate snapshot, shared-keychain live refresh, auth clearing, HealthKit exclusion, best-effort refresh, and iOS availability constraints.
+- **Reviewer verdict:** `ACCEPT`; reviewer verified the button is honest and iOS 17+-gated, the AppIntent reloads the matching widget kind and therefore reaches the Phase 4 live-fetch provider path within WidgetKit limits, docs are accurate and non-duplicative, and the energy domain doc addition is appropriate.
+- **Autonomous decisions:**
+  - Added a refresh affordance because Phase 4 live fetch is active. **Correctness:** timeline reload can now attempt fresh server data through the shared session.
+  - Rendered the button only for populated snapshots. **Security/correctness:** signed-out or no-snapshot states cannot benefit from a silent refresh and should keep honest `Open NeoGym` guidance.
+  - Did not add automated tests for AppIntent/widget UI. **Long-term maintenance:** the intent only requests WidgetKit timeline reload and all pure data/display logic is already covered by earlier phases; build/LSP/manual verification are the appropriate validation surfaces.
+  - Updated `docs/developers/energy.md` in addition to `CLAUDE.md`. **Long-term maintenance:** the widget extends the documented read-only nutrition in/out/net balance contract and should be discoverable with the energy domain model.
+- **Quality gate:** `xcrun swift build` passed; `xcrun swift test` passed (228 XCTest + 4 Swift Testing tests); `nix develop ../.. --command xcodegen generate` passed; clean-environment `xcodebuild -quiet -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed; `git diff --check` passed. Manual iOS 17+ widget button interaction was not performed in the non-interactive environment.
 
 ---
 

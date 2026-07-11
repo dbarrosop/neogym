@@ -1,3 +1,4 @@
+import AppIntents
 import NeoGymKit
 import SwiftUI
 import WidgetKit
@@ -172,14 +173,18 @@ private struct EnergyBalanceWidgetView: View {
                 )
             }
 
-            Text("Generated \(snapshot.generatedAtText) · Tap to open NeoGym")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(alignment: .center, spacing: 8) {
+                Text("Generated \(snapshot.generatedAtText) · Tap to open NeoGym")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                refreshButton
+            }
         }
         .padding(14)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     private var emptyView: some View {
@@ -212,6 +217,21 @@ private struct EnergyBalanceWidgetView: View {
         }
         .padding(14)
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var refreshButton: some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            Button(intent: RefreshEnergyBalanceIntent()) {
+                Label("Refresh", systemImage: "arrow.clockwise")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption2.weight(.semibold))
+            }
+            .buttonStyle(.borderless)
+            .tint(.accentColor)
+            .accessibilityLabel("Refresh energy balance")
+            .accessibilityHint("Attempts to fetch fresh server data for this widget")
+        }
     }
 
     private func metricTile(label: String, value: String, caption: String, state: String? = nil) -> some View {
