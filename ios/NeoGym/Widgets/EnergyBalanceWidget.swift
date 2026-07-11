@@ -155,10 +155,28 @@ private struct EnergyBalanceWidgetView: View {
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
-                metricTile(label: "Consumed", value: snapshot.consumedValue, caption: snapshot.consumedCaption)
-                metricTile(label: "Burned", value: snapshot.burnedValue, caption: snapshot.burnedCaption)
-                metricTile(label: "Net today", value: snapshot.netValue, caption: snapshot.netCaption)
-                metricTile(label: "7-day avg", value: snapshot.sevenDayValue, caption: snapshot.sevenDayCaption)
+                metricTile(
+                    label: "Consumed",
+                    value: snapshot.consumedValue,
+                    metadata: compactConsumedMetadata(snapshot.consumedCaption)
+                )
+                metricTile(
+                    label: "Burned",
+                    value: snapshot.burnedValue,
+                    metadata: compactBurnedMetadata(snapshot.burnedCaption)
+                )
+                metricTile(
+                    label: "Net today",
+                    value: snapshot.netValue,
+                    metadata: snapshot.netCaption,
+                    state: snapshot.netState
+                )
+                metricTile(
+                    label: "7-day avg",
+                    value: snapshot.sevenDayValue,
+                    metadata: snapshot.sevenDayCaption,
+                    state: snapshot.sevenDayState
+                )
             }
         }
         .padding(12)
@@ -213,28 +231,69 @@ private struct EnergyBalanceWidgetView: View {
         }
     }
 
-    private func metricTile(label: String, value: String, caption: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
+    private func metricTile(label: String, value: String, metadata: String, state: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(label)
+                    .font(.caption2.weight(.bold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Spacer(minLength: 2)
+
+                if let state, state != "unavailable" {
+                    stateIndicator(for: state)
+                } else {
+                    Text(metadata)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                }
+            }
+
             Text(value)
                 .font(.system(.callout, design: .rounded).weight(.semibold))
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
-            Text(caption)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(7)
+        .padding(8)
         .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private func stateIndicator(for state: String) -> some View {
+        switch state {
+        case "surplus":
+            Image(systemName: "arrow.up")
+                .foregroundStyle(.green)
+                .accessibilityLabel("Surplus")
+        case "deficit":
+            Image(systemName: "arrow.down")
+                .foregroundStyle(.red)
+                .accessibilityLabel("Deficit")
+        case "balanced":
+            Image(systemName: "minus")
+                .foregroundStyle(.blue)
+                .accessibilityLabel("Balanced")
+        default:
+            Text(state.capitalized)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func compactConsumedMetadata(_ caption: String) -> String {
+        let stripped = caption.hasPrefix("As of ") ? String(caption.dropFirst("As of ".count)) : caption
+        return stripped.replacingOccurrences(of: ":", with: ".")
+    }
+
+    private func compactBurnedMetadata(_ caption: String) -> String {
+        caption.replacingOccurrences(of: " kcal", with: "")
     }
 }
 
