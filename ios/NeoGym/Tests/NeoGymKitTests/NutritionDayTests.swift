@@ -277,8 +277,8 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertEqual(adHocSet["snapshotSugarPer100g"], .string("4"))
         XCTAssertFalse(adHocSet.recursivelyContainsKey("source"))
         XCTAssertFalse(adHocSet.recursivelyContainsKey("foodId"))
- 
-         let groupSet = try XCTUnwrap(requests[1].variables?["set"])
+
+        let groupSet = try XCTUnwrap(requests[1].variables?["set"])
         XCTAssertEqual(groupSet["name"], .string("Brunch"))
         XCTAssertEqual(groupSet["position"], .number(1))
         XCTAssertEqual(groupSet["slotTime"], .string("11:15"))
@@ -515,7 +515,10 @@ final class NutritionDayGroupingTests: XCTestCase {
     }
 
     func testEnergyBalanceOverviewSummaryFormatsRequestedCaptions() {
-        let payload = NutritionOverviewPayload(days: [nutritionDayFixtureModel], dailyEnergyEntries: [dailyEnergyFixtureModel])
+        let payload = NutritionOverviewPayload(
+            days: [nutritionDayFixtureModel],
+            dailyEnergyEntries: [dailyEnergyFixtureModel]
+        )
 
         let summary = EnergyBalanceOverviewSummary(
             payload: payload,
@@ -533,8 +536,36 @@ final class NutritionDayGroupingTests: XCTestCase {
         XCTAssertEqual(summary.sevenDayAverageCaption, "Deficit")
     }
 
+    func testEnergyBalanceOverviewSummaryExposesRawValuesForWidgetSnapshotMapping() {
+        let payload = NutritionOverviewPayload(
+            days: [nutritionDayFixtureModel],
+            dailyEnergyEntries: [dailyEnergyFixtureModel]
+        )
+
+        let summary = EnergyBalanceOverviewSummary(
+            payload: payload,
+            today: "2026-06-27",
+            locale: Locale(identifier: "en_US")
+        )
+
+        XCTAssertEqual(summary.date, "2026-06-27")
+        XCTAssertEqual(summary.caloriesIn, 250, accuracy: 0.001)
+        XCTAssertEqual(summary.activeKcal, 450)
+        XCTAssertEqual(summary.restingKcal, 1550)
+        XCTAssertEqual(summary.caloriesOut, 2000)
+        XCTAssertEqual(summary.net, -1750)
+        XCTAssertEqual(summary.netState, .deficit)
+        XCTAssertEqual(summary.sevenDayAverageNet, -1750)
+        XCTAssertEqual(summary.sevenDayAverageState, .deficit)
+        XCTAssertEqual(summary.latestLoggedSlotTime, "10:15")
+    }
+
     func testEnergyBalanceOverviewSummaryDistinguishesMissingEnergyFromMissingComponents() {
-        let day = NutritionDay(id: "day-1", logDate: "2026-07-11", nutritionLogEntries: [testLogEntry(slotTime: "09:30")])
+        let day = NutritionDay(
+            id: "day-1",
+            logDate: "2026-07-11",
+            nutritionLogEntries: [testLogEntry(slotTime: "09:30")]
+        )
         let missingEnergy = EnergyBalanceOverviewSummary(
             payload: NutritionOverviewPayload(days: [day]),
             today: "2026-07-11",

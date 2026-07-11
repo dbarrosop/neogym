@@ -1,6 +1,7 @@
 import NeoGymKit
 import SwiftUI
 import UserNotifications
+import WidgetKit
 
 @main
 struct NeoGymApp: App {
@@ -19,8 +20,16 @@ struct NeoGymApp: App {
         let notificationDelegate = NeoGymNotificationDelegate()
         self.appEnvironment = appEnvironment
         self.notificationDelegate = notificationDelegate
-        _authStore = StateObject(wrappedValue: AuthStore(authService: appEnvironment.authService))
+        _authStore = StateObject(wrappedValue: AuthStore(
+            authService: appEnvironment.authService,
+            snapshotClearHandler: { _ in Self.clearEnergyBalanceWidgetSnapshot() }
+        ))
         UNUserNotificationCenter.current().delegate = notificationDelegate
+    }
+
+    private static func clearEnergyBalanceWidgetSnapshot() {
+        EnergyBalanceWidgetSnapshotStore.shared.clear()
+        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 
     var body: some Scene {

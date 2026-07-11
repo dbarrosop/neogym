@@ -1,5 +1,6 @@
 import NeoGymKit
 import SwiftUI
+import WidgetKit
 
 struct NutritionOverviewView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
@@ -7,6 +8,7 @@ struct NutritionOverviewView: View {
     let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
     let energyRepository: any DailyEnergyRepositoryProtocol
     let energyHealthImporter: (any DailyEnergyHealthImporting)?
+    let currentUserId: String?
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
@@ -18,13 +20,15 @@ struct NutritionOverviewView: View {
         bodyRepository: any BodyMeasurementsRepositoryProtocol,
         bodyHealthImporter: (any BodyMeasurementsHealthImporting)?,
         energyRepository: any DailyEnergyRepositoryProtocol,
-        energyHealthImporter: (any DailyEnergyHealthImporting)?
+        energyHealthImporter: (any DailyEnergyHealthImporting)?,
+        currentUserId: String?
     ) {
         self.repository = repository
         self.bodyRepository = bodyRepository
         self.bodyHealthImporter = bodyHealthImporter
         self.energyRepository = energyRepository
         self.energyHealthImporter = energyHealthImporter
+        self.currentUserId = currentUserId
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
         _bodyViewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: bodyRepository,
@@ -153,6 +157,22 @@ struct NutritionOverviewView: View {
         await energySyncViewModel.load(shouldSyncHealthEnergy: true)
         await viewModel.load()
         await bodyLoad
+
+        if case .loaded = viewModel.state {
+            writeEnergyBalanceWidgetSnapshot()
+        }
+    }
+
+    private func writeEnergyBalanceWidgetSnapshot() {
+        let summary = viewModel.energyBalanceOverviewSummary(locale: locale)
+        let snapshot = EnergyBalanceWidgetSnapshot(
+            summary: summary,
+            userMarker: currentUserId,
+            generatedAt: Date(),
+            locale: locale
+        )
+        EnergyBalanceWidgetSnapshotStore.shared.save(snapshot)
+        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 
     @ViewBuilder
@@ -162,7 +182,7 @@ struct NutritionOverviewView: View {
             case .idle, .loading:
                 AppLoadingStateView(message: "Loading balance…")
             case let .failed(message, _):
-                AppErrorStateView(title: "Failed to load balance", message: message) { Task { await viewModel.load() } }
+                AppErrorStateView(title: "Failed to load balance", message: message) { Task { await loadOverview() } }
             case .loaded:
                 let summary = viewModel.energyBalanceOverviewSummary(locale: locale)
                 VStack(alignment: .leading, spacing: 12) {
@@ -242,7 +262,7 @@ struct NutritionOverviewView: View {
             case .idle, .loading:
                 AppLoadingStateView(message: "Loading calories…")
             case let .failed(message, _):
-                AppErrorStateView(title: "Failed to load calories", message: message) { Task { await viewModel.load() } }
+                AppErrorStateView(title: "Failed to load calories", message: message) { Task { await loadOverview() } }
             case .loaded:
                 TimeSeriesTrendChartView(
                     series: caloriesSeries,
@@ -274,6 +294,42 @@ struct NutritionOverviewView: View {
                     initialPeriod: .last30Days
                 )
             }
+        }
+    }
+}
+
+private extension EnergyBalanceWidgetSnapshot {
+    init(
+        summary: EnergyBalanceOverviewSummary,
+        userMarker: String?,
+        generatedAt: Date,
+        locale: Locale
+    ) {
+        self.init(
+            localDate: summary.date,
+            userMarker: userMarker,
+            generatedAtISO8601: Self.iso8601String(generatedAt),
+            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
+            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
+            consumedValue: summary.consumedValue,
+            consumedCaption: summary.consumedCaption,
+            burnedValue: summary.burnedValue,
+            burnedCaption: summary.burnedCaption,
+            netValue: summary.netTodayValue,
+            netCaption: summary.netTodayCaption,
+            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
+            sevenDayValue: summary.sevenDayAverageValue,
+            sevenDayCaption: summary.sevenDayAverageCaption,
+            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
+        )
+    }
+
+    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
+        switch state {
+        case .deficit: "deficit"
+        case .surplus: "surplus"
+        case .balanced: "balanced"
+        case .intakeOnly: "unavailable"
         }
     }
 }

@@ -232,7 +232,16 @@ Implemented in commit `13850ad5`.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented in commit `cedeec2a`.
+
+- **Implementation notes:** Added `Shared/EnergyBalanceWidgetSnapshot.swift` as a dependency-free aggregate snapshot DTO/store with preformatted display strings, generated/last-synced values, widget kind/App Group constants, and user-marker mismatch clearing. Added App Group entitlements for the app and widget through `project.yml`, `App/NeoGym.entitlements`, and `Widgets/NeoGymWidgets.entitlements`. Wired Nutrition Overview successful loads to write snapshots and reload timelines, and wired auth transitions to clear snapshots/reload timelines.
+- **Reviewer verdict:** `ACCEPT`; reviewer verified the snapshot is token-free, app writes only after loaded overview state, failures preserve the last good snapshot, all required auth transitions clear snapshots, no widget UI was added, and generated `.xcodeproj` remains ignored.
+- **Autonomous decisions:**
+  - Used App Group identifier `group.io.nhost.neogym`. **Correctness:** this was the plan-proposed default and sufficient for simulator validation; device/TestFlight provisioning remains documented as a release requirement.
+  - Added a user marker to the snapshot and clear-on-mismatch behavior. **Security:** this provides a second guard against stale cross-user data.
+  - Introduced a testable `AuthStore` snapshot-clear seam and app-level reload handler. **Long-term maintenance:** this keeps auth state transitions testable while keeping WidgetKit imports in app code.
+  - Used a clean Xcode environment for native build/test gates. **Correctness:** inherited shell environment can produce SDK/toolchain/linker mismatches; clean Xcode commands are the strongest available native validation.
+- **Quality gate:** `xcrun swift build` passed; `xcrun swift test` passed (225 XCTest + 4 Swift Testing tests); `nix develop ../.. --command xcodegen generate` passed; clean-environment `xcodebuild -quiet -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed; `plutil -lint App/NeoGym.entitlements Widgets/NeoGymWidgets.entitlements` passed.
 
 ### Phase 3 — Medium widget from cached snapshot
 

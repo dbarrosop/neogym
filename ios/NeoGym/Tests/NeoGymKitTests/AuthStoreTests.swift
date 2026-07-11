@@ -36,6 +36,30 @@ final class AuthStoreTests: XCTestCase {
         XCTAssertEqual(store.state.session?.user?.email, "athlete@example.com")
     }
 
+    func testDefinitiveSignedOutBootstrapRequestsSnapshotClear() async {
+        let service = FakeAuthService()
+        var clearReasons: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { reason in
+            clearReasons.append(reason)
+        }
+
+        await store.bootstrap()
+
+        XCTAssertEqual(clearReasons, [.signedOutBootstrap])
+    }
+
+    func testBootstrapAuthErrorRequestsSnapshotClear() async {
+        let service = FakeAuthService(bootstrapError: TestError.requestFailed)
+        var clearReasons: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { reason in
+            clearReasons.append(reason)
+        }
+
+        await store.bootstrap()
+
+        XCTAssertEqual(clearReasons, [.authError])
+    }
+
     func testSessionSubscriptionUpdatesState() async throws {
         let service = FakeAuthService()
         let store = AuthStore(authService: service, autoBootstrap: false)
@@ -67,7 +91,10 @@ final class AuthStoreTests: XCTestCase {
     func testSignOutStillClearsLocalSessionWhenRemoteSignOutFails() async throws {
         let session = try Self.makeSession(refreshToken: "stale-refresh-token")
         let service = FakeAuthService(initialSession: session, signOutError: TestError.remoteSignOutFailed)
-        let store = AuthStore(authService: service, autoBootstrap: false)
+        var clearReasons: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { reason in
+            clearReasons.append(reason)
+        }
         await store.bootstrap()
 
         await store.signOut()
@@ -77,11 +104,45 @@ final class AuthStoreTests: XCTestCase {
         }
         let didClearSession = await service.didClearSessionSnapshot()
         XCTAssertTrue(didClearSession)
+        XCTAssertEqual(clearReasons, [.signOut])
+    }
+
+    func testUserSwitchRequestsSnapshotClearBeforeNewUserState() async throws {
+        let firstSession = try Self.makeSession(email: "first@example.com", userId: "user-1")
+        let secondSession = try Self.makeSession(email: "second@example.com", userId: "user-2")
+        let service = FakeAuthService(initialSession: firstSession)
+        var clearReasons: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { reason in
+            clearReasons.append(reason)
+        }
+        await store.bootstrap()
+
+        await service.updateSession(secondSession)
+
+        XCTAssertEqual(store.state.session?.user?.id, "user-2")
+        XCTAssertEqual(clearReasons, [.userSwitch(previousUserMarker: "user-1", nextUserMarker: "user-2")])
+    }
+
+    func testSameUserSessionRefreshDoesNotRequestSnapshotClear() async throws {
+        let firstSession = try Self.makeSession(email: "first@example.com", userId: "user-1")
+        let refreshedSession = try Self.makeSession(email: "renamed@example.com", userId: "user-1")
+        let service = FakeAuthService(initialSession: firstSession)
+        var clearReasons: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { reason in
+            clearReasons.append(reason)
+        }
+        await store.bootstrap()
+
+        await service.updateSession(refreshedSession)
+
+        XCTAssertEqual(store.state.session?.user?.email, "renamed@example.com")
+        XCTAssertTrue(clearReasons.isEmpty)
     }
 
     private static func makeSession(
         email: String = "athlete@example.com",
-        refreshToken: String = "refresh-token"
+        refreshToken: String = "refresh-token",
+        userId: String = "user-id"
     ) throws -> StoredSession {
         try StoredSession(
             accessToken: "header.payload.signature",
@@ -95,7 +156,7 @@ final class AuthStoreTests: XCTestCase {
                 displayName: "Neo Athlete",
                 email: email,
                 emailVerified: true,
-                id: "user-id",
+                id: userId,
                 isAnonymous: false,
                 locale: "en",
                 metadata: [:],
@@ -119,6 +180,7 @@ private actor FakeAuthService: AuthServicing {
     private let signOutError: Error?
     private let requestError: Error?
     private let verifyError: Error?
+    private let bootstrapError: Error?
     private var verifySession: StoredSession?
     private(set) var signInRequests: [String] = []
     private(set) var signUpRequests: [(email: String, displayName: String)] = []
@@ -131,17 +193,22 @@ private actor FakeAuthService: AuthServicing {
         signOutError: Error? = nil,
         requestError: Error? = nil,
         verifyError: Error? = nil,
-        verifySession: StoredSession? = nil
+        verifySession: StoredSession? = nil,
+        bootstrapError: Error? = nil
     ) {
         session = initialSession
         self.signOutError = signOutError
         self.requestError = requestError
         self.verifyError = verifyError
         self.verifySession = verifySession
+        self.bootstrapError = bootstrapError
     }
 
     func getUserSession() async throws -> StoredSession? {
-        session
+        if let bootstrapError {
+            throw bootstrapError
+        }
+        return session
     }
 
     func subscribeToSessionChanges(

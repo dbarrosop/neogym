@@ -53,6 +53,8 @@ targets:
       path: App/NeoGym.entitlements
       properties:
         com.apple.developer.healthkit: true
+        com.apple.security.application-groups:
+          - group.io.nhost.neogym
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
@@ -78,6 +80,11 @@ targets:
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: Widgets/NeoGymWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.io.nhost.neogym
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym.widgets
