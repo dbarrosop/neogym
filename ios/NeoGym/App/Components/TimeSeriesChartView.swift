@@ -1,44 +1,5 @@
+import NeoGymKit
 import SwiftUI
-
-struct TimeSeriesChartDataPoint: Identifiable, Equatable {
-    let id: String
-    let date: Date
-    let value: Double
-}
-
-enum TimeSeriesChartAxis: String, Hashable {
-    case left
-    case right
-}
-
-struct TimeSeriesChartSeries: Identifiable {
-    let id: String
-    let name: String
-    let color: Color
-    let axis: TimeSeriesChartAxis
-    let centersAxisOnZero: Bool
-    let points: [TimeSeriesChartDataPoint]
-    let valueFormatter: (Double) -> String
-
-    init(
-        id: String,
-        name: String,
-        color: Color,
-        axis: TimeSeriesChartAxis = .left,
-        centersAxisOnZero: Bool = false,
-        points: [TimeSeriesChartDataPoint],
-        valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
-    ) {
-        self.id = id
-        self.name = name
-        self.color = color
-        self.axis = axis
-        self.centersAxisOnZero = centersAxisOnZero
-        self.points = points.sorted { $0.date < $1.date }
-        self.valueFormatter = valueFormatter
-    }
-}
-
 
 struct TimeSeriesChartView: View {
     let series: [TimeSeriesChartSeries]
@@ -51,17 +12,29 @@ struct TimeSeriesChartView: View {
     var accessibilityValue: String?
 
     @State private var selectedPoint: PlottedChartPoint?
+    @State private var visibilityState = ChartSeriesVisibilityState()
 
-    private var nonEmptySeries: [TimeSeriesChartSeries] {
+    var candidateSeries: [TimeSeriesChartSeries] {
         series.filter { !$0.points.isEmpty }
     }
 
+    var effectiveVisibleSeries: [TimeSeriesChartSeries] {
+        let visibleIDs = Set(visibilityState.visibleIDs(among: candidateSeries.map(\.id)))
+        return candidateSeries.filter { visibleIDs.contains($0.id) }
+    }
+
     private var allPoints: [TimeSeriesChartDataPoint] {
-        nonEmptySeries.flatMap(\.points)
+        effectiveVisibleSeries.flatMap(\.points)
+    }
+
+    private var visiblePointIdentity: [String] {
+        effectiveVisibleSeries.flatMap { singleSeries in
+            singleSeries.points.map { point in "\(singleSeries.id)-\(point.id)" }
+        }
     }
 
     var body: some View {
-        if allPoints.isEmpty {
+        if candidateSeries.isEmpty {
             Text(emptyMessage)
                 .font(.subheadline)
                 .foregroundColor(NeoGymTheme.mutedText)
@@ -71,13 +44,17 @@ struct TimeSeriesChartView: View {
                 GeometryReader { proxy in
                     chartBody(size: proxy.size)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(Text(accessibilityLabel))
+                .accessibilityValue(Text(accessibilityValue ?? defaultAccessibilityValue))
+
                 if showsLegend {
                     legend
                 }
             }
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(Text(accessibilityLabel))
-            .accessibilityValue(Text(accessibilityValue ?? defaultAccessibilityValue))
+            .onChange(of: visiblePointIdentity) { _, _ in
+                selectedPoint = nil
+            }
         }
     }
 
@@ -129,7 +106,7 @@ struct TimeSeriesChartView: View {
         ZStack(alignment: .topLeading) {
             chartGrid
             if showsAxes { chartAxes(size: size) }
-            ForEach(nonEmptySeries) { singleSeries in
+            ForEach(effectiveVisibleSeries) { singleSeries in
                 seriesLayer(singleSeries, size: size)
             }
             if let selectedPoint {
@@ -203,7 +180,7 @@ struct TimeSeriesChartView: View {
             Text(plottedPoint.formattedValue)
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundColor(.primary)
-            Text(Self.calloutDateFormatter.string(from: plottedPoint.point.date))
+            Text(timeSeriesChartCalloutDateFormatter.string(from: plottedPoint.point.date))
                 .font(.caption2)
                 .foregroundColor(NeoGymTheme.mutedText)
         }
@@ -242,7 +219,7 @@ struct TimeSeriesChartView: View {
     }
 
     private func plottedPoints(size: CGSize) -> [PlottedChartPoint] {
-        nonEmptySeries.flatMap { plottedPoints(for: $0, size: size) }
+        effectiveVisibleSeries.flatMap { plottedPoints(for: $0, size: size) }
     }
 
     private func selectionGesture(size: CGSize) -> some Gesture {
@@ -278,7 +255,7 @@ struct TimeSeriesChartView: View {
         let minX = allPoints.map { $0.date.timeIntervalSince1970 }.min() ?? points[0].date.timeIntervalSince1970
         let maxX = allPoints.map { $0.date.timeIntervalSince1970 }.max() ?? points[0].date.timeIntervalSince1970
         let range = axisDescriptor(for: series.axis)?.range
-            ?? metricRange(values: series.points.map(\.value), centersOnZero: series.centersAxisOnZero)
+            ?? timeSeriesChartMetricRange(values: series.points.map(\.value), centersOnZero: series.centersAxisOnZero)
             ?? ChartMetricRange(min: points[0].value - 1, max: points[0].value + 1)
         let horizontalSpan = max(maxX - minX, 1)
         let verticalSpan = max(range.max - range.min, 0.000_001)
@@ -331,41 +308,65 @@ struct TimeSeriesChartView: View {
     private var xAxisLabels: some View {
         let sortedPoints = allPoints.sorted { $0.date < $1.date }
         return HStack(alignment: .top) {
-            Text(sortedPoints.first.map { Self.shortDateFormatter.string(from: $0.date) } ?? "")
+            Text(sortedPoints.first.map { timeSeriesChartShortDateFormatter.string(from: $0.date) } ?? "")
             Spacer(minLength: 4)
             if sortedPoints.count > 2 {
-                Text(Self.shortDateFormatter.string(from: sortedPoints[sortedPoints.count / 2].date))
+                Text(timeSeriesChartShortDateFormatter.string(from: sortedPoints[sortedPoints.count / 2].date))
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            Text(sortedPoints.last.map { Self.shortDateFormatter.string(from: $0.date) } ?? "")
+            Text(sortedPoints.last.map { timeSeriesChartShortDateFormatter.string(from: $0.date) } ?? "")
         }
         .font(.caption2)
         .foregroundColor(NeoGymTheme.mutedText)
     }
 
     private var legend: some View {
-        HStack(spacing: 14) {
-            ForEach(nonEmptySeries) { singleSeries in
-                HStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(singleSeries.color)
-                        .frame(width: 16, height: 3)
-                    Text(singleSeries.name)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(candidateSeries) { singleSeries in
+                    legendButton(for: singleSeries)
                 }
             }
+            .padding(.horizontal, 8)
+            .padding(.top, 2)
         }
-        .font(.caption)
-        .foregroundColor(NeoGymTheme.mutedText)
-        .padding(.horizontal, 8)
-        .padding(.top, 2)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func legendButton(for singleSeries: TimeSeriesChartSeries) -> some View {
+        let isEffectivelyVisible = effectiveVisibleSeries.contains { $0.id == singleSeries.id }
+
+        return Button {
+            visibilityState.toggle(singleSeries.id, among: candidateSeries.map(\.id))
+            selectedPoint = nil
+        } label: {
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(singleSeries.color.opacity(isEffectivelyVisible ? 1 : 0.35))
+                    .frame(width: 16, height: 3)
+                Text(singleSeries.name)
+                    .lineLimit(1)
+            }
+            .font(.caption)
+            .foregroundColor(isEffectivelyVisible ? NeoGymTheme.mutedText : NeoGymTheme.mutedText.opacity(0.55))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("\(singleSeries.name) series"))
+        .accessibilityValue(Text(isEffectivelyVisible ? "Visible" : "Hidden"))
+        .accessibilityHint(Text(isEffectivelyVisible ? "Double-tap to hide this series." : "Double-tap to show this series."))
+        .accessibilityAddTraits(isEffectivelyVisible ? .isSelected : [])
     }
 
     private func axisDescriptor(for axis: TimeSeriesChartAxis) -> ChartAxisDescriptor? {
-        let axisSeries = nonEmptySeries.filter { $0.axis == axis }
+        let axisSeries = effectiveVisibleSeries.filter { $0.axis == axis }
         guard let firstSeries = axisSeries.first else { return nil }
         let values = axisSeries.flatMap { $0.points.map(\.value) }
-        guard let range = metricRange(
+        guard let range = timeSeriesChartMetricRange(
             values: values,
             centersOnZero: axisSeries.contains(where: \.centersAxisOnZero)
         ) else { return nil }
@@ -377,54 +378,4 @@ struct TimeSeriesChartView: View {
         )
     }
 
-    private func metricRange(values: [Double], centersOnZero: Bool = false) -> ChartMetricRange? {
-        guard let minValue = values.min(), let maxValue = values.max() else { return nil }
-        if centersOnZero {
-            let magnitude = max(abs(minValue), abs(maxValue), 1)
-            let paddedMagnitude = magnitude * 1.1
-            return ChartMetricRange(min: -paddedMagnitude, max: paddedMagnitude)
-        }
-        if minValue == maxValue {
-            let padding = max(abs(minValue) * 0.05, 1)
-            return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
-        }
-        let padding = max((maxValue - minValue) * 0.1, 0.5)
-        return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
-    }
-
-    private struct ChartAxisDescriptor {
-        let axis: TimeSeriesChartAxis
-        let range: ChartMetricRange
-        let color: Color
-        let formatter: (Double) -> String
-    }
-
-    private struct ChartMetricRange {
-        let min: Double
-        let max: Double
-        var midpoint: Double { (min + max) / 2 }
-    }
-
-    private struct PlottedChartPoint: Identifiable {
-        let id: String
-        let seriesName: String
-        let color: Color
-        let point: TimeSeriesChartDataPoint
-        let formattedValue: String
-        let position: CGPoint
-    }
-
-    private static let calloutDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .none
-        return formatter
-    }()
-
-    private static let shortDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .none
-        return formatter
-    }()
 }

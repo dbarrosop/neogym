@@ -49,10 +49,16 @@ targets:
           NeoGym imports your weight, body-fat percentage, active energy, and
           resting energy from Apple Health to keep body and energy logs up to
           date.
+        NeoGymSharedKeychainAccessGroup: >-
+          $(AppIdentifierPrefix)io.nhost.neogym.shared
     entitlements:
       path: App/NeoGym.entitlements
       properties:
         com.apple.developer.healthkit: true
+        com.apple.security.application-groups:
+          - group.io.nhost.neogym
+        keychain-access-groups:
+          - "$(AppIdentifierPrefix)io.nhost.neogym.shared"
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
@@ -73,11 +79,23 @@ targets:
     sources:
       - path: Widgets
       - path: Shared
+    dependencies:
+      - package: NeoGymKit
+        product: NeoGymKit
     info:
       path: Widgets/Info.plist
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NeoGymSharedKeychainAccessGroup: >-
+          $(AppIdentifierPrefix)io.nhost.neogym.shared
+    entitlements:
+      path: Widgets/NeoGymWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.io.nhost.neogym
+        keychain-access-groups:
+          - "$(AppIdentifierPrefix)io.nhost.neogym.shared"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym.widgets

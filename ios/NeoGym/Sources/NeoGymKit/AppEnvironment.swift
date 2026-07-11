@@ -2,12 +2,22 @@ import Foundation
 import Nhost
 
 public extension NhostClientFactory {
-    static func makeGraphQLService(config: NhostConfig = .local) -> NhostGraphQLService {
-        NhostGraphQLService(client: makeClient(config: config))
+    static func makeGraphQLService(
+        config: NhostConfig = .local,
+        sessionStorage: (any SessionStorageBackend)? = nil
+    ) -> NhostGraphQLService {
+        NhostGraphQLService(client: makeClient(config: config, sessionStorage: sessionStorage))
     }
 
-    static func makeEnvironment(config: NhostConfig = .local) -> AppEnvironment {
-        AppEnvironment(client: makeClient(config: config))
+    static func makeEnvironment(
+        config: NhostConfig = .local,
+        sessionStorage: (any SessionStorageBackend)? = nil
+    ) -> AppEnvironment {
+        AppEnvironment(client: makeClient(config: config, sessionStorage: sessionStorage))
+    }
+
+    static func makeProductionEnvironment() -> AppEnvironment {
+        AppEnvironment(client: makeProductionAppClient())
     }
 }
 

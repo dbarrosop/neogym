@@ -277,8 +277,8 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertEqual(adHocSet["snapshotSugarPer100g"], .string("4"))
         XCTAssertFalse(adHocSet.recursivelyContainsKey("source"))
         XCTAssertFalse(adHocSet.recursivelyContainsKey("foodId"))
- 
-         let groupSet = try XCTUnwrap(requests[1].variables?["set"])
+
+        let groupSet = try XCTUnwrap(requests[1].variables?["set"])
         XCTAssertEqual(groupSet["name"], .string("Brunch"))
         XCTAssertEqual(groupSet["position"], .number(1))
         XCTAssertEqual(groupSet["slotTime"], .string("11:15"))
@@ -473,6 +473,128 @@ final class DailyIntakeViewModelTests: XCTestCase {
 }
 
 final class NutritionDayGroupingTests: XCTestCase {
+    func testLatestLoggedSlotTimeUsesMealGroupsAndStandaloneEntriesOnly() {
+        let groupedChildWithLaterTime = testLogEntry(
+            id: "grouped-child",
+            nutritionLogMealId: "meal-1",
+            slotTime: "23:50:00"
+        )
+        let meal = NutritionLogMeal(
+            id: "meal-1",
+            name: "Dinner",
+            slotTime: "21:05:00",
+            position: 0,
+            nutritionLogEntries: [groupedChildWithLaterTime]
+        )
+        let standalone = testLogEntry(id: "standalone", slotTime: "10:15:00")
+        let malformed = testLogEntry(id: "malformed", slotTime: "99:99")
+
+        let day = NutritionDay(
+            id: "day-latest",
+            logDate: "2026-07-11",
+            nutritionLogMeals: [meal],
+            nutritionLogEntries: [standalone, malformed]
+        )
+
+        XCTAssertEqual(day.latestLoggedSlotTime, "21:05")
+    }
+
+    func testLatestLoggedSlotTimeReturnsNilWhenNoValidMealOrStandaloneTimesExist() {
+        let day = NutritionDay(
+            id: "day-no-times",
+            logDate: "2026-07-11",
+            nutritionLogMeals: [NutritionLogMeal(id: "meal-1", name: "Dinner", slotTime: nil, position: 0)],
+            nutritionLogEntries: [
+                testLogEntry(id: "missing", slotTime: nil),
+                testLogEntry(id: "malformed", slotTime: "noon"),
+                testLogEntry(id: "grouped", nutritionLogMealId: "meal-1", slotTime: "22:30")
+            ]
+        )
+
+        XCTAssertNil(day.latestLoggedSlotTime)
+    }
+
+    func testEnergyBalanceOverviewSummaryFormatsRequestedCaptions() {
+        let payload = NutritionOverviewPayload(
+            days: [nutritionDayFixtureModel],
+            dailyEnergyEntries: [dailyEnergyFixtureModel]
+        )
+
+        let summary = EnergyBalanceOverviewSummary(
+            payload: payload,
+            today: "2026-06-27",
+            locale: Locale(identifier: "en_US")
+        )
+
+        XCTAssertEqual(summary.consumedValue, "250 kcal")
+        XCTAssertTrue(summary.consumedCaption.hasPrefix("As of 10:15"))
+        XCTAssertEqual(summary.burnedValue, "2,000 kcal")
+        XCTAssertEqual(summary.burnedCaption, "450 + 1550 kcal")
+        XCTAssertEqual(summary.netTodayValue, "−1,750 kcal")
+        XCTAssertEqual(summary.netTodayCaption, "Deficit")
+        XCTAssertEqual(summary.sevenDayAverageValue, "−1,750 kcal")
+        XCTAssertEqual(summary.sevenDayAverageCaption, "Deficit")
+    }
+
+    func testEnergyBalanceOverviewSummaryExposesRawValuesForWidgetSnapshotMapping() {
+        let payload = NutritionOverviewPayload(
+            days: [nutritionDayFixtureModel],
+            dailyEnergyEntries: [dailyEnergyFixtureModel]
+        )
+
+        let summary = EnergyBalanceOverviewSummary(
+            payload: payload,
+            today: "2026-06-27",
+            locale: Locale(identifier: "en_US")
+        )
+
+        XCTAssertEqual(summary.date, "2026-06-27")
+        XCTAssertEqual(summary.caloriesIn, 250, accuracy: 0.001)
+        XCTAssertEqual(summary.activeKcal, 450)
+        XCTAssertEqual(summary.restingKcal, 1550)
+        XCTAssertEqual(summary.caloriesOut, 2000)
+        XCTAssertEqual(summary.net, -1750)
+        XCTAssertEqual(summary.netState, .deficit)
+        XCTAssertEqual(summary.sevenDayAverageNet, -1750)
+        XCTAssertEqual(summary.sevenDayAverageState, .deficit)
+        XCTAssertEqual(summary.latestLoggedSlotTime, "10:15")
+    }
+
+    func testEnergyBalanceOverviewSummaryDistinguishesMissingEnergyFromMissingComponents() {
+        let day = NutritionDay(
+            id: "day-1",
+            logDate: "2026-07-11",
+            nutritionLogEntries: [testLogEntry(slotTime: "09:30")]
+        )
+        let missingEnergy = EnergyBalanceOverviewSummary(
+            payload: NutritionOverviewPayload(days: [day]),
+            today: "2026-07-11",
+            locale: Locale(identifier: "en_US")
+        )
+
+        XCTAssertEqual(missingEnergy.burnedValue, "No energy")
+        XCTAssertEqual(missingEnergy.burnedCaption, "Log active/resting energy")
+        XCTAssertEqual(missingEnergy.netTodayValue, "No energy")
+        XCTAssertEqual(missingEnergy.netTodayCaption, "Needs energy")
+        XCTAssertEqual(missingEnergy.sevenDayAverageValue, "No data")
+        XCTAssertEqual(missingEnergy.sevenDayAverageCaption, "Log intake and energy to calculate")
+
+        let zeroComponentEnergy = EnergyBalanceOverviewSummary(
+            payload: NutritionOverviewPayload(
+                days: [day],
+                dailyEnergyEntries: [DailyEnergy(id: "energy-1", energyOn: "2026-07-11")]
+            ),
+            today: "2026-07-11",
+            locale: Locale(identifier: "en_US")
+        )
+
+        XCTAssertEqual(zeroComponentEnergy.burnedValue, "0 kcal")
+        XCTAssertEqual(zeroComponentEnergy.burnedCaption, "0 + 0 kcal")
+        XCTAssertEqual(zeroComponentEnergy.netTodayValue, "+100 kcal")
+        XCTAssertEqual(zeroComponentEnergy.netTodayCaption, "Surplus")
+        XCTAssertEqual(zeroComponentEnergy.sevenDayAverageCaption, "Surplus")
+    }
+
     func testDailyIntakeCalorieBalanceNullSemantics() {
         let intakeDay = NutritionDay(
             id: "day-balance",
@@ -770,6 +892,45 @@ private let mealFixtureModel = Meal(
         ))
     ]
 )
+
+private let dailyEnergyFixtureModel = DailyEnergy(
+    id: "energy-1",
+    energyOn: "2026-06-27",
+    activeKcal: 450,
+    restingKcal: 1550
+)
+
+private let nutritionDayFixtureModel = NutritionDay(
+    id: "day-1",
+    userId: "user-1",
+    logDate: "2026-06-27",
+    nutritionPlanId: "plan-1",
+    nutritionLogMeals: [loggedMealFixture],
+    nutritionLogEntries: [standaloneEntryFixture]
+)
+
+private func testLogEntry(
+    id: String = "entry-1",
+    nutritionLogMealId: String? = nil,
+    slotTime: String? = "10:15:00"
+) -> NutritionLogEntry {
+    NutritionLogEntry(
+        id: id,
+        nutritionDayId: "day-1",
+        nutritionLogMealId: nutritionLogMealId,
+        source: .food,
+        grams: .string("100"),
+        position: 0,
+        slotTime: slotTime,
+        snapshotFoodName: "Test food",
+        snapshotKcalPer100g: .string("100"),
+        snapshotFatPer100g: .string("0"),
+        snapshotCarbsPer100g: .string("0"),
+        snapshotProteinPer100g: .string("0"),
+        snapshotFiberPer100g: .string("0"),
+        snapshotSugarPer100g: .string("0")
+    )
+}
 
 private let loggedMealFixture = NutritionLogMeal(
     id: "log-meal-1",

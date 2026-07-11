@@ -201,7 +201,7 @@ public enum DailyEnergyFormatters {
         return formatter.string(from: number) ?? String(value)
     }
 
-    private static func roundedKcal(_ value: Double) -> String {
+    public static func roundedKcal(_ value: Double) -> String {
         let number = NSNumber(value: value)
         let formatter = NumberFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

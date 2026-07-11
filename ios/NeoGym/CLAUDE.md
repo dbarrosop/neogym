@@ -63,6 +63,29 @@ changes.
   after redirect config edits because the CLI does not hot-reload `nhost.toml`.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
+- `NeoGymWidgets` contains both the rest timer Live Activity and the medium
+  Energy Balance widget. Energy Balance math and captions live in host-testable
+  `NeoGymKit`; `Shared/EnergyBalanceWidgetSnapshot.swift` is the dependency-free,
+  token-free aggregate DTO/store used by both the app and widget through the
+  `group.io.nhost.neogym` App Group. The app writes snapshots after successful
+  Nutrition Overview loads and clears/reloads them on sign-out, definitive
+  signed-out bootstrap, auth errors, and user switches before new user data is
+  available. The widget renders the latest snapshot as its safe fallback and can
+  attempt best-effort live server refreshes through the shared keychain session
+  `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app keeps its app-only
+  keychain as the primary session store and mirrors/restores the same session to
+  or from the shared keychain best-effort for widget access. The runtime access-group string comes from the
+  `NeoGymSharedKeychainAccessGroup` Info.plist key after build-setting expansion;
+  do not use `SecTaskCopyValueForEntitlement` here, as it is unavailable in the
+  iOS build target. Never copy tokens into App Group `UserDefaults`. The widget
+  does not run HealthKit import; only the app syncs HealthKit data. WidgetKit
+  timeline policies and the iOS 17+ in-widget Refresh button are best-effort
+  triggers that reload timelines and therefore run the live-fetch provider path
+  when the system grants runtime. Keep AppIntent/Button code availability-gated
+  so the widget extension's iOS 16.2 deployment floor remains buildable, use
+  immutable `static let` metadata on AppIntent types so Swift 6 concurrency checks
+  accept them as shared state, and do not describe widget refresh as guaranteed
+  server freshness or an exact cadence.
 - SwiftUI previews can set Dynamic Type with
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
@@ -270,10 +293,12 @@ intact instead of inventing one-off styles.
 - **Graphs and summaries**: body and daily-energy trends use
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
   date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
-  custom charts collapse their decorative drawing, axes, legends, markers, and
-  callouts into one VoiceOver element with a domain label plus a summary of
-  visible series, point counts, date range, latest values, and min/max values;
-  empty-state text remains naturally accessible. Nutrition totals use
+  custom chart plots collapse decorative drawing, axes, markers, and callouts
+  into one VoiceOver element with a domain label plus a summary of visible
+  series, point counts, date range, latest values, and min/max values; legends
+  stay separate tappable controls for hiding/showing series. Caller-provided
+  chart accessibility values must account for hidden series themselves.
+  Empty-state text remains naturally accessible. Nutrition totals use
   `MacroSummaryView` grids with monospaced digits and optional target totals;
   the daily intake balance is read-only, with calories in from logged snapshots
   and calories out from the same date's `daily_energy` row. Do not introduce a
