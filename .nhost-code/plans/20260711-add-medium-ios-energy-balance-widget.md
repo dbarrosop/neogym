@@ -344,7 +344,17 @@ Implemented in commit `e8d8ed28`.
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented in commit `6a6eb38d`.
+
+- **Implementation notes:** Linked the widget target to `NeoGymKit` after the extension-safety spike passed under `APPLICATION_EXTENSION_API_ONLY=true`. Added shared production Nhost config, Info.plist-driven shared-keychain session configuration, an app-side migrating session backend that can copy the old app-only keychain session into `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and a testable widget live-refresh client. The widget timeline provider now attempts `nutritionOverview()` with the shared session, writes a fresh aggregate App Group snapshot on success, and falls back to cached snapshot or empty state on no-session/auth/network/provisioning failure. No HealthKit code runs in the widget and no refresh button was added.
+- **Reviewer verdict:** `ACCEPT_WITH_CONCERNS`; reviewer verified extension API-only builds, safe keychain migration/fallback semantics, token-free App Group behavior, Info.plist/project/entitlement validity, and live-fetch fallback behavior. The accepted concern is that the new `ios/NeoGym/CLAUDE.md` note lands before the planned Phase 5 docs pass; Phase 5 must consolidate rather than duplicate it.
+- **Autonomous decisions:**
+  - Treated the user’s “implement all phases” instruction as acceptance to attempt optional Phase 4 and its one-time re-login risk. **Correctness:** the user explicitly requested all phases and the plan documents the risk.
+  - Used shared keychain group `$(AppIdentifierPrefix)io.nhost.neogym.shared`. **Security:** this avoids copying tokens into App Group storage and matches the plan-proposed shared Keychain approach.
+  - Reused the production Nhost project in `NhostConfig.production`. **Correctness:** widget and app must talk to the same production backend.
+  - Used Info.plist-expanded access-group values instead of Security entitlement introspection. **Compatibility:** `SecTaskCopyValueForEntitlement` did not compile for the iOS target, while Info.plist expansion is build-validated and guarded against unexpanded `$(...)` values.
+  - Kept cached snapshots as the fallback for all live-fetch failures. **Security/correctness:** widget data remains safe and useful without crashing or exposing tokens.
+- **Quality gate:** `xcrun swift build` passed; `xcrun swift test` passed (228 XCTest + 4 Swift Testing tests); `nix develop ../.. --command xcodegen generate` passed; clean-environment `xcodebuild -quiet -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed; clean-environment `xcodebuild -quiet -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' APPLICATION_EXTENSION_API_ONLY=YES build` passed; `plutil -lint App/Info.plist Widgets/Info.plist App/NeoGym.entitlements Widgets/NeoGymWidgets.entitlements` passed. Manual simulator widget refresh/re-add was not performed in the non-interactive environment.
 
 ### Phase 5 — Interactive refresh affordance and durable docs
 

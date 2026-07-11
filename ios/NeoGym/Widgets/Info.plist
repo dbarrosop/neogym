@@ -23,5 +23,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>NeoGymSharedKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)io.nhost.neogym.shared</string>
 </dict>
 </plist>

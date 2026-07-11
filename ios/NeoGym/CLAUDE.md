@@ -63,6 +63,15 @@ changes.
   after redirect config edits because the CLI does not hot-reload `nhost.toml`.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
+- The Energy Balance widget can perform best-effort live server refreshes from
+  the widget extension. The app and widget share the Nhost session through the
+  keychain access group `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app
+  uses a migrating session backend that reads the old app-only keychain item on
+  first access and rewrites it to the shared group. The runtime access-group
+  string comes from the `NeoGymSharedKeychainAccessGroup` Info.plist key after
+  build-setting expansion; do not use `SecTaskCopyValueForEntitlement` here, as
+  it is unavailable in the iOS build target. Never copy tokens into App Group
+  `UserDefaults`.
 - SwiftUI previews can set Dynamic Type with
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only

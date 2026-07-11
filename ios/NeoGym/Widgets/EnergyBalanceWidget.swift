@@ -1,3 +1,4 @@
+import NeoGymKit
 import SwiftUI
 import WidgetKit
 
@@ -19,32 +20,104 @@ struct EnergyBalanceTimelineEntry: TimelineEntry {
     let date: Date
     let snapshot: EnergyBalanceWidgetSnapshot?
     let isPlaceholder: Bool
+    let refreshDecision: EnergyBalanceWidgetLiveRefreshDecision
 
     var displaySnapshot: EnergyBalanceWidgetSnapshot? {
         snapshot ?? (isPlaceholder ? .placeholder : nil)
     }
 }
 
+private struct SendableTimelineCompletion: @unchecked Sendable {
+    private let completion: (Timeline<EnergyBalanceTimelineEntry>) -> Void
+
+    init(_ completion: @escaping (Timeline<EnergyBalanceTimelineEntry>) -> Void) {
+        self.completion = completion
+    }
+
+    func callAsFunction(_ timeline: Timeline<EnergyBalanceTimelineEntry>) {
+        completion(timeline)
+    }
+}
+
 struct EnergyBalanceTimelineProvider: TimelineProvider {
+    private let snapshotStore: EnergyBalanceWidgetSnapshotStore
+    private let liveRefreshClientFactory: @Sendable () -> EnergyBalanceWidgetLiveRefreshClient
+
+    init(
+        snapshotStore: EnergyBalanceWidgetSnapshotStore = .shared,
+        liveRefreshClientFactory: @escaping @Sendable () -> EnergyBalanceWidgetLiveRefreshClient = {
+            NhostClientFactory.makeProductionWidgetLiveRefreshClient()
+        }
+    ) {
+        self.snapshotStore = snapshotStore
+        self.liveRefreshClientFactory = liveRefreshClientFactory
+    }
+
     func placeholder(in context: Context) -> EnergyBalanceTimelineEntry {
-        EnergyBalanceTimelineEntry(date: Date(), snapshot: .placeholder, isPlaceholder: true)
+        EnergyBalanceTimelineEntry(
+            date: Date(),
+            snapshot: .placeholder,
+            isPlaceholder: true,
+            refreshDecision: .liveSnapshot
+        )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (EnergyBalanceTimelineEntry) -> Void) {
-        let snapshot = context.isPreview ? EnergyBalanceWidgetSnapshot.placeholder : EnergyBalanceWidgetSnapshotStore.shared.load()
-        completion(EnergyBalanceTimelineEntry(date: Date(), snapshot: snapshot, isPlaceholder: context.isPreview))
+        let snapshot = context.isPreview ? EnergyBalanceWidgetSnapshot.placeholder : snapshotStore.load()
+        completion(EnergyBalanceTimelineEntry(
+            date: Date(),
+            snapshot: snapshot,
+            isPlaceholder: context.isPreview,
+            refreshDecision: snapshot == nil ? .emptyState : .cachedFallback
+        ))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyBalanceTimelineEntry>) -> Void) {
-        let now = Date()
-        let snapshot = EnergyBalanceWidgetSnapshotStore.shared.load()
-        let entry = EnergyBalanceTimelineEntry(date: now, snapshot: snapshot, isPlaceholder: false)
+        let completion = SendableTimelineCompletion(completion)
+        Task {
+            let now = Date()
+            let entry = await timelineEntry(date: now)
 
-        // WidgetKit treats timeline policies as best-effort hints. The widget cannot fetch live
-        // server data in this phase, so scheduled reloads only re-read the app-written cache when
-        // iOS decides to grant the extension time.
-        let reloadInterval: TimeInterval = snapshot == nil ? 15 * 60 : 30 * 60
-        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(reloadInterval))))
+            // WidgetKit treats timeline policies as best-effort hints. This provider can attempt a
+            // live server fetch through the shared keychain session, but iOS still decides when the
+            // extension receives runtime. Cached data remains the supported fallback on no session,
+            // auth, network, or provisioning failures.
+            let reloadInterval: TimeInterval = entry.refreshDecision == .emptyState ? 15 * 60 : 30 * 60
+            completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(reloadInterval))))
+        }
+    }
+
+    private func timelineEntry(date: Date) async -> EnergyBalanceTimelineEntry {
+        let cachedSnapshot = snapshotStore.load()
+
+        do {
+            let livePayload = try await liveRefreshClientFactory().fetchOverview()
+            let summary = EnergyBalanceOverviewSummary(payload: livePayload.overview, todayDate: date)
+            let liveSnapshot = EnergyBalanceWidgetSnapshot(
+                summary: summary,
+                userMarker: livePayload.userMarker,
+                generatedAt: date
+            )
+            _ = snapshotStore.save(liveSnapshot)
+
+            return EnergyBalanceTimelineEntry(
+                date: date,
+                snapshot: liveSnapshot,
+                isPlaceholder: false,
+                refreshDecision: .decide(liveFetchSucceeded: true, cachedSnapshotExists: cachedSnapshot != nil)
+            )
+        } catch {
+            let decision = EnergyBalanceWidgetLiveRefreshDecision.decide(
+                liveFetchSucceeded: false,
+                cachedSnapshotExists: cachedSnapshot != nil
+            )
+            return EnergyBalanceTimelineEntry(
+                date: date,
+                snapshot: cachedSnapshot,
+                isPlaceholder: false,
+                refreshDecision: decision
+            )
+        }
     }
 }
 
@@ -85,8 +158,18 @@ private struct EnergyBalanceWidgetView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
                 metricTile(label: "Consumed", value: snapshot.consumedValue, caption: snapshot.consumedCaption)
                 metricTile(label: "Burned", value: snapshot.burnedValue, caption: snapshot.burnedCaption)
-                metricTile(label: "Net today", value: snapshot.netValue, caption: snapshot.netCaption, state: snapshot.netState)
-                metricTile(label: "7-day avg net", value: snapshot.sevenDayValue, caption: snapshot.sevenDayCaption, state: snapshot.sevenDayState)
+                metricTile(
+                    label: "Net today",
+                    value: snapshot.netValue,
+                    caption: snapshot.netCaption,
+                    state: snapshot.netState
+                )
+                metricTile(
+                    label: "7-day avg net",
+                    value: snapshot.sevenDayValue,
+                    caption: snapshot.sevenDayCaption,
+                    state: snapshot.sevenDayState
+                )
             }
 
             Text("Generated \(snapshot.generatedAtText) · Tap to open NeoGym")
@@ -115,7 +198,7 @@ private struct EnergyBalanceWidgetView: View {
                 Text("Open NeoGym to sync")
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
-                Text("Load the Nutrition overview to refresh your cached energy balance.")
+                Text("The widget will also try to refresh when iOS schedules it after you sign in.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -174,6 +257,31 @@ private struct EnergyBalanceWidgetView: View {
 }
 
 private extension EnergyBalanceWidgetSnapshot {
+    init(
+        summary: EnergyBalanceOverviewSummary,
+        userMarker: String?,
+        generatedAt: Date,
+        locale: Locale = .current
+    ) {
+        self.init(
+            localDate: summary.date,
+            userMarker: userMarker,
+            generatedAtISO8601: Self.iso8601String(generatedAt),
+            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
+            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
+            consumedValue: summary.consumedValue,
+            consumedCaption: summary.consumedCaption,
+            burnedValue: summary.burnedValue,
+            burnedCaption: summary.burnedCaption,
+            netValue: summary.netTodayValue,
+            netCaption: summary.netTodayCaption,
+            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
+            sevenDayValue: summary.sevenDayAverageValue,
+            sevenDayCaption: summary.sevenDayAverageCaption,
+            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
+        )
+    }
+
     static let placeholder = EnergyBalanceWidgetSnapshot(
         localDate: "2026-07-11",
         userMarker: "preview",
@@ -191,6 +299,15 @@ private extension EnergyBalanceWidgetSnapshot {
         sevenDayCaption: "Deficit",
         sevenDayState: "deficit"
     )
+
+    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
+        switch state {
+        case .deficit: "deficit"
+        case .surplus: "surplus"
+        case .balanced: "balanced"
+        case .intakeOnly: "unavailable"
+        }
+    }
 }
 
 private extension View {
@@ -211,14 +328,16 @@ struct EnergyBalanceWidget_Previews: PreviewProvider {
             EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
                 date: .now,
                 snapshot: .placeholder,
-                isPlaceholder: true
+                isPlaceholder: true,
+                refreshDecision: .liveSnapshot
             ))
-            .previewDisplayName("Cached data")
+            .previewDisplayName("Live or cached data")
 
             EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
                 date: .now,
                 snapshot: nil,
-                isPlaceholder: false
+                isPlaceholder: false,
+                refreshDecision: .emptyState
             ))
             .previewDisplayName("Empty state")
         }

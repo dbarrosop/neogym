@@ -11,12 +11,7 @@ struct NeoGymApp: App {
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
 
     init() {
-        let appEnvironment = NhostClientFactory.makeEnvironment(
-            config: NhostConfig(
-                subdomain: "spmqtxqkdoxvtrkrfnnl",
-                region: "eu-central-1"
-            )
-        )
+        let appEnvironment = NhostClientFactory.makeProductionEnvironment()
         let notificationDelegate = NeoGymNotificationDelegate()
         self.appEnvironment = appEnvironment
         self.notificationDelegate = notificationDelegate
