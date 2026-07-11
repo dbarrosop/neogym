@@ -152,6 +152,83 @@ private struct EntryRow: View {
     }
 }
 
+struct PlanSuggestionSlotCard: View {
+    let slot: NutritionPlanTimeSlot<NutritionPlanEntry>
+    let disabled: Bool
+    let logEntry: (NutritionPlanEntry) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .foregroundColor(.accentColor)
+                    Text(slot.label)
+                        .font(.subheadline.weight(.semibold))
+                }
+                Text(NutritionMath.macroTotalsSummary(slot.totals))
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text("\(slot.mealCount) meals · \(slot.foodCount) foods")
+                    .font(.caption2)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            .padding(12)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(slot.entries) { entry in
+                    PlanSuggestionEntryRow(entry: entry, disabled: disabled) {
+                        logEntry(entry)
+                    }
+                }
+            }
+            .padding(12)
+        }
+        .nutritionGlassCard(cornerRadius: 16)
+    }
+}
+
+private struct PlanSuggestionEntryRow: View {
+    let entry: NutritionPlanEntry
+    let disabled: Bool
+    let log: () -> Void
+
+    var body: some View {
+        let totals = entry.macroTotals
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: entry.kind == .meal ? "fork.knife" : "apple.logo")
+                .foregroundColor(NeoGymTheme.mutedText)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.displayLabel)
+                    .font(.subheadline.weight(.semibold))
+                Text(NutritionMath.macroTotalsSummary(totals))
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer()
+            Button("Log", action: log)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .disabled(disabled)
+        }
+        .padding(10)
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+    }
+
+    private var detail: String {
+        switch entry {
+        case let .meal(slot):
+            return slot.meal?.name ?? "Meal template unavailable"
+        case let .food(slot):
+            return "\(NutritionMath.formatMacro(slot.grams, unit: "g")) · \(slot.food?.name ?? "Food")"
+        }
+    }
+}
 
 struct EditingEntrySheetItem: Identifiable {
     let entry: IntakeEntry

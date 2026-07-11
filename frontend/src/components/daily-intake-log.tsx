@@ -44,12 +44,16 @@ import {
   addLocalDateDays,
   adHocNutritionDraftTotals,
   buildAdHocLogEntryUpdateSet,
+  buildPlanLogInputs,
+  buildPlanLogSlotTimeDefaults,
   createEmptyAdHocNutritionDraft,
+  currentTimeInputValue,
   DECIMAL_INPUT_PATTERN,
   formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
   groupIntakeByTimeSlot,
+  groupPlanEntriesByTimeSlot,
   type IntakeTimeSlot,
   loggedEntryMacroTotals,
   loggedMacroTotals,
@@ -57,11 +61,13 @@ import {
   mergePlanEntriesByTime,
   NUTRIENT_FIELDS,
   normalizeNumeric,
+  type PlanTimeSlot,
   parseMacroInput,
   planEntriesMacroTotals,
   planEntryMacroTotals,
   timeToInputValue,
 } from "@/lib/nutrition";
+import { logSelectedPlanMaterialization } from "@/lib/nutrition-plan-log";
 
 const DailyIntakeLogQuery = graphql(`
   query DailyIntakeLog($date: date!) {
@@ -562,9 +568,10 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardHeader className="space-y-1 pb-3">
-          <CardTitle className="text-lg tracking-tight">Plan suggestions</CardTitle>
+          <CardTitle className="text-lg tracking-tight">Day plan</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Select a reusable daily plan for suggestions. This does not schedule or bind the day.
+            Select a reusable daily plan to compare targets and enable planned logging. This does
+            not schedule or bind the day.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -600,15 +607,13 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
               date={date}
               foods={foods}
               meals={meals}
+              existingMealGroups={loggedMeals}
+              existingStandaloneEntries={standaloneEntries}
               nextGroupPosition={nextGroupPosition}
               nextEntryPosition={nextEntryPosition}
               disabled={isMutating}
             />
-          ) : (
-            <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-              Pick a plan to show timed meal suggestions, or log meals and foods ad hoc below.
-            </p>
-          )}
+          ) : null}
         </CardContent>
       </Card>
 
@@ -888,6 +893,7 @@ function formatGroupCount(count: number): string {
 }
 
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
+type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
 function PlanSuggestions({
   plan,
@@ -895,6 +901,8 @@ function PlanSuggestions({
   date,
   foods,
   meals,
+  existingMealGroups,
+  existingStandaloneEntries,
   nextGroupPosition,
   nextEntryPosition,
   disabled,
@@ -904,14 +912,63 @@ function PlanSuggestions({
   date: string;
   foods: DailyFood[];
   meals: LogMealOption[];
+  existingMealGroups: DailyLogMeal[];
+  existingStandaloneEntries: DailyEntry[];
   nextGroupPosition: number;
   nextEntryPosition: number;
   disabled: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [slotTimeByKey, setSlotTimeByKey] = useState<Record<string, string>>({});
   const entries = mergePlanEntriesByTime(
     plan.nutritionPlanMeals,
     plan.nutritionPlanFoods,
   ) as DailyPlanEntry[];
+  const slots = groupPlanEntriesByTimeSlot(entries) as DailyPlanTimeSlot[];
+  const positionHints = buildIndividualPlanPositionHints(
+    entries,
+    nextGroupPosition,
+    nextEntryPosition,
+  );
+  const bulkMutation = useMutation({
+    mutationFn: async () => {
+      const dayId = await ensureDay();
+      const materialization = buildPlanLogInputs({
+        selectedPlan: plan,
+        nutritionDayId: dayId,
+        existingMealGroups,
+        existingStandaloneEntries,
+        slotTimeByKey,
+      });
+      return logSelectedPlanMaterialization(materialization);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      toast.success(
+        `Selected plan logged (${result.mealRows + result.entryRows} top-level entries).`,
+      );
+      setBulkDialogOpen(false);
+    },
+    onError: (error) => {
+      toast.error(`Failed to log selected plan: ${error.message}`);
+    },
+  });
+
+  function openBulkDialog() {
+    setSlotTimeByKey(
+      buildPlanLogSlotTimeDefaults({ selectedPlan: plan, fallbackTime: currentTimeInputValue() }),
+    );
+    setBulkDialogOpen(true);
+  }
+
+  function updateBulkSlotTime(slotKey: string, value: string) {
+    setSlotTimeByKey((current) => ({ ...current, [slotKey]: value }));
+  }
+
+  const hasMissingBulkTime = slots.some((slot) => !slotTimeByKey[slot.key]);
+
   if (entries.length === 0) {
     return (
       <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
@@ -920,51 +977,179 @@ function PlanSuggestions({
     );
   }
 
-  let mealOffset = 0;
-  let foodOffset = 0;
-
   return (
-    <div className="overflow-hidden rounded-md border border-border/60">
-      <ul className="divide-y divide-border/50">
-        {entries.map((entry) => {
-          if (entry.kind === "meal") {
-            const nextPosition = nextGroupPosition + mealOffset;
-            mealOffset += 1;
-            return (
-              <PlanMealSuggestionRow
-                key={`meal:${entry.id}`}
-                slot={entry}
-                plan={plan}
-                ensureDay={ensureDay}
-                date={date}
-                foods={foods}
-                meals={meals}
-                nextGroupPosition={nextPosition}
-                nextEntryPosition={nextEntryPosition + foodOffset}
-                disabled={disabled}
-              />
-            );
-          }
-          const nextPosition = nextEntryPosition + foodOffset;
-          foodOffset += 1;
-          return (
-            <PlanFoodSuggestionRow
-              key={`food:${entry.id}`}
-              slot={entry}
-              plan={plan}
-              ensureDay={ensureDay}
-              date={date}
-              foods={foods}
-              meals={meals}
-              nextGroupPosition={nextGroupPosition + mealOffset}
-              nextEntryPosition={nextPosition}
-              disabled={disabled}
-            />
-          );
-        })}
-      </ul>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium">Selected plan: {plan.name}</p>
+          <p className="text-xs text-muted-foreground">
+            Log entries one at a time with the actual time defaulting to now, or log the whole plan
+            after confirming editable times per slot. Re-logging appends duplicate log rows.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={openBulkDialog}
+          disabled={disabled || bulkMutation.isPending}
+        >
+          Log selected plan
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {slots.map((slot) => (
+          <section key={slot.key} className="overflow-hidden rounded-md border border-border/60">
+            <div className="space-y-1 border-b border-border/60 bg-muted/30 px-3 py-3">
+              <p className="flex items-center gap-2 text-sm font-medium">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                {slot.label}
+              </p>
+              <p className="text-xs text-muted-foreground">{macroTotalsSummary(slot.totals)}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatPlanSlotCounts(slot.mealCount, slot.foodCount)}
+              </p>
+            </div>
+            <ul className="divide-y divide-border/50">
+              {slot.entries.map((entry) => {
+                const key = sourceKeyForDailyPlanEntry(entry);
+                const hint = positionHints.get(key) ?? {
+                  nextGroupPosition,
+                  nextEntryPosition,
+                };
+                return entry.kind === "meal" ? (
+                  <PlanMealSuggestionRow
+                    key={key}
+                    slot={entry}
+                    plan={plan}
+                    ensureDay={ensureDay}
+                    date={date}
+                    foods={foods}
+                    meals={meals}
+                    nextGroupPosition={hint.nextGroupPosition}
+                    nextEntryPosition={hint.nextEntryPosition}
+                    disabled={disabled || bulkMutation.isPending}
+                  />
+                ) : (
+                  <PlanFoodSuggestionRow
+                    key={key}
+                    slot={entry}
+                    plan={plan}
+                    ensureDay={ensureDay}
+                    date={date}
+                    foods={foods}
+                    meals={meals}
+                    nextGroupPosition={hint.nextGroupPosition}
+                    nextEntryPosition={hint.nextEntryPosition}
+                    disabled={disabled || bulkMutation.isPending}
+                  />
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Log selected plan</DialogTitle>
+            <DialogDescription>
+              Confirm the actual logged time for each plan slot. Every meal or food in a slot uses
+              that edited time, and confirming appends new logs without duplicate detection.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {slots.map((slot) => (
+              <div key={slot.key} className="space-y-3 rounded-md border border-border/60 p-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">{slot.label}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formatPlanSlotCounts(slot.mealCount, slot.foodCount)} ·{" "}
+                    {macroTotalsSummary(slot.totals)}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor={`bulk-plan-time-${slot.key}`} className="text-sm font-medium">
+                    Logged time
+                  </label>
+                  <Input
+                    id={`bulk-plan-time-${slot.key}`}
+                    type="time"
+                    value={slotTimeByKey[slot.key] ?? ""}
+                    onChange={(event) => updateBulkSlotTime(slot.key, event.target.value)}
+                    disabled={bulkMutation.isPending}
+                    required
+                  />
+                </div>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {slot.entries.map((entry) => (
+                    <li key={sourceKeyForDailyPlanEntry(entry)}>
+                      {entry.kind === "meal" ? "Meal" : "Food"}:{" "}
+                      {entry.label || (entry.kind === "meal" ? entry.meal.name : entry.food.name)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setBulkDialogOpen(false)}
+              disabled={bulkMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => bulkMutation.mutate()}
+              disabled={bulkMutation.isPending || hasMissingBulkTime}
+            >
+              {bulkMutation.isPending ? "Logging…" : "Log selected plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function sourceKeyForDailyPlanEntry(entry: DailyPlanEntry): string {
+  return entry.kind === "meal" ? `meal:${entry.id}` : `food:${entry.id}`;
+}
+
+function buildIndividualPlanPositionHints(
+  entries: DailyPlanEntry[],
+  nextGroupPosition: number,
+  nextEntryPosition: number,
+): Map<string, { nextGroupPosition: number; nextEntryPosition: number }> {
+  const hints = new Map<string, { nextGroupPosition: number; nextEntryPosition: number }>();
+  let mealOffset = 0;
+  let foodOffset = 0;
+  for (const entry of entries) {
+    if (entry.kind === "meal") {
+      hints.set(sourceKeyForDailyPlanEntry(entry), {
+        nextGroupPosition: nextGroupPosition + mealOffset,
+        nextEntryPosition: nextEntryPosition + foodOffset,
+      });
+      mealOffset += 1;
+    } else {
+      hints.set(sourceKeyForDailyPlanEntry(entry), {
+        nextGroupPosition: nextGroupPosition + mealOffset,
+        nextEntryPosition: nextEntryPosition + foodOffset,
+      });
+      foodOffset += 1;
+    }
+  }
+  return hints;
+}
+
+function formatPlanSlotCounts(mealCount: number, foodCount: number): string {
+  return [
+    `${mealCount} ${mealCount === 1 ? "meal" : "meals"}`,
+    `${foodCount} ${foodCount === 1 ? "food" : "foods"}`,
+  ].join(" · ");
 }
 
 function PlanMealSuggestionRow({

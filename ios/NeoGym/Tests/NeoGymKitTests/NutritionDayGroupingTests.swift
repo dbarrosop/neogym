@@ -284,6 +284,25 @@ final class PlanLogMaterializerTests: XCTestCase {
         XCTAssertEqual(mealBeforeFood.entryObjects.first?.position, 1)
     }
 
+    func testBulkSlotTimeDefaultsUsePlanTimesAndFallbackForLegacyNoTimeSlots() {
+        let defaults = PlanLogSlotTimeDefaults.build(
+            selectedPlan: NutritionPlan(
+                id: "plan-defaults",
+                name: "Defaults",
+                nutritionPlanMeals: [materializerMealSlot(slotTime: "08:15:00", position: 0)],
+                nutritionPlanFoods: [materializerFoodSlot(slotTime: "", position: 0)]
+            ),
+            fallbackTime: "14:45"
+        )
+
+        XCTAssertEqual(defaults["08:15"], "08:15")
+        XCTAssertEqual(defaults["no-time"], "14:45")
+    }
+
+    func testBulkSlotTimeDefaultsReturnEmptyWithoutSelectedPlan() {
+        XCTAssertEqual(PlanLogSlotTimeDefaults.build(selectedPlan: nil, fallbackTime: "14:45"), [:])
+    }
+
     func testMaterializerValidatesPlanReferencesAndTargetTimes() {
         XCTAssertThrowsError(try PlanLogMaterializer.build(
             selectedPlan: nil,
@@ -439,11 +458,11 @@ private func materializerPlan(mealPosition: Int = 0, foodPosition: Int = 1) -> N
     )
 }
 
-private func materializerMealSlot(position: Int) -> NutritionPlanMealSlot {
+private func materializerMealSlot(slotTime: String = "08:00:00", position: Int) -> NutritionPlanMealSlot {
     NutritionPlanMealSlot(
         id: "slot-1",
         mealId: "meal-1",
-        slotTime: "08:00:00",
+        slotTime: slotTime,
         label: "Breakfast",
         position: position,
         meal: Meal(
@@ -457,12 +476,12 @@ private func materializerMealSlot(position: Int) -> NutritionPlanMealSlot {
     )
 }
 
-private func materializerFoodSlot(position: Int) -> NutritionPlanFoodSlot {
+private func materializerFoodSlot(slotTime: String = "08:00:00", position: Int) -> NutritionPlanFoodSlot {
     NutritionPlanFoodSlot(
         id: "plan-food-1",
         foodId: "food-3",
         grams: .string("80"),
-        slotTime: "08:00:00",
+        slotTime: slotTime,
         label: "Banana",
         position: position
     )

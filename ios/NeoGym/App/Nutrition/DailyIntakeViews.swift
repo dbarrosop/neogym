@@ -77,6 +77,7 @@ struct DailyIntakeView: View {
     @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
+    @State private var showingBulkPlanLog = false
     @State private var confirmingDayDelete = false
 
     init(
@@ -121,6 +122,15 @@ struct DailyIntakeView: View {
         }
         .sheet(item: $editingGroup) { item in
             EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: onMutated)
+        }
+        .sheet(isPresented: $showingBulkPlanLog) {
+            if let selectedPlan = viewModel.selectedPlan {
+                BulkSelectedPlanLogSheet(
+                    viewModel: viewModel,
+                    plan: selectedPlan,
+                    onMutated: onMutated
+                )
+            }
         }
         .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
         .navigationBarTitleDisplayMode(.inline)
@@ -172,6 +182,9 @@ struct DailyIntakeView: View {
         case .loaded:
             totalsSection
             intakeSection
+            if viewModel.selectedPlan != nil {
+                selectedPlanSuggestionsSection
+            }
         }
     }
 
@@ -240,6 +253,49 @@ struct DailyIntakeView: View {
         }
     }
 
+    @ViewBuilder
+    private var selectedPlanSuggestionsSection: some View {
+        if let selectedPlan = viewModel.selectedPlan {
+            let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(selectedPlan.sortedEntries)
+            SectionShell(title: "Selected plan", subtitle: selectedPlan.name) {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .top, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Planned entries are grouped by suggested time. Individual logs default actual time to now; bulk logging asks you to confirm each slot time.")
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                            Text("Logging the selected plan again appends duplicate rows.")
+                                .font(.caption2)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        Spacer()
+                        Button {
+                            showingBulkPlanLog = true
+                        } label: {
+                            Label("Log selected plan", systemImage: "checklist")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.isMutating || slots.isEmpty)
+                    }
+
+                    if slots.isEmpty {
+                        AppEmptyStateView(
+                            title: "No plan entries",
+                            message: "This selected plan does not have meal or food entries yet.",
+                            systemImage: "checklist"
+                        )
+                    } else {
+                        ForEach(slots, id: \.key) { slot in
+                            PlanSuggestionSlotCard(slot: slot, disabled: viewModel.isMutating) { entry in
+                                logRequest = .planEntry(entry.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     @ToolbarContentBuilder
     private var dailyIntakeDayNavigationToolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .topBarTrailing) {
@@ -281,6 +337,117 @@ struct DailyIntakeView: View {
         return false
     }
 
+}
+
+private struct BulkSelectedPlanLogSheet: View {
+    @ObservedObject var viewModel: DailyIntakeViewModel
+    let plan: NutritionPlan
+    let onMutated: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var slotTimes: [String: Date]
+
+    init(viewModel: DailyIntakeViewModel, plan: NutritionPlan, onMutated: @escaping () -> Void) {
+        self.viewModel = viewModel
+        self.plan = plan
+        self.onMutated = onMutated
+        let defaults = PlanLogSlotTimeDefaults.build(
+            selectedPlan: plan,
+            fallbackTime: NutritionLogTime.inputValue(from: Date())
+        )
+        _slotTimes = State(initialValue: Dictionary(uniqueKeysWithValues: defaults.map { key, value in
+            (key, NutritionLogTime.date(from: value))
+        }))
+    }
+
+    private var slots: [NutritionPlanTimeSlot<NutritionPlanEntry>] {
+        NutritionPlanGrouping.groupPlanEntriesByTimeSlot(plan.sortedEntries)
+    }
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    Text(
+                        "Confirm the actual logged time for every selected-plan slot. "
+                            + "All entries in an edited slot use that time, and confirming appends "
+                            + "new logs without duplicate detection."
+                    )
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                }
+
+                ForEach(slots, id: \.key) { slot in
+                    Section {
+                        DatePicker(
+                            "Logged time",
+                            selection: Binding(
+                                get: { slotTimes[slot.key] ?? Date() },
+                                set: { slotTimes[slot.key] = $0 }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                        .datePickerStyle(.compact)
+                        .disabled(viewModel.isMutating)
+
+                        ForEach(slot.entries) { entry in
+                            HStack {
+                                Image(systemName: entry.kind == .meal ? "fork.knife" : "apple.logo")
+                                    .foregroundColor(NeoGymTheme.mutedText)
+                                Text(entry.displayLabel)
+                                Spacer()
+                                Text(entry.kind == .meal ? "Meal" : "Food")
+                                    .font(.caption)
+                                    .foregroundColor(NeoGymTheme.mutedText)
+                            }
+                        }
+                    } header: {
+                        Text(slot.label)
+                    } footer: {
+                        Text(slotFooter(slot))
+                    }
+                }
+
+                if let message = viewModel.mutationState.errorMessage {
+                    Section {
+                        Text(message)
+                            .font(.caption)
+                            .foregroundColor(NeoGymTheme.danger)
+                    }
+                }
+            }
+            .navigationTitle("Log selected plan")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                        .disabled(viewModel.isMutating)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(viewModel.isMutating ? "Logging…" : "Log") {
+                        Task { await confirm() }
+                    }
+                    .disabled(viewModel.isMutating || slots.isEmpty)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+    }
+
+    private func slotFooter(_ slot: NutritionPlanTimeSlot<NutritionPlanEntry>) -> String {
+        "\(slot.mealCount) meals · \(slot.foodCount) foods · "
+            + NutritionMath.macroTotalsSummary(slot.totals)
+    }
+
+    private func confirm() async {
+        let slotTimeByKey = Dictionary(uniqueKeysWithValues: slots.map { slot in
+            (slot.key, NutritionLogTime.inputValue(from: slotTimes[slot.key] ?? Date()))
+        })
+        if await viewModel.logSelectedPlan(slotTimeByKey: slotTimeByKey) {
+            onMutated()
+            dismiss()
+        }
+    }
 }
 
 private struct CalorieBalanceView: View {
