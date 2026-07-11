@@ -117,7 +117,7 @@ struct NutritionOverviewView: View {
             TimeSeriesChartSeries(
                 id: "weight-rolling",
                 name: "7-day avg weight",
-                color: .blue,
+                color: .green,
                 points: rollingAverages.compactMap { average in
                     average.averageWeightKg.map {
                         TimeSeriesChartDataPoint(id: "\(average.id)-weight-avg", date: average.date, value: $0)

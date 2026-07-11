@@ -145,7 +145,7 @@ struct TimeSeriesTrendChartView: View {
 
 extension TimeSeriesChartView {
     var defaultAccessibilityValue: String {
-        let visibleSeries = series.filter { !$0.points.isEmpty }
+        let visibleSeries = effectiveVisibleSeries
         let visiblePoints = visibleSeries.flatMap(\.points).sorted { $0.date < $1.date }
         let seriesNames = visibleSeries.map(\.name).joined(separator: ", ")
         let pointsLabel = visiblePoints.count == 1 ? "point" : "points"
