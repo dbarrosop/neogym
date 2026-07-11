@@ -173,15 +173,8 @@ private struct NutritionPlanEntryDetailRow: View {
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .monospacedDigit()
-                HStack(spacing: 6) {
-                    Text(entry.displayLabel)
-                        .font(.subheadline.weight(.semibold))
-                    Text(entry.kind == .meal ? "Meal" : "Food")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(NeoGymTheme.accentMuted, in: Capsule())
-                }
+                Text(entry.displayLabel)
+                    .font(.subheadline.weight(.semibold))
                 detailLine
             }
             Spacer()
@@ -209,7 +202,7 @@ private struct NutritionPlanEntryDetailRow: View {
                     .lineLimit(1)
             }
         case let .food(slot):
-            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g"))")
+            Text(NutritionMath.formatMacro(slot.grams, unit: "g"))
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)

@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Apple, CalendarClock, ChefHat, Pencil } from "lucide-react";
+import { CalendarClock, ChefHat, Pencil } from "lucide-react";
 import { MacroSummary } from "@/components/macro-summary";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -184,6 +183,10 @@ function NutritionPlanDetailRoute() {
 function PlanEntryRow({ entry }: { entry: PlanEntry }) {
   const entryTotals = planEntryMacroTotals(entry);
   const sourceName = entry.kind === "meal" ? entry.meal?.name : entry.food?.name;
+  const title =
+    entry.kind === "food"
+      ? (entry.food?.name ?? "Food")
+      : entry.label || sourceName || "Untitled entry";
   const subtitle = renderPlanEntrySubtitle(entry);
 
   return (
@@ -193,19 +196,7 @@ function PlanEntryRow({ entry }: { entry: PlanEntry }) {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
             {formatTimeOfDay(entry.slotTime)}
           </p>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge variant={entry.kind === "meal" ? "primary" : "success"}>
-              {entry.kind === "meal" ? (
-                <ChefHat className="h-3 w-3" />
-              ) : (
-                <Apple className="h-3 w-3" />
-              )}
-              {entry.kind === "meal" ? "Meal" : "Food"}
-            </Badge>
-            <p className="truncate text-sm font-medium">
-              {entry.label || sourceName || "Untitled entry"}
-            </p>
-          </div>
+          <p className="truncate text-sm font-medium">{title}</p>
           {subtitle}
         </div>
         <div className="text-right text-xs text-muted-foreground tabular-nums">
@@ -219,11 +210,7 @@ function PlanEntryRow({ entry }: { entry: PlanEntry }) {
 
 function renderPlanEntrySubtitle(entry: PlanEntry) {
   if (entry.kind === "food") {
-    return (
-      <p className="text-xs text-muted-foreground">
-        {formatMacro(entry.grams, "g")} · {entry.food?.name ?? "Food"}
-      </p>
-    );
+    return <p className="text-xs text-muted-foreground">{formatMacro(entry.grams, "g")}</p>;
   }
 
   if (!entry.label) {

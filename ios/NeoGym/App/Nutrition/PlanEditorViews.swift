@@ -448,8 +448,6 @@ private func planSlotCountText(mealCount: Int, foodCount: Int) -> String {
 
 private struct NutritionPlanEntryChrome<Content: View>: View {
     let title: String
-    let badge: String
-    let badgeSystemImage: String
     let index: Int
     let totalCount: Int
     let isSubmitting: Bool
@@ -461,10 +459,6 @@ private struct NutritionPlanEntryChrome<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(badge, systemImage: badgeSystemImage)
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -499,8 +493,6 @@ private struct NutritionPlanMealEntryEditorRow: View {
     var body: some View {
         NutritionPlanEntryChrome(
             title: "Entry \(index + 1)",
-            badge: "Meal",
-            badgeSystemImage: "fork.knife.circle",
             index: index,
             totalCount: totalCount,
             isSubmitting: isSubmitting,
@@ -564,8 +556,6 @@ private struct NutritionPlanFoodEntryEditorRow: View {
     var body: some View {
         NutritionPlanEntryChrome(
             title: "Entry \(index + 1)",
-            badge: "Food",
-            badgeSystemImage: "apple.logo",
             index: index,
             totalCount: totalCount,
             isSubmitting: isSubmitting,
@@ -573,16 +563,11 @@ private struct NutritionPlanFoodEntryEditorRow: View {
             moveDown: { form.moveEntry(kind: .food, stableId: slot.stableId, direction: 1) },
             remove: { form.removeFoodSlot(stableId: slot.stableId) },
             content: {
-                PlanEntryCommonFields(
+                PlanEntryTimeField(
                     slotTime: Binding(
                         get: { slot.slotTime },
                         set: { form.updateFoodSlot(stableId: slot.stableId, slotTime: String($0.prefix(5))) }
-                    ),
-                    label: Binding(
-                        get: { slot.label },
-                        set: { form.updateFoodSlot(stableId: slot.stableId, label: String($0.prefix(160))) }
-                    ),
-                    helperText: "Optional; food name is shown when empty."
+                    )
                 )
                 FoodPickerView(
                     foods: foods,
@@ -624,6 +609,26 @@ private struct NutritionPlanFoodEntryEditorRow: View {
     }
 }
 
+private struct PlanEntryTimeField: View {
+    @Binding var slotTime: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Time of day").font(.subheadline.weight(.semibold))
+            TextField("12:00", text: $slotTime)
+                .keyboardType(.numbersAndPunctuation)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .padding(12)
+                .nutritionGlassField()
+            Text("HH:MM")
+                .font(.caption2)
+                .foregroundColor(NeoGymTheme.mutedText)
+        }
+        .frame(maxWidth: 180, alignment: .leading)
+    }
+}
+
 private struct PlanEntryCommonFields: View {
     @Binding var slotTime: String
     @Binding var label: String
@@ -631,19 +636,7 @@ private struct PlanEntryCommonFields: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Time of day").font(.subheadline.weight(.semibold))
-                TextField("12:00", text: $slotTime)
-                    .keyboardType(.numbersAndPunctuation)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .padding(12)
-                    .nutritionGlassField()
-                Text("HH:MM")
-                    .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            .frame(width: 110)
+            PlanEntryTimeField(slotTime: $slotTime)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Label")

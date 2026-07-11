@@ -155,36 +155,54 @@ private struct EntryRow: View {
 struct PlanSuggestionSlotCard: View {
     let slot: NutritionPlanTimeSlot<NutritionPlanEntry>
     let disabled: Bool
-    let logEntry: (NutritionPlanEntry) -> Void
+    let logSlot: (NutritionPlanTimeSlot<NutritionPlanEntry>) -> Void
+
+    @State private var expanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Image(systemName: "clock")
-                        .foregroundColor(.accentColor)
-                    Text(slot.label)
-                        .font(.subheadline.weight(.semibold))
+            HStack(alignment: .top, spacing: 10) {
+                Button {
+                    withAnimation { expanded.toggle() }
+                } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "clock")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(slot.label)
+                                .font(.subheadline.weight(.semibold))
+                            Text(NutritionMath.macroTotalsSummary(slot.totals))
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                            Text("\(slot.entries.count) entr\(slot.entries.count == 1 ? "y" : "ies")")
+                                .font(.caption2)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        Spacer()
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
+                    .contentShape(Rectangle())
                 }
-                Text(NutritionMath.macroTotalsSummary(slot.totals))
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Text("\(slot.mealCount) meals · \(slot.foodCount) foods")
-                    .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                .buttonStyle(.plain)
+
+                Button("Log") { logSlot(slot) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(disabled || slot.entries.isEmpty)
             }
             .padding(12)
 
-            Divider()
+            if expanded {
+                Divider()
 
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(slot.entries) { entry in
-                    PlanSuggestionEntryRow(entry: entry, disabled: disabled) {
-                        logEntry(entry)
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(slot.entries) { entry in
+                        PlanSuggestionEntryRow(entry: entry)
                     }
                 }
+                .padding(12)
             }
-            .padding(12)
         }
         .nutritionGlassCard(cornerRadius: 16)
     }
@@ -192,8 +210,6 @@ struct PlanSuggestionSlotCard: View {
 
 private struct PlanSuggestionEntryRow: View {
     let entry: NutritionPlanEntry
-    let disabled: Bool
-    let log: () -> Void
 
     var body: some View {
         let totals = entry.macroTotals
@@ -211,10 +227,6 @@ private struct PlanSuggestionEntryRow: View {
                     .foregroundColor(NeoGymTheme.mutedText)
             }
             Spacer()
-            Button("Log", action: log)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
-                .disabled(disabled)
         }
         .padding(10)
         .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
@@ -225,7 +237,7 @@ private struct PlanSuggestionEntryRow: View {
         case let .meal(slot):
             return slot.meal?.name ?? "Meal template unavailable"
         case let .food(slot):
-            return "\(NutritionMath.formatMacro(slot.grams, unit: "g")) · \(slot.food?.name ?? "Food")"
+            return NutritionMath.formatMacro(slot.grams, unit: "g")
         }
     }
 }

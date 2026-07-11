@@ -76,10 +76,7 @@ public struct NutritionPlanFoodSlot: Decodable, Identifiable, Sendable, Equatabl
     }
 
     public var displayLabel: String {
-        guard let label = label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty else {
-            return food?.name ?? "Food"
-        }
-        return label
+        food?.name ?? "Food"
     }
 
     public var macroTotals: MacroTotals {
@@ -606,15 +603,13 @@ public enum NutritionPlanFormValidation {
             }
             let slotTime = IntakeGrouping.timeToInputValue(slot.slotTime)
             guard !slotTime.isEmpty else { return .failure("Every slot needs a time of day.") }
-            let label = slot.label.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard label.count <= 160 else { return .failure("Slot labels must be 160 characters or less.") }
             normalizedFoodSlots.append(NutritionPlanFoodSlotFormValues(
                 id: slot.id,
                 clientId: slot.clientId,
                 foodId: slot.foodId,
                 grams: grams,
                 slotTime: slotTime,
-                label: label,
+                label: "",
                 position: slot.position
             ))
         }
@@ -809,7 +804,7 @@ public final class NutritionPlanFormModel: ObservableObject {
                     foodId: slot.foodId,
                     grams: NutritionMath.formatEditableDecimal(slot.grams),
                     slotTime: IntakeGrouping.timeToInputValue(slot.slotTime),
-                    label: slot.label ?? "",
+                    label: "",
                     position: slot.position
                 )
             }

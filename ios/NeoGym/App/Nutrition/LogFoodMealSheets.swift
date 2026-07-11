@@ -496,7 +496,7 @@ private struct PlanEntryWheelRow: View {
             Text("\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)")
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
-            Text("· \(entry.kind == .meal ? "Meal" : "Food") · \(detail)")
+            Text("· \(detail)")
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)
@@ -513,7 +513,7 @@ private struct PlanEntryWheelRow: View {
             guard let meal = slot.meal else { return "Meal template unavailable" }
             return NutritionMath.macroTotalsSummary(meal.macroTotals)
         case let .food(slot):
-            return "\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
+            return "\(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
                 + NutritionMath.macroTotalsSummary(slot.macroTotals)
         }
     }

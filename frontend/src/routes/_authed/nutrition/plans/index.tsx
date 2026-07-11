@@ -292,9 +292,13 @@ function PlanRow({ plan }: { plan: Plan }) {
   const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
   const totals = planEntriesMacroTotals(entries);
   const firstSlot = entries[0];
-  const firstSlotSource = firstSlot?.kind === "meal" ? firstSlot.meal?.name : firstSlot?.food?.name;
+  let firstSlotTitle: string | null | undefined = null;
+  if (firstSlot) {
+    firstSlotTitle =
+      firstSlot.kind === "food" ? firstSlot.food?.name : firstSlot.label || firstSlot.meal?.name;
+  }
   const firstSlotSummary = firstSlot
-    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlot.label || firstSlotSource || "Untitled entry"}`
+    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlotTitle || "Untitled entry"}`
     : "No entries yet";
 
   return (

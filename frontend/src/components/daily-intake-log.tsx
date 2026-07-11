@@ -45,7 +45,6 @@ import {
   adHocNutritionDraftTotals,
   buildAdHocLogEntryUpdateSet,
   buildPlanLogInputs,
-  buildPlanLogSlotTimeDefaults,
   createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   DECIMAL_INPUT_PATTERN,
@@ -68,6 +67,7 @@ import {
   timeToInputValue,
 } from "@/lib/nutrition";
 import { logSelectedPlanMaterialization } from "@/lib/nutrition-plan-log";
+import { cn } from "@/lib/utils";
 
 const DailyIntakeLogQuery = graphql(`
   query DailyIntakeLog($date: date!) {
@@ -341,6 +341,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
+  const [selectedPlanExpanded, setSelectedPlanExpanded] = useState(true);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -566,56 +567,30 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="space-y-1 pb-3">
-          <CardTitle className="text-lg tracking-tight">Day plan</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Select a reusable daily plan to compare targets and enable planned logging. This does
-            not schedule or bind the day.
+      <SelectedPlanCard
+        selectedPlan={selectedPlan}
+        selectedPlanId={day?.nutritionPlanId ?? ""}
+        nutritionPlans={nutritionPlans}
+        expanded={selectedPlanExpanded}
+        onToggleExpanded={() => setSelectedPlanExpanded((expanded) => !expanded)}
+        onPlanChange={(planId) => updatePlanMutation.mutate(planId)}
+        isUpdatingPlan={updatePlanMutation.isPending}
+      >
+        {selectedPlan ? (
+          <PlanSuggestions
+            plan={selectedPlan}
+            ensureDay={ensureDay}
+            date={date}
+            existingMealGroups={loggedMeals}
+            existingStandaloneEntries={standaloneEntries}
+            disabled={isMutating}
+          />
+        ) : (
+          <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+            Select a reusable daily plan to compare targets and log planned time slots.
           </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value={day?.nutritionPlanId ?? ""}
-              onChange={(event) => updatePlanMutation.mutate(event.target.value || null)}
-              disabled={updatePlanMutation.isPending}
-              className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Selected nutrition plan"
-            >
-              <option value="">No plan selected</option>
-              {nutritionPlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => updatePlanMutation.mutate(null)}
-              disabled={!day?.nutritionPlanId || updatePlanMutation.isPending}
-            >
-              Clear plan
-            </Button>
-          </div>
-
-          {selectedPlan ? (
-            <PlanSuggestions
-              plan={selectedPlan}
-              ensureDay={ensureDay}
-              date={date}
-              foods={foods}
-              meals={meals}
-              existingMealGroups={loggedMeals}
-              existingStandaloneEntries={standaloneEntries}
-              nextGroupPosition={nextGroupPosition}
-              nextEntryPosition={nextEntryPosition}
-              disabled={isMutating}
-            />
-          ) : null}
-        </CardContent>
-      </Card>
+        )}
+      </SelectedPlanCard>
 
       {day ? (
         <>
@@ -892,6 +867,80 @@ function formatGroupCount(count: number): string {
   return `${count.toLocaleString()} ${count === 1 ? "meal group" : "meal groups"}`;
 }
 
+function SelectedPlanCard({
+  selectedPlan,
+  selectedPlanId,
+  nutritionPlans,
+  expanded,
+  onToggleExpanded,
+  onPlanChange,
+  isUpdatingPlan,
+  children,
+}: {
+  selectedPlan: DailyPlan | null;
+  selectedPlanId: string;
+  nutritionPlans: DailyPlan[];
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onPlanChange: (planId: string | null) => void;
+  isUpdatingPlan: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <CardHeader className="pb-3">
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
+          <div className="space-y-1">
+            <CardTitle className="text-lg tracking-tight">Selected plan</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedPlan?.name ?? "Choose a plan to show its time slots."}
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "mt-1 h-4 w-4 text-muted-foreground transition-transform",
+              expanded && "rotate-180",
+            )}
+          />
+        </button>
+      </CardHeader>
+      {expanded ? (
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value={selectedPlanId}
+              onChange={(event) => onPlanChange(event.target.value || null)}
+              disabled={isUpdatingPlan}
+              className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Selected nutrition plan"
+            >
+              <option value="">No plan selected</option>
+              {nutritionPlans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onPlanChange(null)}
+              disabled={!selectedPlanId || isUpdatingPlan}
+            >
+              Clear plan
+            </Button>
+          </div>
+          {children}
+        </CardContent>
+      ) : null}
+    </Card>
+  );
+}
+
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
 type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
@@ -899,47 +948,51 @@ function PlanSuggestions({
   plan,
   ensureDay,
   date,
-  foods,
-  meals,
   existingMealGroups,
   existingStandaloneEntries,
-  nextGroupPosition,
-  nextEntryPosition,
   disabled,
 }: {
   plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
   existingMealGroups: DailyLogMeal[];
   existingStandaloneEntries: DailyEntry[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
   disabled: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [slotTimeByKey, setSlotTimeByKey] = useState<Record<string, string>>({});
+  const [expandedSlotKeys, setExpandedSlotKeys] = useState<Set<string>>(() => new Set());
   const entries = mergePlanEntriesByTime(
     plan.nutritionPlanMeals,
     plan.nutritionPlanFoods,
   ) as DailyPlanEntry[];
   const slots = groupPlanEntriesByTimeSlot(entries) as DailyPlanTimeSlot[];
-  const positionHints = buildIndividualPlanPositionHints(
-    entries,
-    nextGroupPosition,
-    nextEntryPosition,
-  );
-  const bulkMutation = useMutation({
-    mutationFn: async () => {
+  const slotMutation = useMutation({
+    mutationFn: async (slot: DailyPlanTimeSlot) => {
       const dayId = await ensureDay();
+      const nutritionPlanMeals: LogPlanSlot[] = [];
+      const nutritionPlanFoods: LogPlanFoodSlot[] = [];
+
+      for (const entry of slot.entries) {
+        if (entry.kind === "meal") {
+          const { kind: _kind, ...mealSlot } = entry;
+          nutritionPlanMeals.push(mealSlot);
+        } else {
+          const { kind: _kind, ...foodSlot } = entry;
+          nutritionPlanFoods.push(foodSlot);
+        }
+      }
+
+      const slotTime = timeToInputValue(slot.key) || currentTimeInputValue();
       const materialization = buildPlanLogInputs({
-        selectedPlan: plan,
+        selectedPlan: {
+          ...plan,
+          nutritionPlanMeals,
+          nutritionPlanFoods,
+        },
         nutritionDayId: dayId,
         existingMealGroups,
         existingStandaloneEntries,
-        slotTimeByKey,
+        slotTimeByKey: { [slot.key]: slotTime },
       });
       return logSelectedPlanMaterialization(materialization);
     },
@@ -947,27 +1000,25 @@ function PlanSuggestions({
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
       toast.success(
-        `Selected plan logged (${result.mealRows + result.entryRows} top-level entries).`,
+        `Plan time slot logged (${result.mealRows + result.entryRows} top-level entries).`,
       );
-      setBulkDialogOpen(false);
     },
     onError: (error) => {
-      toast.error(`Failed to log selected plan: ${error.message}`);
+      toast.error(`Failed to log plan time slot: ${error.message}`);
     },
   });
 
-  function openBulkDialog() {
-    setSlotTimeByKey(
-      buildPlanLogSlotTimeDefaults({ selectedPlan: plan, fallbackTime: currentTimeInputValue() }),
-    );
-    setBulkDialogOpen(true);
+  function toggleSlot(slotKey: string) {
+    setExpandedSlotKeys((current) => {
+      const next = new Set(current);
+      if (next.has(slotKey)) {
+        next.delete(slotKey);
+      } else {
+        next.add(slotKey);
+      }
+      return next;
+    });
   }
-
-  function updateBulkSlotTime(slotKey: string, value: string) {
-    setSlotTimeByKey((current) => ({ ...current, [slotKey]: value }));
-  }
-
-  const hasMissingBulkTime = slots.some((slot) => !slotTimeByKey[slot.key]);
 
   if (entries.length === 0) {
     return (
@@ -979,279 +1030,112 @@ function PlanSuggestions({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-border/60 bg-muted/20 p-3">
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Selected plan: {plan.name}</p>
-          <p className="text-xs text-muted-foreground">
-            Log entries one at a time with the actual time defaulting to now, or log the whole plan
-            after confirming editable times per slot. Re-logging appends duplicate log rows.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={openBulkDialog}
-          disabled={disabled || bulkMutation.isPending}
-        >
-          Log selected plan
-        </Button>
-      </div>
-
-      <div className="space-y-3">
-        {slots.map((slot) => (
-          <section key={slot.key} className="overflow-hidden rounded-md border border-border/60">
-            <div className="space-y-1 border-b border-border/60 bg-muted/30 px-3 py-3">
-              <p className="flex items-center gap-2 text-sm font-medium">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                {slot.label}
-              </p>
-              <p className="text-xs text-muted-foreground">{macroTotalsSummary(slot.totals)}</p>
-              <p className="text-xs text-muted-foreground">
-                {formatPlanSlotCounts(slot.mealCount, slot.foodCount)}
-              </p>
-            </div>
-            <ul className="divide-y divide-border/50">
-              {slot.entries.map((entry) => {
-                const key = sourceKeyForDailyPlanEntry(entry);
-                const hint = positionHints.get(key) ?? {
-                  nextGroupPosition,
-                  nextEntryPosition,
-                };
-                return entry.kind === "meal" ? (
-                  <PlanMealSuggestionRow
-                    key={key}
-                    slot={entry}
-                    plan={plan}
-                    ensureDay={ensureDay}
-                    date={date}
-                    foods={foods}
-                    meals={meals}
-                    nextGroupPosition={hint.nextGroupPosition}
-                    nextEntryPosition={hint.nextEntryPosition}
-                    disabled={disabled || bulkMutation.isPending}
-                  />
-                ) : (
-                  <PlanFoodSuggestionRow
-                    key={key}
-                    slot={entry}
-                    plan={plan}
-                    ensureDay={ensureDay}
-                    date={date}
-                    foods={foods}
-                    meals={meals}
-                    nextGroupPosition={hint.nextGroupPosition}
-                    nextEntryPosition={hint.nextEntryPosition}
-                    disabled={disabled || bulkMutation.isPending}
-                  />
-                );
-              })}
-            </ul>
-          </section>
-        ))}
-      </div>
-
-      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Log selected plan</DialogTitle>
-            <DialogDescription>
-              Confirm the actual logged time for each plan slot. Every meal or food in a slot uses
-              that edited time, and confirming appends new logs without duplicate detection.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {slots.map((slot) => (
-              <div key={slot.key} className="space-y-3 rounded-md border border-border/60 p-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">{slot.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatPlanSlotCounts(slot.mealCount, slot.foodCount)} ·{" "}
-                    {macroTotalsSummary(slot.totals)}
-                  </p>
-                </div>
-                <div className="space-y-1.5">
-                  <label htmlFor={`bulk-plan-time-${slot.key}`} className="text-sm font-medium">
-                    Logged time
-                  </label>
-                  <Input
-                    id={`bulk-plan-time-${slot.key}`}
-                    type="time"
-                    value={slotTimeByKey[slot.key] ?? ""}
-                    onChange={(event) => updateBulkSlotTime(slot.key, event.target.value)}
-                    disabled={bulkMutation.isPending}
-                    required
-                  />
-                </div>
-                <ul className="space-y-1 text-xs text-muted-foreground">
-                  {slot.entries.map((entry) => (
-                    <li key={sourceKeyForDailyPlanEntry(entry)}>
-                      {entry.kind === "meal" ? "Meal" : "Food"}:{" "}
-                      {entry.label || (entry.kind === "meal" ? entry.meal.name : entry.food.name)}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setBulkDialogOpen(false)}
-              disabled={bulkMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => bulkMutation.mutate()}
-              disabled={bulkMutation.isPending || hasMissingBulkTime}
-            >
-              {bulkMutation.isPending ? "Logging…" : "Log selected plan"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {slots.map((slot) => (
+        <PlanSuggestionSlotSection
+          key={slot.key}
+          slot={slot}
+          expanded={expandedSlotKeys.has(slot.key)}
+          disabled={disabled || slotMutation.isPending}
+          onToggle={() => toggleSlot(slot.key)}
+          onLog={() => slotMutation.mutate(slot)}
+        />
+      ))}
     </div>
   );
 }
 
+function PlanSuggestionSlotSection({
+  slot,
+  expanded,
+  disabled,
+  onToggle,
+  onLog,
+}: {
+  slot: DailyPlanTimeSlot;
+  expanded: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+  onLog: () => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-md border border-border/60">
+      <div className="flex items-start justify-between gap-3 bg-muted/30 px-3 py-3">
+        <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            {slot.label}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {macroTotalsSummary(slot.totals)}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {slot.entries.length} entr{slot.entries.length === 1 ? "y" : "ies"}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={onLog}
+            disabled={disabled || slot.entries.length === 0}
+          >
+            Log
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onToggle}
+            aria-label="Toggle time slot"
+          >
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                expanded && "rotate-180",
+              )}
+            />
+          </Button>
+        </div>
+      </div>
+
+      {expanded ? (
+        <ul className="divide-y divide-border/50">
+          {slot.entries.map((entry) => (
+            <PlanSuggestionEntryRow key={sourceKeyForDailyPlanEntry(entry)} entry={entry} />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function PlanSuggestionEntryRow({ entry }: { entry: DailyPlanEntry }) {
+  const totals = planEntryMacroTotals(entry);
+  const title = entry.kind === "meal" ? entry.label || entry.meal.name : entry.food.name;
+  const detail = entry.kind === "food" ? formatMacro(entry.grams, "g") : mealEntryDetail(entry);
+
+  return (
+    <li className="px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="truncate text-sm font-medium">{title}</p>
+          {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
+          <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function mealEntryDetail(entry: DailyPlanEntry): string | null {
+  if (entry.kind !== "meal") {
+    return null;
+  }
+  return entry.label ? entry.meal.name : null;
+}
+
 function sourceKeyForDailyPlanEntry(entry: DailyPlanEntry): string {
   return entry.kind === "meal" ? `meal:${entry.id}` : `food:${entry.id}`;
-}
-
-function buildIndividualPlanPositionHints(
-  entries: DailyPlanEntry[],
-  nextGroupPosition: number,
-  nextEntryPosition: number,
-): Map<string, { nextGroupPosition: number; nextEntryPosition: number }> {
-  const hints = new Map<string, { nextGroupPosition: number; nextEntryPosition: number }>();
-  let mealOffset = 0;
-  let foodOffset = 0;
-  for (const entry of entries) {
-    if (entry.kind === "meal") {
-      hints.set(sourceKeyForDailyPlanEntry(entry), {
-        nextGroupPosition: nextGroupPosition + mealOffset,
-        nextEntryPosition: nextEntryPosition + foodOffset,
-      });
-      mealOffset += 1;
-    } else {
-      hints.set(sourceKeyForDailyPlanEntry(entry), {
-        nextGroupPosition: nextGroupPosition + mealOffset,
-        nextEntryPosition: nextEntryPosition + foodOffset,
-      });
-      foodOffset += 1;
-    }
-  }
-  return hints;
-}
-
-function formatPlanSlotCounts(mealCount: number, foodCount: number): string {
-  return [
-    `${mealCount} ${mealCount === 1 ? "meal" : "meals"}`,
-    `${foodCount} ${foodCount === 1 ? "food" : "foods"}`,
-  ].join(" · ");
-}
-
-function PlanMealSuggestionRow({
-  slot,
-  plan,
-  ensureDay,
-  date,
-  foods,
-  meals,
-  nextGroupPosition,
-  nextEntryPosition,
-  disabled,
-}: {
-  slot: LogPlanSlot;
-  plan: DailyPlan;
-  ensureDay: () => Promise<string>;
-  date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
-  disabled: boolean;
-}) {
-  const totals = planEntryMacroTotals({ ...slot, kind: "meal" });
-  return (
-    <li className="flex items-start justify-between gap-3 px-3 py-3">
-      <div className="min-w-0 space-y-1">
-        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-          <Clock className="h-3 w-3" />
-          {formatTimeOfDay(slot.slotTime)} · Meal
-        </p>
-        <p className="truncate text-sm font-medium">{slot.label || slot.meal.name}</p>
-        {slot.label ? <p className="text-xs text-muted-foreground">{slot.meal.name}</p> : null}
-        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
-      </div>
-      <LogIntakeDialog
-        ensureDay={ensureDay}
-        date={date}
-        foods={foods}
-        meals={meals}
-        selectedPlan={plan}
-        nextEntryPosition={nextEntryPosition}
-        nextGroupPosition={nextGroupPosition}
-        disabled={disabled}
-        triggerLabel="Log"
-        triggerVariant="default"
-        initialSource={{ kind: "plan-meal", slot }}
-      />
-    </li>
-  );
-}
-
-function PlanFoodSuggestionRow({
-  slot,
-  plan,
-  ensureDay,
-  date,
-  foods,
-  meals,
-  nextGroupPosition,
-  nextEntryPosition,
-  disabled,
-}: {
-  slot: LogPlanFoodSlot;
-  plan: DailyPlan;
-  ensureDay: () => Promise<string>;
-  date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
-  disabled: boolean;
-}) {
-  const totals = planEntryMacroTotals({ ...slot, kind: "food" });
-  return (
-    <li className="flex items-start justify-between gap-3 px-3 py-3">
-      <div className="min-w-0 space-y-1">
-        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-          <Clock className="h-3 w-3" />
-          {formatTimeOfDay(slot.slotTime)} · Food
-        </p>
-        <p className="truncate text-sm font-medium">{slot.label || slot.food.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatMacro(slot.grams, "g")} · {slot.food.name}
-        </p>
-        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
-      </div>
-      <LogIntakeDialog
-        ensureDay={ensureDay}
-        date={date}
-        foods={foods}
-        meals={meals}
-        selectedPlan={plan}
-        nextEntryPosition={nextEntryPosition}
-        nextGroupPosition={nextGroupPosition}
-        disabled={disabled}
-        triggerLabel="Log"
-        triggerVariant="default"
-        initialSource={{ kind: "plan-food", slot }}
-      />
-    </li>
-  );
 }
 
 function EntryRow({

@@ -888,8 +888,8 @@ function PlanSourcePickerRow({
   disabled: boolean;
   onSelect: () => void;
 }) {
-  const title = entry.label || (entry.kind === "meal" ? entry.meal.name : entry.food.name);
-  const subtitle = entry.kind === "meal" ? entry.meal.name : entry.food.name;
+  const title = entry.kind === "food" ? entry.food.name : entry.label || entry.meal.name;
+  const subtitle = entry.kind === "meal" ? entry.meal.name : null;
   return (
     <li>
       <button
@@ -902,16 +902,8 @@ function PlanSourcePickerRow({
         )}
       >
         <span className="min-w-0 space-y-1">
-          <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {entry.kind === "meal" ? (
-              <ChefHat className="h-3.5 w-3.5" />
-            ) : (
-              <Apple className="h-3.5 w-3.5" />
-            )}
-            {entry.kind === "meal" ? "Meal" : "Food"}
-          </span>
           <span className="block truncate text-sm font-medium">{title}</span>
-          {entry.label ? (
+          {entry.kind === "meal" && entry.label && subtitle ? (
             <span className="block truncate text-xs text-muted-foreground">
               Template: {subtitle}
             </span>
@@ -1161,8 +1153,8 @@ function resolveSelectedSource({
     return {
       kind: "plan-food",
       key: sourceKeyForPlanEntry(planEntry),
-      title: planEntry.label || planEntry.food.name,
-      subtitle: planEntry.label ? planEntry.food.name : null,
+      title: planEntry.food.name,
+      subtitle: null,
       plannedSlotTime: planEntry.slotTime,
       food: planEntry.food,
       grams: planEntry.grams,

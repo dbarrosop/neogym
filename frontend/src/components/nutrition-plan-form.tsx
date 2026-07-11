@@ -1,12 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { Apple, ArrowDown, ArrowUp, ChefHat, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { type ReactNode, type SubmitEvent, useId, useMemo, useState } from "react";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MacroSummary } from "@/components/macro-summary";
 import { MealPicker, type MealPickerOption } from "@/components/meal-picker";
 import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
 import { QuickMealDialog } from "@/components/quick-meal-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -183,7 +182,7 @@ function createDraftFromInitialEntry(entry: NutritionPlanFormEntryValues): Entry
     foodId: entry.foodId,
     grams: String(entry.grams),
     slotTime: timeToInputValue(entry.slotTime),
-    label: entry.label,
+    label: "",
   };
   if (entry.id) {
     draft.id = entry.id;
@@ -197,7 +196,6 @@ function draftEntriesToFormValues(
   return entries.map((entry) => {
     const common = {
       slotTime: entry.slotTime,
-      label: entry.label.trim(),
       position: entry.position,
     };
 
@@ -205,6 +203,7 @@ function draftEntriesToFormValues(
       const values: NutritionPlanFormEntryValues = {
         kind: "meal",
         mealId: entry.mealId,
+        label: entry.label.trim(),
         ...common,
       };
       if (entry.id) {
@@ -217,6 +216,7 @@ function draftEntriesToFormValues(
       kind: "food",
       foodId: entry.foodId,
       grams: parseMacroInput(entry.grams) ?? 0,
+      label: "",
       ...common,
     };
     if (entry.id) {
@@ -284,7 +284,7 @@ export function NutritionPlanForm({
           kind: "food" as const,
           id: entry.id ?? entry.clientId,
           slotTime: entry.slotTime,
-          label: entry.label,
+          label: "",
           position: entry.position,
           grams: parseMacroInput(entry.grams) ?? 0,
           food: foodsById.get(entry.foodId) ?? null,
@@ -758,7 +758,7 @@ function NutritionPlanEntryCard({
   onEditMeal: (clientId: string, meal: MealPickerOption) => void;
 }) {
   const timeId = `${entry.clientId}-time`;
-  const labelId = `${entry.clientId}-label`;
+  const labelId = entry.kind === "meal" ? `${entry.clientId}-label` : undefined;
   const gramsId = `${entry.clientId}-grams`;
   const selectedMeal =
     entry.kind === "meal" ? (meals.find((meal) => meal.id === entry.mealId) ?? null) : null;
@@ -770,19 +770,9 @@ function NutritionPlanEntryCard({
     <Card className="border-border/60 bg-muted/20">
       <CardContent className="space-y-3 p-3">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Badge variant={entry.kind === "meal" ? "primary" : "success"}>
-              {entry.kind === "meal" ? (
-                <ChefHat className="h-3 w-3" />
-              ) : (
-                <Apple className="h-3 w-3" />
-              )}
-              {entry.kind === "meal" ? "Meal" : "Food"}
-            </Badge>
-            <p className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Entry {index + 1}
-            </p>
-          </div>
+          <p className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Entry {index + 1}
+          </p>
           <div className="flex items-center gap-1">
             <Button
               type="button"
@@ -820,7 +810,13 @@ function NutritionPlanEntryCard({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,10rem)_1fr]">
+        <div
+          className={
+            entry.kind === "meal"
+              ? "grid gap-3 sm:grid-cols-[minmax(0,10rem)_1fr]"
+              : "max-w-40 space-y-1.5"
+          }
+        >
           <div className="space-y-1.5">
             <label htmlFor={timeId} className="text-sm font-medium">
               Time of day
@@ -834,19 +830,21 @@ function NutritionPlanEntryCard({
               required
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor={labelId} className="text-sm font-medium">
-              Label <span className="font-normal text-muted-foreground">(optional)</span>
-            </label>
-            <Input
-              id={labelId}
-              value={entry.label}
-              onChange={(event) => onUpdate(entry.clientId, { label: event.target.value })}
-              placeholder="e.g. Post-workout"
-              maxLength={160}
-              disabled={isSubmitting}
-            />
-          </div>
+          {entry.kind === "meal" ? (
+            <div className="space-y-1.5">
+              <label htmlFor={labelId} className="text-sm font-medium">
+                Label <span className="font-normal text-muted-foreground">(optional)</span>
+              </label>
+              <Input
+                id={labelId}
+                value={entry.label}
+                onChange={(event) => onUpdate(entry.clientId, { label: event.target.value })}
+                placeholder="e.g. Post-workout"
+                maxLength={160}
+                disabled={isSubmitting}
+              />
+            </div>
+          ) : null}
         </div>
 
         {entry.kind === "meal" ? (

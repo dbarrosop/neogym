@@ -229,36 +229,51 @@ public final class DailyIntakeViewModel: ObservableObject {
     }
 
     public func logSelectedPlan(slotTimeByKey: [String: String]) async -> Bool {
-        guard let selectedPlan, let dayId = day?.id else {
+        guard let selectedPlan else {
             mutationState = .failed(message: "Select a plan before logging it.", previous: nil)
             return false
         }
 
-        let materialization: PlanLogMaterialization
-        do {
-            materialization = try PlanLogMaterializer.build(
-                selectedPlan: selectedPlan,
-                dayId: dayId,
-                existingMealGroups: day?.nutritionLogMeals ?? [],
-                existingStandaloneEntries: day?.nutritionLogEntries ?? [],
-                slotTimeByKey: slotTimeByKey
-            )
-        } catch {
-            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+        return await materializeSelectedPlan(
+            selectedPlan,
+            slotTimeByKey: slotTimeByKey,
+            successMessage: "Selected plan logged"
+        )
+    }
+
+    public func logSelectedPlanSlot(_ slot: NutritionPlanTimeSlot<NutritionPlanEntry>) async -> Bool {
+        guard let selectedPlan else {
+            mutationState = .failed(message: "Select a plan before logging it.", previous: nil)
             return false
         }
 
-        mutationState = .loading(previous: mutationState.value)
-        do {
-            _ = try await repository.logSelectedPlan(materialization)
-            mutationState = .loaded("Selected plan logged")
-            await load()
-            return true
-        } catch {
-            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+        guard !slot.entries.isEmpty else {
+            mutationState = .failed(message: "This time slot has no meals or foods to log.", previous: nil)
             return false
         }
+
+        let slotPlan = NutritionPlan(
+            id: selectedPlan.id,
+            name: selectedPlan.name,
+            nutritionPlanMeals: slot.entries.compactMap { entry in
+                if case let .meal(mealSlot) = entry { return mealSlot }
+                return nil
+            },
+            nutritionPlanFoods: slot.entries.compactMap { entry in
+                if case let .food(foodSlot) = entry { return foodSlot }
+                return nil
+            }
+        )
+        let slotTime = IntakeGrouping.timeToInputValue(slot.key)
+        let fallbackTime = slotTime.isEmpty ? IntakeGrouping.currentTimeInputValue() : slotTime
+
+        return await materializeSelectedPlan(
+            slotPlan,
+            slotTimeByKey: [slot.key: fallbackTime],
+            successMessage: "Plan time slot logged"
+        )
     }
+
 
     public func updateEntry(id: String, grams: String, position: Int, slotTime: String?) async -> Bool {
         guard validatePositiveGrams(grams) else {
@@ -385,6 +400,45 @@ public final class DailyIntakeViewModel: ObservableObject {
 }
 
 private extension DailyIntakeViewModel {
+    private func materializeSelectedPlan(
+        _ selectedPlan: NutritionPlan,
+        slotTimeByKey: [String: String],
+        successMessage: String
+    ) async -> Bool {
+        let dayId: String
+        do {
+            dayId = try await ensureDay()
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+
+        let materialization: PlanLogMaterialization
+        do {
+            materialization = try PlanLogMaterializer.build(
+                selectedPlan: selectedPlan,
+                dayId: dayId,
+                existingMealGroups: day?.nutritionLogMeals ?? [],
+                existingStandaloneEntries: day?.nutritionLogEntries ?? [],
+                slotTimeByKey: slotTimeByKey
+            )
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+
+        mutationState = .loading(previous: mutationState.value)
+        do {
+            _ = try await repository.logSelectedPlan(materialization)
+            mutationState = .loaded(successMessage)
+            await load()
+            return true
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+    }
+
     func validatePositiveGrams(_ value: String) -> Bool {
         guard let parsed = NutritionMath.parseMacroInput(value) else { return false }
         return parsed > 0
