@@ -11,6 +11,7 @@ struct NutritionOverviewView: View {
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
     @StateObject private var energySyncViewModel: DailyEnergyListViewModel
+    @Environment(\.locale) private var locale
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
@@ -163,37 +164,29 @@ struct NutritionOverviewView: View {
             case let .failed(message, _):
                 AppErrorStateView(title: "Failed to load balance", message: message) { Task { await viewModel.load() } }
             case .loaded:
+                let summary = viewModel.energyBalanceOverviewSummary(locale: locale)
                 VStack(alignment: .leading, spacing: 12) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
                         overviewMetricTile(
                             label: "Consumed",
-                            value: NutritionMath.formatMacro(viewModel.todayBalance.caloriesIn, unit: "kcal"),
-                            caption: "Logged today"
+                            value: summary.consumedValue,
+                            caption: summary.consumedCaption
                         )
                         overviewMetricTile(
                             label: "Burned",
-                            value: viewModel.todayBalance.caloriesOut.map { NutritionMath.formatMacro($0, unit: "kcal") }
-                                ?? "No energy",
-                            caption: "Active + resting"
+                            value: summary.burnedValue,
+                            caption: summary.burnedCaption
                         )
                         overviewMetricTile(
                             label: "Net today",
-                            value: netValueText(viewModel.todayBalance.net),
-                            caption: netCaption(for: viewModel.todayBalance.state)
+                            value: summary.netTodayValue,
+                            caption: summary.netTodayCaption
                         )
-                        if let average = viewModel.sevenDayNetAverage {
-                            overviewMetricTile(
-                                label: "7-day avg net",
-                                value: netValueText(average.averageNet),
-                                caption: "\(average.includedDayCount)/\(average.windowDayCount) days with intake + energy"
-                            )
-                        } else {
-                            overviewMetricTile(
-                                label: "7-day avg net",
-                                value: "No data",
-                                caption: "Log intake and energy to calculate"
-                            )
-                        }
+                        overviewMetricTile(
+                            label: "7-day avg net",
+                            value: summary.sevenDayAverageValue,
+                            caption: summary.sevenDayAverageCaption
+                        )
                     }
                     Text("Net is logged intake minus active + resting energy. Negative means deficit; positive means surplus.")
                         .font(.caption)
@@ -224,11 +217,6 @@ struct NutritionOverviewView: View {
         .nutritionGlassCard(cornerRadius: 14)
     }
 
-    private func netValueText(_ net: Double?) -> String {
-        guard let net else { return "No energy" }
-        return signedKcalValueText(net)
-    }
-
     private func kcalValueText(_ value: Double) -> String {
         NutritionMath.formatMacro(value, unit: "kcal")
     }
@@ -245,15 +233,6 @@ struct NutritionOverviewView: View {
 
     private func bodyFatValueText(_ value: Double) -> String {
         String(format: "%.1f %%", value)
-    }
-
-    private func netCaption(for state: DailyCalorieBalanceState) -> String {
-        switch state {
-        case .deficit: "Deficit"
-        case .surplus: "Surplus"
-        case .balanced: "Balanced"
-        case .intakeOnly: "Needs energy"
-        }
     }
 
     @ViewBuilder

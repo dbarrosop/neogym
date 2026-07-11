@@ -173,7 +173,15 @@ Use a fallback-first architecture. Put all testable balance math, latest-log-tim
 
 **Implementation log**
 
-_(filled by `nhost-implement` during execution: implementation notes, reviewer verdict, and any assumption/decision taken with its pillar justification.)_
+Implemented in commit `13850ad5`.
+
+- **Implementation notes:** Added `EnergyBalanceOverviewSummary` and `NutritionDay.latestLoggedSlotTime` in `NeoGymKit`, exposed shared kcal rounding, added a `NutritionDaysListViewModel.energyBalanceOverviewSummary(locale:)` seam, and updated `NutritionOverviewView` to render consumed, burned, net, and 7-day captions from the summary. Added tests for latest slot-time selection, malformed/missing times, grouped-child inheritance via parent meal time, missing-energy behavior, zero-component split display, and state captions.
+- **Reviewer verdict:** `ACCEPT` after an initial `ACCEPT_WITH_CONCERNS`; the only concrete concern was an out-of-scope machine-specific `ios/NeoGym/CLAUDE.md` symlink note, which was reverted before acceptance.
+- **Autonomous decisions:**
+  - Selected `No entries yet` as the no-intake consumed caption. **Correctness:** this is an explicit, non-misleading fallback for missing `slotTime` and matches the plan examples.
+  - Accepted `DailyIntakeViewModel.swift` as in-scope even though not listed by name. **Long-term maintenance:** the added method is a thin view-model seam that keeps SwiftUI code from duplicating summary construction.
+  - Used a clean Xcode environment for the simulator build after the process-inherited environment failed the widget link with `ld: -objc_abi_version '-Xlinker' not supported`. **Correctness:** reviewer and clean retry confirmed the failure was environmental, not a Phase 1 regression.
+- **Quality gate:** `xcrun swift build` passed; `xcrun swift test` passed (220 XCTest + 4 Swift Testing tests); `nix develop ../.. --command xcodegen generate` passed; initial `xcodebuild` failed in inherited environment with widget linker error, then clean-environment `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` passed.
 
 ### Phase 2 — App Group snapshot foundation and auth clearing
 
