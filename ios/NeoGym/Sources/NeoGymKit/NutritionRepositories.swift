@@ -33,6 +33,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func logFood(_ values: LogFoodValues) async throws -> String
     func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String
     func logMeal(_ values: LogMealValues) async throws -> String
+    func logSelectedPlan(_ materialization: PlanLogMaterialization) async throws -> PlanLogMutationResult
     func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws
     func updateLogMeal(id: String, values: LogMealUpdateValues) async throws
     func deleteLogEntry(id: String) async throws
@@ -334,6 +335,21 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
+    public func logSelectedPlan(_ materialization: PlanLogMaterialization) async throws -> PlanLogMutationResult {
+        let data: InsertSelectedPlanLogData = try await graphQL.execute(
+            query: Self.logSelectedPlanMutation,
+            variables: [
+                "mealObjects": Self.planLogMealObjects(materialization.mealObjects),
+                "entryObjects": Self.planLogEntryObjects(materialization.entryObjects)
+            ],
+            operationName: "LogSelectedPlan"
+        )
+        return PlanLogMutationResult(
+            mealRows: data.insertNutritionLogMeals.affectedRows ?? 0,
+            entryRows: data.insertNutritionLogEntries.affectedRows ?? 0
+        )
+    }
+
     public func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {
         let _: UpdateNutritionLogEntryData = try await graphQL.execute(
             query: Self.updateNutritionLogEntryMutation,
@@ -433,6 +449,10 @@ private struct UpdateNutritionDayData: Decodable, Sendable { let updateNutrition
 private struct DeleteNutritionDayData: Decodable, Sendable { let deleteNutritionDay: MutationIdPayload? }
 private struct InsertNutritionLogEntryData: Decodable, Sendable { let insertNutritionLogEntry: MutationIdPayload? }
 private struct InsertNutritionLogMealData: Decodable, Sendable { let insertNutritionLogMeal: MutationIdPayload? }
+private struct InsertSelectedPlanLogData: Decodable, Sendable {
+    let insertNutritionLogMeals: AffectedRowsPayload
+    let insertNutritionLogEntries: AffectedRowsPayload
+}
 private struct UpdateNutritionLogEntryData: Decodable, Sendable { let updateNutritionLogEntry: MutationIdPayload? }
 private struct UpdateNutritionLogMealData: Decodable, Sendable { let updateNutritionLogMeal: MutationIdPayload? }
 private struct DeleteNutritionLogEntryData: Decodable, Sendable { let deleteNutritionLogEntry: MutationIdPayload? }

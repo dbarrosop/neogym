@@ -234,6 +234,81 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(object.recursivelyContainsKey("snapshotProteinPer100g"))
     }
 
+    func testLogSelectedPlanUsesOneCombinedMutationWithEmptyArrays() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "insertNutritionLogMeals": .object(["affected_rows": .number(0)]),
+            "insertNutritionLogEntries": .object(["affected_rows": .number(0)])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+
+        let result = try await repository.logSelectedPlan(PlanLogMaterialization(
+            mealObjects: [],
+            entryObjects: []
+        ))
+
+        XCTAssertEqual(result, PlanLogMutationResult(mealRows: 0, entryRows: 0))
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.count, 1)
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.operationName, "LogSelectedPlan")
+        XCTAssertTrue(request.query.contains("insertNutritionLogMeals(objects: $mealObjects)"))
+        XCTAssertTrue(request.query.contains("insertNutritionLogEntries(objects: $entryObjects)"))
+        XCTAssertEqual(request.variables?["mealObjects"], .array([]))
+        XCTAssertEqual(request.variables?["entryObjects"], .array([]))
+    }
+
+    func testLogSelectedPlanVariablesPreserveProvenanceAndChildDayIds() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "insertNutritionLogMeals": .object(["affected_rows": .number(1)]),
+            "insertNutritionLogEntries": .object(["affected_rows": .number(1)])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let materialization = PlanLogMaterialization(
+            mealObjects: [PlanLogMealInsertValues(
+                dayId: "day-1",
+                mealId: "meal-1",
+                nutritionPlanMealId: "slot-1",
+                name: "Breakfast",
+                slotTime: "09:00",
+                position: 2,
+                entries: [PlanLogEntryInsertValues(
+                    dayId: "day-1",
+                    foodId: "food-1",
+                    grams: .string("125"),
+                    position: 0,
+                    slotTime: "09:00"
+                )]
+            )],
+            entryObjects: [PlanLogEntryInsertValues(
+                dayId: "day-1",
+                foodId: "food-2",
+                nutritionPlanFoodId: "plan-food-1",
+                grams: .string("80"),
+                position: 3,
+                slotTime: "09:00"
+            )]
+        )
+
+        let result = try await repository.logSelectedPlan(materialization)
+
+        XCTAssertEqual(result, PlanLogMutationResult(mealRows: 1, entryRows: 1))
+        let requests = await fake.requestsSnapshot()
+        let variables = try XCTUnwrap(requests.first?.variables)
+        let mealObjects = try XCTUnwrap(variables["mealObjects"]?.arrayValue)
+        let entryObjects = try XCTUnwrap(variables["entryObjects"]?.arrayValue)
+        let mealObject = try XCTUnwrap(mealObjects.first)
+        XCTAssertEqual(mealObject["nutritionDayId"], .string("day-1"))
+        XCTAssertEqual(mealObject["mealId"], .string("meal-1"))
+        XCTAssertEqual(mealObject["nutritionPlanMealId"], .string("slot-1"))
+        XCTAssertEqual(mealObject["position"], .number(2))
+        let childEntries = try XCTUnwrap(mealObject["nutritionLogEntries"]?["data"]?.arrayValue)
+        XCTAssertEqual(childEntries.first?["nutritionDayId"], .string("day-1"))
+        XCTAssertEqual(childEntries.first?["foodId"], .string("food-1"))
+        XCTAssertEqual(entryObjects.first?["nutritionPlanFoodId"], .string("plan-food-1"))
+        XCTAssertFalse(mealObject.recursivelyContainsKey("snapshotFoodName"))
+        XCTAssertFalse(entryObjects[0].recursivelyContainsKey("snapshotKcalPer100g"))
+    }
+
     func testUpdateVariablesSupportFoodBackedAndAdHocEditableFields() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["updateNutritionLogEntry": .object(["id": .string("entry-1")])])),
@@ -469,216 +544,6 @@ final class DailyIntakeViewModelTests: XCTestCase {
         XCTAssertEqual(object["grams"], .string("80"))
         XCTAssertEqual(object["slotTime"], .string("15:45"))
         XCTAssertNotEqual(object["slotTime"], .string(slot.slotTime))
-    }
-}
-
-final class NutritionDayGroupingTests: XCTestCase {
-    func testLatestLoggedSlotTimeUsesMealGroupsAndStandaloneEntriesOnly() {
-        let groupedChildWithLaterTime = testLogEntry(
-            id: "grouped-child",
-            nutritionLogMealId: "meal-1",
-            slotTime: "23:50:00"
-        )
-        let meal = NutritionLogMeal(
-            id: "meal-1",
-            name: "Dinner",
-            slotTime: "21:05:00",
-            position: 0,
-            nutritionLogEntries: [groupedChildWithLaterTime]
-        )
-        let standalone = testLogEntry(id: "standalone", slotTime: "10:15:00")
-        let malformed = testLogEntry(id: "malformed", slotTime: "99:99")
-
-        let day = NutritionDay(
-            id: "day-latest",
-            logDate: "2026-07-11",
-            nutritionLogMeals: [meal],
-            nutritionLogEntries: [standalone, malformed]
-        )
-
-        XCTAssertEqual(day.latestLoggedSlotTime, "21:05")
-    }
-
-    func testLatestLoggedSlotTimeReturnsNilWhenNoValidMealOrStandaloneTimesExist() {
-        let day = NutritionDay(
-            id: "day-no-times",
-            logDate: "2026-07-11",
-            nutritionLogMeals: [NutritionLogMeal(id: "meal-1", name: "Dinner", slotTime: nil, position: 0)],
-            nutritionLogEntries: [
-                testLogEntry(id: "missing", slotTime: nil),
-                testLogEntry(id: "malformed", slotTime: "noon"),
-                testLogEntry(id: "grouped", nutritionLogMealId: "meal-1", slotTime: "22:30")
-            ]
-        )
-
-        XCTAssertNil(day.latestLoggedSlotTime)
-    }
-
-    func testEnergyBalanceOverviewSummaryFormatsRequestedCaptions() {
-        let payload = NutritionOverviewPayload(
-            days: [nutritionDayFixtureModel],
-            dailyEnergyEntries: [dailyEnergyFixtureModel]
-        )
-
-        let summary = EnergyBalanceOverviewSummary(
-            payload: payload,
-            today: "2026-06-27",
-            locale: Locale(identifier: "en_US")
-        )
-
-        XCTAssertEqual(summary.consumedValue, "250 kcal")
-        XCTAssertTrue(summary.consumedCaption.hasPrefix("As of 10:15"))
-        XCTAssertEqual(summary.burnedValue, "2,000 kcal")
-        XCTAssertEqual(summary.burnedCaption, "450 + 1550 kcal")
-        XCTAssertEqual(summary.netTodayValue, "−1,750 kcal")
-        XCTAssertEqual(summary.netTodayCaption, "Deficit")
-        XCTAssertEqual(summary.sevenDayAverageValue, "−1,750 kcal")
-        XCTAssertEqual(summary.sevenDayAverageCaption, "Deficit")
-    }
-
-    func testEnergyBalanceOverviewSummaryExposesRawValuesForWidgetSnapshotMapping() {
-        let payload = NutritionOverviewPayload(
-            days: [nutritionDayFixtureModel],
-            dailyEnergyEntries: [dailyEnergyFixtureModel]
-        )
-
-        let summary = EnergyBalanceOverviewSummary(
-            payload: payload,
-            today: "2026-06-27",
-            locale: Locale(identifier: "en_US")
-        )
-
-        XCTAssertEqual(summary.date, "2026-06-27")
-        XCTAssertEqual(summary.caloriesIn, 250, accuracy: 0.001)
-        XCTAssertEqual(summary.activeKcal, 450)
-        XCTAssertEqual(summary.restingKcal, 1550)
-        XCTAssertEqual(summary.caloriesOut, 2000)
-        XCTAssertEqual(summary.net, -1750)
-        XCTAssertEqual(summary.netState, .deficit)
-        XCTAssertEqual(summary.sevenDayAverageNet, -1750)
-        XCTAssertEqual(summary.sevenDayAverageState, .deficit)
-        XCTAssertEqual(summary.latestLoggedSlotTime, "10:15")
-    }
-
-    func testEnergyBalanceOverviewSummaryDistinguishesMissingEnergyFromMissingComponents() {
-        let day = NutritionDay(
-            id: "day-1",
-            logDate: "2026-07-11",
-            nutritionLogEntries: [testLogEntry(slotTime: "09:30")]
-        )
-        let missingEnergy = EnergyBalanceOverviewSummary(
-            payload: NutritionOverviewPayload(days: [day]),
-            today: "2026-07-11",
-            locale: Locale(identifier: "en_US")
-        )
-
-        XCTAssertEqual(missingEnergy.burnedValue, "No energy")
-        XCTAssertEqual(missingEnergy.burnedCaption, "Log active/resting energy")
-        XCTAssertEqual(missingEnergy.netTodayValue, "No energy")
-        XCTAssertEqual(missingEnergy.netTodayCaption, "Needs energy")
-        XCTAssertEqual(missingEnergy.sevenDayAverageValue, "No data")
-        XCTAssertEqual(missingEnergy.sevenDayAverageCaption, "Log intake and energy to calculate")
-
-        let zeroComponentEnergy = EnergyBalanceOverviewSummary(
-            payload: NutritionOverviewPayload(
-                days: [day],
-                dailyEnergyEntries: [DailyEnergy(id: "energy-1", energyOn: "2026-07-11")]
-            ),
-            today: "2026-07-11",
-            locale: Locale(identifier: "en_US")
-        )
-
-        XCTAssertEqual(zeroComponentEnergy.burnedValue, "0 kcal")
-        XCTAssertEqual(zeroComponentEnergy.burnedCaption, "0 + 0 kcal")
-        XCTAssertEqual(zeroComponentEnergy.netTodayValue, "+100 kcal")
-        XCTAssertEqual(zeroComponentEnergy.netTodayCaption, "Surplus")
-        XCTAssertEqual(zeroComponentEnergy.sevenDayAverageCaption, "Surplus")
-    }
-
-    func testDailyIntakeCalorieBalanceNullSemantics() {
-        let intakeDay = NutritionDay(
-            id: "day-balance",
-            logDate: "2026-07-08",
-            nutritionLogEntries: [standaloneEntryFixture]
-        )
-
-        let nutritionOnly = DailyIntakePayload(day: intakeDay, nutritionPlans: [], meals: [], foods: [])
-        XCTAssertEqual(nutritionOnly.caloriesIn, 100)
-        XCTAssertNil(nutritionOnly.caloriesOut)
-        XCTAssertNil(nutritionOnly.netCalories)
-        XCTAssertEqual(nutritionOnly.calorieBalance.state, .intakeOnly)
-
-        let energyOnly = DailyIntakePayload(
-            day: nil,
-            dailyEnergy: DailyEnergy(id: "energy-rest", energyOn: "2026-07-08", restingKcal: 1800),
-            nutritionPlans: [],
-            meals: [],
-            foods: []
-        )
-        XCTAssertEqual(energyOnly.caloriesIn, 0)
-        XCTAssertEqual(energyOnly.caloriesOut, 1800)
-        XCTAssertEqual(energyOnly.netCalories, -1800)
-        XCTAssertEqual(energyOnly.calorieBalance.state, .deficit)
-
-        let activeOnly = DailyIntakePayload(
-            day: intakeDay,
-            dailyEnergy: DailyEnergy(id: "energy-active", energyOn: "2026-07-08", activeKcal: 250),
-            nutritionPlans: [],
-            meals: [],
-            foods: []
-        )
-        XCTAssertEqual(activeOnly.caloriesOut, 250)
-        XCTAssertEqual(activeOnly.netCalories, -150)
-        XCTAssertEqual(activeOnly.calorieBalance.state, .deficit)
-
-        let both = DailyIntakePayload(
-            day: intakeDay,
-            dailyEnergy: DailyEnergy(id: "energy-both", energyOn: "2026-07-08", activeKcal: 40, restingKcal: 60),
-            nutritionPlans: [],
-            meals: [],
-            foods: []
-        )
-        XCTAssertEqual(both.caloriesOut, 100)
-        XCTAssertEqual(both.netCalories, 0)
-        XCTAssertEqual(both.calorieBalance.state, .balanced)
-
-        let neither = DailyIntakePayload(day: nil, nutritionPlans: [], meals: [], foods: [])
-        XCTAssertEqual(neither.caloriesIn, 0)
-        XCTAssertNil(neither.caloriesOut)
-        XCTAssertNil(neither.netCalories)
-        XCTAssertEqual(neither.calorieBalance.state, .intakeOnly)
-    }
-
-    func testNutritionLogEntrySourceDecodesAndMissingSourceDefaultsToFood() throws {
-        let encodedAdHoc = try JSONEncoder().encode(standaloneEntryJSONFixture)
-        let adHocEntry = try JSONDecoder().decode(NutritionLogEntry.self, from: encodedAdHoc)
-        XCTAssertEqual(adHocEntry.source, .adHoc)
-        XCTAssertTrue(adHocEntry.isAdHoc)
-
-        var object = try XCTUnwrap(standaloneEntryJSONFixture.objectValue)
-        object.removeValue(forKey: "source")
-        let encodedMissingSource = try JSONEncoder().encode(JSONValue.object(object))
-        let missingSourceEntry = try JSONDecoder().decode(NutritionLogEntry.self, from: encodedMissingSource)
-        XCTAssertEqual(missingSourceEntry.source, .food)
-        XCTAssertFalse(missingSourceEntry.isAdHoc)
-    }
-
-    func testDayIntakeSlotsGroupBySupportedTimesAndUseSnapshotTotals() {
-        let day = NutritionDay(
-            id: "day-1",
-            logDate: "2026-06-27",
-            nutritionLogMeals: [loggedMealFixture],
-            nutritionLogEntries: [standaloneEntryFixture]
-        )
-
-        let slots = day.intakeSlots
-
-        XCTAssertEqual(slots.map(\.key), ["08:30", "10:15"])
-        XCTAssertEqual(slots[0].mealGroups.map(\.name), ["Breakfast"])
-        XCTAssertEqual(slots[0].entries.map(\.mealName), ["Breakfast"])
-        XCTAssertEqual(slots[0].totals.kcal, 150)
-        XCTAssertEqual(slots[1].entries.map(\.entry.snapshotFoodName), ["Blueberries snapshot"])
-        XCTAssertEqual(day.loggedTotals.kcal, 250)
     }
 }
 

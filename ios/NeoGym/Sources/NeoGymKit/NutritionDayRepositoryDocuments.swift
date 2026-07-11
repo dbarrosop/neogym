@@ -296,6 +296,20 @@ public extension NutritionFoodMealRepository {
     }
     """
 
+    static let logSelectedPlanMutation = """
+    mutation LogSelectedPlan(
+      $mealObjects: [nutritionLogMeals_insert_input!]!
+      $entryObjects: [nutritionLogEntries_insert_input!]!
+    ) {
+      insertNutritionLogMeals(objects: $mealObjects) {
+        affected_rows
+      }
+      insertNutritionLogEntries(objects: $entryObjects) {
+        affected_rows
+      }
+    }
+    """
+
     static let updateNutritionLogEntryMutation = """
     mutation UpdateNutritionLogEntry($id: uuid!, $set: nutritionLogEntries_set_input!) {
       updateNutritionLogEntry(pk_columns: { id: $id }, _set: $set) {
@@ -391,6 +405,42 @@ public extension NutritionFoodMealRepository {
                 })
             ])
         ])
+    }
+
+    static func planLogMealObjects(_ values: [PlanLogMealInsertValues]) -> JSONValue {
+        .array(values.map(planLogMealObject))
+    }
+
+    static func planLogEntryObjects(_ values: [PlanLogEntryInsertValues]) -> JSONValue {
+        .array(values.map(planLogEntryObject))
+    }
+
+    static func planLogMealObject(_ values: PlanLogMealInsertValues) -> JSONValue {
+        .object([
+            "nutritionDayId": GraphQLScalars.uuid(values.dayId),
+            "mealId": GraphQLScalars.uuid(values.mealId),
+            "nutritionPlanMealId": GraphQLScalars.uuid(values.nutritionPlanMealId),
+            "name": .string(values.name),
+            "slotTime": GraphQLScalars.time(values.slotTime),
+            "position": .number(Double(values.position)),
+            "nutritionLogEntries": .object([
+                "data": planLogEntryObjects(values.entries)
+            ])
+        ])
+    }
+
+    static func planLogEntryObject(_ values: PlanLogEntryInsertValues) -> JSONValue {
+        var object: [String: JSONValue] = [
+            "nutritionDayId": GraphQLScalars.uuid(values.dayId),
+            "foodId": GraphQLScalars.uuid(values.foodId),
+            "grams": values.grams,
+            "position": .number(Double(values.position)),
+            "slotTime": GraphQLScalars.time(values.slotTime)
+        ]
+        if let nutritionPlanFoodId = values.nutritionPlanFoodId {
+            object["nutritionPlanFoodId"] = GraphQLScalars.uuid(nutritionPlanFoodId)
+        }
+        return .object(object)
     }
 
     static func logEntryUpdateSet(_ values: LogEntryUpdateValues) -> JSONValue {

@@ -4,6 +4,7 @@ import {
   adHocNutritionDraftTotals,
   buildAdHocLogEntryInsertInput,
   buildAdHocLogEntryUpdateSet,
+  buildPlanLogInputs,
   canMovePlanDraftEntryWithinSlot,
   createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
@@ -37,6 +38,7 @@ import {
   timeToInputValue,
   validateAdHocNutritionDraft,
 } from "./nutrition";
+import { logSelectedPlanMaterialization } from "./nutrition-plan-log";
 
 const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
 
@@ -786,6 +788,300 @@ describe("nutrition time-slot grouping", () => {
       "standalone",
     ]);
     expect(slot?.mealGroups.map((group) => group.id)).toEqual(["meal-a", "meal-b"]);
+  });
+});
+
+function bulkMeal(overrides: Partial<PlanMealEntry> & Pick<PlanMealEntry, "id">): PlanMealEntry {
+  return planMeal({
+    mealId: "meal-1",
+    meal: {
+      id: "meal-1",
+      name: "Breakfast bowl",
+      mealIngredients: [
+        {
+          id: "ingredient-2",
+          foodId: "food-2",
+          grams: "50",
+          position: 1,
+          food: {
+            id: "food-2",
+            name: "Berries",
+            kcalPer100g: 50,
+            fatPer100g: 0,
+            carbsPer100g: 10,
+            proteinPer100g: 1,
+            fiberPer100g: 2,
+            sugarPer100g: 5,
+          },
+        },
+        {
+          id: "ingredient-1",
+          foodId: "food-1",
+          grams: "100",
+          position: 0,
+          food: {
+            id: "food-1",
+            name: "Yogurt",
+            kcalPer100g: 100,
+            fatPer100g: 1,
+            carbsPer100g: 2,
+            proteinPer100g: 10,
+            fiberPer100g: 0,
+            sugarPer100g: 2,
+          },
+        },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+function bulkFood(overrides: Partial<PlanFoodEntry> & Pick<PlanFoodEntry, "id">): PlanFoodEntry {
+  return planFood({
+    foodId: "food-3",
+    grams: "80",
+    food: {
+      id: "food-3",
+      name: "Banana",
+      kcalPer100g: 90,
+      fatPer100g: 0,
+      carbsPer100g: 20,
+      proteinPer100g: 1,
+      fiberPer100g: 3,
+      sugarPer100g: 12,
+    },
+    ...overrides,
+  });
+}
+
+function buildBulkPlan(meals: PlanMealEntry[], foods: PlanFoodEntry[]) {
+  return {
+    id: "plan-1",
+    name: "Training day",
+    nutritionPlanMeals: meals,
+    nutritionPlanFoods: foods,
+  };
+}
+
+describe("selected-plan bulk materialization", () => {
+  it("materializes meals-only plans with nested children and empty direct entry arrays", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan([bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00" })], []),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "09:15" },
+    });
+
+    expect(result.entryObjects).toEqual([]);
+    expect(result.mealObjects).toHaveLength(1);
+    expect(result.mealObjects[0]).toMatchObject({
+      nutritionDayId: "day-1",
+      mealId: "meal-1",
+      nutritionPlanMealId: "plan-meal-1",
+      name: "Breakfast bowl",
+      slotTime: "09:15",
+      position: 0,
+    });
+    expect(result.mealObjects[0]?.nutritionLogEntries.data).toEqual([
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-1",
+        grams: 100,
+        position: 0,
+        slotTime: "09:15",
+      },
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-2",
+        grams: 50,
+        position: 1,
+        slotTime: "09:15",
+      },
+    ]);
+  });
+
+  it("materializes foods-only plans with standalone provenance and empty meal arrays", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan([], [bulkFood({ id: "plan-food-1", slotTime: "11:00:00" })]),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "11:00": "11:30" },
+    });
+
+    expect(result.mealObjects).toEqual([]);
+    expect(result.entryObjects).toEqual([
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-3",
+        nutritionPlanFoodId: "plan-food-1",
+        grams: 80,
+        position: 0,
+        slotTime: "11:30",
+      },
+    ]);
+  });
+
+  it("uses distinct positions so same-time food-before-meal order survives intake grouping", () => {
+    const materialized = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 1 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 0 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "08:45" },
+    });
+
+    const [slot] = groupIntakeByTimeSlot(
+      materialized.mealObjects.map((meal) =>
+        loggedMeal({
+          id: meal.nutritionPlanMealId,
+          name: meal.name,
+          slotTime: meal.slotTime,
+          position: meal.position,
+          nutritionLogEntries: [
+            loggedEntry({
+              id: `${meal.nutritionPlanMealId}:child`,
+              nutritionLogMealId: meal.nutritionPlanMealId,
+              position: 0,
+            }),
+          ],
+        }),
+      ),
+      materialized.entryObjects.map((entry) =>
+        loggedEntry({
+          id: entry.nutritionPlanFoodId ?? "entry",
+          slotTime: entry.slotTime,
+          position: entry.position,
+        }),
+      ),
+    );
+
+    expect(slot?.entries.map((entry) => entry.entry.id)).toEqual([
+      "plan-food-1",
+      "plan-meal-1:child",
+    ]);
+  });
+
+  it("uses distinct positions so same-time meal-before-food order survives intake grouping", () => {
+    const materialized = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 0 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 1 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "08:45" },
+    });
+
+    expect(materialized.mealObjects[0]?.position).toBe(0);
+    expect(materialized.entryObjects[0]?.position).toBe(1);
+  });
+
+  it("appends after the maximum existing top-level position for each overridden time", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 0 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 1 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [loggedMeal({ id: "existing-meal", slotTime: "12:00:00", position: 4 })],
+      existingStandaloneEntries: [
+        loggedEntry({ id: "existing-food", slotTime: "12:00:00", position: 7 }),
+      ],
+      slotTimeByKey: { "08:00": "12:00" },
+    });
+
+    expect(result.mealObjects[0]?.position).toBe(8);
+    expect(result.entryObjects[0]?.position).toBe(9);
+    expect(result.mealObjects[0]?.slotTime).toBe("12:00");
+    expect(result.entryObjects[0]?.slotTime).toBe("12:00");
+  });
+
+  it("validates selected plan, references, non-empty meals, and target times before building", () => {
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: null,
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: {},
+      }),
+    ).toThrow("Select a plan");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan([], []),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: {},
+      }),
+    ).toThrow("no meals or foods");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan(
+          [
+            planMeal({
+              id: "empty",
+              meal: { id: "meal-empty", name: "Empty meal", mealIngredients: [] },
+            }),
+          ],
+          [],
+        ),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: { "08:00": "08:00" },
+      }),
+    ).toThrow("Empty meal has no ingredients");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan([], [planFood({ id: "missing-food", food: null })]),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: { "08:00": "" },
+      }),
+    ).toThrow("Choose a logged time");
+  });
+
+  it("sends one combined selected-plan request with arrays even when one side is empty", async () => {
+    const calls: unknown[] = [];
+    const result = await logSelectedPlanMaterialization(
+      {
+        mealObjects: [],
+        entryObjects: [
+          {
+            nutritionDayId: "day-1",
+            foodId: "food-1",
+            nutritionPlanFoodId: "plan-food-1",
+            grams: 100,
+            position: 0,
+            slotTime: "08:00",
+          },
+        ],
+      },
+      (document, variables) => {
+        calls.push({ document, variables });
+        return Promise.resolve({
+          insertNutritionLogMeals: { affected_rows: 0 },
+          insertNutritionLogEntries: { affected_rows: 1 },
+        });
+      },
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      variables: {
+        mealObjects: [],
+        entryObjects: [{ nutritionDayId: "day-1", nutritionPlanFoodId: "plan-food-1" }],
+      },
+    });
+    expect(result).toEqual({ mealRows: 0, entryRows: 1 });
   });
 });
 

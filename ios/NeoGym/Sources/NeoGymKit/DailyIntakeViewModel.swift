@@ -228,6 +228,38 @@ public final class DailyIntakeViewModel: ObservableObject {
         }
     }
 
+    public func logSelectedPlan(slotTimeByKey: [String: String]) async -> Bool {
+        guard let selectedPlan, let dayId = day?.id else {
+            mutationState = .failed(message: "Select a plan before logging it.", previous: nil)
+            return false
+        }
+
+        let materialization: PlanLogMaterialization
+        do {
+            materialization = try PlanLogMaterializer.build(
+                selectedPlan: selectedPlan,
+                dayId: dayId,
+                existingMealGroups: day?.nutritionLogMeals ?? [],
+                existingStandaloneEntries: day?.nutritionLogEntries ?? [],
+                slotTimeByKey: slotTimeByKey
+            )
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+
+        mutationState = .loading(previous: mutationState.value)
+        do {
+            _ = try await repository.logSelectedPlan(materialization)
+            mutationState = .loaded("Selected plan logged")
+            await load()
+            return true
+        } catch {
+            mutationState = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: nil)
+            return false
+        }
+    }
+
     public func updateEntry(id: String, grams: String, position: Int, slotTime: String?) async -> Bool {
         guard validatePositiveGrams(grams) else {
             mutationState = .failed(message: "Enter grams greater than zero.", previous: nil)
@@ -350,12 +382,15 @@ public final class DailyIntakeViewModel: ObservableObject {
         }
     }
 
-    private func validatePositiveGrams(_ value: String) -> Bool {
+}
+
+private extension DailyIntakeViewModel {
+    func validatePositiveGrams(_ value: String) -> Bool {
         guard let parsed = NutritionMath.parseMacroInput(value) else { return false }
         return parsed > 0
     }
 
-    private func validateAdHocDraft(_ draft: AdHocFoodDraftValues) -> AdHocFoodDraftValues? {
+    func validateAdHocDraft(_ draft: AdHocFoodDraftValues) -> AdHocFoodDraftValues? {
         let trimmedName = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else {
             mutationState = .failed(message: "Enter a custom food name.", previous: nil)
@@ -402,16 +437,16 @@ public final class DailyIntakeViewModel: ObservableObject {
         )
     }
 
-    private func normalizedNonnegativeMacro(_ value: String) -> String? {
+    func normalizedNonnegativeMacro(_ value: String) -> String? {
         guard NutritionMath.parseMacroInput(value) != nil else { return nil }
         return normalizedDecimal(value)
     }
 
-    private func normalizedDecimal(_ value: String) -> String {
+    func normalizedDecimal(_ value: String) -> String {
         value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
     }
 
-    private static func isUniqueConflict(_ error: Error) -> Bool {
+    static func isUniqueConflict(_ error: Error) -> Bool {
         let message = GraphQLDomainError.map(error).localizedDescription.lowercased()
         return message.contains("unique")
             || message.contains("duplicate key")

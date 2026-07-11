@@ -51,8 +51,11 @@ export type AdHocNutritionDraftValidation =
   | { valid: false; values: null; message: string };
 
 export interface MealTotalIngredient {
+  id?: string;
+  foodId?: string;
   grams: unknown;
-  food?: MacroFields | null;
+  position?: number;
+  food?: PlanFoodSummary | null;
 }
 
 export interface IntakeDraftMacroItem {
@@ -134,6 +137,47 @@ export type AdHocLogEntryUpdateSet = Omit<
   AdHocLogEntryInsertInput,
   "nutritionDayId" | "source" | "position"
 >;
+
+export interface PlanLogEntryInsertInput {
+  nutritionDayId: string;
+  foodId: string;
+  nutritionPlanFoodId?: string | null;
+  grams: number;
+  position: number;
+  slotTime: string;
+}
+
+export interface PlanLogMealInsertInput {
+  nutritionDayId: string;
+  mealId: string;
+  nutritionPlanMealId: string;
+  name: string;
+  slotTime: string;
+  position: number;
+  nutritionLogEntries: {
+    data: PlanLogEntryInsertInput[];
+  };
+}
+
+export interface PlanLogMaterialization {
+  mealObjects: PlanLogMealInsertInput[];
+  entryObjects: PlanLogEntryInsertInput[];
+}
+
+export interface PlanLogSelectedPlan {
+  id: string;
+  name?: string | null;
+  nutritionPlanMeals: PlanMealEntry[];
+  nutritionPlanFoods: PlanFoodEntry[];
+}
+
+export interface BuildPlanLogInputsOptions {
+  selectedPlan: PlanLogSelectedPlan | null | undefined;
+  nutritionDayId: string;
+  existingMealGroups: IntakeLoggedMealGroup[];
+  existingStandaloneEntries: IntakeEntry[];
+  slotTimeByKey: Record<string, string | null | undefined>;
+}
 
 export interface IntakeEntry extends LoggedSnapshotEntry {
   id: string;
@@ -360,6 +404,156 @@ function snapshotInputFromAdHocValues(values: AdHocNutritionValues) {
     snapshotFiberPer100g: values.fiberPer100g,
     snapshotSugarPer100g: values.sugarPer100g,
   };
+}
+
+export function buildPlanLogInputs({
+  selectedPlan,
+  nutritionDayId,
+  existingMealGroups,
+  existingStandaloneEntries,
+  slotTimeByKey,
+}: BuildPlanLogInputsOptions): PlanLogMaterialization {
+  if (!selectedPlan) {
+    throw new Error("Select a plan before logging it.");
+  }
+  if (!nutritionDayId) {
+    throw new Error("Open the nutrition day before logging a plan.");
+  }
+
+  const entries = mergePlanEntriesByTime(
+    selectedPlan.nutritionPlanMeals,
+    selectedPlan.nutritionPlanFoods,
+  );
+  if (entries.length === 0) {
+    throw new Error("The selected plan has no meals or foods to log.");
+  }
+
+  const topLevelPositionByTime = maxTopLevelPositionByTime(
+    existingMealGroups,
+    existingStandaloneEntries,
+  );
+  const mealObjects: PlanLogMealInsertInput[] = [];
+  const entryObjects: PlanLogEntryInsertInput[] = [];
+
+  for (const slot of groupPlanEntriesByTimeSlot(entries)) {
+    const targetSlotTime = timeToInputValue(slotTimeByKey[slot.key]);
+    if (!targetSlotTime) {
+      throw new Error(`Choose a logged time for ${slot.label}.`);
+    }
+
+    for (const entry of slot.entries) {
+      const position = (topLevelPositionByTime.get(targetSlotTime) ?? -1) + 1;
+      topLevelPositionByTime.set(targetSlotTime, position);
+      if (entry.kind === "meal") {
+        mealObjects.push(buildPlanMealLogObject(entry, nutritionDayId, targetSlotTime, position));
+      } else {
+        entryObjects.push(buildPlanFoodLogObject(entry, nutritionDayId, targetSlotTime, position));
+      }
+    }
+  }
+
+  return { mealObjects, entryObjects };
+}
+
+function buildPlanMealLogObject(
+  entry: PlanMealEntry,
+  nutritionDayId: string,
+  slotTime: string,
+  position: number,
+): PlanLogMealInsertInput {
+  const meal = entry.meal;
+  const mealId = entry.mealId || meal?.id;
+  if (!meal || !mealId) {
+    throw new Error("A planned meal is missing its meal reference.");
+  }
+  if (meal.mealIngredients.length === 0) {
+    throw new Error(`${meal.name || entry.label || "Planned meal"} has no ingredients to log.`);
+  }
+
+  return {
+    nutritionDayId,
+    mealId,
+    nutritionPlanMealId: entry.id,
+    name: entry.label?.trim() || meal.name || "Meal",
+    slotTime,
+    position,
+    nutritionLogEntries: {
+      data: meal.mealIngredients
+        .toSorted(compareMealIngredients)
+        .map((ingredient, ingredientPosition) => {
+          const foodId = ingredient.foodId || ingredient.food?.id;
+          if (!foodId) {
+            throw new Error(
+              `${meal.name || entry.label || "Planned meal"} has an ingredient missing its food.`,
+            );
+          }
+          return {
+            nutritionDayId,
+            foodId,
+            grams: normalizeNumeric(ingredient.grams),
+            position: ingredientPosition,
+            slotTime,
+          };
+        }),
+    },
+  };
+}
+
+function buildPlanFoodLogObject(
+  entry: PlanFoodEntry,
+  nutritionDayId: string,
+  slotTime: string,
+  position: number,
+): PlanLogEntryInsertInput {
+  const foodId = entry.foodId || entry.food?.id;
+  if (!foodId) {
+    throw new Error("A planned food is missing its food reference.");
+  }
+  return {
+    nutritionDayId,
+    foodId,
+    nutritionPlanFoodId: entry.id,
+    grams: normalizeNumeric(entry.grams),
+    position,
+    slotTime,
+  };
+}
+
+function maxTopLevelPositionByTime(
+  mealGroups: IntakeLoggedMealGroup[],
+  standaloneEntries: IntakeEntry[],
+): Map<string, number> {
+  const positions = new Map<string, number>();
+  for (const meal of mealGroups) {
+    recordTopLevelPosition(positions, meal.slotTime, meal.position);
+  }
+  for (const entry of standaloneEntries) {
+    if (!entry.nutritionLogMealId) {
+      recordTopLevelPosition(positions, entry.slotTime, entry.position);
+    }
+  }
+  return positions;
+}
+
+function recordTopLevelPosition(
+  positions: Map<string, number>,
+  slotTime: unknown,
+  position: number,
+) {
+  const key = timeToInputValue(slotTime);
+  if (!key) {
+    return;
+  }
+  positions.set(key, Math.max(positions.get(key) ?? -1, normalizeSortPosition(position)));
+}
+
+function compareMealIngredients(left: MealTotalIngredient, right: MealTotalIngredient): number {
+  return (
+    compareSortPosition(
+      left.position ?? Number.MAX_SAFE_INTEGER,
+      right.position ?? Number.MAX_SAFE_INTEGER,
+    ) || (left.id ?? "").localeCompare(right.id ?? "")
+  );
 }
 
 export function formatMacro(value: unknown, unit: "g" | "kcal"): string {
