@@ -284,25 +284,6 @@ final class PlanLogMaterializerTests: XCTestCase {
         XCTAssertEqual(mealBeforeFood.entryObjects.first?.position, 1)
     }
 
-    func testBulkSlotTimeDefaultsUsePlanTimesAndFallbackForLegacyNoTimeSlots() {
-        let defaults = PlanLogSlotTimeDefaults.build(
-            selectedPlan: NutritionPlan(
-                id: "plan-defaults",
-                name: "Defaults",
-                nutritionPlanMeals: [materializerMealSlot(slotTime: "08:15:00", position: 0)],
-                nutritionPlanFoods: [materializerFoodSlot(slotTime: "", position: 0)]
-            ),
-            fallbackTime: "14:45"
-        )
-
-        XCTAssertEqual(defaults["08:15"], "08:15")
-        XCTAssertEqual(defaults["no-time"], "14:45")
-    }
-
-    func testBulkSlotTimeDefaultsReturnEmptyWithoutSelectedPlan() {
-        XCTAssertEqual(PlanLogSlotTimeDefaults.build(selectedPlan: nil, fallbackTime: "14:45"), [:])
-    }
-
     func testMaterializerValidatesPlanReferencesAndTargetTimes() {
         XCTAssertThrowsError(try PlanLogMaterializer.build(
             selectedPlan: nil,

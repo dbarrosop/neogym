@@ -747,19 +747,6 @@ extension PlanLogMaterializationError: LocalizedError {
     }
 }
 
-public enum PlanLogSlotTimeDefaults {
-    public static func build(selectedPlan: NutritionPlan?, fallbackTime: String) -> [String: String] {
-        guard let selectedPlan else { return [:] }
-        let normalizedFallback = IntakeGrouping.timeToInputValue(fallbackTime)
-        let fallback = normalizedFallback.isEmpty ? IntakeGrouping.currentTimeInputValue() : normalizedFallback
-        return Dictionary(uniqueKeysWithValues: NutritionPlanGrouping
-            .groupPlanEntriesByTimeSlot(selectedPlan.sortedEntries)
-            .map { slot in
-                (slot.key, IntakeGrouping.timeToInputValue(slot.key).isEmpty ? fallback : slot.key)
-            })
-    }
-}
-
 public enum PlanLogMaterializer {
     public static func build(
         selectedPlan: NutritionPlan?,

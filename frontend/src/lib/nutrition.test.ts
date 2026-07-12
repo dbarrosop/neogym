@@ -5,7 +5,6 @@ import {
   buildAdHocLogEntryInsertInput,
   buildAdHocLogEntryUpdateSet,
   buildPlanLogInputs,
-  buildPlanLogSlotTimeDefaults,
   canMovePlanDraftEntryWithinSlot,
   createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
@@ -561,28 +560,6 @@ describe("nutrition mixed plan entry helpers", () => {
       "meal:meal-no-time",
       "food:food-no-time",
     ]);
-  });
-});
-
-describe("nutrition selected-plan bulk logging helpers", () => {
-  it("builds bulk selected-plan confirmation defaults per slot", () => {
-    const defaults = buildPlanLogSlotTimeDefaults({
-      selectedPlan: {
-        id: "plan-1",
-        nutritionPlanMeals: [planMeal({ id: "meal-breakfast", slotTime: "08:15:00" })],
-        nutritionPlanFoods: [{ ...planFood({ id: "food-legacy" }), slotTime: null }],
-      },
-      fallbackTime: "14:45",
-    });
-
-    expect(defaults).toEqual({
-      "08:15": "08:15",
-      "no-time": "14:45",
-    });
-  });
-
-  it("returns no bulk selected-plan defaults without a selected plan", () => {
-    expect(buildPlanLogSlotTimeDefaults({ selectedPlan: null, fallbackTime: "14:45" })).toEqual({});
   });
 });
 

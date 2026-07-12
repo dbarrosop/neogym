@@ -228,19 +228,6 @@ public final class DailyIntakeViewModel: ObservableObject {
         }
     }
 
-    public func logSelectedPlan(slotTimeByKey: [String: String]) async -> Bool {
-        guard let selectedPlan else {
-            mutationState = .failed(message: "Select a plan before logging it.", previous: nil)
-            return false
-        }
-
-        return await materializeSelectedPlan(
-            selectedPlan,
-            slotTimeByKey: slotTimeByKey,
-            successMessage: "Selected plan logged"
-        )
-    }
-
     public func logSelectedPlanSlot(_ slot: NutritionPlanTimeSlot<NutritionPlanEntry>) async -> Bool {
         guard let selectedPlan else {
             mutationState = .failed(message: "Select a plan before logging it.", previous: nil)

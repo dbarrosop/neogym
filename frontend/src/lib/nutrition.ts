@@ -179,11 +179,6 @@ export interface BuildPlanLogInputsOptions {
   slotTimeByKey: Record<string, string | null | undefined>;
 }
 
-export interface BuildPlanLogSlotTimeDefaultsOptions {
-  selectedPlan: PlanLogSelectedPlan | null | undefined;
-  fallbackTime?: string;
-}
-
 export interface IntakeEntry extends LoggedSnapshotEntry {
   id: string;
   position: number;
@@ -409,26 +404,6 @@ function snapshotInputFromAdHocValues(values: AdHocNutritionValues) {
     snapshotFiberPer100g: values.fiberPer100g,
     snapshotSugarPer100g: values.sugarPer100g,
   };
-}
-
-export function buildPlanLogSlotTimeDefaults({
-  selectedPlan,
-  fallbackTime = currentTimeInputValue(),
-}: BuildPlanLogSlotTimeDefaultsOptions): Record<string, string> {
-  if (!selectedPlan) {
-    return {};
-  }
-  const normalizedFallback = timeToInputValue(fallbackTime) || currentTimeInputValue();
-  const entries = mergePlanEntriesByTime(
-    selectedPlan.nutritionPlanMeals,
-    selectedPlan.nutritionPlanFoods,
-  );
-  return Object.fromEntries(
-    groupPlanEntriesByTimeSlot(entries).map((slot) => [
-      slot.key,
-      timeToInputValue(slot.key) || normalizedFallback,
-    ]),
-  );
 }
 
 export function buildPlanLogInputs({
