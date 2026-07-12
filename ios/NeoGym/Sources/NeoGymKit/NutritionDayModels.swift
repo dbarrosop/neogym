@@ -640,6 +640,245 @@ public struct LogMealValues: Sendable, Equatable {
     }
 }
 
+public struct PlanLogEntryInsertValues: Sendable, Equatable {
+    public let dayId: String
+    public let foodId: String
+    public let nutritionPlanFoodId: String?
+    public let grams: JSONValue
+    public let position: Int
+    public let slotTime: String
+
+    public init(
+        dayId: String,
+        foodId: String,
+        nutritionPlanFoodId: String? = nil,
+        grams: JSONValue,
+        position: Int,
+        slotTime: String
+    ) {
+        self.dayId = dayId
+        self.foodId = foodId
+        self.nutritionPlanFoodId = nutritionPlanFoodId
+        self.grams = grams
+        self.position = position
+        self.slotTime = slotTime
+    }
+}
+
+public struct PlanLogMealInsertValues: Sendable, Equatable {
+    public let dayId: String
+    public let mealId: String
+    public let nutritionPlanMealId: String
+    public let name: String
+    public let slotTime: String
+    public let position: Int
+    public let entries: [PlanLogEntryInsertValues]
+
+    public init(
+        dayId: String,
+        mealId: String,
+        nutritionPlanMealId: String,
+        name: String,
+        slotTime: String,
+        position: Int,
+        entries: [PlanLogEntryInsertValues]
+    ) {
+        self.dayId = dayId
+        self.mealId = mealId
+        self.nutritionPlanMealId = nutritionPlanMealId
+        self.name = name
+        self.slotTime = slotTime
+        self.position = position
+        self.entries = entries
+    }
+}
+
+public struct PlanLogMaterialization: Sendable, Equatable {
+    public let mealObjects: [PlanLogMealInsertValues]
+    public let entryObjects: [PlanLogEntryInsertValues]
+
+    public init(mealObjects: [PlanLogMealInsertValues], entryObjects: [PlanLogEntryInsertValues]) {
+        self.mealObjects = mealObjects
+        self.entryObjects = entryObjects
+    }
+}
+
+public struct PlanLogMutationResult: Sendable, Equatable {
+    public let mealRows: Int
+    public let entryRows: Int
+
+    public init(mealRows: Int, entryRows: Int) {
+        self.mealRows = mealRows
+        self.entryRows = entryRows
+    }
+}
+
+public enum PlanLogMaterializationError: Error, Equatable, Sendable {
+    case selectedPlanRequired
+    case dayRequired
+    case emptyPlan
+    case missingMealReference
+    case emptyMeal(String)
+    case missingIngredientFood(String)
+    case missingFoodReference
+    case missingTargetTime(String)
+}
+
+extension PlanLogMaterializationError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .selectedPlanRequired:
+            return "Select a plan before logging it."
+        case .dayRequired:
+            return "Open the nutrition day before logging a plan."
+        case .emptyPlan:
+            return "The selected plan has no meals or foods to log."
+        case .missingMealReference:
+            return "A planned meal is missing its meal reference."
+        case let .emptyMeal(name):
+            return "\(name) has no ingredients to log."
+        case let .missingIngredientFood(name):
+            return "\(name) has an ingredient missing its food."
+        case .missingFoodReference:
+            return "A planned food is missing its food reference."
+        case let .missingTargetTime(label):
+            return "Choose a logged time for \(label)."
+        }
+    }
+}
+
+public enum PlanLogMaterializer {
+    public static func build(
+        selectedPlan: NutritionPlan?,
+        dayId: String,
+        existingMealGroups: [NutritionLogMeal],
+        existingStandaloneEntries: [NutritionLogEntry],
+        slotTimeByKey: [String: String]
+    ) throws -> PlanLogMaterialization {
+        guard let selectedPlan else { throw PlanLogMaterializationError.selectedPlanRequired }
+        guard !dayId.isEmpty else { throw PlanLogMaterializationError.dayRequired }
+        let entries = selectedPlan.sortedEntries
+        guard !entries.isEmpty else { throw PlanLogMaterializationError.emptyPlan }
+
+        var maxPositionByTime = topLevelPositionsByTime(
+            mealGroups: existingMealGroups,
+            standaloneEntries: existingStandaloneEntries
+        )
+        var mealObjects: [PlanLogMealInsertValues] = []
+        var entryObjects: [PlanLogEntryInsertValues] = []
+
+        for slot in NutritionPlanGrouping.groupPlanEntriesByTimeSlot(entries) {
+            let targetTime = IntakeGrouping.timeToInputValue(slotTimeByKey[slot.key])
+            guard !targetTime.isEmpty else {
+                throw PlanLogMaterializationError.missingTargetTime(slot.label)
+            }
+
+            for entry in slot.entries {
+                let position = (maxPositionByTime[targetTime] ?? -1) + 1
+                maxPositionByTime[targetTime] = position
+                switch entry {
+                case let .meal(mealSlot):
+                    mealObjects.append(try buildMealObject(
+                        mealSlot,
+                        dayId: dayId,
+                        slotTime: targetTime,
+                        position: position
+                    ))
+                case let .food(foodSlot):
+                    entryObjects.append(try buildFoodObject(
+                        foodSlot,
+                        dayId: dayId,
+                        slotTime: targetTime,
+                        position: position
+                    ))
+                }
+            }
+        }
+
+        return PlanLogMaterialization(mealObjects: mealObjects, entryObjects: entryObjects)
+    }
+
+    private static func buildMealObject(
+        _ slot: NutritionPlanMealSlot,
+        dayId: String,
+        slotTime: String,
+        position: Int
+    ) throws -> PlanLogMealInsertValues {
+        guard !slot.mealId.isEmpty, let meal = slot.meal else {
+            throw PlanLogMaterializationError.missingMealReference
+        }
+        guard !meal.mealIngredients.isEmpty else {
+            throw PlanLogMaterializationError.emptyMeal(slot.displayLabel)
+        }
+
+        let entries = try meal.mealIngredients
+            .sorted { left, right in
+                if left.position != right.position { return left.position < right.position }
+                return left.id < right.id
+            }
+            .enumerated()
+            .map { index, ingredient in
+                guard !ingredient.foodId.isEmpty else {
+                    throw PlanLogMaterializationError.missingIngredientFood(slot.displayLabel)
+                }
+                return PlanLogEntryInsertValues(
+                    dayId: dayId,
+                    foodId: ingredient.foodId,
+                    grams: ingredient.grams,
+                    position: index,
+                    slotTime: slotTime
+                )
+            }
+
+        return PlanLogMealInsertValues(
+            dayId: dayId,
+            mealId: slot.mealId,
+            nutritionPlanMealId: slot.id,
+            name: slot.displayLabel,
+            slotTime: slotTime,
+            position: position,
+            entries: entries
+        )
+    }
+
+    private static func buildFoodObject(
+        _ slot: NutritionPlanFoodSlot,
+        dayId: String,
+        slotTime: String,
+        position: Int
+    ) throws -> PlanLogEntryInsertValues {
+        guard !slot.foodId.isEmpty else { throw PlanLogMaterializationError.missingFoodReference }
+        return PlanLogEntryInsertValues(
+            dayId: dayId,
+            foodId: slot.foodId,
+            nutritionPlanFoodId: slot.id,
+            grams: slot.grams,
+            position: position,
+            slotTime: slotTime
+        )
+    }
+
+    private static func topLevelPositionsByTime(
+        mealGroups: [NutritionLogMeal],
+        standaloneEntries: [NutritionLogEntry]
+    ) -> [String: Int] {
+        var positions: [String: Int] = [:]
+        for meal in mealGroups {
+            recordPosition(&positions, slotTime: meal.slotTime, position: meal.position)
+        }
+        for entry in standaloneEntries where entry.nutritionLogMealId == nil {
+            recordPosition(&positions, slotTime: entry.slotTime, position: entry.position)
+        }
+        return positions
+    }
+
+    private static func recordPosition(_ positions: inout [String: Int], slotTime: String?, position: Int) {
+        let key = IntakeGrouping.timeToInputValue(slotTime)
+        guard !key.isEmpty else { return }
+        positions[key] = max(positions[key] ?? -1, position)
+    }
+}
+
 public struct LogEntryUpdateValues: Sendable, Equatable {
     public let grams: String?
     public let position: Int?

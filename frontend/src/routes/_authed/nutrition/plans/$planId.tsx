@@ -1,8 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Apple, CalendarClock, ChefHat, Pencil } from "lucide-react";
+import { CalendarClock, ChefHat, Pencil } from "lucide-react";
 import { MacroSummary } from "@/components/macro-summary";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +10,7 @@ import { gqlRequest } from "@/lib/graphql";
 import {
   formatMacro,
   formatTimeOfDay,
+  groupPlanEntriesByTimeSlot,
   macroTotalsSummary,
   mergePlanEntriesByTime,
   type PlanEntry,
@@ -100,6 +100,7 @@ function NutritionPlanDetailRoute() {
 
     const plan = data.nutritionPlan;
     const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
+    const slotGroups = groupPlanEntriesByTimeSlot(entries);
     const totals = planEntriesMacroTotals(entries);
 
     return (
@@ -144,12 +145,30 @@ function NutritionPlanDetailRoute() {
                 This plan does not have meal or food entries yet.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-md border border-border/60">
-                <ul className="divide-y divide-border/50">
-                  {entries.map((entry) => (
-                    <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
-                  ))}
-                </ul>
+              <div className="space-y-4">
+                {slotGroups.map((slot) => (
+                  <Card key={slot.key} className="border-border/60 bg-muted/10 shadow-none">
+                    <CardContent className="space-y-3 p-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-border/60 border-b pb-3">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-semibold tabular-nums">{slot.label}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {slot.mealCount} meal{slot.mealCount === 1 ? "" : "s"} ·{" "}
+                            {slot.foodCount} food{slot.foodCount === 1 ? "" : "s"}
+                          </p>
+                        </div>
+                        <p className="max-w-md text-right text-xs text-muted-foreground tabular-nums">
+                          {macroTotalsSummary(slot.totals)}
+                        </p>
+                      </div>
+                      <ul className="divide-y divide-border/50 overflow-hidden rounded-md border border-border/60 bg-background/60">
+                        {slot.entries.map((entry) => (
+                          <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             )}
           </section>
@@ -164,6 +183,10 @@ function NutritionPlanDetailRoute() {
 function PlanEntryRow({ entry }: { entry: PlanEntry }) {
   const entryTotals = planEntryMacroTotals(entry);
   const sourceName = entry.kind === "meal" ? entry.meal?.name : entry.food?.name;
+  const title =
+    entry.kind === "food"
+      ? (entry.food?.name ?? "Food")
+      : entry.label || sourceName || "Untitled entry";
   const subtitle = renderPlanEntrySubtitle(entry);
 
   return (
@@ -173,19 +196,7 @@ function PlanEntryRow({ entry }: { entry: PlanEntry }) {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
             {formatTimeOfDay(entry.slotTime)}
           </p>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge variant={entry.kind === "meal" ? "primary" : "success"}>
-              {entry.kind === "meal" ? (
-                <ChefHat className="h-3 w-3" />
-              ) : (
-                <Apple className="h-3 w-3" />
-              )}
-              {entry.kind === "meal" ? "Meal" : "Food"}
-            </Badge>
-            <p className="truncate text-sm font-medium">
-              {entry.label || sourceName || "Untitled entry"}
-            </p>
-          </div>
+          <p className="truncate text-sm font-medium">{title}</p>
           {subtitle}
         </div>
         <div className="text-right text-xs text-muted-foreground tabular-nums">
@@ -199,11 +210,7 @@ function PlanEntryRow({ entry }: { entry: PlanEntry }) {
 
 function renderPlanEntrySubtitle(entry: PlanEntry) {
   if (entry.kind === "food") {
-    return (
-      <p className="text-xs text-muted-foreground">
-        {formatMacro(entry.grams, "g")} · {entry.food?.name ?? "Food"}
-      </p>
-    );
+    return <p className="text-xs text-muted-foreground">{formatMacro(entry.grams, "g")}</p>;
   }
 
   if (!entry.label) {

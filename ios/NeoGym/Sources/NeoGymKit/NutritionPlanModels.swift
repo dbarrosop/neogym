@@ -76,10 +76,7 @@ public struct NutritionPlanFoodSlot: Decodable, Identifiable, Sendable, Equatabl
     }
 
     public var displayLabel: String {
-        guard let label = label?.trimmingCharacters(in: .whitespacesAndNewlines), !label.isEmpty else {
-            return food?.name ?? "Food"
-        }
-        return label
+        food?.name ?? "Food"
     }
 
     public var macroTotals: MacroTotals {
@@ -139,6 +136,34 @@ public enum NutritionPlanEntry: Identifiable, Sendable, Equatable {
         case let .food(slot): slot.macroTotals
         case let .meal(slot): slot.macroTotals
         }
+    }
+}
+
+public struct NutritionPlanTimeSlot<Entry: Sendable>: Sendable {
+    public let key: String
+    public let label: String
+    public let sortKey: String
+    public let entries: [Entry]
+    public let totals: MacroTotals
+    public let mealCount: Int
+    public let foodCount: Int
+
+    public init(
+        key: String,
+        label: String,
+        sortKey: String,
+        entries: [Entry],
+        totals: MacroTotals,
+        mealCount: Int,
+        foodCount: Int
+    ) {
+        self.key = key
+        self.label = label
+        self.sortKey = sortKey
+        self.entries = entries
+        self.totals = totals
+        self.mealCount = mealCount
+        self.foodCount = foodCount
     }
 }
 
@@ -229,6 +254,159 @@ public struct NutritionPlan: Decodable, Identifiable, Sendable, Equatable {
             }
         )
     }
+}
+
+public enum NutritionPlanGrouping {
+    private static let noTimeSlotKey = "no-time"
+    private static let noTimeSortKey = "99:99"
+
+    public static func groupPlanEntriesByTimeSlot(
+        _ entries: [NutritionPlanEntry],
+        locale: Locale = .current
+    ) -> [NutritionPlanTimeSlot<NutritionPlanEntry>] {
+        groupEntries(
+            entries.sorted(by: planEntriesSortBefore),
+            slotTime: \NutritionPlanEntry.slotTime,
+            kind: \NutritionPlanEntry.kind,
+            totals: \NutritionPlanEntry.macroTotals,
+            locale: locale
+        )
+    }
+
+    public static func groupPlanDraftEntriesByTimeSlot(
+        mealSlots: [NutritionPlanSlotFormValues],
+        foodSlots: [NutritionPlanFoodSlotFormValues],
+        availableMeals: [Meal] = [],
+        availableFoods: [Food] = [],
+        locale: Locale = .current
+    ) -> [NutritionPlanTimeSlot<NutritionPlanDraftEntry>] {
+        let renumbered = renumberMixedSlots(mealSlots: mealSlots, foodSlots: foodSlots)
+        let entries = (
+            renumbered.mealSlots.map(NutritionPlanDraftEntry.meal)
+                + renumbered.foodSlots.map(NutritionPlanDraftEntry.food)
+        ).sorted(by: draftEntriesSortBefore)
+        let mealsById = Dictionary(uniqueKeysWithValues: availableMeals.map { ($0.id, $0) })
+        let foodsById = Dictionary(uniqueKeysWithValues: availableFoods.map { ($0.id, $0) })
+
+        return groupEntries(
+            entries,
+            slotTime: \NutritionPlanDraftEntry.slotTime,
+            kind: \NutritionPlanDraftEntry.kind,
+            totals: { entry in
+                switch entry {
+                case let .meal(slot):
+                    return mealsById[slot.mealId]?.macroTotals ?? .empty
+                case let .food(slot):
+                    guard let food = foodsById[slot.foodId] else { return .empty }
+                    return NutritionMath.macrosForGrams(input: food.macroFields, grams: .string(slot.grams))
+                }
+            },
+            locale: locale
+        )
+    }
+
+    private static func groupEntries<Entry: Sendable>(
+        _ entries: [Entry],
+        slotTime: (Entry) -> String,
+        kind: (Entry) -> NutritionPlanEntryKind,
+        totals: (Entry) -> MacroTotals,
+        locale: Locale
+    ) -> [NutritionPlanTimeSlot<Entry>] {
+        var slots: [String: MutablePlanTimeSlot<Entry>] = [:]
+
+        for entry in entries {
+            let metadata = slotMetadata(slotTime(entry), locale: locale)
+            var slot = slots[metadata.key] ?? MutablePlanTimeSlot(
+                key: metadata.key,
+                label: metadata.label,
+                sortKey: metadata.sortKey,
+                entries: []
+            )
+            slot.entries.append(entry)
+            slots[metadata.key] = slot
+        }
+
+        return slots.values.map { slot in
+            NutritionPlanTimeSlot(
+                key: slot.key,
+                label: slot.label,
+                sortKey: slot.sortKey,
+                entries: slot.entries,
+                totals: slot.entries.reduce(.empty) { total, entry in
+                    NutritionMath.addMacroTotals(total, totals(entry))
+                },
+                mealCount: slot.entries.filter { kind($0) == .meal }.count,
+                foodCount: slot.entries.filter { kind($0) == .food }.count
+            )
+        }.sorted { $0.sortKey < $1.sortKey }
+    }
+
+    private static func slotMetadata(_ slotTime: String, locale: Locale) -> (key: String, label: String, sortKey: String) {
+        let inputValue = IntakeGrouping.timeToInputValue(slotTime)
+        guard !inputValue.isEmpty else {
+            return (noTimeSlotKey, "No time", noTimeSortKey)
+        }
+        return (inputValue, IntakeGrouping.formatTimeOfDay(inputValue, locale: locale), inputValue)
+    }
+
+    private static func planEntriesSortBefore(_ left: NutritionPlanEntry, _ right: NutritionPlanEntry) -> Bool {
+        mixedPlanEntrySortsBefore(
+            leftSlotTime: left.slotTime,
+            leftPosition: left.position,
+            leftKind: left.kind,
+            leftId: left.id,
+            rightSlotTime: right.slotTime,
+            rightPosition: right.position,
+            rightKind: right.kind,
+            rightId: right.id
+        )
+    }
+
+    private static func draftEntriesSortBefore(
+        _ left: NutritionPlanDraftEntry,
+        _ right: NutritionPlanDraftEntry
+    ) -> Bool {
+        mixedPlanEntrySortsBefore(
+            leftSlotTime: left.slotTime,
+            leftPosition: left.position,
+            leftKind: left.kind,
+            leftId: left.stableId,
+            rightSlotTime: right.slotTime,
+            rightPosition: right.position,
+            rightKind: right.kind,
+            rightId: right.stableId
+        )
+    }
+
+    private static func mixedPlanEntrySortsBefore(
+        leftSlotTime: String,
+        leftPosition: Int,
+        leftKind: NutritionPlanEntryKind,
+        leftId: String,
+        rightSlotTime: String,
+        rightPosition: Int,
+        rightKind: NutritionPlanEntryKind,
+        rightId: String
+    ) -> Bool {
+        let leftTime = slotSortKey(leftSlotTime)
+        let rightTime = slotSortKey(rightSlotTime)
+        if leftTime != rightTime { return leftTime < rightTime }
+        if leftPosition != rightPosition { return leftPosition < rightPosition }
+        if leftKind != rightKind { return leftKind.rawValue < rightKind.rawValue }
+        return leftId < rightId
+    }
+
+    private static func slotSortKey(_ slotTime: String) -> String {
+        let inputValue = IntakeGrouping.timeToInputValue(slotTime)
+        return inputValue.isEmpty ? noTimeSortKey : inputValue
+    }
+}
+
+private struct MutablePlanTimeSlot<Entry: Sendable>: Sendable {
+    var key: String
+    var label: String
+    var sortKey: String
+    var entries: [Entry]
 }
 
 public struct NutritionPlanEditPayload: Sendable, Equatable {
@@ -425,15 +603,13 @@ public enum NutritionPlanFormValidation {
             }
             let slotTime = IntakeGrouping.timeToInputValue(slot.slotTime)
             guard !slotTime.isEmpty else { return .failure("Every slot needs a time of day.") }
-            let label = slot.label.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard label.count <= 160 else { return .failure("Slot labels must be 160 characters or less.") }
             normalizedFoodSlots.append(NutritionPlanFoodSlotFormValues(
                 id: slot.id,
                 clientId: slot.clientId,
                 foodId: slot.foodId,
                 grams: grams,
                 slotTime: slotTime,
-                label: label,
+                label: "",
                 position: slot.position
             ))
         }
@@ -552,11 +728,24 @@ public final class NutritionPlanFormModel: ObservableObject {
         sortDraftEntries(mealSlots: slots, foodSlots: foodSlots)
     }
 
+    public func canMoveEntryWithinSlot(kind: NutritionPlanEntryKind, stableId: String, direction: Int) -> Bool {
+        let entries = sortedDraftEntries()
+        guard let index = entries.firstIndex(where: { $0.kind == kind && $0.stableId == stableId }) else {
+            return false
+        }
+        let target = index + direction
+        guard target >= 0, target < entries.count else { return false }
+        return normalizedSlotKey(entries[index].slotTime) == normalizedSlotKey(entries[target].slotTime)
+    }
+
     public func moveEntry(kind: NutritionPlanEntryKind, stableId: String, direction: Int) {
         var entries = sortedDraftEntries()
         guard let index = entries.firstIndex(where: { $0.kind == kind && $0.stableId == stableId }) else { return }
         let target = index + direction
         guard target >= 0, target < entries.count else { return }
+        guard normalizedSlotKey(entries[index].slotTime) == normalizedSlotKey(entries[target].slotTime) else {
+            return
+        }
         entries.swapAt(index, target)
         apply(entries: entries)
     }
@@ -574,6 +763,11 @@ public final class NutritionPlanFormModel: ObservableObject {
             errorMessage = message
             return nil
         }
+    }
+
+    private func normalizedSlotKey(_ slotTime: String) -> String {
+        let inputValue = IntakeGrouping.timeToInputValue(slotTime)
+        return inputValue.isEmpty ? "99:99" : inputValue
     }
 
     public func macroTotals(availableMeals: [Meal], availableFoods: [Food] = []) -> MacroTotals {
@@ -610,7 +804,7 @@ public final class NutritionPlanFormModel: ObservableObject {
                     foodId: slot.foodId,
                     grams: NutritionMath.formatEditableDecimal(slot.grams),
                     slotTime: IntakeGrouping.timeToInputValue(slot.slotTime),
-                    label: slot.label ?? "",
+                    label: "",
                     position: slot.position
                 )
             }

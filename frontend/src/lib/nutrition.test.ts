@@ -4,6 +4,8 @@ import {
   adHocNutritionDraftTotals,
   buildAdHocLogEntryInsertInput,
   buildAdHocLogEntryUpdateSet,
+  buildPlanLogInputs,
+  canMovePlanDraftEntryWithinSlot,
   createEmptyAdHocNutritionDraft,
   currentTimeInputValue,
   formatLocalDate,
@@ -11,6 +13,8 @@ import {
   formatMacro,
   formatTimeOfDay,
   groupIntakeByTimeSlot,
+  groupPlanDraftEntriesByTimeSlot,
+  groupPlanEntriesByTimeSlot,
   type IntakeEntry,
   type IntakeLoggedMealGroup,
   intakeDraftMacroTotals,
@@ -22,6 +26,7 @@ import {
   macroTotalsSummary,
   mealMacroTotals,
   mergePlanEntriesByTime,
+  movePlanDraftEntryWithinSlot,
   normalizeMacros,
   normalizeNumeric,
   type PlanFoodEntry,
@@ -33,6 +38,7 @@ import {
   timeToInputValue,
   validateAdHocNutritionDraft,
 } from "./nutrition";
+import { logSelectedPlanMaterialization } from "./nutrition-plan-log";
 
 const SEVEN_THIRTY_FORMAT_PATTERN = /7:30|07:30/;
 
@@ -478,6 +484,155 @@ describe("nutrition mixed plan entry helpers", () => {
       "12:00:meal:meal-lunch-2:2",
     ]);
   });
+
+  it("groups persisted plan entries by normalized time slots with summaries", () => {
+    const breakfastMeal = planMeal({
+      id: "meal-breakfast",
+      slotTime: "08:00:00",
+      position: 1,
+      meal: {
+        mealIngredients: [
+          {
+            grams: 100,
+            food: {
+              kcalPer100g: 200,
+              fatPer100g: 10,
+              carbsPer100g: 20,
+              proteinPer100g: 5,
+              fiberPer100g: 2,
+              sugarPer100g: 8,
+            },
+          },
+        ],
+      },
+    });
+    const breakfastFood = planFood({
+      id: "food-breakfast",
+      slotTime: "08:00:00",
+      position: 0,
+      grams: 50,
+      food: {
+        kcalPer100g: 100,
+        fatPer100g: 2,
+        carbsPer100g: 10,
+        proteinPer100g: 4,
+        fiberPer100g: 1,
+        sugarPer100g: 3,
+      },
+    });
+    const lunchFood = planFood({ id: "food-lunch", slotTime: "12:30:00", position: 0 });
+
+    const slots = groupPlanEntriesByTimeSlot(
+      mergePlanEntriesByTime([breakfastMeal], [lunchFood, breakfastFood]),
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["08:00", "12:30"]);
+    expect(slots[0]?.entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "food:food-breakfast",
+      "meal:meal-breakfast",
+    ]);
+    expect(slots[0]?.mealCount).toBe(1);
+    expect(slots[0]?.foodCount).toBe(1);
+    expect(slots[0]?.totals).toEqual({
+      kcal: 250,
+      fat: 11,
+      carbs: 25,
+      protein: 7,
+      fiber: 2.5,
+      sugar: 9.5,
+    });
+  });
+
+  it("groups no-time plan entries last while preserving deterministic ordering", () => {
+    const slots = groupPlanEntriesByTimeSlot(
+      mergePlanEntriesByTime(
+        [{ ...planMeal({ id: "meal-no-time", position: 0 }), slotTime: null }],
+        [
+          planFood({ id: "food-timed", slotTime: "07:00:00", position: 0 }),
+          { ...planFood({ id: "food-no-time", position: 1 }), slotTime: null },
+        ],
+      ),
+    );
+
+    expect(slots.map((slot) => slot.key)).toEqual(["07:00", "no-time"]);
+    expect(slots[1]?.label).toBe("No time");
+    expect(slots[1]?.entries.map((entry) => `${entry.kind}:${entry.id}`)).toEqual([
+      "meal:meal-no-time",
+      "food:food-no-time",
+    ]);
+  });
+});
+
+describe("nutrition plan draft grouping helpers", () => {
+  it("groups draft plan entries after stable per-slot renumbering", () => {
+    const slots = groupPlanDraftEntriesByTimeSlot([
+      { kind: "meal", id: "meal-lunch", slotTime: "12:00", position: 99 },
+      { kind: "food", id: "food-breakfast", slotTime: "08:00", position: 99 },
+      { kind: "food", id: "food-lunch", slotTime: "12:00", position: 99 },
+      { kind: "meal", id: "meal-no-time", slotTime: null, position: 99 },
+    ]);
+
+    expect(slots.map((slot) => slot.key)).toEqual(["08:00", "12:00", "no-time"]);
+    expect(
+      slots.flatMap((slot) =>
+        slot.entries.map((entry) => `${slot.key}:${entry.kind}:${entry.id}:${entry.position}`),
+      ),
+    ).toEqual([
+      "08:00:food:food-breakfast:0",
+      "12:00:meal:meal-lunch:0",
+      "12:00:food:food-lunch:1",
+      "no-time:meal:meal-no-time:0",
+    ]);
+    expect(slots.map((slot) => [slot.mealCount, slot.foodCount])).toEqual([
+      [0, 1],
+      [1, 1],
+      [1, 0],
+    ]);
+  });
+});
+
+describe("nutrition plan draft movement helpers", () => {
+  it("moves draft entries only within their normalized time slot", () => {
+    const entries = [
+      { kind: "food", id: "breakfast-food", slotTime: "08:00", position: 0 },
+      { kind: "meal", id: "breakfast-meal", slotTime: "08:00:00", position: 1 },
+      { kind: "food", id: "lunch-food", slotTime: "12:00", position: 0 },
+    ] as const;
+
+    expect(
+      canMovePlanDraftEntryWithinSlot(entries, "breakfast-meal", -1, (entry) => entry.id),
+    ).toBe(true);
+    const moved = movePlanDraftEntryWithinSlot(entries, "breakfast-meal", -1, (entry) => entry.id);
+
+    expect(moved.map((entry) => entry.id)).toEqual([
+      "breakfast-meal",
+      "breakfast-food",
+      "lunch-food",
+    ]);
+    expect(
+      sortAndRenumberPlanEntriesByTime(moved).map(
+        (entry) => `${entry.slotTime}:${entry.id}:${entry.position}`,
+      ),
+    ).toEqual(["08:00:00:breakfast-meal:0", "08:00:breakfast-food:1", "12:00:lunch-food:0"]);
+  });
+
+  it("disallows draft entry moves across normalized time-slot boundaries", () => {
+    const entries = [
+      { kind: "food", id: "breakfast-food", slotTime: "08:00", position: 0 },
+      { kind: "meal", id: "lunch-meal", slotTime: "12:00", position: 0 },
+      { kind: "food", id: "lunch-food", slotTime: "12:00", position: 1 },
+    ] as const;
+
+    expect(canMovePlanDraftEntryWithinSlot(entries, "breakfast-food", 1, (entry) => entry.id)).toBe(
+      false,
+    );
+    expect(canMovePlanDraftEntryWithinSlot(entries, "lunch-meal", -1, (entry) => entry.id)).toBe(
+      false,
+    );
+    expect(movePlanDraftEntryWithinSlot(entries, "breakfast-food", 1, (entry) => entry.id)).toEqual(
+      [...entries],
+    );
+  });
 });
 
 describe("nutrition logged macro helpers", () => {
@@ -635,6 +790,302 @@ describe("nutrition time-slot grouping", () => {
       "standalone",
     ]);
     expect(slot?.mealGroups.map((group) => group.id)).toEqual(["meal-a", "meal-b"]);
+  });
+});
+
+function bulkMeal(overrides: Partial<PlanMealEntry> & Pick<PlanMealEntry, "id">): PlanMealEntry {
+  return planMeal({
+    mealId: "meal-1",
+    meal: {
+      id: "meal-1",
+      name: "Breakfast bowl",
+      mealIngredients: [
+        {
+          id: "ingredient-2",
+          foodId: "food-2",
+          grams: "50",
+          position: 1,
+          food: {
+            id: "food-2",
+            name: "Berries",
+            kcalPer100g: 50,
+            fatPer100g: 0,
+            carbsPer100g: 10,
+            proteinPer100g: 1,
+            fiberPer100g: 2,
+            sugarPer100g: 5,
+          },
+        },
+        {
+          id: "ingredient-1",
+          foodId: "food-1",
+          grams: "100",
+          position: 0,
+          food: {
+            id: "food-1",
+            name: "Yogurt",
+            kcalPer100g: 100,
+            fatPer100g: 1,
+            carbsPer100g: 2,
+            proteinPer100g: 10,
+            fiberPer100g: 0,
+            sugarPer100g: 2,
+          },
+        },
+      ],
+    },
+    ...overrides,
+  });
+}
+
+function bulkFood(overrides: Partial<PlanFoodEntry> & Pick<PlanFoodEntry, "id">): PlanFoodEntry {
+  return planFood({
+    foodId: "food-3",
+    grams: "80",
+    food: {
+      id: "food-3",
+      name: "Banana",
+      kcalPer100g: 90,
+      fatPer100g: 0,
+      carbsPer100g: 20,
+      proteinPer100g: 1,
+      fiberPer100g: 3,
+      sugarPer100g: 12,
+    },
+    ...overrides,
+  });
+}
+
+function buildBulkPlan(meals: PlanMealEntry[], foods: PlanFoodEntry[]) {
+  return {
+    id: "plan-1",
+    name: "Training day",
+    nutritionPlanMeals: meals,
+    nutritionPlanFoods: foods,
+  };
+}
+
+describe("selected-plan bulk materialization", () => {
+  it("materializes meals-only plans with nested children and empty direct entry arrays", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan([bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00" })], []),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "09:15" },
+    });
+
+    expect(result.entryObjects).toEqual([]);
+    expect(result.mealObjects).toHaveLength(1);
+    expect(result.mealObjects[0]).toMatchObject({
+      nutritionDayId: "day-1",
+      mealId: "meal-1",
+      nutritionPlanMealId: "plan-meal-1",
+      name: "Breakfast bowl",
+      slotTime: "09:15",
+      position: 0,
+    });
+    expect(result.mealObjects[0]?.nutritionLogEntries.data).toEqual([
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-1",
+        grams: 100,
+        position: 0,
+        slotTime: "09:15",
+      },
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-2",
+        grams: 50,
+        position: 1,
+        slotTime: "09:15",
+      },
+    ]);
+  });
+
+  it("materializes foods-only plans with standalone provenance and empty meal arrays", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan([], [bulkFood({ id: "plan-food-1", slotTime: "11:00:00" })]),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "11:00": "11:30" },
+    });
+
+    expect(result.mealObjects).toEqual([]);
+    expect(result.entryObjects).toEqual([
+      {
+        nutritionDayId: "day-1",
+        foodId: "food-3",
+        nutritionPlanFoodId: "plan-food-1",
+        grams: 80,
+        position: 0,
+        slotTime: "11:30",
+      },
+    ]);
+  });
+
+  it("uses distinct positions so same-time food-before-meal order survives intake grouping", () => {
+    const materialized = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 1 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 0 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "08:45" },
+    });
+
+    const [slot] = groupIntakeByTimeSlot(
+      materialized.mealObjects.map((meal) =>
+        loggedMeal({
+          id: meal.nutritionPlanMealId,
+          name: meal.name,
+          slotTime: meal.slotTime,
+          position: meal.position,
+          nutritionLogEntries: [
+            loggedEntry({
+              id: `${meal.nutritionPlanMealId}:child`,
+              nutritionLogMealId: meal.nutritionPlanMealId,
+              position: 0,
+            }),
+          ],
+        }),
+      ),
+      materialized.entryObjects.map((entry) =>
+        loggedEntry({
+          id: entry.nutritionPlanFoodId ?? "entry",
+          slotTime: entry.slotTime,
+          position: entry.position,
+        }),
+      ),
+    );
+
+    expect(slot?.entries.map((entry) => entry.entry.id)).toEqual([
+      "plan-food-1",
+      "plan-meal-1:child",
+    ]);
+  });
+
+  it("uses distinct positions so same-time meal-before-food order survives intake grouping", () => {
+    const materialized = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 0 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 1 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [],
+      existingStandaloneEntries: [],
+      slotTimeByKey: { "08:00": "08:45" },
+    });
+
+    expect(materialized.mealObjects[0]?.position).toBe(0);
+    expect(materialized.entryObjects[0]?.position).toBe(1);
+  });
+
+  it("appends after the maximum existing top-level position for each overridden time", () => {
+    const result = buildPlanLogInputs({
+      selectedPlan: buildBulkPlan(
+        [bulkMeal({ id: "plan-meal-1", slotTime: "08:00:00", position: 0 })],
+        [bulkFood({ id: "plan-food-1", slotTime: "08:00:00", position: 1 })],
+      ),
+      nutritionDayId: "day-1",
+      existingMealGroups: [loggedMeal({ id: "existing-meal", slotTime: "12:00:00", position: 4 })],
+      existingStandaloneEntries: [
+        loggedEntry({ id: "existing-food", slotTime: "12:00:00", position: 7 }),
+      ],
+      slotTimeByKey: { "08:00": "12:00" },
+    });
+
+    expect(result.mealObjects[0]?.position).toBe(8);
+    expect(result.entryObjects[0]?.position).toBe(9);
+    expect(result.mealObjects[0]?.slotTime).toBe("12:00");
+    expect(result.entryObjects[0]?.slotTime).toBe("12:00");
+  });
+
+  it("validates selected plan, references, non-empty meals, and target times before building", () => {
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: null,
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: {},
+      }),
+    ).toThrow("Select a plan");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan([], []),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: {},
+      }),
+    ).toThrow("no meals or foods");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan(
+          [
+            planMeal({
+              id: "empty",
+              meal: { id: "meal-empty", name: "Empty meal", mealIngredients: [] },
+            }),
+          ],
+          [],
+        ),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: { "08:00": "08:00" },
+      }),
+    ).toThrow("Empty meal has no ingredients");
+    expect(() =>
+      buildPlanLogInputs({
+        selectedPlan: buildBulkPlan([], [planFood({ id: "missing-food", food: null })]),
+        nutritionDayId: "day-1",
+        existingMealGroups: [],
+        existingStandaloneEntries: [],
+        slotTimeByKey: { "08:00": "" },
+      }),
+    ).toThrow("Choose a logged time");
+  });
+
+  it("skips empty selected-plan insert fields", async () => {
+    const calls: unknown[] = [];
+    const result = await logSelectedPlanMaterialization(
+      {
+        mealObjects: [],
+        entryObjects: [
+          {
+            nutritionDayId: "day-1",
+            foodId: "food-1",
+            nutritionPlanFoodId: "plan-food-1",
+            grams: 100,
+            position: 0,
+            slotTime: "08:00",
+          },
+        ],
+      },
+      (document, variables) => {
+        calls.push({ document, variables });
+        return Promise.resolve({
+          insertNutritionLogMeals: { affected_rows: 0 },
+          insertNutritionLogEntries: { affected_rows: 1 },
+        });
+      },
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      variables: {
+        mealObjects: [],
+        entryObjects: [{ nutritionDayId: "day-1", nutritionPlanFoodId: "plan-food-1" }],
+        hasMealObjects: false,
+        hasEntryObjects: true,
+      },
+    });
+    expect(result).toEqual({ mealRows: 0, entryRows: 1 });
   });
 });
 

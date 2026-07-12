@@ -99,8 +99,8 @@ struct NutritionPlanDetailView: View {
             )
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
-            let entries = plan.sortedEntries
-            if entries.isEmpty {
+            let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(plan.sortedEntries)
+            if slots.isEmpty {
                 Text("This plan does not have meal or food entries yet.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
@@ -108,16 +108,54 @@ struct NutritionPlanDetailView: View {
                     .padding(.vertical, 24)
                     .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(entries) { entry in
-                        NutritionPlanEntryDetailRow(entry: entry)
-                        if entry.id != entries.last?.id { Divider() }
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(slots, id: \.key) { slot in
+                        NutritionPlanSlotDetailCard(slot: slot)
                     }
                 }
-                .nutritionGlassField()
             }
         }
     }
+}
+
+private struct NutritionPlanSlotDetailCard: View {
+    let slot: NutritionPlanTimeSlot<NutritionPlanEntry>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(slot.label)
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                    Text(planSlotCountText(mealCount: slot.mealCount, foodCount: slot.foodCount))
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.mutedText)
+                }
+                Spacer()
+                Text(NutritionMath.macroTotalsSummary(slot.totals))
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 260, alignment: .trailing)
+            }
+            Divider()
+            VStack(spacing: 0) {
+                ForEach(slot.entries) { entry in
+                    NutritionPlanEntryDetailRow(entry: entry)
+                    if entry.id != slot.entries.last?.id { Divider() }
+                }
+            }
+        }
+        .padding(12)
+        .nutritionGlassField()
+    }
+}
+
+private func planSlotCountText(mealCount: Int, foodCount: Int) -> String {
+    let mealLabel = "\(mealCount) meal\(mealCount == 1 ? "" : "s")"
+    let foodLabel = "\(foodCount) food\(foodCount == 1 ? "" : "s")"
+    return "\(mealLabel) · \(foodLabel)"
 }
 
 private struct NutritionPlanEntryDetailRow: View {
@@ -135,15 +173,8 @@ private struct NutritionPlanEntryDetailRow: View {
                     .textCase(.uppercase)
                     .foregroundColor(NeoGymTheme.mutedText)
                     .monospacedDigit()
-                HStack(spacing: 6) {
-                    Text(entry.displayLabel)
-                        .font(.subheadline.weight(.semibold))
-                    Text(entry.kind == .meal ? "Meal" : "Food")
-                        .font(.caption2.weight(.bold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(NeoGymTheme.accentMuted, in: Capsule())
-                }
+                Text(entry.displayLabel)
+                    .font(.subheadline.weight(.semibold))
                 detailLine
             }
             Spacer()
@@ -171,7 +202,7 @@ private struct NutritionPlanEntryDetailRow: View {
                     .lineLimit(1)
             }
         case let .food(slot):
-            Text("\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g"))")
+            Text(NutritionMath.formatMacro(slot.grams, unit: "g"))
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)

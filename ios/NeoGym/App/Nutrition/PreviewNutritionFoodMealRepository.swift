@@ -35,6 +35,12 @@ struct PreviewNutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     func logFood(_ values: LogFoodValues) async throws -> String { "entry-new" }
     func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String { "entry-custom" }
     func logMeal(_ values: LogMealValues) async throws -> String { "group-new" }
+    func logSelectedPlan(_ materialization: PlanLogMaterialization) async throws -> PlanLogMutationResult {
+        PlanLogMutationResult(
+            mealRows: materialization.mealObjects.count,
+            entryRows: materialization.entryObjects.count
+        )
+    }
     func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {}
     func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {}
     func deleteLogEntry(id: String) async throws {}

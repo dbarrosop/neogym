@@ -44,12 +44,15 @@ import {
   addLocalDateDays,
   adHocNutritionDraftTotals,
   buildAdHocLogEntryUpdateSet,
+  buildPlanLogInputs,
   createEmptyAdHocNutritionDraft,
+  currentTimeInputValue,
   DECIMAL_INPUT_PATTERN,
   formatLocalDateLabel,
   formatMacro,
   formatTimeOfDay,
   groupIntakeByTimeSlot,
+  groupPlanEntriesByTimeSlot,
   type IntakeTimeSlot,
   loggedEntryMacroTotals,
   loggedMacroTotals,
@@ -57,11 +60,14 @@ import {
   mergePlanEntriesByTime,
   NUTRIENT_FIELDS,
   normalizeNumeric,
+  type PlanTimeSlot,
   parseMacroInput,
   planEntriesMacroTotals,
   planEntryMacroTotals,
   timeToInputValue,
 } from "@/lib/nutrition";
+import { logSelectedPlanMaterialization } from "@/lib/nutrition-plan-log";
+import { cn } from "@/lib/utils";
 
 const DailyIntakeLogQuery = graphql(`
   query DailyIntakeLog($date: date!) {
@@ -335,6 +341,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
+  const [selectedPlanExpanded, setSelectedPlanExpanded] = useState(true);
   const [expandedSlots, setExpandedSlots] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
@@ -560,57 +567,30 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         </CardContent>
       </Card>
 
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardHeader className="space-y-1 pb-3">
-          <CardTitle className="text-lg tracking-tight">Plan suggestions</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Select a reusable daily plan for suggestions. This does not schedule or bind the day.
+      <SelectedPlanCard
+        selectedPlan={selectedPlan}
+        selectedPlanId={day?.nutritionPlanId ?? ""}
+        nutritionPlans={nutritionPlans}
+        expanded={selectedPlanExpanded}
+        onToggleExpanded={() => setSelectedPlanExpanded((expanded) => !expanded)}
+        onPlanChange={(planId) => updatePlanMutation.mutate(planId)}
+        isUpdatingPlan={updatePlanMutation.isPending}
+      >
+        {selectedPlan ? (
+          <PlanSuggestions
+            plan={selectedPlan}
+            ensureDay={ensureDay}
+            date={date}
+            existingMealGroups={loggedMeals}
+            existingStandaloneEntries={standaloneEntries}
+            disabled={isMutating}
+          />
+        ) : (
+          <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+            Select a reusable daily plan to compare targets and log planned time slots.
           </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value={day?.nutritionPlanId ?? ""}
-              onChange={(event) => updatePlanMutation.mutate(event.target.value || null)}
-              disabled={updatePlanMutation.isPending}
-              className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Selected nutrition plan"
-            >
-              <option value="">No plan selected</option>
-              {nutritionPlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => updatePlanMutation.mutate(null)}
-              disabled={!day?.nutritionPlanId || updatePlanMutation.isPending}
-            >
-              Clear plan
-            </Button>
-          </div>
-
-          {selectedPlan ? (
-            <PlanSuggestions
-              plan={selectedPlan}
-              ensureDay={ensureDay}
-              date={date}
-              foods={foods}
-              meals={meals}
-              nextGroupPosition={nextGroupPosition}
-              nextEntryPosition={nextEntryPosition}
-              disabled={isMutating}
-            />
-          ) : (
-            <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-              Pick a plan to show timed meal suggestions, or log meals and foods ad hoc below.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </SelectedPlanCard>
 
       {day ? (
         <>
@@ -887,31 +867,159 @@ function formatGroupCount(count: number): string {
   return `${count.toLocaleString()} ${count === 1 ? "meal group" : "meal groups"}`;
 }
 
+function SelectedPlanCard({
+  selectedPlan,
+  selectedPlanId,
+  nutritionPlans,
+  expanded,
+  onToggleExpanded,
+  onPlanChange,
+  isUpdatingPlan,
+  children,
+}: {
+  selectedPlan: DailyPlan | null;
+  selectedPlanId: string;
+  nutritionPlans: DailyPlan[];
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onPlanChange: (planId: string | null) => void;
+  isUpdatingPlan: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <CardHeader className="pb-3">
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          className="flex w-full items-start justify-between gap-3 text-left"
+        >
+          <div className="space-y-1">
+            <CardTitle className="text-lg tracking-tight">Selected plan</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {selectedPlan?.name ?? "Choose a plan to show its time slots."}
+            </p>
+          </div>
+          <ChevronDown
+            className={cn(
+              "mt-1 h-4 w-4 text-muted-foreground transition-transform",
+              expanded && "rotate-180",
+            )}
+          />
+        </button>
+      </CardHeader>
+      {expanded ? (
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value={selectedPlanId}
+              onChange={(event) => onPlanChange(event.target.value || null)}
+              disabled={isUpdatingPlan}
+              className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Selected nutrition plan"
+            >
+              <option value="">No plan selected</option>
+              {nutritionPlans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onPlanChange(null)}
+              disabled={!selectedPlanId || isUpdatingPlan}
+            >
+              Clear plan
+            </Button>
+          </div>
+          {children}
+        </CardContent>
+      ) : null}
+    </Card>
+  );
+}
+
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
+type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
 function PlanSuggestions({
   plan,
   ensureDay,
   date,
-  foods,
-  meals,
-  nextGroupPosition,
-  nextEntryPosition,
+  existingMealGroups,
+  existingStandaloneEntries,
   disabled,
 }: {
   plan: DailyPlan;
   ensureDay: () => Promise<string>;
   date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
+  existingMealGroups: DailyLogMeal[];
+  existingStandaloneEntries: DailyEntry[];
   disabled: boolean;
 }) {
+  const queryClient = useQueryClient();
+  const [expandedSlotKeys, setExpandedSlotKeys] = useState<Set<string>>(() => new Set());
   const entries = mergePlanEntriesByTime(
     plan.nutritionPlanMeals,
     plan.nutritionPlanFoods,
   ) as DailyPlanEntry[];
+  const slots = groupPlanEntriesByTimeSlot(entries) as DailyPlanTimeSlot[];
+  const slotMutation = useMutation({
+    mutationFn: async (slot: DailyPlanTimeSlot) => {
+      const dayId = await ensureDay();
+      const nutritionPlanMeals: LogPlanSlot[] = [];
+      const nutritionPlanFoods: LogPlanFoodSlot[] = [];
+
+      for (const entry of slot.entries) {
+        if (entry.kind === "meal") {
+          const { kind: _kind, ...mealSlot } = entry;
+          nutritionPlanMeals.push(mealSlot);
+        } else {
+          const { kind: _kind, ...foodSlot } = entry;
+          nutritionPlanFoods.push(foodSlot);
+        }
+      }
+
+      const slotTime = timeToInputValue(slot.key) || currentTimeInputValue();
+      const materialization = buildPlanLogInputs({
+        selectedPlan: {
+          ...plan,
+          nutritionPlanMeals,
+          nutritionPlanFoods,
+        },
+        nutritionDayId: dayId,
+        existingMealGroups,
+        existingStandaloneEntries,
+        slotTimeByKey: { [slot.key]: slotTime },
+      });
+      return logSelectedPlanMaterialization(materialization);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      toast.success(
+        `Plan time slot logged (${result.mealRows + result.entryRows} top-level entries).`,
+      );
+    },
+    onError: (error) => {
+      toast.error(`Failed to log plan time slot: ${error.message}`);
+    },
+  });
+
+  function toggleSlot(slotKey: string) {
+    setExpandedSlotKeys((current) => {
+      const next = new Set(current);
+      if (next.has(slotKey)) {
+        next.delete(slotKey);
+      } else {
+        next.add(slotKey);
+      }
+      return next;
+    });
+  }
+
   if (entries.length === 0) {
     return (
       <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
@@ -920,153 +1028,114 @@ function PlanSuggestions({
     );
   }
 
-  let mealOffset = 0;
-  let foodOffset = 0;
-
   return (
-    <div className="overflow-hidden rounded-md border border-border/60">
-      <ul className="divide-y divide-border/50">
-        {entries.map((entry) => {
-          if (entry.kind === "meal") {
-            const nextPosition = nextGroupPosition + mealOffset;
-            mealOffset += 1;
-            return (
-              <PlanMealSuggestionRow
-                key={`meal:${entry.id}`}
-                slot={entry}
-                plan={plan}
-                ensureDay={ensureDay}
-                date={date}
-                foods={foods}
-                meals={meals}
-                nextGroupPosition={nextPosition}
-                nextEntryPosition={nextEntryPosition + foodOffset}
-                disabled={disabled}
-              />
-            );
-          }
-          const nextPosition = nextEntryPosition + foodOffset;
-          foodOffset += 1;
-          return (
-            <PlanFoodSuggestionRow
-              key={`food:${entry.id}`}
-              slot={entry}
-              plan={plan}
-              ensureDay={ensureDay}
-              date={date}
-              foods={foods}
-              meals={meals}
-              nextGroupPosition={nextGroupPosition + mealOffset}
-              nextEntryPosition={nextPosition}
-              disabled={disabled}
-            />
-          );
-        })}
-      </ul>
+    <div className="space-y-3">
+      {slots.map((slot) => (
+        <PlanSuggestionSlotSection
+          key={slot.key}
+          slot={slot}
+          expanded={expandedSlotKeys.has(slot.key)}
+          disabled={disabled || slotMutation.isPending}
+          onToggle={() => toggleSlot(slot.key)}
+          onLog={() => slotMutation.mutate(slot)}
+        />
+      ))}
     </div>
   );
 }
 
-function PlanMealSuggestionRow({
+function PlanSuggestionSlotSection({
   slot,
-  plan,
-  ensureDay,
-  date,
-  foods,
-  meals,
-  nextGroupPosition,
-  nextEntryPosition,
+  expanded,
   disabled,
+  onToggle,
+  onLog,
 }: {
-  slot: LogPlanSlot;
-  plan: DailyPlan;
-  ensureDay: () => Promise<string>;
-  date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
+  slot: DailyPlanTimeSlot;
+  expanded: boolean;
   disabled: boolean;
+  onToggle: () => void;
+  onLog: () => void;
 }) {
-  const totals = planEntryMacroTotals({ ...slot, kind: "meal" });
   return (
-    <li className="flex items-start justify-between gap-3 px-3 py-3">
-      <div className="min-w-0 space-y-1">
-        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-          <Clock className="h-3 w-3" />
-          {formatTimeOfDay(slot.slotTime)} · Meal
-        </p>
-        <p className="truncate text-sm font-medium">{slot.label || slot.meal.name}</p>
-        {slot.label ? <p className="text-xs text-muted-foreground">{slot.meal.name}</p> : null}
-        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+    <section className="overflow-hidden rounded-md border border-border/60">
+      <div className="flex items-start justify-between gap-3 bg-muted/30 px-3 py-3">
+        <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
+          <span className="flex items-center gap-2 text-sm font-medium">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            {slot.label}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {macroTotalsSummary(slot.totals)}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {slot.entries.length} entr{slot.entries.length === 1 ? "y" : "ies"}
+          </span>
+        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            onClick={onLog}
+            disabled={disabled || slot.entries.length === 0}
+          >
+            Log
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            onClick={onToggle}
+            aria-label="Toggle time slot"
+          >
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 text-muted-foreground transition-transform",
+                expanded && "rotate-180",
+              )}
+            />
+          </Button>
+        </div>
       </div>
-      <LogIntakeDialog
-        ensureDay={ensureDay}
-        date={date}
-        foods={foods}
-        meals={meals}
-        selectedPlan={plan}
-        nextEntryPosition={nextEntryPosition}
-        nextGroupPosition={nextGroupPosition}
-        disabled={disabled}
-        triggerLabel="Log"
-        triggerVariant="default"
-        initialSource={{ kind: "plan-meal", slot }}
-      />
+
+      {expanded ? (
+        <ul className="divide-y divide-border/50">
+          {slot.entries.map((entry) => (
+            <PlanSuggestionEntryRow key={sourceKeyForDailyPlanEntry(entry)} entry={entry} />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+function PlanSuggestionEntryRow({ entry }: { entry: DailyPlanEntry }) {
+  const totals = planEntryMacroTotals(entry);
+  const title = entry.kind === "meal" ? entry.label || entry.meal.name : entry.food.name;
+  const detail = entry.kind === "food" ? formatMacro(entry.grams, "g") : mealEntryDetail(entry);
+
+  return (
+    <li className="px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="truncate text-sm font-medium">{title}</p>
+          {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
+          <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
+        </div>
+      </div>
     </li>
   );
 }
 
-function PlanFoodSuggestionRow({
-  slot,
-  plan,
-  ensureDay,
-  date,
-  foods,
-  meals,
-  nextGroupPosition,
-  nextEntryPosition,
-  disabled,
-}: {
-  slot: LogPlanFoodSlot;
-  plan: DailyPlan;
-  ensureDay: () => Promise<string>;
-  date: string;
-  foods: DailyFood[];
-  meals: LogMealOption[];
-  nextGroupPosition: number;
-  nextEntryPosition: number;
-  disabled: boolean;
-}) {
-  const totals = planEntryMacroTotals({ ...slot, kind: "food" });
-  return (
-    <li className="flex items-start justify-between gap-3 px-3 py-3">
-      <div className="min-w-0 space-y-1">
-        <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
-          <Clock className="h-3 w-3" />
-          {formatTimeOfDay(slot.slotTime)} · Food
-        </p>
-        <p className="truncate text-sm font-medium">{slot.label || slot.food.name}</p>
-        <p className="text-xs text-muted-foreground">
-          {formatMacro(slot.grams, "g")} · {slot.food.name}
-        </p>
-        <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
-      </div>
-      <LogIntakeDialog
-        ensureDay={ensureDay}
-        date={date}
-        foods={foods}
-        meals={meals}
-        selectedPlan={plan}
-        nextEntryPosition={nextEntryPosition}
-        nextGroupPosition={nextGroupPosition}
-        disabled={disabled}
-        triggerLabel="Log"
-        triggerVariant="default"
-        initialSource={{ kind: "plan-food", slot }}
-      />
-    </li>
-  );
+function mealEntryDetail(entry: DailyPlanEntry): string | null {
+  if (entry.kind !== "meal") {
+    return null;
+  }
+  return entry.label ? entry.meal.name : null;
+}
+
+function sourceKeyForDailyPlanEntry(entry: DailyPlanEntry): string {
+  return entry.kind === "meal" ? `meal:${entry.id}` : `food:${entry.id}`;
 }
 
 function EntryRow({

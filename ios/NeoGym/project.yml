@@ -43,7 +43,6 @@ targets:
             CFBundleURLSchemes:
               - neogym
         UILaunchStoryboardName: LaunchScreen
-        UIRequiresFullScreen: true
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: >-
           NeoGym imports your weight, body-fat percentage, active energy, and

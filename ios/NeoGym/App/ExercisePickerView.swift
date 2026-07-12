@@ -57,8 +57,8 @@ struct ExercisePickerView: View {
             }
         }
         .navigationViewStyle(.stack)
-        .onChange(of: search) { _ in syncWheelSelection() }
-        .onChange(of: filteredExerciseIds) { _ in syncWheelSelection() }
+        .onChange(of: search) { syncWheelSelection() }
+        .onChange(of: filteredExerciseIds) { syncWheelSelection() }
     }
 
     private var searchField: some View {
@@ -91,7 +91,10 @@ struct ExercisePickerView: View {
     @ViewBuilder
     private var content: some View {
         switch state {
-        case .idle, .loading where exercises.isEmpty:
+        case .idle:
+            AppLoadingStateView(title: "Loading exercises")
+                .frame(maxHeight: .infinity)
+        case .loading where exercises.isEmpty:
             AppLoadingStateView(title: "Loading exercises")
                 .frame(maxHeight: .infinity)
         case let .failed(message, _) where exercises.isEmpty:

@@ -152,6 +152,95 @@ private struct EntryRow: View {
     }
 }
 
+struct PlanSuggestionSlotCard: View {
+    let slot: NutritionPlanTimeSlot<NutritionPlanEntry>
+    let disabled: Bool
+    let logSlot: (NutritionPlanTimeSlot<NutritionPlanEntry>) -> Void
+
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 10) {
+                Button {
+                    withAnimation { expanded.toggle() }
+                } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "clock")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(slot.label)
+                                .font(.subheadline.weight(.semibold))
+                            Text(NutritionMath.macroTotalsSummary(slot.totals))
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                            Text("\(slot.entries.count) entr\(slot.entries.count == 1 ? "y" : "ies")")
+                                .font(.caption2)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        Spacer()
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Button("Log") { logSlot(slot) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .disabled(disabled || slot.entries.isEmpty)
+            }
+            .padding(12)
+
+            if expanded {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(slot.entries) { entry in
+                        PlanSuggestionEntryRow(entry: entry)
+                    }
+                }
+                .padding(12)
+            }
+        }
+        .nutritionGlassCard(cornerRadius: 16)
+    }
+}
+
+private struct PlanSuggestionEntryRow: View {
+    let entry: NutritionPlanEntry
+
+    var body: some View {
+        let totals = entry.macroTotals
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: entry.kind == .meal ? "fork.knife" : "apple.logo")
+                .foregroundColor(NeoGymTheme.mutedText)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.displayLabel)
+                    .font(.subheadline.weight(.semibold))
+                Text(NutritionMath.macroTotalsSummary(totals))
+                    .font(.caption)
+                    .foregroundColor(NeoGymTheme.mutedText)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(NeoGymTheme.mutedText)
+            }
+            Spacer()
+        }
+        .padding(10)
+        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+    }
+
+    private var detail: String {
+        switch entry {
+        case let .meal(slot):
+            return slot.meal?.name ?? "Meal template unavailable"
+        case let .food(slot):
+            return NutritionMath.formatMacro(slot.grams, unit: "g")
+        }
+    }
+}
 
 struct EditingEntrySheetItem: Identifiable {
     let entry: IntakeEntry

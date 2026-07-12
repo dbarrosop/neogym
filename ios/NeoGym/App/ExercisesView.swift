@@ -271,7 +271,11 @@ struct ExercisesListView: View {
     @ViewBuilder
     private var results: some View {
         switch viewModel.state {
-        case .idle, .loading where viewModel.exercises.isEmpty:
+        case .idle:
+            SectionShell(title: "Loading catalog") {
+                AppLoadingStateView(title: "Loading exercises")
+            }
+        case .loading where viewModel.exercises.isEmpty:
             SectionShell(title: "Loading catalog") {
                 AppLoadingStateView(title: "Loading exercises")
             }

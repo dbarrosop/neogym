@@ -51,8 +51,11 @@ export type AdHocNutritionDraftValidation =
   | { valid: false; values: null; message: string };
 
 export interface MealTotalIngredient {
+  id?: string;
+  foodId?: string;
   grams: unknown;
-  food?: MacroFields | null;
+  position?: number;
+  food?: PlanFoodSummary | null;
 }
 
 export interface IntakeDraftMacroItem {
@@ -95,6 +98,16 @@ export interface PlanFoodEntry {
 
 export type PlanEntry = (PlanMealEntry & { kind: "meal" }) | (PlanFoodEntry & { kind: "food" });
 
+export interface PlanTimeSlot<TEntry extends { kind: PlanEntry["kind"] } = PlanEntry> {
+  key: string;
+  label: string;
+  sortKey: string;
+  entries: TEntry[];
+  totals: MacroTotals;
+  mealCount: number;
+  foodCount: number;
+}
+
 export interface LoggedSnapshotEntry {
   grams: unknown;
   snapshotKcalPer100g: unknown;
@@ -124,6 +137,47 @@ export type AdHocLogEntryUpdateSet = Omit<
   AdHocLogEntryInsertInput,
   "nutritionDayId" | "source" | "position"
 >;
+
+export interface PlanLogEntryInsertInput {
+  nutritionDayId: string;
+  foodId: string;
+  nutritionPlanFoodId?: string | null;
+  grams: number;
+  position: number;
+  slotTime: string;
+}
+
+export interface PlanLogMealInsertInput {
+  nutritionDayId: string;
+  mealId: string;
+  nutritionPlanMealId: string;
+  name: string;
+  slotTime: string;
+  position: number;
+  nutritionLogEntries: {
+    data: PlanLogEntryInsertInput[];
+  };
+}
+
+export interface PlanLogMaterialization {
+  mealObjects: PlanLogMealInsertInput[];
+  entryObjects: PlanLogEntryInsertInput[];
+}
+
+export interface PlanLogSelectedPlan {
+  id: string;
+  name?: string | null;
+  nutritionPlanMeals: PlanMealEntry[];
+  nutritionPlanFoods: PlanFoodEntry[];
+}
+
+export interface BuildPlanLogInputsOptions {
+  selectedPlan: PlanLogSelectedPlan | null | undefined;
+  nutritionDayId: string;
+  existingMealGroups: IntakeLoggedMealGroup[];
+  existingStandaloneEntries: IntakeEntry[];
+  slotTimeByKey: Record<string, string | null | undefined>;
+}
 
 export interface IntakeEntry extends LoggedSnapshotEntry {
   id: string;
@@ -352,6 +406,156 @@ function snapshotInputFromAdHocValues(values: AdHocNutritionValues) {
   };
 }
 
+export function buildPlanLogInputs({
+  selectedPlan,
+  nutritionDayId,
+  existingMealGroups,
+  existingStandaloneEntries,
+  slotTimeByKey,
+}: BuildPlanLogInputsOptions): PlanLogMaterialization {
+  if (!selectedPlan) {
+    throw new Error("Select a plan before logging it.");
+  }
+  if (!nutritionDayId) {
+    throw new Error("Open the nutrition day before logging a plan.");
+  }
+
+  const entries = mergePlanEntriesByTime(
+    selectedPlan.nutritionPlanMeals,
+    selectedPlan.nutritionPlanFoods,
+  );
+  if (entries.length === 0) {
+    throw new Error("The selected plan has no meals or foods to log.");
+  }
+
+  const topLevelPositionByTime = maxTopLevelPositionByTime(
+    existingMealGroups,
+    existingStandaloneEntries,
+  );
+  const mealObjects: PlanLogMealInsertInput[] = [];
+  const entryObjects: PlanLogEntryInsertInput[] = [];
+
+  for (const slot of groupPlanEntriesByTimeSlot(entries)) {
+    const targetSlotTime = timeToInputValue(slotTimeByKey[slot.key]);
+    if (!targetSlotTime) {
+      throw new Error(`Choose a logged time for ${slot.label}.`);
+    }
+
+    for (const entry of slot.entries) {
+      const position = (topLevelPositionByTime.get(targetSlotTime) ?? -1) + 1;
+      topLevelPositionByTime.set(targetSlotTime, position);
+      if (entry.kind === "meal") {
+        mealObjects.push(buildPlanMealLogObject(entry, nutritionDayId, targetSlotTime, position));
+      } else {
+        entryObjects.push(buildPlanFoodLogObject(entry, nutritionDayId, targetSlotTime, position));
+      }
+    }
+  }
+
+  return { mealObjects, entryObjects };
+}
+
+function buildPlanMealLogObject(
+  entry: PlanMealEntry,
+  nutritionDayId: string,
+  slotTime: string,
+  position: number,
+): PlanLogMealInsertInput {
+  const meal = entry.meal;
+  const mealId = entry.mealId || meal?.id;
+  if (!meal || !mealId) {
+    throw new Error("A planned meal is missing its meal reference.");
+  }
+  if (meal.mealIngredients.length === 0) {
+    throw new Error(`${meal.name || entry.label || "Planned meal"} has no ingredients to log.`);
+  }
+
+  return {
+    nutritionDayId,
+    mealId,
+    nutritionPlanMealId: entry.id,
+    name: entry.label?.trim() || meal.name || "Meal",
+    slotTime,
+    position,
+    nutritionLogEntries: {
+      data: meal.mealIngredients
+        .toSorted(compareMealIngredients)
+        .map((ingredient, ingredientPosition) => {
+          const foodId = ingredient.foodId || ingredient.food?.id;
+          if (!foodId) {
+            throw new Error(
+              `${meal.name || entry.label || "Planned meal"} has an ingredient missing its food.`,
+            );
+          }
+          return {
+            nutritionDayId,
+            foodId,
+            grams: normalizeNumeric(ingredient.grams),
+            position: ingredientPosition,
+            slotTime,
+          };
+        }),
+    },
+  };
+}
+
+function buildPlanFoodLogObject(
+  entry: PlanFoodEntry,
+  nutritionDayId: string,
+  slotTime: string,
+  position: number,
+): PlanLogEntryInsertInput {
+  const foodId = entry.foodId || entry.food?.id;
+  if (!foodId) {
+    throw new Error("A planned food is missing its food reference.");
+  }
+  return {
+    nutritionDayId,
+    foodId,
+    nutritionPlanFoodId: entry.id,
+    grams: normalizeNumeric(entry.grams),
+    position,
+    slotTime,
+  };
+}
+
+function maxTopLevelPositionByTime(
+  mealGroups: IntakeLoggedMealGroup[],
+  standaloneEntries: IntakeEntry[],
+): Map<string, number> {
+  const positions = new Map<string, number>();
+  for (const meal of mealGroups) {
+    recordTopLevelPosition(positions, meal.slotTime, meal.position);
+  }
+  for (const entry of standaloneEntries) {
+    if (!entry.nutritionLogMealId) {
+      recordTopLevelPosition(positions, entry.slotTime, entry.position);
+    }
+  }
+  return positions;
+}
+
+function recordTopLevelPosition(
+  positions: Map<string, number>,
+  slotTime: unknown,
+  position: number,
+) {
+  const key = timeToInputValue(slotTime);
+  if (!key) {
+    return;
+  }
+  positions.set(key, Math.max(positions.get(key) ?? -1, normalizeSortPosition(position)));
+}
+
+function compareMealIngredients(left: MealTotalIngredient, right: MealTotalIngredient): number {
+  return (
+    compareSortPosition(
+      left.position ?? Number.MAX_SAFE_INTEGER,
+      right.position ?? Number.MAX_SAFE_INTEGER,
+    ) || (left.id ?? "").localeCompare(right.id ?? "")
+  );
+}
+
 export function formatMacro(value: unknown, unit: "g" | "kcal"): string {
   const normalized = normalizeNumeric(value);
   const precision = Number.isInteger(normalized) ? 0 : 1;
@@ -417,6 +621,70 @@ export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
   );
 }
 
+export function groupPlanEntriesByTimeSlot(entries: readonly PlanEntry[]): PlanTimeSlot[] {
+  return buildPlanTimeSlots(entries.toSorted(comparePlanEntries), planEntryMacroTotals);
+}
+
+export function groupPlanDraftEntriesByTimeSlot<
+  TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] },
+>(
+  entries: readonly TEntry[],
+  options: {
+    getEntryTotals?: (entry: TEntry & { position: number }) => MacroTotals;
+  } = {},
+): PlanTimeSlot<TEntry & { position: number }>[] {
+  const renumberedEntries = sortAndRenumberPlanEntriesByTime(entries);
+  return buildPlanTimeSlots(
+    renumberedEntries,
+    options.getEntryTotals ?? (() => EMPTY_MACRO_TOTALS),
+  );
+}
+
+function buildPlanTimeSlots<TEntry extends { slotTime?: string | null; kind: PlanEntry["kind"] }>(
+  entries: readonly TEntry[],
+  entryTotals: (entry: TEntry) => MacroTotals,
+): PlanTimeSlot<TEntry>[] {
+  const slots = new Map<
+    string,
+    Omit<PlanTimeSlot<TEntry>, "entries" | "totals" | "mealCount" | "foodCount"> & {
+      entries: TEntry[];
+    }
+  >();
+
+  for (const entry of entries) {
+    const inputValue = timeToInputValue(entry.slotTime);
+    const key = inputValue || NO_TIME_SLOT_KEY;
+    const existing = slots.get(key);
+    const slot =
+      existing ??
+      ({
+        key,
+        label: inputValue ? formatTimeOfDay(inputValue) : "No time",
+        sortKey: inputValue || NO_TIME_SORT_KEY,
+        entries: [],
+      } satisfies Omit<PlanTimeSlot<TEntry>, "entries" | "totals" | "mealCount" | "foodCount"> & {
+        entries: TEntry[];
+      });
+    slot.entries.push(entry);
+    slots.set(key, slot);
+  }
+
+  return Array.from(slots.values())
+    .map((slot) => ({
+      key: slot.key,
+      label: slot.label,
+      sortKey: slot.sortKey,
+      entries: slot.entries,
+      totals: slot.entries.reduce(
+        (total, entry) => addMacroTotals(total, entryTotals(entry)),
+        EMPTY_MACRO_TOTALS,
+      ),
+      mealCount: slot.entries.filter((entry) => entry.kind === "meal").length,
+      foodCount: slot.entries.filter((entry) => entry.kind === "food").length,
+    }))
+    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+}
+
 /**
  * Merge the sibling plan-entry tables into the display/editor order.
  * Editors must write `position` as a global value within each plan/time slot
@@ -424,8 +692,8 @@ export function planEntriesMacroTotals(entries: PlanEntry[]): MacroTotals {
  * or imported collisions where two entries share the same time and position.
  */
 export function mergePlanEntriesByTime(
-  mealEntries: PlanMealEntry[],
-  foodEntries: PlanFoodEntry[],
+  mealEntries: readonly PlanMealEntry[],
+  foodEntries: readonly PlanFoodEntry[],
 ): PlanEntry[] {
   return [
     ...mealEntries.map((entry) => ({ ...entry, kind: "meal" as const })),
@@ -440,22 +708,59 @@ export function mergePlanEntriesByTime(
  * `nutrition_plan_foods` for deterministic mixed display.
  */
 export function sortAndRenumberPlanEntriesByTime<TEntry extends { slotTime?: string | null }>(
-  entries: TEntry[],
+  entries: readonly TEntry[],
 ): Array<TEntry & { position: number }> {
   const nextPositionByTime = new Map<string, number>();
 
-  return entries
-    .map((entry, index) => ({ entry, index }))
-    .toSorted(
-      (left, right) =>
-        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
-    )
-    .map(({ entry }) => {
-      const timeKey = normalizePlanSlotTime(entry.slotTime);
-      const position = nextPositionByTime.get(timeKey) ?? 0;
-      nextPositionByTime.set(timeKey, position + 1);
-      return { ...entry, position };
-    });
+  return sortPlanDraftEntriesByTime(entries).map(({ entry }) => {
+    const timeKey = normalizePlanSlotTime(entry.slotTime);
+    const position = nextPositionByTime.get(timeKey) ?? 0;
+    nextPositionByTime.set(timeKey, position + 1);
+    return { ...entry, position };
+  });
+}
+
+export function canMovePlanDraftEntryWithinSlot<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+  entryId: string,
+  direction: -1 | 1,
+  getEntryId: (entry: TEntry) => string,
+): boolean {
+  const sortedEntries = sortPlanDraftEntriesByTime(entries);
+  const index = sortedEntries.findIndex(({ entry }) => getEntryId(entry) === entryId);
+  const targetIndex = index + direction;
+  if (index < 0 || targetIndex < 0 || targetIndex >= sortedEntries.length) {
+    return false;
+  }
+
+  return (
+    normalizePlanSlotTime(sortedEntries[index]?.entry.slotTime) ===
+    normalizePlanSlotTime(sortedEntries[targetIndex]?.entry.slotTime)
+  );
+}
+
+export function movePlanDraftEntryWithinSlot<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+  entryId: string,
+  direction: -1 | 1,
+  getEntryId: (entry: TEntry) => string,
+): TEntry[] {
+  if (!canMovePlanDraftEntryWithinSlot(entries, entryId, direction, getEntryId)) {
+    return entries.slice();
+  }
+
+  const sortedEntries = sortPlanDraftEntriesByTime(entries);
+  const index = sortedEntries.findIndex(({ entry }) => getEntryId(entry) === entryId);
+  const targetIndex = index + direction;
+  const nextEntries = sortedEntries.slice();
+  const current = nextEntries[index];
+  const target = nextEntries[targetIndex];
+  if (!current || !target) {
+    return entries.slice();
+  }
+  nextEntries[index] = target;
+  nextEntries[targetIndex] = current;
+  return nextEntries.map(({ entry }) => entry);
 }
 
 export function loggedEntryMacroTotals(entry: LoggedSnapshotEntry): MacroTotals {
@@ -592,6 +897,17 @@ export function groupIntakeByTimeSlot<TEntry extends IntakeEntry>(
       };
     })
     .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey));
+}
+
+function sortPlanDraftEntriesByTime<TEntry extends { slotTime?: string | null }>(
+  entries: readonly TEntry[],
+): Array<{ entry: TEntry; index: number }> {
+  return entries
+    .map((entry, index) => ({ entry, index }))
+    .toSorted(
+      (left, right) =>
+        comparePlanSlotTime(left.entry.slotTime, right.entry.slotTime) || left.index - right.index,
+    );
 }
 
 function compareIntakeSourceUnits<TEntry extends IntakeEntry>(
