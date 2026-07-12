@@ -51,8 +51,8 @@ struct MealPickerView: View {
             }
         }
         .onAppear(perform: syncSelectionWithFilter)
-        .onChange(of: query) { _ in syncSelectionWithFilter() }
-        .onChange(of: mealIds) { _ in syncSelectionWithFilter() }
+        .onChange(of: query) { syncSelectionWithFilter() }
+        .onChange(of: mealIds) { syncSelectionWithFilter() }
     }
 
     private var searchField: some View {

@@ -20,8 +20,13 @@ Users can read public foods and their private foods, but can insert/update/delet
 
 - `meal_ingredients` belongs to a meal and references a visible food. `food_id` is intentionally immutable to the user role after insert; changing a meal ingredient's food is delete+insert. `grams` and `position` are editable.
 - `nutrition_plan_meals` belongs to a plan and references an owned meal. A plan is a reusable one-day template with ordered, required `slot_time` rows. `meal_id` is immutable after insert; changing a slot's meal is delete+insert.
-- `nutrition_plan_foods` is the sibling direct-food slot table for plans. It belongs to a plan, references a visible food (public or the user's private food), stores `grams`, `slot_time`, optional `label`, and `position`, and keeps `nutrition_plan_id`/`food_id` immutable to the user role after insert. Changing the source food is delete+insert.
-- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; editors write a global `position` within each plan/time slot across both tables. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
+- `nutrition_plan_foods` is the sibling direct-food slot table for plans. It belongs to a plan,
+  references a visible food (public or the user's private food), stores `grams`, `slot_time`,
+  legacy optional `label`, and `position`, and keeps `nutrition_plan_id`/`food_id` immutable to
+  the user role after insert. Changing the source food is delete+insert. Current clients do not
+  expose or display direct-food labels; direct food slots use the source food name to avoid extra
+  UI labels.
+- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; clients display, edit, and selected-day log them grouped by normalized time slot, and editors write a global `position` within each plan/time slot across both tables. Reorder controls are slot-local; moving an entry to another time slot is done by changing its `slot_time`, which re-groups and re-numbers on save. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
 
 Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed.
 
@@ -64,9 +69,21 @@ measurements from that point's date plus the previous 6 local calendar days.
 
 ## Logging from templates
 
-Meal-template and plan-meal logging use a nested insert of one `nutritionLogMeal` with child `nutritionLogEntries`. Each child entry must explicitly include the same `nutritionDayId` as the group; Hasura/Nhost nested inserts populate `nutritionLogMealId`, but not the direct day FK used by permissions and the composite same-day FK. The parent group and child entries should all carry the user-selected logged `slotTime` (default now), while `nutritionPlanMealId` preserves which plan slot was used. `backend/tests/nutrition.test.ts` proves this shape early.
+Meal-template and individual plan-meal logging use a nested insert of one `nutritionLogMeal` with child `nutritionLogEntries`. Each child entry must explicitly include the same `nutritionDayId` as the group; Hasura/Nhost nested inserts populate `nutritionLogMealId`, but not the direct day FK used by permissions and the composite same-day FK. The parent group and child entries should all carry the user-selected logged `slotTime` (default now for individual logging), while `nutritionPlanMealId` preserves which plan slot was used. `backend/tests/nutrition.test.ts` proves this shape early.
 
-Direct plan-food logging uses a standalone food-backed `insertNutritionLogEntry` with `source` omitted/defaulted to `food`, matching `nutritionPlanFoodId` + `foodId`, grams, position, and the user-selected actual `slotTime`. The plan food's template `slot_time` is suggestion/provenance only and must not be blindly copied as the logged time. Deleting the plan or direct plan-food row nulls `nutrition_plan_food_id` on historical rows; snapshots and the consumed grams remain. Ad-hoc logging uses a standalone `source: "ad_hoc"` insert with snapshot fields and no catalog/template provenance, so it never appears in reusable food lists or pickers.
+Direct individual plan-food logging uses a standalone food-backed `insertNutritionLogEntry` with `source` omitted/defaulted to `food`, matching `nutritionPlanFoodId` + `foodId`, grams, position, and the user-selected actual `slotTime`. The plan food's template `slot_time` is suggestion/provenance only and must not be blindly copied as the logged time for individual entry logging. Deleting the plan or direct plan-food row nulls `nutrition_plan_food_id` on historical rows; snapshots and the consumed grams remain. Ad-hoc logging uses a standalone `source: "ad_hoc"` insert with snapshot fields and no catalog/template provenance, so it never appears in reusable food lists or pickers.
+
+Daily plan logging only uses the `nutrition_days.nutrition_plan_id` selected for that day. If no
+plan is selected, clients hide plan-entry logging tabs/segments and suggestions entirely. If a plan
+is selected, clients show its meal and direct-food suggestions grouped by normalized plan time slot.
+The selected-plan section and each time slot are collapsible, and the plan picker lives inside that
+selected-plan section. Clients no longer expose a whole-plan **Log selected plan** action; instead,
+each time slot has its own Log action that materializes every planned meal/food in that slot in one
+combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
+default to the current time, and every entry in that slot receives the same actual logged time. Empty
+planned meals fail the slot action before sending so the operation stays all-or-nothing from the
+client perspective. Re-running slot logging appends duplicate logged meals/entries, matching existing
+planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
 
 Metadata footgun: `nutrition_log_entries.nutrition_day_id` participates in both the direct day FK and the composite same-day group FK. Nhost GraphQL/Constellation can choose the wrong FK or generate ambiguous SQL if those relationships are auto-tracked from constraints. The metadata therefore uses manual relationships for `nutritionLogEntry.nutritionDay`, `nutritionLogEntry.nutritionLogMeal`, `nutritionDay.nutritionLogEntries`, and `nutritionLogMeal.nutritionLogEntries`; keep that explicit mapping if you regenerate or edit metadata. The `nutritionLogEntry.nutritionPlanFood` relationship is an additional simple FK relationship and does not replace those manual mappings.
 

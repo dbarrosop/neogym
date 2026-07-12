@@ -42,7 +42,7 @@ struct RootView: View {
             configureChangeEmailModel()
             handlePendingAuthCallbackIfPossible()
         }
-        .onChange(of: changeEmailModelKey) { _ in
+        .onChange(of: changeEmailModelKey) {
             configureChangeEmailModel()
             handlePendingAuthCallbackIfPossible()
         }

@@ -77,6 +77,7 @@ struct DailyIntakeView: View {
     @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
+    @State private var selectedPlanSectionExpanded = true
     @State private var confirmingDayDelete = false
 
     init(
@@ -172,13 +173,13 @@ struct DailyIntakeView: View {
         case .loaded:
             totalsSection
             intakeSection
+            selectedPlanSuggestionsSection
         }
     }
 
     private var totalsSection: some View {
         SectionShell(title: "Logged totals", subtitle: "Snapshot totals with an optional plan target") {
             VStack(alignment: .leading, spacing: 14) {
-                planPicker
                 MacroSummaryView(
                     totals: viewModel.payload?.loggedTotals ?? .empty,
                     title: "Logged",
@@ -234,6 +235,66 @@ struct DailyIntakeView: View {
                             editEntry: { editingEntry = $0 },
                             editGroup: { editingGroup = $0 }
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    private var selectedPlanSuggestionsSection: some View {
+        let slots = viewModel.selectedPlan.map { NutritionPlanGrouping.groupPlanEntriesByTimeSlot($0.sortedEntries) } ?? []
+        return SectionShell(title: "Selected plan", subtitle: viewModel.selectedPlan?.name ?? "Optional template") {
+            VStack(alignment: .leading, spacing: 14) {
+                Button {
+                    withAnimation { selectedPlanSectionExpanded.toggle() }
+                } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "checklist")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.selectedPlan?.name ?? "No plan selected")
+                                .font(.subheadline.weight(.semibold))
+                            Text(viewModel.selectedPlan == nil ? "Choose a plan to show its time slots." : "Log one planned time slot at a time.")
+                                .font(.caption)
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        Spacer()
+                        Image(systemName: selectedPlanSectionExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if selectedPlanSectionExpanded {
+                    planPicker
+
+                    if viewModel.selectedPlan == nil {
+                        AppEmptyStateView(
+                            title: "No plan selected",
+                            message: "Select a plan above to log its time slots.",
+                            systemImage: "checklist"
+                        )
+                    } else if slots.isEmpty {
+                        AppEmptyStateView(
+                            title: "No plan entries",
+                            message: "This selected plan does not have meal or food entries yet.",
+                            systemImage: "checklist"
+                        )
+                    } else {
+                        ForEach(slots, id: \.key) { slot in
+                            PlanSuggestionSlotCard(
+                                slot: slot,
+                                disabled: viewModel.isMutating,
+                                logSlot: { slot in
+                                    Task {
+                                        if await viewModel.logSelectedPlanSlot(slot) {
+                                            onMutated()
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }

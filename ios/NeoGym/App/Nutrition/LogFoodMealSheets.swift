@@ -5,6 +5,7 @@ struct LogIntakeSheetRequest: Identifiable {
     enum InitialMode: Equatable {
         case food
         case meal
+        case planEntry(String)
         case adHoc
     }
 
@@ -12,6 +13,9 @@ struct LogIntakeSheetRequest: Identifiable {
     let initialMode: InitialMode
 
     static let adHocFood = LogIntakeSheetRequest(initialMode: .food)
+    static func planEntry(_ id: String) -> LogIntakeSheetRequest {
+        LogIntakeSheetRequest(initialMode: .planEntry(id))
+    }
 }
 
 struct LogIntakeSheet: View {
@@ -56,6 +60,12 @@ struct LogIntakeSheet: View {
     private var foods: [Food] { viewModel.payload?.foods ?? [] }
     private var meals: [Meal] { viewModel.payload?.meals ?? [] }
     private var planEntries: [NutritionPlanEntry] { viewModel.selectedPlan?.sortedEntries ?? [] }
+    private var planTimeSlots: [NutritionPlanTimeSlot<NutritionPlanEntry>] {
+        NutritionPlanGrouping.groupPlanEntriesByTimeSlot(planEntries)
+    }
+    private var availableModes: [Mode] {
+        viewModel.selectedPlan == nil ? [.food, .meal, .adHoc] : [.food, .meal, .plan, .adHoc]
+    }
     private var selectedPlanEntry: NutritionPlanEntry? {
         guard mode == .plan else { return nil }
         return planEntries.first { $0.id == planEntryId }
@@ -146,6 +156,7 @@ struct LogIntakeSheet: View {
             switch request.initialMode {
             case .food: .food
             case .meal: .meal
+            case .planEntry: .plan
             case .adHoc: .adHoc
             }
         }())
@@ -176,10 +187,10 @@ struct LogIntakeSheet: View {
         }
         .navigationViewStyle(.stack)
         .onAppear(perform: prepareInitialDraft)
-        .onChange(of: mode) { _ in prepareDraft() }
-        .onChange(of: foodId) { _ in prepareFoodDraft() }
-        .onChange(of: mealId) { _ in prepareMealDraft() }
-        .onChange(of: planEntryId) { _ in prepareDraft() }
+        .onChange(of: mode) { prepareDraft() }
+        .onChange(of: foodId) { prepareFoodDraft() }
+        .onChange(of: mealId) { prepareMealDraft() }
+        .onChange(of: planEntryId) { prepareDraft() }
     }
 
 }
@@ -209,7 +220,7 @@ private extension LogIntakeSheet {
     private var sourceSection: some View {
         Section {
             Picker("Log source", selection: $mode) {
-                ForEach(Mode.allCases) { mode in
+                ForEach(availableModes) { mode in
                     Text(mode.title).tag(mode)
                 }
             }
@@ -223,19 +234,23 @@ private extension LogIntakeSheet {
                 MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
             case .plan:
                 if planEntries.isEmpty {
-                    Text("Select a nutrition plan for this day to log planned meal or food suggestions.")
+                    Text("The selected plan does not have meal or food entries yet.")
                         .font(.caption)
                         .foregroundColor(NeoGymTheme.mutedText)
                 } else {
                     Picker("Plan entry", selection: $planEntryId) {
-                        ForEach(planEntries) { entry in
-                            PlanEntryWheelRow(entry: entry)
-                                .tag(entry.id)
+                        ForEach(planTimeSlots, id: \.key) { slot in
+                            Section(slot.label) {
+                                ForEach(slot.entries) { entry in
+                                    PlanEntryWheelRow(entry: entry)
+                                        .tag(entry.id)
+                                }
+                            }
                         }
                     }
                     .pickerStyle(.wheel)
                     .labelsHidden()
-                    .frame(height: 88)
+                    .frame(height: 120)
                     .clipped()
                 }
             case .adHoc:
@@ -347,10 +362,14 @@ private extension LogIntakeSheet {
             slotTime = Date()
             hasInitializedSlotTime = true
         }
+        if case let .planEntry(entryId) = request.initialMode {
+            planEntryId = entryId
+        }
         prepareDraft()
     }
 
     func prepareDraft() {
+        if viewModel.selectedPlan == nil, mode == .plan { mode = .food }
         if foodId.isEmpty, let first = foods.first { foodId = first.id }
         if mealId.isEmpty, let first = meals.first { mealId = first.id }
         if mode == .plan, planEntryId.isEmpty, let first = planEntries.first { planEntryId = first.id }
@@ -477,7 +496,7 @@ private struct PlanEntryWheelRow: View {
             Text("\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)")
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
-            Text("· \(entry.kind == .meal ? "Meal" : "Food") · \(detail)")
+            Text("· \(detail)")
                 .font(.caption)
                 .foregroundColor(NeoGymTheme.mutedText)
                 .lineLimit(1)
@@ -494,7 +513,7 @@ private struct PlanEntryWheelRow: View {
             guard let meal = slot.meal else { return "Meal template unavailable" }
             return NutritionMath.macroTotalsSummary(meal.macroTotals)
         case let .food(slot):
-            return "\(slot.food?.name ?? "Food") · \(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
+            return "\(NutritionMath.formatMacro(slot.grams, unit: "g")) · "
                 + NutritionMath.macroTotalsSummary(slot.macroTotals)
         }
     }

@@ -28,11 +28,13 @@ import {
   DECIMAL_INPUT_PATTERN,
   formatMacro,
   formatTimeOfDay,
+  groupPlanEntriesByTimeSlot,
   intakeDraftMacroTotals,
   macroTotalsSummary,
   mergePlanEntriesByTime,
   NUTRIENT_FIELDS,
   normalizeNumeric,
+  type PlanTimeSlot,
   parseMacroInput,
   timeToInputValue,
   validateAdHocNutritionDraft,
@@ -216,6 +218,13 @@ export function LogIntakeDialog({
   }, [planEntries, planQuery]);
 
   useEffect(() => {
+    if (!selectedPlan && !hasInitialSource && mode === "plan") {
+      setMode("food");
+      setPlanSourceKey("");
+    }
+  }, [selectedPlan, hasInitialSource, mode]);
+
+  useEffect(() => {
     if (!open) {
       return;
     }
@@ -340,12 +349,12 @@ export function LogIntakeDialog({
           mealId={mealId}
           onMealIdChange={setMealId}
           selectedPlanName={selectedPlan?.name ?? null}
+          hasPlanSource={Boolean(selectedPlan) || hasInitialSource}
           planEntries={visiblePlanEntries}
           planSourceKey={planSourceKey}
           planQuery={planQuery}
           onPlanQueryChange={setPlanQuery}
           onPlanSourceKeyChange={setPlanSourceKey}
-          initialSourceKind={initialSourceKind}
           initialPlanEntry={initialPlanEntry}
           slotTime={slotTime}
           onSlotTimeChange={setSlotTime}
@@ -519,12 +528,12 @@ function LogIntakeDialogContents({
   mealId,
   onMealIdChange,
   selectedPlanName,
+  hasPlanSource,
   planEntries,
   planSourceKey,
   planQuery,
   onPlanQueryChange,
   onPlanSourceKeyChange,
-  initialSourceKind,
   initialPlanEntry,
   slotTime,
   onSlotTimeChange,
@@ -549,12 +558,12 @@ function LogIntakeDialogContents({
   mealId: string;
   onMealIdChange: (mealId: string) => void;
   selectedPlanName: string | null;
+  hasPlanSource: boolean;
   planEntries: PlanEntry[];
   planSourceKey: string;
   planQuery: string;
   onPlanQueryChange: (query: string) => void;
   onPlanSourceKeyChange: (key: string) => void;
-  initialSourceKind: LogIntakeInitialSource["kind"] | null;
   initialPlanEntry: PlanEntry | null;
   slotTime: string;
   onSlotTimeChange: (slotTime: string) => void;
@@ -591,13 +600,13 @@ function LogIntakeDialogContents({
           mealId={mealId}
           onMealIdChange={onMealIdChange}
           selectedPlanName={selectedPlanName}
+          hasPlanSource={hasPlanSource}
           planEntries={planEntries}
           planSourceKey={planSourceKey}
           planQuery={planQuery}
           onPlanQueryChange={onPlanQueryChange}
           onPlanSourceKeyChange={onPlanSourceKeyChange}
           disabled={isPending}
-          initialSourceKind={initialSourceKind}
           initialPlanEntry={initialPlanEntry}
           adHocDraft={adHocDraft}
           onAdHocDraftChange={onAdHocDraftChange}
@@ -685,13 +694,13 @@ function LogIntakeSourceTabs({
   mealId,
   onMealIdChange,
   selectedPlanName,
+  hasPlanSource,
   planEntries,
   planSourceKey,
   planQuery,
   onPlanQueryChange,
   onPlanSourceKeyChange,
   disabled,
-  initialSourceKind,
   initialPlanEntry,
   adHocDraft,
   onAdHocDraftChange,
@@ -705,13 +714,13 @@ function LogIntakeSourceTabs({
   mealId: string;
   onMealIdChange: (mealId: string) => void;
   selectedPlanName: string | null;
+  hasPlanSource: boolean;
   planEntries: PlanEntry[];
   planSourceKey: string;
   planQuery: string;
   onPlanQueryChange: (query: string) => void;
   onPlanSourceKeyChange: (key: string) => void;
   disabled: boolean;
-  initialSourceKind: LogIntakeInitialSource["kind"] | null;
   initialPlanEntry: PlanEntry | null;
   adHocDraft: AdHocNutritionDraft;
   onAdHocDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
@@ -725,9 +734,11 @@ function LogIntakeSourceTabs({
         <TabsTrigger value="meal">
           <ChefHat className="h-3.5 w-3.5" /> Meal
         </TabsTrigger>
-        <TabsTrigger value="plan" disabled={!selectedPlanName && !initialSourceKind}>
-          <ClipboardList className="h-3.5 w-3.5" /> From plan
-        </TabsTrigger>
+        {hasPlanSource ? (
+          <TabsTrigger value="plan">
+            <ClipboardList className="h-3.5 w-3.5" /> From plan
+          </TabsTrigger>
+        ) : null}
         <TabsTrigger value="ad-hoc">
           <Sparkles className="h-3.5 w-3.5" /> Custom
         </TabsTrigger>
@@ -774,8 +785,8 @@ function LogIntakeSourceTabs({
         />
       </TabsContent>
 
-      <TabsContent value="plan" className="space-y-3">
-        {selectedPlanName || initialSourceKind ? (
+      {hasPlanSource ? (
+        <TabsContent value="plan" className="space-y-3">
           <PlanSourcePicker
             planName={selectedPlanName ?? "selected plan"}
             entries={planEntries}
@@ -789,12 +800,8 @@ function LogIntakeSourceTabs({
             disabled={disabled}
             initialPlanEntry={initialPlanEntry}
           />
-        ) : (
-          <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-            Select a plan for this day to log plan suggestions here.
-          </p>
-        )}
-      </TabsContent>
+        </TabsContent>
+      ) : null}
     </Tabs>
   );
 }
@@ -821,6 +828,7 @@ function PlanSourcePicker({
   const shownEntries = initialPlanEntry
     ? mergeInitialPlanEntry(entries, initialPlanEntry)
     : entries;
+  const shownSlots = groupPlanEntriesByTimeSlot(shownEntries) as PlanTimeSlot<PlanEntry>[];
 
   return (
     <div className="space-y-3">
@@ -844,56 +852,71 @@ function PlanSourcePicker({
           No selected-plan entries match this search.
         </p>
       ) : (
-        <div className="max-h-64 overflow-y-auto rounded-md border border-border/60">
-          <ul className="divide-y divide-border/50">
-            {shownEntries.map((entry) => {
-              const key = sourceKeyForPlanEntry(entry);
-              const selected = key === selectedKey;
-              const title =
-                entry.label || (entry.kind === "meal" ? entry.meal.name : entry.food.name);
-              const subtitle = entry.kind === "meal" ? entry.meal.name : entry.food.name;
-              return (
-                <li key={key}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(key)}
+        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border border-border/60 p-2">
+          {shownSlots.map((slot) => (
+            <section key={slot.key} className="overflow-hidden rounded-md border border-border/60">
+              <div className="bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground">
+                {slot.label}
+              </div>
+              <ul className="divide-y divide-border/50">
+                {slot.entries.map((entry) => (
+                  <PlanSourcePickerRow
+                    key={sourceKeyForPlanEntry(entry)}
+                    entry={entry}
+                    selected={sourceKeyForPlanEntry(entry) === selectedKey}
                     disabled={disabled}
-                    className={cn(
-                      "flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
-                      selected && "bg-primary/10 text-primary hover:bg-primary/15",
-                    )}
-                  >
-                    <span className="min-w-0 space-y-1">
-                      <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                        {entry.kind === "meal" ? (
-                          <ChefHat className="h-3.5 w-3.5" />
-                        ) : (
-                          <Apple className="h-3.5 w-3.5" />
-                        )}
-                        {formatTimeOfDay(entry.slotTime)} ·{" "}
-                        {entry.kind === "meal" ? "Meal" : "Food"}
-                      </span>
-                      <span className="block truncate text-sm font-medium">{title}</span>
-                      {entry.label ? (
-                        <span className="block truncate text-xs text-muted-foreground">
-                          Template: {subtitle}
-                        </span>
-                      ) : null}
-                      {entry.kind === "food" ? (
-                        <span className="block text-xs text-muted-foreground">
-                          {formatMacro(entry.grams, "g")}
-                        </span>
-                      ) : null}
-                    </span>
-                    {selected ? <span className="text-xs font-medium">Selected</span> : null}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    onSelect={() => onSelect(sourceKeyForPlanEntry(entry))}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
     </div>
+  );
+}
+
+function PlanSourcePickerRow({
+  entry,
+  selected,
+  disabled,
+  onSelect,
+}: {
+  entry: PlanEntry;
+  selected: boolean;
+  disabled: boolean;
+  onSelect: () => void;
+}) {
+  const title = entry.kind === "food" ? entry.food.name : entry.label || entry.meal.name;
+  const subtitle = entry.kind === "meal" ? entry.meal.name : null;
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        disabled={disabled}
+        className={cn(
+          "flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+          selected && "bg-primary/10 text-primary hover:bg-primary/15",
+        )}
+      >
+        <span className="min-w-0 space-y-1">
+          <span className="block truncate text-sm font-medium">{title}</span>
+          {entry.kind === "meal" && entry.label && subtitle ? (
+            <span className="block truncate text-xs text-muted-foreground">
+              Template: {subtitle}
+            </span>
+          ) : null}
+          {entry.kind === "food" ? (
+            <span className="block text-xs text-muted-foreground">
+              {formatMacro(entry.grams, "g")}
+            </span>
+          ) : null}
+        </span>
+        {selected ? <span className="text-xs font-medium">Selected</span> : null}
+      </button>
+    </li>
   );
 }
 
@@ -1130,8 +1153,8 @@ function resolveSelectedSource({
     return {
       kind: "plan-food",
       key: sourceKeyForPlanEntry(planEntry),
-      title: planEntry.label || planEntry.food.name,
-      subtitle: planEntry.label ? planEntry.food.name : null,
+      title: planEntry.food.name,
+      subtitle: null,
       plannedSlotTime: planEntry.slotTime,
       food: planEntry.food,
       grams: planEntry.grams,
