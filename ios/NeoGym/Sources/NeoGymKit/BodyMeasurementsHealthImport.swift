@@ -62,10 +62,12 @@ public struct HealthBodyMeasurement: Sendable, Equatable, Hashable {
 
 public struct BodyMeasurementsHealthSyncSummary: Sendable, Equatable {
     public let importedCount: Int
+    public let updatedCount: Int
     public let skippedExistingCount: Int
 
-    public init(importedCount: Int, skippedExistingCount: Int) {
+    public init(importedCount: Int, updatedCount: Int = 0, skippedExistingCount: Int) {
         self.importedCount = importedCount
+        self.updatedCount = updatedCount
         self.skippedExistingCount = skippedExistingCount
     }
 }

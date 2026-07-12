@@ -1,5 +1,6 @@
 import NeoGymKit
 import SwiftUI
+import WidgetKit
 
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
@@ -34,11 +35,16 @@ struct DailyEnergyListView: View {
         }
         .task {
             if case .idle = viewModel.state {
-                await viewModel.load(shouldSyncHealthEnergy: true)
+                await loadAndRefreshWidget(shouldSyncHealthEnergy: true)
             }
         }
-        .onChange(of: reloadToken) { Task { await viewModel.load() } }
-        .refreshable { await viewModel.load(shouldSyncHealthEnergy: true) }
+        .onChange(of: reloadToken) { Task { await loadAndRefreshWidget(shouldSyncHealthEnergy: false) } }
+        .refreshable { await loadAndRefreshWidget(shouldSyncHealthEnergy: true) }
+    }
+
+    private func loadAndRefreshWidget(shouldSyncHealthEnergy: Bool) async {
+        await viewModel.load(shouldSyncHealthEnergy: shouldSyncHealthEnergy)
+        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 
     private var header: some View {
@@ -67,22 +73,25 @@ struct DailyEnergyListView: View {
         case let .failed(message, _) where viewModel.entries.isEmpty:
             SectionShell(title: "Energy") {
                 AppErrorStateView(title: "Failed to load energy entries", message: message) {
-                    Task { await viewModel.load() }
+                    Task { await loadAndRefreshWidget(shouldSyncHealthEnergy: true) }
                 }
             }
         default:
             if viewModel.entries.isEmpty {
-                SectionShell(title: "No energy entries") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: "No energy entries yet",
-                            message: "Log active or resting energy to start seeing trends.",
-                            systemImage: "flame"
-                        )
-                        NavigationLink(value: NutritionRoute.energyCreate) {
-                            Label("Log your first energy entry", systemImage: "plus")
+                VStack(spacing: 14) {
+                    healthSyncStatus
+                    SectionShell(title: "No energy entries") {
+                        VStack(spacing: 16) {
+                            AppEmptyStateView(
+                                title: "No energy entries yet",
+                                message: "Log active or resting energy to start seeing trends.",
+                                systemImage: "flame"
+                            )
+                            NavigationLink(value: NutritionRoute.energyCreate) {
+                                Label("Log your first energy entry", systemImage: "plus")
+                            }
+                            .buttonStyle(NeoGymPrimaryButtonStyle())
                         }
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
                     }
                 }
             } else {
@@ -133,9 +142,20 @@ struct DailyEnergyListView: View {
     @ViewBuilder
     private var healthSyncStatus: some View {
         switch viewModel.healthSyncState {
+        case .loading:
+            FeedbackBanner(message: "Syncing Apple Health energy…", tone: .info)
+        case let .loaded(summary):
+            if summary.importedCount > 0 || summary.updatedCount > 0 {
+                FeedbackBanner(
+                    message: "Apple Health synced: imported \(summary.importedCount), updated \(summary.updatedCount).",
+                    tone: .info
+                )
+            } else {
+                FeedbackBanner(message: "Apple Health checked; no new energy data to import.", tone: .info)
+            }
         case let .failed(message, _):
             FeedbackBanner(message: message)
-        default:
+        case .idle:
             EmptyView()
         }
     }

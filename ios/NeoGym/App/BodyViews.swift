@@ -68,26 +68,30 @@ struct BodyMeasurementsListView: View {
         case let .failed(message, _) where viewModel.measurements.isEmpty:
             SectionShell(title: "Body") {
                 AppErrorStateView(title: "Failed to load body measurements", message: message) {
-                    Task { await viewModel.load() }
+                    Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
                 }
             }
         default:
             if viewModel.measurements.isEmpty {
-                SectionShell(title: "No measurements") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: "No measurements yet",
-                            message: "Log your first measurement to start seeing trends.",
-                            systemImage: "heart.text.square"
-                        )
-                        NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
-                            Label("Log your first measurement", systemImage: "plus")
+                VStack(spacing: 14) {
+                    healthSyncStatus
+                    SectionShell(title: "No measurements") {
+                        VStack(spacing: 16) {
+                            AppEmptyStateView(
+                                title: "No measurements yet",
+                                message: "Log your first measurement to start seeing trends.",
+                                systemImage: "heart.text.square"
+                            )
+                            NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
+                                Label("Log your first measurement", systemImage: "plus")
+                            }
+                            .buttonStyle(NeoGymPrimaryButtonStyle())
                         }
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
                     }
                 }
             } else {
                 VStack(spacing: 14) {
+                    healthSyncStatus
                     if viewModel.trendData.shouldShowChart {
                         SectionShell(title: "Weight & body fat over time", subtitle: "Trend") {
                             BodyTrendChartView(trendData: viewModel.trendData)
@@ -105,6 +109,27 @@ struct BodyMeasurementsListView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var healthSyncStatus: some View {
+        switch viewModel.healthSyncState {
+        case .loading:
+            FeedbackBanner(message: "Syncing Apple Health body measurements…", tone: .info)
+        case let .loaded(summary):
+            if summary.importedCount > 0 || summary.updatedCount > 0 {
+                FeedbackBanner(
+                    message: "Apple Health synced: imported \(summary.importedCount), updated \(summary.updatedCount).",
+                    tone: .info
+                )
+            } else {
+                FeedbackBanner(message: "Apple Health checked; no new body measurements to import.", tone: .info)
+            }
+        case let .failed(message, _):
+            FeedbackBanner(message: message)
+        case .idle:
+            EmptyView()
         }
     }
 

@@ -42,13 +42,13 @@ public final class DailyEnergyListViewModel: ObservableObject {
     public func load(shouldSyncHealthEnergy: Bool = false) async {
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
+        if shouldSyncHealthEnergy {
+            await syncHealthEnergy()
+        }
         do {
             let entries = try await repository.listEntries(limit: pageSize, offset: 0)
             hasMore = entries.count == pageSize
             state = .loaded(entries)
-            if shouldSyncHealthEnergy {
-                await syncHealthEnergy(skippingExistingDatesFrom: entries)
-            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -72,23 +72,26 @@ public final class DailyEnergyListViewModel: ObservableObject {
         }
     }
 
-    private func syncHealthEnergy(skippingExistingDatesFrom entries: [DailyEnergy]) async {
+    private func syncHealthEnergy() async {
         guard let healthImporter else { return }
         let refreshStart = healthRefreshStartDate()
-        var knownDates = Set(entries.map(\.energyOn))
-        if let allEntryDates = try? await repository.listEntryDates() {
-            knownDates.formUnion(allEntryDates)
-        }
-        let refreshableEntries = (try? await repository.listEntriesForHealthRefresh(since: refreshStart))
-            ?? entries.filter { $0.energyOn >= refreshStart }
-        let refreshableEntriesByDate = Dictionary(uniqueKeysWithValues: refreshableEntries.map { ($0.energyOn, $0) })
-        var importedCount = 0
-        var updatedCount = 0
-        var skippedExistingCount = 0
-        var shouldReload = false
         healthSyncState = .loading(previous: healthSyncState.value)
         do {
-            let importedEntries = try await healthImporter.dailyEnergyEntries()
+            async let importedEntriesTask = healthImporter.dailyEnergyEntries()
+            async let knownDatesTask = repository.listEntryDates()
+            async let refreshableEntriesTask = repository.listEntriesForHealthRefresh(since: refreshStart)
+
+            let importedEntries = try await importedEntriesTask
+            var knownDates = Set((try? await knownDatesTask) ?? [])
+            let refreshableEntries = (try? await refreshableEntriesTask) ?? []
+            knownDates.formUnion(refreshableEntries.map(\.energyOn))
+            let refreshableEntriesByDate = Dictionary(
+                uniqueKeysWithValues: refreshableEntries.map { ($0.energyOn, $0) }
+            )
+            var importedCount = 0
+            var updatedCount = 0
+            var skippedExistingCount = 0
+
             for entry in importedEntries {
                 guard let values = entry.formValues(notes: Self.healthImportNote) else { continue }
 
@@ -104,7 +107,6 @@ public final class DailyEnergyListViewModel: ObservableObject {
                     try await repository.updateEntry(id: existingEntry.id, values: values)
                     knownDates.insert(values.energyOn)
                     updatedCount += 1
-                    shouldReload = true
                     continue
                 }
 
@@ -117,17 +119,10 @@ public final class DailyEnergyListViewModel: ObservableObject {
                     _ = try await repository.createEntry(values)
                     knownDates.insert(values.energyOn)
                     importedCount += 1
-                    shouldReload = true
                 } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
                     knownDates.insert(values.energyOn)
                     skippedExistingCount += 1
-                    shouldReload = true
                 }
-            }
-            if shouldReload {
-                let entries = try await repository.listEntries(limit: pageSize, offset: 0)
-                hasMore = entries.count == pageSize
-                state = .loaded(entries)
             }
             healthSyncState = .loaded(DailyEnergyHealthSyncSummary(
                 importedCount: importedCount,

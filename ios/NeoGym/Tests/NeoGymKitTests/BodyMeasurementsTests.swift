@@ -270,6 +270,69 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
             skippedExistingCount: 1
         ))
     }
+
+    func testHealthSyncRefreshesRecentImportedHealthRows() async throws {
+        let repository = FakeBodyMeasurementsRepository(measurements: [
+            BodyMeasurement(
+                id: "today",
+                measuredOn: "2026-07-09",
+                weightKg: 81,
+                bodyFatPct: 18,
+                notes: "Imported from Apple Health"
+            ),
+            BodyMeasurement(
+                id: "manual",
+                measuredOn: "2026-07-08",
+                weightKg: 80,
+                bodyFatPct: 17.5,
+                notes: "Manual correction"
+            ),
+            BodyMeasurement(
+                id: "old-import",
+                measuredOn: "2026-06-30",
+                weightKg: 82,
+                bodyFatPct: 19,
+                notes: "Imported from Apple Health"
+            )
+        ])
+        let importer = FakeBodyMeasurementsHealthImporter(measurements: [
+            HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80.5, bodyFatPct: 17.8),
+            HealthBodyMeasurement(measuredOn: "2026-07-08", weightKg: 79.5, bodyFatPct: 17.2),
+            HealthBodyMeasurement(measuredOn: "2026-06-30", weightKg: 81.5, bodyFatPct: 18.7),
+            HealthBodyMeasurement(measuredOn: "2026-07-07", weightKg: 80.2, bodyFatPct: nil)
+        ])
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(DateOnly.parse("2026-07-09", calendar: calendar))
+        let viewModel = BodyMeasurementsListViewModel(
+            repository: repository,
+            healthImporter: importer,
+            calendar: calendar,
+            now: { now }
+        )
+
+        await viewModel.load(shouldSyncHealthMeasurements: true)
+
+        let updatedValues = await repository.updatedValuesSnapshot()
+        XCTAssertEqual(updatedValues, ["today": BodyMeasurementFormValues(
+            measuredOn: "2026-07-09",
+            weightKg: "80.5",
+            bodyFatPct: "17.8",
+            notes: "Imported from Apple Health"
+        )])
+        let createdValues = await repository.createdValuesSnapshot()
+        XCTAssertEqual(createdValues, [BodyMeasurementFormValues(
+            measuredOn: "2026-07-07",
+            weightKg: "80.2",
+            bodyFatPct: "",
+            notes: "Imported from Apple Health"
+        )])
+        XCTAssertEqual(viewModel.healthSyncState.value, BodyMeasurementsHealthSyncSummary(
+            importedCount: 1,
+            updatedCount: 1,
+            skippedExistingCount: 2
+        ))
+    }
 }
 
 final class BodyMeasurementTrendBuilderTests: XCTestCase {
@@ -373,6 +436,7 @@ final class BodyMeasurementsErrorMapperTests: XCTestCase {
 private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
     private var measurements: [BodyMeasurement]
     private var createdValues: [BodyMeasurementFormValues] = []
+    private var updatedValues: [String: BodyMeasurementFormValues] = [:]
     private var listError: Error?
 
     init(measurements: [BodyMeasurement]) {
@@ -411,6 +475,7 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
 
     func updateMeasurement(id: String, values: BodyMeasurementFormValues) async throws {
         guard let index = measurements.firstIndex(where: { $0.id == id }) else { return }
+        updatedValues[id] = values
         measurements[index] = BodyMeasurement(
             id: id,
             measuredOn: values.measuredOn,
@@ -426,6 +491,10 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
 
     func createdValuesSnapshot() -> [BodyMeasurementFormValues] {
         createdValues
+    }
+
+    func updatedValuesSnapshot() -> [String: BodyMeasurementFormValues] {
+        updatedValues
     }
 }
 

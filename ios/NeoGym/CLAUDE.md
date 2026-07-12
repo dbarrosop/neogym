@@ -70,8 +70,11 @@ changes.
   `group.io.nhost.neogym` App Group. The app writes snapshots after successful
   Nutrition Overview loads and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
-  available. The widget renders the latest snapshot as its safe fallback and can
-  attempt best-effort live server refreshes through the shared keychain session
+  available. Nutrition mutations and Energy-list loads also ask WidgetKit to
+  reload timelines so the widget can take the live server-fetch path after
+  app-owned HealthKit or backend changes. The widget renders the latest snapshot
+  as its safe fallback and can attempt best-effort live server refreshes through
+  the shared keychain session
   `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app keeps its app-only
   keychain as the primary session store and mirrors/restores the same session to
   or from the shared keychain best-effort for widget access. The runtime access-group string comes from the
@@ -106,7 +109,10 @@ changes.
   carrying the exact "Imported from Apple Health" note; manual or edited rows
   are not overwritten. Body measurement HealthKit sync likewise runs from both
   the Body subsection and the Nutrition overview on initial load and
-  pull-to-refresh.
+  pull-to-refresh; it creates missing dates and refreshes the last 7 local days
+  only for rows still carrying the exact "Imported from Apple Health" note.
+  HealthKit sync runs before the final backend list/overview fetch so charts and
+  summaries consume the post-sync backend state.
 
 ## Native iOS design guide
 

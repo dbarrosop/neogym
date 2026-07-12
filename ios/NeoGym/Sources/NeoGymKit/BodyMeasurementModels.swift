@@ -375,6 +375,10 @@ public enum BodyMeasurementsErrorMapper {
         return domainError.localizedDescription
     }
 
+    public static func isDuplicateMeasuredOnError(_ error: Error) -> Bool {
+        isDuplicateMeasuredOnError(GraphQLDomainError.map(error))
+    }
+
     private static func isDuplicateMeasuredOnError(_ error: GraphQLDomainError) -> Bool {
         guard case let .graphQLErrors(details) = error else { return false }
         return details.contains { detail in

@@ -103,14 +103,17 @@ medium Energy Balance widget. Energy Balance display math and captions live in
 host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under
 `ios/NeoGym/Shared/` to the `group.io.nhost.neogym` App Group after successful
 Nutrition Overview loads and clears/reloads it on sign-out, definitive signed-out
-bootstrap, auth errors, and user switches. The widget renders that snapshot as a
-safe fallback, can perform best-effort server refreshes through the shared
-keychain session `$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the
-app's app-only primary keychain store, and never runs
-HealthKit import. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh
-button are best-effort triggers for the live-fetch provider path, not guaranteed
-freshness or cadence; keep all AppIntent/Button code availability-gated so the
-widget extension continues to support iOS 16.2.
+bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list
+loads also ask WidgetKit to reload timelines so the widget can take the live
+server-fetch path after app-owned HealthKit or backend changes. The widget
+renders that snapshot as a safe fallback, can perform best-effort server
+refreshes through the shared keychain session
+`$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the app's app-only
+primary keychain store, and never runs HealthKit import. WidgetKit timeline
+reloads and the iOS 17+ in-widget Refresh button are best-effort triggers for
+the live-fetch provider path, not guaranteed freshness or cadence; keep all
+AppIntent/Button code availability-gated so the widget extension continues to
+support iOS 16.2.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
@@ -142,9 +145,12 @@ and New plan/food/meal, Log measurement, and Log energy live on their subsection
 list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
 trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
-Energy from HealthKit on load and pull-to-refresh, then shows Energy balance,
-the Calories consumed chart, and Body composition trends; it does not show the
-old intro copy or recent daily-log list. `NutritionDaysView` no longer takes a
+Energy from HealthKit on load and pull-to-refresh before the final backend
+overview fetch, then shows Energy balance, the Calories consumed chart, and Body
+composition trends from the post-sync backend data; Body and Energy sync both
+create missing dates and refresh recent rows that still carry the exact
+"Imported from Apple Health" note. It does not show the old intro copy or recent
+daily-log list. `NutritionDaysView` no longer takes a
 `selectedDate` binding. After a create the shell replaces only the top create
 route with the new detail route so Back returns to the subsection list, not the
 hub.

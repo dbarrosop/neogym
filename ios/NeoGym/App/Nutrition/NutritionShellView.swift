@@ -1,5 +1,6 @@
 import NeoGymKit
 import SwiftUI
+import WidgetKit
 
 enum NutritionSection: String, CaseIterable, Identifiable {
     case overview
@@ -355,6 +356,7 @@ struct NutritionNavigationView: View {
 
     private func invalidateLists() {
         reloadToken += 1
+        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 }
 

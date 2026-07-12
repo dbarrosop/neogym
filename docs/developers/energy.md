@@ -101,6 +101,9 @@ Import rules:
   that conflict as a skipped existing row rather than a fatal import error.
 - iOS sync runs when the Energy subsection loads, when that subsection is
   pull-refreshed, and when the Nutrition overview loads or is pull-refreshed.
+  HealthKit import is attempted before the final backend list/overview fetch, so
+  the visible charts and balance summaries are built from post-sync backend
+  data.
 - On each iOS sync, the last 7 local calendar days (today plus the previous 6
   days) are refreshed from HealthKit **only** when the existing row still carries
   the exact "Imported from Apple Health" note. Manual rows or edited imported
@@ -124,10 +127,13 @@ summary math and captions; `ios/NeoGym/Shared/EnergyBalanceWidgetSnapshot.swift`
 stores only aggregate, preformatted snapshot fields in the App Group and never
 stores auth tokens. The app writes snapshots after successful Nutrition Overview
 loads, clears them on sign-out/signed-out bootstrap/auth errors/user switches,
-and asks WidgetKit to reload timelines. The widget can attempt live server
-refresh through a shared keychain session that the app mirrors best-effort from
-its app-only primary keychain store, and falls back to the cached snapshot or
-signed-out/empty state on no session, auth, network, or provisioning failure.
+and asks WidgetKit to reload timelines. Nutrition mutations and Energy-list
+loads also ask WidgetKit to reload timelines so the widget can try a live server
+refresh after app-owned HealthKit or backend changes. The widget can attempt
+live server refresh through a shared keychain session that the app mirrors
+best-effort from its app-only primary keychain store, and falls back to the
+cached snapshot or signed-out/empty state on no session, auth, network, or
+provisioning failure.
 The widget does not import HealthKit data; HealthKit energy import remains
 app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
 are best-effort triggers, not guaranteed fresh server data or an exact refresh

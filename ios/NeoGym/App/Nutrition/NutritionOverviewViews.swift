@@ -154,9 +154,10 @@ struct NutritionOverviewView: View {
 
     private func loadOverview() async {
         async let bodyLoad: Void = bodyViewModel.load(shouldSyncHealthMeasurements: true)
-        await energySyncViewModel.load(shouldSyncHealthEnergy: true)
-        await viewModel.load()
+        async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
         await bodyLoad
+        await energyLoad
+        await viewModel.load()
 
         if case .loaded = viewModel.state {
             writeEnergyBalanceWidgetSnapshot()
