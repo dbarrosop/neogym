@@ -117,8 +117,11 @@ loads also ask WidgetKit to reload timelines so the widget can take the live
 server-fetch path after app-owned HealthKit or backend changes. The widget
 renders that snapshot as a safe fallback, can perform best-effort server
 refreshes through the shared keychain session
-`$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the app's app-only
-primary keychain store, and never runs HealthKit import. WidgetKit timeline
+`$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the app's explicit
+app-only `$(AppIdentifierPrefix)io.nhost.neogym` primary keychain store. Keep
+those access groups distinct; otherwise concurrent cache scope reads can race
+with replacement writes to the same Keychain item. The widget never runs
+HealthKit import. WidgetKit timeline
 reloads and the iOS 17+ in-widget Refresh button are best-effort triggers for
 the live-fetch provider path, not guaranteed freshness or cadence; keep all
 AppIntent/Button code availability-gated so the widget extension continues to

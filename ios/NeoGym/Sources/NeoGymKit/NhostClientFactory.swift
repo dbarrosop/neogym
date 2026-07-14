@@ -59,7 +59,11 @@ public enum NhostSessionStorageFactory {
     public static func appSharedKeychainStorage(accessGroup: String? = nil) -> any SessionStorageBackend {
         #if canImport(Security)
         MirroringSessionStorageBackend(
-            primary: KeychainSessionStorageBackend(),
+            primary: KeychainSessionStorageBackend(
+                options: KeychainSessionStorageOptions(
+                    accessGroup: NhostSessionConfig.appKeychainAccessGroup()
+                )
+            ),
             mirror: sharedKeychainStorage(accessGroup: accessGroup)
         )
         #else
@@ -68,6 +72,8 @@ public enum NhostSessionStorageFactory {
     }
 }
 
+/// Mirrors an app-private session into widget-readable storage.
+/// The primary and mirror must target distinct Keychain items/access groups.
 public struct MirroringSessionStorageBackend: SessionStorageBackend {
     private let primary: any SessionStorageBackend
     private let mirror: any SessionStorageBackend

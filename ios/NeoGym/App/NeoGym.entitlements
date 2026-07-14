@@ -10,6 +10,7 @@
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
+		<string>$(AppIdentifierPrefix)io.nhost.neogym</string>
 		<string>$(AppIdentifierPrefix)io.nhost.neogym.shared</string>
 	</array>
 </dict>
