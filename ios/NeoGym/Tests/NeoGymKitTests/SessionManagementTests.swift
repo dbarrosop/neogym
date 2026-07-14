@@ -204,6 +204,37 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.monthGroups[0].sessions.map(\.id), ["session-1", "session-2"])
     }
 
+    func testListUsesCachedUpdatesForInitialAndAdditionalPages() async {
+        let first = SessionListItem(
+            id: "session-1",
+            startedAt: "2026-06-26T12:00:00Z",
+            workoutSessionExercises: []
+        )
+        let cachedSecond = SessionListItem(
+            id: "session-2",
+            startedAt: "2026-06-25T12:00:00Z",
+            workoutSessionExercises: []
+        )
+        let freshSecond = SessionListItem(
+            id: "session-2",
+            startedAt: "2026-06-25T13:00:00Z",
+            workoutSessionExercises: []
+        )
+        let repository = StubSessionsRepository(sessions: [first, freshSecond])
+        repository.listUpdateEmissionsByOffset = [
+            0: [[first]],
+            1: [[cachedSecond], [freshSecond]]
+        ]
+        let viewModel = SessionsListViewModel(repository: repository, pageSize: 1)
+
+        await viewModel.load()
+        await viewModel.loadMore()
+
+        XCTAssertEqual(repository.listUpdateOffsets, [0, 1])
+        XCTAssertEqual(viewModel.sessions.map(\.id), ["session-1", "session-2"])
+        XCTAssertEqual(viewModel.sessions.last?.startedAt, "2026-06-25T13:00:00Z")
+    }
+
     func testListIgnoresCancelledLoads() async {
         let repository = StubSessionsRepository()
         repository.listError = mappedCancellationError
@@ -635,6 +666,8 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var deletedCardioEntryIds: [String] = []
     var listError: Error?
     var detailError: Error?
+    var listUpdateEmissionsByOffset: [Int: [[SessionListItem]]] = [:]
+    var listUpdateOffsets: [Int] = []
 
     init(sessions: [SessionListItem] = [], detail: SessionDetailModel? = nil) {
         self.sessions = sessions
@@ -644,6 +677,25 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem] {
         if let listError { throw listError }
         return Array(sessions.dropFirst(offset).prefix(limit))
+    }
+
+    func sessionListUpdates(
+        limit: Int,
+        offset: Int
+    ) -> AsyncThrowingStream<[SessionListItem], Error> {
+        listUpdateOffsets.append(offset)
+        let emissions = listUpdateEmissionsByOffset[offset]
+            ?? [Array(sessions.dropFirst(offset).prefix(limit))]
+        return AsyncThrowingStream { continuation in
+            if let listError {
+                continuation.finish(throwing: listError)
+                return
+            }
+            for emission in emissions {
+                continuation.yield(emission)
+            }
+            continuation.finish()
+        }
     }
 
     func sessionDetail(id: String) async throws -> SessionDetailModel? {

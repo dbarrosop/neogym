@@ -44,7 +44,9 @@ public final class FoodsListViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listFoods())
+            for try await foods in repository.foodListUpdates() {
+                state = .loaded(foods)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -216,7 +218,9 @@ public final class MealsListViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listMeals())
+            for try await meals in repository.mealListUpdates() {
+                state = .loaded(meals)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

@@ -5,8 +5,10 @@ import XCTest
 final class JournalRepositoryTests: XCTestCase {
     func testDecodesJournalEntriesAndLabelsFixtures() async throws {
         let fake = FakeGraphQLService(replies: [
-            .json(.object(["journalEntries": .array([journalEntryFixture])])),
-            .json(.object(["journalLabels": .array([journalLabelFixture])]))
+            .json(.object([
+                "journalEntries": .array([journalEntryFixture]),
+                "journalLabels": .array([journalLabelFixture])
+            ]))
         ])
         let repository = JournalRepository(graphQL: fake)
 
@@ -19,14 +21,16 @@ final class JournalRepositoryTests: XCTestCase {
         XCTAssertEqual(payload.entries[0].journalEntryLabels.map(\.label.name), ["reflection"])
         XCTAssertEqual(payload.labels.map(\.name), ["reflection"])
         let requests = await fake.requestsSnapshot()
-        XCTAssertEqual(requests.map(\.operationName), ["JournalEntries", "JournalLabelsForForm"])
+        XCTAssertEqual(requests.map(\.operationName), ["JournalEntries"])
         XCTAssertEqual(requests[0].variables?["where"], .object([:]))
     }
 
     func testListEntriesBuildsAndLabelFilterWhereClause() async throws {
         let fake = FakeGraphQLService(replies: [
-            .json(.object(["journalEntries": .array([])])),
-            .json(.object(["journalLabels": .array([])]))
+            .json(.object([
+                "journalEntries": .array([]),
+                "journalLabels": .array([])
+            ]))
         ])
         let repository = JournalRepository(graphQL: fake)
 

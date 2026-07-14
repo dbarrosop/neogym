@@ -3,6 +3,7 @@ import Foundation
 public protocol DailyEnergyRepositoryProtocol: Sendable {
     func listEntries() async throws -> [DailyEnergy]
     func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy]
+    func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error>
     func listEntryDates() async throws -> [String]
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy]
     func entry(id: String) async throws -> DailyEnergy?
@@ -17,6 +18,10 @@ public extension DailyEnergyRepositoryProtocol {
         let allEntries = try await listEntries()
         guard offset < allEntries.count else { return [] }
         return Array(allEntries.dropFirst(offset).prefix(limit))
+    }
+
+    func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error> {
+        singleValueUpdates { try await listEntries(limit: limit, offset: offset) }
     }
 
     func listEntryDates() async throws -> [String] {
@@ -42,13 +47,32 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
     public func listEntries(limit: Int = Self.pageSize, offset: Int = 0) async throws -> [DailyEnergy] {
         let data: DailyEnergyEntriesData = try await graphQL.execute(
             query: Self.dailyEnergyQuery,
-            variables: GraphQLScalars.variables(
-                ("limit", .number(Double(limit))),
-                ("offset", .number(Double(offset)))
-            ),
+            variables: Self.listVariables(limit: limit, offset: offset),
             operationName: "DailyEnergy"
         )
         return data.dailyEnergyEntries
+    }
+
+    public func energyListUpdates(
+        limit: Int,
+        offset: Int
+    ) -> AsyncThrowingStream<[DailyEnergy], Error> {
+        graphQL.cachedValues(
+            DailyEnergyEntriesData.self,
+            query: Self.dailyEnergyQuery,
+            variables: Self.listVariables(limit: limit, offset: offset),
+            operationName: "DailyEnergy",
+            namespace: "daily-energy",
+            tags: ["daily-energy"],
+            transform: \DailyEnergyEntriesData.dailyEnergyEntries
+        )
+    }
+
+    private static func listVariables(limit: Int, offset: Int) -> [String: JSONValue] {
+        GraphQLScalars.variables(
+            ("limit", .number(Double(limit))),
+            ("offset", .number(Double(offset)))
+        )
     }
 
     public func listEntryDates() async throws -> [String] {

@@ -2,11 +2,18 @@ import Foundation
 
 public protocol BodyMeasurementsRepositoryProtocol: Sendable {
     func listMeasurements() async throws -> [BodyMeasurement]
+    func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error>
     func measurement(id: String) async throws -> BodyMeasurement?
     func editMeasurement(id: String) async throws -> BodyMeasurement?
     func createMeasurement(_ values: BodyMeasurementFormValues) async throws -> String
     func updateMeasurement(id: String, values: BodyMeasurementFormValues) async throws
     func deleteMeasurement(id: String) async throws
+}
+
+public extension BodyMeasurementsRepositoryProtocol {
+    func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error> {
+        singleValueUpdates { try await listMeasurements() }
+    }
 }
 
 public struct BodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
@@ -22,6 +29,17 @@ public struct BodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
             operationName: "BodyMeasurements"
         )
         return data.bodyMeasurements
+    }
+
+    public func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error> {
+        graphQL.cachedValues(
+            BodyMeasurementsData.self,
+            query: Self.bodyMeasurementsQuery,
+            operationName: "BodyMeasurements",
+            namespace: "body-measurements",
+            tags: ["body-measurements"],
+            transform: \BodyMeasurementsData.bodyMeasurements
+        )
     }
 
     public func measurement(id: String) async throws -> BodyMeasurement? {

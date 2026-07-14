@@ -17,6 +17,7 @@ public struct SessionMonthGroup: Identifiable, Sendable, Equatable {
 public final class SessionsListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[SessionListItem]> = .idle
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var hasNextPage = true
 
     private let repository: any SessionsRepositoryProtocol
@@ -52,11 +53,15 @@ public final class SessionsListViewModel: ObservableObject {
     }
 
     public func load() async {
+        guard !isRefreshing, !isLoadingMore else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         do {
-            let loaded = try await repository.listSessions(limit: pageSize, offset: 0)
-            hasNextPage = loaded.count == pageSize
-            state = .loaded(loaded)
+            for try await loaded in repository.sessionListUpdates(limit: pageSize, offset: 0) {
+                hasNextPage = loaded.count == pageSize
+                state = .loaded(loaded)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -65,18 +70,31 @@ public final class SessionsListViewModel: ObservableObject {
     }
 
     public func loadMore() async {
-        guard hasNextPage, !isLoadingMore else { return }
+        guard hasNextPage, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
         defer { isLoadingMore = false }
+        let existing = sessions
         do {
-            let loaded = try await repository.listSessions(limit: pageSize, offset: sessions.count)
-            hasNextPage = loaded.count == pageSize
-            state = .loaded(sessions + loaded)
+            for try await loaded in repository.sessionListUpdates(
+                limit: pageSize,
+                offset: existing.count
+            ) {
+                hasNextPage = loaded.count == pageSize
+                state = .loaded(Self.merging(existing, with: loaded))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
+    }
+
+    private static func merging(
+        _ existing: [SessionListItem],
+        with page: [SessionListItem]
+    ) -> [SessionListItem] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
     }
 }
 

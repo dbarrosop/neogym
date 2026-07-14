@@ -98,6 +98,15 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
+The production iOS app enables the SDK's persistent, managed-session-scoped
+GraphQL response cache. Root list queries use stale-while-revalidate streams to
+show cached data before fresh backend data for workouts, sessions, exercises,
+journal, foods, meals, nutrition plans/overview, Body, and Energy. The cache uses
+a 5-minute freshness window and 7-day stale-if-error window; mutations remain
+network-only, and the SDK purges prior managed-user scopes on sign-out/session
+replacement. Keep cache identity and authorization isolation in the SDK rather
+than adding weaker app-owned local-storage keys.
+
 The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
 medium Energy Balance widget. Energy Balance display math and captions live in
 host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under

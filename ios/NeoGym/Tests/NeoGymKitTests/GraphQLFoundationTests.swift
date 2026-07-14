@@ -133,6 +133,53 @@ final class FakeGraphQLServiceTests: XCTestCase {
     }
 }
 
+final class NhostGraphQLCacheAdapterTests: XCTestCase {
+    func testCachedQueryKeepsCachedValueWhenOfflineRefreshFails() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let transportState = CacheTestTransportState()
+        let client = createNhostClient(NhostClientOptions(
+            graphqlURL: try XCTUnwrap(URL(string: "https://example.test/v1/graphql")),
+            transport: StubTransport { request in
+                try await transportState.fetch(request)
+            },
+            graphqlCache: GraphQLCacheConfiguration(directoryURL: directory)
+        ))
+        let service = NhostGraphQLService(client: client)
+
+        var firstSources: [GraphQLCacheSource] = []
+        for try await update in service.cachedQuery(
+            ViewerData.self,
+            query: "query Viewer { viewer { id } }",
+            operationName: "Viewer",
+            namespace: "viewer",
+            tags: ["viewer"]
+        ) {
+            switch update {
+            case .cached: firstSources.append(.cached)
+            case .fresh: firstSources.append(.fresh)
+            }
+        }
+        XCTAssertEqual(firstSources, [.fresh])
+
+        await transportState.setOffline(true)
+        var offlineValues: [ViewerData] = []
+        for try await update in service.cachedQuery(
+            ViewerData.self,
+            query: "query Viewer { viewer { id } }",
+            operationName: "Viewer",
+            namespace: "viewer",
+            tags: ["viewer"]
+        ) {
+            offlineValues.append(update.value)
+        }
+
+        XCTAssertEqual(offlineValues, [ViewerData(viewer: Viewer(id: "cached-user"))])
+    }
+}
+
 final class GraphQLScalarsTests: XCTestCase {
     func testScalarHelpersFormatGraphQLVariables() throws {
         let uuid = try XCTUnwrap(UUID(uuidString: "A7D4E68C-77B3-4A15-9B77-68BB9718A18A"))
@@ -171,6 +218,26 @@ final class LoadableTests: XCTestCase {
         XCTAssertEqual(loading.value, ["old"])
         XCTAssertEqual(failed.errorMessage, "Network error")
         XCTAssertEqual(failed.map(\.count), .failed(message: "Network error", previous: 1))
+    }
+}
+
+private actor CacheTestTransportState {
+    private var isOffline = false
+
+    func setOffline(_ value: Bool) {
+        isOffline = value
+    }
+
+    func fetch(_ request: NhostRequest) throws -> NhostRawResponse {
+        if isOffline {
+            throw FetchError.transport("URLError -1009: offline")
+        }
+        let body = Data(#"{"data":{"viewer":{"id":"cached-user"}}}"#.utf8)
+        return NhostRawResponse(
+            status: 200,
+            headers: ["content-type": "application/json"],
+            body: body
+        )
     }
 }
 

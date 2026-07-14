@@ -2,12 +2,29 @@ import Foundation
 
 public protocol JournalRepositoryProtocol: Sendable {
     func listEntries(limit: Int, offset: Int, labelIds: [String]) async throws -> JournalIndexPayload
+    func journalListUpdates(
+        limit: Int,
+        offset: Int,
+        labelIds: [String]
+    ) -> AsyncThrowingStream<JournalIndexPayload, Error>
     func entry(id: String) async throws -> JournalEntry?
     func editEntry(id: String) async throws -> JournalEditPayload
     func labels() async throws -> [JournalLabel]
     func createEntry(_ values: JournalEntryFormValues) async throws -> String
     func saveEntry(id: String, initialValues: JournalEntryFormValues, values: JournalEntryFormValues) async throws
     func deleteEntry(id: String) async throws
+}
+
+public extension JournalRepositoryProtocol {
+    func journalListUpdates(
+        limit: Int,
+        offset: Int,
+        labelIds: [String]
+    ) -> AsyncThrowingStream<JournalIndexPayload, Error> {
+        singleValueUpdates {
+            try await listEntries(limit: limit, offset: offset, labelIds: labelIds)
+        }
+    }
 }
 
 public struct JournalRepository: JournalRepositoryProtocol {
@@ -32,8 +49,35 @@ public struct JournalRepository: JournalRepositoryProtocol {
             variables: variables,
             operationName: "JournalEntries"
         )
-        let labels = try await labels()
-        return JournalIndexPayload(entries: data.journalEntries, labels: labels)
+        return Self.indexPayload(from: data)
+    }
+
+    public func journalListUpdates(
+        limit: Int,
+        offset: Int,
+        labelIds: [String]
+    ) -> AsyncThrowingStream<JournalIndexPayload, Error> {
+        graphQL.cachedValues(
+            JournalEntriesData.self,
+            query: Self.journalEntriesQuery,
+            variables: Self.listVariables(limit: limit, offset: offset, labelIds: labelIds),
+            operationName: "JournalEntries",
+            namespace: "journal",
+            tags: ["journal"],
+            transform: Self.indexPayload
+        )
+    }
+
+    private static func listVariables(limit: Int, offset: Int, labelIds: [String]) -> [String: JSONValue] {
+        GraphQLScalars.variables(
+            ("limit", .number(Double(limit))),
+            ("offset", .number(Double(offset))),
+            ("where", entriesWhere(labelIds: labelIds) ?? .object([:]))
+        )
+    }
+
+    private static func indexPayload(from data: JournalEntriesData) -> JournalIndexPayload {
+        JournalIndexPayload(entries: data.journalEntries, labels: data.journalLabels)
     }
 
     public func entry(id: String) async throws -> JournalEntry? {
@@ -97,6 +141,7 @@ public struct JournalRepository: JournalRepositoryProtocol {
 
 private struct JournalEntriesData: Decodable, Sendable {
     let journalEntries: [JournalEntry]
+    let journalLabels: [JournalLabel]
 }
 
 private struct JournalEntryByIdData: Decodable, Sendable {
@@ -147,6 +192,10 @@ public extension JournalRepository {
           labelId
           label { id name }
         }
+      }
+      journalLabels(order_by: { name: asc }) {
+        id
+        name
       }
     }
     """

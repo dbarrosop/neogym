@@ -2,10 +2,17 @@ import Foundation
 
 public protocol ExercisesRepositoryProtocol: Sendable {
     func listExercises() async throws -> [ExerciseListItem]
+    func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error>
     func exerciseDetail(id: String) async throws -> ExerciseDetailModel?
     func exercisePickerExercises() async throws -> [ExerciseListItem]
     func priorSessionsPerExercise(exerciseIds: [String]) async throws -> [ExercisePriorSessions]
     func startAdHocSession(exerciseId: String, startedAt: Date) async throws -> String
+}
+
+public extension ExercisesRepositoryProtocol {
+    func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error> {
+        singleValueUpdates { try await listExercises() }
+    }
 }
 
 public struct ExercisesRepository: ExercisesRepositoryProtocol {
@@ -21,6 +28,17 @@ public struct ExercisesRepository: ExercisesRepositoryProtocol {
             operationName: "ExercisesIndex"
         )
         return data.exercises
+    }
+
+    public func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error> {
+        graphQL.cachedValues(
+            ExercisesIndexData.self,
+            query: Self.exercisesIndexQuery,
+            operationName: "ExercisesIndex",
+            namespace: "exercises",
+            tags: ["exercises"],
+            transform: \ExercisesIndexData.exercises
+        )
     }
 
     public func exerciseDetail(id: String) async throws -> ExerciseDetailModel? {

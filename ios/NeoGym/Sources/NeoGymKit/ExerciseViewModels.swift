@@ -67,7 +67,9 @@ public final class ExercisesListViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            state = .loaded(try await repository.listExercises())
+            for try await exercises in repository.exerciseListUpdates() {
+                state = .loaded(exercises)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

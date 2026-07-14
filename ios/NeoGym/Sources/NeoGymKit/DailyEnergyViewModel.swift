@@ -7,6 +7,7 @@ public final class DailyEnergyListViewModel: ObservableObject {
     @Published public private(set) var healthSyncState: Loadable<DailyEnergyHealthSyncSummary> = .idle
     @Published public private(set) var hasMore = false
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
 
     private let repository: any DailyEnergyRepositoryProtocol
@@ -40,15 +41,20 @@ public final class DailyEnergyListViewModel: ObservableObject {
     }
 
     public func load(shouldSyncHealthEnergy: Bool = false) async {
+        guard !isRefreshing, !isLoadingMore else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
-        if shouldSyncHealthEnergy {
-            await syncHealthEnergy()
-        }
         do {
-            let entries = try await repository.listEntries(limit: pageSize, offset: 0)
-            hasMore = entries.count == pageSize
-            state = .loaded(entries)
+            if shouldSyncHealthEnergy {
+                async let initialLoad: Void = loadEnergyUpdates()
+                await syncHealthEnergy()
+                try await initialLoad
+                try await loadEnergyUpdates()
+            } else {
+                try await loadEnergyUpdates()
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -56,20 +62,37 @@ public final class DailyEnergyListViewModel: ObservableObject {
         }
     }
 
+    private func loadEnergyUpdates() async throws {
+        for try await entries in repository.energyListUpdates(limit: pageSize, offset: 0) {
+            hasMore = entries.count == pageSize
+            state = .loaded(entries)
+        }
+    }
+
     public func loadMore() async {
-        guard hasMore, !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
         loadMoreErrorMessage = nil
         defer { isLoadingMore = false }
+        let existing = entries
         do {
-            let nextEntries = try await repository.listEntries(limit: pageSize, offset: entries.count)
-            hasMore = nextEntries.count == pageSize
-            state = .loaded(entries + nextEntries)
+            for try await nextEntries in repository.energyListUpdates(
+                limit: pageSize,
+                offset: existing.count
+            ) {
+                hasMore = nextEntries.count == pageSize
+                state = .loaded(Self.merging(existing, with: nextEntries))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             loadMoreErrorMessage = nil
         } catch {
             loadMoreErrorMessage = DailyEnergyErrorMapper.message(for: error)
         }
+    }
+
+    private static func merging(_ existing: [DailyEnergy], with page: [DailyEnergy]) -> [DailyEnergy] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
     }
 
     private func syncHealthEnergy() async {

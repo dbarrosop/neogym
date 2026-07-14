@@ -8,6 +8,7 @@ public final class JournalListViewModel: ObservableObject {
     @Published public private(set) var selectedLabelIds: [String] = []
     @Published public private(set) var hasMore = false
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
 
     private let repository: any JournalRepositoryProtocol
@@ -23,13 +24,21 @@ public final class JournalListViewModel: ObservableObject {
     public var selectedLabelSet: Set<String> { Set(selectedLabelIds) }
 
     public func load() async {
+        guard !isRefreshing, !isLoadingMore else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
         do {
-            let payload = try await repository.listEntries(limit: pageSize, offset: 0, labelIds: selectedLabelIds)
-            labels = payload.labels
-            hasMore = payload.entries.count == pageSize
-            state = .loaded(payload.entries)
+            for try await payload in repository.journalListUpdates(
+                limit: pageSize,
+                offset: 0,
+                labelIds: selectedLabelIds
+            ) {
+                labels = payload.labels
+                hasMore = payload.entries.count == pageSize
+                state = .loaded(payload.entries)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -38,19 +47,21 @@ public final class JournalListViewModel: ObservableObject {
     }
 
     public func loadMore() async {
-        guard hasMore, !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
         loadMoreErrorMessage = nil
         defer { isLoadingMore = false }
+        let existing = entries
         do {
-            let payload = try await repository.listEntries(
+            for try await payload in repository.journalListUpdates(
                 limit: pageSize,
-                offset: entries.count,
+                offset: existing.count,
                 labelIds: selectedLabelIds
-            )
-            if labels.isEmpty { labels = payload.labels }
-            hasMore = payload.entries.count == pageSize
-            state = .loaded(entries + payload.entries)
+            ) {
+                if labels.isEmpty { labels = payload.labels }
+                hasMore = payload.entries.count == pageSize
+                state = .loaded(Self.merging(existing, with: payload.entries))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             loadMoreErrorMessage = nil
         } catch {
@@ -70,6 +81,11 @@ public final class JournalListViewModel: ObservableObject {
     public func clearFilters() async {
         selectedLabelIds.removeAll()
         await load()
+    }
+
+    private static func merging(_ existing: [JournalEntry], with page: [JournalEntry]) -> [JournalEntry] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
     }
 }
 

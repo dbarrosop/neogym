@@ -63,6 +63,15 @@ changes.
   after redirect config edits because the CLI does not hot-reload `nhost.toml`.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
+- The production app client enables the Nhost Swift SDK persistent GraphQL cache
+  with a 5-minute freshness window and 7-day stale-if-error window. Root list
+  repositories expose cached-first/fresh-second streams through
+  `GraphQLServicing.cachedQuery`; list view models must retain cached values while
+  revalidation runs or fails. Cached domains currently include workouts,
+  sessions, exercises, journal, foods, meals, nutrition plans/overview, Body,
+  and Energy. Keep mutations on the network-only `execute` path. The SDK scopes
+  private cache entries by the managed session and purges prior user scopes on
+  sign-out/session replacement; do not add weaker app-owned user cache keys.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
   Energy Balance widget. Energy Balance math and captions live in host-testable
   `NeoGymKit`; `Shared/EnergyBalanceWidgetSnapshot.swift` is the dependency-free,

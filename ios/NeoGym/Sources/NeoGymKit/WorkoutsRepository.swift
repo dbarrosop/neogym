@@ -2,6 +2,7 @@ import Foundation
 
 public protocol WorkoutsRepositoryProtocol: Sendable {
     func listWorkouts() async throws -> WorkoutIndexPayload
+    func workoutListUpdates() -> AsyncThrowingStream<WorkoutIndexPayload, Error>
     func workoutDetail(id: String) async throws -> WorkoutDetailModel?
     func editWorkout(id: String) async throws -> WorkoutEditPayload
     func labels() async throws -> [WorkoutLabel]
@@ -9,6 +10,12 @@ public protocol WorkoutsRepositoryProtocol: Sendable {
     func saveWorkout(id: String, initialValues: WorkoutFormValues, values: WorkoutFormValues) async throws
     func deleteWorkout(id: String) async throws
     func startSession(from workout: WorkoutDetailModel, startedAt: Date) async throws -> String
+}
+
+public extension WorkoutsRepositoryProtocol {
+    func workoutListUpdates() -> AsyncThrowingStream<WorkoutIndexPayload, Error> {
+        singleValueUpdates { try await listWorkouts() }
+    }
 }
 
 public struct WorkoutsRepository: WorkoutsRepositoryProtocol {
@@ -23,7 +30,22 @@ public struct WorkoutsRepository: WorkoutsRepositoryProtocol {
             query: Self.workoutsIndexQuery,
             operationName: "WorkoutsIndex"
         )
-        return WorkoutIndexPayload(workouts: data.workouts, labels: data.labels)
+        return Self.indexPayload(from: data)
+    }
+
+    public func workoutListUpdates() -> AsyncThrowingStream<WorkoutIndexPayload, Error> {
+        graphQL.cachedValues(
+            WorkoutsIndexData.self,
+            query: Self.workoutsIndexQuery,
+            operationName: "WorkoutsIndex",
+            namespace: "workouts",
+            tags: ["workouts"],
+            transform: Self.indexPayload
+        )
+    }
+
+    private static func indexPayload(from data: WorkoutsIndexData) -> WorkoutIndexPayload {
+        WorkoutIndexPayload(workouts: data.workouts, labels: data.labels)
     }
 
     public func workoutDetail(id: String) async throws -> WorkoutDetailModel? {

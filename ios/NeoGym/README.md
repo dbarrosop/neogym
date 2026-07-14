@@ -80,14 +80,29 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
+## Persistent GraphQL list cache
+
+The production app client enables the Nhost Swift SDK file-backed GraphQL cache.
+Workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
+Body, and Energy list screens consume stale-while-revalidate streams: a cached
+response renders immediately when available, followed by fresh backend data.
+Cache entries are isolated by the SDK's managed-session authorization scope and
+the previous scope is purged on sign-out/session replacement. Mutations remain
+network-only.
+
+The app uses a 5-minute freshness window and allows cached offline fallback for
+up to 7 days. The cache is opportunistic and may be evicted by iOS; it is not a
+complete offline database or mutation queue.
+
 ## Apple Health body imports
 
 Opening the Body measurements view requests read-only Apple Health access for
 body mass and body-fat percentage, then imports the latest sample per metric per
 local calendar day. The app requests no write authorization and does not export
-NeoGym measurements back to HealthKit. If NeoGym already has a measurement for a
-day, the HealthKit sample for that day is skipped rather than merged or
-overwritten.
+NeoGym measurements back to HealthKit. Missing dates are created, while rows
+from the last 7 local days that still carry the exact
+`Imported from Apple Health` note can be refreshed from newer HealthKit values.
+Manual or edited rows are not overwritten.
 
 The HealthKit capability and `NSHealthShareUsageDescription` are declared in
 `project.yml`; regenerate the Xcode project after changing them. The concrete

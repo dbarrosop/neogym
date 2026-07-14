@@ -35,15 +35,25 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
 
     public func load(shouldSyncHealthMeasurements: Bool = false) async {
         state = .loading(previous: state.value)
-        if shouldSyncHealthMeasurements {
-            await syncHealthMeasurements()
-        }
         do {
-            state = .loaded(try await repository.listMeasurements())
+            if shouldSyncHealthMeasurements {
+                async let initialLoad: Void = loadMeasurementUpdates()
+                await syncHealthMeasurements()
+                try await initialLoad
+                try await loadMeasurementUpdates()
+            } else {
+                try await loadMeasurementUpdates()
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
             state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
+        }
+    }
+
+    private func loadMeasurementUpdates() async throws {
+        for try await measurements in repository.measurementListUpdates() {
+            state = .loaded(measurements)
         }
     }
 

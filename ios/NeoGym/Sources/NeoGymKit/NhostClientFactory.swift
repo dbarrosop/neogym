@@ -4,13 +4,15 @@ import Nhost
 public enum NhostClientFactory {
     public static func makeClient(
         config: NhostConfig = .local,
-        sessionStorage: (any SessionStorageBackend)? = nil
+        sessionStorage: (any SessionStorageBackend)? = nil,
+        graphQLCache: GraphQLCacheConfiguration? = nil
     ) -> NhostClient {
         createClient(
             NhostClientOptions(
                 subdomain: config.subdomain,
                 region: config.region,
-                sessionStorage: sessionStorage
+                sessionStorage: sessionStorage,
+                graphqlCache: graphQLCache
             )
         )
     }
@@ -25,7 +27,11 @@ public enum NhostClientFactory {
     public static func makeProductionAppClient() -> NhostClient {
         makeClient(
             config: .production,
-            sessionStorage: NhostSessionStorageFactory.appSharedKeychainStorage()
+            sessionStorage: NhostSessionStorageFactory.appSharedKeychainStorage(),
+            graphQLCache: GraphQLCacheConfiguration(
+                freshnessTTL: 5 * 60,
+                staleIfErrorInterval: 7 * 24 * 60 * 60
+            )
         )
     }
 

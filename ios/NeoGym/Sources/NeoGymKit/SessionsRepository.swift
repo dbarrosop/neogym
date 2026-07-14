@@ -2,6 +2,7 @@ import Foundation
 
 public protocol SessionsRepositoryProtocol: Sendable {
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem]
+    func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error>
     func sessionDetail(id: String) async throws -> SessionDetailModel?
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
@@ -25,6 +26,12 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func deleteCardioEntry(id: String) async throws
 }
 
+public extension SessionsRepositoryProtocol {
+    func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error> {
+        singleValueUpdates { try await listSessions(limit: limit, offset: offset) }
+    }
+}
+
 public struct SessionsRepository: SessionsRepositoryProtocol {
     private let graphQL: any GraphQLServicing
 
@@ -39,6 +46,21 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "SessionsIndex"
         )
         return data.workoutSessions
+    }
+
+    public func sessionListUpdates(
+        limit: Int,
+        offset: Int
+    ) -> AsyncThrowingStream<[SessionListItem], Error> {
+        graphQL.cachedValues(
+            SessionsIndexData.self,
+            query: Self.sessionsIndexQuery,
+            variables: ["limit": .number(Double(limit)), "offset": .number(Double(offset))],
+            operationName: "SessionsIndex",
+            namespace: "sessions",
+            tags: ["sessions"],
+            transform: \SessionsIndexData.workoutSessions
+        )
     }
 
     public func sessionDetail(id: String) async throws -> SessionDetailModel? {

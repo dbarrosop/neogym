@@ -2,6 +2,7 @@ import Foundation
 
 public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func listFoods() async throws -> [Food]
+    func foodListUpdates() -> AsyncThrowingStream<[Food], Error>
     func food(id: String) async throws -> Food?
     func editFood(id: String) async throws -> Food?
     func createFood(_ values: FoodFormValues) async throws -> String
@@ -9,6 +10,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func deleteFood(id: String) async throws
 
     func listMeals() async throws -> [Meal]
+    func mealListUpdates() -> AsyncThrowingStream<[Meal], Error>
     func meal(id: String) async throws -> Meal?
     func editMeal(id: String) async throws -> MealEditPayload
     func foodsForMealForm() async throws -> [Food]
@@ -17,6 +19,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func deleteMeal(id: String) async throws
 
     func listPlans() async throws -> [NutritionPlan]
+    func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error>
     func plan(id: String) async throws -> NutritionPlan?
     func editPlan(id: String) async throws -> NutritionPlanEditPayload
     func mealsForPlanForm() async throws -> [Meal]
@@ -26,6 +29,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
 
     func listNutritionDays() async throws -> [NutritionDay]
     func nutritionOverview() async throws -> NutritionOverviewPayload
+    func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error>
     func openDailyIntake(date: String) async throws -> DailyIntakePayload
     func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
@@ -41,8 +45,24 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
 }
 
 public extension NutritionFoodMealRepositoryProtocol {
+    func foodListUpdates() -> AsyncThrowingStream<[Food], Error> {
+        singleValueUpdates { try await listFoods() }
+    }
+
+    func mealListUpdates() -> AsyncThrowingStream<[Meal], Error> {
+        singleValueUpdates { try await listMeals() }
+    }
+
+    func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error> {
+        singleValueUpdates { try await listPlans() }
+    }
+
     func nutritionOverview() async throws -> NutritionOverviewPayload {
         NutritionOverviewPayload(days: try await listNutritionDays(), dailyEnergyEntries: [])
+    }
+
+    func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error> {
+        singleValueUpdates { try await nutritionOverview() }
     }
 }
 
@@ -59,6 +79,17 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "FoodsIndex"
         )
         return data.foods
+    }
+
+    public func foodListUpdates() -> AsyncThrowingStream<[Food], Error> {
+        graphQL.cachedValues(
+            FoodsIndexData.self,
+            query: Self.foodsIndexQuery,
+            operationName: "FoodsIndex",
+            namespace: "foods",
+            tags: ["foods"],
+            transform: \FoodsIndexData.foods
+        )
     }
 
     public func food(id: String) async throws -> Food? {
@@ -113,6 +144,17 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "MealsIndex"
         )
         return data.meals
+    }
+
+    public func mealListUpdates() -> AsyncThrowingStream<[Meal], Error> {
+        graphQL.cachedValues(
+            MealsIndexData.self,
+            query: Self.mealsIndexQuery,
+            operationName: "MealsIndex",
+            namespace: "meals",
+            tags: ["meals"],
+            transform: \MealsIndexData.meals
+        )
     }
 
     public func meal(id: String) async throws -> Meal? {
@@ -176,6 +218,17 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             operationName: "PlansIndex"
         )
         return data.nutritionPlans
+    }
+
+    public func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error> {
+        graphQL.cachedValues(
+            PlansIndexData.self,
+            query: Self.plansIndexQuery,
+            operationName: "PlansIndex",
+            namespace: "nutrition-plans",
+            tags: ["nutrition-plans"],
+            transform: \PlansIndexData.nutritionPlans
+        )
     }
 
     public func plan(id: String) async throws -> NutritionPlan? {
@@ -247,7 +300,22 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
             query: Self.nutritionDaysIndexQuery,
             operationName: "NutritionDaysIndex"
         )
-        return NutritionOverviewPayload(
+        return Self.overviewPayload(from: data)
+    }
+
+    public func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error> {
+        graphQL.cachedValues(
+            NutritionDaysIndexData.self,
+            query: Self.nutritionDaysIndexQuery,
+            operationName: "NutritionDaysIndex",
+            namespace: "nutrition-overview",
+            tags: ["nutrition-days", "daily-energy"],
+            transform: Self.overviewPayload
+        )
+    }
+
+    private static func overviewPayload(from data: NutritionDaysIndexData) -> NutritionOverviewPayload {
+        NutritionOverviewPayload(
             days: data.nutritionDays,
             dailyEnergyEntries: data.dailyEnergyEntries ?? []
         )
