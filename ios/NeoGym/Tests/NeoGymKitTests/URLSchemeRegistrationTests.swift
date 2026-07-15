@@ -1,7 +1,11 @@
 import Foundation
+import Nhost
 import XCTest
+@testable import NeoGymKit
 
 final class URLSchemeRegistrationTests: XCTestCase {
+    private let obsoletePrivateInfoKey = "NeoGymApp" + "KeychainAccessGroup"
+
     private var packageRoot: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -10,12 +14,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
     }
 
     func testInfoPlistRegistersNeoGymURLScheme() throws {
-        let plistURL = packageRoot.appendingPathComponent("App/Info.plist")
-        let plistData = try Data(contentsOf: plistURL)
-        let plist = try XCTUnwrap(
-            PropertyListSerialization.propertyList(from: plistData, format: nil) as? [String: Any]
-        )
-        let urlTypes = try XCTUnwrap(plist["CFBundleURLTypes"] as? [[String: Any]])
+        let infoPlist = try plist(at: "App/Info.plist")
+        let urlTypes = try XCTUnwrap(infoPlist["CFBundleURLTypes"] as? [[String: Any]])
         let neoGymURLType = try XCTUnwrap(
             urlTypes.first { urlType in
                 urlType["CFBundleURLName"] as? String == "io.nhost.neogym"
@@ -26,27 +26,80 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertTrue(schemes.contains("neogym"))
     }
 
-    func testAppAndWidgetSessionsUseDistinctKeychainAccessGroups() throws {
-        let infoPlist = try plist(at: "App/Info.plist")
+    func testAppAndWidgetDeclareOnlyTheSharedSessionAccessGroup() throws {
+        let expectedKeychainGroup = "$(AppIdentifierPrefix)io.nhost.neogym.shared"
+        let expectedAppGroup = "group.io.nhost.neogym"
+        let appInfoPlist = try plist(at: "App/Info.plist")
+        let widgetInfoPlist = try plist(at: "Widgets/Info.plist")
+
+        XCTAssertNil(appInfoPlist[obsoletePrivateInfoKey])
         XCTAssertEqual(
-            infoPlist["NeoGymAppKeychainAccessGroup"] as? String,
-            "$(AppIdentifierPrefix)io.nhost.neogym"
+            appInfoPlist["NeoGymSharedKeychainAccessGroup"] as? String,
+            expectedKeychainGroup
         )
         XCTAssertEqual(
-            infoPlist["NeoGymSharedKeychainAccessGroup"] as? String,
-            "$(AppIdentifierPrefix)io.nhost.neogym.shared"
+            widgetInfoPlist["NeoGymSharedKeychainAccessGroup"] as? String,
+            expectedKeychainGroup
         )
 
-        let entitlements = try plist(at: "App/NeoGym.entitlements")
-        let groups = try XCTUnwrap(entitlements["keychain-access-groups"] as? [String])
-        XCTAssertEqual(groups, [
-            "$(AppIdentifierPrefix)io.nhost.neogym",
-            "$(AppIdentifierPrefix)io.nhost.neogym.shared"
-        ])
-
+        let appEntitlements = try plist(at: "App/NeoGym.entitlements")
         let widgetEntitlements = try plist(at: "Widgets/NeoGymWidgets.entitlements")
-        let widgetGroups = try XCTUnwrap(widgetEntitlements["keychain-access-groups"] as? [String])
-        XCTAssertEqual(widgetGroups, ["$(AppIdentifierPrefix)io.nhost.neogym.shared"])
+        XCTAssertEqual(
+            appEntitlements["keychain-access-groups"] as? [String],
+            [expectedKeychainGroup]
+        )
+        XCTAssertEqual(
+            widgetEntitlements["keychain-access-groups"] as? [String],
+            [expectedKeychainGroup]
+        )
+        XCTAssertEqual(
+            appEntitlements["com.apple.security.application-groups"] as? [String],
+            [expectedAppGroup]
+        )
+        XCTAssertEqual(
+            widgetEntitlements["com.apple.security.application-groups"] as? [String],
+            [expectedAppGroup]
+        )
+    }
+
+    func testProjectSpecAndRuntimeConstantsUseOneCoordinationIdentity() throws {
+        let keychainOptions = KeychainSessionStorageOptions(
+            service: "io.nhost.swift.session",
+            accountPrefix: "default"
+        )
+        XCTAssertEqual(keychainOptions.service, "io.nhost.swift.session")
+        XCTAssertEqual(keychainOptions.account, "default.nhostSession")
+
+        let configSource = try String(
+            contentsOf: packageRoot.appendingPathComponent("Sources/NeoGymKit/NhostConfig.swift"),
+            encoding: .utf8
+        )
+        for expectedDeclaration in [
+            "keychainService = \"io.nhost.swift.session\"",
+            "keychainAccountPrefix = \"default\"",
+            "sharedKeychainAccessGroupSuffix = \"io.nhost.neogym.shared\"",
+            "appGroupIdentifier = \"group.io.nhost.neogym\"",
+            "lockNamespace = \"io.nhost.neogym.shared-session\"",
+            "appAcquisitionTimeout: TimeInterval = 5",
+            "widgetAcquisitionTimeout: TimeInterval = 0.5"
+        ] {
+            XCTAssertTrue(configSource.contains(expectedDeclaration))
+        }
+
+        let projectSpec = try String(
+            contentsOf: packageRoot.appendingPathComponent("project.yml"),
+            encoding: .utf8
+        )
+        XCTAssertFalse(projectSpec.contains(obsoletePrivateInfoKey))
+        XCTAssertFalse(projectSpec.contains("$(AppIdentifierPrefix)io.nhost.neogym\""))
+        XCTAssertEqual(
+            projectSpec.components(separatedBy: "$(AppIdentifierPrefix)io.nhost.neogym.shared").count - 1,
+            4
+        )
+        XCTAssertEqual(
+            projectSpec.components(separatedBy: "group.io.nhost.neogym").count - 1,
+            2
+        )
     }
 
     private func plist(at relativePath: String) throws -> [String: Any] {

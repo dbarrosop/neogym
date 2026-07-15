@@ -108,24 +108,26 @@ replacement. Keep cache identity and authorization isolation in the SDK rather
 than adding weaker app-owned local-storage keys.
 
 The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
-medium Energy Balance widget. Energy Balance display math and captions live in
-host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under
-`ios/NeoGym/Shared/` to the `group.io.nhost.neogym` App Group after successful
-Nutrition Overview loads and clears/reloads it on sign-out, definitive signed-out
-bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list
-loads also ask WidgetKit to reload timelines so the widget can take the live
-server-fetch path after app-owned HealthKit or backend changes. The widget
-renders that snapshot as a safe fallback, can perform best-effort server
-refreshes through the shared keychain session
-`$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the app's explicit
-app-only `$(AppIdentifierPrefix)io.nhost.neogym` primary keychain store. Keep
-those access groups distinct; otherwise concurrent cache scope reads can race
-with replacement writes to the same Keychain item. The widget never runs
-HealthKit import. WidgetKit timeline
-reloads and the iOS 17+ in-widget Refresh button are best-effort triggers for
-the live-fetch provider path, not guaranteed freshness or cadence; keep all
-AppIntent/Button code availability-gated so the widget extension continues to
-support iOS 16.2.
+medium Energy Balance widget. Energy Balance display math, captions, snapshot
+DTO/store, and live-fetch/fallback orchestration live in host-testable
+`NeoGymKit`. The app writes a token-free aggregate snapshot to the
+`group.io.nhost.neogym` App Group after successful Nutrition Overview loads and
+clears/reloads it on sign-out, definitive signed-out bootstrap, auth errors, and
+user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
+reload timelines so the widget can take the live server-fetch path after
+app-owned HealthKit or backend changes. The app and widget use the SDK's single
+coordinated Keychain item (service `io.nhost.swift.session`, account
+`default.nhostSession`, access group
+`$(AppIdentifierPrefix)io.nhost.neogym.shared`) and the same stable App Group
+lock identity; the app waits up to 5 seconds and the widget up to 500 ms. There
+is no private credential, mirroring, reconciliation, or token copy. App shared
+configuration failure is a fatal provisioning error for this POC; widget
+configuration, lock-timeout, cancellation, Auth, and network failures render the
+token-free cached/empty fallback and never write a failed live result. The
+widget never runs HealthKit import. WidgetKit timeline reloads and the iOS 17+
+in-widget Refresh button are best-effort triggers for the live-fetch provider
+path, not guaranteed freshness or cadence; keep all AppIntent/Button code
+availability-gated so the widget extension continues to support iOS 16.2.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,

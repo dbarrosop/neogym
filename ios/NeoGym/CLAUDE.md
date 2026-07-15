@@ -73,35 +73,34 @@ changes.
   private cache entries by the managed session and purges prior user scopes on
   sign-out/session replacement; do not add weaker app-owned user cache keys.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
-  Energy Balance widget. Energy Balance math and captions live in host-testable
-  `NeoGymKit`; `Shared/EnergyBalanceWidgetSnapshot.swift` is the dependency-free,
-  token-free aggregate DTO/store used by both the app and widget through the
-  `group.io.nhost.neogym` App Group. The app writes snapshots after successful
-  Nutrition Overview loads and clears/reloads them on sign-out, definitive
-  signed-out bootstrap, auth errors, and user switches before new user data is
-  available. Nutrition mutations and Energy-list loads also ask WidgetKit to
-  reload timelines so the widget can take the live server-fetch path after
-  app-owned HealthKit or backend changes. The widget renders the latest snapshot
-  as its safe fallback and can attempt best-effort live server refreshes through
-  the shared keychain session
-  `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app keeps its app-only
-  `$(AppIdentifierPrefix)io.nhost.neogym` keychain as the primary session store
-  and mirrors/restores the same session to or from the shared keychain
-  best-effort for widget access. These must remain distinct explicit access
-  groups: using the shared group implicitly for both stores makes concurrent
-  cache scope reads race with Keychain replacement writes. The runtime strings
-  come from the `NeoGymAppKeychainAccessGroup` and
-  `NeoGymSharedKeychainAccessGroup` Info.plist keys after build-setting expansion;
-  do not use `SecTaskCopyValueForEntitlement` here, as it is unavailable in the
-  iOS build target. Never copy tokens into App Group `UserDefaults`. The widget
-  does not run HealthKit import; only the app syncs HealthKit data. WidgetKit
-  timeline policies and the iOS 17+ in-widget Refresh button are best-effort
-  triggers that reload timelines and therefore run the live-fetch provider path
-  when the system grants runtime. Keep AppIntent/Button code availability-gated
-  so the widget extension's iOS 16.2 deployment floor remains buildable, use
-  immutable `static let` metadata on AppIntent types so Swift 6 concurrency checks
-  accept them as shared state, and do not describe widget refresh as guaranteed
-  server freshness or an exact cadence.
+  Energy Balance widget. Energy Balance math, captions, the dependency-free
+  token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
+  host-testable `NeoGymKit` and use the `group.io.nhost.neogym` App Group. The app
+  writes snapshots after successful Nutrition Overview loads and clears/reloads
+  them on sign-out, definitive signed-out bootstrap, auth errors, and user
+  switches before new user data is available. Nutrition mutations and
+  Energy-list loads also ask WidgetKit to reload timelines so the widget can take
+  the live server-fetch path after app-owned HealthKit or backend changes. The
+  app and widget both use the SDK's one coordinated Keychain item: service
+  `io.nhost.swift.session`, account `default.nhostSession`, access group
+  `$(AppIdentifierPrefix)io.nhost.neogym.shared`, App Group
+  `group.io.nhost.neogym`, and lock namespace
+  `io.nhost.neogym.shared-session`. The app acquisition budget is 5 seconds; the
+  widget budget is 500 ms. Keep only `NeoGymSharedKeychainAccessGroup` in both
+  Info plists and only the shared Keychain group plus App Group in both targets'
+  entitlements. There is no app-private session, mirroring, reconciliation,
+  credential copy, or App Group token storage. App shared-factory failure is a
+  fatal developer/provisioning error for this controlled POC. Widget factory,
+  lock-timeout, cancellation, Auth, and network failures must render the cached
+  or empty token-free fallback and write no live snapshot. The widget does not
+  run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
+  policies and the iOS 17+ in-widget Refresh button are best-effort triggers that
+  reload timelines and therefore run the live-fetch provider path when the
+  system grants runtime. Keep AppIntent/Button code availability-gated so the
+  widget extension's iOS 16.2 deployment floor remains buildable, use immutable
+  `static let` metadata on AppIntent types so Swift 6 concurrency checks accept
+  them as shared state, and do not describe widget refresh as guaranteed server
+  freshness or an exact cadence.
 - SwiftUI previews can set Dynamic Type with
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only

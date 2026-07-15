@@ -337,42 +337,6 @@ struct NutritionOverviewView: View {
     }
 }
 
-private extension EnergyBalanceWidgetSnapshot {
-    init(
-        summary: EnergyBalanceOverviewSummary,
-        userMarker: String?,
-        generatedAt: Date,
-        locale: Locale
-    ) {
-        self.init(
-            localDate: summary.date,
-            userMarker: userMarker,
-            generatedAtISO8601: Self.iso8601String(generatedAt),
-            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
-            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
-            consumedValue: summary.consumedValue,
-            consumedCaption: summary.consumedCaption,
-            burnedValue: summary.burnedValue,
-            burnedCaption: summary.burnedCaption,
-            netValue: summary.netTodayValue,
-            netCaption: summary.netTodayCaption,
-            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
-            sevenDayValue: summary.sevenDayAverageValue,
-            sevenDayCaption: summary.sevenDayAverageCaption,
-            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
-        )
-    }
-
-    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
-        switch state {
-        case .deficit: "deficit"
-        case .surplus: "surplus"
-        case .balanced: "balanced"
-        case .intakeOnly: "unavailable"
-        }
-    }
-}
-
 struct NutritionDayRow: View {
     let day: NutritionDay
 

@@ -42,16 +42,19 @@ private struct SendableTimelineCompletion: @unchecked Sendable {
 
 struct EnergyBalanceTimelineProvider: TimelineProvider {
     private let snapshotStore: EnergyBalanceWidgetSnapshotStore
-    private let liveRefreshClientFactory: @Sendable () -> EnergyBalanceWidgetLiveRefreshClient
+    private let liveRefreshOrchestrator: EnergyBalanceWidgetLiveRefreshOrchestrator
 
     init(
         snapshotStore: EnergyBalanceWidgetSnapshotStore = .shared,
-        liveRefreshClientFactory: @escaping @Sendable () -> EnergyBalanceWidgetLiveRefreshClient = {
-            NhostClientFactory.makeProductionWidgetLiveRefreshClient()
+        liveRefreshClientFactory: @escaping @Sendable () throws -> EnergyBalanceWidgetLiveRefreshClient = {
+            try NhostClientFactory.makeProductionWidgetLiveRefreshClient()
         }
     ) {
         self.snapshotStore = snapshotStore
-        self.liveRefreshClientFactory = liveRefreshClientFactory
+        liveRefreshOrchestrator = EnergyBalanceWidgetLiveRefreshOrchestrator(
+            snapshotStore: snapshotStore,
+            liveRefreshClientFactory: liveRefreshClientFactory
+        )
     }
 
     func placeholder(in context: Context) -> EnergyBalanceTimelineEntry {
@@ -89,36 +92,13 @@ struct EnergyBalanceTimelineProvider: TimelineProvider {
     }
 
     private func timelineEntry(date: Date) async -> EnergyBalanceTimelineEntry {
-        let cachedSnapshot = snapshotStore.load()
-
-        do {
-            let livePayload = try await liveRefreshClientFactory().fetchOverview()
-            let summary = EnergyBalanceOverviewSummary(payload: livePayload.overview, todayDate: date)
-            let liveSnapshot = EnergyBalanceWidgetSnapshot(
-                summary: summary,
-                userMarker: livePayload.userMarker,
-                generatedAt: date
-            )
-            _ = snapshotStore.save(liveSnapshot)
-
-            return EnergyBalanceTimelineEntry(
-                date: date,
-                snapshot: liveSnapshot,
-                isPlaceholder: false,
-                refreshDecision: .decide(liveFetchSucceeded: true, cachedSnapshotExists: cachedSnapshot != nil)
-            )
-        } catch {
-            let decision = EnergyBalanceWidgetLiveRefreshDecision.decide(
-                liveFetchSucceeded: false,
-                cachedSnapshotExists: cachedSnapshot != nil
-            )
-            return EnergyBalanceTimelineEntry(
-                date: date,
-                snapshot: cachedSnapshot,
-                isPlaceholder: false,
-                refreshDecision: decision
-            )
-        }
+        let result = await liveRefreshOrchestrator.refresh(date: date)
+        return EnergyBalanceTimelineEntry(
+            date: date,
+            snapshot: result.snapshot,
+            isPlaceholder: false,
+            refreshDecision: result.decision
+        )
     }
 }
 
@@ -298,31 +278,6 @@ private struct EnergyBalanceWidgetView: View {
 }
 
 private extension EnergyBalanceWidgetSnapshot {
-    init(
-        summary: EnergyBalanceOverviewSummary,
-        userMarker: String?,
-        generatedAt: Date,
-        locale: Locale = .current
-    ) {
-        self.init(
-            localDate: summary.date,
-            userMarker: userMarker,
-            generatedAtISO8601: Self.iso8601String(generatedAt),
-            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
-            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
-            consumedValue: summary.consumedValue,
-            consumedCaption: summary.consumedCaption,
-            burnedValue: summary.burnedValue,
-            burnedCaption: summary.burnedCaption,
-            netValue: summary.netTodayValue,
-            netCaption: summary.netTodayCaption,
-            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
-            sevenDayValue: summary.sevenDayAverageValue,
-            sevenDayCaption: summary.sevenDayAverageCaption,
-            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
-        )
-    }
-
     static let placeholder = EnergyBalanceWidgetSnapshot(
         localDate: "2026-07-11",
         userMarker: "preview",
@@ -340,15 +295,6 @@ private extension EnergyBalanceWidgetSnapshot {
         sevenDayCaption: "Deficit",
         sevenDayState: "deficit"
     )
-
-    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
-        switch state {
-        case .deficit: "deficit"
-        case .surplus: "surplus"
-        case .balanced: "balanced"
-        case .intakeOnly: "unavailable"
-        }
-    }
 }
 
 private extension View {

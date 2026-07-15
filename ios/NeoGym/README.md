@@ -94,6 +94,60 @@ The app uses a 5-minute freshness window and allows cached offline fallback for
 up to 7 days. The cache is opportunistic and may be evicted by iOS; it is not a
 complete offline database or mutation queue.
 
+## Shared app/widget session adoption
+
+The app and widget use one SDK-managed Keychain item and one SDK-managed App
+Group lock. Both use service `io.nhost.swift.session`, account
+`default.nhostSession`, Keychain access group
+`$(AppIdentifierPrefix)io.nhost.neogym.shared`, App Group
+`group.io.nhost.neogym`, and lock namespace
+`io.nhost.neogym.shared-session`. The app waits up to 5 seconds for session
+ownership; the widget waits up to 500 ms. App configuration failure is a fatal
+developer/provisioning error in this controlled POC. A widget configuration
+failure, lock timeout, cancellation, Auth failure, or network failure selects
+the token-free cached/empty Energy Balance snapshot and does not write a failed
+live result. The widget never runs HealthKit import; WidgetKit still owns its
+best-effort refresh scheduling.
+
+There is no app-private session, credential mirroring, reconciliation, or token
+copy in the App Group. `project.yml` is the capability source of truth: both
+targets retain only the shared Keychain access group and App Group, and both Info
+plists expose only `NeoGymSharedKeychainAccessGroup` after build-setting
+expansion.
+
+### Controlled reset and validation
+
+The old private/shared POC credentials are intentionally not migrated. Before
+validating this adoption on a simulator, erase it because uninstalling the app
+does not reliably erase Keychain items:
+
+```sh
+xcrun simctl shutdown <SIMULATOR_UDID>
+xcrun simctl erase <SIMULATOR_UDID>
+```
+
+On a physical POC device, use a debug/test harness or debugger invocation of the
+old private and shared `KeychainSessionStorageBackend.remove()` configurations
+before installing this build. Do not add that cleanup or any reconciliation to
+the shipped app. Downgrade to the mirroring build is unsupported; reset and
+authenticate again when reverting.
+
+After reset:
+
+1. Run `nix develop ../.. --command xcodegen generate`, build the signed app,
+   launch it, and authenticate again.
+2. Confirm the app restores and refreshes its session, then add/run the Energy
+   Balance widget and confirm a live server result. This signed simulator/device
+   check proves both targets can access the same Keychain item and App Group;
+   unsigned SwiftPM host tests cannot prove entitlement interoperability.
+3. Hold the stable App Group session lock from an app/debug harness for longer
+   than 500 ms and reload the widget. Confirm it renders the cached/empty
+   snapshot and performs no live snapshot write.
+4. Repeat with widget cancellation, offline mode, and an Auth failure. The
+   fallback must remain token-free and the widget must not run HealthKit import.
+5. Sign out in the app. Confirm the shared session is removed and the widget
+   falls back; the obsolete private item must never be consulted.
+
 ## Apple Health body imports
 
 Opening the Body measurements view requests read-only Apple Health access for

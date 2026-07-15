@@ -1,7 +1,7 @@
 import Foundation
 
 public enum EnergyBalanceWidgetConstants {
-    public static let appGroupIdentifier = "group.io.nhost.neogym"
+    public static let appGroupIdentifier = NhostSessionConfig.appGroupIdentifier
     public static let widgetKind = "EnergyBalanceWidget"
     public static let snapshotDefaultsKey = "energyBalanceWidgetSnapshot.v1"
 }
@@ -66,6 +66,31 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
         self.emptyMessage = emptyMessage
     }
 
+    public init(
+        summary: EnergyBalanceOverviewSummary,
+        userMarker: String?,
+        generatedAt: Date,
+        locale: Locale = .current
+    ) {
+        self.init(
+            localDate: summary.date,
+            userMarker: userMarker,
+            generatedAtISO8601: Self.iso8601String(generatedAt),
+            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
+            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
+            consumedValue: summary.consumedValue,
+            consumedCaption: summary.consumedCaption,
+            burnedValue: summary.burnedValue,
+            burnedCaption: summary.burnedCaption,
+            netValue: summary.netTodayValue,
+            netCaption: summary.netTodayCaption,
+            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
+            sevenDayValue: summary.sevenDayAverageValue,
+            sevenDayCaption: summary.sevenDayAverageCaption,
+            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
+        )
+    }
+
     public static func formattedGeneratedAt(_ date: Date, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -84,6 +109,15 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
 
     public static func iso8601String(_ date: Date) -> String {
         ISO8601DateFormatter().string(from: date)
+    }
+
+    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
+        switch state {
+        case .deficit: "deficit"
+        case .surplus: "surplus"
+        case .balanced: "balanced"
+        case .intakeOnly: "unavailable"
+        }
     }
 }
 
