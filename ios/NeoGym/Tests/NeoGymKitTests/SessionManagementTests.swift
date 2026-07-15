@@ -204,6 +204,32 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.monthGroups[0].sessions.map(\.id), ["session-1", "session-2"])
     }
 
+    func testOverlappingReloadsCoalesceIntoOneFollowUpAfterCachedRefresh() async {
+        let updates = ControlledSessionListUpdates()
+        let repository = StubSessionsRepository(controlledListUpdates: updates)
+        let viewModel = SessionsListViewModel(repository: repository, pageSize: 25)
+
+        let initialLoad = Task { await viewModel.load() }
+        await updates.waitUntilRequestCount(1)
+        while viewModel.sessions.map(\.id) != ["session-0-cached"] { await Task.yield() }
+
+        let overlappingReloadOne = Task { await viewModel.load() }
+        let overlappingReloadTwo = Task { await viewModel.load() }
+        await overlappingReloadOne.value
+        await overlappingReloadTwo.value
+        await updates.releaseRequest(0)
+        await updates.waitUntilRequestCount(2)
+        while viewModel.sessions.map(\.id) != ["session-1-cached"] { await Task.yield() }
+
+        let requestCount = await updates.requestCountSnapshot()
+        XCTAssertEqual(requestCount, 2)
+        await updates.releaseRequest(1)
+        await initialLoad.value
+
+        XCTAssertEqual(viewModel.sessions.map(\.id), ["session-1-fresh"])
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
     func testListUsesCachedUpdatesForInitialAndAdditionalPages() async {
         let first = SessionListItem(
             id: "session-1",
@@ -668,10 +694,16 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var detailError: Error?
     var listUpdateEmissionsByOffset: [Int: [[SessionListItem]]] = [:]
     var listUpdateOffsets: [Int] = []
+    private let controlledListUpdates: ControlledSessionListUpdates?
 
-    init(sessions: [SessionListItem] = [], detail: SessionDetailModel? = nil) {
+    init(
+        sessions: [SessionListItem] = [],
+        detail: SessionDetailModel? = nil,
+        controlledListUpdates: ControlledSessionListUpdates? = nil
+    ) {
         self.sessions = sessions
         self.detail = detail
+        self.controlledListUpdates = controlledListUpdates
     }
 
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem] {
@@ -684,6 +716,9 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         offset: Int
     ) -> AsyncThrowingStream<[SessionListItem], Error> {
         listUpdateOffsets.append(offset)
+        if let controlledListUpdates {
+            return controlledListUpdates.stream()
+        }
         let emissions = listUpdateEmissionsByOffset[offset]
             ?? [Array(sessions.dropFirst(offset).prefix(limit))]
         return AsyncThrowingStream { continuation in
@@ -759,6 +794,65 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
 
     func deleteCardioEntry(id: String) async throws {
         deletedCardioEntryIds.append(id)
+    }
+}
+
+private actor ControlledSessionListUpdates {
+    private var requestCount = 0
+    private var releases: [Int: CheckedContinuation<Void, Never>] = [:]
+    private var requestWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    nonisolated func stream() -> AsyncThrowingStream<[SessionListItem], Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { await self.produce(continuation: continuation) }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
+    }
+
+    func waitUntilRequestCount(_ count: Int) async {
+        guard requestCount < count else { return }
+        await withCheckedContinuation { continuation in
+            requestWaiters.append((count, continuation))
+        }
+    }
+
+    func releaseRequest(_ index: Int) {
+        releases.removeValue(forKey: index)?.resume()
+    }
+
+    func requestCountSnapshot() -> Int {
+        requestCount
+    }
+
+    private func produce(
+        continuation: AsyncThrowingStream<[SessionListItem], Error>.Continuation
+    ) async {
+        let index = requestCount
+        requestCount += 1
+        continuation.yield([session(index: index, freshness: "cached")])
+        resumeSatisfiedRequestWaiters()
+
+        await withCheckedContinuation { releases[index] = $0 }
+        guard !Task.isCancelled else {
+            continuation.finish(throwing: CancellationError())
+            return
+        }
+        continuation.yield([session(index: index, freshness: "fresh")])
+        continuation.finish()
+    }
+
+    private func session(index: Int, freshness: String) -> SessionListItem {
+        SessionListItem(
+            id: "session-\(index)-\(freshness)",
+            startedAt: "2026-06-26T12:00:00Z",
+            workoutSessionExercises: []
+        )
+    }
+
+    private func resumeSatisfiedRequestWaiters() {
+        let satisfied = requestWaiters.filter { requestCount >= $0.count }
+        requestWaiters.removeAll { requestCount >= $0.count }
+        satisfied.forEach { $0.continuation.resume() }
     }
 }
 

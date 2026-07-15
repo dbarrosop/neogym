@@ -245,6 +245,29 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.measurements.map(\.id), ["existing"])
     }
 
+    func testLoadSuppressesOverlappingHealthSyncs() async {
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let importer = BlockingBodyMeasurementsHealthImporter()
+        let viewModel = BodyMeasurementsListViewModel(repository: repository, healthImporter: importer)
+
+        let firstLoad = Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
+        await importer.waitUntilFirstCallStarts()
+
+        XCTAssertTrue(viewModel.isRefreshing)
+
+        let overlappingLoad = Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
+        await overlappingLoad.value
+
+        let callCount = await importer.callCountSnapshot()
+        XCTAssertEqual(callCount, 1)
+        XCTAssertTrue(viewModel.isRefreshing)
+
+        await importer.releaseFirstCall()
+        await firstLoad.value
+
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
     func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
         let repository = FakeBodyMeasurementsRepository(measurements: [
             BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
@@ -495,6 +518,39 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
 
     func updatedValuesSnapshot() -> [String: BodyMeasurementFormValues] {
         updatedValues
+    }
+}
+
+private actor BlockingBodyMeasurementsHealthImporter: BodyMeasurementsHealthImporting {
+    private var callCount = 0
+    private var firstCallStarted = false
+    private var firstCallStartWaiters: [CheckedContinuation<Void, Never>] = []
+    private var firstCallRelease: CheckedContinuation<Void, Never>?
+
+    func dailyMeasurements() async throws -> [HealthBodyMeasurement] {
+        callCount += 1
+        guard callCount == 1 else { return [] }
+
+        firstCallStarted = true
+        let waiters = firstCallStartWaiters
+        firstCallStartWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { firstCallRelease = $0 }
+        return []
+    }
+
+    func waitUntilFirstCallStarts() async {
+        guard !firstCallStarted else { return }
+        await withCheckedContinuation { firstCallStartWaiters.append($0) }
+    }
+
+    func releaseFirstCall() {
+        firstCallRelease?.resume()
+        firstCallRelease = nil
+    }
+
+    func callCountSnapshot() -> Int {
+        callCount
     }
 }
 

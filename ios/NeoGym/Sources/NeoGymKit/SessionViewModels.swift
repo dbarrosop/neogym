@@ -22,6 +22,7 @@ public final class SessionsListViewModel: ObservableObject {
 
     private let repository: any SessionsRepositoryProtocol
     private let pageSize: Int
+    private var needsReload = false
 
     public init(repository: any SessionsRepositoryProtocol, pageSize: Int = 25) {
         self.repository = repository
@@ -53,26 +54,22 @@ public final class SessionsListViewModel: ObservableObject {
     }
 
     public func load() async {
-        guard !isRefreshing, !isLoadingMore else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
-        state = .loading(previous: state.value)
-        do {
-            for try await loaded in repository.sessionListUpdates(limit: pageSize, offset: 0) {
-                hasNextPage = loaded.count == pageSize
-                state = .loaded(loaded)
-            }
-        } catch where GraphQLDomainError.isCancellation(error) {
-            state = state.cancellationFallback
-        } catch {
-            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        guard !isRefreshing, !isLoadingMore else {
+            needsReload = true
+            return
         }
+
+        isRefreshing = true
+        repeat {
+            needsReload = false
+            await loadFirstPage()
+        } while needsReload
+        isRefreshing = false
     }
 
     public func loadMore() async {
         guard hasNextPage, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
-        defer { isLoadingMore = false }
         let existing = sessions
         do {
             for try await loaded in repository.sessionListUpdates(
@@ -81,6 +78,22 @@ public final class SessionsListViewModel: ObservableObject {
             ) {
                 hasNextPage = loaded.count == pageSize
                 state = .loaded(Self.merging(existing, with: loaded))
+            }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
+        } catch {
+            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        }
+        isLoadingMore = false
+        if needsReload { await load() }
+    }
+
+    private func loadFirstPage() async {
+        state = .loading(previous: state.value)
+        do {
+            for try await loaded in repository.sessionListUpdates(limit: pageSize, offset: 0) {
+                hasNextPage = loaded.count == pageSize
+                state = .loaded(loaded)
             }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback

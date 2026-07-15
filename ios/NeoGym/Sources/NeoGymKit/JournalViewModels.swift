@@ -13,6 +13,7 @@ public final class JournalListViewModel: ObservableObject {
 
     private let repository: any JournalRepositoryProtocol
     private let pageSize: Int
+    private var needsReload = false
 
     public init(repository: any JournalRepositoryProtocol, pageSize: Int = JournalRepository.pageSize) {
         self.repository = repository
@@ -24,9 +25,58 @@ public final class JournalListViewModel: ObservableObject {
     public var selectedLabelSet: Set<String> { Set(selectedLabelIds) }
 
     public func load() async {
-        guard !isRefreshing, !isLoadingMore else { return }
+        guard !isRefreshing, !isLoadingMore else {
+            needsReload = true
+            return
+        }
+
         isRefreshing = true
-        defer { isRefreshing = false }
+        repeat {
+            needsReload = false
+            await loadFirstPage()
+        } while needsReload
+        isRefreshing = false
+    }
+
+    public func loadMore() async {
+        guard hasMore, !isLoadingMore, !isRefreshing else { return }
+        isLoadingMore = true
+        loadMoreErrorMessage = nil
+        let existing = entries
+        do {
+            for try await payload in repository.journalListUpdates(
+                limit: pageSize,
+                offset: existing.count,
+                labelIds: selectedLabelIds
+            ) {
+                if labels.isEmpty { labels = payload.labels }
+                hasMore = payload.entries.count == pageSize
+                state = .loaded(Self.merging(existing, with: payload.entries))
+            }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            loadMoreErrorMessage = nil
+        } catch {
+            loadMoreErrorMessage = GraphQLDomainError.map(error).localizedDescription
+        }
+        isLoadingMore = false
+        if needsReload { await load() }
+    }
+
+    public func toggleLabel(_ id: String) async {
+        if selectedLabelIds.contains(id) {
+            selectedLabelIds.removeAll { $0 == id }
+        } else {
+            selectedLabelIds.append(id)
+        }
+        await load()
+    }
+
+    public func clearFilters() async {
+        selectedLabelIds.removeAll()
+        await load()
+    }
+
+    private func loadFirstPage() async {
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
         do {
@@ -44,43 +94,6 @@ public final class JournalListViewModel: ObservableObject {
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
-    }
-
-    public func loadMore() async {
-        guard hasMore, !isLoadingMore, !isRefreshing else { return }
-        isLoadingMore = true
-        loadMoreErrorMessage = nil
-        defer { isLoadingMore = false }
-        let existing = entries
-        do {
-            for try await payload in repository.journalListUpdates(
-                limit: pageSize,
-                offset: existing.count,
-                labelIds: selectedLabelIds
-            ) {
-                if labels.isEmpty { labels = payload.labels }
-                hasMore = payload.entries.count == pageSize
-                state = .loaded(Self.merging(existing, with: payload.entries))
-            }
-        } catch where GraphQLDomainError.isCancellation(error) {
-            loadMoreErrorMessage = nil
-        } catch {
-            loadMoreErrorMessage = GraphQLDomainError.map(error).localizedDescription
-        }
-    }
-
-    public func toggleLabel(_ id: String) async {
-        if selectedLabelIds.contains(id) {
-            selectedLabelIds.removeAll { $0 == id }
-        } else {
-            selectedLabelIds.append(id)
-        }
-        await load()
-    }
-
-    public func clearFilters() async {
-        selectedLabelIds.removeAll()
-        await load()
     }
 
     private static func merging(_ existing: [JournalEntry], with page: [JournalEntry]) -> [JournalEntry] {

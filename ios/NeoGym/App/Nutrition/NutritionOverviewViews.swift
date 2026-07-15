@@ -166,10 +166,7 @@ struct NutritionOverviewView: View {
     private func loadOverview() async {
         guard !isRefreshingOverview else { return }
         isRefreshingOverview = true
-        defer {
-            isRefreshingOverview = false
-            hasLoadedOverview = true
-        }
+        defer { isRefreshingOverview = false }
 
         async let initialOverviewLoad: Void = viewModel.load()
         async let bodyLoad: Void = bodyViewModel.load(shouldSyncHealthMeasurements: true)
@@ -180,6 +177,7 @@ struct NutritionOverviewView: View {
         await viewModel.load()
 
         if case .loaded = viewModel.state {
+            hasLoadedOverview = true
             writeEnergyBalanceWidgetSnapshot()
         }
     }

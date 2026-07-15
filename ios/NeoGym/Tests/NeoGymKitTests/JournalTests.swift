@@ -237,10 +237,42 @@ final class JournalListViewModelTests: XCTestCase {
         XCTAssertEqual(repository.recordedLabelIds, [[], ["label-1"], ["label-1", "label-2"], []])
         XCTAssertFalse(viewModel.isFiltered)
     }
+
+    func testLabelChangeDuringCachedRefreshRunsLatestFilterAfterInFlightRequest() async {
+        let updates = ControlledJournalListUpdates()
+        let repository = StubJournalRepository(controlledListUpdates: updates)
+        let viewModel = JournalListViewModel(repository: repository, pageSize: 1)
+
+        let initialLoad = Task { await viewModel.load() }
+        await updates.waitUntilRequestCount(1)
+        while viewModel.entries.map(\.id) != ["unfiltered-cached"] { await Task.yield() }
+
+        let filterLoad = Task { await viewModel.toggleLabel("label-1") }
+        await filterLoad.value
+        XCTAssertEqual(viewModel.selectedLabelIds, ["label-1"])
+        XCTAssertEqual(viewModel.entries.map(\.id), ["unfiltered-cached"])
+
+        await updates.releaseRequest(0)
+        await updates.waitUntilRequestCount(2)
+        while viewModel.entries.map(\.id) != ["filtered-cached"] { await Task.yield() }
+
+        let requests = await updates.requestsSnapshot()
+        XCTAssertEqual(requests, [[], ["label-1"]])
+        await updates.releaseRequest(1)
+        await initialLoad.value
+
+        XCTAssertEqual(viewModel.entries.map(\.id), ["filtered-fresh"])
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
 }
 
 private final class StubJournalRepository: JournalRepositoryProtocol, @unchecked Sendable {
     private(set) var recordedLabelIds: [[String]] = []
+    private let controlledListUpdates: ControlledJournalListUpdates?
+
+    init(controlledListUpdates: ControlledJournalListUpdates? = nil) {
+        self.controlledListUpdates = controlledListUpdates
+    }
 
     func listEntries(limit: Int, offset: Int, labelIds: [String]) async throws -> JournalIndexPayload {
         recordedLabelIds.append(labelIds)
@@ -250,12 +282,85 @@ private final class StubJournalRepository: JournalRepositoryProtocol, @unchecked
         )
     }
 
+    func journalListUpdates(
+        limit: Int,
+        offset: Int,
+        labelIds: [String]
+    ) -> AsyncThrowingStream<JournalIndexPayload, Error> {
+        if let controlledListUpdates {
+            return controlledListUpdates.stream(labelIds: labelIds)
+        }
+        return singleValueUpdates {
+            try await self.listEntries(limit: limit, offset: offset, labelIds: labelIds)
+        }
+    }
+
     func entry(id: String) async throws -> JournalEntry? { nil }
     func editEntry(id: String) async throws -> JournalEditPayload { JournalEditPayload(entry: nil, labels: []) }
     func labels() async throws -> [JournalLabel] { [] }
     func createEntry(_ values: JournalEntryFormValues) async throws -> String { "new" }
     func saveEntry(id: String, initialValues: JournalEntryFormValues, values: JournalEntryFormValues) async throws {}
     func deleteEntry(id: String) async throws {}
+}
+
+private actor ControlledJournalListUpdates {
+    private var requests: [[String]] = []
+    private var releases: [Int: CheckedContinuation<Void, Never>] = [:]
+    private var requestWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
+
+    nonisolated func stream(labelIds: [String]) -> AsyncThrowingStream<JournalIndexPayload, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { await self.produce(labelIds: labelIds, continuation: continuation) }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
+    }
+
+    func waitUntilRequestCount(_ count: Int) async {
+        guard requests.count < count else { return }
+        await withCheckedContinuation { continuation in
+            requestWaiters.append((count, continuation))
+        }
+    }
+
+    func releaseRequest(_ index: Int) {
+        releases.removeValue(forKey: index)?.resume()
+    }
+
+    func requestsSnapshot() -> [[String]] {
+        requests
+    }
+
+    private func produce(
+        labelIds: [String],
+        continuation: AsyncThrowingStream<JournalIndexPayload, Error>.Continuation
+    ) async {
+        let index = requests.count
+        requests.append(labelIds)
+        continuation.yield(payload(labelIds: labelIds, freshness: "cached"))
+        resumeSatisfiedRequestWaiters()
+
+        await withCheckedContinuation { releases[index] = $0 }
+        guard !Task.isCancelled else {
+            continuation.finish(throwing: CancellationError())
+            return
+        }
+        continuation.yield(payload(labelIds: labelIds, freshness: "fresh"))
+        continuation.finish()
+    }
+
+    private func payload(labelIds: [String], freshness: String) -> JournalIndexPayload {
+        let prefix = labelIds.isEmpty ? "unfiltered" : "filtered"
+        return JournalIndexPayload(
+            entries: [JournalEntry(id: "\(prefix)-\(freshness)", entryDate: "2026-06-26", body: "Body")],
+            labels: [JournalLabel(id: "label-1", name: "one")]
+        )
+    }
+
+    private func resumeSatisfiedRequestWaiters() {
+        let satisfied = requestWaiters.filter { requests.count >= $0.count }
+        requestWaiters.removeAll { requests.count >= $0.count }
+        satisfied.forEach { $0.continuation.resume() }
+    }
 }
 
 private let journalLabelFixture: JSONValue = .object([

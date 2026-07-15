@@ -5,6 +5,7 @@ import Foundation
 public final class BodyMeasurementsListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[BodyMeasurement]> = .idle
     @Published public private(set) var healthSyncState: Loadable<BodyMeasurementsHealthSyncSummary> = .idle
+    @Published public private(set) var isRefreshing = false
 
     private let repository: any BodyMeasurementsRepositoryProtocol
     private let healthImporter: (any BodyMeasurementsHealthImporting)?
@@ -34,6 +35,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
     }
 
     public func load(shouldSyncHealthMeasurements: Bool = false) async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         do {
             if shouldSyncHealthMeasurements {
