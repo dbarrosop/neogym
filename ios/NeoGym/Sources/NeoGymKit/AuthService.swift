@@ -41,7 +41,7 @@ public struct NhostAuthService: AuthServicing {
     public func subscribeToSessionChanges(
         _ handler: @escaping @Sendable (StoredSession?) async -> Void
     ) async -> AuthSessionSubscription {
-        let subscription = await client.sessionStore.subscribe(handler)
+        let subscription = client.sessionStore.subscribe(handler)
         return AuthSessionSubscription {
             await subscription.cancel()
         }
