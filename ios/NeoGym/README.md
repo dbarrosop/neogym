@@ -66,7 +66,10 @@ cp fastlane/.env.development.example fastlane/.env.development
 cp fastlane/.env.production.example fastlane/.env.production
 # Fill each Team/Nhost value locally; these files stay ignored.
 
-# Materialize both mode-0600 xcconfigs and generate both shared schemes
+# Canonical credential-free, headless gate (generation + source/tool tests + both builds)
+nix develop ../.. --command Scripts/check.sh
+
+# Materialize both mode-0600 xcconfigs and generate both shared schemes only
 nix develop ../.. --command Scripts/generate-project.sh all
 
 # Build either generic simulator variant (signing may be disabled for checks)
@@ -77,6 +80,39 @@ xcodebuild -project NeoGym.xcodeproj -scheme NeoGym \
   -configuration Debug-Production -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO build
 ```
+
+`Scripts/check.sh` is the canonical local gate for humans and future release
+orchestration. It uses the existing safe build-setting inspector, keeps raw
+Xcode output in private temporary files, runs `swift build`, `swift test`, the
+Python tooling/validator fixtures, default `all` generation, the DEV-icon drift
+check, both generic simulator builds, and unsigned built-product validation. It
+requires both ignored dotenv inputs but accepts their tracked non-secret
+sentinels. It needs no booted simulator, App Store Connect credential,
+distribution certificate, or provisioning profile, and it does not install or
+launch either app.
+
+Validate a separately built product explicitly against one selected variant:
+
+```sh
+# Unsigned or simulator build product
+python3 Scripts/verify-artifact.py --variant development \
+  DerivedData/Checks/development/Build/Products/Debug-Development-iphonesimulator/NeoGym.app
+
+# Provisioning-dependent signed outputs (examples; paths are local/ignored)
+python3 Scripts/verify-artifact.py --variant production path/to/NeoGym.xcarchive
+python3 Scripts/verify-artifact.py --variant production path/to/NeoGym.ipa
+```
+
+The validator always inspects the embedded
+`PlugIns/NeoGymWidgets.appex`. It compares static identity/icon/callback/device/
+platform/HealthKit metadata with the authoritative selected xcconfig and opaque
+Nhost plist values exactly with the selected mode-0600 materialized xcconfig,
+while diagnostics name keys only. Unsigned `.app` validation combines the
+built plists with the tracked entitlement contract. `.xcarchive` and `.ipa`
+validation additionally requires real signed entitlements and embedded
+provisioning for app and widget, deriving application/keychain prefixes from the
+signed values. Producing a signed archive or IPA remains credential/profile
+dependent; TestFlight/Fastlane lanes are not part of this phase.
 
 `Scripts/generate-project.sh development|production` refreshes only one
 materialized input and preserves the other variant. Both schemes always remain

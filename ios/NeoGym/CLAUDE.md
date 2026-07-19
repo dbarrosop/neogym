@@ -25,15 +25,30 @@ harmless and intentionally out of scope.
   tests.
 - Copy both `fastlane/.env.*.example` files to ignored `.env.development` and
   `.env.production` files and supply opaque Team/Nhost values.
+- `nix develop ../.. --command Scripts/check.sh` — canonical credential-free,
+  headless gate. It runs the host Swift gates, Python tooling/validator fixtures,
+  default `all` generation, icon drift, safe build-setting comparison, both
+  generic simulator builds, and unsigned product validation. It requires both
+  ignored dotenv inputs (non-secret sentinels are acceptable) but no booted
+  simulator, signing profile, distribution credential, or App Store Connect
+  access.
 - `nix develop ../.. --command Scripts/generate-project.sh all` — atomically
   materialize mode-0600 generated xcconfigs and regenerate both shared schemes.
   `development` and `production` refresh only the selected config without
   deleting the other variant. Keep tracked xcconfigs, plists, entitlements, and
   `project.yml` as the source of truth; never commit generated output.
+- `python3 Scripts/verify-artifact.py --variant development|production <path>`
+  — validate an app, archive, or IPA plus embedded `NeoGymWidgets.appex` against
+  authoritative selected configuration. Archives/IPAs require signed
+  entitlements and embedded provisioning; unsigned app products use the tracked
+  entitlement contract. Opaque mismatches must remain key-only diagnostics.
 - Build scheme `NeoGym Dev`/`Debug-Development` or
   `NeoGym`/`Debug-Production`. Use `Scripts/read-build-settings.py` for an
   allowlisted private build-setting export; never run unsuppressed
-  `xcodebuild -showBuildSettings`.
+  `xcodebuild -showBuildSettings`. Scheme-mode JSON reports only the top-level
+  app in this project, so inspect `NeoGymWidgets` with target mode (omit
+  `--scheme`); the canonical check then proves actual containment through the
+  built embedded appex.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
