@@ -53,7 +53,7 @@ public struct GraphQLErrorDetail: Equatable, Sendable {
                     return constraint
                 }
             }
-        case .null, .bool, .number, .string:
+        case .null, .bool, .integer, .number, .string:
             return nil
         }
 

@@ -139,49 +139,6 @@ final class AuthStoreTests: XCTestCase {
         XCTAssertTrue(clearReasons.isEmpty)
     }
 
-    func testMirroringSessionStorageKeepsPrimaryAppSessionAndMirrorsForWidget() async throws {
-        let session = try Self.makeSession(email: "primary@example.com")
-        let primary = FakeSessionStorageBackend(initialSession: session)
-        let mirror = FakeSessionStorageBackend()
-        let storage = MirroringSessionStorageBackend(primary: primary, mirror: mirror)
-
-        let loaded = try await storage.get()
-
-        let primaryEmail = await primary.sessionSnapshot()?.user?.email
-        let mirrorEmail = await mirror.sessionSnapshot()?.user?.email
-
-        XCTAssertEqual(loaded?.user?.email, "primary@example.com")
-        XCTAssertEqual(primaryEmail, "primary@example.com")
-        XCTAssertEqual(mirrorEmail, "primary@example.com")
-    }
-
-    func testMirroringSessionStorageKeepsAppSessionWhenMirrorSetFails() async throws {
-        let session = try Self.makeSession(email: "safe@example.com")
-        let primary = FakeSessionStorageBackend()
-        let mirror = FakeSessionStorageBackend(setError: TestError.requestFailed)
-        let storage = MirroringSessionStorageBackend(primary: primary, mirror: mirror)
-
-        try await storage.set(session)
-        let primaryEmail = await primary.sessionSnapshot()?.user?.email
-        let mirrorSession = await mirror.sessionSnapshot()
-
-        XCTAssertEqual(primaryEmail, "safe@example.com")
-        XCTAssertNil(mirrorSession)
-    }
-
-    func testMirroringSessionStorageCanRestorePrimaryFromMirror() async throws {
-        let session = try Self.makeSession(email: "mirror@example.com")
-        let primary = FakeSessionStorageBackend()
-        let mirror = FakeSessionStorageBackend(initialSession: session)
-        let storage = MirroringSessionStorageBackend(primary: primary, mirror: mirror)
-
-        let loaded = try await storage.get()
-        let primaryEmail = await primary.sessionSnapshot()?.user?.email
-
-        XCTAssertEqual(loaded?.user?.email, "mirror@example.com")
-        XCTAssertEqual(primaryEmail, "mirror@example.com")
-    }
-
     private static func makeSession(
         email: String = "athlete@example.com",
         refreshToken: String = "refresh-token",
@@ -215,50 +172,6 @@ private enum TestError: Error {
     case remoteSignOutFailed
     case requestFailed
     case verifyFailed
-}
-
-private actor FakeSessionStorageBackend: SessionStorageBackend {
-    private var session: StoredSession?
-    private let getError: Error?
-    private let setError: Error?
-    private let removeError: Error?
-
-    init(
-        initialSession: StoredSession? = nil,
-        getError: Error? = nil,
-        setError: Error? = nil,
-        removeError: Error? = nil
-    ) {
-        session = initialSession
-        self.getError = getError
-        self.setError = setError
-        self.removeError = removeError
-    }
-
-    func get() async throws -> StoredSession? {
-        if let getError {
-            throw getError
-        }
-        return session
-    }
-
-    func set(_ value: StoredSession) async throws {
-        if let setError {
-            throw setError
-        }
-        session = value
-    }
-
-    func remove() async throws {
-        if let removeError {
-            throw removeError
-        }
-        session = nil
-    }
-
-    func sessionSnapshot() -> StoredSession? {
-        session
-    }
 }
 
 private actor FakeAuthService: AuthServicing {

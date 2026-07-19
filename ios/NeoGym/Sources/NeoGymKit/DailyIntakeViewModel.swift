@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 public final class NutritionDaysListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<NutritionOverviewPayload> = .idle
+    public private(set) var lastLoadIncludedFreshData = false
 
     private let repository: any NutritionFoodMealRepositoryProtocol
 
@@ -34,8 +35,12 @@ public final class NutritionDaysListViewModel: ObservableObject {
 
     public func load() async {
         state = .loading(previous: state.value)
+        lastLoadIncludedFreshData = false
         do {
-            state = .loaded(try await repository.nutritionOverview())
+            for try await emission in repository.nutritionOverviewEmissions() {
+                if case .fresh = emission { lastLoadIncludedFreshData = true }
+                state = .loaded(emission.value)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

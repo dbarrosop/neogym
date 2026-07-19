@@ -13,7 +13,10 @@ struct NutritionOverviewView: View {
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
     @StateObject private var energySyncViewModel: DailyEnergyListViewModel
+    @State private var isRefreshingOverview = false
+    @State private var hasLoadedOverview = false
     @Environment(\.locale) private var locale
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
@@ -53,7 +56,15 @@ struct NutritionOverviewView: View {
             .padding(.bottom, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .task { await loadOverview() }
+        .task {
+            if !hasLoadedOverview {
+                await loadOverview()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active, hasLoadedOverview else { return }
+            Task { await loadOverview() }
+        }
         .refreshable { await loadOverview() }
     }
 
@@ -153,13 +164,23 @@ struct NutritionOverviewView: View {
     }
 
     private func loadOverview() async {
+        guard !isRefreshingOverview else { return }
+        isRefreshingOverview = true
+        defer { isRefreshingOverview = false }
+
+        async let initialOverviewLoad: Void = viewModel.load()
         async let bodyLoad: Void = bodyViewModel.load(shouldSyncHealthMeasurements: true)
-        await energySyncViewModel.load(shouldSyncHealthEnergy: true)
-        await viewModel.load()
+        async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
+        await initialOverviewLoad
         await bodyLoad
+        await energyLoad
+        await viewModel.load()
 
         if case .loaded = viewModel.state {
-            writeEnergyBalanceWidgetSnapshot()
+            hasLoadedOverview = true
+            if viewModel.lastLoadIncludedFreshData {
+                writeEnergyBalanceWidgetSnapshot()
+            }
         }
     }
 
@@ -177,13 +198,19 @@ struct NutritionOverviewView: View {
 
     @ViewBuilder
     private var balanceOverview: some View {
-        SectionShell(title: "Energy balance", subtitle: "Today and rolling 7-day net") {
+        SectionShell(
+            title: "Energy balance",
+            subtitle: "Today and rolling 7-day net",
+            isLoading: isRefreshingOverview || viewModel.state.isLoading
+        ) {
             switch viewModel.state {
-            case .idle, .loading:
+            case .idle:
                 AppLoadingStateView(message: "Loading balance…")
-            case let .failed(message, _):
+            case .loading where viewModel.state.value == nil:
+                AppLoadingStateView(message: "Loading balance…")
+            case let .failed(message, previous) where previous == nil:
                 AppErrorStateView(title: "Failed to load balance", message: message) { Task { await loadOverview() } }
-            case .loaded:
+            case .loading, .loaded, .failed:
                 let summary = viewModel.energyBalanceOverviewSummary(locale: locale)
                 VStack(alignment: .leading, spacing: 12) {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
@@ -257,13 +284,19 @@ struct NutritionOverviewView: View {
 
     @ViewBuilder
     private var caloriesChart: some View {
-        SectionShell(title: "Calories consumed", subtitle: "Consumed, net, and 7-day avg net") {
+        SectionShell(
+            title: "Calories consumed",
+            subtitle: "Consumed, net, and 7-day avg net",
+            isLoading: isRefreshingOverview || viewModel.state.isLoading
+        ) {
             switch viewModel.state {
-            case .idle, .loading:
+            case .idle:
                 AppLoadingStateView(message: "Loading calories…")
-            case let .failed(message, _):
+            case .loading where viewModel.state.value == nil:
+                AppLoadingStateView(message: "Loading calories…")
+            case let .failed(message, previous) where previous == nil:
                 AppErrorStateView(title: "Failed to load calories", message: message) { Task { await loadOverview() } }
-            case .loaded:
+            case .loading, .loaded, .failed:
                 TimeSeriesTrendChartView(
                     series: caloriesSeries,
                     maxRenderedPoints: 48,
@@ -277,15 +310,21 @@ struct NutritionOverviewView: View {
 
     @ViewBuilder
     private var bodyChart: some View {
-        SectionShell(title: "Body composition", subtitle: "Weight, body fat, and 7-day averages") {
+        SectionShell(
+            title: "Body composition",
+            subtitle: "Weight, body fat, and 7-day averages",
+            isLoading: isRefreshingOverview || bodyViewModel.state.isLoading
+        ) {
             switch bodyViewModel.state {
-            case .idle, .loading:
+            case .idle:
                 AppLoadingStateView(message: "Loading body measurements…")
-            case let .failed(message, _) where bodyViewModel.measurements.isEmpty:
+            case .loading where bodyViewModel.state.value == nil:
+                AppLoadingStateView(message: "Loading body measurements…")
+            case let .failed(message, previous) where previous == nil:
                 AppErrorStateView(title: "Failed to load body measurements", message: message) {
-                    Task { await bodyViewModel.load() }
+                    Task { await loadOverview() }
                 }
-            default:
+            case .loading, .loaded, .failed:
                 TimeSeriesTrendChartView(
                     series: bodySeries,
                     maxRenderedPoints: 48,
@@ -294,42 +333,6 @@ struct NutritionOverviewView: View {
                     initialPeriod: .last30Days
                 )
             }
-        }
-    }
-}
-
-private extension EnergyBalanceWidgetSnapshot {
-    init(
-        summary: EnergyBalanceOverviewSummary,
-        userMarker: String?,
-        generatedAt: Date,
-        locale: Locale
-    ) {
-        self.init(
-            localDate: summary.date,
-            userMarker: userMarker,
-            generatedAtISO8601: Self.iso8601String(generatedAt),
-            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
-            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
-            consumedValue: summary.consumedValue,
-            consumedCaption: summary.consumedCaption,
-            burnedValue: summary.burnedValue,
-            burnedCaption: summary.burnedCaption,
-            netValue: summary.netTodayValue,
-            netCaption: summary.netTodayCaption,
-            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
-            sevenDayValue: summary.sevenDayAverageValue,
-            sevenDayCaption: summary.sevenDayAverageCaption,
-            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
-        )
-    }
-
-    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
-        switch state {
-        case .deficit: "deficit"
-        case .surplus: "surplus"
-        case .balanced: "balanced"
-        case .intakeOnly: "unavailable"
         }
     }
 }

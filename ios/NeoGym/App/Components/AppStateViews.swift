@@ -101,6 +101,7 @@ struct ConfirmationPanel: View {
 struct SectionShell<Content: View>: View {
     let title: String
     var subtitle: String?
+    var isLoading = false
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -109,9 +110,16 @@ struct SectionShell<Content: View>: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                Text(title)
-                    .font(.title2.bold())
-                    .tracking(-0.4)
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    Text(title)
+                        .font(.title2.bold())
+                        .tracking(-0.4)
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                            .accessibilityLabel("Loading \(title)")
+                    }
+                }
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)

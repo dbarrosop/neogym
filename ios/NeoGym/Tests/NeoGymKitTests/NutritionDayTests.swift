@@ -191,7 +191,9 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(object.recursivelyContainsKey("nutritionPlanFoodId"))
         XCTAssertFalse(object.recursivelyContainsKey("nutritionLogMealId"))
     }
+}
 
+final class NutritionDayMutationRepositoryTests: XCTestCase {
     func testLogMealVariablesUseNestedInsertSameDayIdAndNoSnapshotWrites() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "insertNutritionLogMeal": .object(["id": .string("group-new")])
@@ -863,7 +865,7 @@ private extension JSONValue {
             object.keys.contains(key) || object.values.contains { $0.recursivelyContainsKey(key) }
         case let .array(values):
             values.contains { $0.recursivelyContainsKey(key) }
-        case .null, .bool, .number, .string:
+        case .null, .bool, .integer, .number, .string:
             false
         }
     }

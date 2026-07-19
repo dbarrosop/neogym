@@ -80,14 +80,89 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
+## Persistent GraphQL browsing cache
+
+The production app client enables the Nhost Swift SDK file-backed GraphQL cache.
+Workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
+Body, and Energy list and display-detail screens consume stale-while-revalidate
+streams: a cached response renders immediately when available, followed by fresh
+backend data. Edit/form, HealthKit reconciliation, daily-intake, and widget
+live-fetch queries stay network-only. Cache entries are isolated by the SDK's
+managed-session authorization scope and the previous scope is purged on
+sign-out/session replacement. Mutations remain network-only. Browsing caches
+remain available after mutations, and every stale-while-revalidate load still
+requests fresh backend data after any cached emission.
+
+The app uses a 5-minute freshness window and allows cached offline fallback for
+up to 7 days. Its cache directory is private to the app process; the widget
+client deliberately has no GraphQL cache because each process must own a distinct
+SDK file-cache directory. The cache is opportunistic and may be evicted by iOS;
+it is not a complete offline database or mutation queue.
+
+## Shared app/widget session adoption
+
+The app and widget use one SDK-managed Keychain item and one SDK-managed App
+Group lock. Both use service `io.nhost.swift.session`, account
+`default.nhostSession`, Keychain access group
+`$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
+`group.io.nhost.neogym`. The SDK derives the lock identity automatically from the
+canonical Keychain item identity; callers no longer supply a lock namespace. The
+app waits up to 5 seconds for session ownership; the widget waits up to 500 ms.
+App configuration failure is a fatal developer/provisioning error in this
+controlled POC. A widget configuration
+failure, lock timeout, cancellation, Auth failure, or network failure selects
+the token-free cached/empty Energy Balance snapshot and does not write a failed
+live result. The widget never runs HealthKit import; WidgetKit still owns its
+best-effort refresh scheduling.
+
+There is no app-private session, credential mirroring, reconciliation, or token
+copy in the App Group. `project.yml` is the capability source of truth: both
+targets retain only the shared Keychain access group and App Group, and both Info
+plists expose only `NeoGymSharedKeychainAccessGroup` after build-setting
+expansion.
+
+### Controlled reset and validation
+
+The old private/shared POC credentials are intentionally not migrated. Before
+validating this adoption on a simulator, erase it because uninstalling the app
+does not reliably erase Keychain items:
+
+```sh
+xcrun simctl shutdown <SIMULATOR_UDID>
+xcrun simctl erase <SIMULATOR_UDID>
+```
+
+On a physical POC device, use a debug/test harness or debugger invocation of the
+old private and shared `KeychainSessionStorageBackend.remove()` configurations
+before installing this build. Do not add that cleanup or any reconciliation to
+the shipped app. Downgrade to the mirroring build is unsupported; reset and
+authenticate again when reverting.
+
+After reset:
+
+1. Run `nix develop ../.. --command xcodegen generate`, build the signed app,
+   launch it, and authenticate again.
+2. Confirm the app restores and refreshes its session, then add/run the Energy
+   Balance widget and confirm a live server result. This signed simulator/device
+   check proves both targets can access the same Keychain item and App Group;
+   unsigned SwiftPM host tests cannot prove entitlement interoperability.
+3. Hold the SDK-derived App Group session lock for the shared Keychain item from
+   an app/debug harness for longer than 500 ms and reload the widget. Confirm it
+   renders the cached/empty snapshot and performs no live snapshot write.
+4. Repeat with widget cancellation, offline mode, and an Auth failure. The
+   fallback must remain token-free and the widget must not run HealthKit import.
+5. Sign out in the app. Confirm the shared session is removed and the widget
+   falls back; the obsolete private item must never be consulted.
+
 ## Apple Health body imports
 
 Opening the Body measurements view requests read-only Apple Health access for
 body mass and body-fat percentage, then imports the latest sample per metric per
 local calendar day. The app requests no write authorization and does not export
-NeoGym measurements back to HealthKit. If NeoGym already has a measurement for a
-day, the HealthKit sample for that day is skipped rather than merged or
-overwritten.
+NeoGym measurements back to HealthKit. Missing dates are created, while rows
+from the last 7 local days that still carry the exact
+`Imported from Apple Health` note can be refreshed from newer HealthKit values.
+Manual or edited rows are not overwritten.
 
 The HealthKit capability and `NSHealthShareUsageDescription` are declared in
 `project.yml`; regenerate the Xcode project after changing them. The concrete

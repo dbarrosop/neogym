@@ -4,109 +4,55 @@ import Nhost
 public enum NhostClientFactory {
     public static func makeClient(
         config: NhostConfig = .local,
-        sessionStorage: (any SessionStorageBackend)? = nil
+        sessionManagement: SessionManagementConfiguration = SessionManagementConfiguration(),
+        graphQLCache: GraphQLCacheConfiguration? = nil
     ) -> NhostClient {
         createClient(
             NhostClientOptions(
                 subdomain: config.subdomain,
                 region: config.region,
-                sessionStorage: sessionStorage
+                sessionManagement: sessionManagement,
+                graphqlCache: graphQLCache
             )
         )
     }
 
     public static func makeAuthService(
         config: NhostConfig = .local,
-        sessionStorage: (any SessionStorageBackend)? = nil
+        sessionManagement: SessionManagementConfiguration = SessionManagementConfiguration()
     ) -> NhostAuthService {
-        NhostAuthService(client: makeClient(config: config, sessionStorage: sessionStorage))
+        NhostAuthService(client: makeClient(config: config, sessionManagement: sessionManagement))
     }
 
     public static func makeProductionAppClient() -> NhostClient {
-        makeClient(
-            config: .production,
-            sessionStorage: NhostSessionStorageFactory.appSharedKeychainStorage()
-        )
-    }
+        let sessionManagement: SessionManagementConfiguration
+        do {
+            sessionManagement = try NhostSessionConfig.sharedSessionManagement(
+                acquisitionTimeout: NhostSessionConfig.appAcquisitionTimeout
+            )
+        } catch {
+            fatalError(
+                "NeoGym shared session configuration is invalid. "
+                    + "Check the signed Keychain and App Group entitlements: \(error)"
+            )
+        }
 
-    public static func makeProductionWidgetClient() -> NhostClient {
-        makeClient(
+        return makeClient(
             config: .production,
-            sessionStorage: NhostSessionStorageFactory.sharedKeychainStorage()
-        )
-    }
-}
-
-public enum NhostSessionStorageFactory {
-    public static func sharedKeychainStorage(accessGroup: String? = nil) -> any SessionStorageBackend {
-        #if canImport(Security)
-        KeychainSessionStorageBackend(
-            options: KeychainSessionStorageOptions(
-                accessGroup: accessGroup ?? NhostSessionConfig.sharedKeychainAccessGroup()
+            sessionManagement: sessionManagement,
+            graphQLCache: GraphQLCacheConfiguration(
+                freshnessTTL: 5 * 60,
+                staleIfErrorInterval: 7 * 24 * 60 * 60
             )
         )
-        #else
-        MemorySessionStorageBackend()
-        #endif
     }
 
-    public static func appSharedKeychainStorage(accessGroup: String? = nil) -> any SessionStorageBackend {
-        #if canImport(Security)
-        MirroringSessionStorageBackend(
-            primary: KeychainSessionStorageBackend(),
-            mirror: sharedKeychainStorage(accessGroup: accessGroup)
+    public static func makeProductionWidgetClient() throws -> NhostClient {
+        try makeClient(
+            config: .production,
+            sessionManagement: NhostSessionConfig.sharedSessionManagement(
+                acquisitionTimeout: NhostSessionConfig.widgetAcquisitionTimeout
+            )
         )
-        #else
-        MemorySessionStorageBackend()
-        #endif
-    }
-}
-
-public struct MirroringSessionStorageBackend: SessionStorageBackend {
-    private let primary: any SessionStorageBackend
-    private let mirror: any SessionStorageBackend
-
-    public init(primary: any SessionStorageBackend, mirror: any SessionStorageBackend) {
-        self.primary = primary
-        self.mirror = mirror
-    }
-
-    public func get() async throws -> StoredSession? {
-        if let session = try await primary.get() {
-            try? await mirror.set(session)
-            return session
-        }
-
-        guard let mirroredSession = try? await mirror.get() else {
-            return nil
-        }
-
-        try await primary.set(mirroredSession)
-        return mirroredSession
-    }
-
-    public func set(_ value: StoredSession) async throws {
-        try await primary.set(value)
-        try? await mirror.set(value)
-    }
-
-    public func remove() async throws {
-        var firstError: Error?
-
-        do {
-            try await primary.remove()
-        } catch {
-            firstError = error
-        }
-
-        do {
-            try await mirror.remove()
-        } catch {
-            firstError = firstError ?? error
-        }
-
-        if let firstError {
-            throw firstError
-        }
     }
 }

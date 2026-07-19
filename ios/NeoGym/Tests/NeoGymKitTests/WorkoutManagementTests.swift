@@ -227,6 +227,45 @@ final class WorkoutsListViewModelTests: XCTestCase {
     }
 }
 
+@MainActor
+final class WorkoutDetailViewModelTests: XCTestCase {
+    func testDetailLoadAppliesCachedThenFreshValues() async {
+        let repository = StubWorkoutsRepository(detailUpdates: [
+            WorkoutDetailModel(id: "workout", name: "Cached", isPublic: false),
+            WorkoutDetailModel(id: "workout", name: "Fresh", isPublic: false)
+        ])
+        let viewModel = WorkoutDetailViewModel(workoutId: "workout", repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.workout?.name, "Fresh")
+    }
+
+    func testDetailLoadKeepsCachedValueWhenRefreshProducesNoFurtherEmission() async {
+        let repository = StubWorkoutsRepository(detailUpdates: [
+            WorkoutDetailModel(id: "workout", name: "Cached", isPublic: false)
+        ])
+        let viewModel = WorkoutDetailViewModel(workoutId: "workout", repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.workout?.name, "Cached")
+    }
+
+    func testDetailLoadTreatsFreshNilAsDeletedAfterCachedValue() async {
+        let repository = StubWorkoutsRepository(detailUpdates: [
+            WorkoutDetailModel(id: "workout", name: "Cached", isPublic: false),
+            nil
+        ])
+        let viewModel = WorkoutDetailViewModel(workoutId: "workout", repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertNil(viewModel.workout)
+        XCTAssertEqual(viewModel.state.errorMessage, "Workout not found.")
+    }
+}
+
 private let workoutListFixture: JSONValue = .object([
     "id": .string("workout-1"),
     "name": .string("Push Day"),
@@ -317,13 +356,28 @@ private func labelLink(id: String) -> WorkoutLabelLink {
 
 private final class StubWorkoutsRepository: WorkoutsRepositoryProtocol, @unchecked Sendable {
     var index: WorkoutIndexPayload
+    let detailUpdates: [WorkoutDetailModel?]
 
-    init(index: WorkoutIndexPayload) {
+    init(
+        index: WorkoutIndexPayload = WorkoutIndexPayload(workouts: [], labels: []),
+        detailUpdates: [WorkoutDetailModel?] = []
+    ) {
         self.index = index
+        self.detailUpdates = detailUpdates
     }
 
     func listWorkouts() async throws -> WorkoutIndexPayload { index }
-    func workoutDetail(id: String) async throws -> WorkoutDetailModel? { nil }
+
+    func workoutDetailUpdates(id: String) -> AsyncThrowingStream<WorkoutDetailModel?, Error> {
+        let updates = AsyncThrowingStream<WorkoutDetailModel?, Error>.makeStream()
+        for detail in detailUpdates {
+            updates.continuation.yield(detail)
+        }
+        updates.continuation.finish()
+        return updates.stream
+    }
+
+    func workoutDetail(id: String) async throws -> WorkoutDetailModel? { detailUpdates.last ?? nil }
     func editWorkout(id: String) async throws -> WorkoutEditPayload { WorkoutEditPayload(workout: nil, labels: []) }
     func labels() async throws -> [WorkoutLabel] { [] }
     func createWorkout(_ values: WorkoutFormValues) async throws -> String { "created" }
@@ -344,7 +398,7 @@ private extension JSONValue {
             object.keys.contains(key) || object.values.contains { $0.recursivelyContainsKey(key) }
         case let .array(values):
             values.contains { $0.recursivelyContainsKey(key) }
-        case .null, .bool, .number, .string:
+        case .null, .bool, .integer, .number, .string:
             false
         }
     }

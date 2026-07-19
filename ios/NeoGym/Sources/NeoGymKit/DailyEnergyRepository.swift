@@ -3,8 +3,10 @@ import Foundation
 public protocol DailyEnergyRepositoryProtocol: Sendable {
     func listEntries() async throws -> [DailyEnergy]
     func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy]
+    func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error>
     func listEntryDates() async throws -> [String]
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy]
+    func entryUpdates(id: String) -> AsyncThrowingStream<DailyEnergy?, Error>
     func entry(id: String) async throws -> DailyEnergy?
     func editEntry(id: String) async throws -> DailyEnergy?
     func createEntry(_ values: DailyEnergyFormValues) async throws -> String
@@ -19,12 +21,20 @@ public extension DailyEnergyRepositoryProtocol {
         return Array(allEntries.dropFirst(offset).prefix(limit))
     }
 
+    func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error> {
+        singleValueUpdates { try await listEntries(limit: limit, offset: offset) }
+    }
+
     func listEntryDates() async throws -> [String] {
         try await listEntries().map(\.energyOn)
     }
 
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
         try await listEntries().filter { $0.energyOn >= energyOn }
+    }
+
+    func entryUpdates(id: String) -> AsyncThrowingStream<DailyEnergy?, Error> {
+        singleValueUpdates { try await entry(id: id) }
     }
 }
 
@@ -42,13 +52,32 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
     public func listEntries(limit: Int = Self.pageSize, offset: Int = 0) async throws -> [DailyEnergy] {
         let data: DailyEnergyEntriesData = try await graphQL.execute(
             query: Self.dailyEnergyQuery,
-            variables: GraphQLScalars.variables(
-                ("limit", .number(Double(limit))),
-                ("offset", .number(Double(offset)))
-            ),
+            variables: Self.listVariables(limit: limit, offset: offset),
             operationName: "DailyEnergy"
         )
         return data.dailyEnergyEntries
+    }
+
+    public func energyListUpdates(
+        limit: Int,
+        offset: Int
+    ) -> AsyncThrowingStream<[DailyEnergy], Error> {
+        graphQL.cachedValues(
+            DailyEnergyEntriesData.self,
+            query: Self.dailyEnergyQuery,
+            variables: Self.listVariables(limit: limit, offset: offset),
+            operationName: "DailyEnergy",
+            namespace: "daily-energy",
+            tags: ["daily-energy"],
+            transform: \DailyEnergyEntriesData.dailyEnergyEntries
+        )
+    }
+
+    private static func listVariables(limit: Int, offset: Int) -> [String: JSONValue] {
+        GraphQLScalars.variables(
+            ("limit", .number(Double(limit))),
+            ("offset", .number(Double(offset)))
+        )
     }
 
     public func listEntryDates() async throws -> [String] {
@@ -66,6 +95,18 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
             operationName: "DailyEnergyHealthRefreshEntries"
         )
         return data.dailyEnergyEntries
+    }
+
+    public func entryUpdates(id: String) -> AsyncThrowingStream<DailyEnergy?, Error> {
+        graphQL.cachedValues(
+            DailyEnergyEntryByIdData.self,
+            query: Self.dailyEnergyEntryByIdQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "DailyEnergyById",
+            namespace: "daily-energy",
+            tags: ["daily-energy"],
+            transform: \DailyEnergyEntryByIdData.dailyEnergyEntry
+        )
     }
 
     public func entry(id: String) async throws -> DailyEnergy? {

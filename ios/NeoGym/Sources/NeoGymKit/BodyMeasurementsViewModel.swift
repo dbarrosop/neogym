@@ -5,19 +5,28 @@ import Foundation
 public final class BodyMeasurementsListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[BodyMeasurement]> = .idle
     @Published public private(set) var healthSyncState: Loadable<BodyMeasurementsHealthSyncSummary> = .idle
+    @Published public private(set) var isRefreshing = false
 
     private let repository: any BodyMeasurementsRepositoryProtocol
     private let healthImporter: (any BodyMeasurementsHealthImporting)?
     private let calendar: Calendar
+    private let healthRefreshLookbackDays: Int
+    private let now: @Sendable () -> Date
+
+    private static let healthImportNote = "Imported from Apple Health"
 
     public init(
         repository: any BodyMeasurementsRepositoryProtocol,
         healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        healthRefreshLookbackDays: Int = 7,
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.repository = repository
         self.healthImporter = healthImporter
         self.calendar = calendar
+        self.healthRefreshLookbackDays = healthRefreshLookbackDays
+        self.now = now
     }
 
     public var measurements: [BodyMeasurement] { state.value ?? [] }
@@ -26,12 +35,18 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
     }
 
     public func load(shouldSyncHealthMeasurements: Bool = false) async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         do {
-            let measurements = try await repository.listMeasurements()
-            state = .loaded(measurements)
             if shouldSyncHealthMeasurements {
-                await syncHealthMeasurements(skippingExistingDatesFrom: measurements)
+                async let initialLoad: Void = loadMeasurementUpdates()
+                await syncHealthMeasurements()
+                try await initialLoad
+                try await loadMeasurementUpdates()
+            } else {
+                try await loadMeasurementUpdates()
             }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
@@ -40,30 +55,100 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         }
     }
 
-    private func syncHealthMeasurements(skippingExistingDatesFrom measurements: [BodyMeasurement]) async {
+    private func loadMeasurementUpdates() async throws {
+        for try await measurements in repository.measurementListUpdates() {
+            state = .loaded(measurements)
+        }
+    }
+
+    private func syncHealthMeasurements() async {
         guard let healthImporter else { return }
-        let existingDates = Set(measurements.map(\.measuredOn))
         healthSyncState = .loading(previous: healthSyncState.value)
         do {
-            let importedMeasurements = try await healthImporter.dailyMeasurements()
-            let importableValues = importedMeasurements.compactMap { measurement -> BodyMeasurementFormValues? in
-                guard !existingDates.contains(measurement.measuredOn) else { return nil }
-                return measurement.formValues(notes: "Imported from Apple Health")
-            }
-            for values in importableValues {
-                _ = try await repository.createMeasurement(values)
-            }
-            if !importableValues.isEmpty {
-                state = .loaded(try await repository.listMeasurements())
+            async let importedMeasurementsTask = healthImporter.dailyMeasurements()
+            async let existingMeasurementsTask = repository.listMeasurements()
+
+            let importedMeasurements = try await importedMeasurementsTask
+            let existingMeasurements = (try? await existingMeasurementsTask) ?? []
+            let refreshStart = healthRefreshStartDate()
+            var knownDates = Set(existingMeasurements.map(\.measuredOn))
+            let existingMeasurementsByDate = Dictionary(
+                uniqueKeysWithValues: existingMeasurements.map { ($0.measuredOn, $0) }
+            )
+            var importedCount = 0
+            var updatedCount = 0
+            var skippedExistingCount = 0
+
+            for measurement in importedMeasurements {
+                guard let values = measurement.formValues(notes: Self.healthImportNote) else { continue }
+
+                if let existingMeasurement = existingMeasurementsByDate[measurement.measuredOn] {
+                    guard existingMeasurement.measuredOn >= refreshStart,
+                          existingMeasurement.notes == Self.healthImportNote,
+                          shouldUpdateHealthImportedMeasurement(existingMeasurement, with: values)
+                    else {
+                        skippedExistingCount += 1
+                        continue
+                    }
+                    try await repository.updateMeasurement(id: existingMeasurement.id, values: values)
+                    knownDates.insert(values.measuredOn)
+                    updatedCount += 1
+                    continue
+                }
+
+                guard !knownDates.contains(measurement.measuredOn) else {
+                    skippedExistingCount += 1
+                    continue
+                }
+
+                do {
+                    _ = try await repository.createMeasurement(values)
+                    knownDates.insert(values.measuredOn)
+                    importedCount += 1
+                } catch where BodyMeasurementsErrorMapper.isDuplicateMeasuredOnError(error) {
+                    knownDates.insert(values.measuredOn)
+                    skippedExistingCount += 1
+                }
             }
             healthSyncState = .loaded(BodyMeasurementsHealthSyncSummary(
-                importedCount: importableValues.count,
-                skippedExistingCount: importedMeasurements.count - importableValues.count
+                importedCount: importedCount,
+                updatedCount: updatedCount,
+                skippedExistingCount: skippedExistingCount
             ))
         } catch where GraphQLDomainError.isCancellation(error) {
             healthSyncState = healthSyncState.cancellationFallback
         } catch {
-            healthSyncState = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: healthSyncState.value)
+            healthSyncState = .failed(
+                message: BodyMeasurementsErrorMapper.message(for: error),
+                previous: healthSyncState.value
+            )
+        }
+    }
+
+    private func healthRefreshStartDate() -> String {
+        let todayStart = calendar.startOfDay(for: now())
+        let lookbackDays = max(healthRefreshLookbackDays, 1) - 1
+        let startDate = calendar.date(byAdding: .day, value: -lookbackDays, to: todayStart) ?? todayStart
+        return DateOnly.formatLocalISO(startDate, calendar: calendar)
+    }
+
+    private func shouldUpdateHealthImportedMeasurement(
+        _ measurement: BodyMeasurement,
+        with values: BodyMeasurementFormValues
+    ) -> Bool {
+        !approximatelyEqual(measurement.weightKg, Double(values.weightKg))
+            || !approximatelyEqual(measurement.bodyFatPct, Double(values.bodyFatPct))
+            || measurement.notes != values.notes
+    }
+
+    private func approximatelyEqual(_ lhs: Double?, _ rhs: Double?) -> Bool {
+        switch (lhs, rhs) {
+        case (.none, .none):
+            true
+        case let (.some(lhs), .some(rhs)):
+            abs(lhs - rhs) < 0.005
+        case (.some, .none), (.none, .some):
+            false
         }
     }
 }
@@ -85,11 +170,16 @@ public final class BodyMeasurementDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let measurement = try await repository.measurement(id: measurementId) else {
-                state = .failed(message: "Measurement not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestMeasurement: BodyMeasurement?
+            for try await measurement in repository.measurementUpdates(id: measurementId) {
+                receivedValue = true
+                latestMeasurement = measurement
+                if let measurement { state = .loaded(measurement) }
             }
-            state = .loaded(measurement)
+            if receivedValue, latestMeasurement == nil {
+                state = .failed(message: "Measurement not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

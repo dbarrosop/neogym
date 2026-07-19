@@ -22,11 +22,13 @@ let package = Package(
             name: "NeoGymKit",
             dependencies: [
                 .product(name: "Nhost", package: "nhost-swift")
-            ]
+            ],
+            path: "Sources/NeoGymKit"
         ),
         .testTarget(
             name: "NeoGymKitTests",
-            dependencies: ["NeoGymKit"]
+            dependencies: ["NeoGymKit"],
+            path: "Tests/NeoGymKitTests"
         )
     ]
 )

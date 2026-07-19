@@ -98,19 +98,44 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
+The production iOS app enables the SDK's persistent, managed-session-scoped
+GraphQL response cache. Browsing list and display-detail queries use
+stale-while-revalidate streams to show cached data before fresh backend data for
+workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
+Body, and Energy; edit/form, HealthKit reconciliation, daily-intake, and widget
+live-fetch queries stay network-only. The cache uses a 5-minute freshness window
+and 7-day stale-if-error window. Mutations remain network-only; cached browsing
+queries always revalidate against the backend, while their existing cached values
+remain available for responsive rendering and offline fallback. The SDK purges
+prior managed-user scopes on sign-out/session replacement. The
+file cache is app-process-only; the widget client deliberately has no GraphQL
+cache because the SDK requires each process to own a distinct cache directory.
+Keep cache identity and authorization isolation in the SDK rather than adding
+weaker app-owned local-storage keys.
+
 The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
-medium Energy Balance widget. Energy Balance display math and captions live in
-host-testable `NeoGymKit`; the app writes a token-free aggregate snapshot under
-`ios/NeoGym/Shared/` to the `group.io.nhost.neogym` App Group after successful
-Nutrition Overview loads and clears/reloads it on sign-out, definitive signed-out
-bootstrap, auth errors, and user switches. The widget renders that snapshot as a
-safe fallback, can perform best-effort server refreshes through the shared
-keychain session `$(AppIdentifierPrefix)io.nhost.neogym.shared` mirrored from the
-app's app-only primary keychain store, and never runs
-HealthKit import. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh
-button are best-effort triggers for the live-fetch provider path, not guaranteed
-freshness or cadence; keep all AppIntent/Button code availability-gated so the
-widget extension continues to support iOS 16.2.
+medium Energy Balance widget. Energy Balance display math, captions, snapshot
+DTO/store, and live-fetch/fallback orchestration live in host-testable
+`NeoGymKit`. The app writes a token-free aggregate snapshot to the
+`group.io.nhost.neogym` App Group only after a fresh backend Nutrition Overview
+emission (never from an offline cached fallback) and clears/reloads it on
+sign-out, definitive signed-out bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
+reload timelines so the widget can take the live server-fetch path after
+app-owned HealthKit or backend changes. The app and widget use the SDK's single
+coordinated Keychain item (service `io.nhost.swift.session`, account
+`default.nhostSession`, access group
+`$(AppIdentifierPrefix)io.nhost.neogym.shared`) and App Group
+`group.io.nhost.neogym`; the SDK derives the shared lock identity automatically
+from the canonical Keychain item identity, and the app waits up to 5 seconds
+while the widget waits up to 500 ms. There
+is no private credential, mirroring, reconciliation, or token copy. App shared
+configuration failure is a fatal provisioning error for this POC; widget
+configuration, lock-timeout, cancellation, Auth, and network failures render the
+token-free cached/empty fallback and never write a failed live result. The
+widget never runs HealthKit import. WidgetKit timeline reloads and the iOS 17+
+in-widget Refresh button are best-effort triggers for the live-fetch provider
+path, not guaranteed freshness or cadence; keep all AppIntent/Button code
+availability-gated so the widget extension continues to support iOS 16.2.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
@@ -142,9 +167,12 @@ and New plan/food/meal, Log measurement, and Log energy live on their subsection
 list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
 trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
-Energy from HealthKit on load and pull-to-refresh, then shows Energy balance,
-the Calories consumed chart, and Body composition trends; it does not show the
-old intro copy or recent daily-log list. `NutritionDaysView` no longer takes a
+Energy from HealthKit on load and pull-to-refresh before the final backend
+overview fetch, then shows Energy balance, the Calories consumed chart, and Body
+composition trends from the post-sync backend data; Body and Energy sync both
+create missing dates and refresh recent rows that still carry the exact
+"Imported from Apple Health" note. It does not show the old intro copy or recent
+daily-log list. `NutritionDaysView` no longer takes a
 `selectedDate` binding. After a create the shell replaces only the top create
 route with the new detail route so Back returns to the subsection list, not the
 hub.

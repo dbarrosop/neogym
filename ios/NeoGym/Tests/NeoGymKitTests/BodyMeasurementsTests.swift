@@ -245,6 +245,29 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.measurements.map(\.id), ["existing"])
     }
 
+    func testLoadSuppressesOverlappingHealthSyncs() async {
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let importer = BlockingBodyMeasurementsHealthImporter()
+        let viewModel = BodyMeasurementsListViewModel(repository: repository, healthImporter: importer)
+
+        let firstLoad = Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
+        await importer.waitUntilFirstCallStarts()
+
+        XCTAssertTrue(viewModel.isRefreshing)
+
+        let overlappingLoad = Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
+        await overlappingLoad.value
+
+        let callCount = await importer.callCountSnapshot()
+        XCTAssertEqual(callCount, 1)
+        XCTAssertTrue(viewModel.isRefreshing)
+
+        await importer.releaseFirstCall()
+        await firstLoad.value
+
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
     func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
         let repository = FakeBodyMeasurementsRepository(measurements: [
             BodyMeasurement(id: "existing", measuredOn: "2026-06-25", weightKg: 81, bodyFatPct: nil)
@@ -268,6 +291,69 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.healthSyncState.value, BodyMeasurementsHealthSyncSummary(
             importedCount: 1,
             skippedExistingCount: 1
+        ))
+    }
+
+    func testHealthSyncRefreshesRecentImportedHealthRows() async throws {
+        let repository = FakeBodyMeasurementsRepository(measurements: [
+            BodyMeasurement(
+                id: "today",
+                measuredOn: "2026-07-09",
+                weightKg: 81,
+                bodyFatPct: 18,
+                notes: "Imported from Apple Health"
+            ),
+            BodyMeasurement(
+                id: "manual",
+                measuredOn: "2026-07-08",
+                weightKg: 80,
+                bodyFatPct: 17.5,
+                notes: "Manual correction"
+            ),
+            BodyMeasurement(
+                id: "old-import",
+                measuredOn: "2026-06-30",
+                weightKg: 82,
+                bodyFatPct: 19,
+                notes: "Imported from Apple Health"
+            )
+        ])
+        let importer = FakeBodyMeasurementsHealthImporter(measurements: [
+            HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80.5, bodyFatPct: 17.8),
+            HealthBodyMeasurement(measuredOn: "2026-07-08", weightKg: 79.5, bodyFatPct: 17.2),
+            HealthBodyMeasurement(measuredOn: "2026-06-30", weightKg: 81.5, bodyFatPct: 18.7),
+            HealthBodyMeasurement(measuredOn: "2026-07-07", weightKg: 80.2, bodyFatPct: nil)
+        ])
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(DateOnly.parse("2026-07-09", calendar: calendar))
+        let viewModel = BodyMeasurementsListViewModel(
+            repository: repository,
+            healthImporter: importer,
+            calendar: calendar,
+            now: { now }
+        )
+
+        await viewModel.load(shouldSyncHealthMeasurements: true)
+
+        let updatedValues = await repository.updatedValuesSnapshot()
+        XCTAssertEqual(updatedValues, ["today": BodyMeasurementFormValues(
+            measuredOn: "2026-07-09",
+            weightKg: "80.5",
+            bodyFatPct: "17.8",
+            notes: "Imported from Apple Health"
+        )])
+        let createdValues = await repository.createdValuesSnapshot()
+        XCTAssertEqual(createdValues, [BodyMeasurementFormValues(
+            measuredOn: "2026-07-07",
+            weightKg: "80.2",
+            bodyFatPct: "",
+            notes: "Imported from Apple Health"
+        )])
+        XCTAssertEqual(viewModel.healthSyncState.value, BodyMeasurementsHealthSyncSummary(
+            importedCount: 1,
+            updatedCount: 1,
+            skippedExistingCount: 2
         ))
     }
 }
@@ -373,6 +459,7 @@ final class BodyMeasurementsErrorMapperTests: XCTestCase {
 private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
     private var measurements: [BodyMeasurement]
     private var createdValues: [BodyMeasurementFormValues] = []
+    private var updatedValues: [String: BodyMeasurementFormValues] = [:]
     private var listError: Error?
 
     init(measurements: [BodyMeasurement]) {
@@ -411,6 +498,7 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
 
     func updateMeasurement(id: String, values: BodyMeasurementFormValues) async throws {
         guard let index = measurements.firstIndex(where: { $0.id == id }) else { return }
+        updatedValues[id] = values
         measurements[index] = BodyMeasurement(
             id: id,
             measuredOn: values.measuredOn,
@@ -426,6 +514,43 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
 
     func createdValuesSnapshot() -> [BodyMeasurementFormValues] {
         createdValues
+    }
+
+    func updatedValuesSnapshot() -> [String: BodyMeasurementFormValues] {
+        updatedValues
+    }
+}
+
+private actor BlockingBodyMeasurementsHealthImporter: BodyMeasurementsHealthImporting {
+    private var callCount = 0
+    private var firstCallStarted = false
+    private var firstCallStartWaiters: [CheckedContinuation<Void, Never>] = []
+    private var firstCallRelease: CheckedContinuation<Void, Never>?
+
+    func dailyMeasurements() async throws -> [HealthBodyMeasurement] {
+        callCount += 1
+        guard callCount == 1 else { return [] }
+
+        firstCallStarted = true
+        let waiters = firstCallStartWaiters
+        firstCallStartWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+        await withCheckedContinuation { firstCallRelease = $0 }
+        return []
+    }
+
+    func waitUntilFirstCallStarts() async {
+        guard !firstCallStarted else { return }
+        await withCheckedContinuation { firstCallStartWaiters.append($0) }
+    }
+
+    func releaseFirstCall() {
+        firstCallRelease?.resume()
+        firstCallRelease = nil
+    }
+
+    func callCountSnapshot() -> Int {
+        callCount
     }
 }
 
@@ -465,7 +590,7 @@ private extension JSONValue {
             object.keys.contains(key) || object.values.contains { $0.recursivelyContainsKey(key) }
         case let .array(values):
             values.contains { $0.recursivelyContainsKey(key) }
-        case .null, .bool, .number, .string:
+        case .null, .bool, .integer, .number, .string:
             false
         }
     }

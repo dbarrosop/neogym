@@ -4,16 +4,16 @@ import Nhost
 public extension NhostClientFactory {
     static func makeGraphQLService(
         config: NhostConfig = .local,
-        sessionStorage: (any SessionStorageBackend)? = nil
+        sessionManagement: SessionManagementConfiguration = SessionManagementConfiguration()
     ) -> NhostGraphQLService {
-        NhostGraphQLService(client: makeClient(config: config, sessionStorage: sessionStorage))
+        NhostGraphQLService(client: makeClient(config: config, sessionManagement: sessionManagement))
     }
 
     static func makeEnvironment(
         config: NhostConfig = .local,
-        sessionStorage: (any SessionStorageBackend)? = nil
+        sessionManagement: SessionManagementConfiguration = SessionManagementConfiguration()
     ) -> AppEnvironment {
-        AppEnvironment(client: makeClient(config: config, sessionStorage: sessionStorage))
+        AppEnvironment(client: makeClient(config: config, sessionManagement: sessionManagement))
     }
 
     static func makeProductionEnvironment() -> AppEnvironment {

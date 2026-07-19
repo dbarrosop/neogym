@@ -1,4 +1,5 @@
 import AppIntents
+import NeoGymKit
 import WidgetKit
 
 @available(iOSApplicationExtension 17.0, *)

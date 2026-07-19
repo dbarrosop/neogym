@@ -7,6 +7,7 @@ public final class DailyEnergyListViewModel: ObservableObject {
     @Published public private(set) var healthSyncState: Loadable<DailyEnergyHealthSyncSummary> = .idle
     @Published public private(set) var hasMore = false
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
 
     private let repository: any DailyEnergyRepositoryProtocol
@@ -40,14 +41,19 @@ public final class DailyEnergyListViewModel: ObservableObject {
     }
 
     public func load(shouldSyncHealthEnergy: Bool = false) async {
+        guard !isRefreshing, !isLoadingMore else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
         do {
-            let entries = try await repository.listEntries(limit: pageSize, offset: 0)
-            hasMore = entries.count == pageSize
-            state = .loaded(entries)
             if shouldSyncHealthEnergy {
-                await syncHealthEnergy(skippingExistingDatesFrom: entries)
+                async let initialLoad: Void = loadEnergyUpdates()
+                await syncHealthEnergy()
+                try await initialLoad
+                try await loadEnergyUpdates()
+            } else {
+                try await loadEnergyUpdates()
             }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
@@ -56,15 +62,27 @@ public final class DailyEnergyListViewModel: ObservableObject {
         }
     }
 
+    private func loadEnergyUpdates() async throws {
+        for try await entries in repository.energyListUpdates(limit: pageSize, offset: 0) {
+            hasMore = entries.count == pageSize
+            state = .loaded(entries)
+        }
+    }
+
     public func loadMore() async {
-        guard hasMore, !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
         loadMoreErrorMessage = nil
         defer { isLoadingMore = false }
+        let existing = entries
         do {
-            let nextEntries = try await repository.listEntries(limit: pageSize, offset: entries.count)
-            hasMore = nextEntries.count == pageSize
-            state = .loaded(entries + nextEntries)
+            for try await nextEntries in repository.energyListUpdates(
+                limit: pageSize,
+                offset: existing.count
+            ) {
+                hasMore = nextEntries.count == pageSize
+                state = .loaded(Self.merging(existing, with: nextEntries))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             loadMoreErrorMessage = nil
         } catch {
@@ -72,23 +90,31 @@ public final class DailyEnergyListViewModel: ObservableObject {
         }
     }
 
-    private func syncHealthEnergy(skippingExistingDatesFrom entries: [DailyEnergy]) async {
+    private static func merging(_ existing: [DailyEnergy], with page: [DailyEnergy]) -> [DailyEnergy] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
+    }
+
+    private func syncHealthEnergy() async {
         guard let healthImporter else { return }
         let refreshStart = healthRefreshStartDate()
-        var knownDates = Set(entries.map(\.energyOn))
-        if let allEntryDates = try? await repository.listEntryDates() {
-            knownDates.formUnion(allEntryDates)
-        }
-        let refreshableEntries = (try? await repository.listEntriesForHealthRefresh(since: refreshStart))
-            ?? entries.filter { $0.energyOn >= refreshStart }
-        let refreshableEntriesByDate = Dictionary(uniqueKeysWithValues: refreshableEntries.map { ($0.energyOn, $0) })
-        var importedCount = 0
-        var updatedCount = 0
-        var skippedExistingCount = 0
-        var shouldReload = false
         healthSyncState = .loading(previous: healthSyncState.value)
         do {
-            let importedEntries = try await healthImporter.dailyEnergyEntries()
+            async let importedEntriesTask = healthImporter.dailyEnergyEntries()
+            async let knownDatesTask = repository.listEntryDates()
+            async let refreshableEntriesTask = repository.listEntriesForHealthRefresh(since: refreshStart)
+
+            let importedEntries = try await importedEntriesTask
+            var knownDates = Set((try? await knownDatesTask) ?? [])
+            let refreshableEntries = (try? await refreshableEntriesTask) ?? []
+            knownDates.formUnion(refreshableEntries.map(\.energyOn))
+            let refreshableEntriesByDate = Dictionary(
+                uniqueKeysWithValues: refreshableEntries.map { ($0.energyOn, $0) }
+            )
+            var importedCount = 0
+            var updatedCount = 0
+            var skippedExistingCount = 0
+
             for entry in importedEntries {
                 guard let values = entry.formValues(notes: Self.healthImportNote) else { continue }
 
@@ -104,7 +130,6 @@ public final class DailyEnergyListViewModel: ObservableObject {
                     try await repository.updateEntry(id: existingEntry.id, values: values)
                     knownDates.insert(values.energyOn)
                     updatedCount += 1
-                    shouldReload = true
                     continue
                 }
 
@@ -117,17 +142,10 @@ public final class DailyEnergyListViewModel: ObservableObject {
                     _ = try await repository.createEntry(values)
                     knownDates.insert(values.energyOn)
                     importedCount += 1
-                    shouldReload = true
                 } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
                     knownDates.insert(values.energyOn)
                     skippedExistingCount += 1
-                    shouldReload = true
                 }
-            }
-            if shouldReload {
-                let entries = try await repository.listEntries(limit: pageSize, offset: 0)
-                hasMore = entries.count == pageSize
-                state = .loaded(entries)
             }
             healthSyncState = .loaded(DailyEnergyHealthSyncSummary(
                 importedCount: importedCount,
@@ -186,11 +204,16 @@ public final class DailyEnergyDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let entry = try await repository.entry(id: entryId) else {
-                state = .failed(message: "Energy entry not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestEntry: DailyEnergy?
+            for try await entry in repository.entryUpdates(id: entryId) {
+                receivedValue = true
+                latestEntry = entry
+                if let entry { state = .loaded(entry) }
             }
-            state = .loaded(entry)
+            if receivedValue, latestEntry == nil {
+                state = .failed(message: "Energy entry not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

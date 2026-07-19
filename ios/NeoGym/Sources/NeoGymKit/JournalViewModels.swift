@@ -8,10 +8,12 @@ public final class JournalListViewModel: ObservableObject {
     @Published public private(set) var selectedLabelIds: [String] = []
     @Published public private(set) var hasMore = false
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
 
     private let repository: any JournalRepositoryProtocol
     private let pageSize: Int
+    private var needsReload = false
 
     public init(repository: any JournalRepositoryProtocol, pageSize: Int = JournalRepository.pageSize) {
         self.repository = repository
@@ -23,39 +25,41 @@ public final class JournalListViewModel: ObservableObject {
     public var selectedLabelSet: Set<String> { Set(selectedLabelIds) }
 
     public func load() async {
-        state = .loading(previous: state.value)
-        loadMoreErrorMessage = nil
-        do {
-            let payload = try await repository.listEntries(limit: pageSize, offset: 0, labelIds: selectedLabelIds)
-            labels = payload.labels
-            hasMore = payload.entries.count == pageSize
-            state = .loaded(payload.entries)
-        } catch where GraphQLDomainError.isCancellation(error) {
-            state = state.cancellationFallback
-        } catch {
-            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        guard !isRefreshing, !isLoadingMore else {
+            needsReload = true
+            return
         }
+
+        isRefreshing = true
+        repeat {
+            needsReload = false
+            await loadFirstPage()
+        } while needsReload
+        isRefreshing = false
     }
 
     public func loadMore() async {
-        guard hasMore, !isLoadingMore else { return }
+        guard hasMore, !isLoadingMore, !isRefreshing else { return }
         isLoadingMore = true
         loadMoreErrorMessage = nil
-        defer { isLoadingMore = false }
+        let existing = entries
         do {
-            let payload = try await repository.listEntries(
+            for try await payload in repository.journalListUpdates(
                 limit: pageSize,
-                offset: entries.count,
+                offset: existing.count,
                 labelIds: selectedLabelIds
-            )
-            if labels.isEmpty { labels = payload.labels }
-            hasMore = payload.entries.count == pageSize
-            state = .loaded(entries + payload.entries)
+            ) {
+                if labels.isEmpty { labels = payload.labels }
+                hasMore = payload.entries.count == pageSize
+                state = .loaded(Self.merging(existing, with: payload.entries))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             loadMoreErrorMessage = nil
         } catch {
             loadMoreErrorMessage = GraphQLDomainError.map(error).localizedDescription
         }
+        isLoadingMore = false
+        if needsReload { await load() }
     }
 
     public func toggleLabel(_ id: String) async {
@@ -70,6 +74,31 @@ public final class JournalListViewModel: ObservableObject {
     public func clearFilters() async {
         selectedLabelIds.removeAll()
         await load()
+    }
+
+    private func loadFirstPage() async {
+        state = .loading(previous: state.value)
+        loadMoreErrorMessage = nil
+        do {
+            for try await payload in repository.journalListUpdates(
+                limit: pageSize,
+                offset: 0,
+                labelIds: selectedLabelIds
+            ) {
+                labels = payload.labels
+                hasMore = payload.entries.count == pageSize
+                state = .loaded(payload.entries)
+            }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
+        } catch {
+            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        }
+    }
+
+    private static func merging(_ existing: [JournalEntry], with page: [JournalEntry]) -> [JournalEntry] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
     }
 }
 
@@ -90,11 +119,16 @@ public final class JournalEntryDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let entry = try await repository.entry(id: entryId) else {
-                state = .failed(message: "Entry not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestEntry: JournalEntry?
+            for try await entry in repository.entryUpdates(id: entryId) {
+                receivedValue = true
+                latestEntry = entry
+                if let entry { state = .loaded(entry) }
             }
-            state = .loaded(entry)
+            if receivedValue, latestEntry == nil {
+                state = .failed(message: "Entry not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

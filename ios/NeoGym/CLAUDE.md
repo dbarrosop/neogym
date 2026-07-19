@@ -63,29 +63,51 @@ changes.
   after redirect config edits because the CLI does not hot-reload `nhost.toml`.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
+- The production app client enables the Nhost Swift SDK persistent GraphQL cache
+  with a 5-minute freshness window and 7-day stale-if-error window. Browsing list
+  and display-detail repositories expose cached-first/fresh-second streams
+  through `GraphQLServicing.cachedQuery`; view models must retain cached values
+  while revalidation runs or fails. Cached domains include workouts, sessions,
+  exercises, journal, foods, meals, nutrition plans/overview, Body, and Energy.
+  Edit/form, HealthKit reconciliation, daily-intake, and widget live-fetch reads
+  stay network-only. Mutations also use the network-only `execute` path; browsing
+  caches remain available after mutations and their stale-while-revalidate loads
+  still fetch fresh backend data. The SDK scopes private cache entries by the
+  managed session and purges prior user scopes on sign-out/session replacement.
+  The file cache is app-process-only; the widget client has no GraphQL cache because each
+  process must own a distinct SDK cache directory. Do not add weaker app-owned
+  user cache keys.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
-  Energy Balance widget. Energy Balance math and captions live in host-testable
-  `NeoGymKit`; `Shared/EnergyBalanceWidgetSnapshot.swift` is the dependency-free,
-  token-free aggregate DTO/store used by both the app and widget through the
-  `group.io.nhost.neogym` App Group. The app writes snapshots after successful
-  Nutrition Overview loads and clears/reloads them on sign-out, definitive
+  Energy Balance widget. Energy Balance math, captions, the dependency-free
+  token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
+  host-testable `NeoGymKit` and use the `group.io.nhost.neogym` App Group. The app
+  writes snapshots only after a fresh backend Nutrition Overview emission (not
+  an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
-  available. The widget renders the latest snapshot as its safe fallback and can
-  attempt best-effort live server refreshes through the shared keychain session
-  `$(AppIdentifierPrefix)io.nhost.neogym.shared`; the app keeps its app-only
-  keychain as the primary session store and mirrors/restores the same session to
-  or from the shared keychain best-effort for widget access. The runtime access-group string comes from the
-  `NeoGymSharedKeychainAccessGroup` Info.plist key after build-setting expansion;
-  do not use `SecTaskCopyValueForEntitlement` here, as it is unavailable in the
-  iOS build target. Never copy tokens into App Group `UserDefaults`. The widget
-  does not run HealthKit import; only the app syncs HealthKit data. WidgetKit
-  timeline policies and the iOS 17+ in-widget Refresh button are best-effort
-  triggers that reload timelines and therefore run the live-fetch provider path
-  when the system grants runtime. Keep AppIntent/Button code availability-gated
-  so the widget extension's iOS 16.2 deployment floor remains buildable, use
-  immutable `static let` metadata on AppIntent types so Swift 6 concurrency checks
-  accept them as shared state, and do not describe widget refresh as guaranteed
-  server freshness or an exact cadence.
+  available. Nutrition mutations and
+  Energy-list loads also ask WidgetKit to reload timelines so the widget can take
+  the live server-fetch path after app-owned HealthKit or backend changes. The
+  app and widget both use the SDK's one coordinated Keychain item: service
+  `io.nhost.swift.session`, account `default.nhostSession`, access group
+  `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
+  `group.io.nhost.neogym`. The SDK derives the lock-file identity automatically
+  from the canonical Keychain item identity instead of accepting a caller-owned
+  namespace. The app acquisition budget is 5 seconds; the widget budget is 500
+  ms. Keep only `NeoGymSharedKeychainAccessGroup` in both
+  Info plists and only the shared Keychain group plus App Group in both targets'
+  entitlements. There is no app-private session, mirroring, reconciliation,
+  credential copy, or App Group token storage. App shared-factory failure is a
+  fatal developer/provisioning error for this controlled POC. Widget factory,
+  lock-timeout, cancellation, Auth, and network failures must render the cached
+  or empty token-free fallback and write no live snapshot. The widget does not
+  run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
+  policies and the iOS 17+ in-widget Refresh button are best-effort triggers that
+  reload timelines and therefore run the live-fetch provider path when the
+  system grants runtime. Keep AppIntent/Button code availability-gated so the
+  widget extension's iOS 16.2 deployment floor remains buildable, use immutable
+  `static let` metadata on AppIntent types so Swift 6 concurrency checks accept
+  them as shared state, and do not describe widget refresh as guaranteed server
+  freshness or an exact cadence.
 - SwiftUI previews can set Dynamic Type with
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
@@ -106,7 +128,10 @@ changes.
   carrying the exact "Imported from Apple Health" note; manual or edited rows
   are not overwritten. Body measurement HealthKit sync likewise runs from both
   the Body subsection and the Nutrition overview on initial load and
-  pull-to-refresh.
+  pull-to-refresh; it creates missing dates and refreshes the last 7 local days
+  only for rows still carrying the exact "Imported from Apple Health" note.
+  HealthKit sync runs before the final backend list/overview fetch so charts and
+  summaries consume the post-sync backend state.
 
 ## Native iOS design guide
 

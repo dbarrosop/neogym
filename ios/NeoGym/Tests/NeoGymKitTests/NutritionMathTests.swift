@@ -6,6 +6,7 @@ final class NutritionMathTests: XCTestCase {
     func testNormalizesHasuraNumericValuesReturnedAsStringsOrNumbers() {
         XCTAssertEqual(NutritionMath.normalizeNumeric(.string("12.5")), 12.5)
         XCTAssertEqual(NutritionMath.normalizeNumeric(.string("12,5")), 12.5)
+        XCTAssertEqual(NutritionMath.normalizeNumeric(.integer(7)), 7)
         XCTAssertEqual(NutritionMath.normalizeNumeric(.number(8)), 8)
         XCTAssertEqual(NutritionMath.normalizeNumeric(.string("not-a-number")), 0)
         XCTAssertEqual(NutritionMath.normalizeNumeric(.null), 0)

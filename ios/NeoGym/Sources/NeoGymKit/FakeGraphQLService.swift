@@ -13,6 +13,18 @@ public struct GraphQLRequestRecord: Equatable, Sendable {
     }
 }
 
+public struct GraphQLCachedRequestRecord: Equatable, Sendable {
+    public let request: GraphQLRequestRecord
+    public let namespace: String
+    public let tags: Set<String>
+
+    public init(request: GraphQLRequestRecord, namespace: String, tags: Set<String>) {
+        self.request = request
+        self.namespace = namespace
+        self.tags = tags
+    }
+}
+
 public enum FakeGraphQLReply: Sendable {
     case json(JSONValue)
     case data(Data)
@@ -24,6 +36,7 @@ public enum FakeGraphQLReply: Sendable {
 public actor FakeGraphQLService: GraphQLServicing {
     private var replies: [FakeGraphQLReply]
     private var requests: [GraphQLRequestRecord]
+    private var cachedRequests: [GraphQLCachedRequestRecord]
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
@@ -34,6 +47,7 @@ public actor FakeGraphQLService: GraphQLServicing {
     ) {
         self.replies = replies
         self.requests = []
+        self.cachedRequests = []
         self.encoder = encoder
         self.decoder = decoder
     }
@@ -44,6 +58,44 @@ public actor FakeGraphQLService: GraphQLServicing {
 
     public func requestsSnapshot() -> [GraphQLRequestRecord] {
         requests
+    }
+
+    public func cachedRequestsSnapshot() -> [GraphQLCachedRequestRecord] {
+        cachedRequests
+    }
+
+    public nonisolated func cachedQuery<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type = ResponseData.self,
+        query: String,
+        variables: [String: JSONValue]? = nil,
+        operationName: String? = nil,
+        namespace: String,
+        tags: Set<String> = []
+    ) -> AsyncThrowingStream<GraphQLQueryEmission<ResponseData>, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                await recordCachedRequest(
+                    query: query,
+                    variables: variables,
+                    operationName: operationName,
+                    namespace: namespace,
+                    tags: tags
+                )
+                do {
+                    let value: ResponseData = try await execute(
+                        responseType,
+                        query: query,
+                        variables: variables,
+                        operationName: operationName
+                    )
+                    continuation.yield(.fresh(value))
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
     }
 
     public func execute<ResponseData: Decodable & Sendable>(
@@ -77,6 +129,24 @@ public actor FakeGraphQLService: GraphQLServicing {
         } catch {
             throw GraphQLDomainError.decoding(String(describing: error))
         }
+    }
+
+    private func recordCachedRequest(
+        query: String,
+        variables: [String: JSONValue]?,
+        operationName: String?,
+        namespace: String,
+        tags: Set<String>
+    ) {
+        cachedRequests.append(GraphQLCachedRequestRecord(
+            request: GraphQLRequestRecord(
+                query: query,
+                variables: variables,
+                operationName: operationName
+            ),
+            namespace: namespace,
+            tags: tags
+        ))
     }
 
     private func decode<ResponseData: Decodable>(

@@ -17,10 +17,12 @@ public struct SessionMonthGroup: Identifiable, Sendable, Equatable {
 public final class SessionsListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[SessionListItem]> = .idle
     @Published public private(set) var isLoadingMore = false
+    @Published public private(set) var isRefreshing = false
     @Published public private(set) var hasNextPage = true
 
     private let repository: any SessionsRepositoryProtocol
     private let pageSize: Int
+    private var needsReload = false
 
     public init(repository: any SessionsRepositoryProtocol, pageSize: Int = 25) {
         self.repository = repository
@@ -52,11 +54,47 @@ public final class SessionsListViewModel: ObservableObject {
     }
 
     public func load() async {
+        guard !isRefreshing, !isLoadingMore else {
+            needsReload = true
+            return
+        }
+
+        isRefreshing = true
+        repeat {
+            needsReload = false
+            await loadFirstPage()
+        } while needsReload
+        isRefreshing = false
+    }
+
+    public func loadMore() async {
+        guard hasNextPage, !isLoadingMore, !isRefreshing else { return }
+        isLoadingMore = true
+        let existing = sessions
+        do {
+            for try await loaded in repository.sessionListUpdates(
+                limit: pageSize,
+                offset: existing.count
+            ) {
+                hasNextPage = loaded.count == pageSize
+                state = .loaded(Self.merging(existing, with: loaded))
+            }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            state = state.cancellationFallback
+        } catch {
+            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        }
+        isLoadingMore = false
+        if needsReload { await load() }
+    }
+
+    private func loadFirstPage() async {
         state = .loading(previous: state.value)
         do {
-            let loaded = try await repository.listSessions(limit: pageSize, offset: 0)
-            hasNextPage = loaded.count == pageSize
-            state = .loaded(loaded)
+            for try await loaded in repository.sessionListUpdates(limit: pageSize, offset: 0) {
+                hasNextPage = loaded.count == pageSize
+                state = .loaded(loaded)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -64,19 +102,12 @@ public final class SessionsListViewModel: ObservableObject {
         }
     }
 
-    public func loadMore() async {
-        guard hasNextPage, !isLoadingMore else { return }
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-        do {
-            let loaded = try await repository.listSessions(limit: pageSize, offset: sessions.count)
-            hasNextPage = loaded.count == pageSize
-            state = .loaded(sessions + loaded)
-        } catch where GraphQLDomainError.isCancellation(error) {
-            state = state.cancellationFallback
-        } catch {
-            state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
-        }
+    private static func merging(
+        _ existing: [SessionListItem],
+        with page: [SessionListItem]
+    ) -> [SessionListItem] {
+        var seen = Set(existing.map(\.id))
+        return existing + page.filter { seen.insert($0.id).inserted }
     }
 }
 
@@ -111,13 +142,21 @@ public final class SessionDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let session = try await repository.sessionDetail(id: sessionId) else {
-                state = .failed(message: "Session not found.", previous: nil)
-                priorHistoryState = .loaded(SessionPriorHistory())
+            var receivedValue = false
+            var latestSession: SessionDetailModel?
+            for try await session in repository.sessionDetailUpdates(id: sessionId) {
+                receivedValue = true
+                latestSession = session
+                if let session { state = .loaded(session) }
+            }
+            guard let latestSession else {
+                if receivedValue {
+                    state = .failed(message: "Session not found.", previous: nil)
+                    priorHistoryState = .loaded(SessionPriorHistory())
+                }
                 return
             }
-            state = .loaded(session)
-            await loadPriorHistory(for: session)
+            await loadPriorHistory(for: latestSession)
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
