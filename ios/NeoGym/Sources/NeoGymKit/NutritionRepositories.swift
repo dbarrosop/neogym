@@ -3,6 +3,7 @@ import Foundation
 public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func listFoods() async throws -> [Food]
     func foodListUpdates() -> AsyncThrowingStream<[Food], Error>
+    func foodUpdates(id: String) -> AsyncThrowingStream<Food?, Error>
     func food(id: String) async throws -> Food?
     func editFood(id: String) async throws -> Food?
     func createFood(_ values: FoodFormValues) async throws -> String
@@ -11,6 +12,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
 
     func listMeals() async throws -> [Meal]
     func mealListUpdates() -> AsyncThrowingStream<[Meal], Error>
+    func mealUpdates(id: String) -> AsyncThrowingStream<Meal?, Error>
     func meal(id: String) async throws -> Meal?
     func editMeal(id: String) async throws -> MealEditPayload
     func foodsForMealForm() async throws -> [Food]
@@ -20,6 +22,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
 
     func listPlans() async throws -> [NutritionPlan]
     func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error>
+    func nutritionPlanUpdates(id: String) -> AsyncThrowingStream<NutritionPlan?, Error>
     func plan(id: String) async throws -> NutritionPlan?
     func editPlan(id: String) async throws -> NutritionPlanEditPayload
     func mealsForPlanForm() async throws -> [Meal]
@@ -29,6 +32,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
 
     func listNutritionDays() async throws -> [NutritionDay]
     func nutritionOverview() async throws -> NutritionOverviewPayload
+    func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error>
     func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error>
     func openDailyIntake(date: String) async throws -> DailyIntakePayload
     func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
@@ -49,20 +53,49 @@ public extension NutritionFoodMealRepositoryProtocol {
         singleValueUpdates { try await listFoods() }
     }
 
+    func foodUpdates(id: String) -> AsyncThrowingStream<Food?, Error> {
+        singleValueUpdates { try await food(id: id) }
+    }
+
     func mealListUpdates() -> AsyncThrowingStream<[Meal], Error> {
         singleValueUpdates { try await listMeals() }
+    }
+
+    func mealUpdates(id: String) -> AsyncThrowingStream<Meal?, Error> {
+        singleValueUpdates { try await meal(id: id) }
     }
 
     func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error> {
         singleValueUpdates { try await listPlans() }
     }
 
+    func nutritionPlanUpdates(id: String) -> AsyncThrowingStream<NutritionPlan?, Error> {
+        singleValueUpdates { try await plan(id: id) }
+    }
+
     func nutritionOverview() async throws -> NutritionOverviewPayload {
         NutritionOverviewPayload(days: try await listNutritionDays(), dailyEnergyEntries: [])
     }
 
+    func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error> {
+        singleValueUpdates { .fresh(try await nutritionOverview()) }
+    }
+
     func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error> {
-        singleValueUpdates { try await nutritionOverview() }
+        let emissions = nutritionOverviewEmissions()
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await emission in emissions {
+                        continuation.yield(emission.value)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
     }
 }
 
@@ -72,8 +105,10 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
     public init(graphQL: any GraphQLServicing) {
         self.graphQL = graphQL
     }
+}
 
-    public func listFoods() async throws -> [Food] {
+public extension NutritionFoodMealRepository {
+    func listFoods() async throws -> [Food] {
         let data: FoodsIndexData = try await graphQL.execute(
             query: Self.foodsIndexQuery,
             operationName: "FoodsIndex"
@@ -81,7 +116,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.foods
     }
 
-    public func foodListUpdates() -> AsyncThrowingStream<[Food], Error> {
+    func foodListUpdates() -> AsyncThrowingStream<[Food], Error> {
         graphQL.cachedValues(
             FoodsIndexData.self,
             query: Self.foodsIndexQuery,
@@ -92,7 +127,19 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func food(id: String) async throws -> Food? {
+    func foodUpdates(id: String) -> AsyncThrowingStream<Food?, Error> {
+        graphQL.cachedValues(
+            FoodDetailData.self,
+            query: Self.foodDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "FoodDetail",
+            namespace: "foods",
+            tags: ["foods"],
+            transform: \FoodDetailData.food
+        )
+    }
+
+    func food(id: String) async throws -> Food? {
         let data: FoodDetailData = try await graphQL.execute(
             query: Self.foodDetailQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -101,7 +148,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.food
     }
 
-    public func editFood(id: String) async throws -> Food? {
+    func editFood(id: String) async throws -> Food? {
         let data: EditFoodData = try await graphQL.execute(
             query: Self.editFoodQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -110,7 +157,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.food
     }
 
-    public func createFood(_ values: FoodFormValues) async throws -> String {
+    func createFood(_ values: FoodFormValues) async throws -> String {
         let data: InsertFoodData = try await graphQL.execute(
             query: Self.createFoodMutation,
             variables: ["object": Self.foodObject(values)],
@@ -122,7 +169,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func updateFood(id: String, values: FoodFormValues) async throws {
+    func updateFood(id: String, values: FoodFormValues) async throws {
         let _: SaveFoodData = try await graphQL.execute(
             query: Self.saveFoodMutation,
             variables: ["id": GraphQLScalars.uuid(id), "set": Self.foodObject(values)],
@@ -130,15 +177,17 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deleteFood(id: String) async throws {
+    func deleteFood(id: String) async throws {
         let _: DeleteFoodData = try await graphQL.execute(
             query: Self.deleteFoodMutation,
             variables: ["id": GraphQLScalars.uuid(id)],
             operationName: "DeleteFood"
         )
     }
+}
 
-    public func listMeals() async throws -> [Meal] {
+public extension NutritionFoodMealRepository {
+    func listMeals() async throws -> [Meal] {
         let data: MealsIndexData = try await graphQL.execute(
             query: Self.mealsIndexQuery,
             operationName: "MealsIndex"
@@ -146,7 +195,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.meals
     }
 
-    public func mealListUpdates() -> AsyncThrowingStream<[Meal], Error> {
+    func mealListUpdates() -> AsyncThrowingStream<[Meal], Error> {
         graphQL.cachedValues(
             MealsIndexData.self,
             query: Self.mealsIndexQuery,
@@ -157,7 +206,19 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func meal(id: String) async throws -> Meal? {
+    func mealUpdates(id: String) -> AsyncThrowingStream<Meal?, Error> {
+        graphQL.cachedValues(
+            MealDetailData.self,
+            query: Self.mealDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "MealDetail",
+            namespace: "meals",
+            tags: ["meals"],
+            transform: \MealDetailData.meal
+        )
+    }
+
+    func meal(id: String) async throws -> Meal? {
         let data: MealDetailData = try await graphQL.execute(
             query: Self.mealDetailQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -166,7 +227,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.meal
     }
 
-    public func editMeal(id: String) async throws -> MealEditPayload {
+    func editMeal(id: String) async throws -> MealEditPayload {
         let data: EditMealData = try await graphQL.execute(
             query: Self.editMealQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -176,7 +237,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return MealEditPayload(meal: data.meal, foods: foods)
     }
 
-    public func foodsForMealForm() async throws -> [Food] {
+    func foodsForMealForm() async throws -> [Food] {
         let data: MealFormFoodsData = try await graphQL.execute(
             query: Self.mealFormFoodsQuery,
             operationName: "MealFormFoods"
@@ -184,7 +245,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.foods
     }
 
-    public func createMeal(_ values: MealFormValues) async throws -> String {
+    func createMeal(_ values: MealFormValues) async throws -> String {
         let data: InsertMealData = try await graphQL.execute(
             query: Self.createMealMutation,
             variables: ["object": Self.mealObject(values)],
@@ -196,7 +257,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func saveMeal(id: String, initialValues: MealFormValues, values: MealFormValues) async throws {
+    func saveMeal(id: String, initialValues: MealFormValues, values: MealFormValues) async throws {
         let _: SaveMealData = try await graphQL.execute(
             query: Self.saveMealMutation,
             variables: Self.saveMealVariables(id: id, initialValues: initialValues, values: values),
@@ -204,15 +265,17 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deleteMeal(id: String) async throws {
+    func deleteMeal(id: String) async throws {
         let _: DeleteMealData = try await graphQL.execute(
             query: Self.deleteMealMutation,
             variables: ["id": GraphQLScalars.uuid(id)],
             operationName: "DeleteMeal"
         )
     }
+}
 
-    public func listPlans() async throws -> [NutritionPlan] {
+public extension NutritionFoodMealRepository {
+    func listPlans() async throws -> [NutritionPlan] {
         let data: PlansIndexData = try await graphQL.execute(
             query: Self.plansIndexQuery,
             operationName: "PlansIndex"
@@ -220,7 +283,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.nutritionPlans
     }
 
-    public func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error> {
+    func nutritionPlanListUpdates() -> AsyncThrowingStream<[NutritionPlan], Error> {
         graphQL.cachedValues(
             PlansIndexData.self,
             query: Self.plansIndexQuery,
@@ -231,7 +294,19 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func plan(id: String) async throws -> NutritionPlan? {
+    func nutritionPlanUpdates(id: String) -> AsyncThrowingStream<NutritionPlan?, Error> {
+        graphQL.cachedValues(
+            NutritionPlanDetailData.self,
+            query: Self.nutritionPlanDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "NutritionPlanDetail",
+            namespace: "nutrition-plans",
+            tags: ["nutrition-plans"],
+            transform: \NutritionPlanDetailData.nutritionPlan
+        )
+    }
+
+    func plan(id: String) async throws -> NutritionPlan? {
         let data: NutritionPlanDetailData = try await graphQL.execute(
             query: Self.nutritionPlanDetailQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -240,7 +315,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.nutritionPlan
     }
 
-    public func editPlan(id: String) async throws -> NutritionPlanEditPayload {
+    func editPlan(id: String) async throws -> NutritionPlanEditPayload {
         let data: EditNutritionPlanData = try await graphQL.execute(
             query: Self.editNutritionPlanQuery,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -251,7 +326,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return NutritionPlanEditPayload(plan: data.nutritionPlan, meals: meals, foods: foods)
     }
 
-    public func mealsForPlanForm() async throws -> [Meal] {
+    func mealsForPlanForm() async throws -> [Meal] {
         let data: NutritionPlanFormMealsData = try await graphQL.execute(
             query: Self.nutritionPlanFormMealsQuery,
             operationName: "NutritionPlanFormMeals"
@@ -259,7 +334,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return data.meals
     }
 
-    public func createPlan(_ values: NutritionPlanFormValues) async throws -> String {
+    func createPlan(_ values: NutritionPlanFormValues) async throws -> String {
         let data: InsertNutritionPlanData = try await graphQL.execute(
             query: Self.createNutritionPlanMutation,
             variables: ["object": Self.nutritionPlanObject(values)],
@@ -271,7 +346,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func savePlan(
+    func savePlan(
         id: String,
         initialValues: NutritionPlanFormValues,
         values: NutritionPlanFormValues
@@ -283,19 +358,21 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deletePlan(id: String) async throws {
+    func deletePlan(id: String) async throws {
         let _: DeleteNutritionPlanData = try await graphQL.execute(
             query: Self.deleteNutritionPlanMutation,
             variables: ["id": GraphQLScalars.uuid(id)],
             operationName: "DeleteNutritionPlan"
         )
     }
+}
 
-    public func listNutritionDays() async throws -> [NutritionDay] {
+public extension NutritionFoodMealRepository {
+    func listNutritionDays() async throws -> [NutritionDay] {
         try await nutritionOverview().days
     }
 
-    public func nutritionOverview() async throws -> NutritionOverviewPayload {
+    func nutritionOverview() async throws -> NutritionOverviewPayload {
         let data: NutritionDaysIndexData = try await graphQL.execute(
             query: Self.nutritionDaysIndexQuery,
             operationName: "NutritionDaysIndex"
@@ -303,8 +380,8 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return Self.overviewPayload(from: data)
     }
 
-    public func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error> {
-        graphQL.cachedValues(
+    func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error> {
+        graphQL.cachedEmissions(
             NutritionDaysIndexData.self,
             query: Self.nutritionDaysIndexQuery,
             operationName: "NutritionDaysIndex",
@@ -321,7 +398,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func openDailyIntake(date: String) async throws -> DailyIntakePayload {
+    func openDailyIntake(date: String) async throws -> DailyIntakePayload {
         let data: DailyIntakeLogData = try await graphQL.execute(
             query: Self.dailyIntakeLogQuery,
             variables: ["date": GraphQLScalars.date(date)],
@@ -336,7 +413,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func createNutritionDay(date: String, nutritionPlanId: String? = nil) async throws -> String {
+    func createNutritionDay(date: String, nutritionPlanId: String? = nil) async throws -> String {
         let data: InsertNutritionDayData = try await graphQL.execute(
             query: Self.createNutritionDayMutation,
             variables: ["object": Self.nutritionDayObject(date: date, nutritionPlanId: nutritionPlanId)],
@@ -348,7 +425,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws {
+    func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws {
         let _: UpdateNutritionDayData = try await graphQL.execute(
             query: Self.updateNutritionDayPlanMutation,
             variables: [
@@ -359,7 +436,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deleteNutritionDay(id: String) async throws {
+    func deleteNutritionDay(id: String) async throws {
         let _: DeleteNutritionDayData = try await graphQL.execute(
             query: Self.deleteNutritionDayMutation,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -367,7 +444,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func logFood(_ values: LogFoodValues) async throws -> String {
+    func logFood(_ values: LogFoodValues) async throws -> String {
         let data: InsertNutritionLogEntryData = try await graphQL.execute(
             query: Self.logFoodMutation,
             variables: ["object": Self.logFoodObject(values)],
@@ -379,7 +456,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String {
+    func logAdHocFood(_ values: LogAdHocFoodValues) async throws -> String {
         let data: InsertNutritionLogEntryData = try await graphQL.execute(
             query: Self.logFoodMutation,
             variables: ["object": Self.logAdHocFoodObject(values)],
@@ -391,7 +468,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func logMeal(_ values: LogMealValues) async throws -> String {
+    func logMeal(_ values: LogMealValues) async throws -> String {
         let data: InsertNutritionLogMealData = try await graphQL.execute(
             query: Self.logMealMutation,
             variables: ["object": Self.logMealObject(values)],
@@ -403,7 +480,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         return id
     }
 
-    public func logSelectedPlan(_ materialization: PlanLogMaterialization) async throws -> PlanLogMutationResult {
+    func logSelectedPlan(_ materialization: PlanLogMaterialization) async throws -> PlanLogMutationResult {
         let data: InsertSelectedPlanLogData = try await graphQL.execute(
             query: Self.logSelectedPlanMutation,
             variables: [
@@ -420,7 +497,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {
+    func updateLogEntry(id: String, values: LogEntryUpdateValues) async throws {
         let _: UpdateNutritionLogEntryData = try await graphQL.execute(
             query: Self.updateNutritionLogEntryMutation,
             variables: ["id": GraphQLScalars.uuid(id), "set": Self.logEntryUpdateSet(values)],
@@ -428,7 +505,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {
+    func updateLogMeal(id: String, values: LogMealUpdateValues) async throws {
         let _: UpdateNutritionLogMealData = try await graphQL.execute(
             query: Self.updateNutritionLogMealMutation,
             variables: ["id": GraphQLScalars.uuid(id), "set": Self.logMealUpdateSet(values)],
@@ -436,7 +513,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deleteLogEntry(id: String) async throws {
+    func deleteLogEntry(id: String) async throws {
         let _: DeleteNutritionLogEntryData = try await graphQL.execute(
             query: Self.deleteNutritionLogEntryMutation,
             variables: ["id": GraphQLScalars.uuid(id)],
@@ -444,7 +521,7 @@ public struct NutritionFoodMealRepository: NutritionFoodMealRepositoryProtocol {
         )
     }
 
-    public func deleteLogMeal(id: String) async throws {
+    func deleteLogMeal(id: String) async throws {
         let _: DeleteNutritionLogMealData = try await graphQL.execute(
             query: Self.deleteNutritionLogMealMutation,
             variables: ["id": GraphQLScalars.uuid(id)],

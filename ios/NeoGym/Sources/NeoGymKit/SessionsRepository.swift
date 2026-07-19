@@ -3,6 +3,7 @@ import Foundation
 public protocol SessionsRepositoryProtocol: Sendable {
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem]
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error>
+    func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error>
     func sessionDetail(id: String) async throws -> SessionDetailModel?
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
@@ -29,6 +30,10 @@ public protocol SessionsRepositoryProtocol: Sendable {
 public extension SessionsRepositoryProtocol {
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error> {
         singleValueUpdates { try await listSessions(limit: limit, offset: offset) }
+    }
+
+    func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error> {
+        singleValueUpdates { try await sessionDetail(id: id) }
     }
 }
 
@@ -60,6 +65,18 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             namespace: "sessions",
             tags: ["sessions"],
             transform: \SessionsIndexData.workoutSessions
+        )
+    }
+
+    public func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error> {
+        graphQL.cachedValues(
+            SessionDetailData.self,
+            query: Self.sessionDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "SessionDetail",
+            namespace: "sessions",
+            tags: ["sessions"],
+            transform: \SessionDetailData.workoutSession
         )
     }
 

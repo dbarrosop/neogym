@@ -10,6 +10,15 @@ public enum GraphQLQueryEmission<Value: Sendable>: Sendable {
         case let .cached(value), let .fresh(value): value
         }
     }
+
+    public func map<Transformed: Sendable>(
+        _ transform: @Sendable (Value) -> Transformed
+    ) -> GraphQLQueryEmission<Transformed> {
+        switch self {
+        case let .cached(value): .cached(transform(value))
+        case let .fresh(value): .fresh(transform(value))
+        }
+    }
 }
 
 public protocol GraphQLServicing: Sendable {
@@ -67,7 +76,7 @@ public extension GraphQLServicing {
         }
     }
 
-    func cachedValues<ResponseData: Decodable & Sendable, Value: Sendable>(
+    func cachedEmissions<ResponseData: Decodable & Sendable, Value: Sendable>(
         _ responseType: ResponseData.Type = ResponseData.self,
         query: String,
         variables: [String: JSONValue]? = nil,
@@ -75,7 +84,7 @@ public extension GraphQLServicing {
         namespace: String,
         tags: Set<String> = [],
         transform: @escaping @Sendable (ResponseData) -> Value
-    ) -> AsyncThrowingStream<Value, Error> {
+    ) -> AsyncThrowingStream<GraphQLQueryEmission<Value>, Error> {
         let updates = cachedQuery(
             responseType,
             query: query,
@@ -88,7 +97,40 @@ public extension GraphQLServicing {
             let task = Task {
                 do {
                     for try await update in updates {
-                        continuation.yield(transform(update.value))
+                        continuation.yield(update.map(transform))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
+    }
+
+    func cachedValues<ResponseData: Decodable & Sendable, Value: Sendable>(
+        _ responseType: ResponseData.Type = ResponseData.self,
+        query: String,
+        variables: [String: JSONValue]? = nil,
+        operationName: String? = nil,
+        namespace: String,
+        tags: Set<String> = [],
+        transform: @escaping @Sendable (ResponseData) -> Value
+    ) -> AsyncThrowingStream<Value, Error> {
+        let updates = cachedEmissions(
+            responseType,
+            query: query,
+            variables: variables,
+            operationName: operationName,
+            namespace: namespace,
+            tags: tags,
+            transform: transform
+        )
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await update in updates {
+                        continuation.yield(update.value)
                     }
                     continuation.finish()
                 } catch {

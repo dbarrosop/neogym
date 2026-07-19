@@ -101,7 +101,10 @@ public extension JSONValue {
     }
 
     var numberValue: Double? {
-        guard case let .number(value) = self else { return nil }
-        return value
+        switch self {
+        case let .integer(value): Double(value)
+        case let .number(value): value
+        default: nil
+        }
     }
 }

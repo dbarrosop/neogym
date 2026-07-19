@@ -3,6 +3,7 @@ import Foundation
 public protocol ExercisesRepositoryProtocol: Sendable {
     func listExercises() async throws -> [ExerciseListItem]
     func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error>
+    func exerciseDetailUpdates(id: String) -> AsyncThrowingStream<ExerciseDetailModel?, Error>
     func exerciseDetail(id: String) async throws -> ExerciseDetailModel?
     func exercisePickerExercises() async throws -> [ExerciseListItem]
     func priorSessionsPerExercise(exerciseIds: [String]) async throws -> [ExercisePriorSessions]
@@ -12,6 +13,10 @@ public protocol ExercisesRepositoryProtocol: Sendable {
 public extension ExercisesRepositoryProtocol {
     func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error> {
         singleValueUpdates { try await listExercises() }
+    }
+
+    func exerciseDetailUpdates(id: String) -> AsyncThrowingStream<ExerciseDetailModel?, Error> {
+        singleValueUpdates { try await exerciseDetail(id: id) }
     }
 }
 
@@ -38,6 +43,18 @@ public struct ExercisesRepository: ExercisesRepositoryProtocol {
             namespace: "exercises",
             tags: ["exercises"],
             transform: \ExercisesIndexData.exercises
+        )
+    }
+
+    public func exerciseDetailUpdates(id: String) -> AsyncThrowingStream<ExerciseDetailModel?, Error> {
+        graphQL.cachedValues(
+            ExerciseDetailData.self,
+            query: Self.exerciseDetailQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "ExerciseDetail",
+            namespace: "exercises",
+            tags: ["exercises"],
+            transform: \ExerciseDetailData.exercise
         )
     }
 

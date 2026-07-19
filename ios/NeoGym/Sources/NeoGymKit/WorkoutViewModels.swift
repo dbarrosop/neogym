@@ -87,11 +87,16 @@ public final class WorkoutDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let workout = try await repository.workoutDetail(id: workoutId) else {
-                state = .failed(message: "Workout not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestWorkout: WorkoutDetailModel?
+            for try await workout in repository.workoutDetailUpdates(id: workoutId) {
+                receivedValue = true
+                latestWorkout = workout
+                if let workout { state = .loaded(workout) }
             }
-            state = .loaded(workout)
+            if receivedValue, latestWorkout == nil {
+                state = .failed(message: "Workout not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

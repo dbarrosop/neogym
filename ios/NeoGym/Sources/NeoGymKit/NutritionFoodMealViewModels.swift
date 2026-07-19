@@ -72,11 +72,16 @@ public final class FoodDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let food = try await repository.food(id: foodId) else {
-                state = .failed(message: "Food not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestFood: Food?
+            for try await food in repository.foodUpdates(id: foodId) {
+                receivedValue = true
+                latestFood = food
+                if let food { state = .loaded(food) }
             }
-            state = .loaded(food)
+            if receivedValue, latestFood == nil {
+                state = .failed(message: "Food not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -246,11 +251,16 @@ public final class MealDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let meal = try await repository.meal(id: mealId) else {
-                state = .failed(message: "Meal not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestMeal: Meal?
+            for try await meal in repository.mealUpdates(id: mealId) {
+                receivedValue = true
+                latestMeal = meal
+                if let meal { state = .loaded(meal) }
             }
-            state = .loaded(meal)
+            if receivedValue, latestMeal == nil {
+                state = .failed(message: "Meal not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

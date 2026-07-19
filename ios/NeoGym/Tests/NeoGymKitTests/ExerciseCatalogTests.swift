@@ -314,7 +314,7 @@ private extension JSONValue {
             object.keys.contains(key) || object.values.contains { $0.recursivelyContainsKey(key) }
         case let .array(values):
             values.contains { $0.recursivelyContainsKey(key) }
-        case .null, .bool, .number, .string:
+        case .null, .bool, .integer, .number, .string:
             false
         }
     }

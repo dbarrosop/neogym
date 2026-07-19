@@ -57,11 +57,18 @@ public struct NhostGraphQLService: GraphQLServicing {
                     for try await update in updates {
                         switch update {
                         case let .cached(response, _):
-                            emittedCachedValue = true
-                            continuation.yield(.cached(try GraphQLResponseMapper.unwrap(
-                                response.body,
-                                operationName: operationName
-                            )))
+                            do {
+                                let value = try GraphQLResponseMapper.unwrap(
+                                    response.body,
+                                    operationName: operationName
+                                )
+                                emittedCachedValue = true
+                                continuation.yield(.cached(value))
+                            } catch {
+                                // Treat a malformed or GraphQL-error cache entry as a miss so
+                                // the in-flight network revalidation can repair it.
+                                continue
+                            }
                         case let .fresh(response, _):
                             continuation.yield(.fresh(try GraphQLResponseMapper.unwrap(
                                 response.body,

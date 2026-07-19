@@ -119,11 +119,16 @@ public final class JournalEntryDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let entry = try await repository.entry(id: entryId) else {
-                state = .failed(message: "Entry not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestEntry: JournalEntry?
+            for try await entry in repository.entryUpdates(id: entryId) {
+                receivedValue = true
+                latestEntry = entry
+                if let entry { state = .loaded(entry) }
             }
-            state = .loaded(entry)
+            if receivedValue, latestEntry == nil {
+                state = .failed(message: "Entry not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

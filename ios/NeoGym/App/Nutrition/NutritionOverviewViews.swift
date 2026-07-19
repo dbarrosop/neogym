@@ -178,7 +178,9 @@ struct NutritionOverviewView: View {
 
         if case .loaded = viewModel.state {
             hasLoadedOverview = true
-            writeEnergyBalanceWidgetSnapshot()
+            if viewModel.lastLoadIncludedFreshData {
+                writeEnergyBalanceWidgetSnapshot()
+            }
         }
     }
 

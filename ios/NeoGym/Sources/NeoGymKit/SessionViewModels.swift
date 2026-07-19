@@ -142,13 +142,21 @@ public final class SessionDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let session = try await repository.sessionDetail(id: sessionId) else {
-                state = .failed(message: "Session not found.", previous: nil)
-                priorHistoryState = .loaded(SessionPriorHistory())
+            var receivedValue = false
+            var latestSession: SessionDetailModel?
+            for try await session in repository.sessionDetailUpdates(id: sessionId) {
+                receivedValue = true
+                latestSession = session
+                if let session { state = .loaded(session) }
+            }
+            guard let latestSession else {
+                if receivedValue {
+                    state = .failed(message: "Session not found.", previous: nil)
+                    priorHistoryState = .loaded(SessionPriorHistory())
+                }
                 return
             }
-            state = .loaded(session)
-            await loadPriorHistory(for: session)
+            await loadPriorHistory(for: latestSession)
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

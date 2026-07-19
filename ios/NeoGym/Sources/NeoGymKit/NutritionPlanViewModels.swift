@@ -75,11 +75,16 @@ public final class NutritionPlanDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let plan = try await repository.plan(id: planId) else {
-                state = .failed(message: "Plan not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestPlan: NutritionPlan?
+            for try await plan in repository.nutritionPlanUpdates(id: planId) {
+                receivedValue = true
+                latestPlan = plan
+                if let plan { state = .loaded(plan) }
             }
-            state = .loaded(plan)
+            if receivedValue, latestPlan == nil {
+                state = .failed(message: "Plan not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

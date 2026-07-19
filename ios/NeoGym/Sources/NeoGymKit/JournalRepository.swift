@@ -7,6 +7,7 @@ public protocol JournalRepositoryProtocol: Sendable {
         offset: Int,
         labelIds: [String]
     ) -> AsyncThrowingStream<JournalIndexPayload, Error>
+    func entryUpdates(id: String) -> AsyncThrowingStream<JournalEntry?, Error>
     func entry(id: String) async throws -> JournalEntry?
     func editEntry(id: String) async throws -> JournalEditPayload
     func labels() async throws -> [JournalLabel]
@@ -24,6 +25,10 @@ public extension JournalRepositoryProtocol {
         singleValueUpdates {
             try await listEntries(limit: limit, offset: offset, labelIds: labelIds)
         }
+    }
+
+    func entryUpdates(id: String) -> AsyncThrowingStream<JournalEntry?, Error> {
+        singleValueUpdates { try await entry(id: id) }
     }
 }
 
@@ -78,6 +83,18 @@ public struct JournalRepository: JournalRepositoryProtocol {
 
     private static func indexPayload(from data: JournalEntriesData) -> JournalIndexPayload {
         JournalIndexPayload(entries: data.journalEntries, labels: data.journalLabels)
+    }
+
+    public func entryUpdates(id: String) -> AsyncThrowingStream<JournalEntry?, Error> {
+        graphQL.cachedValues(
+            JournalEntryByIdData.self,
+            query: Self.journalEntryByIdQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "JournalEntryById",
+            namespace: "journal",
+            tags: ["journal"],
+            transform: \JournalEntryByIdData.journalEntry
+        )
     }
 
     public func entry(id: String) async throws -> JournalEntry? {

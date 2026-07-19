@@ -150,6 +150,8 @@ public enum NutritionMath {
     public static func normalizeNumeric(_ value: JSONValue?) -> Double {
         guard let value else { return 0 }
         switch value {
+        case let .integer(integer):
+            return Double(integer)
         case let .number(number):
             return number.isFinite ? number : 0
         case let .string(string):

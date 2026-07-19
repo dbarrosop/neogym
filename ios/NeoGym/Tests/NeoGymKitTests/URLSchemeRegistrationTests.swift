@@ -79,12 +79,12 @@ final class URLSchemeRegistrationTests: XCTestCase {
             "keychainAccountPrefix = \"default\"",
             "sharedKeychainAccessGroupSuffix = \"io.nhost.neogym.shared\"",
             "appGroupIdentifier = \"group.io.nhost.neogym\"",
-            "lockNamespace = \"io.nhost.neogym.shared-session\"",
             "appAcquisitionTimeout: TimeInterval = 5",
             "widgetAcquisitionTimeout: TimeInterval = 0.5"
         ] {
             XCTAssertTrue(configSource.contains(expectedDeclaration))
         }
+        XCTAssertFalse(configSource.contains("lockNamespace"))
 
         let projectSpec = try String(
             contentsOf: packageRoot.appendingPathComponent("project.yml"),

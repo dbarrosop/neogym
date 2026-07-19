@@ -3,6 +3,7 @@ import Foundation
 public protocol BodyMeasurementsRepositoryProtocol: Sendable {
     func listMeasurements() async throws -> [BodyMeasurement]
     func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error>
+    func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error>
     func measurement(id: String) async throws -> BodyMeasurement?
     func editMeasurement(id: String) async throws -> BodyMeasurement?
     func createMeasurement(_ values: BodyMeasurementFormValues) async throws -> String
@@ -13,6 +14,10 @@ public protocol BodyMeasurementsRepositoryProtocol: Sendable {
 public extension BodyMeasurementsRepositoryProtocol {
     func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error> {
         singleValueUpdates { try await listMeasurements() }
+    }
+
+    func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error> {
+        singleValueUpdates { try await measurement(id: id) }
     }
 }
 
@@ -39,6 +44,18 @@ public struct BodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
             namespace: "body-measurements",
             tags: ["body-measurements"],
             transform: \BodyMeasurementsData.bodyMeasurements
+        )
+    }
+
+    public func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error> {
+        graphQL.cachedValues(
+            BodyMeasurementByIdData.self,
+            query: Self.bodyMeasurementByIdQuery,
+            variables: ["id": GraphQLScalars.uuid(id)],
+            operationName: "BodyMeasurementById",
+            namespace: "body-measurements",
+            tags: ["body-measurements"],
+            transform: \BodyMeasurementByIdData.bodyMeasurement
         )
     }
 

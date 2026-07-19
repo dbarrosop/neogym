@@ -99,27 +99,35 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
 The production iOS app enables the SDK's persistent, managed-session-scoped
-GraphQL response cache. Root list queries use stale-while-revalidate streams to
-show cached data before fresh backend data for workouts, sessions, exercises,
-journal, foods, meals, nutrition plans/overview, Body, and Energy. The cache uses
-a 5-minute freshness window and 7-day stale-if-error window; mutations remain
-network-only, and the SDK purges prior managed-user scopes on sign-out/session
-replacement. Keep cache identity and authorization isolation in the SDK rather
-than adding weaker app-owned local-storage keys.
+GraphQL response cache. Browsing list and display-detail queries use
+stale-while-revalidate streams to show cached data before fresh backend data for
+workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
+Body, and Energy; edit/form, HealthKit reconciliation, daily-intake, and widget
+live-fetch queries stay network-only. The cache uses a 5-minute freshness window
+and 7-day stale-if-error window. Mutations remain network-only; cached browsing
+queries always revalidate against the backend, while their existing cached values
+remain available for responsive rendering and offline fallback. The SDK purges
+prior managed-user scopes on sign-out/session replacement. The
+file cache is app-process-only; the widget client deliberately has no GraphQL
+cache because the SDK requires each process to own a distinct cache directory.
+Keep cache identity and authorization isolation in the SDK rather than adding
+weaker app-owned local-storage keys.
 
 The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
 medium Energy Balance widget. Energy Balance display math, captions, snapshot
 DTO/store, and live-fetch/fallback orchestration live in host-testable
 `NeoGymKit`. The app writes a token-free aggregate snapshot to the
-`group.io.nhost.neogym` App Group after successful Nutrition Overview loads and
-clears/reloads it on sign-out, definitive signed-out bootstrap, auth errors, and
-user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
+`group.io.nhost.neogym` App Group only after a fresh backend Nutrition Overview
+emission (never from an offline cached fallback) and clears/reloads it on
+sign-out, definitive signed-out bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
 reload timelines so the widget can take the live server-fetch path after
 app-owned HealthKit or backend changes. The app and widget use the SDK's single
 coordinated Keychain item (service `io.nhost.swift.session`, account
 `default.nhostSession`, access group
-`$(AppIdentifierPrefix)io.nhost.neogym.shared`) and the same stable App Group
-lock identity; the app waits up to 5 seconds and the widget up to 500 ms. There
+`$(AppIdentifierPrefix)io.nhost.neogym.shared`) and App Group
+`group.io.nhost.neogym`; the SDK derives the shared lock identity automatically
+from the canonical Keychain item identity, and the app waits up to 5 seconds
+while the widget waits up to 500 ms. There
 is no private credential, mirroring, reconciliation, or token copy. App shared
 configuration failure is a fatal provisioning error for this POC; widget
 configuration, lock-timeout, cancellation, Auth, and network failures render the

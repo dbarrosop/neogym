@@ -170,11 +170,16 @@ public final class BodyMeasurementDetailViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            guard let measurement = try await repository.measurement(id: measurementId) else {
-                state = .failed(message: "Measurement not found.", previous: nil)
-                return
+            var receivedValue = false
+            var latestMeasurement: BodyMeasurement?
+            for try await measurement in repository.measurementUpdates(id: measurementId) {
+                receivedValue = true
+                latestMeasurement = measurement
+                if let measurement { state = .loaded(measurement) }
             }
-            state = .loaded(measurement)
+            if receivedValue, latestMeasurement == nil {
+                state = .failed(message: "Measurement not found.", previous: nil)
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

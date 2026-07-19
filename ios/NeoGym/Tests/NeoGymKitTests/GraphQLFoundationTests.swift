@@ -131,6 +131,47 @@ final class FakeGraphQLServiceTests: XCTestCase {
             }
         }
     }
+
+    func testDisplayDetailRepositoriesUseCachedQueries() async {
+        let fake = FakeGraphQLService(
+            replies: Array(repeating: FakeGraphQLReply.missingData, count: 9)
+        )
+
+        await consumeIgnoringFailure(WorkoutsRepository(graphQL: fake).workoutDetailUpdates(id: "workout"))
+        await consumeIgnoringFailure(SessionsRepository(graphQL: fake).sessionDetailUpdates(id: "session"))
+        await consumeIgnoringFailure(ExercisesRepository(graphQL: fake).exerciseDetailUpdates(id: "exercise"))
+        await consumeIgnoringFailure(JournalRepository(graphQL: fake).entryUpdates(id: "journal"))
+        let nutrition = NutritionFoodMealRepository(graphQL: fake)
+        await consumeIgnoringFailure(nutrition.foodUpdates(id: "food"))
+        await consumeIgnoringFailure(nutrition.mealUpdates(id: "meal"))
+        await consumeIgnoringFailure(nutrition.nutritionPlanUpdates(id: "plan"))
+        await consumeIgnoringFailure(BodyMeasurementsRepository(graphQL: fake).measurementUpdates(id: "body"))
+        await consumeIgnoringFailure(DailyEnergyRepository(graphQL: fake).entryUpdates(id: "energy"))
+
+        let cachedRequests = await fake.cachedRequestsSnapshot()
+        XCTAssertEqual(cachedRequests.map(\.request.operationName), [
+            "WorkoutDetail",
+            "SessionDetail",
+            "ExerciseDetail",
+            "JournalEntryById",
+            "FoodDetail",
+            "MealDetail",
+            "NutritionPlanDetail",
+            "BodyMeasurementById",
+            "DailyEnergyById"
+        ])
+        XCTAssertEqual(cachedRequests.map(\.namespace), [
+            "workouts",
+            "sessions",
+            "exercises",
+            "journal",
+            "foods",
+            "meals",
+            "nutrition-plans",
+            "body-measurements",
+            "daily-energy"
+        ])
+    }
 }
 
 final class NhostGraphQLCacheAdapterTests: XCTestCase {
@@ -140,14 +181,7 @@ final class NhostGraphQLCacheAdapterTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let transportState = CacheTestTransportState()
-        let client = createNhostClient(NhostClientOptions(
-            graphqlURL: try XCTUnwrap(URL(string: "https://example.test/v1/graphql")),
-            transport: StubTransport { request in
-                try await transportState.fetch(request)
-            },
-            graphqlCache: GraphQLCacheConfiguration(directoryURL: directory)
-        ))
-        let service = NhostGraphQLService(client: client)
+        let service = try makeService(directory: directory, transportState: transportState)
 
         var firstSources: [GraphQLCacheSource] = []
         for try await update in service.cachedQuery(
@@ -177,6 +211,87 @@ final class NhostGraphQLCacheAdapterTests: XCTestCase {
         }
 
         XCTAssertEqual(offlineValues, [ViewerData(viewer: Viewer(id: "cached-user"))])
+    }
+
+    func testCachedGraphQLErrorDoesNotBlockFreshRepair() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let transportState = CacheTestTransportState()
+        let service = try makeService(directory: directory, transportState: transportState)
+        await transportState.setBody(Data(#"{"errors":[{"message":"temporary"}]}"#.utf8))
+
+        do {
+            for try await _ in service.cachedQuery(
+                ViewerData.self,
+                query: "query Viewer { viewer { id } }",
+                operationName: "Viewer",
+                namespace: "viewer",
+                tags: ["viewer"]
+            ) {}
+            XCTFail("Expected the fresh GraphQL error")
+        } catch {
+            guard case .graphQLErrors = error as? GraphQLDomainError else {
+                return XCTFail("Expected GraphQL errors, got \(error)")
+            }
+        }
+
+        await transportState.setBody(Data(#"{"data":{"viewer":{"id":"repaired-user"}}}"#.utf8))
+        var repairedSources: [GraphQLCacheSource] = []
+        var repairedValues: [ViewerData] = []
+        for try await update in service.cachedQuery(
+            ViewerData.self,
+            query: "query Viewer { viewer { id } }",
+            operationName: "Viewer",
+            namespace: "viewer",
+            tags: ["viewer"]
+        ) {
+            repairedValues.append(update.value)
+            switch update {
+            case .cached: repairedSources.append(.cached)
+            case .fresh: repairedSources.append(.fresh)
+            }
+        }
+
+        XCTAssertEqual(repairedSources, [.fresh])
+        XCTAssertEqual(repairedValues, [ViewerData(viewer: Viewer(id: "repaired-user"))])
+    }
+
+    func testNutritionOverviewTracksWhetherLoadReachedFreshData() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let transportState = CacheTestTransportState()
+        await transportState.setBody(Data(#"{"data":{"nutritionDays":[],"dailyEnergyEntries":[]}}"#.utf8))
+        let service = try makeService(directory: directory, transportState: transportState)
+        let viewModel = await NutritionDaysListViewModel(
+            repository: NutritionFoodMealRepository(graphQL: service)
+        )
+
+        await viewModel.load()
+        let firstLoadWasFresh = await viewModel.lastLoadIncludedFreshData
+        XCTAssertTrue(firstLoadWasFresh)
+
+        await transportState.setOffline(true)
+        await viewModel.load()
+        let offlineLoadWasFresh = await viewModel.lastLoadIncludedFreshData
+        XCTAssertFalse(offlineLoadWasFresh)
+    }
+
+    private func makeService(
+        directory: URL,
+        transportState: CacheTestTransportState
+    ) throws -> NhostGraphQLService {
+        let client = createNhostClient(NhostClientOptions(
+            graphqlURL: try XCTUnwrap(URL(string: "https://example.test/v1/graphql")),
+            transport: StubTransport { request in
+                try await transportState.fetch(request)
+            },
+            graphqlCache: GraphQLCacheConfiguration(directoryURL: directory)
+        ))
+        return NhostGraphQLService(client: client)
     }
 }
 
@@ -223,16 +338,20 @@ final class LoadableTests: XCTestCase {
 
 private actor CacheTestTransportState {
     private var isOffline = false
+    private var body = Data(#"{"data":{"viewer":{"id":"cached-user"}}}"#.utf8)
 
     func setOffline(_ value: Bool) {
         isOffline = value
+    }
+
+    func setBody(_ value: Data) {
+        body = value
     }
 
     func fetch(_ request: NhostRequest) throws -> NhostRawResponse {
         if isOffline {
             throw FetchError.transport("URLError -1009: offline")
         }
-        let body = Data(#"{"data":{"viewer":{"id":"cached-user"}}}"#.utf8)
         return NhostRawResponse(
             status: 200,
             headers: ["content-type": "application/json"],
@@ -260,6 +379,14 @@ private let constraintGraphQLError = GraphQLError(
         ])
     ]
 )
+
+private func consumeIgnoringFailure<Value: Sendable>(
+    _ updates: AsyncThrowingStream<Value, Error>
+) async {
+    do {
+        for try await _ in updates {}
+    } catch {}
+}
 
 private func XCTAssertThrowsErrorAsync<T>(
     _ expression: @autoclosure () async throws -> T,
