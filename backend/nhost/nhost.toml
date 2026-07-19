@@ -40,7 +40,7 @@ mode = 'disabled'
 
 [auth.redirections]
 clientUrl = 'http://localhost:5173'
-allowedUrls = ['neogym://verify']
+allowedUrls = ['neogym://verify', 'neogym-dev://verify']
 
 [auth.signUp]
 enabled = true

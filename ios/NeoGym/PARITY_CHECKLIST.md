@@ -9,7 +9,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 - Navigation: submitted, cancelled, deleted, or otherwise spent form screens should dismiss/pop instead of staying on the back stack. Invalid-state redirects should also avoid leaving dead screens behind.
 - Refresh: every mutation should either update local view-model state deterministically or explicitly refetch affected screens on return/appear.
 - GraphQL: native repositories use raw user-role GraphQL documents, send only columns permitted by the user schema, and rely on `FakeGraphQLService` request capture for mutation-contract tests.
-- Deep-link regression for Phase 1: `RootView` owns `.onOpenURL` handling above `AppShellView`, so `neogym://verify` callbacks are consumed by `AuthCallbackURLRouter` even when a non-Profile destination is selected. Manual smoke in a simulator should verify requesting an email change, switching away from Profile, then opening the callback link updates the session.
+- Deep-link regression for Phase 1: `RootView` owns `.onOpenURL` handling above `AppShellView`, so the configured production `neogym://verify` or development `neogym-dev://verify` callback is consumed by `AuthCallbackURLRouter` even when a non-Profile destination is selected. Manual smoke in each variant should verify requesting an email change, switching away from Profile, then opening the callback link updates the session.
 
 ## App shell and auth/profile
 
@@ -19,7 +19,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | `/profile` view | Profile destination | 1 | ☑ complete | Existing profile UI remains the only non-placeholder Phase 1 destination. |
 | Profile sign out | Profile sign-out action | 1 | ☑ complete | Existing `AuthStore.signOut()` still clears local session after remote sign-out attempt. |
 | Profile change email request | Change email sheet | 1 | ☑ complete | Existing app-side PKCE flow preserved. |
-| `/verify` callback equivalent | `neogym://verify` callback | 1 | ☑ complete | Root-level callback routing is independent of selected shell destination. |
+| `/verify` callback equivalent | Variant callback (`neogym://verify` / `neogym-dev://verify`) | 1 | ☑ complete | Root-level callback routing is independent of selected shell destination; both callback URLs are present in the local config and production overlay. |
 
 ## Exercises
 

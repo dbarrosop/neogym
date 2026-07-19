@@ -14,6 +14,7 @@ ios/NeoGym/
 ├── project.yml                 # XcodeGen target/configuration graph
 ├── Configuration/              # authoritative Common + variant xcconfigs
 ├── fastlane/.env.*.example     # tracked templates for ignored opaque inputs
+├── fastlane/*receipt*          # cloud-callback attestation schema/example
 ├── Scripts/                    # materialization, generation, safe inspection
 ├── Package.swift               # NeoGymKit SwiftPM library + tests
 ├── App/                        # SwiftUI app target only
@@ -229,9 +230,9 @@ from the built bundle identifier, requests `changeUserEmail` with the configured
 the code with the saved verifier, clears the verifier, and applies the returned
 session; error or malformed callbacks surface feedback and also clear stale
 verifier state. Production resolves `neogym://verify`; development resolves
-`neogym-dev://verify`. The current backend files still allow only the production
-callback; adding the development callback is Phase 3 and intentionally not part
-of this phase. Restart local Nhost after any later redirect-config edit.
+`neogym-dev://verify`. Both callbacks are present in local
+`backend/nhost/nhost.toml` and the production overlay. Restart local Nhost after
+any redirect-config edit.
 
 Manual local OTP check:
 
@@ -257,6 +258,8 @@ Manual local email-change check:
    routes the callback into the app as `neogym://verify?code=...`.
 5. Confirm token exchange succeeds, the saved verifier is cleared, and the
    profile shows the updated email.
+6. Repeat with the `NeoGym Dev` scheme and confirm the callback routes as
+   `neogym-dev://verify?code=...`.
 
 Hand-crafted callback smoke check, when a simulator is available:
 
@@ -267,3 +270,26 @@ xcrun simctl openurl booted 'neogym-dev://verify?code=fake'
 
 With no matching saved verifier this should drive the app's callback path to the
 "saved verification state is missing" error and clear any stale verifier.
+
+### Production cloud-callback receipt
+
+The production overlay is tracked deployment input; it does not prove the cloud
+Auth configuration was applied. After an operator deploys the exact current
+overlay and verifies effective callback behavior for both `neogym://verify` and
+`neogym-dev://verify` on project `spmqtxqkdoxvtrkrfnnl`:
+
+1. Copy `fastlane/cloud-callback-receipt.production.example.json` to the ignored
+   `fastlane/cloud-callback-receipt.production.json`.
+2. Confirm `overlaySha256` is the lowercase SHA-256 of the exact production
+   overlay bytes (`shasum -a 256 ../../backend/nhost/overlays/spmqtxqkdoxvtrkrfnnl.json`).
+3. Record `verifiedAt` as a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` form and put
+   the accountable operator identity in `verifiedBy`.
+4. Run `python3 Scripts/verify-cloud-callback-receipt.py`.
+
+The receipt is an operator attestation, not independent or authenticated proof
+of cloud state. Do not create a real receipt without applying the overlay and
+checking effective Auth behavior. Missing, malformed, wrong-project,
+wrong-callback, or stale-overlay receipts fail the gate using field-only
+diagnostics. The future production archive and beta lanes must run this gate
+before archive and again before upload; no receipt is committed to the
+repository.

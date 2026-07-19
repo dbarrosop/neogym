@@ -14,6 +14,7 @@ ios/NeoGym/DerivedData
 ios/NeoGym/Configuration/Generated/*.xcconfig
 ios/NeoGym/fastlane/.env.development
 ios/NeoGym/fastlane/.env.production
+ios/NeoGym/fastlane/cloud-callback-receipt.production.json
 
 # Env / secrets
 .env

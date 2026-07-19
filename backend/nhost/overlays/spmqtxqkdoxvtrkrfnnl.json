@@ -16,7 +16,8 @@
   },
   {
     "value": [
-      "neogym://verify"
+      "neogym://verify",
+      "neogym-dev://verify"
     ],
     "op": "add",
     "path": "/auth/redirections/allowedUrls"

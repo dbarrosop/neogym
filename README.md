@@ -44,6 +44,19 @@ nix develop ../ --command bun run dev
 # → http://localhost:5173
 ```
 
+A fresh checkout has no ignored `backend/.secrets`. If `nhost up` reports
+`no secrets found`, do not run `nhost init` over the tracked `backend/nhost/`
+directory (the CLI refuses an existing Nhost folder). From the repository root,
+generate local-only secrets in a scratch project and copy only that ignored
+file:
+
+```sh
+scratch="$(mktemp -d)"
+(cd "$scratch" && nhost init)
+install -m 600 "$scratch/.secrets" backend/.secrets
+rm -rf "$scratch"
+```
+
 Try the flow:
 
 1. Visit `http://localhost:5173`, click **Get started**
@@ -90,10 +103,10 @@ The native app supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
 protected profile, and sign out. Sign-out always clears the local SDK session
 store after the remote request attempt. Production resolves
-`neogym://verify`; development resolves `neogym-dev://verify`. Backend allowlist
-work for the development callback belongs to the next deployment phase; this
-phase does not change backend callbacks. Restart local Nhost after any later
-redirect-config edit because the CLI does not hot-reload `nhost.toml`.
+`neogym://verify`; development resolves `neogym-dev://verify`. Both callbacks
+are present in the local Nhost allowlist and the production overlay. Restart
+local Nhost after any redirect-config edit because the CLI does not hot-reload
+`nhost.toml`.
 
 ## Project layout
 
@@ -153,7 +166,7 @@ Auth redirect config is split between local-dev defaults in `backend/nhost/nhost
 # backend/nhost/nhost.toml — local-dev baseline
 [auth.redirections]
 clientUrl = 'http://localhost:5173'
-allowedUrls = ['neogym://verify']
+allowedUrls = ['neogym://verify', 'neogym-dev://verify']
 ```
 
 ```json
@@ -161,10 +174,28 @@ allowedUrls = ['neogym://verify']
 { "op": "replace", "path": "/auth/redirections/clientUrl",
   "value": "https://neogym.nhost.app" }
 { "op": "add",     "path": "/auth/redirections/allowedUrls",
-  "value": ["neogym://verify"] }
+  "value": ["neogym://verify", "neogym-dev://verify"] }
 ```
 
-Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including the native `neogym://verify` callback, must be listed in `auth.redirections.allowedUrls` in both files. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts` and restart the local Nhost stack after redirect-config edits.
+Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including both native callbacks, must be listed in `auth.redirections.allowedUrls` in both files. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts` and restart the local Nhost stack after redirect-config edits.
+
+The checked-in production overlay is deployment input, not proof of effective
+cloud state. After an operator deploys that exact overlay through the supported
+Nhost process and verifies both callbacks against project
+`spmqtxqkdoxvtrkrfnnl`, copy
+`ios/NeoGym/fastlane/cloud-callback-receipt.production.example.json` to the
+ignored `cloud-callback-receipt.production.json`, then record the UTC
+verification time and verifier identity. Recompute the lowercase SHA-256 from
+the exact overlay bytes if necessary:
+
+```sh
+shasum -a 256 backend/nhost/overlays/spmqtxqkdoxvtrkrfnnl.json
+python3 ios/NeoGym/Scripts/verify-cloud-callback-receipt.py
+```
+
+The receipt is an operator attestation, not authenticated cloud inspection.
+Never create it without effective verification. Its absence or a hash mismatch
+must block the future production archive/TestFlight lanes.
 
 ## What's not in v1 (yet)
 

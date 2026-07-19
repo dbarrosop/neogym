@@ -66,9 +66,15 @@ changes.
   Keychain-backed verifier whose service derives from the bundle identifier,
   `.onOpenURL` deep-link handling, token exchange, and verifier clearing on all
   callback outcomes.
-- The native callback must be allowed by `auth.redirections.allowedUrls` in both
-  `backend/nhost/nhost.toml` and the production overlay. Restart local Nhost
-  after redirect config edits because the CLI does not hot-reload `nhost.toml`.
+- Both native callbacks (`neogym://verify` and `neogym-dev://verify`) must stay
+  allowed by `auth.redirections.allowedUrls` in `backend/nhost/nhost.toml` and
+  the production overlay. Restart local Nhost after redirect config edits
+  because the CLI does not hot-reload `nhost.toml`.
+- `fastlane/cloud-callback-receipt.production.json` is ignored operator
+  attestation, never cloud proof. Create it only after deploying the exact
+  production overlay and verifying effective behavior for both callbacks. Run
+  `Scripts/verify-cloud-callback-receipt.py`; missing/stale receipts must
+  hard-block future production archive/beta paths.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
 - The bundle-configured app client enables the Nhost Swift SDK persistent GraphQL cache

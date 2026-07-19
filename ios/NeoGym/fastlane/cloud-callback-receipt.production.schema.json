@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cloud-callback-receipt.production.schema.json",
+  "title": "NeoGym production Nhost callback deployment attestation",
+  "description": "Operator attestation that the exact tracked production overlay was deployed and both native callbacks were verified. This receipt is not independent proof of cloud state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "projectId",
+    "overlaySha256",
+    "verifiedAt",
+    "verifiedBy",
+    "callbackUrls"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./cloud-callback-receipt.production.schema.json"
+    },
+    "projectId": {
+      "const": "spmqtxqkdoxvtrkrfnnl"
+    },
+    "overlaySha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "verifiedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "verifiedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "callbackUrls": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "allOf": [
+        {
+          "contains": {
+            "const": "neogym://verify"
+          }
+        },
+        {
+          "contains": {
+            "const": "neogym-dev://verify"
+          }
+        }
+      ]
+    }
+  }
+}
