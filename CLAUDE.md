@@ -45,7 +45,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, Darwin-available XcodeGen, Python with Pillow/python-dotenv, Ruby, and Bundler are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -81,18 +81,16 @@ From `backend/`:
 
 From `ios/NeoGym/`:
 
-The `NeoGym` app target is iOS 26-only. Keep the widget extension and the
-host-testable `NeoGymKit` package at their lower deployment floors unless their
-own code needs newer APIs.
+The app, widget, and NeoGymKit iOS platform are pinned to iOS 26.6; NeoGymKit
+retains macOS 12 only for host builds/tests. Older-iOS availability branches are
+harmless and intentionally out of scope for this deployment change.
 
 - `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
-- `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
-  After adding/removing Swift app files, wait for XcodeGen to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors.
-  The spec's post-generation script patches the shared scheme to keep XPC
-  Services, Queue Debugging/backtrace recording, View Debugging, and related
-  default diagnostics disabled after regeneration.
-- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
+- Copy `fastlane/.env.development.example` and `.env.production.example` to their ignored non-example names and supply Team/Nhost values.
+- `nix develop ../.. --command Scripts/generate-project.sh all` — privately materialize both variant configs and generate `NeoGym.xcodeproj` from the authoritative xcconfigs/plists/entitlements plus `project.yml`. Single-variant `development`/`production` modes refresh only that input and preserve the other generated config.
+  After adding/removing Swift app files, wait for generation to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors. The spec's post-generation script patches both shared schemes once.
+- Build scheme `NeoGym Dev` with `Debug-Development` or scheme `NeoGym` with `Debug-Production`. Never inspect build settings with raw `xcodebuild -showBuildSettings`; use `Scripts/read-build-settings.py` with an explicit private output file.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
@@ -127,18 +125,19 @@ coordinated Keychain item (service `io.nhost.swift.session`, account
 access group) plus the matching
 bundle-configured App Group; the SDK derives the shared lock identity
 automatically from the canonical Keychain item identity, and the app waits up to
-5 seconds while the widget waits up to 500 ms. During the Phase 1 transition,
-XcodeGen owns matching `NeoGym*` runtime keys in both target plists; shipped
-Swift constructs one injectable runtime configuration per process and contains
-no production endpoint/callback/storage literals. There
+5 seconds while the widget waits up to 500 ms. Tracked variant xcconfigs own
+static identity, ignored mode-0600 generated xcconfigs own opaque Team/Nhost
+inputs, and tokenized plists/entitlements feed matching `NeoGym*` runtime keys to
+both targets. Shipped Swift constructs one injectable runtime configuration per
+process and contains no production endpoint/callback/storage literals. There
 is no private credential, mirroring, reconciliation, or token copy. App shared
 configuration failure is a fatal provisioning error for this POC; widget
 configuration, lock-timeout, cancellation, Auth, and network failures render the
 token-free cached/empty fallback and never write a failed live result. The
-widget never runs HealthKit import. WidgetKit timeline reloads and the iOS 17+
-in-widget Refresh button are best-effort triggers for the live-fetch provider
-path, not guaranteed freshness or cadence; keep all AppIntent/Button code
-availability-gated so the widget extension continues to support iOS 16.2.
+widget never runs HealthKit import. WidgetKit timeline reloads and the in-widget
+Refresh button are best-effort triggers for the live-fetch provider path, not
+guaranteed freshness or cadence. Existing older-iOS AppIntent/Button availability
+gates may remain, but every shipped iOS surface now requires iOS 26.6.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
@@ -258,7 +257,7 @@ A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-r
 - **shadcn components are hand-written** under `src/components/ui/`. The `bunx shadcn add` CLI was deliberately *not* used. To add a new primitive, copy from <https://ui.shadcn.com> and adjust the `cn`/import paths to `@/lib/utils`.
 - **Biome** is the only formatter/linter. ESLint and Prettier are not used. CSS parser has `tailwindDirectives: true` so `@theme inline`, `@utility`, `@custom-variant` parse cleanly.
 - **Auth state** lives client-side in `lib/nhost/auth-provider.tsx`. The Nhost client uses localStorage by default; SSR renders see `user = null` and `isAuthenticated = false`. Protected routes (`_authed.tsx`) redirect via `useEffect`, not `beforeLoad`, because the SDK's session storage is browser-only.
-- **Auth methods**: sign-in and sign-up use `nhost.auth.signInOTPEmail` / `signUpOTPEmail` + `verifySignInOTPEmail` (6-digit codes; no email link, no password). `auth.method.emailPasswordless` is disabled and `auth.method.otp.email` is enabled in `nhost.toml`. Change-email (in `_authed/profile.tsx`) is the one PKCE flow: it generates a verifier with `generatePKCEPair()` from `@nhost/nhost-js/auth`, stashes it in localStorage under `PKCE_VERIFIER_STORAGE_KEY` (`@/lib/nhost/pkce`), calls `nhost.auth.changeUserEmail({ codeChallenge, options: { redirectTo: ${origin}/verify } })`, and the user clicks the email link. The link routes through Hasura Auth to `/verify?code=...`, where `routes/verify.tsx` exchanges the code via `nhost.auth.tokenExchange({ code, codeVerifier })`. The session middleware (`updateSessionFromResponseMiddleware`) auto-persists the new session because `/token/exchange` matches its URL filter — don't manually `sessionStorage.set`. The verifier is removed from localStorage in the route's `finally`. Any subpath of `auth.redirections.clientUrl` is accepted as a `redirectTo` target by default, so per-route entries (e.g. `/verify`) don't need to be listed. Redirects to a different host/port or scheme must be added to `auth.redirections.allowedUrls` in both `backend/nhost/nhost.toml` (local-dev baseline) and `backend/nhost/overlays/<project-id>.json` (production overrides applied as JSON Patch at deploy time); the native iOS callback currently uses `neogym://verify`.
+- **Auth methods**: sign-in and sign-up use `nhost.auth.signInOTPEmail` / `signUpOTPEmail` + `verifySignInOTPEmail` (6-digit codes; no email link, no password). `auth.method.emailPasswordless` is disabled and `auth.method.otp.email` is enabled in `nhost.toml`. Change-email (in `_authed/profile.tsx`) is the one PKCE flow: it generates a verifier with `generatePKCEPair()` from `@nhost/nhost-js/auth`, stashes it in localStorage under `PKCE_VERIFIER_STORAGE_KEY` (`@/lib/nhost/pkce`), calls `nhost.auth.changeUserEmail({ codeChallenge, options: { redirectTo: ${origin}/verify } })`, and the user clicks the email link. The link routes through Hasura Auth to `/verify?code=...`, where `routes/verify.tsx` exchanges the code via `nhost.auth.tokenExchange({ code, codeVerifier })`. The session middleware (`updateSessionFromResponseMiddleware`) auto-persists the new session because `/token/exchange` matches its URL filter — don't manually `sessionStorage.set`. The verifier is removed from localStorage in the route's `finally`. Any subpath of `auth.redirections.clientUrl` is accepted as a `redirectTo` target by default, so per-route entries (e.g. `/verify`) don't need to be listed. Redirects to a different host/port or scheme must be added to `auth.redirections.allowedUrls` in both `backend/nhost/nhost.toml` (local-dev baseline) and `backend/nhost/overlays/<project-id>.json` (production overrides applied as JSON Patch at deploy time). The production iOS variant resolves `neogym://verify`; development resolves `neogym-dev://verify`. The development callback's backend allowlist entry belongs to Phase 3 and is intentionally not added in this phase.
 - **GraphQL data flow**: queries/mutations are authored inline via the typed `graphql(...)` template tag. Operations are sent through the `gqlRequest` helper in `src/lib/graphql.ts`, which is what `@tanstack/react-query`'s `useQuery` / `useMutation` calls.
 - **`bun run codegen` is a two-step pipeline** — both outputs are checked in and neither should be edited by hand:
   1. `codegen:graphql-schema` (needs backend up) introspects Hasura via `rover` with `X-Hasura-Role: user` and writes the canonical SDL to `frontend/schema.user.graphqls`. This is the human-readable map of every query, mutation, type, and field the app is allowed to use; consult it (or point an LLM/IDE at it) to discover what's available before writing a new `graphql(...)` document. Do not commit schema dumps produced by ad-hoc introspection tools unless `codegen:graphql-schema` is deliberately changed to use that tool, because otherwise harmless ordering/directive differences create large generated-file diffs.

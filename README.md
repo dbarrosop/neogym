@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun` and `biome` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, XcodeGen, Python/Pillow/python-dotenv, Ruby, and Bundler — is provisioned through a Nix flake so contributors get a reproducible dev environment.
 
 ## Stack
 
@@ -28,7 +28,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
+`bun`, `biome`, Darwin-available XcodeGen, Python/Pillow/python-dotenv, Ruby, and Bundler come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep the tracked iOS xcconfigs/plists/entitlements plus `project.yml` authoritative.
 
 ## Quick start
 
@@ -82,23 +82,24 @@ Native iOS (from `ios/NeoGym/`):
 |---|---|
 | `swift build` | Build the host-compatible `NeoGymKit` package |
 | `swift test` | Run deterministic `NeoGymKit` unit tests |
-| `nix develop ../.. --command xcodegen generate` | Generate `NeoGym.xcodeproj` from `project.yml` |
-| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app |
+| `nix develop ../.. --command Scripts/generate-project.sh all` | Materialize both ignored variant configs and generate both schemes |
+| `xcodebuild -project NeoGym.xcodeproj -scheme 'NeoGym Dev' -configuration Debug-Development -destination 'generic/platform=iOS Simulator' build` | Build the co-installable development app |
+| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -configuration Debug-Production -destination 'generic/platform=iOS Simulator' build` | Build the production-identity app |
 
 The native app supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
 protected profile, and sign out. Sign-out always clears the local SDK session
-store after the remote request attempt. Native PKCE email change uses
-`redirectTo = "neogym://verify"`; that custom scheme must stay listed in
-`auth.redirections.allowedUrls` for both local config and production overlays.
-After changing auth redirect config, restart the local Nhost stack because the
-CLI does not hot-reload `nhost.toml`.
+store after the remote request attempt. Production resolves
+`neogym://verify`; development resolves `neogym-dev://verify`. Backend allowlist
+work for the development callback belongs to the next deployment phase; this
+phase does not change backend callbacks. Restart local Nhost after any later
+redirect-config edit because the CLI does not hot-reload `nhost.toml`.
 
 ## Project layout
 
 ```
 .
-├── flake.nix                  # Nix devshell — bun + biome + XcodeGen on Darwin
+├── flake.nix                  # Nix devshell — web + deterministic iOS tooling
 ├── ios/NeoGym/                # SwiftUI app + XcodeGen spec + NeoGymKit package
 ├── frontend/
 │   ├── src/

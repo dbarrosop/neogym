@@ -2,6 +2,10 @@
 NeoGym.xcodeproj/
 .build/
 DerivedData/
+Configuration/Generated/*.xcconfig
+fastlane/.env.development
+fastlane/.env.production
+Scripts/**/__pycache__/
 
 # Xcode user state
 xcuserdata/

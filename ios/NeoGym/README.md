@@ -11,7 +11,10 @@ weight/body-fat measurements.
 
 ```text
 ios/NeoGym/
-├── project.yml                 # XcodeGen source of truth
+├── project.yml                 # XcodeGen target/configuration graph
+├── Configuration/              # authoritative Common + variant xcconfigs
+├── fastlane/.env.*.example     # tracked templates for ignored opaque inputs
+├── Scripts/                    # materialization, generation, safe inspection
 ├── Package.swift               # NeoGymKit SwiftPM library + tests
 ├── App/                        # SwiftUI app target only
 │   ├── NeoGymApp.swift
@@ -30,9 +33,9 @@ run on the macOS host. SwiftUI views belong in `App/`.
 
 ## Prerequisites
 
-- macOS with Xcode installed for simulator builds.
-- Nix devshell from the repository root. On Darwin, the shell includes XcodeGen
-  when the pinned Nixpkgs exposes `pkgs.xcodegen`.
+- macOS with an Xcode/iOS SDK supporting deployment target 26.6.
+- Nix devshell from the repository root. On Darwin, it includes XcodeGen,
+  Python with Pillow/python-dotenv, Ruby, and Bundler.
 - Local Nhost Swift SDK checkout at
   `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
   directory (normally
@@ -40,18 +43,13 @@ run on the macOS host. SwiftUI views belong in `App/`.
   `Package.swift` if your workspace layout differs.
 
 If XcodeGen is not available from Nix on a Darwin host, install it with Homebrew
-(`brew install xcodegen`) and run the same `xcodegen generate` command below. Do
-not commit the generated `.xcodeproj`; `project.yml` is the source of truth. App
-Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
-full-screen launch screen keys, are declared under the target `info.properties`
-in `project.yml`; rerun XcodeGen after changing them. The same spec also keeps
-the shared scheme's default debug diagnostics disabled: XcodeGen writes the
-supported GPU/main-thread/thread-performance settings, then
-`Scripts/disable-xcode-debug-options.py` patches the generated `.xcscheme` for
-XPC Services, Queue Debugging/backtrace recording, and View Debugging, which
-XcodeGen does not expose directly. Keep `LaunchScreen.storyboard` wired through
-`UILaunchStoryboardName`; without a launch screen, iOS can run the app in legacy
-letterboxed compatibility sizing on modern devices.
+(`brew install xcodegen`) and still use `Scripts/generate-project.sh`; do not
+bypass materialization or commit the generated project. Tracked
+`Configuration/*.xcconfig`, tokenized plists/entitlements, and `project.yml` are
+the source of truth. The spec's single `postGenCommand` patches both shared
+schemes for XPC Services, Queue Debugging/backtrace recording, and View Debugging
+and is idempotent. Keep `LaunchScreen.storyboard` wired through
+`UILaunchStoryboardName`; without it, iOS can use legacy letterboxed sizing.
 
 ## Commands
 
@@ -62,16 +60,47 @@ From this directory:
 swift build
 swift test
 
-# Generate the Xcode project from project.yml
-nix develop ../.. --command xcodegen generate
+# One-time local inputs (use non-secret sentinels for configuration checks)
+cp fastlane/.env.development.example fastlane/.env.development
+cp fastlane/.env.production.example fastlane/.env.production
+# Fill each Team/Nhost value locally; these files stay ignored.
 
-# Build the simulator app shell
-xcodebuild \
-  -project NeoGym.xcodeproj \
-  -scheme NeoGym \
-  -destination 'generic/platform=iOS Simulator' \
-  build
+# Materialize both mode-0600 xcconfigs and generate both shared schemes
+nix develop ../.. --command Scripts/generate-project.sh all
+
+# Build either generic simulator variant (signing may be disabled for checks)
+xcodebuild -project NeoGym.xcodeproj -scheme 'NeoGym Dev' \
+  -configuration Debug-Development -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project NeoGym.xcodeproj -scheme NeoGym \
+  -configuration Debug-Production -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
 ```
+
+`Scripts/generate-project.sh development|production` refreshes only one
+materialized input and preserves the other variant. Both schemes always remain
+in the project, and their app/widget pre-build guards reject missing, empty, or
+unexpanded selected settings using key-only diagnostics. Never use raw
+`xcodebuild -showBuildSettings`: it exposes custom settings. Use
+`Scripts/read-build-settings.py` with explicit allowlisted fields and a private
+output path. The materializer allowlists only `DEVELOPMENT_TEAM`,
+`NHOST_SUBDOMAIN`, and `NHOST_REGION`, parses with dotenv interpolation disabled,
+and never logs values. Future Fastlane lanes must invoke this same materializer
+and consume the generated build settings rather than reparsing product values.
+
+Both app/widget pairs require iOS 26.6. The app is iPhone-only and portrait-only;
+Catalyst and Designed for iPad on Mac are disabled. Marketing/build versions
+default to `1.0`/`1` for both targets. The variant matrix is:
+
+| Scheme | App / widget IDs | App Group | Shared-keychain suffix | Callback | Name / icon |
+|---|---|---|---|---|---|
+| `NeoGym Dev` | `io.nhost.dbarroso.neogym.dev` / `.dev.widgets` | `group.io.nhost.dbarroso.neogym.dev` | `io.nhost.dbarroso.neogym.dev.shared` | `neogym-dev://verify` | `NeoGym Dev` / `AppIconDev` |
+| `NeoGym` | `io.nhost.dbarroso.neogym` / `.widgets` | `group.io.nhost.dbarroso.neogym` | `io.nhost.dbarroso.neogym.shared` | `neogym://verify` | `NeoGym` / `AppIcon` |
+
+The DEV icon is committed but deterministically derived from the production icon;
+run `nix develop ../.. --command python3 Scripts/generate-dev-icon.py --check`
+to detect pixel drift. Apple portal App IDs, groups, HealthKit capabilities, and
+profiles must be provisioned manually; repository automation does not create them.
 
 To confirm XcodeGen is supplied by Nix on Darwin:
 
@@ -119,13 +148,12 @@ live result. The widget never runs HealthKit import; WidgetKit still owns its
 best-effort refresh scheduling.
 
 There is no app-private session, credential mirroring, reconciliation, or token
-copy in the App Group. `project.yml` is the capability source of truth: both
-targets retain only the shared Keychain access group and App Group. During this
-Phase 1 transition, XcodeGen owns the current `NeoGymNhostSubdomain`,
-`NeoGymNhostRegion`, `NeoGymCallbackScheme`, `NeoGymAppGroupIdentifier`,
-`NeoGymSharedKeychainAccessGroup`, and
-`NeoGymSharedKeychainAccessGroupSuffix` Info-plist values for both targets;
-variant xcconfig indirection replaces these temporary literals in Phase 2.
+copy in the App Group. Variant xcconfigs own exact static identities;
+mode-0600 ignored generated xcconfigs own only Team/Nhost inputs; tracked
+plists/entitlements resolve those settings for both targets. Production uses
+`io.nhost.dbarroso.neogym`, `group.io.nhost.dbarroso.neogym`, and `neogym`;
+development uses the isolated `.dev` identities and `neogym-dev`. Both retain
+only the matched shared Keychain group and App Group.
 
 ### Controlled reset and validation
 
@@ -146,8 +174,8 @@ authenticate again when reverting.
 
 After reset:
 
-1. Run `nix develop ../.. --command xcodegen generate`, build the signed app,
-   launch it, and authenticate again.
+1. Run `nix develop ../.. --command Scripts/generate-project.sh all`, build the
+   selected signed variant, launch it, and authenticate again.
 2. Confirm the app restores and refreshes its session, then add/run the Energy
    Balance widget and confirm a live server result. This signed simulator/device
    check proves both targets can access the same Keychain item and App Group;
@@ -170,8 +198,9 @@ from the last 7 local days that still carry the exact
 `Imported from Apple Health` note can be refreshed from newer HealthKit values.
 Manual or edited rows are not overwritten.
 
-The HealthKit capability and `NSHealthShareUsageDescription` are declared in
-`project.yml`; regenerate the Xcode project after changing them. The concrete
+The app-only HealthKit capability and `NSHealthShareUsageDescription` are
+declared in tracked entitlement/plist templates. Do not add
+`NSHealthUpdateUsageDescription` while both importers request `toShare: []`. The concrete
 HealthKit importer is compiled only for non-macOS platforms so `NeoGymKit` keeps
 building and testing on the macOS host.
 
@@ -199,10 +228,10 @@ from the built bundle identifier, requests `changeUserEmail` with the configured
 `.onOpenURL` path. A successful configured callback exchanges
 the code with the saved verifier, clears the verifier, and applies the returned
 session; error or malformed callbacks surface feedback and also clear stale
-verifier state. The backend must allow this native callback by keeping
-`neogym://verify` in `auth.redirections.allowedUrls` in both
-`backend/nhost/nhost.toml` and the production overlay. Restart the local Nhost
-stack after redirect config edits; the CLI does not hot-reload `nhost.toml`.
+verifier state. Production resolves `neogym://verify`; development resolves
+`neogym-dev://verify`. The current backend files still allow only the production
+callback; adding the development callback is Phase 3 and intentionally not part
+of this phase. Restart local Nhost after any later redirect-config edit.
 
 Manual local OTP check:
 
@@ -221,7 +250,7 @@ Manual local email-change check:
 1. From the repository root, run
    `make -C backend dev-env-down && make -C backend dev-env-up` after redirect
    config changes so local Auth loads the allowlist.
-2. Build/run the iOS app in a simulator and sign in as an existing user.
+2. Build/run the production `NeoGym` scheme in a simulator and sign in as an existing user.
 3. Open **Change email** on the profile screen, enter a different email address,
    and submit the request.
 4. Open MailHog, open the verification link on the simulator, and confirm iOS
@@ -233,6 +262,7 @@ Hand-crafted callback smoke check, when a simulator is available:
 
 ```sh
 xcrun simctl openurl booted 'neogym://verify?code=fake'
+xcrun simctl openurl booted 'neogym-dev://verify?code=fake'
 ```
 
 With no matching saved verifier this should drive the app's callback path to the

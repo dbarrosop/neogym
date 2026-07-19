@@ -11,6 +11,9 @@ frontend/src/routeTree.gen.ts
 ios/NeoGym/NeoGym.xcodeproj
 ios/NeoGym/.build
 ios/NeoGym/DerivedData
+ios/NeoGym/Configuration/Generated/*.xcconfig
+ios/NeoGym/fastlane/.env.development
+ios/NeoGym/fastlane/.env.production
 
 # Env / secrets
 .env

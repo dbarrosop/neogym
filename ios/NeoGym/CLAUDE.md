@@ -14,21 +14,26 @@ SwiftUI under `App/` owns layout, navigation, and presentation.
 
 Run these from `ios/NeoGym/`:
 
-The `NeoGym` app target is iOS 26-only. Keep `NeoGymWidgets` and the
-host-testable `NeoGymKit` package at their lower deployment floors unless their
-own code needs newer APIs.
+The app, widget, and NeoGymKit iOS platform all require iOS 26.6. NeoGymKit
+retains macOS 12 only for host builds/tests; older-iOS availability gates are
+harmless and intentionally out of scope.
 
 - `swift build` — build the host-compatible `NeoGymKit` package. Keep
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
   tests.
-- `nix develop ../.. --command xcodegen generate` — regenerate
-  `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
-  Keep `project.yml` as the source of truth and do not commit generated
-  `.xcodeproj` output.
-- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
-  destination.
+- Copy both `fastlane/.env.*.example` files to ignored `.env.development` and
+  `.env.production` files and supply opaque Team/Nhost values.
+- `nix develop ../.. --command Scripts/generate-project.sh all` — atomically
+  materialize mode-0600 generated xcconfigs and regenerate both shared schemes.
+  `development` and `production` refresh only the selected config without
+  deleting the other variant. Keep tracked xcconfigs, plists, entitlements, and
+  `project.yml` as the source of truth; never commit generated output.
+- Build scheme `NeoGym Dev`/`Debug-Development` or
+  `NeoGym`/`Debug-Production`. Use `Scripts/read-build-settings.py` for an
+  allowlisted private build-setting export; never run unsuppressed
+  `xcodebuild -showBuildSettings`.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
@@ -42,10 +47,12 @@ When invoking `xcodebuild` through `nix develop --command`, put the cleanup `env
 reintroduces linker variables.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
-both `App/Info.plist` and `project.yml`. Removing it can make the app run
-letterboxed on current devices. Keep `NSHealthShareUsageDescription` in both
-`App/Info.plist` and `project.yml` in sync; it must mention the read-only
-imports for weight, body-fat percentage, active energy, and resting energy.
+the tracked tokenized `App/Info.plist` and as a project resource. Removing it
+can make the app run letterboxed on current devices. Keep
+`NSHealthShareUsageDescription` in `App/Info.plist`; it must mention the
+read-only imports for weight, body-fat percentage, active energy, and resting
+energy. Never add `NSHealthUpdateUsageDescription` while importers request
+`toShare: []`.
 
 The package depends on the local Nhost Swift SDK at
 `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
@@ -100,22 +107,21 @@ changes.
   identity automatically from the canonical Keychain item identity instead of
   accepting a caller-owned namespace. The app acquisition budget is 5 seconds;
   the widget budget is 500
-  ms. Runtime deployment metadata is owned by `project.yml` and mirrored in both
-  tracked plists until Phase 2 moves it to build-setting indirection. Keep only
-  the shared Keychain group plus App Group in both targets'
-  entitlements. There is no app-private session, mirroring, reconciliation,
+  ms. Tracked Common/Development/Production xcconfigs own static deployment
+  settings, ignored generated xcconfigs own Team/Nhost inputs, and tracked
+  tokenized plists/entitlements resolve those settings for both targets. Keep
+  only the shared Keychain group plus App Group in both targets' entitlements. There is no app-private session, mirroring, reconciliation,
   credential copy, or App Group token storage. App shared-factory failure is a
   fatal developer/provisioning error for this controlled POC. Widget factory,
   lock-timeout, cancellation, Auth, and network failures must render the cached
   or empty token-free fallback and write no live snapshot. The widget does not
   run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
-  policies and the iOS 17+ in-widget Refresh button are best-effort triggers that
-  reload timelines and therefore run the live-fetch provider path when the
-  system grants runtime. Keep AppIntent/Button code availability-gated so the
-  widget extension's iOS 16.2 deployment floor remains buildable, use immutable
-  `static let` metadata on AppIntent types so Swift 6 concurrency checks accept
-  them as shared state, and do not describe widget refresh as guaranteed server
-  freshness or an exact cadence.
+  policies and the in-widget Refresh button are best-effort triggers that reload
+  timelines and therefore run the live-fetch provider path when the system
+  grants runtime. Older-iOS AppIntent/Button guards may remain but are no longer
+  a deployment-floor contract. Use immutable `static let` metadata on AppIntent
+  types so Swift 6 concurrency checks accept them as shared state, and do not
+  describe widget refresh as guaranteed server freshness or an exact cadence.
 - SwiftUI previews can set Dynamic Type with
   `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
   `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only

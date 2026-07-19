@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>$(NEOGYM_WIDGET_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,25 +17,27 @@
 	<key>CFBundlePackageType</key>
 	<string>XPC!</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
 	<key>NeoGymNhostSubdomain</key>
-	<string>spmqtxqkdoxvtrkrfnnl</string>
+	<string>$(NEOGYM_NHOST_SUBDOMAIN)</string>
 	<key>NeoGymNhostRegion</key>
-	<string>eu-central-1</string>
+	<string>$(NEOGYM_NHOST_REGION)</string>
 	<key>NeoGymCallbackScheme</key>
-	<string>neogym</string>
+	<string>$(NEOGYM_CALLBACK_SCHEME)</string>
 	<key>NeoGymAppGroupIdentifier</key>
-	<string>group.io.nhost.neogym</string>
+	<string>$(NEOGYM_APP_GROUP_IDENTIFIER)</string>
 	<key>NeoGymSharedKeychainAccessGroup</key>
-	<string>$(AppIdentifierPrefix)io.nhost.neogym.shared</string>
+	<string>$(AppIdentifierPrefix)$(NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX)</string>
 	<key>NeoGymSharedKeychainAccessGroupSuffix</key>
-	<string>io.nhost.neogym.shared</string>
+	<string>$(NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX)</string>
 </dict>
 </plist>

@@ -1,0 +1,11 @@
+#include "Common.xcconfig"
+#include? "Generated/Production.xcconfig"
+
+NEOGYM_APP_BUNDLE_IDENTIFIER = io.nhost.dbarroso.neogym
+NEOGYM_WIDGET_BUNDLE_IDENTIFIER = io.nhost.dbarroso.neogym.widgets
+NEOGYM_APP_GROUP_IDENTIFIER = group.io.nhost.dbarroso.neogym
+NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX = io.nhost.dbarroso.neogym.shared
+NEOGYM_CALLBACK_SCHEME = neogym
+NEOGYM_DISPLAY_NAME = NeoGym
+NEOGYM_WIDGET_DISPLAY_NAME = NeoGym Widgets
+NEOGYM_APP_ICON_NAME = AppIcon

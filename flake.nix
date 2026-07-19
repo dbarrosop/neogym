@@ -8,11 +8,11 @@
   };
 
   outputs =
-    {
-      self,
-      nixops,
-      nixpkgs,
-      flake-utils,
+    { self
+    , nixops
+    , nixpkgs
+    , flake-utils
+    ,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -49,6 +49,12 @@
             nhost.biome
             bun
             rover
+            ruby
+            bundler
+            (python3.withPackages (pythonPackages: [
+              pythonPackages.pillow
+              pythonPackages.python-dotenv
+            ]))
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen

@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "NeoGymKit",
     platforms: [
-        .iOS(.v15),
+        .iOS("26.6"),
         .macOS(.v12)
     ],
     products: [

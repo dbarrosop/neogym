@@ -1,32 +1,65 @@
+---
 name: NeoGym
 options:
   minimumXcodeGenVersion: 2.44.0
   postGenCommand: python3 Scripts/disable-xcode-debug-options.py
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "26.6"
+configs:
+  Debug-Development: debug
+  Release-Development: release
+  Debug-Production: debug
+  Release-Production: release
+configFiles:
+  Debug-Development: Configuration/Development.xcconfig
+  Release-Development: Configuration/Development.xcconfig
+  Debug-Production: Configuration/Production.xcconfig
+  Release-Production: Configuration/Production.xcconfig
 packages:
   NeoGymKit:
     path: .
-settings:
-  base:
-    SWIFT_VERSION: "6.0"
-    DEVELOPMENT_TEAM: ""
 schemes:
+  NeoGym Dev:
+    build:
+      targets:
+        NeoGym: all
+    run:
+      config: Debug-Development
+      enableGPUFrameCaptureMode: disabled
+      enableGPUValidationMode: false
+      disableMainThreadChecker: true
+      disableThreadPerformanceChecker: true
+    test:
+      config: Debug-Development
+    analyze:
+      config: Debug-Development
+    profile:
+      config: Release-Development
+    archive:
+      config: Release-Development
   NeoGym:
     build:
       targets:
         NeoGym: all
     run:
-      # Keep regenerated schemes from turning on costly default diagnostics.
+      config: Debug-Production
       enableGPUFrameCaptureMode: disabled
       enableGPUValidationMode: false
       disableMainThreadChecker: true
       disableThreadPerformanceChecker: true
+    test:
+      config: Debug-Production
+    analyze:
+      config: Debug-Production
+    profile:
+      config: Release-Production
+    archive:
+      config: Release-Production
 targets:
   NeoGym:
     type: application
     platform: iOS
-    deploymentTarget: "26.0"
+    deploymentTarget: "26.6"
     sources:
       - path: App
         excludes:
@@ -35,80 +68,55 @@ targets:
     resources:
       - path: App/Assets.xcassets
       - path: App/LaunchScreen.storyboard
-    info:
-      path: App/Info.plist
-      properties:
-        CFBundleURLTypes:
-          - CFBundleURLName: io.nhost.neogym
-            CFBundleURLSchemes:
-              - neogym
-        UILaunchStoryboardName: LaunchScreen
-        NSSupportsLiveActivities: true
-        NSHealthShareUsageDescription: >-
-          NeoGym imports your weight, body-fat percentage, active energy, and
-          resting energy from Apple Health to keep body and energy logs up to
-          date.
-        NeoGymNhostSubdomain: spmqtxqkdoxvtrkrfnnl
-        NeoGymNhostRegion: eu-central-1
-        NeoGymCallbackScheme: neogym
-        NeoGymAppGroupIdentifier: group.io.nhost.neogym
-        NeoGymSharedKeychainAccessGroup: >-
-          $(AppIdentifierPrefix)io.nhost.neogym.shared
-        NeoGymSharedKeychainAccessGroupSuffix: io.nhost.neogym.shared
-    entitlements:
-      path: App/NeoGym.entitlements
-      properties:
-        com.apple.developer.healthkit: true
-        com.apple.security.application-groups:
-          - group.io.nhost.neogym
-        keychain-access-groups:
-          - "$(AppIdentifierPrefix)io.nhost.neogym.shared"
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
       - target: NeoGymWidgets
         embed: true
+    preBuildScripts:
+      - name: Validate deployment configuration
+        basedOnDependencyAnalysis: false
+        script: >-
+          python3 "$SRCROOT/Scripts/validate-build-config.py"
+          --configuration "$CONFIGURATION"
+          --generated-dir "$SRCROOT/Configuration/Generated"
+          --check-environment
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym
+        PRODUCT_BUNDLE_IDENTIFIER: $(NEOGYM_APP_BUNDLE_IDENTIFIER)
         PRODUCT_NAME: NeoGym
         INFOPLIST_FILE: App/Info.plist
-        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: App/NeoGym.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: $(NEOGYM_APP_ICON_NAME)
+        TARGETED_DEVICE_FAMILY: "1"
   NeoGymWidgets:
     type: app-extension
     platform: iOS
-    deploymentTarget: "16.2"
+    deploymentTarget: "26.6"
     sources:
       - path: Widgets
+        excludes:
+          - Info.plist
       - path: Shared
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
-    info:
-      path: Widgets/Info.plist
-      properties:
-        NSExtension:
-          NSExtensionPointIdentifier: com.apple.widgetkit-extension
-        NeoGymNhostSubdomain: spmqtxqkdoxvtrkrfnnl
-        NeoGymNhostRegion: eu-central-1
-        NeoGymCallbackScheme: neogym
-        NeoGymAppGroupIdentifier: group.io.nhost.neogym
-        NeoGymSharedKeychainAccessGroup: >-
-          $(AppIdentifierPrefix)io.nhost.neogym.shared
-        NeoGymSharedKeychainAccessGroupSuffix: io.nhost.neogym.shared
-    entitlements:
-      path: Widgets/NeoGymWidgets.entitlements
-      properties:
-        com.apple.security.application-groups:
-          - group.io.nhost.neogym
-        keychain-access-groups:
-          - "$(AppIdentifierPrefix)io.nhost.neogym.shared"
+    preBuildScripts:
+      - name: Validate deployment configuration
+        basedOnDependencyAnalysis: false
+        script: >-
+          python3 "$SRCROOT/Scripts/validate-build-config.py"
+          --configuration "$CONFIGURATION"
+          --generated-dir "$SRCROOT/Configuration/Generated"
+          --check-environment
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.neogym.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: $(NEOGYM_WIDGET_BUNDLE_IDENTIFIER)
         PRODUCT_NAME: NeoGymWidgets
         INFOPLIST_FILE: Widgets/Info.plist
-        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: false
+        CODE_SIGN_ENTITLEMENTS: Widgets/NeoGymWidgets.entitlements
         APPLICATION_EXTENSION_API_ONLY: true
+        SKIP_INSTALL: true
+        TARGETED_DEVICE_FAMILY: "1"

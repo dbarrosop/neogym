@@ -108,24 +108,12 @@ final class URLSchemeRegistrationTests: XCTestCase {
             encoding: .utf8
         )
         XCTAssertFalse(projectSpec.contains(obsoletePrivateInfoKey))
-        XCTAssertFalse(projectSpec.contains("$(AppIdentifierPrefix)io.nhost.neogym\""))
-        XCTAssertEqual(
-            projectSpec.components(separatedBy: "$(AppIdentifierPrefix)io.nhost.neogym.shared").count - 1,
-            4
-        )
-        XCTAssertEqual(
-            projectSpec.components(separatedBy: "group.io.nhost.neogym").count - 1,
-            4
-        )
-        for key in [
-            NeoGymRuntimeConfiguration.Key.nhostSubdomain,
-            NeoGymRuntimeConfiguration.Key.nhostRegion,
-            NeoGymRuntimeConfiguration.Key.callbackScheme,
-            NeoGymRuntimeConfiguration.Key.appGroupIdentifier,
-            NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroupSuffix
-        ] {
-            XCTAssertEqual(projectSpec.components(separatedBy: "\(key):").count - 1, 2, key)
-        }
+        XCTAssertFalse(projectSpec.contains("info:"))
+        XCTAssertFalse(projectSpec.contains("entitlements:"))
+        XCTAssertTrue(projectSpec.contains("INFOPLIST_FILE: App/Info.plist"))
+        XCTAssertTrue(projectSpec.contains("INFOPLIST_FILE: Widgets/Info.plist"))
+        XCTAssertTrue(projectSpec.contains("CODE_SIGN_ENTITLEMENTS: App/NeoGym.entitlements"))
+        XCTAssertTrue(projectSpec.contains("CODE_SIGN_ENTITLEMENTS: Widgets/NeoGymWidgets.entitlements"))
     }
 
     func testShippedSwiftDoesNotHardcodeCurrentDeploymentValues() throws {
