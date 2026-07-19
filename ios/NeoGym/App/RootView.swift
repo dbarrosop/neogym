@@ -9,6 +9,7 @@ enum AuthScreen {
 
 struct RootView: View {
     let appEnvironment: AppEnvironment
+    let runtimeConfiguration: NeoGymRuntimeConfiguration
 
     @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
@@ -27,6 +28,7 @@ struct RootView: View {
                 AppShellView(
                     session: session,
                     environment: appEnvironment,
+                    runtimeConfiguration: runtimeConfiguration,
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,
                     signOut: signOut
@@ -87,7 +89,12 @@ struct RootView: View {
         if changeEmailModel == nil || changeEmailModel?.currentEmail != currentEmail {
             changeEmailModel = ChangeEmailModel(
                 authService: authStore.authService,
-                currentEmail: currentEmail
+                verifierStore: KeychainPKCEVerifierStore(
+                    service: runtimeConfiguration.pkceServiceIdentifier
+                ),
+                currentEmail: currentEmail,
+                redirectTo: runtimeConfiguration.callbackURL,
+                callbackScheme: runtimeConfiguration.callbackScheme
             )
         }
     }
@@ -252,7 +259,10 @@ private struct RootStateLayout<ActionPanel: View>: View {
 }
 
 #Preview {
-    RootView(appEnvironment: NhostClientFactory.makeEnvironment())
+    RootView(
+        appEnvironment: NhostClientFactory.makeEnvironment(),
+        runtimeConfiguration: NeoGymPreviewFixtures.runtimeConfiguration
+    )
         .environmentObject(AuthStore(authService: PreviewAuthService(), autoBootstrap: false))
         .environmentObject(AuthCallbackURLRouter())
 }

@@ -16,21 +16,25 @@ final class URLSchemeRegistrationTests: XCTestCase {
     func testInfoPlistRegistersNeoGymURLScheme() throws {
         let infoPlist = try plist(at: "App/Info.plist")
         let urlTypes = try XCTUnwrap(infoPlist["CFBundleURLTypes"] as? [[String: Any]])
-        let neoGymURLType = try XCTUnwrap(
-            urlTypes.first { urlType in
-                urlType["CFBundleURLName"] as? String == "io.nhost.neogym"
-            }
+        let configuredScheme = try XCTUnwrap(
+            infoPlist[NeoGymRuntimeConfiguration.Key.callbackScheme] as? String
         )
-        let schemes = try XCTUnwrap(neoGymURLType["CFBundleURLSchemes"] as? [String])
+        let registeredSchemes = urlTypes.flatMap { urlType in
+            urlType["CFBundleURLSchemes"] as? [String] ?? []
+        }
 
-        XCTAssertTrue(schemes.contains("neogym"))
+        XCTAssertTrue(registeredSchemes.contains(configuredScheme))
     }
 
     func testAppAndWidgetDeclareOnlyTheSharedSessionAccessGroup() throws {
-        let expectedKeychainGroup = "$(AppIdentifierPrefix)io.nhost.neogym.shared"
-        let expectedAppGroup = "group.io.nhost.neogym"
         let appInfoPlist = try plist(at: "App/Info.plist")
         let widgetInfoPlist = try plist(at: "Widgets/Info.plist")
+        let expectedKeychainGroup = try XCTUnwrap(
+            appInfoPlist[NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroup] as? String
+        )
+        let expectedAppGroup = try XCTUnwrap(
+            appInfoPlist[NeoGymRuntimeConfiguration.Key.appGroupIdentifier] as? String
+        )
 
         XCTAssertNil(appInfoPlist[obsoletePrivateInfoKey])
         XCTAssertEqual(
@@ -62,7 +66,7 @@ final class URLSchemeRegistrationTests: XCTestCase {
         )
     }
 
-    func testProjectSpecAndRuntimeConstantsUseOneCoordinationIdentity() throws {
+    func testProjectSpecAndRuntimeMetadataUseOneCoordinationIdentity() throws {
         let keychainOptions = KeychainSessionStorageOptions(
             service: "io.nhost.swift.session",
             accountPrefix: "default"
@@ -77,14 +81,27 @@ final class URLSchemeRegistrationTests: XCTestCase {
         for expectedDeclaration in [
             "keychainService = \"io.nhost.swift.session\"",
             "keychainAccountPrefix = \"default\"",
-            "sharedKeychainAccessGroupSuffix = \"io.nhost.neogym.shared\"",
-            "appGroupIdentifier = \"group.io.nhost.neogym\"",
             "appAcquisitionTimeout: TimeInterval = 5",
             "widgetAcquisitionTimeout: TimeInterval = 0.5"
         ] {
             XCTAssertTrue(configSource.contains(expectedDeclaration))
         }
         XCTAssertFalse(configSource.contains("lockNamespace"))
+        XCTAssertFalse(configSource.contains("spmqtxqkdoxvtrkrfnnl"))
+        XCTAssertFalse(configSource.contains("group.io.nhost.neogym"))
+
+        let appInfoPlist = try plist(at: "App/Info.plist")
+        let widgetInfoPlist = try plist(at: "Widgets/Info.plist")
+        for key in [
+            NeoGymRuntimeConfiguration.Key.nhostSubdomain,
+            NeoGymRuntimeConfiguration.Key.nhostRegion,
+            NeoGymRuntimeConfiguration.Key.callbackScheme,
+            NeoGymRuntimeConfiguration.Key.appGroupIdentifier,
+            NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroup,
+            NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroupSuffix
+        ] {
+            XCTAssertEqual(appInfoPlist[key] as? String, widgetInfoPlist[key] as? String, key)
+        }
 
         let projectSpec = try String(
             contentsOf: packageRoot.appendingPathComponent("project.yml"),
@@ -98,8 +115,46 @@ final class URLSchemeRegistrationTests: XCTestCase {
         )
         XCTAssertEqual(
             projectSpec.components(separatedBy: "group.io.nhost.neogym").count - 1,
-            2
+            4
         )
+        for key in [
+            NeoGymRuntimeConfiguration.Key.nhostSubdomain,
+            NeoGymRuntimeConfiguration.Key.nhostRegion,
+            NeoGymRuntimeConfiguration.Key.callbackScheme,
+            NeoGymRuntimeConfiguration.Key.appGroupIdentifier,
+            NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroupSuffix
+        ] {
+            XCTAssertEqual(projectSpec.components(separatedBy: "\(key):").count - 1, 2, key)
+        }
+    }
+
+    func testShippedSwiftDoesNotHardcodeCurrentDeploymentValues() throws {
+        let appInfoPlist = try plist(at: "App/Info.plist")
+        let configuredValues = try [
+            NeoGymRuntimeConfiguration.Key.nhostSubdomain,
+            NeoGymRuntimeConfiguration.Key.nhostRegion,
+            NeoGymRuntimeConfiguration.Key.callbackScheme,
+            NeoGymRuntimeConfiguration.Key.appGroupIdentifier,
+            NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroupSuffix
+        ].map { key in
+            try XCTUnwrap(appInfoPlist[key] as? String)
+        }
+
+        for directory in ["App", "Widgets", "Sources/NeoGymKit"] {
+            let root = packageRoot.appendingPathComponent(directory)
+            let enumerator = try XCTUnwrap(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
+            for case let fileURL as URL in enumerator where fileURL.pathExtension == "swift" {
+                let source = try String(contentsOf: fileURL, encoding: .utf8)
+                for value in configuredValues {
+                    XCTAssertFalse(
+                        source.contains("\"\(value)\""),
+                        "Deployment value must come from runtime metadata: \(fileURL.lastPathComponent)"
+                    )
+                }
+                XCTAssertFalse(source.contains("makeProduction"), fileURL.lastPathComponent)
+                XCTAssertFalse(source.contains("NhostConfig.production"), fileURL.lastPathComponent)
+            }
+        }
     }
 
     private func plist(at relativePath: String) throws -> [String: Any] {

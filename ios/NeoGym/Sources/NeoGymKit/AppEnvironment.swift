@@ -16,8 +16,10 @@ public extension NhostClientFactory {
         AppEnvironment(client: makeClient(config: config, sessionManagement: sessionManagement))
     }
 
-    static func makeProductionEnvironment() -> AppEnvironment {
-        AppEnvironment(client: makeProductionAppClient())
+    static func makeEnvironment(
+        configuration: NeoGymRuntimeConfiguration
+    ) throws -> AppEnvironment {
+        try AppEnvironment(client: makeAppClient(configuration: configuration))
     }
 }
 

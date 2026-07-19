@@ -23,7 +23,17 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>NeoGymNhostSubdomain</key>
+	<string>spmqtxqkdoxvtrkrfnnl</string>
+	<key>NeoGymNhostRegion</key>
+	<string>eu-central-1</string>
+	<key>NeoGymCallbackScheme</key>
+	<string>neogym</string>
+	<key>NeoGymAppGroupIdentifier</key>
+	<string>group.io.nhost.neogym</string>
 	<key>NeoGymSharedKeychainAccessGroup</key>
 	<string>$(AppIdentifierPrefix)io.nhost.neogym.shared</string>
+	<key>NeoGymSharedKeychainAccessGroupSuffix</key>
+	<string>io.nhost.neogym.shared</string>
 </dict>
 </plist>

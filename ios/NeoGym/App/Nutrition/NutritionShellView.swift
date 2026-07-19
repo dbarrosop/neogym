@@ -45,6 +45,7 @@ struct NutritionNavigationView: View {
     let energyRepository: any DailyEnergyRepositoryProtocol
     let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
+    let widgetSnapshotStore: EnergyBalanceWidgetSnapshotStore?
     @Binding var areaSelection: AppDestination
 
     @State private var path: [NutritionRoute] = []
@@ -199,7 +200,8 @@ struct NutritionNavigationView: View {
                 bodyHealthImporter: bodyHealthImporter,
                 energyRepository: energyRepository,
                 energyHealthImporter: energyHealthImporter,
-                currentUserId: currentUserId
+                currentUserId: currentUserId,
+                widgetSnapshotStore: widgetSnapshotStore
             )
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
@@ -399,6 +401,7 @@ private struct NutritionHubRow: View {
         energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
         energyHealthImporter: nil,
         currentUserId: "user-1",
+        widgetSnapshotStore: nil,
         areaSelection: .constant(.nutrition)
     )
 }

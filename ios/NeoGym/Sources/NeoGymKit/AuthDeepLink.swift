@@ -4,9 +4,12 @@ public enum AuthDeepLink: Equatable, Sendable {
     case code(String)
     case error(code: String?, description: String)
 
-    public static func parse(_ url: URL) throws -> AuthDeepLink {
+    public static func parse(
+        _ url: URL,
+        callbackScheme: String
+    ) throws -> AuthDeepLink {
         guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              components.scheme == "neogym",
+              components.scheme == callbackScheme,
               components.host == "verify",
               components.path.isEmpty
         else {

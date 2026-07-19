@@ -24,21 +24,36 @@ public enum NhostClientFactory {
         NhostAuthService(client: makeClient(config: config, sessionManagement: sessionManagement))
     }
 
-    public static func makeProductionAppClient() -> NhostClient {
-        let sessionManagement: SessionManagementConfiguration
-        do {
-            sessionManagement = try NhostSessionConfig.sharedSessionManagement(
+    public static func makeAppClient(
+        configuration: NeoGymRuntimeConfiguration
+    ) throws -> NhostClient {
+        try makeAppClient(
+            configuration: configuration,
+            sessionManagement: NhostSessionConfig.sharedSessionManagement(
+                configuration: configuration,
                 acquisitionTimeout: NhostSessionConfig.appAcquisitionTimeout
             )
-        } catch {
-            fatalError(
-                "NeoGym shared session configuration is invalid. "
-                    + "Check the signed Keychain and App Group entitlements: \(error)"
-            )
-        }
+        )
+    }
 
-        return makeClient(
-            config: .production,
+    public static func makeWidgetClient(
+        configuration: NeoGymRuntimeConfiguration
+    ) throws -> NhostClient {
+        try makeWidgetClient(
+            configuration: configuration,
+            sessionManagement: NhostSessionConfig.sharedSessionManagement(
+                configuration: configuration,
+                acquisitionTimeout: NhostSessionConfig.widgetAcquisitionTimeout
+            )
+        )
+    }
+
+    static func makeAppClient(
+        configuration: NeoGymRuntimeConfiguration,
+        sessionManagement: SessionManagementConfiguration
+    ) -> NhostClient {
+        makeClient(
+            config: configuration.nhost,
             sessionManagement: sessionManagement,
             graphQLCache: GraphQLCacheConfiguration(
                 freshnessTTL: 5 * 60,
@@ -47,12 +62,13 @@ public enum NhostClientFactory {
         )
     }
 
-    public static func makeProductionWidgetClient() throws -> NhostClient {
-        try makeClient(
-            config: .production,
-            sessionManagement: NhostSessionConfig.sharedSessionManagement(
-                acquisitionTimeout: NhostSessionConfig.widgetAcquisitionTimeout
-            )
+    static func makeWidgetClient(
+        configuration: NeoGymRuntimeConfiguration,
+        sessionManagement: SessionManagementConfiguration
+    ) -> NhostClient {
+        makeClient(
+            config: configuration.nhost,
+            sessionManagement: sessionManagement
         )
     }
 }

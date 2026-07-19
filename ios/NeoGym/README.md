@@ -1,11 +1,11 @@
 # NeoGym iOS
 
 Native SwiftUI app for NeoGym. The current milestone implements email OTP
-sign-in/sign-up, a protected grouped app shell with three primary tabs and
-secondary sections for the seven signed-in destinations, sign out, session
-bootstrap through local Nhost Swift SDK storage, app-side PKCE email-change
-handling through the `neogym://verify` URL scheme, and read-only Apple Health
-imports for body weight/body-fat measurements.
+sign-in/sign-up, a protected grouped app shell with three primary hubs and
+native pushed subsection routes, sign out, session
+bootstrap through local Nhost Swift SDK storage, bundle-configured app-side
+PKCE email-change callbacks, and read-only Apple Health imports for body
+weight/body-fat measurements.
 
 ## Layout
 
@@ -82,7 +82,7 @@ nix develop . --command xcodegen --version
 
 ## Persistent GraphQL browsing cache
 
-The production app client enables the Nhost Swift SDK file-backed GraphQL cache.
+The bundle-configured app client enables the Nhost Swift SDK file-backed GraphQL cache.
 Workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
 Body, and Energy list and display-detail screens consume stale-while-revalidate
 streams: a cached response renders immediately when available, followed by fresh
@@ -102,11 +102,14 @@ it is not a complete offline database or mutation queue.
 ## Shared app/widget session adoption
 
 The app and widget use one SDK-managed Keychain item and one SDK-managed App
-Group lock. Both use service `io.nhost.swift.session`, account
-`default.nhostSession`, Keychain access group
-`$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
-`group.io.nhost.neogym`. The SDK derives the lock identity automatically from the
-canonical Keychain item identity; callers no longer supply a lock namespace. The
+Group lock. Service `io.nhost.swift.session`, account `default.nhostSession`,
+and the acquisition budgets remain fixed protocol details. The Nhost endpoint,
+callback scheme, App Group, and expanded shared-Keychain access group are loaded
+once from each built bundle's `NeoGym*` runtime keys. The app and widget bundles
+must resolve matching values; the runtime rejects missing, empty, unexpanded, or
+crossed access-group metadata without logging configured values. The SDK derives
+the lock identity automatically from the canonical Keychain item identity;
+callers do not supply a lock namespace. The
 app waits up to 5 seconds for session ownership; the widget waits up to 500 ms.
 App configuration failure is a fatal developer/provisioning error in this
 controlled POC. A widget configuration
@@ -117,9 +120,12 @@ best-effort refresh scheduling.
 
 There is no app-private session, credential mirroring, reconciliation, or token
 copy in the App Group. `project.yml` is the capability source of truth: both
-targets retain only the shared Keychain access group and App Group, and both Info
-plists expose only `NeoGymSharedKeychainAccessGroup` after build-setting
-expansion.
+targets retain only the shared Keychain access group and App Group. During this
+Phase 1 transition, XcodeGen owns the current `NeoGymNhostSubdomain`,
+`NeoGymNhostRegion`, `NeoGymCallbackScheme`, `NeoGymAppGroupIdentifier`,
+`NeoGymSharedKeychainAccessGroup`, and
+`NeoGymSharedKeychainAccessGroupSuffix` Info-plist values for both targets;
+variant xcconfig indirection replaces these temporary literals in Phase 2.
 
 ### Controlled reset and validation
 
@@ -171,9 +177,11 @@ building and testing on the macOS host.
 
 ## Current auth scope
 
-`NhostConfig.local` defaults to `subdomain = "local"` and `region = "local"`,
-matching the web app's local development config. `AuthStore` shows a loading
-state while `getUserSession()` reads the SDK's persisted session, subscribes to
+Shipped app and widget clients read the Nhost subdomain and region opaquely from
+their built runtime metadata; Swift does not select a production environment.
+`NhostConfig.local` remains only as an explicit test/preview convenience.
+`AuthStore` shows a loading state while `getUserSession()` reads the SDK's
+persisted session, subscribes to
 `sessionStore.subscribe`, then routes to either signed-out OTP forms or the
 protected full-screen app shell.
 
@@ -185,10 +193,10 @@ then always clears the SDK's local session store so the app returns to signed-ou
 UI even if the remote sign-out request fails.
 
 Profile email change uses PKCE on the app side. `ChangeEmailModel` generates a
-PKCE verifier/challenge, stores the verifier in Keychain via
-`KeychainPKCEVerifierStore`, requests `changeUserEmail` with
-`redirectTo = "neogym://verify"`, and handles callbacks from `NeoGymApp`'s
-`.onOpenURL` path. A successful `neogym://verify?code=...` callback exchanges
+PKCE verifier/challenge, stores the verifier in Keychain under a service derived
+from the built bundle identifier, requests `changeUserEmail` with the configured
+`<callback-scheme>://verify` redirect, and handles callbacks from `NeoGymApp`'s
+`.onOpenURL` path. A successful configured callback exchanges
 the code with the saved verifier, clears the verifier, and applies the returned
 session; error or malformed callbacks surface feedback and also clear stale
 verifier state. The backend must allow this native callback by keeping

@@ -95,7 +95,11 @@ final class RestTimerController: ObservableObject {
 
     private var endDate: Date?
     private var tickerTask: Task<Void, Never>?
-    private let notificationIdentifier = "io.nhost.neogym.rest-timer"
+    private let notificationIdentifier: String
+
+    init(notificationIdentifier: String) {
+        self.notificationIdentifier = notificationIdentifier
+    }
 
     var formattedRemaining: String {
         let minutes = remainingSeconds / 60

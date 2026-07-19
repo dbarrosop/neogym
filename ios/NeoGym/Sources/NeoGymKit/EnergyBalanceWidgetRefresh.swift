@@ -132,8 +132,10 @@ public struct EnergyBalanceWidgetLiveRefreshOrchestrator: Sendable {
 }
 
 public extension NhostClientFactory {
-    static func makeProductionWidgetLiveRefreshClient() throws -> EnergyBalanceWidgetLiveRefreshClient {
-        let client = try makeProductionWidgetClient()
+    static func makeWidgetLiveRefreshClient(
+        configuration: NeoGymRuntimeConfiguration
+    ) throws -> EnergyBalanceWidgetLiveRefreshClient {
+        let client = try makeWidgetClient(configuration: configuration)
         return EnergyBalanceWidgetLiveRefreshClient(
             authService: NhostAuthService(client: client),
             repository: NutritionFoodMealRepository(graphQL: NhostGraphQLService(client: client))

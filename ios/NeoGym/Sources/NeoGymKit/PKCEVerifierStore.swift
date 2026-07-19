@@ -22,14 +22,13 @@ public enum PKCEVerifierStoreError: LocalizedError, Equatable, Sendable {
 }
 
 public struct KeychainPKCEVerifierStore: PKCEVerifierStoring {
-    public static let defaultService = "io.nhost.neogym.auth"
     public static let defaultAccount = "pkce-email-change-verifier"
 
     private let service: String
     private let account: String
 
     public init(
-        service: String = KeychainPKCEVerifierStore.defaultService,
+        service: String,
         account: String = KeychainPKCEVerifierStore.defaultAccount
     ) {
         self.service = service

@@ -2,16 +2,23 @@ import XCTest
 import Nhost
 @testable import NeoGymKit
 
+private let testCallbackScheme = "neogym-dev"
+private let testCallbackURL = "neogym-dev://verify"
+
 final class AuthDeepLinkTests: XCTestCase {
     func testParsesHostBasedVerificationCode() throws {
-        let link = try AuthDeepLink.parse(try XCTUnwrap(URL(string: "neogym://verify?code=abc123")))
+        let link = try AuthDeepLink.parse(
+            try XCTUnwrap(URL(string: "neogym-dev://verify?code=abc123")),
+            callbackScheme: testCallbackScheme
+        )
 
         XCTAssertEqual(link, .code("abc123"))
     }
 
     func testParsesErrorCallbackWithCamelCaseDescription() throws {
         let link = try AuthDeepLink.parse(
-            try XCTUnwrap(URL(string: "neogym://verify?error=access_denied&errorDescription=Denied%20by%20auth"))
+            try XCTUnwrap(URL(string: "neogym-dev://verify?error=access_denied&errorDescription=Denied%20by%20auth")),
+            callbackScheme: testCallbackScheme
         )
 
         XCTAssertEqual(link, .error(code: "access_denied", description: "Denied by auth"))
@@ -19,28 +26,35 @@ final class AuthDeepLinkTests: XCTestCase {
 
     func testParsesErrorCallbackWithSnakeCaseDescription() throws {
         let link = try AuthDeepLink.parse(
-            try XCTUnwrap(URL(string: "neogym://verify?error=server_error&error_description=Try%20again"))
+            try XCTUnwrap(URL(string: "neogym-dev://verify?error=server_error&error_description=Try%20again")),
+            callbackScheme: testCallbackScheme
         )
 
         XCTAssertEqual(link, .error(code: "server_error", description: "Try again"))
     }
 
     func testRejectsMissingCode() throws {
-        XCTAssertThrowsError(try AuthDeepLink.parse(try XCTUnwrap(URL(string: "neogym://verify")))) { error in
+        XCTAssertThrowsError(try AuthDeepLink.parse(
+            try XCTUnwrap(URL(string: "neogym-dev://verify")),
+            callbackScheme: testCallbackScheme
+        )) { error in
             XCTAssertEqual(error as? AuthDeepLinkParseError, .missingCode)
         }
     }
 
     func testRejectsMalformedSchemeHostAndPath() throws {
         let unsupportedURLs = [
-            "neogym:/verify?code=abc123",
-            "neogym://other?code=abc123",
-            "neogym://verify/extra?code=abc123",
+            "neogym-dev:/verify?code=abc123",
+            "neogym-dev://other?code=abc123",
+            "neogym-dev://verify/extra?code=abc123",
             "https://localhost:5173/verify?code=abc123"
         ]
 
         for rawURL in unsupportedURLs {
-            XCTAssertThrowsError(try AuthDeepLink.parse(try XCTUnwrap(URL(string: rawURL))), rawURL) { error in
+            XCTAssertThrowsError(try AuthDeepLink.parse(
+                try XCTUnwrap(URL(string: rawURL)),
+                callbackScheme: testCallbackScheme
+            ), rawURL) { error in
                 XCTAssertEqual(error as? AuthDeepLinkParseError, .unsupportedURL)
             }
         }
@@ -74,6 +88,8 @@ final class ChangeEmailModelTests: XCTestCase {
             verifierStore: verifierStore,
             currentEmail: "old@example.com",
             newEmail: " new@example.com ",
+            redirectTo: testCallbackURL,
+            callbackScheme: testCallbackScheme,
             generatePKCEPair: { PKCEPair(verifier: "verifier", challenge: "challenge") }
         )
 
@@ -85,7 +101,7 @@ final class ChangeEmailModelTests: XCTestCase {
         XCTAssertEqual(savedVerifier, "verifier")
         let requests = await service.emailChangeRequestsSnapshot()
         XCTAssertEqual(requests.map(\.newEmail), ["new@example.com"])
-        XCTAssertEqual(requests.map(\.redirectTo), [ChangeEmailModel.nativeRedirectURL])
+        XCTAssertEqual(requests.map(\.redirectTo), [testCallbackURL])
         XCTAssertEqual(requests.map(\.codeChallenge), ["challenge"])
     }
 
@@ -97,6 +113,8 @@ final class ChangeEmailModelTests: XCTestCase {
             verifierStore: verifierStore,
             currentEmail: "Athlete@Example.com",
             newEmail: " athlete@example.com ",
+            redirectTo: testCallbackURL,
+            callbackScheme: testCallbackScheme,
             generatePKCEPair: { PKCEPair(verifier: "verifier", challenge: "challenge") }
         )
 
@@ -118,11 +136,13 @@ final class ChangeEmailModelTests: XCTestCase {
         let model = ChangeEmailModel(
             authService: service,
             verifierStore: verifierStore,
-            currentEmail: "old@example.com"
+            currentEmail: "old@example.com",
+            redirectTo: testCallbackURL,
+            callbackScheme: testCallbackScheme
         )
 
         let exchangedSession = await model.handleCallback(
-            url: try XCTUnwrap(URL(string: "neogym://verify?code=auth-code"))
+            url: try XCTUnwrap(URL(string: "neogym-dev://verify?code=auth-code"))
         )
 
         XCTAssertEqual(exchangedSession?.user?.email, "updated@example.com")
@@ -141,10 +161,14 @@ final class ChangeEmailModelTests: XCTestCase {
         let model = ChangeEmailModel(
             authService: service,
             verifierStore: verifierStore,
-            currentEmail: "old@example.com"
+            currentEmail: "old@example.com",
+            redirectTo: testCallbackURL,
+            callbackScheme: testCallbackScheme
         )
 
-        let session = await model.handleCallback(url: try XCTUnwrap(URL(string: "neogym://verify?code=bad-code")))
+        let session = await model.handleCallback(
+            url: try XCTUnwrap(URL(string: "neogym-dev://verify?code=bad-code"))
+        )
 
         XCTAssertNil(session)
         let savedVerifier = try await verifierStore.loadVerifier()
@@ -158,11 +182,13 @@ final class ChangeEmailModelTests: XCTestCase {
         let model = ChangeEmailModel(
             authService: service,
             verifierStore: verifierStore,
-            currentEmail: "old@example.com"
+            currentEmail: "old@example.com",
+            redirectTo: testCallbackURL,
+            callbackScheme: testCallbackScheme
         )
 
         let errorSession = await model.handleCallback(
-            url: try XCTUnwrap(URL(string: "neogym://verify?error=access_denied&error_description=Denied"))
+            url: try XCTUnwrap(URL(string: "neogym-dev://verify?error=access_denied&error_description=Denied"))
         )
         XCTAssertNil(errorSession)
         XCTAssertEqual(model.errorMessage, "Denied")
@@ -170,7 +196,7 @@ final class ChangeEmailModelTests: XCTestCase {
         XCTAssertNil(savedVerifier)
 
         let missingVerifierSession = await model.handleCallback(
-            url: try XCTUnwrap(URL(string: "neogym://verify?code=auth-code"))
+            url: try XCTUnwrap(URL(string: "neogym-dev://verify?code=auth-code"))
         )
         XCTAssertNil(missingVerifierSession)
         XCTAssertEqual(model.errorMessage, ChangeEmailModelError.missingVerifier.errorDescription)

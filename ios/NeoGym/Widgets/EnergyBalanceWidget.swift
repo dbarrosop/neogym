@@ -3,6 +3,22 @@ import NeoGymKit
 import SwiftUI
 import WidgetKit
 
+private enum WidgetRuntime {
+    static let configuration: Result<NeoGymRuntimeConfiguration, NeoGymRuntimeConfigurationError> = {
+        do {
+            return .success(try NeoGymRuntimeConfiguration(bundle: .main))
+        } catch let error as NeoGymRuntimeConfigurationError {
+            return .failure(error)
+        } catch {
+            return .failure(.invalidValue(key: "Info.plist"))
+        }
+    }()
+}
+
+private enum WidgetRuntimeUnavailable: Error, Sendable {
+    case configuration
+}
+
 struct EnergyBalanceWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(
@@ -22,6 +38,7 @@ struct EnergyBalanceTimelineEntry: TimelineEntry {
     let snapshot: EnergyBalanceWidgetSnapshot?
     let isPlaceholder: Bool
     let refreshDecision: EnergyBalanceWidgetLiveRefreshDecision
+    let widgetOpenURL: URL?
 
     var displaySnapshot: EnergyBalanceWidgetSnapshot? {
         snapshot ?? (isPlaceholder ? .placeholder : nil)
@@ -41,20 +58,35 @@ private struct SendableTimelineCompletion: @unchecked Sendable {
 }
 
 struct EnergyBalanceTimelineProvider: TimelineProvider {
-    private let snapshotStore: EnergyBalanceWidgetSnapshotStore
+    private let snapshotStore: EnergyBalanceWidgetSnapshotStore?
     private let liveRefreshOrchestrator: EnergyBalanceWidgetLiveRefreshOrchestrator
+    private let widgetOpenURL: URL?
 
-    init(
-        snapshotStore: EnergyBalanceWidgetSnapshotStore = .shared,
-        liveRefreshClientFactory: @escaping @Sendable () throws -> EnergyBalanceWidgetLiveRefreshClient = {
-            try NhostClientFactory.makeProductionWidgetLiveRefreshClient()
+    init() {
+        switch WidgetRuntime.configuration {
+        case let .success(configuration):
+            let snapshotStore = EnergyBalanceWidgetSnapshotStore(
+                suiteName: configuration.appGroupIdentifier
+            )
+            self.snapshotStore = snapshotStore
+            widgetOpenURL = configuration.widgetOpenURL
+            liveRefreshOrchestrator = EnergyBalanceWidgetLiveRefreshOrchestrator(
+                snapshotStore: snapshotStore,
+                liveRefreshClientFactory: {
+                    try NhostClientFactory.makeWidgetLiveRefreshClient(
+                        configuration: configuration
+                    )
+                }
+            )
+        case .failure:
+            snapshotStore = nil
+            widgetOpenURL = nil
+            liveRefreshOrchestrator = EnergyBalanceWidgetLiveRefreshOrchestrator(
+                cachedSnapshotProvider: { nil },
+                liveRefreshClientFactory: { throw WidgetRuntimeUnavailable.configuration },
+                snapshotWriter: { _ in }
+            )
         }
-    ) {
-        self.snapshotStore = snapshotStore
-        liveRefreshOrchestrator = EnergyBalanceWidgetLiveRefreshOrchestrator(
-            snapshotStore: snapshotStore,
-            liveRefreshClientFactory: liveRefreshClientFactory
-        )
     }
 
     func placeholder(in context: Context) -> EnergyBalanceTimelineEntry {
@@ -62,17 +94,19 @@ struct EnergyBalanceTimelineProvider: TimelineProvider {
             date: Date(),
             snapshot: .placeholder,
             isPlaceholder: true,
-            refreshDecision: .liveSnapshot
+            refreshDecision: .liveSnapshot,
+            widgetOpenURL: widgetOpenURL
         )
     }
 
     func getSnapshot(in context: Context, completion: @escaping (EnergyBalanceTimelineEntry) -> Void) {
-        let snapshot = context.isPreview ? EnergyBalanceWidgetSnapshot.placeholder : snapshotStore.load()
+        let snapshot = context.isPreview ? EnergyBalanceWidgetSnapshot.placeholder : snapshotStore?.load()
         completion(EnergyBalanceTimelineEntry(
             date: Date(),
             snapshot: snapshot,
             isPlaceholder: context.isPreview,
-            refreshDecision: snapshot == nil ? .emptyState : .cachedFallback
+            refreshDecision: snapshot == nil ? .emptyState : .cachedFallback,
+            widgetOpenURL: widgetOpenURL
         ))
     }
 
@@ -97,7 +131,8 @@ struct EnergyBalanceTimelineProvider: TimelineProvider {
             date: date,
             snapshot: result.snapshot,
             isPlaceholder: false,
-            refreshDecision: result.decision
+            refreshDecision: result.decision,
+            widgetOpenURL: widgetOpenURL
         )
     }
 }
@@ -113,7 +148,7 @@ private struct EnergyBalanceWidgetView: View {
                 emptyView
             }
         }
-        .widgetURL(URL(string: "neogym://"))
+        .widgetURL(entry.widgetOpenURL)
         .energyBalanceWidgetBackground()
     }
 
@@ -316,7 +351,8 @@ struct EnergyBalanceWidget_Previews: PreviewProvider {
                 date: .now,
                 snapshot: .placeholder,
                 isPlaceholder: true,
-                refreshDecision: .liveSnapshot
+                refreshDecision: .liveSnapshot,
+                widgetOpenURL: nil
             ))
             .previewDisplayName("Live or cached data")
 
@@ -324,7 +360,8 @@ struct EnergyBalanceWidget_Previews: PreviewProvider {
                 date: .now,
                 snapshot: nil,
                 isPlaceholder: false,
-                refreshDecision: .emptyState
+                refreshDecision: .emptyState,
+                widgetOpenURL: nil
             ))
             .previewDisplayName("Empty state")
         }

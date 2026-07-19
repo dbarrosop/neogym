@@ -31,8 +31,6 @@ public enum ChangeEmailModelError: LocalizedError, Equatable, Sendable {
 
 @MainActor
 public final class ChangeEmailModel: ObservableObject {
-    public static let nativeRedirectURL = "neogym://verify"
-
     @Published public var newEmail: String
     @Published public private(set) var sentTo: String?
     @Published public private(set) var isRequesting: Bool
@@ -45,14 +43,16 @@ public final class ChangeEmailModel: ObservableObject {
     private let authService: any AuthServicing
     private let verifierStore: any PKCEVerifierStoring
     private let redirectTo: String
+    private let callbackScheme: String
     private let generatePKCEPair: @Sendable () -> PKCEPair
 
     public init(
         authService: any AuthServicing,
-        verifierStore: any PKCEVerifierStoring = KeychainPKCEVerifierStore(),
+        verifierStore: any PKCEVerifierStoring,
         currentEmail: String?,
         newEmail: String = "",
-        redirectTo: String = ChangeEmailModel.nativeRedirectURL,
+        redirectTo: String,
+        callbackScheme: String,
         generatePKCEPair: @escaping @Sendable () -> PKCEPair = {
             let pair = PKCE.generatePair()
             return PKCEPair(verifier: pair.verifier, challenge: pair.challenge)
@@ -63,6 +63,7 @@ public final class ChangeEmailModel: ObservableObject {
         self.currentEmail = currentEmail
         self.newEmail = newEmail
         self.redirectTo = redirectTo
+        self.callbackScheme = callbackScheme
         self.generatePKCEPair = generatePKCEPair
         sentTo = nil
         isRequesting = false
@@ -129,7 +130,7 @@ public final class ChangeEmailModel: ObservableObject {
     }
 
     private func exchangeSession(from url: URL) async throws -> StoredSession {
-        switch try AuthDeepLink.parse(url) {
+        switch try AuthDeepLink.parse(url, callbackScheme: callbackScheme) {
         case let .error(_, description):
             throw CallbackError(message: description)
         case let .code(code):

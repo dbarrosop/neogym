@@ -55,7 +55,8 @@ changes.
 ## Auth and app-shell invariants
 
 - Sign-in/sign-up use email OTP, no password. Native email change uses app-side
-  PKCE with `redirectTo = "neogym://verify"`, a Keychain-backed verifier,
+  PKCE with a bundle-configured `<callback-scheme>://verify` redirect, a
+  Keychain-backed verifier whose service derives from the bundle identifier,
   `.onOpenURL` deep-link handling, token exchange, and verifier clearing on all
   callback outcomes.
 - The native callback must be allowed by `auth.redirections.allowedUrls` in both
@@ -63,7 +64,7 @@ changes.
   after redirect config edits because the CLI does not hot-reload `nhost.toml`.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
-- The production app client enables the Nhost Swift SDK persistent GraphQL cache
+- The bundle-configured app client enables the Nhost Swift SDK persistent GraphQL cache
   with a 5-minute freshness window and 7-day stale-if-error window. Browsing list
   and display-detail repositories expose cached-first/fresh-second streams
   through `GraphQLServicing.cachedQuery`; view models must retain cached values
@@ -80,7 +81,8 @@ changes.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
   Energy Balance widget. Energy Balance math, captions, the dependency-free
   token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
-  host-testable `NeoGymKit` and use the `group.io.nhost.neogym` App Group. The app
+  host-testable `NeoGymKit` and use the App Group loaded from built runtime
+  metadata. The app
   writes snapshots only after a fresh backend Nutrition Overview emission (not
   an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
@@ -88,13 +90,19 @@ changes.
   Energy-list loads also ask WidgetKit to reload timelines so the widget can take
   the live server-fetch path after app-owned HealthKit or backend changes. The
   app and widget both use the SDK's one coordinated Keychain item: service
-  `io.nhost.swift.session`, account `default.nhostSession`, access group
-  `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
-  `group.io.nhost.neogym`. The SDK derives the lock-file identity automatically
-  from the canonical Keychain item identity instead of accepting a caller-owned
-  namespace. The app acquisition budget is 5 seconds; the widget budget is 500
-  ms. Keep only `NeoGymSharedKeychainAccessGroup` in both
-  Info plists and only the shared Keychain group plus App Group in both targets'
+  `io.nhost.swift.session`, account `default.nhostSession`, and matching
+  bundle-configured expanded access group plus App Group. The runtime requires
+  the configured access-group suffix to agree exactly with the full expanded
+  group and does not log configured values. In unsigned generic-simulator
+  builds, `AppIdentifierPrefix` can expand to an empty string, so the resolved
+  full group may equal the suffix; prefixed builds must end at a dot boundary
+  before that exact suffix. The SDK derives the lock-file
+  identity automatically from the canonical Keychain item identity instead of
+  accepting a caller-owned namespace. The app acquisition budget is 5 seconds;
+  the widget budget is 500
+  ms. Runtime deployment metadata is owned by `project.yml` and mirrored in both
+  tracked plists until Phase 2 moves it to build-setting indirection. Keep only
+  the shared Keychain group plus App Group in both targets'
   entitlements. There is no app-private session, mirroring, reconciliation,
   credential copy, or App Group token storage. App shared-factory failure is a
   fatal developer/provisioning error for this controlled POC. Widget factory,

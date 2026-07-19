@@ -1,7 +1,6 @@
 import Foundation
 
 public enum EnergyBalanceWidgetConstants {
-    public static let appGroupIdentifier = NhostSessionConfig.appGroupIdentifier
     public static let widgetKind = "EnergyBalanceWidget"
     public static let snapshotDefaultsKey = "energyBalanceWidgetSnapshot.v1"
 }
@@ -122,13 +121,11 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
 }
 
 public struct EnergyBalanceWidgetSnapshotStore: Sendable {
-    public static let shared = EnergyBalanceWidgetSnapshotStore()
-
     private let suiteName: String
     private let key: String
 
     public init(
-        suiteName: String = EnergyBalanceWidgetConstants.appGroupIdentifier,
+        suiteName: String,
         key: String = EnergyBalanceWidgetConstants.snapshotDefaultsKey
     ) {
         self.suiteName = suiteName

@@ -48,8 +48,13 @@ targets:
           NeoGym imports your weight, body-fat percentage, active energy, and
           resting energy from Apple Health to keep body and energy logs up to
           date.
+        NeoGymNhostSubdomain: spmqtxqkdoxvtrkrfnnl
+        NeoGymNhostRegion: eu-central-1
+        NeoGymCallbackScheme: neogym
+        NeoGymAppGroupIdentifier: group.io.nhost.neogym
         NeoGymSharedKeychainAccessGroup: >-
           $(AppIdentifierPrefix)io.nhost.neogym.shared
+        NeoGymSharedKeychainAccessGroupSuffix: io.nhost.neogym.shared
     entitlements:
       path: App/NeoGym.entitlements
       properties:
@@ -86,8 +91,13 @@ targets:
       properties:
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
+        NeoGymNhostSubdomain: spmqtxqkdoxvtrkrfnnl
+        NeoGymNhostRegion: eu-central-1
+        NeoGymCallbackScheme: neogym
+        NeoGymAppGroupIdentifier: group.io.nhost.neogym
         NeoGymSharedKeychainAccessGroup: >-
           $(AppIdentifierPrefix)io.nhost.neogym.shared
+        NeoGymSharedKeychainAccessGroupSuffix: io.nhost.neogym.shared
     entitlements:
       path: Widgets/NeoGymWidgets.entitlements
       properties:

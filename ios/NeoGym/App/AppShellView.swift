@@ -33,13 +33,33 @@ enum AppDestination: String, CaseIterable, Identifiable {
 struct AppShellView: View {
     let session: StoredSession
     let environment: AppEnvironment
+    let runtimeConfiguration: NeoGymRuntimeConfiguration
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
 
     @State private var selection: AppDestination = .workouts
     @State private var pendingSessionId: String?
-    @StateObject private var restTimer = RestTimerController()
+    @StateObject private var restTimer: RestTimerController
+
+    init(
+        session: StoredSession,
+        environment: AppEnvironment,
+        runtimeConfiguration: NeoGymRuntimeConfiguration,
+        isSigningOut: Bool,
+        changeEmailModel: ChangeEmailModel?,
+        signOut: @escaping () -> Void
+    ) {
+        self.session = session
+        self.environment = environment
+        self.runtimeConfiguration = runtimeConfiguration
+        self.isSigningOut = isSigningOut
+        self.changeEmailModel = changeEmailModel
+        self.signOut = signOut
+        _restTimer = StateObject(wrappedValue: RestTimerController(
+            notificationIdentifier: runtimeConfiguration.notificationIdentifier
+        ))
+    }
 
     var body: some View {
         ZStack {
@@ -64,6 +84,9 @@ struct AppShellView: View {
                     energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
                     energyHealthImporter: Self.makeEnergyHealthImporter(),
                     currentUserId: session.user?.id,
+                    widgetSnapshotStore: EnergyBalanceWidgetSnapshotStore(
+                        suiteName: runtimeConfiguration.appGroupIdentifier
+                    ),
                     areaSelection: $selection
                 )
             }
@@ -112,6 +135,7 @@ struct AppShellView: View {
     AppShellView(
         session: NeoGymPreviewFixtures.session,
         environment: NhostClientFactory.makeEnvironment(),
+        runtimeConfiguration: NeoGymPreviewFixtures.runtimeConfiguration,
         isSigningOut: false,
         changeEmailModel: nil,
         signOut: {}

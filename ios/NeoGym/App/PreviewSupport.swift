@@ -4,6 +4,22 @@ import Nhost
 
 /// Lightweight fixtures used by SwiftUI previews for redesigned app-only screens.
 enum NeoGymPreviewFixtures {
+    static let runtimeConfiguration: NeoGymRuntimeConfiguration = {
+        do {
+            return try NeoGymRuntimeConfiguration(infoDictionary: [
+                NeoGymRuntimeConfiguration.Key.bundleIdentifier: "com.example.neogym.preview",
+                NeoGymRuntimeConfiguration.Key.nhostSubdomain: "preview-subdomain",
+                NeoGymRuntimeConfiguration.Key.nhostRegion: "preview-region",
+                NeoGymRuntimeConfiguration.Key.callbackScheme: "neogym-preview",
+                NeoGymRuntimeConfiguration.Key.appGroupIdentifier: "group.com.example.neogym.preview",
+                NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroup: "PREVIEW.com.example.neogym.preview.shared",
+                NeoGymRuntimeConfiguration.Key.sharedKeychainAccessGroupSuffix: "com.example.neogym.preview.shared"
+            ])
+        } catch {
+            preconditionFailure("Preview runtime configuration fixture should be valid")
+        }
+    }()
+
     static var session: StoredSession {
         do {
             return try StoredSession(

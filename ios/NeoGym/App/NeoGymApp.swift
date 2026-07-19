@@ -6,30 +6,45 @@ import WidgetKit
 @main
 struct NeoGymApp: App {
     private let appEnvironment: AppEnvironment
+    private let runtimeConfiguration: NeoGymRuntimeConfiguration
     private let notificationDelegate: NeoGymNotificationDelegate
     @StateObject private var authStore: AuthStore
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
 
     init() {
-        let appEnvironment = NhostClientFactory.makeProductionEnvironment()
-        let notificationDelegate = NeoGymNotificationDelegate()
-        self.appEnvironment = appEnvironment
-        self.notificationDelegate = notificationDelegate
-        _authStore = StateObject(wrappedValue: AuthStore(
-            authService: appEnvironment.authService,
-            snapshotClearHandler: { _ in Self.clearEnergyBalanceWidgetSnapshot() }
-        ))
-        UNUserNotificationCenter.current().delegate = notificationDelegate
-    }
-
-    private static func clearEnergyBalanceWidgetSnapshot() {
-        EnergyBalanceWidgetSnapshotStore.shared.clear()
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+        do {
+            let runtimeConfiguration = try NeoGymRuntimeConfiguration(bundle: .main)
+            let appEnvironment = try NhostClientFactory.makeEnvironment(
+                configuration: runtimeConfiguration
+            )
+            let snapshotStore = EnergyBalanceWidgetSnapshotStore(
+                suiteName: runtimeConfiguration.appGroupIdentifier
+            )
+            let notificationDelegate = NeoGymNotificationDelegate()
+            self.appEnvironment = appEnvironment
+            self.runtimeConfiguration = runtimeConfiguration
+            self.notificationDelegate = notificationDelegate
+            _authStore = StateObject(wrappedValue: AuthStore(
+                authService: appEnvironment.authService,
+                snapshotClearHandler: { _ in
+                    snapshotStore.clear()
+                    WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+                }
+            ))
+            UNUserNotificationCenter.current().delegate = notificationDelegate
+        } catch {
+            fatalError(
+                "NeoGym runtime provisioning is invalid. Check the required bundle keys and signed entitlements."
+            )
+        }
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView(appEnvironment: appEnvironment)
+            RootView(
+                appEnvironment: appEnvironment,
+                runtimeConfiguration: runtimeConfiguration
+            )
                 .environmentObject(authStore)
                 .environmentObject(authCallbackURLRouter)
                 .onOpenURL { url in

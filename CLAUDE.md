@@ -98,8 +98,8 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
-The production iOS app enables the SDK's persistent, managed-session-scoped
-GraphQL response cache. Browsing list and display-detail queries use
+The bundle-configured iOS app enables the SDK's persistent,
+managed-session-scoped GraphQL response cache. Browsing list and display-detail queries use
 stale-while-revalidate streams to show cached data before fresh backend data for
 workouts, sessions, exercises, journal, foods, meals, nutrition plans/overview,
 Body, and Energy; edit/form, HealthKit reconciliation, daily-intake, and widget
@@ -117,17 +117,20 @@ The `NeoGymWidgets` extension contains both the rest timer Live Activity and the
 medium Energy Balance widget. Energy Balance display math, captions, snapshot
 DTO/store, and live-fetch/fallback orchestration live in host-testable
 `NeoGymKit`. The app writes a token-free aggregate snapshot to the
-`group.io.nhost.neogym` App Group only after a fresh backend Nutrition Overview
+bundle-configured App Group only after a fresh backend Nutrition Overview
 emission (never from an offline cached fallback) and clears/reloads it on
 sign-out, definitive signed-out bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
 reload timelines so the widget can take the live server-fetch path after
 app-owned HealthKit or backend changes. The app and widget use the SDK's single
 coordinated Keychain item (service `io.nhost.swift.session`, account
-`default.nhostSession`, access group
-`$(AppIdentifierPrefix)io.nhost.neogym.shared`) and App Group
-`group.io.nhost.neogym`; the SDK derives the shared lock identity automatically
-from the canonical Keychain item identity, and the app waits up to 5 seconds
-while the widget waits up to 500 ms. There
+`default.nhostSession`, and the variant's bundle-configured expanded shared
+access group) plus the matching
+bundle-configured App Group; the SDK derives the shared lock identity
+automatically from the canonical Keychain item identity, and the app waits up to
+5 seconds while the widget waits up to 500 ms. During the Phase 1 transition,
+XcodeGen owns matching `NeoGym*` runtime keys in both target plists; shipped
+Swift constructs one injectable runtime configuration per process and contains
+no production endpoint/callback/storage literals. There
 is no private credential, mirroring, reconciliation, or token copy. App shared
 configuration failure is a fatal provisioning error for this POC; widget
 configuration, lock-timeout, cancellation, Auth, and network failures render the
@@ -220,10 +223,11 @@ fails. SwiftUI previews can set Dynamic Type with
 `.environment(\.dynamicTypeSize, ...)`, but Xcode 17 treats
 `accessibilityReduceTransparency` and `accessibilityReduceMotion` as read-only
 environment values; verify those modes in simulator Accessibility settings rather
-than trying to force them in preview code. Native email change uses app-side PKCE with
-`redirectTo = "neogym://verify"`, a Keychain-backed verifier, `.onOpenURL`
-deep-link handling, token exchange, and verifier clearing on all callback
-outcomes. The native callback is allowed by `auth.redirections.allowedUrls` in
+than trying to force them in preview code. Native email change uses app-side PKCE with a bundle-configured
+`<callback-scheme>://verify` redirect, a Keychain-backed verifier service derived
+from the bundle identifier, `.onOpenURL` deep-link handling, token exchange, and
+verifier clearing on all callback outcomes. The native callback is allowed by
+`auth.redirections.allowedUrls` in
 both `backend/nhost/nhost.toml` and the production overlay; restart the local
 Nhost stack after redirect config edits because the CLI does not hot-reload
 `nhost.toml`.

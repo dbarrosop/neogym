@@ -9,6 +9,7 @@ struct NutritionOverviewView: View {
     let energyRepository: any DailyEnergyRepositoryProtocol
     let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
+    let widgetSnapshotStore: EnergyBalanceWidgetSnapshotStore?
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
@@ -24,7 +25,8 @@ struct NutritionOverviewView: View {
         bodyHealthImporter: (any BodyMeasurementsHealthImporting)?,
         energyRepository: any DailyEnergyRepositoryProtocol,
         energyHealthImporter: (any DailyEnergyHealthImporting)?,
-        currentUserId: String?
+        currentUserId: String?,
+        widgetSnapshotStore: EnergyBalanceWidgetSnapshotStore?
     ) {
         self.repository = repository
         self.bodyRepository = bodyRepository
@@ -32,6 +34,7 @@ struct NutritionOverviewView: View {
         self.energyRepository = energyRepository
         self.energyHealthImporter = energyHealthImporter
         self.currentUserId = currentUserId
+        self.widgetSnapshotStore = widgetSnapshotStore
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
         _bodyViewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: bodyRepository,
@@ -192,7 +195,8 @@ struct NutritionOverviewView: View {
             generatedAt: Date(),
             locale: locale
         )
-        EnergyBalanceWidgetSnapshotStore.shared.save(snapshot)
+        guard let widgetSnapshotStore else { return }
+        widgetSnapshotStore.save(snapshot)
         WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 
