@@ -93,15 +93,16 @@ Native iOS (from `ios/NeoGym/`):
 
 | Command | What it does |
 |---|---|
-| `swift build` | Build the host-compatible `NeoGymKit` package |
-| `swift test` | Run deterministic `NeoGymKit` unit tests |
-| `nix develop ../.. --command Scripts/check.sh` | Run the credential-free canonical iOS gate and both generic simulator builds |
-| `nix develop ../.. --command Scripts/generate-project.sh all` | Materialize both ignored variant configs and generate both schemes |
-| `python3 Scripts/verify-artifact.py --variant development|production <path>` | Validate an app/archive/IPA and its embedded widget against selected configuration |
-| `nix develop ../.. --command fastlane check --env production` | Run overlay-pinned Ruby release tests plus the canonical iOS gate |
-| `nix develop ../.. --command fastlane beta --env production` | Credential-gated archive, exact artifact validation, race check, and TestFlight upload |
-| `xcodebuild -project NeoGym.xcodeproj -scheme 'NeoGym Dev' -configuration Debug-Development -destination 'generic/platform=iOS Simulator' build` | Build the co-installable development app |
-| `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -configuration Debug-Production -destination 'generic/platform=iOS Simulator' build` | Build the production-identity app |
+| `make simulator-up` / `make simulator-down` | Boot/open or shut down an iPhone simulator; optionally pass `SIMULATOR_ID=<udid>` |
+| `make build [VARIANT=development|production]` | Generate, compile, and validate one generic-simulator variant without tests |
+| `make check` | Run Nix, Xcode-release, Swift, Python, configuration, both-build, and artifact gates |
+| `make deploy-simulator [SIMULATOR_ID=<udid>]` | Check, build, validate, install, and launch on a simulator |
+| `make deploy-device DEVICE_ID=<id>` | Check, sign, validate, install, and launch on a physical device |
+| `make deploy-testflight [VERSION=x.y]` | Check, archive, validate, and upload through the account configured in Xcode |
+
+See [`ios/NeoGym/README.md`](ios/NeoGym/README.md#make-workflow) for all
+parameters, ignored dotenv fields, CLI identifier-discovery commands, signing,
+and Xcode account prerequisites.
 
 The native app supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
@@ -183,27 +184,13 @@ allowedUrls = ['neogym://verify', 'neogym-dev://verify']
 
 Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including both native callbacks, must be listed in `auth.redirections.allowedUrls` in both files. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts` and restart the local Nhost stack after redirect-config edits.
 
-The checked-in production overlay is deployment input, not proof of effective
-cloud state. After an operator deploys that exact overlay through the supported
-Nhost process and verifies both callbacks against project
-`spmqtxqkdoxvtrkrfnnl`, copy
-`ios/NeoGym/fastlane/cloud-callback-receipt.production.example.json` to the
-ignored `cloud-callback-receipt.production.json`, then record the UTC
-verification time and verifier identity. Recompute the lowercase SHA-256 from
-the exact overlay bytes if necessary:
-
-```sh
-shasum -a 256 backend/nhost/overlays/spmqtxqkdoxvtrkrfnnl.json
-python3 ios/NeoGym/Scripts/verify-cloud-callback-receipt.py
-```
-
-The receipt is an operator attestation, not authenticated cloud inspection.
-Never create it without effective verification. Its absence or a hash mismatch
-blocks the production archive/TestFlight lanes before Xcode archive and is
-checked again before upload. See `ios/NeoGym/README.md` for the overlay-pinned
-Fastlane setup, Apple portal/signing/API-key prerequisites, unique build-number behavior,
-and clean-checkout release rehearsal. Fastlane does not create portal resources
-or replace local Xcode distribution signing.
+Before relying on native email-change callbacks in production, apply the
+checked-in production overlay through the supported Nhost process and verify
+both callback schemes against project `spmqtxqkdoxvtrkrfnnl`. Fastlane does not
+apply Nhost configuration, create Apple portal resources, or replace local Xcode
+distribution signing. See `ios/NeoGym/README.md` for the overlay-pinned Fastlane
+setup, Apple portal/signing/Xcode-account prerequisites, Xcode-managed build
+numbering, and clean-checkout release rehearsal.
 
 ## What's not in v1 (yet)
 

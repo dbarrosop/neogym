@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import plistlib
 import re
 import shutil
@@ -17,11 +16,11 @@ import subprocess
 import sys
 import tempfile
 import zipfile
-from collections.abc import Iterator
-from contextlib import contextmanager
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager, suppress
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 VARIANT_FILES = {
     "development": "Development.xcconfig",
@@ -81,7 +80,9 @@ class NormalizedArtifact:
 def _expand(value: str, settings: Mapping[str, str]) -> str:
     current = value
     for _ in range(64):
-        updated = UNRESOLVED.sub(lambda match: settings.get(match.group()[2:-1], match.group()), current)
+        updated = UNRESOLVED.sub(
+            lambda match: settings.get(match.group()[2:-1], match.group()), current
+        )
         if updated == current:
             return current
         current = updated
@@ -160,7 +161,10 @@ def _contains_unresolved(value: Any) -> bool:
     if isinstance(value, str):
         return bool(UNRESOLVED.search(value))
     if isinstance(value, Mapping):
-        return any(_contains_unresolved(key) or _contains_unresolved(item) for key, item in value.items())
+        return any(
+            _contains_unresolved(key) or _contains_unresolved(item)
+            for key, item in value.items()
+        )
     if isinstance(value, (list, tuple)):
         return any(_contains_unresolved(item) for item in value)
     return False
@@ -188,14 +192,20 @@ def _url_schemes(info: Mapping[str, Any]) -> list[str]:
 def _compiled_icon_name(info: Mapping[str, Any]) -> str | None:
     icons = info.get("CFBundleIcons")
     primary = icons.get("CFBundlePrimaryIcon") if isinstance(icons, Mapping) else None
-    icon_name = primary.get("CFBundleIconName") if isinstance(primary, Mapping) else None
+    icon_name = (
+        primary.get("CFBundleIconName") if isinstance(primary, Mapping) else None
+    )
     return icon_name if isinstance(icon_name, str) else None
 
 
-def _signed_prefix(bundle_id: str, entitlements: Mapping[str, Any], key: str, issues: list[str]) -> str | None:
+def _signed_prefix(
+    bundle_id: str, entitlements: Mapping[str, Any], key: str, issues: list[str]
+) -> str | None:
     application_identifier = entitlements.get("application-identifier")
     suffix = f".{bundle_id}"
-    if not isinstance(application_identifier, str) or not application_identifier.endswith(suffix):
+    if not isinstance(
+        application_identifier, str
+    ) or not application_identifier.endswith(suffix):
         issues.append(key)
         return None
     prefix = application_identifier[: -len(bundle_id)]
@@ -203,6 +213,23 @@ def _signed_prefix(bundle_id: str, entitlements: Mapping[str, Any], key: str, is
         issues.append(key)
         return None
     return prefix
+
+
+def _profile_allows_keychains(signed: Any, allowed: Any) -> bool:
+    if not isinstance(signed, list) or not isinstance(allowed, list):
+        return False
+    return all(
+        isinstance(group, str)
+        and any(
+            isinstance(candidate, str)
+            and (
+                candidate == group
+                or (candidate.endswith("*") and group.startswith(candidate[:-1]))
+            )
+            for candidate in allowed
+        )
+        for group in signed
+    )
 
 
 def _validate_profile(
@@ -251,17 +278,7 @@ def _validate_profile(
         )
         signed_keychains = entitlements.get("keychain-access-groups")
         profile_keychains = profile_entitlements.get("keychain-access-groups")
-        if not isinstance(signed_keychains, list) or not isinstance(profile_keychains, list):
-            issues.append(f"{label}.provisioning.keychain-access-groups")
-        elif not all(
-            isinstance(group, str)
-            and any(
-                isinstance(allowed, str)
-                and (allowed == group or (allowed.endswith("*") and group.startswith(allowed[:-1])))
-                for allowed in profile_keychains
-            )
-            for group in signed_keychains
-        ):
+        if not _profile_allows_keychains(signed_keychains, profile_keychains):
             issues.append(f"{label}.provisioning.keychain-access-groups")
     if healthkit:
         _expect_equal(
@@ -270,8 +287,6 @@ def _validate_profile(
             True,
             f"{label}.provisioning.com.apple.developer.healthkit",
         )
-    elif profile_entitlements.get("com.apple.developer.healthkit") is not None:
-        issues.append(f"{label}.provisioning.com.apple.developer.healthkit")
 
 
 def _validate_bundle(
@@ -285,17 +300,45 @@ def _validate_bundle(
     app: bool,
 ) -> str | None:
     info = bundle.info
-    _expect_equal(issues, _value(info, "CFBundleIdentifier"), bundle_id, f"{label}.Info.CFBundleIdentifier")
-    _expect_equal(issues, _value(info, "CFBundleDisplayName"), display_name, f"{label}.Info.CFBundleDisplayName")
-    _expect_equal(issues, _value(info, "MinimumOSVersion"), expected.minimum_os, f"{label}.Info.MinimumOSVersion")
+    _expect_equal(
+        issues,
+        _value(info, "CFBundleIdentifier"),
+        bundle_id,
+        f"{label}.Info.CFBundleIdentifier",
+    )
+    _expect_equal(
+        issues,
+        _value(info, "CFBundleDisplayName"),
+        display_name,
+        f"{label}.Info.CFBundleDisplayName",
+    )
+    _expect_equal(
+        issues,
+        _value(info, "MinimumOSVersion"),
+        expected.minimum_os,
+        f"{label}.Info.MinimumOSVersion",
+    )
     try:
         expected_device_family = [int(expected.device_family)]
     except ValueError:
         issues.append("configuration.TARGETED_DEVICE_FAMILY")
         expected_device_family = []
-    _expect_equal(issues, _value(info, "UIDeviceFamily"), expected_device_family, f"{label}.Info.UIDeviceFamily")
-    _expect_equal(issues, _value(info, "CFBundlePackageType"), "APPL" if app else "XPC!", f"{label}.Info.CFBundlePackageType")
-    if info.get("CFBundleSupportedPlatforms") not in (["iPhoneOS"], ["iPhoneSimulator"]):
+    _expect_equal(
+        issues,
+        _value(info, "UIDeviceFamily"),
+        expected_device_family,
+        f"{label}.Info.UIDeviceFamily",
+    )
+    _expect_equal(
+        issues,
+        _value(info, "CFBundlePackageType"),
+        "APPL" if app else "XPC!",
+        f"{label}.Info.CFBundlePackageType",
+    )
+    if info.get("CFBundleSupportedPlatforms") not in (
+        ["iPhoneOS"],
+        ["iPhoneSimulator"],
+    ):
         issues.append(f"{label}.Info.CFBundleSupportedPlatforms")
     if info.get("DTPlatformName") not in ("iphoneos", "iphonesimulator"):
         issues.append(f"{label}.Info.DTPlatformName")
@@ -307,22 +350,68 @@ def _validate_bundle(
             "NEOGYM_APP_GROUP_IDENTIFIER": expected.app_group,
             "NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX": expected.keychain_suffix,
         }[setting_key]
-        _expect_equal(issues, info.get(plist_key), expected_value, f"{label}.Info.{plist_key}")
+        _expect_equal(
+            issues, info.get(plist_key), expected_value, f"{label}.Info.{plist_key}"
+        )
     if app:
-        _expect_equal(issues, _url_schemes(info), [expected.callback_scheme], f"{label}.Info.CFBundleURLSchemes")
-        _expect_equal(issues, _compiled_icon_name(info), expected.icon_name, f"{label}.Info.CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName")
-        if not isinstance(info.get("NSHealthShareUsageDescription"), str) or info.get("NSHealthShareUsageDescription") == "":
+        _expect_equal(
+            issues,
+            _url_schemes(info),
+            [expected.callback_scheme],
+            f"{label}.Info.CFBundleURLSchemes",
+        )
+        _expect_equal(
+            issues,
+            _compiled_icon_name(info),
+            expected.icon_name,
+            f"{label}.Info.CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName",
+        )
+        if (
+            not isinstance(info.get("NSHealthShareUsageDescription"), str)
+            or info.get("NSHealthShareUsageDescription") == ""
+        ):
             issues.append(f"{label}.Info.NSHealthShareUsageDescription")
-        if "NSHealthUpdateUsageDescription" in info:
+        if (
+            not isinstance(info.get("NSHealthUpdateUsageDescription"), str)
+            or info.get("NSHealthUpdateUsageDescription") == ""
+        ):
             issues.append(f"{label}.Info.NSHealthUpdateUsageDescription")
-        _expect_equal(issues, info.get("UISupportedInterfaceOrientations"), ["UIInterfaceOrientationPortrait"], f"{label}.Info.UISupportedInterfaceOrientations")
-        _expect_equal(issues, info.get("UILaunchStoryboardName"), "LaunchScreen", f"{label}.Info.UILaunchStoryboardName")
+        _expect_equal(
+            issues,
+            info.get("UISupportedInterfaceOrientations"),
+            ["UIInterfaceOrientationPortrait"],
+            f"{label}.Info.UISupportedInterfaceOrientations",
+        )
+        _expect_equal(
+            issues,
+            info.get("UILaunchStoryboardName"),
+            "LaunchScreen",
+            f"{label}.Info.UILaunchStoryboardName",
+        )
+        _expect_equal(
+            issues,
+            info.get("ITSAppUsesNonExemptEncryption"),
+            False,
+            f"{label}.Info.ITSAppUsesNonExemptEncryption",
+        )
     else:
-        if "NSHealthShareUsageDescription" in info or "NSHealthUpdateUsageDescription" in info:
+        if (
+            "NSHealthShareUsageDescription" in info
+            or "NSHealthUpdateUsageDescription" in info
+        ):
             issues.append(f"{label}.Info.HealthKitUsageDescription")
         extension = info.get("NSExtension")
-        extension_point = extension.get("NSExtensionPointIdentifier") if isinstance(extension, Mapping) else None
-        _expect_equal(issues, extension_point, "com.apple.widgetkit-extension", f"{label}.Info.NSExtensionPointIdentifier")
+        extension_point = (
+            extension.get("NSExtensionPointIdentifier")
+            if isinstance(extension, Mapping)
+            else None
+        )
+        _expect_equal(
+            issues,
+            extension_point,
+            "com.apple.widgetkit-extension",
+            f"{label}.Info.NSExtensionPointIdentifier",
+        )
 
     if _contains_unresolved(info):
         issues.append(f"{label}.Info.unresolved-build-setting")
@@ -338,20 +427,35 @@ def _validate_bundle(
         f"{label}.entitlements.com.apple.security.application-groups",
     )
     if app:
-        _expect_equal(issues, entitlements.get("com.apple.developer.healthkit"), True, f"{label}.entitlements.com.apple.developer.healthkit")
+        _expect_equal(
+            issues,
+            entitlements.get("com.apple.developer.healthkit"),
+            True,
+            f"{label}.entitlements.com.apple.developer.healthkit",
+        )
     elif "com.apple.developer.healthkit" in entitlements:
         issues.append(f"{label}.entitlements.com.apple.developer.healthkit")
 
     prefix: str | None = None
     if bundle.entitlement_source == "signed":
-        prefix = _signed_prefix(bundle_id, entitlements, f"{label}.entitlements.application-identifier", issues)
+        prefix = _signed_prefix(
+            bundle_id,
+            entitlements,
+            f"{label}.entitlements.application-identifier",
+            issues,
+        )
         _expect_equal(
             issues,
             entitlements.get("com.apple.developer.team-identifier"),
             expected.development_team,
             f"{label}.entitlements.com.apple.developer.team-identifier",
         )
-        expected_keychain = [f"{prefix}{expected.keychain_suffix}"] if prefix is not None else None
+        expected_keychain = (
+            [f"{prefix}{expected.keychain_suffix}"] if prefix is not None else None
+        )
+    elif bundle.entitlement_source == "simulator-signed-template":
+        prefix = f"{expected.development_team}."
+        expected_keychain = [f"{prefix}{expected.keychain_suffix}"]
     else:
         expected_keychain = [expected.keychain_suffix]
     if expected_keychain is not None:
@@ -372,7 +476,9 @@ def _validate_bundle(
     return prefix
 
 
-def validate_normalized(expected: ExpectedVariant, artifact: NormalizedArtifact) -> None:
+def validate_normalized(
+    expected: ExpectedVariant, artifact: NormalizedArtifact
+) -> None:
     issues: list[str] = []
     if artifact.widget is None:
         raise ValidationFailure(["artifact.PlugIns.NeoGymWidgets.appex"])
@@ -400,18 +506,44 @@ def validate_normalized(expected: ExpectedVariant, artifact: NormalizedArtifact)
     for key in ("CFBundleShortVersionString", "CFBundleVersion"):
         app_value = app_info.get(key)
         widget_value = widget_info.get(key)
-        if not isinstance(app_value, str) or app_value == "" or app_value != widget_value:
+        if (
+            not isinstance(app_value, str)
+            or app_value == ""
+            or app_value != widget_value
+        ):
             issues.append(f"artifact.version-parity.{key}")
-    if app_info.get("CFBundleSupportedPlatforms") != widget_info.get("CFBundleSupportedPlatforms"):
+    if app_info.get("CFBundleSupportedPlatforms") != widget_info.get(
+        "CFBundleSupportedPlatforms"
+    ):
         issues.append("artifact.platform-parity.CFBundleSupportedPlatforms")
     if artifact.requires_signed_metadata:
         if artifact.app.entitlement_source != "signed":
             issues.append("app.signed-entitlements")
         if artifact.widget.entitlement_source != "signed":
             issues.append("widget.signed-entitlements")
-        _validate_profile(issues, "app", expected.app_bundle_id, artifact.app, expected, app_prefix, True)
-        _validate_profile(issues, "widget", expected.widget_bundle_id, artifact.widget, expected, widget_prefix, False)
-        if app_prefix is not None and widget_prefix is not None and app_prefix != widget_prefix:
+        _validate_profile(
+            issues,
+            "app",
+            expected.app_bundle_id,
+            artifact.app,
+            expected,
+            app_prefix,
+            True,
+        )
+        _validate_profile(
+            issues,
+            "widget",
+            expected.widget_bundle_id,
+            artifact.widget,
+            expected,
+            widget_prefix,
+            False,
+        )
+        if (
+            app_prefix is not None
+            and widget_prefix is not None
+            and app_prefix != widget_prefix
+        ):
             issues.append("artifact.application-identifier-prefix-parity")
     if issues:
         raise ValidationFailure(issues)
@@ -469,12 +601,32 @@ def validate_build_settings(
     }
     for label, settings in (("app", app_settings), ("widget", widget_settings)):
         for key, expected_value in shared.items():
-            _expect_equal(issues, settings.get(key), expected_value, f"build-settings.{label}.{key}")
+            _expect_equal(
+                issues,
+                settings.get(key),
+                expected_value,
+                f"build-settings.{label}.{key}",
+            )
         if _contains_unresolved(settings):
             issues.append(f"build-settings.{label}.unresolved-build-setting")
-    _expect_equal(issues, app_settings.get("PRODUCT_BUNDLE_IDENTIFIER"), expected.app_bundle_id, "build-settings.app.PRODUCT_BUNDLE_IDENTIFIER")
-    _expect_equal(issues, widget_settings.get("PRODUCT_BUNDLE_IDENTIFIER"), expected.widget_bundle_id, "build-settings.widget.PRODUCT_BUNDLE_IDENTIFIER")
-    _expect_equal(issues, app_settings.get("ASSETCATALOG_COMPILER_APPICON_NAME"), expected.icon_name, "build-settings.app.ASSETCATALOG_COMPILER_APPICON_NAME")
+    _expect_equal(
+        issues,
+        app_settings.get("PRODUCT_BUNDLE_IDENTIFIER"),
+        expected.app_bundle_id,
+        "build-settings.app.PRODUCT_BUNDLE_IDENTIFIER",
+    )
+    _expect_equal(
+        issues,
+        widget_settings.get("PRODUCT_BUNDLE_IDENTIFIER"),
+        expected.widget_bundle_id,
+        "build-settings.widget.PRODUCT_BUNDLE_IDENTIFIER",
+    )
+    _expect_equal(
+        issues,
+        app_settings.get("ASSETCATALOG_COMPILER_APPICON_NAME"),
+        expected.icon_name,
+        "build-settings.app.ASSETCATALOG_COMPILER_APPICON_NAME",
+    )
     for key in ("MARKETING_VERSION", "CURRENT_PROJECT_VERSION"):
         if app_settings.get(key) != widget_settings.get(key):
             issues.append(f"build-settings.version-parity.{key}")
@@ -485,7 +637,9 @@ def validate_build_settings(
 class CommandAdapters:
     """Command-backed extraction boundary, injectable for deterministic tests."""
 
-    def __init__(self, codesign: str = "/usr/bin/codesign", security: str = "/usr/bin/security") -> None:
+    def __init__(
+        self, codesign: str = "/usr/bin/codesign", security: str = "/usr/bin/security"
+    ) -> None:
         self.codesign = codesign
         self.security = security
 
@@ -513,9 +667,24 @@ class CommandAdapters:
 
     def provisioning(self, bundle: Path, label: str) -> Mapping[str, Any]:
         return self._plist_output(
-            [self.security, "cms", "-D", "-i", str(bundle / "embedded.mobileprovision")],
+            [
+                self.security,
+                "cms",
+                "-D",
+                "-i",
+                str(bundle / "embedded.mobileprovision"),
+            ],
             f"{label}.embedded.mobileprovision",
         )
+
+    def verify_signature(self, bundle: Path, label: str) -> None:
+        result = subprocess.run(
+            [self.codesign, "--verify", "--strict", str(bundle)],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            raise ValidationFailure([f"{label}.signature"])
 
 
 def _load_plist(path: Path, key: str) -> Mapping[str, Any]:
@@ -542,7 +711,10 @@ def _expand_entitlement_value(value: Any, settings: Mapping[str, str]) -> Any:
 
 
 def _unsigned_entitlements(
-    project_root: Path, expected: ExpectedVariant, app: bool
+    project_root: Path,
+    expected: ExpectedVariant,
+    app: bool,
+    app_identifier_prefix: str = "",
 ) -> Mapping[str, Any]:
     relative_path = (
         Path("App/NeoGym.entitlements")
@@ -556,7 +728,7 @@ def _unsigned_entitlements(
     expanded = _expand_entitlement_value(
         template,
         {
-            "AppIdentifierPrefix": "",
+            "AppIdentifierPrefix": app_identifier_prefix,
             "NEOGYM_APP_GROUP_IDENTIFIER": expected.app_group,
             "NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX": expected.keychain_suffix,
         },
@@ -575,6 +747,7 @@ def _extract_bundle(
     expected: ExpectedVariant,
     adapters: CommandAdapters,
     require_signed: bool,
+    simulator_signed: bool,
     app: bool,
 ) -> NormalizedBundle:
     info = _load_plist(path / "Info.plist", f"{label}.Info.plist")
@@ -583,6 +756,16 @@ def _extract_bundle(
         entitlements = adapters.signed_entitlements(path, label)
         provisioning = adapters.provisioning(path, label)
         source = "signed"
+    elif simulator_signed:
+        adapters.verify_signature(path, label)
+        entitlements = _unsigned_entitlements(
+            project_root,
+            expected,
+            app,
+            app_identifier_prefix=f"{expected.development_team}.",
+        )
+        provisioning = None
+        source = "simulator-signed-template"
     else:
         entitlements = _unsigned_entitlements(project_root, expected, app)
         provisioning = None
@@ -596,12 +779,20 @@ def extract_normalized(
     expected: ExpectedVariant,
     adapters: CommandAdapters,
     require_signed: bool,
+    simulator_signed: bool = False,
 ) -> NormalizedArtifact:
     if not (app_path / "Assets.car").is_file():
         raise ValidationFailure(["app.Assets.car"])
     widget_path = app_path / "PlugIns" / "NeoGymWidgets.appex"
     app = _extract_bundle(
-        app_path, "app", project_root, expected, adapters, require_signed, True
+        app_path,
+        "app",
+        project_root,
+        expected,
+        adapters,
+        require_signed,
+        simulator_signed,
+        True,
     )
     widget = None
     if widget_path.is_dir():
@@ -612,6 +803,7 @@ def extract_normalized(
             expected,
             adapters,
             require_signed,
+            simulator_signed,
             False,
         )
     return NormalizedArtifact(app, widget, require_signed)
@@ -631,8 +823,8 @@ def artifact_workspace(path: Path) -> Iterator[tuple[Path, bool]]:
             yield apps[0], True
             return
         if path.suffix == ".ipa" and path.is_file():
+            # tempfile.mkdtemp creates a private mode-0700 directory atomically.
             temporary = Path(tempfile.mkdtemp(prefix="neogym-ipa-"))
-            os.chmod(temporary, 0o700)
             with zipfile.ZipFile(path) as archive:
                 root = temporary.resolve()
                 for member in archive.infolist():
@@ -648,10 +840,8 @@ def artifact_workspace(path: Path) -> Iterator[tuple[Path, bool]]:
         raise ValidationFailure(["artifact.path"])
     finally:
         if temporary is not None:
-            try:
+            with suppress(OSError):
                 shutil.rmtree(temporary)
-            except OSError:
-                pass
 
 
 def _load_json_mapping(path: Path, key: str) -> Mapping[str, Any]:
@@ -668,28 +858,41 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate a NeoGym built artifact")
     parser.add_argument("--variant", required=True, choices=tuple(VARIANT_FILES))
     parser.add_argument("artifact", type=Path)
-    parser.add_argument("--project-root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument(
+        "--project-root", type=Path, default=Path(__file__).resolve().parents[1]
+    )
     parser.add_argument("--app-build-settings", type=Path)
     parser.add_argument("--widget-build-settings", type=Path)
+    parser.add_argument(
+        "--signed-simulator",
+        action="store_true",
+        help="require a locally signed simulator app and validate its simulated entitlements",
+    )
     args = parser.parse_args(argv)
 
     try:
         expected = load_expected(args.project_root, args.variant)
         if (args.app_build_settings is None) != (args.widget_build_settings is None):
             raise ValidationFailure(["build-settings.arguments"])
-        if args.app_build_settings is not None and args.widget_build_settings is not None:
+        if (
+            args.app_build_settings is not None
+            and args.widget_build_settings is not None
+        ):
             validate_build_settings(
                 expected,
                 _load_json_mapping(args.app_build_settings, "build-settings.app"),
                 _load_json_mapping(args.widget_build_settings, "build-settings.widget"),
             )
         with artifact_workspace(args.artifact) as (app_path, require_signed):
+            if args.signed_simulator and require_signed:
+                raise ValidationFailure(["arguments.signed-simulator"])
             artifact = extract_normalized(
                 app_path,
                 args.project_root,
                 expected,
                 CommandAdapters(),
                 require_signed,
+                simulator_signed=args.signed_simulator,
             )
             validate_normalized(expected, artifact)
     except ValidationFailure as error:

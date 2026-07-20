@@ -25,6 +25,15 @@ harmless and intentionally out of scope.
   tests.
 - Copy both `fastlane/.env.*.example` files to ignored `.env.development` and
   `.env.production` files and supply opaque Team/Nhost values.
+- The public local workflow is `Makefile`: `make build`, `make check`,
+  `make simulator-up|simulator-down`, `make deploy-simulator`,
+  `make deploy-device DEVICE_ID=<id>`, and `make deploy-testflight`. It enters
+  the Nix devshell itself. `VARIANT=development|production` selects local build
+  and install identity; `SIMULATOR_ID`, `ALLOW_PROVISIONING_UPDATES`, and optional
+  TestFlight `VERSION` are documented in `README.md`. Simulator
+  deployment must retain Xcode local signing and `--signed-simulator` artifact
+  validation so simulated App Group/Keychain entitlements are available; an
+  unsigned installed app fails closed in `NeoGymApp.init()`.
 - `nix develop ../.. --command Scripts/check.sh` — canonical credential-free,
   headless gate. It runs the host Swift gates, Python tooling/validator fixtures,
   default `all` generation, icon drift, safe build-setting comparison, both
@@ -46,12 +55,16 @@ harmless and intentionally out of scope.
   release tests plus the canonical iOS check with Fastlane 2.237.0 from the
   repository Nix overlay. Its hashed gem closure lives under `nix/fastlane/`;
   do not add a project-local Gemfile, run Bundler, or install a global gem.
-- `nix develop ../.. --command fastlane beta --env production` —
-  credential-gated local TestFlight delivery. Fastlane must remain orchestration
-  only: it calls canonical generation/receipt/artifact scripts, resolves the
-  production ID/version through the safe build-setting reader, applies app-wide
-  version overrides only on the archive command, and uploads the exact validated
-  IPA path. Never move product IDs or variant behavior into the Fastfile.
+- `nix develop ../.. --command fastlane beta --env production` — local
+  TestFlight delivery through the Apple account configured in Xcode. Fastlane
+  remains orchestration only: it calls canonical generation/artifact scripts,
+  resolves the production ID/version through the safe build-setting reader,
+  archives and validates locally, then uses `xcodebuild -exportArchive` with
+  `destination=upload`, automatic signing, and Xcode-managed build numbering.
+  `App/Info.plist` keeps `ITSAppUsesNonExemptEncryption=false` because NeoGym
+  uses only exempt system TLS/authentication encryption; reassess it before
+  adding custom cryptography, VPN behavior, or encrypted communications. Never
+  move product IDs or variant behavior into the Fastfile.
 - Build scheme `NeoGym Dev`/`Debug-Development` or
   `NeoGym`/`Debug-Production`. Use `Scripts/read-build-settings.py` for an
   allowlisted private build-setting export; never run unsuppressed
@@ -73,11 +86,14 @@ reintroduces linker variables.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 the tracked tokenized `App/Info.plist` and as a project resource. Removing it
-can make the app run letterboxed on current devices. Keep
-`NSHealthShareUsageDescription` in `App/Info.plist`; it must mention the
-read-only imports for weight, body-fat percentage, active energy, and resting
-energy. Never add `NSHealthUpdateUsageDescription` while importers request
-`toShare: []`.
+can make the app run letterboxed on current devices. Keep both HealthKit purpose
+strings in `App/Info.plist`. The share description must mention the read-only
+imports for weight, body-fat percentage, active energy, and resting energy.
+`NSHealthUpdateUsageDescription` exists only because App Store static validation
+requires it for the combined `requestAuthorization(toShare:read:)` API reference;
+its text must state that NeoGym never writes or updates Apple Health data. Keep
+both importers at `toShare: []`, never add HealthKit save/delete calls, and do
+not treat the key's presence as write access.
 
 The package depends on the local Nhost Swift SDK at
 `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
@@ -95,18 +111,12 @@ changes.
   allowed by `auth.redirections.allowedUrls` in `backend/nhost/nhost.toml` and
   the production overlay. Restart local Nhost after redirect config edits
   because the CLI does not hot-reload `nhost.toml`.
-- `fastlane/cloud-callback-receipt.production.json` is ignored operator
-  attestation, never cloud proof. Create it only after deploying the exact
-  production overlay and verifying effective behavior for both callbacks. Run
-  `Scripts/verify-cloud-callback-receipt.py`; missing/stale receipts hard-block
-  production archive/beta before Xcode archive and are rechecked before upload.
-- Production archive/beta also require `ASC_ISSUER_ID`, `ASC_KEY_ID`, and exactly
-  one of `ASC_KEY_PATH`/`ASC_KEY_CONTENT`, plus an exact existing ASC record for
-  the authoritative `io.nhost.dbarroso.neogym` build-setting value. API-key
-  access never substitutes for local Xcode distribution signing. Build numbers
-  are pure-selected as latest+1 (or strict newer override) and re-queried before
-  upload; a race aborts rather than uploading a stale-number IPA. Standalone
-  `archive` validates but is not safe for deferred manual upload.
+- Production archive/beta require an authenticated Xcode account for the
+  production team, automatic distribution signing, upload permission, and an
+  existing App Store Connect record for the authoritative
+  `io.nhost.dbarroso.neogym` build-setting value. `beta` delegates upload and
+  build-number management to `xcodebuild -exportArchive`; standalone `archive`
+  only creates and validates the local archive.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
 - The bundle-configured app client enables the Nhost Swift SDK persistent GraphQL cache

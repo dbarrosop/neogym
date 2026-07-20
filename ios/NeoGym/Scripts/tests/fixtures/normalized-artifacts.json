@@ -37,6 +37,8 @@
         },
         "CFBundleURLTypes": [{"CFBundleURLSchemes": ["neogym-dev"]}],
         "NSHealthShareUsageDescription": "Read-only HealthKit fixture",
+        "NSHealthUpdateUsageDescription": "Read-only App Store validation fixture",
+        "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UILaunchStoryboardName": "LaunchScreen",
         "NeoGymNhostSubdomain": "opaque fixture subdomain",
@@ -127,6 +129,14 @@
     "forbidden-healthkit-metadata": {
       "set": {"widget.info.NSHealthUpdateUsageDescription": "forbidden"},
       "issue": "widget.Info.HealthKitUsageDescription"
+    },
+    "missing-health-update-purpose": {
+      "delete": ["app.info.NSHealthUpdateUsageDescription"],
+      "issue": "app.Info.NSHealthUpdateUsageDescription"
+    },
+    "non-exempt-encryption": {
+      "set": {"app.info.ITSAppUsesNonExemptEncryption": true},
+      "issue": "app.Info.ITSAppUsesNonExemptEncryption"
     },
     "unresolved-token": {
       "set": {"app.info.NeoGymCallbackScheme": "$(UNRESOLVED_CALLBACK)"},

@@ -54,13 +54,10 @@ class MaterializerTests(unittest.TestCase):
                 "DEVELOPMENT_TEAM='TEAM # exact'\n"
                 "NHOST_SUBDOMAIN='${DO_NOT_INTERPOLATE}'\n"
                 f"NHOST_REGION='`touch {marker}`; // exact'\n"
-                "ASC_ISSUER_ID=issuer-must-not-enter\n"
-                "ASC_KEY_ID=key-id-must-not-enter\n"
-                "ASC_KEY_PATH=/private/key-must-not-enter.p8\n"
-                "ASC_KEY_CONTENT=private-content-must-not-enter\n"
+                "UNRELATED_SECRET=private-content-must-not-enter\n"
+                "UNRELATED_PATH=/private/value-must-not-enter\n"
                 "ALLOW_PROVISIONING_UPDATES=1\n"
-                "MARKETING_VERSION=9.9-must-not-enter\n"
-                "BUILD_NUMBER=999-must-not-enter\n",
+                "MARKETING_VERSION=9.9-must-not-enter\n",
                 encoding="utf-8",
             )
             values = materializer.load_dotenv(env)
@@ -70,19 +67,13 @@ class MaterializerTests(unittest.TestCase):
             self.assertFalse(marker.exists())
             rendered = materializer.render_xcconfig(values)
             for forbidden in [
-                "ASC_ISSUER_ID",
-                "ASC_KEY_ID",
-                "ASC_KEY_PATH",
-                "ASC_KEY_CONTENT",
-                "issuer-must-not-enter",
-                "key-id-must-not-enter",
-                "key-must-not-enter.p8",
+                "UNRELATED_SECRET",
+                "UNRELATED_PATH",
                 "private-content-must-not-enter",
+                "value-must-not-enter",
                 "ALLOW_PROVISIONING_UPDATES",
                 "MARKETING_VERSION",
-                "BUILD_NUMBER",
                 "9.9-must-not-enter",
-                "999-must-not-enter",
             ]:
                 self.assertNotIn(forbidden, rendered)
 
@@ -260,7 +251,7 @@ class SafeInspectorTests(unittest.TestCase):
         inspector = load_script("read-build-settings.py")
         with self.assertRaisesRegex(RuntimeError, "not allowlisted"):
             inspector.read_settings(
-                Path("project"), "scheme", "config", "target", ["ASC_PRIVATE_KEY"]
+                Path("project"), "scheme", "config", "target", ["UNRELATED_PRIVATE_KEY"]
             )
 
 

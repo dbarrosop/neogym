@@ -17,7 +17,6 @@ ios/NeoGym/Configuration/Generated/*.xcconfig
 ios/NeoGym/**/*.p8
 ios/NeoGym/fastlane/.env.development
 ios/NeoGym/fastlane/.env.production
-ios/NeoGym/fastlane/cloud-callback-receipt.production.json
 ios/NeoGym/fastlane/output
 ios/NeoGym/fastlane/report.xml
 ios/NeoGym/fastlane/Preview.html

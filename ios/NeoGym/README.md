@@ -15,7 +15,6 @@ ios/NeoGym/
 ├── Configuration/              # authoritative Common + variant xcconfigs
 ├── fastlane/Fastfile           # orchestration-only local release lanes
 ├── fastlane/.env.*.example     # tracked templates for ignored opaque inputs
-├── fastlane/*receipt*          # cloud-callback attestation schema/example
 ├── Scripts/                    # materialization, generation, safe inspection
 ├── Package.swift               # NeoGymKit SwiftPM library + tests
 ├── App/                        # SwiftUI app target only
@@ -53,7 +52,112 @@ schemes for XPC Services, Queue Debugging/backtrace recording, and View Debuggin
 and is idempotent. Keep `LaunchScreen.storyboard` wired through
 `UILaunchStoryboardName`; without it, iOS can use legacy letterboxed sizing.
 
-## Commands
+## Make workflow
+
+Run the public workflow from this directory. Every command enters the repository
+Nix devshell itself; do not install XcodeGen or Fastlane globally.
+
+| Target | Behavior |
+|---|---|
+| `make simulator-up` | Boot the selected iPhone simulator and open Simulator. With no selection, reuse a booted iPhone or choose one from the newest installed iOS runtime. |
+| `make simulator-down` | Shut down the selected simulator, or every booted iPhone simulator when no selection is supplied. It does not stop booted watch simulators. |
+| `make build` | Generate and compile one unsigned generic-simulator variant, then validate the built app and embedded widget. It does not run the test/lint gate. |
+| `make check` | Run `nix flake check`, Fastlane's Xcode-release tests, Swift build/tests, Python tool tests, icon/configuration checks, both generic-simulator builds, and both artifact validations. |
+| `make deploy-simulator` | Boot the simulator, run `make check`, rebuild and locally sign the selected variant with simulated entitlements, validate it, install it, launch it, and confirm it remains running through startup. |
+| `make deploy-device DEVICE_ID=…` | Run `make check`, build/sign the selected variant for the connected device, validate the signed app, install it, and launch it. |
+| `make deploy-testflight` | Run `make check`, archive and validate production, then ask Xcode to sign, assign the next build number, and upload through its configured account. |
+
+Examples:
+
+```sh
+make simulator-up
+make deploy-simulator                         # development by default
+make deploy-simulator VARIANT=production SIMULATOR_ID=<simulator-udid>
+make deploy-device DEVICE_ID=<physical-device-identifier>
+make deploy-device DEVICE_ID=<id> ALLOW_PROVISIONING_UPDATES=1
+make deploy-testflight
+make deploy-testflight VERSION=1.1
+```
+
+The Make parameters are:
+
+| Parameter | Required/default | How to obtain it |
+|---|---|---|
+| `VARIANT` | `development` by default; accepts `development` or `production` for `build`, `deploy-simulator`, and `deploy-device`. TestFlight is always production. | Choose the isolated `.dev` identity for normal local work. Use production only when intentionally testing the production identity/callback. |
+| `SIMULATOR_ID` | Optional. | Run `xcrun simctl list devices available`; copy the UUID beside an iPhone. `xcrun simctl list devices booted` shows the currently booted choice. |
+| `DEVICE_ID` | Required by `deploy-device`. | Pair/connect and unlock the iPhone, enable Developer Mode, then run `xcrun xctrace list devices`; copy the hardware UDID in parentheses beside the physical iPhone (typically beginning `0000`). Do not use the unrelated CoreDevice UUID shown in `devicectl`'s **Identifier** column. The hardware UDID works with both `xcodebuild` and `devicectl`. |
+| `ALLOW_PROVISIONING_UPDATES` | `0` by default; accepts `0` or `1`. | Set to `1` only if Xcode is signed in to the correct Apple team and may create/update profiles. The device target translates it to `xcodebuild -allowProvisioningUpdates`. |
+| `VERSION` | Optional for TestFlight; otherwise the tracked marketing version. | Use a new App Store version such as `1.1`. Inspect the tracked value with `grep MARKETING_VERSION Configuration/Common.xcconfig`. Xcode manages the uploaded build number. |
+
+`make deploy-device` uses Xcode's signing identities and private keys from the
+login Keychain; no signing-key path is passed to Make. List usable
+certificate/private-key pairs with:
+
+```sh
+security find-identity -v -p codesigning
+```
+
+The parenthesized value in an `Apple Development` identity's display name is not
+reliably the Team ID. Read the certificate subject and use its `OU` value:
+
+```sh
+security find-certificate -a -p \
+  | openssl crl2pkcs7 -nocrl -certfile /dev/stdin 2>/dev/null \
+  | openssl pkcs7 -print_certs -noout 2>/dev/null \
+  | grep 'Apple Development'
+# subject=..., OU=ABCDE12345, O=Example Team, ...
+```
+
+Choose the `OU` belonging to the organization/team that owns the app IDs. An
+`Apple Development` identity is sufficient for device deployment; TestFlight
+requires Apple Distribution signing/provisioning (or an authenticated Xcode
+account allowed to manage it). If no valid identity is listed, add the account
+under Xcode **Settings > Accounts** or import the certificate/private key into
+the login Keychain. List locally installed profiles with:
+
+```sh
+find "$HOME/Library/MobileDevice/Provisioning Profiles" -type f -name '*.mobileprovision' -print
+```
+
+### Required ignored environment files
+
+Create both files before `make check` or any deploy target. `make build` needs
+only the file for its selected variant.
+
+```sh
+cp fastlane/.env.development.example fastlane/.env.development
+cp fastlane/.env.production.example fastlane/.env.production
+chmod 600 fastlane/.env.development fastlane/.env.production
+```
+
+Fill `DEVELOPMENT_TEAM`, `NHOST_SUBDOMAIN`, and `NHOST_REGION` in each file:
+
+- Get `DEVELOPMENT_TEAM` from the certificate subject's `OU` value using the
+  `security ... | openssl ...` command above. Do not copy the parenthesized
+  certificate-name suffix; it may identify the member/certificate rather than
+  the Apple Developer team.
+- Local development normally uses `NHOST_SUBDOMAIN=local` and
+  `NHOST_REGION=local`.
+- For production, authenticate and list accessible Nhost apps with
+  `cd ../../backend && nhost login && nhost list`; copy the app's subdomain and
+  region. Return to `ios/NeoGym/` before running Make.
+
+Simulator deployment uses Xcode's local ad-hoc signature and simulated
+entitlements, so it needs no Apple certificate or provisioning profile. It does
+require a nonempty `DEVELOPMENT_TEAM` setting to expand the simulated application
+and shared-Keychain prefixes; the tracked sentinel is sufficient for a local
+simulator. Do not add `CODE_SIGNING_ALLOWED=NO` to the simulator deployment
+build: the app intentionally fails closed at startup when its App Group
+entitlement/container is unavailable. Credential-free `build` and `check`
+products remain unsigned because they are never launched.
+
+TestFlight delivery uses the Apple account configured in the selected Xcode.
+The account must belong to the production team, have access to the existing App
+Store Connect record, and be allowed to upload builds. Set
+`ALLOW_PROVISIONING_UPDATES=1` in `.env.production` when Xcode may create or
+refresh signing profiles. No App Store Connect API key is used.
+
+## Low-level commands
 
 From this directory:
 
@@ -95,9 +199,13 @@ launch either app.
 Validate a separately built product explicitly against one selected variant:
 
 ```sh
-# Unsigned or simulator build product
+# Unsigned generic-simulator check product
 python3 Scripts/verify-artifact.py --variant development \
   DerivedData/Checks/development/Build/Products/Debug-Development-iphonesimulator/NeoGym.app
+
+# Locally signed simulator product with simulated entitlements
+python3 Scripts/verify-artifact.py --variant development --signed-simulator \
+  DerivedData/Deploy/development-simulator/Build/Products/Debug-Development-iphonesimulator/NeoGym.app
 
 # Provisioning-dependent signed outputs (examples; paths are local/ignored)
 python3 Scripts/verify-artifact.py --variant production path/to/NeoGym.xcarchive
@@ -109,8 +217,10 @@ The validator always inspects the embedded
 platform/HealthKit metadata with the authoritative selected xcconfig and opaque
 Nhost plist values exactly with the selected mode-0600 materialized xcconfig,
 while diagnostics name keys only. Unsigned `.app` validation combines the
-built plists with the tracked entitlement contract. `.xcarchive` and `.ipa`
-validation additionally requires real signed entitlements and embedded
+built plists with the tracked entitlement contract. `--signed-simulator` also
+requires valid local app/widget signatures and verifies the Team-prefixed
+runtime values against the tracked simulated-entitlement contract. `.xcarchive`
+and `.ipa` validation additionally requires real signed entitlements and embedded
 provisioning for app and widget, deriving application/keychain prefixes from the
 signed values. Producing a signed archive or IPA remains credential/profile
 dependent; the Fastlane workflow below orchestrates the same generator and
@@ -151,48 +261,46 @@ cd ios/NeoGym
 # Local SDK and the two ignored product-input files are required first.
 cp fastlane/.env.development.example fastlane/.env.development
 cp fastlane/.env.production.example fastlane/.env.production
-# Fill Team/Nhost values in both files. Fill the production ASC_* fields only
-# on a release Mac; point ASC_KEY_PATH at an ignored/out-of-repo .p8 file.
+# Fill Team/Nhost values in both files and authenticate the production team in Xcode.
 
 nix develop ../.. --command fastlane generate --env production
 nix develop ../.. --command fastlane check --env production
 
-# After all portal/signing/receipt prerequisites below are satisfied:
+# After all portal/signing prerequisites below are satisfied:
 nix develop ../.. --command fastlane beta --env production
 ```
 
 The lanes are orchestration only:
 
 - `generate --env development|production` invokes the canonical variant
-  generator. `check` runs the pure Ruby build-number tests and `Scripts/check.sh`.
-- `archive --env production` verifies the current cloud-callback receipt,
-  authenticates to App Store Connect, resolves the app ID and tracked marketing
-  version through `read-build-settings.py`, verifies the exact existing ASC app
-  record, selects an unused build number, archives/exports, and validates both
-  exact output paths. It does **not** upload and is not safe for a later manual
-  upload because another build can consume its number.
-- `beta --env production` performs that archive flow, then verifies the receipt
-  and both artifacts again, re-queries the TestFlight train immediately before
-  upload, aborts if the selected number is no longer available, and passes the
-  exact validated IPA path to `upload_to_testflight`.
+  generator. `check` runs the pure Ruby Xcode-release tests and
+  `Scripts/check.sh`.
+- `archive --env production` resolves the authoritative production app ID and
+  marketing version through `read-build-settings.py`, creates a signed Xcode
+  archive, and validates the archive plus embedded widget. It does not upload.
+- `beta --env production` performs that archive flow, validates it again, then
+  runs `xcodebuild -exportArchive` with `destination=upload`. Xcode uses its
+  configured Apple account and automatic signing, manages the uploaded build
+  number, and sends the build directly to App Store Connect.
 
 The default marketing version is authoritative `MARKETING_VERSION` (`1.0` at
-present). The default build is latest TestFlight build plus one, or `1` for a
-new train. Optional lane overrides are strict decimal values:
+present). An optional strict decimal marketing-version override applies to the
+app and widget at archive scope without mutating tracked inputs:
 
 ```sh
 nix develop ../.. --command fastlane beta --env production version:1.1
-nix develop ../.. --command fastlane beta --env production version:1.1 build:42
 ```
 
-A build override must be a positive integer greater than the current train and
-cannot be reused. Zero, negative, malformed, ambiguous/trailing, and overflowing
-values fail before archive. Both overrides are command-line build settings at
-archive scope, so the containing app and widget receive the same marketing and
-build versions; no tracked or generated input is mutated. If a concurrent upload
-wins the number race, discard that archive and run the lane again (or choose a
-new explicit number). A rollback also requires a new build number; TestFlight
-numbers are never reusable.
+Xcode's upload export uses `manageAppVersionAndBuildNumber=true`, so Xcode assigns
+an acceptable build number for App Store Connect. There is no manual build-number
+parameter.
+
+The app uses only exempt, standard system encryption for HTTPS/TLS and
+authentication; it does not bundle non-exempt or proprietary encryption.
+`App/Info.plist` therefore sets `ITSAppUsesNonExemptEncryption=false`, allowing
+App Store Connect to resolve export compliance automatically. Reassess that
+declaration before adding custom cryptography, VPN functionality, or encrypted
+communications beyond the current system services.
 
 ### Apple and release-Mac prerequisites
 
@@ -207,27 +315,18 @@ Before `archive` or `beta`, an operator must provide:
    `group.io.nhost.dbarroso.neogym.dev`; matching App Group and shared-Keychain
    capabilities on each app/widget pair; HealthKit on both app IDs only; and
    valid extension containment/provisioning.
-3. An App Store distribution certificate and profiles, or an authenticated
-   local Xcode account that automatic signing can use. Set
-   `ALLOW_PROVISIONING_UPDATES=1` only for a local account authorized to create
-   or update profiles. App Store Connect API-key access is separate from Xcode
-   code-signing authentication.
+3. An authenticated local Xcode account for the production team, with automatic
+   signing access to the distribution certificate/profiles and permission to
+   upload builds. Set `ALLOW_PROVISIONING_UPDATES=1` only when that account may
+   create or update profiles.
 4. An existing App Store Connect app record whose bundle ID is exactly
-   `io.nhost.dbarroso.neogym`, plus an App Store Connect API key with access to
-   that app and permission to read TestFlight builds/upload builds. Put its
-   issuer/key IDs in ignored `.env.production`; supply exactly one of an ignored
-   `.p8` `ASC_KEY_PATH` or process `ASC_KEY_CONTENT` (and
-   `ASC_KEY_CONTENT_BASE64=1` only for base64 content).
-5. A real ignored `fastlane/cloud-callback-receipt.production.json`, created only
-   after deploying the exact current Nhost overlay and effectively verifying
-   both native callbacks as described below. Archive and beta deliberately stop
-   before `xcodebuild archive` when this receipt, API access, or the exact ASC app
-   record is unavailable.
+   `io.nhost.dbarroso.neogym` and is visible to the configured Xcode account.
 
 The clean-checkout rehearsal is complete only when the Nix-provided `fastlane`,
 `generate`, `check`, and the credential gates run from tracked inputs plus the
 ignored files, and `git status --ignored` shows the project, generated xcconfigs,
-`.p8` keys, Fastlane reports/output, DerivedData, archives, and IPAs as ignored. Before a real release, also install both signed variants on a
+Fastlane reports/output, DerivedData, archives, and upload output as ignored.
+Before a real release, also install both signed variants on a
 simulator/device, verify they coexist with isolated containers, and exercise
 `neogym://verify?code=fake` and `neogym-dev://verify?code=fake` against the
 matching app. Those interactive checks are not implied by the headless gate.
@@ -328,11 +427,16 @@ from the last 7 local days that still carry the exact
 `Imported from Apple Health` note can be refreshed from newer HealthKit values.
 Manual or edited rows are not overwritten.
 
-The app-only HealthKit capability and `NSHealthShareUsageDescription` are
-declared in tracked entitlement/plist templates. Do not add
-`NSHealthUpdateUsageDescription` while both importers request `toShare: []`. The concrete
-HealthKit importer is compiled only for non-macOS platforms so `NeoGymKit` keeps
-building and testing on the macOS host.
+The app-only HealthKit capability and both HealthKit purpose strings are
+declared in tracked entitlement/plist templates. Both importers remain strictly
+read-only with `toShare: []` and no save/delete calls. Although Apple documents
+`NSHealthUpdateUsageDescription` for apps that update Health data, App Store
+static validation requires it for NeoGym's combined
+`requestAuthorization(toShare:read:)` API reference. Its honest text states that
+NeoGym only imports and never writes or updates Apple Health data; the key does
+not request or grant write access. The concrete HealthKit importer is compiled
+only for non-macOS platforms so `NeoGymKit` keeps building and testing on the
+macOS host.
 
 ## Current auth scope
 
@@ -399,25 +503,3 @@ xcrun simctl openurl booted 'neogym-dev://verify?code=fake'
 
 With no matching saved verifier this should drive the app's callback path to the
 "saved verification state is missing" error and clear any stale verifier.
-
-### Production cloud-callback receipt
-
-The production overlay is tracked deployment input; it does not prove the cloud
-Auth configuration was applied. After an operator deploys the exact current
-overlay and verifies effective callback behavior for both `neogym://verify` and
-`neogym-dev://verify` on project `spmqtxqkdoxvtrkrfnnl`:
-
-1. Copy `fastlane/cloud-callback-receipt.production.example.json` to the ignored
-   `fastlane/cloud-callback-receipt.production.json`.
-2. Confirm `overlaySha256` is the lowercase SHA-256 of the exact production
-   overlay bytes (`shasum -a 256 ../../backend/nhost/overlays/spmqtxqkdoxvtrkrfnnl.json`).
-3. Record `verifiedAt` as a UTC timestamp in `YYYY-MM-DDTHH:MM:SSZ` form and put
-   the accountable operator identity in `verifiedBy`.
-4. Run `python3 Scripts/verify-cloud-callback-receipt.py`.
-
-The receipt is an operator attestation, not independent or authenticated proof
-of cloud state. Do not create a real receipt without applying the overlay and
-checking effective Auth behavior. Missing, malformed, wrong-project,
-wrong-callback, or stale-overlay receipts fail the gate using field-only
-diagnostics. The production archive and beta lanes run this gate before archive
-and again before upload; no receipt is committed to the repository.

@@ -33,8 +33,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NeoGym imports your weight, body-fat percentage, active energy, and resting energy from Apple Health to keep body and energy logs up to date.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>NeoGym only imports your body and energy measurements from Apple Health; it never writes or updates Apple Health data.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NeoGymNhostSubdomain</key>

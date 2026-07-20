@@ -99,11 +99,53 @@ class NormalizedArtifactFixtureTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.fixtures = load_fixtures()
-        cls.expected = expected_from_fixture(cast(Mapping[str, str], cls.fixtures["expected"]))
+        cls.expected = expected_from_fixture(
+            cast(Mapping[str, str], cls.fixtures["expected"])
+        )
 
     def test_positive_signed_normalized_fixture(self) -> None:
         artifact = validator.normalized_from_mapping(self.fixtures["positive"])
         validator.validate_normalized(self.expected, artifact)
+
+    def locally_signed_simulator_fixture(self) -> dict[str, Any]:
+        fixture = copy.deepcopy(self.fixtures["positive"])
+        fixture["requiresSignedMetadata"] = False
+        prefix = self.expected.development_team
+        for bundle_key in ("app", "widget"):
+            bundle = fixture[bundle_key]
+            bundle["entitlementSource"] = "simulator-signed-template"
+            bundle["provisioning"] = None
+            info = bundle["info"]
+            info["NeoGymSharedKeychainAccessGroup"] = (
+                f"{prefix}.{self.expected.keychain_suffix}"
+            )
+            entitlements = bundle["entitlements"]
+            entitlements["application-identifier"] = (
+                f"{prefix}.{info['CFBundleIdentifier']}"
+            )
+            entitlements["keychain-access-groups"] = [
+                f"{prefix}.{self.expected.keychain_suffix}"
+            ]
+        return fixture
+
+    def test_positive_locally_signed_simulator_fixture(self) -> None:
+        fixture = self.locally_signed_simulator_fixture()
+        validator.validate_normalized(
+            self.expected, validator.normalized_from_mapping(fixture)
+        )
+
+    def test_locally_signed_simulator_rejects_wrong_runtime_prefix(self) -> None:
+        fixture = self.locally_signed_simulator_fixture()
+        fixture["app"]["info"]["NeoGymSharedKeychainAccessGroup"] = (
+            f"OTHER.{self.expected.keychain_suffix}"
+        )
+        with self.assertRaises(validator.ValidationFailure) as context:
+            validator.validate_normalized(
+                self.expected, validator.normalized_from_mapping(fixture)
+            )
+        self.assertIn(
+            "app.Info.NeoGymSharedKeychainAccessGroup", context.exception.issues
+        )
 
     def test_all_negative_normalized_fixtures_fail_the_named_contract(self) -> None:
         for name, case in self.fixtures["negative"].items():
@@ -116,11 +158,28 @@ class NormalizedArtifactFixtureTests(unittest.TestCase):
 
     def test_provisioning_keychain_wildcard_can_cover_exact_signed_group(self) -> None:
         fixture = copy.deepcopy(self.fixtures["positive"])
-        fixture["app"]["provisioning"]["Entitlements"]["keychain-access-groups"] = ["PREFIX.*"]
-        fixture["widget"]["provisioning"]["Entitlements"]["keychain-access-groups"] = ["PREFIX.*"]
-        validator.validate_normalized(self.expected, validator.normalized_from_mapping(fixture))
+        fixture["app"]["provisioning"]["Entitlements"]["keychain-access-groups"] = [
+            "PREFIX.*"
+        ]
+        fixture["widget"]["provisioning"]["Entitlements"]["keychain-access-groups"] = [
+            "PREFIX.*"
+        ]
+        validator.validate_normalized(
+            self.expected, validator.normalized_from_mapping(fixture)
+        )
 
-    def test_build_settings_match_exact_opaque_values_and_variant_metadata(self) -> None:
+    def test_profile_may_allow_healthkit_that_widget_does_not_request(self) -> None:
+        fixture = copy.deepcopy(self.fixtures["positive"])
+        fixture["widget"]["provisioning"]["Entitlements"][
+            "com.apple.developer.healthkit"
+        ] = True
+        validator.validate_normalized(
+            self.expected, validator.normalized_from_mapping(fixture)
+        )
+
+    def test_build_settings_match_exact_opaque_values_and_variant_metadata(
+        self,
+    ) -> None:
         shared = {
             "DEVELOPMENT_TEAM": self.expected.development_team,
             "IPHONEOS_DEPLOYMENT_TARGET": self.expected.minimum_os,
@@ -145,7 +204,9 @@ class NormalizedArtifactFixtureTests(unittest.TestCase):
         app["NEOGYM_NHOST_REGION"] = "different opaque region"
         with self.assertRaises(validator.ValidationFailure) as context:
             validator.validate_build_settings(self.expected, app, widget)
-        self.assertEqual(context.exception.issues, ("build-settings.app.NEOGYM_NHOST_REGION",))
+        self.assertEqual(
+            context.exception.issues, ("build-settings.app.NEOGYM_NHOST_REGION",)
+        )
 
 
 class ExtractionAdapterTests(unittest.TestCase):
@@ -171,6 +232,7 @@ class ExtractionAdapterTests(unittest.TestCase):
             adapters = validator.CommandAdapters(str(codesign), str(security))
             self.assertEqual(adapters.signed_entitlements(root, "app"), entitlements)
             self.assertEqual(adapters.provisioning(root, "app"), provisioning)
+            adapters.verify_signature(root, "app")
 
     def test_app_archive_and_ipa_layouts_resolve_without_simulator_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -181,9 +243,14 @@ class ExtractionAdapterTests(unittest.TestCase):
                 self.assertEqual(resolved, app)
                 self.assertFalse(signed)
 
-            archive_app = root / "NeoGym.xcarchive" / "Products" / "Applications" / "NeoGym.app"
+            archive_app = (
+                root / "NeoGym.xcarchive" / "Products" / "Applications" / "NeoGym.app"
+            )
             archive_app.mkdir(parents=True)
-            with validator.artifact_workspace(root / "NeoGym.xcarchive") as (resolved, signed):
+            with validator.artifact_workspace(root / "NeoGym.xcarchive") as (
+                resolved,
+                signed,
+            ):
                 self.assertEqual(resolved, archive_app)
                 self.assertTrue(signed)
 
@@ -205,7 +272,9 @@ class ArtifactCLIPrivacyTests(unittest.TestCase):
         cls.fixture = cast(dict[str, Any], fixtures["positive"])
         cls.expected = cast(dict[str, str], fixtures["expected"])
 
-    def write_project_configuration(self, root: Path, subdomain: str, region: str) -> None:
+    def write_project_configuration(
+        self, root: Path, subdomain: str, region: str
+    ) -> None:
         configuration = root / "Configuration"
         generated = configuration / "Generated"
         generated.mkdir(parents=True)
@@ -237,17 +306,13 @@ class ArtifactCLIPrivacyTests(unittest.TestCase):
         )
         app_entitlements = {
             "com.apple.developer.healthkit": True,
-            "com.apple.security.application-groups": [
-                "$(NEOGYM_APP_GROUP_IDENTIFIER)"
-            ],
+            "com.apple.security.application-groups": ["$(NEOGYM_APP_GROUP_IDENTIFIER)"],
             "keychain-access-groups": [
                 "$(AppIdentifierPrefix)$(NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX)"
             ],
         }
         widget_entitlements = {
-            "com.apple.security.application-groups": [
-                "$(NEOGYM_APP_GROUP_IDENTIFIER)"
-            ],
+            "com.apple.security.application-groups": ["$(NEOGYM_APP_GROUP_IDENTIFIER)"],
             "keychain-access-groups": [
                 "$(AppIdentifierPrefix)$(NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX)"
             ],
@@ -293,13 +358,17 @@ class ArtifactCLIPrivacyTests(unittest.TestCase):
                 str(root),
                 str(app),
             ]
-            passed = subprocess.run(command, text=True, capture_output=True, check=False)
+            passed = subprocess.run(
+                command, text=True, capture_output=True, check=False
+            )
             self.assertEqual(passed.returncode, 0, passed.stderr)
 
             app_info = plistlib.loads((app / "Info.plist").read_bytes())
             app_info["NeoGymNhostSubdomain"] = actual_subdomain
             (app / "Info.plist").write_bytes(plistlib.dumps(app_info))
-            failed = subprocess.run(command, text=True, capture_output=True, check=False)
+            failed = subprocess.run(
+                command, text=True, capture_output=True, check=False
+            )
             self.assertEqual(failed.returncode, 1)
             combined = failed.stdout + failed.stderr
             self.assertIn("app.Info.NeoGymNhostSubdomain", combined)
