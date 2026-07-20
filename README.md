@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, XcodeGen, Python/Pillow/python-dotenv, Ruby, and Bundler — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, XcodeGen, Python/Pillow/python-dotenv, Ruby, and Fastlane — is provisioned through a Nix flake so contributors get a reproducible dev environment.
 
 ## Stack
 
@@ -28,7 +28,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun`, `biome`, Darwin-available XcodeGen, Python/Pillow/python-dotenv, Ruby, and Bundler come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep the tracked iOS xcconfigs/plists/entitlements plus `project.yml` authoritative.
+`bun`, `biome`, Darwin-available XcodeGen, Python/Pillow/python-dotenv, Ruby, and Fastlane come from the Nix devshell — no host install needed for those tools. The repository overlay packages Fastlane 2.237.0 from a hashed gem closure under `nix/fastlane/`. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep the tracked iOS xcconfigs/plists/entitlements plus `project.yml` authoritative.
 
 ## Quick start
 
@@ -98,8 +98,8 @@ Native iOS (from `ios/NeoGym/`):
 | `nix develop ../.. --command Scripts/check.sh` | Run the credential-free canonical iOS gate and both generic simulator builds |
 | `nix develop ../.. --command Scripts/generate-project.sh all` | Materialize both ignored variant configs and generate both schemes |
 | `python3 Scripts/verify-artifact.py --variant development|production <path>` | Validate an app/archive/IPA and its embedded widget against selected configuration |
-| `nix develop ../.. --command bundle exec fastlane check --env production` | Run pinned Ruby release tests plus the canonical iOS gate |
-| `nix develop ../.. --command bundle exec fastlane beta --env production` | Credential-gated archive, exact artifact validation, race check, and TestFlight upload |
+| `nix develop ../.. --command fastlane check --env production` | Run overlay-pinned Ruby release tests plus the canonical iOS gate |
+| `nix develop ../.. --command fastlane beta --env production` | Credential-gated archive, exact artifact validation, race check, and TestFlight upload |
 | `xcodebuild -project NeoGym.xcodeproj -scheme 'NeoGym Dev' -configuration Debug-Development -destination 'generic/platform=iOS Simulator' build` | Build the co-installable development app |
 | `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -configuration Debug-Production -destination 'generic/platform=iOS Simulator' build` | Build the production-identity app |
 
@@ -200,8 +200,8 @@ python3 ios/NeoGym/Scripts/verify-cloud-callback-receipt.py
 The receipt is an operator attestation, not authenticated cloud inspection.
 Never create it without effective verification. Its absence or a hash mismatch
 blocks the production archive/TestFlight lanes before Xcode archive and is
-checked again before upload. See `ios/NeoGym/README.md` for the pinned Bundler
-setup, Apple portal/signing/API-key prerequisites, unique build-number behavior,
+checked again before upload. See `ios/NeoGym/README.md` for the overlay-pinned
+Fastlane setup, Apple portal/signing/API-key prerequisites, unique build-number behavior,
 and clean-checkout release rehearsal. Fastlane does not create portal resources
 or replace local Xcode distribution signing.
 

@@ -7,9 +7,7 @@ DerivedData/
 Configuration/Generated/*.xcconfig
 Scripts/**/__pycache__/
 
-# Local Bundler/Fastlane state, credentials, and reports
-.bundle/
-vendor/bundle/
+# Local Fastlane credentials and reports
 *.p8
 fastlane/.env.development
 fastlane/.env.production

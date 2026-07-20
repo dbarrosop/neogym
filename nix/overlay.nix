@@ -14,4 +14,18 @@
       hash = "sha256-uR5XvkHUmZzCHZITKgScmzqjLOIvbPyrih/0B1OpsAc=";
     };
   });
+
+  fastlane = final.bundlerApp {
+    pname = "fastlane";
+    gemdir = ./fastlane;
+    exes = [ "fastlane" ];
+
+    buildInputs = [ final.makeBinaryWrapper ];
+
+    postBuild = ''
+      wrapProgram $out/bin/fastlane --set FASTLANE_SKIP_UPDATE_CHECK 1
+    '';
+
+    meta = prev.fastlane.meta;
+  };
 })

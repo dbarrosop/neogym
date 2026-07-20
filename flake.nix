@@ -50,7 +50,7 @@
             bun
             rover
             ruby
-            bundler
+            fastlane
             (python3.withPackages (pythonPackages: [
               pythonPackages.pillow
               pythonPackages.python-dotenv

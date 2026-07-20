@@ -275,7 +275,7 @@ end
 desc "Run Ruby release tests and the canonical credential-free iOS check"
 lane :check do
   selected_environment!
-  sh("cd #{Shellwords.escape(IOS_ROOT)} && bundle exec ruby fastlane/test/build_number_test.rb")
+  sh("cd #{Shellwords.escape(IOS_ROOT)} && ruby fastlane/test/build_number_test.rb")
   canonical_script!("Scripts/check.sh")
 end
 

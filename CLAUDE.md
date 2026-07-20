@@ -45,7 +45,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, Darwin-available XcodeGen, Python with Pillow/python-dotenv, Ruby, and Bundler are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, Darwin-available XcodeGen, Python with Pillow/python-dotenv, Ruby, and Fastlane are NOT assumed to be on the host — they come from `flake.nix`. Fastlane 2.237.0 is packaged by the repository overlay from the hashed gem closure under `nix/fastlane/`; do not install it with Bundler or as a global gem. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -92,8 +92,7 @@ harmless and intentionally out of scope for this deployment change.
 - `nix develop ../.. --command Scripts/generate-project.sh all` — privately materialize both variant configs and generate `NeoGym.xcodeproj` from the authoritative xcconfigs/plists/entitlements plus `project.yml`. Single-variant `development`/`production` modes refresh only that input and preserve the other generated config.
   After adding/removing Swift app files, wait for generation to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors. The spec's post-generation script patches both shared schemes once.
 - `python3 Scripts/verify-artifact.py --variant development|production <app|xcarchive|ipa>` — explicitly validate a built app and embedded widget against the selected authoritative/materialized configuration. Archive/IPA validation additionally requires signed entitlements and provisioning; opaque mismatches use key-only diagnostics.
-- `nix develop ../.. --command bundle install` installs the pinned local Fastlane bundle. Ruby 3.4 needs the direct pinned `abbrev`, `minitest`, and `ostruct` Gemfile entries; do not remove them as apparently redundant standard libraries.
-- `nix develop ../.. --command bundle exec fastlane check --env production` runs Ruby release tests plus the canonical check. `bundle exec fastlane beta --env production` is the credential-gated local TestFlight path; it requires the ignored current cloud receipt, ASC API key/app record, and local Xcode distribution signing. Fastlane stays orchestration-only, version/build overrides apply once at archive scope to both targets, the exact archive and IPA are validated, and the TestFlight build number is re-queried immediately before explicit-path upload.
+- `nix develop ../.. --command fastlane check --env production` runs Ruby release tests plus the canonical check using the overlay-pinned Fastlane package. `fastlane beta --env production` is the credential-gated local TestFlight path; it requires the ignored current cloud receipt, ASC API key/app record, and local Xcode distribution signing. Fastlane stays orchestration-only, version/build overrides apply once at archive scope to both targets, the exact archive and IPA are validated, and the TestFlight build number is re-queried immediately before explicit-path upload.
 - Build scheme `NeoGym Dev` with `Debug-Development` or scheme `NeoGym` with `Debug-Production`. Never inspect build settings with raw `xcodebuild -showBuildSettings`; use `Scripts/read-build-settings.py` with an explicit private output file.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.

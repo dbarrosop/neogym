@@ -14,8 +14,6 @@ ios/NeoGym/DerivedData
 ios/NeoGym/*.xcarchive
 ios/NeoGym/*.ipa
 ios/NeoGym/Configuration/Generated/*.xcconfig
-ios/NeoGym/.bundle
-ios/NeoGym/vendor/bundle
 ios/NeoGym/**/*.p8
 ios/NeoGym/fastlane/.env.development
 ios/NeoGym/fastlane/.env.production

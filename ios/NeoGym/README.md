@@ -13,7 +13,6 @@ weight/body-fat measurements.
 ios/NeoGym/
 ├── project.yml                 # XcodeGen target/configuration graph
 ├── Configuration/              # authoritative Common + variant xcconfigs
-├── Gemfile / Gemfile.lock      # pinned local Fastlane toolchain
 ├── fastlane/Fastfile           # orchestration-only local release lanes
 ├── fastlane/.env.*.example     # tracked templates for ignored opaque inputs
 ├── fastlane/*receipt*          # cloud-callback attestation schema/example
@@ -38,7 +37,7 @@ run on the macOS host. SwiftUI views belong in `App/`.
 
 - macOS with an Xcode/iOS SDK supporting deployment target 26.6.
 - Nix devshell from the repository root. On Darwin, it includes XcodeGen,
-  Python with Pillow/python-dotenv, Ruby, and Bundler.
+  Python with Pillow/python-dotenv, Ruby, and overlay-packaged Fastlane 2.237.0.
 - Local Nhost Swift SDK checkout at
   `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
   directory (normally
@@ -143,8 +142,8 @@ to detect pixel drift.
 
 ## Local TestFlight delivery
 
-Fastlane is pinned by `Gemfile.lock` and must run through Bundler in the Nix
-devshell; do not install or invoke a global Fastlane. From a clean checkout:
+Fastlane 2.237.0 is packaged by the repository Nix overlay from the hashed gem
+closure under `nix/fastlane/`; do not run Bundler or install/invoke a global Fastlane. From a clean checkout:
 
 ```sh
 cd ios/NeoGym
@@ -155,13 +154,11 @@ cp fastlane/.env.production.example fastlane/.env.production
 # Fill Team/Nhost values in both files. Fill the production ASC_* fields only
 # on a release Mac; point ASC_KEY_PATH at an ignored/out-of-repo .p8 file.
 
-nix develop ../.. --command bundle config set --local path vendor/bundle
-nix develop ../.. --command bundle install
-nix develop ../.. --command bundle exec fastlane generate --env production
-nix develop ../.. --command bundle exec fastlane check --env production
+nix develop ../.. --command fastlane generate --env production
+nix develop ../.. --command fastlane check --env production
 
 # After all portal/signing/receipt prerequisites below are satisfied:
-nix develop ../.. --command bundle exec fastlane beta --env production
+nix develop ../.. --command fastlane beta --env production
 ```
 
 The lanes are orchestration only:
@@ -184,8 +181,8 @@ present). The default build is latest TestFlight build plus one, or `1` for a
 new train. Optional lane overrides are strict decimal values:
 
 ```sh
-nix develop ../.. --command bundle exec fastlane beta --env production version:1.1
-nix develop ../.. --command bundle exec fastlane beta --env production version:1.1 build:42
+nix develop ../.. --command fastlane beta --env production version:1.1
+nix develop ../.. --command fastlane beta --env production version:1.1 build:42
 ```
 
 A build override must be a positive integer greater than the current train and
@@ -227,11 +224,10 @@ Before `archive` or `beta`, an operator must provide:
    before `xcodebuild archive` when this receipt, API access, or the exact ASC app
    record is unavailable.
 
-The clean-checkout rehearsal is complete only when `bundle install`, `generate`,
-`check`, and the credential gates run from tracked inputs plus the ignored files,
-and `git status --ignored` shows the project, generated xcconfigs, `.bundle/`,
-`vendor/bundle/`, `.p8` keys, Fastlane reports/output, DerivedData, archives, and
-IPAs as ignored. Before a real release, also install both signed variants on a
+The clean-checkout rehearsal is complete only when the Nix-provided `fastlane`,
+`generate`, `check`, and the credential gates run from tracked inputs plus the
+ignored files, and `git status --ignored` shows the project, generated xcconfigs,
+`.p8` keys, Fastlane reports/output, DerivedData, archives, and IPAs as ignored. Before a real release, also install both signed variants on a
 simulator/device, verify they coexist with isolated containers, and exercise
 `neogym://verify?code=fake` and `neogym-dev://verify?code=fake` against the
 matching app. Those interactive checks are not implied by the headless gate.

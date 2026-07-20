@@ -42,13 +42,11 @@ harmless and intentionally out of scope.
   authoritative selected configuration. Archives/IPAs require signed
   entitlements and embedded provisioning; unsigned app products use the tracked
   entitlement contract. Opaque mismatches must remain key-only diagnostics.
-- `nix develop ../.. --command bundle install`, then
-  `nix develop ../.. --command bundle exec fastlane check --env production` —
-  install the pinned local bundle and run Ruby release tests plus the canonical
-  iOS check. Ruby 3.4 extracts `abbrev`, `minitest`, and `ostruct` from the
-  default set, so keep their direct pinned Gemfile entries when updating
-  Fastlane.
-- `nix develop ../.. --command bundle exec fastlane beta --env production` —
+- `nix develop ../.. --command fastlane check --env production` — run Ruby
+  release tests plus the canonical iOS check with Fastlane 2.237.0 from the
+  repository Nix overlay. Its hashed gem closure lives under `nix/fastlane/`;
+  do not add a project-local Gemfile, run Bundler, or install a global gem.
+- `nix develop ../.. --command fastlane beta --env production` —
   credential-gated local TestFlight delivery. Fastlane must remain orchestration
   only: it calls canonical generation/receipt/artifact scripts, resolves the
   production ID/version through the safe build-setting reader, applies app-wide
