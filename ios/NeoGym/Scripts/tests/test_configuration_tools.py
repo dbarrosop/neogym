@@ -57,7 +57,10 @@ class MaterializerTests(unittest.TestCase):
                 "ASC_ISSUER_ID=issuer-must-not-enter\n"
                 "ASC_KEY_ID=key-id-must-not-enter\n"
                 "ASC_KEY_PATH=/private/key-must-not-enter.p8\n"
-                "ASC_KEY_CONTENT=private-content-must-not-enter\n",
+                "ASC_KEY_CONTENT=private-content-must-not-enter\n"
+                "ALLOW_PROVISIONING_UPDATES=1\n"
+                "MARKETING_VERSION=9.9-must-not-enter\n"
+                "BUILD_NUMBER=999-must-not-enter\n",
                 encoding="utf-8",
             )
             values = materializer.load_dotenv(env)
@@ -75,6 +78,11 @@ class MaterializerTests(unittest.TestCase):
                 "key-id-must-not-enter",
                 "key-must-not-enter.p8",
                 "private-content-must-not-enter",
+                "ALLOW_PROVISIONING_UPDATES",
+                "MARKETING_VERSION",
+                "BUILD_NUMBER",
+                "9.9-must-not-enter",
+                "999-must-not-enter",
             ]:
                 self.assertNotIn(forbidden, rendered)
 

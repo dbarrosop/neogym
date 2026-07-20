@@ -42,6 +42,18 @@ harmless and intentionally out of scope.
   authoritative selected configuration. Archives/IPAs require signed
   entitlements and embedded provisioning; unsigned app products use the tracked
   entitlement contract. Opaque mismatches must remain key-only diagnostics.
+- `nix develop ../.. --command bundle install`, then
+  `nix develop ../.. --command bundle exec fastlane check --env production` —
+  install the pinned local bundle and run Ruby release tests plus the canonical
+  iOS check. Ruby 3.4 extracts `abbrev`, `minitest`, and `ostruct` from the
+  default set, so keep their direct pinned Gemfile entries when updating
+  Fastlane.
+- `nix develop ../.. --command bundle exec fastlane beta --env production` —
+  credential-gated local TestFlight delivery. Fastlane must remain orchestration
+  only: it calls canonical generation/receipt/artifact scripts, resolves the
+  production ID/version through the safe build-setting reader, applies app-wide
+  version overrides only on the archive command, and uploads the exact validated
+  IPA path. Never move product IDs or variant behavior into the Fastfile.
 - Build scheme `NeoGym Dev`/`Debug-Development` or
   `NeoGym`/`Debug-Production`. Use `Scripts/read-build-settings.py` for an
   allowlisted private build-setting export; never run unsuppressed
@@ -88,8 +100,15 @@ changes.
 - `fastlane/cloud-callback-receipt.production.json` is ignored operator
   attestation, never cloud proof. Create it only after deploying the exact
   production overlay and verifying effective behavior for both callbacks. Run
-  `Scripts/verify-cloud-callback-receipt.py`; missing/stale receipts must
-  hard-block future production archive/beta paths.
+  `Scripts/verify-cloud-callback-receipt.py`; missing/stale receipts hard-block
+  production archive/beta before Xcode archive and are rechecked before upload.
+- Production archive/beta also require `ASC_ISSUER_ID`, `ASC_KEY_ID`, and exactly
+  one of `ASC_KEY_PATH`/`ASC_KEY_CONTENT`, plus an exact existing ASC record for
+  the authoritative `io.nhost.dbarroso.neogym` build-setting value. API-key
+  access never substitutes for local Xcode distribution signing. Build numbers
+  are pure-selected as latest+1 (or strict newer override) and re-queried before
+  upload; a race aborts rather than uploading a stale-number IPA. Standalone
+  `archive` validates but is not safe for deferred manual upload.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
 - The bundle-configured app client enables the Nhost Swift SDK persistent GraphQL cache

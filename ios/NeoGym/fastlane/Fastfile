@@ -1,0 +1,295 @@
+# frozen_string_literal: true
+
+require "fileutils"
+require "json"
+require "shellwords"
+require "tempfile"
+require_relative "lib/build_number"
+
+IOS_ROOT = File.expand_path("..", __dir__)
+EXPECTED_PRODUCTION_APP_IDENTIFIER = "io.nhost.dbarroso.neogym"
+PRODUCTION_SCHEME = "NeoGym"
+PRODUCTION_CONFIGURATION = "Release-Production"
+RELEASE_OUTPUT_DIRECTORY = File.join(IOS_ROOT, "fastlane", "output")
+
+opt_out_usage
+skip_docs
+
+
+def selected_environment!
+  # Fastlane records --env in lane_context; it does not export FASTLANE_ENV.
+  environment = Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::ENVIRONMENT]
+  unless %w[development production].include?(environment)
+    UI.user_error!("invoke this lane with an explicit --env development or --env production")
+  end
+  environment
+end
+
+
+def production_environment!
+  environment = selected_environment!
+  UI.user_error!("archive and beta require --env production") unless environment == "production"
+end
+
+
+def canonical_script!(*arguments)
+  command = arguments.map { |argument| Shellwords.escape(argument) }.join(" ")
+  sh("cd #{Shellwords.escape(IOS_ROOT)} && #{command}")
+end
+
+
+def generate_variant!(variant)
+  canonical_script!("Scripts/generate-project.sh", variant)
+end
+
+
+def verify_cloud_receipt!
+  canonical_script!("python3", "Scripts/verify-cloud-callback-receipt.py")
+end
+
+
+def release_settings!
+  fields = %w[PRODUCT_BUNDLE_IDENTIFIER MARKETING_VERSION]
+  Tempfile.create(["neogym-release-settings", ".json"]) do |file|
+    file.chmod(0o600)
+    command = [
+      "python3",
+      File.join(IOS_ROOT, "Scripts", "read-build-settings.py"),
+      "--project", File.join(IOS_ROOT, "NeoGym.xcodeproj"),
+      "--scheme", PRODUCTION_SCHEME,
+      "--configuration", PRODUCTION_CONFIGURATION,
+      "--target", "NeoGym",
+      "--output", file.path
+    ]
+    fields.each { |field| command.concat(["--field", field]) }
+    succeeded = system(*command, out: File::NULL, err: File::NULL)
+    UI.user_error!("authoritative production build-setting resolution failed") unless succeeded
+
+    begin
+      settings = JSON.parse(File.read(file.path))
+    rescue JSON::ParserError, SystemCallError
+      UI.user_error!("authoritative production build-setting resolution failed")
+    end
+    unless fields.all? { |field| settings[field].is_a?(String) && !settings[field].empty? }
+      UI.user_error!("authoritative production build-setting resolution failed")
+    end
+    settings
+  end
+end
+
+
+def app_store_connect_api_key!
+  required = %w[ASC_KEY_ID ASC_ISSUER_ID]
+  missing = required.select { |key| ENV[key].nil? || ENV[key].empty? }
+  UI.user_error!("missing App Store Connect API-key fields: #{missing.join(', ')}") unless missing.empty?
+
+  path = ENV["ASC_KEY_PATH"]
+  content = ENV["ASC_KEY_CONTENT"]
+  has_path = !path.nil? && !path.empty?
+  has_content = !content.nil? && !content.empty?
+  unless has_path ^ has_content
+    UI.user_error!("set exactly one App Store Connect API-key field: ASC_KEY_PATH or ASC_KEY_CONTENT")
+  end
+
+  parameters = {
+    key_id: ENV["ASC_KEY_ID"],
+    issuer_id: ENV["ASC_ISSUER_ID"],
+    duration: 1_200,
+    in_house: false
+  }
+  if has_path
+    key_path = File.expand_path(path, IOS_ROOT)
+    UI.user_error!("App Store Connect API-key file is unavailable: ASC_KEY_PATH") unless File.file?(key_path)
+    begin
+      parameters[:key_content] = File.binread(key_path)
+    rescue SystemCallError
+      UI.user_error!("App Store Connect API-key file is unavailable: ASC_KEY_PATH")
+    end
+    parameters[:is_key_content_base64] = false
+  else
+    parameters[:key_content] = content
+    parameters[:is_key_content_base64] = ENV["ASC_KEY_CONTENT_BASE64"] == "1"
+  end
+
+  # key_content is a sensitive Fastlane action option; the source path/content
+  # is never passed as a non-sensitive command-line argument.
+  app_store_connect_api_key(**parameters)
+end
+
+
+def production_app_record!(bundle_identifier)
+  unless bundle_identifier == EXPECTED_PRODUCTION_APP_IDENTIFIER
+    UI.user_error!("authoritative production app identifier is not the shipped identifier")
+  end
+
+  app = Spaceship::ConnectAPI::App.find(bundle_identifier)
+  unless app && app.bundle_id == bundle_identifier
+    UI.user_error!("App Store Connect app record is absent or does not exactly match the production identifier")
+  end
+  app
+end
+
+
+def latest_build_number!(api_key:, bundle_identifier:, marketing_version:)
+  latest_testflight_build_number(
+    api_key: api_key,
+    app_identifier: bundle_identifier,
+    version: marketing_version,
+    initial_build_number: 0
+  )
+end
+
+
+def selected_marketing_version!(tracked_version, override)
+  value = override.nil? || override.empty? ? tracked_version : override
+  unless /\A[0-9]+(?:\.[0-9]+)*\z/.match?(value)
+    UI.user_error!("marketing version must contain decimal components only")
+  end
+  value
+end
+
+
+def provisioning_update_argument!
+  value = ENV.fetch("ALLOW_PROVISIONING_UPDATES", "0")
+  unless %w[0 1].include?(value)
+    UI.user_error!("ALLOW_PROVISIONING_UPDATES must be 0 or 1")
+  end
+  value == "1" ? " -allowProvisioningUpdates" : ""
+end
+
+
+def verify_release_artifact!(path)
+  canonical_script!("python3", "Scripts/verify-artifact.py", "--variant", "production", path)
+end
+
+
+def create_release_archive!(options)
+  production_environment!
+  generate_variant!("production")
+  verify_cloud_receipt!
+
+  settings = release_settings!
+  bundle_identifier = settings.fetch("PRODUCT_BUNDLE_IDENTIFIER")
+  marketing_version = selected_marketing_version!(
+    settings.fetch("MARKETING_VERSION"),
+    options[:version] || ENV["MARKETING_VERSION"]
+  )
+
+  api_key = app_store_connect_api_key!
+  production_app_record!(bundle_identifier)
+  latest = latest_build_number!(
+    api_key: api_key,
+    bundle_identifier: bundle_identifier,
+    marketing_version: marketing_version
+  )
+  build_number = NeoGym::BuildNumber.select(
+    latest: latest,
+    override: options[:build] || ENV["BUILD_NUMBER"]
+  )
+
+  FileUtils.mkdir_p(RELEASE_OUTPUT_DIRECTORY, mode: 0o700)
+  basename = "NeoGym-#{marketing_version}-#{build_number}"
+  archive_path = File.join(RELEASE_OUTPUT_DIRECTORY, "#{basename}.xcarchive")
+  ipa_name = "#{basename}.ipa"
+  ipa_path = File.join(RELEASE_OUTPUT_DIRECTORY, ipa_name)
+  FileUtils.rm_rf(archive_path)
+  FileUtils.rm_f(ipa_path)
+
+  version_arguments = [
+    "MARKETING_VERSION=#{marketing_version}",
+    "CURRENT_PROJECT_VERSION=#{build_number}"
+  ].map { |argument| Shellwords.escape(argument) }.join(" ")
+  signing_argument = provisioning_update_argument!
+
+  produced_ipa = build_app(
+    project: File.join(IOS_ROOT, "NeoGym.xcodeproj"),
+    scheme: PRODUCTION_SCHEME,
+    configuration: PRODUCTION_CONFIGURATION,
+    clean: true,
+    archive_path: archive_path,
+    output_directory: RELEASE_OUTPUT_DIRECTORY,
+    output_name: ipa_name,
+    export_method: "app-store",
+    export_options: { signingStyle: "automatic" },
+    xcargs: "#{version_arguments}#{signing_argument}",
+    export_xcargs: signing_argument.strip,
+    skip_profile_detection: true
+  )
+  produced_ipa = File.expand_path(produced_ipa)
+  unless produced_ipa == File.expand_path(ipa_path) && File.file?(produced_ipa)
+    UI.user_error!("Fastlane did not produce the exact requested IPA path")
+  end
+  UI.user_error!("Fastlane did not produce the exact requested archive path") unless File.directory?(archive_path)
+
+  verify_release_artifact!(archive_path)
+  verify_release_artifact!(produced_ipa)
+
+  {
+    archive: archive_path,
+    ipa: produced_ipa,
+    bundle_identifier: bundle_identifier,
+    marketing_version: marketing_version,
+    build_number: build_number
+  }
+rescue NeoGym::BuildNumber::Invalid => error
+  UI.user_error!(error.message)
+end
+
+
+def upload_release!(release)
+  verify_cloud_receipt!
+  verify_release_artifact!(release.fetch(:archive))
+  verify_release_artifact!(release.fetch(:ipa))
+
+  api_key = app_store_connect_api_key!
+  production_app_record!(release.fetch(:bundle_identifier))
+  latest = latest_build_number!(
+    api_key: api_key,
+    bundle_identifier: release.fetch(:bundle_identifier),
+    marketing_version: release.fetch(:marketing_version)
+  )
+  NeoGym::BuildNumber.assert_still_available!(
+    selected: release.fetch(:build_number),
+    latest: latest
+  )
+
+  upload_to_testflight(
+    api_key: api_key,
+    app_identifier: release.fetch(:bundle_identifier),
+    ipa: release.fetch(:ipa),
+    distribute_external: false,
+    skip_waiting_for_build_processing: true
+  )
+rescue NeoGym::BuildNumber::Invalid => error
+  UI.user_error!(error.message)
+end
+
+
+desc "Materialize the explicitly selected variant and generate the Xcode project"
+lane :generate do
+  variant = selected_environment!
+  generate_variant!(variant)
+end
+
+
+desc "Run Ruby release tests and the canonical credential-free iOS check"
+lane :check do
+  selected_environment!
+  sh("cd #{Shellwords.escape(IOS_ROOT)} && bundle exec ruby fastlane/test/build_number_test.rb")
+  canonical_script!("Scripts/check.sh")
+end
+
+
+desc "Create and validate a uniquely numbered production archive and IPA without uploading"
+lane :archive do |options|
+  release = create_release_archive!(options)
+  UI.success("Validated archive and IPA; re-run beta to re-query TestFlight immediately before upload")
+  release.fetch(:ipa)
+end
+
+
+desc "Create, revalidate, and explicitly upload the production IPA to TestFlight"
+lane :beta do |options|
+  release = create_release_archive!(options)
+  upload_release!(release)
+end

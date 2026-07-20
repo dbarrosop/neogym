@@ -98,6 +98,8 @@ Native iOS (from `ios/NeoGym/`):
 | `nix develop ../.. --command Scripts/check.sh` | Run the credential-free canonical iOS gate and both generic simulator builds |
 | `nix develop ../.. --command Scripts/generate-project.sh all` | Materialize both ignored variant configs and generate both schemes |
 | `python3 Scripts/verify-artifact.py --variant development|production <path>` | Validate an app/archive/IPA and its embedded widget against selected configuration |
+| `nix develop ../.. --command bundle exec fastlane check --env production` | Run pinned Ruby release tests plus the canonical iOS gate |
+| `nix develop ../.. --command bundle exec fastlane beta --env production` | Credential-gated archive, exact artifact validation, race check, and TestFlight upload |
 | `xcodebuild -project NeoGym.xcodeproj -scheme 'NeoGym Dev' -configuration Debug-Development -destination 'generic/platform=iOS Simulator' build` | Build the co-installable development app |
 | `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -configuration Debug-Production -destination 'generic/platform=iOS Simulator' build` | Build the production-identity app |
 
@@ -197,7 +199,11 @@ python3 ios/NeoGym/Scripts/verify-cloud-callback-receipt.py
 
 The receipt is an operator attestation, not authenticated cloud inspection.
 Never create it without effective verification. Its absence or a hash mismatch
-must block the future production archive/TestFlight lanes.
+blocks the production archive/TestFlight lanes before Xcode archive and is
+checked again before upload. See `ios/NeoGym/README.md` for the pinned Bundler
+setup, Apple portal/signing/API-key prerequisites, unique build-number behavior,
+and clean-checkout release rehearsal. Fastlane does not create portal resources
+or replace local Xcode distribution signing.
 
 ## What's not in v1 (yet)
 

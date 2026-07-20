@@ -13,6 +13,8 @@ weight/body-fat measurements.
 ios/NeoGym/
 ├── project.yml                 # XcodeGen target/configuration graph
 ├── Configuration/              # authoritative Common + variant xcconfigs
+├── Gemfile / Gemfile.lock      # pinned local Fastlane toolchain
+├── fastlane/Fastfile           # orchestration-only local release lanes
 ├── fastlane/.env.*.example     # tracked templates for ignored opaque inputs
 ├── fastlane/*receipt*          # cloud-callback attestation schema/example
 ├── Scripts/                    # materialization, generation, safe inspection
@@ -112,7 +114,8 @@ built plists with the tracked entitlement contract. `.xcarchive` and `.ipa`
 validation additionally requires real signed entitlements and embedded
 provisioning for app and widget, deriving application/keychain prefixes from the
 signed values. Producing a signed archive or IPA remains credential/profile
-dependent; TestFlight/Fastlane lanes are not part of this phase.
+dependent; the Fastlane workflow below orchestrates the same generator and
+validator without becoming another product-configuration source.
 
 `Scripts/generate-project.sh development|production` refreshes only one
 materialized input and preserves the other variant. Both schemes always remain
@@ -136,8 +139,102 @@ default to `1.0`/`1` for both targets. The variant matrix is:
 
 The DEV icon is committed but deterministically derived from the production icon;
 run `nix develop ../.. --command python3 Scripts/generate-dev-icon.py --check`
-to detect pixel drift. Apple portal App IDs, groups, HealthKit capabilities, and
-profiles must be provisioned manually; repository automation does not create them.
+to detect pixel drift.
+
+## Local TestFlight delivery
+
+Fastlane is pinned by `Gemfile.lock` and must run through Bundler in the Nix
+devshell; do not install or invoke a global Fastlane. From a clean checkout:
+
+```sh
+cd ios/NeoGym
+
+# Local SDK and the two ignored product-input files are required first.
+cp fastlane/.env.development.example fastlane/.env.development
+cp fastlane/.env.production.example fastlane/.env.production
+# Fill Team/Nhost values in both files. Fill the production ASC_* fields only
+# on a release Mac; point ASC_KEY_PATH at an ignored/out-of-repo .p8 file.
+
+nix develop ../.. --command bundle config set --local path vendor/bundle
+nix develop ../.. --command bundle install
+nix develop ../.. --command bundle exec fastlane generate --env production
+nix develop ../.. --command bundle exec fastlane check --env production
+
+# After all portal/signing/receipt prerequisites below are satisfied:
+nix develop ../.. --command bundle exec fastlane beta --env production
+```
+
+The lanes are orchestration only:
+
+- `generate --env development|production` invokes the canonical variant
+  generator. `check` runs the pure Ruby build-number tests and `Scripts/check.sh`.
+- `archive --env production` verifies the current cloud-callback receipt,
+  authenticates to App Store Connect, resolves the app ID and tracked marketing
+  version through `read-build-settings.py`, verifies the exact existing ASC app
+  record, selects an unused build number, archives/exports, and validates both
+  exact output paths. It does **not** upload and is not safe for a later manual
+  upload because another build can consume its number.
+- `beta --env production` performs that archive flow, then verifies the receipt
+  and both artifacts again, re-queries the TestFlight train immediately before
+  upload, aborts if the selected number is no longer available, and passes the
+  exact validated IPA path to `upload_to_testflight`.
+
+The default marketing version is authoritative `MARKETING_VERSION` (`1.0` at
+present). The default build is latest TestFlight build plus one, or `1` for a
+new train. Optional lane overrides are strict decimal values:
+
+```sh
+nix develop ../.. --command bundle exec fastlane beta --env production version:1.1
+nix develop ../.. --command bundle exec fastlane beta --env production version:1.1 build:42
+```
+
+A build override must be a positive integer greater than the current train and
+cannot be reused. Zero, negative, malformed, ambiguous/trailing, and overflowing
+values fail before archive. Both overrides are command-line build settings at
+archive scope, so the containing app and widget receive the same marketing and
+build versions; no tracked or generated input is mutated. If a concurrent upload
+wins the number race, discard that archive and run the lane again (or choose a
+new explicit number). A rollback also requires a new build number; TestFlight
+numbers are never reusable.
+
+### Apple and release-Mac prerequisites
+
+Repository automation intentionally does not create or repair Apple resources.
+Before `archive` or `beta`, an operator must provide:
+
+1. An Apple Developer team with explicit App IDs
+   `io.nhost.dbarroso.neogym`, `io.nhost.dbarroso.neogym.widgets`,
+   `io.nhost.dbarroso.neogym.dev`, and
+   `io.nhost.dbarroso.neogym.dev.widgets`.
+2. App Groups `group.io.nhost.dbarroso.neogym` and
+   `group.io.nhost.dbarroso.neogym.dev`; matching App Group and shared-Keychain
+   capabilities on each app/widget pair; HealthKit on both app IDs only; and
+   valid extension containment/provisioning.
+3. An App Store distribution certificate and profiles, or an authenticated
+   local Xcode account that automatic signing can use. Set
+   `ALLOW_PROVISIONING_UPDATES=1` only for a local account authorized to create
+   or update profiles. App Store Connect API-key access is separate from Xcode
+   code-signing authentication.
+4. An existing App Store Connect app record whose bundle ID is exactly
+   `io.nhost.dbarroso.neogym`, plus an App Store Connect API key with access to
+   that app and permission to read TestFlight builds/upload builds. Put its
+   issuer/key IDs in ignored `.env.production`; supply exactly one of an ignored
+   `.p8` `ASC_KEY_PATH` or process `ASC_KEY_CONTENT` (and
+   `ASC_KEY_CONTENT_BASE64=1` only for base64 content).
+5. A real ignored `fastlane/cloud-callback-receipt.production.json`, created only
+   after deploying the exact current Nhost overlay and effectively verifying
+   both native callbacks as described below. Archive and beta deliberately stop
+   before `xcodebuild archive` when this receipt, API access, or the exact ASC app
+   record is unavailable.
+
+The clean-checkout rehearsal is complete only when `bundle install`, `generate`,
+`check`, and the credential gates run from tracked inputs plus the ignored files,
+and `git status --ignored` shows the project, generated xcconfigs, `.bundle/`,
+`vendor/bundle/`, `.p8` keys, Fastlane reports/output, DerivedData, archives, and
+IPAs as ignored. Before a real release, also install both signed variants on a
+simulator/device, verify they coexist with isolated containers, and exercise
+`neogym://verify?code=fake` and `neogym-dev://verify?code=fake` against the
+matching app. Those interactive checks are not implied by the headless gate.
 
 To confirm XcodeGen is supplied by Nix on Darwin:
 
@@ -326,6 +423,5 @@ The receipt is an operator attestation, not independent or authenticated proof
 of cloud state. Do not create a real receipt without applying the overlay and
 checking effective Auth behavior. Missing, malformed, wrong-project,
 wrong-callback, or stale-overlay receipts fail the gate using field-only
-diagnostics. The future production archive and beta lanes must run this gate
-before archive and again before upload; no receipt is committed to the
-repository.
+diagnostics. The production archive and beta lanes run this gate before archive
+and again before upload; no receipt is committed to the repository.
