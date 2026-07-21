@@ -21,10 +21,12 @@ simulator-down:
 	nix develop ../.. --command python3 Scripts/simulator-control.py down --id "$(SIMULATOR_ID)"
 
 # Run the full gate, locally sign/install the selected variant, and confirm startup.
+# Routine simulator deployment deliberately performs no custom artifact validation.
 deploy-simulator: simulator-up check
 	nix develop ../.. --command Scripts/build-and-deploy.sh simulator "$(VARIANT)" "$(SIMULATOR_ID)"
 
 # Run the full gate, create a signed build, install it, and launch it on DEVICE_ID.
+# Routine device deployment deliberately performs no custom artifact validation.
 deploy-device: check
 	nix develop ../.. --command Scripts/build-and-deploy.sh device "$(VARIANT)" "$(DEVICE_ID)"
 
@@ -32,11 +34,11 @@ deploy-device: check
 deploy-testflight: check
 	nix develop ../.. --command Scripts/deploy-testflight.sh
 
-# Compile and validate one unsigned generic-simulator variant without running tests.
+# Compile one unsigned generic-simulator variant without tests or artifact validation.
 build:
 	nix develop ../.. --command Scripts/build-and-deploy.sh build "$(VARIANT)"
 
-# Run Nix checks, Xcode-release tests, Swift tests, tooling tests, both builds, and artifact validation.
+# Run Nix, Xcode-release, Swift, tooling, and both unsigned-build checks.
 check:
 	cd ../.. && nix flake check
 	nix develop ../.. --command fastlane check environment:production

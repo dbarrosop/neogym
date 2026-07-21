@@ -95,8 +95,8 @@ def with_upload_export_options
 end
 
 
-def verify_release_artifact!(path)
-  canonical_script!("python3", "Scripts/verify-artifact.py", "--variant", "production", path)
+def verify_release_archive!(path)
+  canonical_script!("python3", "Scripts/verify-archive.py", path)
 end
 
 
@@ -125,7 +125,7 @@ def create_release_archive!(options)
   run_xcodebuild!(*arguments)
   UI.user_error!("Xcode did not produce the requested archive path") unless File.directory?(archive_path)
 
-  verify_release_artifact!(archive_path)
+  verify_release_archive!(archive_path)
   { archive: archive_path, marketing_version: marketing_version }
 rescue NeoGym::XcodeRelease::InvalidMarketingVersion => error
   UI.user_error!(error.message)
@@ -134,7 +134,6 @@ end
 
 def upload_release!(release)
   archive_path = release.fetch(:archive)
-  verify_release_artifact!(archive_path)
   upload_output = File.join(RELEASE_OUTPUT_DIRECTORY, "XcodeUpload")
   FileUtils.rm_rf(upload_output)
 

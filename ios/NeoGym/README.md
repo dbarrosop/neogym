@@ -62,11 +62,11 @@ Nix devshell itself; do not install XcodeGen or Fastlane globally.
 |---|---|
 | `make simulator-up` | Boot the selected iPhone simulator and open Simulator. With no selection, reuse a booted iPhone or choose one from the newest installed iOS runtime. |
 | `make simulator-down` | Shut down the selected simulator, or every booted iPhone simulator when no selection is supplied. It does not stop booted watch simulators. |
-| `make build` | Generate and compile one unsigned generic-simulator variant, then validate the built app and embedded widget. It does not run the test/lint gate. |
-| `make check` | Run `nix flake check`, the temporary Fastlane Xcode-release tests, Swift build/tests, strict materializer/tool tests, icon checks, both generic-simulator builds, and both transitional artifact validations. |
-| `make deploy-simulator` | Boot the simulator, run `make check`, rebuild and locally sign the selected variant with simulated entitlements, validate it, install it, launch it, and confirm it remains running through startup. |
-| `make deploy-device DEVICE_ID=…` | Run `make check`, build/sign the selected variant for the connected device, validate the signed app, install it, and launch it. |
-| `make deploy-testflight` | Run `make check`, archive and validate production, then ask Xcode to sign, assign the next build number, and upload through its configured account. |
+| `make build` | Generate and compile one unsigned generic-simulator variant. It does not run the test/lint gate or custom artifact validation. |
+| `make check` | Run `nix flake check`, the temporary Fastlane Xcode-release tests, Swift build/tests, strict materializer and focused archive-validator tests, icon checks, and both unsigned generic-simulator builds. It performs no custom artifact validation. |
+| `make deploy-simulator` | Boot the simulator, run `make check`, rebuild and locally sign the selected variant with simulated entitlements, install it, launch it, and confirm it remains running through startup. |
+| `make deploy-device DEVICE_ID=…` | Run `make check`, build/sign the selected variant for the connected device, install it, and launch it. |
+| `make deploy-testflight` | Run `make check`, archive production, validate that archive exactly once, then ask Xcode to sign, assign the next build number, and upload the same archive through its configured account. |
 
 Examples:
 
@@ -201,54 +201,44 @@ xcodebuild -project NeoGym.xcodeproj -scheme NeoGym \
 ```
 
 `Scripts/check.sh` is the canonical local gate for humans and transitional
-release orchestration. It uses the safe build-setting inspector, keeps raw Xcode
-output in private temporary files, runs `swift build`, `swift test`, strict
-materializer and artifact fixtures, default `all` generation, the DEV-icon drift
-check, both generic simulator builds, and unsigned built-product validation. It
-requires both ignored root dotenv inputs. It needs no booted simulator, App
-Store Connect credential, distribution certificate, or provisioning profile,
-and it does not install or launch either app.
+release orchestration. It keeps Xcode build output in private temporary files,
+runs `swift build`, `swift test`, strict materializer and focused synthetic
+archive-validator tests, default `all` generation, the DEV-icon drift check, and
+both unsigned generic simulator builds. It performs no resolved build-setting
+comparison and no custom validation of built products. It requires both ignored
+root dotenv inputs. It needs no booted simulator, App Store Connect credential,
+distribution certificate, or provisioning profile, and it does not install or
+launch either app. `read-build-settings.py` remains in this script only to select
+a compatible local Xcode until the Phase 3 orchestration replacement.
 
-Validate a separately built product explicitly against one selected variant:
+The sole supported validator input is a signed production archive:
 
 ```sh
-# Unsigned generic-simulator check product
-python3 Scripts/verify-artifact.py --variant development \
-  DerivedData/Checks/development/Build/Products/Debug-Development-iphonesimulator/NeoGym.app
-
-# Locally signed simulator product with simulated entitlements
-python3 Scripts/verify-artifact.py --variant development --signed-simulator \
-  DerivedData/Deploy/development-simulator/Build/Products/Debug-Development-iphonesimulator/NeoGym.app
-
-# Provisioning-dependent signed outputs (examples; paths are local/ignored)
-python3 Scripts/verify-artifact.py --variant production path/to/NeoGym.xcarchive
-python3 Scripts/verify-artifact.py --variant production path/to/NeoGym.ipa
+python3 Scripts/verify-archive.py path/to/NeoGym.xcarchive
 ```
 
-The validator always inspects the embedded
-`PlugIns/NeoGymWidgets.appex`. It compares static identity/icon/callback/device/
-platform/HealthKit metadata with the authoritative selected xcconfig and opaque
-Nhost plist values exactly with the selected mode-0600 materialized xcconfig,
-while diagnostics name keys only. Unsigned `.app` validation combines the
-built plists with the tracked entitlement contract. `--signed-simulator` also
-requires valid local app/widget signatures and verifies the Team-prefixed
-runtime values against the tracked simulated-entitlement contract. `.xcarchive`
-and `.ipa` validation additionally requires real signed entitlements and embedded
-provisioning for app and widget, deriving application/keychain prefixes from the
-signed values. Producing a signed archive or IPA remains credential/profile
-dependent; the Fastlane workflow below orchestrates the same generator and
-validator without becoming another product-configuration source.
+The release workflow invokes this command exactly once, immediately after Xcode
+creates the archive and before export. It requires exactly one app under
+`Products/Applications` and exactly one embedded
+`PlugIns/NeoGymWidgets.appex`. It recursively rejects unresolved build-setting
+tokens and checks only app/widget App Group entitlement/runtime equality,
+Keychain entitlement/runtime equality and suffix consistency, and matching
+marketing versions/build numbers. `codesign` is an injectable entitlement
+reader only: signature verification, provisioning-profile/CMS decoding,
+build-setting reconstruction, and broad static metadata comparisons are left to
+Xcode or configuration tests. Diagnostics name keys only. Direct `.app`, `.ipa`,
+variant-selection, and signed-simulator validation modes are unsupported.
 
 `Scripts/generate-project.sh development|production` refreshes only one
 materialized input and preserves the other variant. Both schemes always remain
 in the project. There is intentionally no project pre-build validator: supported
 scripted paths materialize before XcodeGen/build, so run generation before any
-low-level `xcodebuild` command. Never use raw `xcodebuild -showBuildSettings`;
-it exposes custom settings. Use `Scripts/read-build-settings.py` with explicit
-allowlisted fields and a private output path. `Scripts/materialize-config.py` is
-the only dotenv parser, validator, identity deriver, and tracked-value auditor;
-the broad artifact validator temporarily keeps an xcconfig reader only to keep
-the Phase 1 release/check path functional.
+low-level `xcodebuild` command. Never use raw `xcodebuild -showBuildSettings`; it exposes custom settings. The
+transitional release wrapper uses `Scripts/read-build-settings.py` with explicit
+allowlisted fields and a private output path, while `check.sh` uses its Xcode
+selection helper only. `Scripts/materialize-config.py` is the only dotenv parser,
+validator, identity deriver, and tracked-value auditor. Archive validation does
+not read xcconfigs or reconstruct expected build settings.
 
 Both app/widget pairs require iOS 26.6. The app is iPhone-only and portrait-only;
 Catalyst and Designed for iPad on Mac are disabled. Marketing/build versions
@@ -298,8 +288,9 @@ The lanes are orchestration only:
   `read-build-settings.py`, creates a signed Xcode archive, and validates the
   archive plus embedded widget. It does not compare against a hardcoded product
   identifier and does not load Fastlane dotenv files.
-- `beta environment:production` performs that archive flow, validates it again, then
-  runs `xcodebuild -exportArchive` with `destination=upload`. Xcode uses its
+- `beta environment:production` performs that archive flow without repeating
+  validation, then runs `xcodebuild -exportArchive` with `destination=upload` on
+  the same archive. Xcode uses its
   configured Apple account and automatic signing, manages the uploaded build
   number, and sends the build directly to App Store Connect.
 

@@ -116,12 +116,6 @@ if [[ ! -d "$app_path" ]]; then
 	exit 1
 fi
 
-validation_arguments=(--variant "$variant")
-if [[ "$mode" == "simulator" ]]; then
-	validation_arguments+=(--signed-simulator)
-fi
-python3 Scripts/verify-artifact.py "${validation_arguments[@]}" "$app_path"
-
 if [[ "$mode" == "build" ]]; then
 	echo "NeoGym build succeeded: $app_path"
 	exit 0

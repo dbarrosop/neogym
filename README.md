@@ -94,11 +94,11 @@ Native iOS (from `ios/NeoGym/`):
 | Command | What it does |
 |---|---|
 | `make simulator-up` / `make simulator-down` | Boot/open or shut down an iPhone simulator; optionally pass `SIMULATOR_ID=<udid>` |
-| `make build [VARIANT=development|production]` | Generate, compile, and validate one generic-simulator variant without tests |
-| `make check` | Run Nix, Xcode-release, Swift, Python, configuration, both-build, and artifact gates |
-| `make deploy-simulator [SIMULATOR_ID=<udid>]` | Check, build, validate, install, and launch on a simulator |
-| `make deploy-device DEVICE_ID=<id>` | Check, sign, validate, install, and launch on a physical device |
-| `make deploy-testflight [VERSION=x.y]` | Check, archive, validate, and upload through the account configured in Xcode |
+| `make build [VARIANT=development|production]` | Generate and compile one generic-simulator variant without tests or custom artifact validation |
+| `make check` | Run Nix, Xcode-release, Swift, Python/configuration tests, and both unsigned builds; it performs no custom built-product validation |
+| `make deploy-simulator [SIMULATOR_ID=<udid>]` | Check, build, install, and launch on a simulator without custom artifact validation |
+| `make deploy-device DEVICE_ID=<id>` | Check, sign, install, and launch on a physical device without custom artifact validation |
+| `make deploy-testflight [VERSION=x.y]` | Check, archive, validate the production archive once, and upload that same archive through Xcode |
 
 See [`ios/NeoGym/README.md`](ios/NeoGym/README.md#make-workflow) for all
 parameters, the exact four-key ignored root dotenv contract, CLI identifier
@@ -192,9 +192,12 @@ Before relying on native email-change callbacks in production, apply the
 checked-in production overlay through the supported Nhost process and verify
 both callback schemes against that authoritative backend project. Fastlane does
 not apply Nhost configuration, create Apple portal resources, or replace local
-Xcode distribution signing. See `ios/NeoGym/README.md` for the temporary
-explicit-option Fastlane setup, Apple portal/signing/Xcode-account prerequisites,
-Xcode-managed build numbering, and clean-checkout release rehearsal.
+Xcode distribution signing. Its transitional release flow validates only the
+signed production `.xcarchive`, exactly once immediately after creation, before
+exporting that same archive; routine builds have no custom artifact validator.
+See `ios/NeoGym/README.md` for the temporary explicit-option Fastlane setup,
+Apple portal/signing/Xcode-account prerequisites, Xcode-managed build numbering,
+and clean-checkout release rehearsal.
 
 ## What's not in v1 (yet)
 

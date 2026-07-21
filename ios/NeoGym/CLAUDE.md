@@ -32,16 +32,19 @@ harmless and intentionally out of scope.
   `make deploy-device DEVICE_ID=<id>`, and `make deploy-testflight`. It enters
   the Nix devshell itself. `VARIANT=development|production` selects local build
   and install identity; `SIMULATOR_ID`, `ALLOW_PROVISIONING_UPDATES`, and optional
-  TestFlight `VERSION` are documented in `README.md`. Simulator
-  deployment must retain Xcode local signing and `--signed-simulator` artifact
-  validation so simulated App Group/Keychain entitlements are available; an
-  unsigned installed app fails closed in `NeoGymApp.init()`.
+  TestFlight `VERSION` are documented in `README.md`. Simulator deployment
+  retains Xcode local signing so simulated App Group/Keychain entitlements are
+  available; routine build, simulator, and device paths perform no custom
+  artifact validation. An unsigned installed app fails closed in
+  `NeoGymApp.init()`.
 - `nix develop ../.. --command Scripts/check.sh` — canonical credential-free,
-  headless gate. It runs the host Swift gates, strict materializer and artifact
-  fixtures, default `all` generation, icon drift, safe build-setting comparison,
-  both generic simulator builds, and unsigned product validation. It requires
-  both ignored root dotenv inputs but no booted simulator, signing profile,
-  distribution credential, or App Store Connect access.
+  headless gate. It runs the host Swift gates, strict materializer and focused
+  archive-validator tests, default `all` generation, icon drift, and both
+  unsigned generic simulator builds. It performs no custom build-setting or
+  artifact validation. It requires both ignored root dotenv inputs but no booted
+  simulator, signing profile, distribution credential, or App Store Connect
+  access. `read-build-settings.py` remains involved here only as the temporary
+  compatible-Xcode selector until Phase 3.
 - `nix develop ../.. --command Scripts/generate-project.sh all` — atomically
   materialize mode-0600 generated xcconfigs and regenerate both shared schemes.
   `development` and `production` refresh only the selected config without
@@ -49,20 +52,24 @@ harmless and intentionally out of scope.
   there is no Xcode pre-build validator, so generate before low-level builds.
   Keep tracked public xcconfigs, plists, entitlements, and `project.yml` plus
   ignored private root dotenvs as inputs; never commit generated output.
-- `python3 Scripts/verify-artifact.py --variant development|production <path>`
-  — validate an app, archive, or IPA plus embedded `NeoGymWidgets.appex` against
-  authoritative selected configuration. Archives/IPAs require signed
-  entitlements and embedded provisioning; unsigned app products use the tracked
-  entitlement contract. Opaque mismatches must remain key-only diagnostics.
+- `python3 Scripts/verify-archive.py <production.xcarchive>` — release-only
+  validation for exactly one archived app and one embedded
+  `NeoGymWidgets.appex`. It checks only unresolved metadata/entitlement tokens,
+  matching App Group and Keychain entitlements plus runtime values, Keychain
+  suffix consistency, and matching marketing/build versions. `codesign` is used
+  only as an entitlement reader; app/IPA inputs, signature/profile/CMS checks,
+  and build-setting reconstruction are intentionally unsupported. Diagnostics
+  remain key-only.
 - `nix develop ../.. --command fastlane check environment:production` — run Ruby
   release tests plus the canonical iOS check with Fastlane 2.237.0 from the
   repository Nix overlay. Its hashed gem closure lives under `nix/fastlane/`;
   do not add a project-local Gemfile, run Bundler, or install a global gem.
 - `nix develop ../.. --command fastlane beta environment:production` — local
   TestFlight delivery through the Apple account configured in Xcode. Fastlane
-  remains orchestration only: it calls canonical generation/artifact scripts,
+  remains orchestration only: it calls canonical generation/archive scripts,
   resolves the version through the safe build-setting reader,
-  archives and validates locally, then uses `xcodebuild -exportArchive` with
+  archives and validates that production archive exactly once immediately after
+  creation, then uses `xcodebuild -exportArchive` with
   `destination=upload`, automatic signing, and Xcode-managed build numbering.
   `App/Info.plist` keeps `ITSAppUsesNonExemptEncryption=false` because NeoGym
   uses only exempt system TLS/authentication encryption; reassess it before
@@ -71,10 +78,10 @@ harmless and intentionally out of scope.
 - Build scheme `NeoGym Dev`/`Debug-Development` or
   `NeoGym`/`Debug-Production`. Use `Scripts/read-build-settings.py` for an
   allowlisted private build-setting export; never run unsuppressed
-  `xcodebuild -showBuildSettings`. Scheme-mode JSON reports only the top-level
-  app in this project, so inspect `NeoGymWidgets` with target mode (omit
-  `--scheme`); the canonical check then proves actual containment through the
-  built embedded appex.
+  `xcodebuild -showBuildSettings`. The canonical check no longer compares
+  resolved build settings or validates unsigned products; release app/widget
+  containment and shared runtime identities are checked only in the production
+  archive.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
@@ -117,9 +124,10 @@ changes.
 - Production archive/beta require an authenticated Xcode account for the
   production team, automatic distribution signing, upload permission, and an
   existing App Store Connect record matching the ignored production
-  `BUNDLE_IDENTIFIER_BASE`. `beta` delegates upload and
-  build-number management to `xcodebuild -exportArchive`; standalone `archive`
-  only creates and validates the local archive.
+  `BUNDLE_IDENTIFIER_BASE`. `beta` validates the archive once after creation,
+  then delegates upload and build-number management for that same archive to
+  `xcodebuild -exportArchive`; standalone `archive` creates and validates the
+  local archive once.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
   local persisted sessions are removed even when the network request fails.
 - The bundle-configured app client enables the Nhost Swift SDK persistent GraphQL cache
