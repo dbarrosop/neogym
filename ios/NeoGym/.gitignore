@@ -2,6 +2,7 @@
 NeoGym.xcodeproj/
 .build/
 DerivedData/
+Artifacts/
 *.xcarchive/
 *.ipa
 Configuration/Generated/*.xcconfig
@@ -11,13 +12,7 @@ Scripts/**/__pycache__/
 .env.*
 !.env.*.example
 
-# Local Fastlane credentials and reports
 *.p8
-fastlane/output/
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots/
-fastlane/test_output/
 
 # Xcode user state
 xcuserdata/

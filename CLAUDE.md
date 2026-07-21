@@ -45,7 +45,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, Darwin-available XcodeGen, Python with Pillow/python-dotenv, Ruby, and Fastlane are NOT assumed to be on the host — they come from `flake.nix`. Fastlane 2.237.0 is packaged by the repository overlay from the hashed gem closure under `nix/fastlane/`; do not install it with Bundler or as a global gem. Run frontend commands via the devshell:
+`bun`, `biome`, Darwin-available XcodeGen, and plain Python are provided by `flake.nix`. The iOS release workflow intentionally has no Fastlane/Ruby/Bundix or third-party Python-package closure. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -83,18 +83,45 @@ From `ios/NeoGym/`:
 
 The app, widget, and NeoGymKit iOS platform are pinned to iOS 26.6; NeoGymKit
 retains macOS 12 only for host builds/tests. Older-iOS availability branches are
-harmless and intentionally out of scope for this deployment change.
+harmless and intentionally out of scope.
 
-- `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
-- `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
-- Copy root `.env.development.example` and `.env.production.example` to ignored root files, set mode `0600`, and supply exactly Team, bundle base, Nhost subdomain, and Nhost region. The standard-library materializer is the sole parser/validator/identity deriver.
-- Use the iOS `Makefile` as the public workflow: `make build`, `make check`, `make simulator-up|simulator-down`, `make deploy-simulator`, `make deploy-device DEVICE_ID=<id>`, and `make deploy-testflight`. It enters Nix itself; see `ios/NeoGym/README.md` for all parameters, CLI identifier discovery, signing, and Xcode account setup. Simulator deployment must remain locally signed so its simulated App Group/Keychain entitlements exist; unsigned check builds are not launchable because runtime session configuration fails closed.
-- `nix develop ../.. --command Scripts/check.sh` — canonical credential-free, headless iOS gate. It runs host Swift/tool fixtures, default `all` generation, icon drift, and both unsigned generic simulator builds. It deliberately performs no custom build-setting or artifact validation. Both ignored root dotenv inputs are required. It does not require a booted simulator or signing/App Store Connect credentials.
-- `nix develop ../.. --command Scripts/generate-project.sh all` — privately materialize both variant configs and generate `NeoGym.xcodeproj` from the authoritative xcconfigs/plists/entitlements plus `project.yml`. Single-variant `development`/`production` modes refresh only that input and preserve the other generated config.
-  After adding/removing Swift app files, wait for generation to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors. The spec's post-generation script patches both shared schemes once.
-- `python3 Scripts/verify-archive.py <production.xcarchive>` — release-only validation for one signed production archive. It requires exactly one app and embedded `NeoGymWidgets.appex`, then checks unresolved tokens, app/widget App Group and Keychain runtime parity (including Keychain suffix consistency), and marketing/build-version parity. It uses `codesign` only to read entitlements and emits key-only diagnostics; app and IPA inputs are unsupported.
-- `nix develop ../.. --command fastlane check environment:production` runs Ruby release tests plus the canonical check using the overlay-pinned Fastlane package. `fastlane beta environment:production` archives production, invokes `verify-archive.py` exactly once immediately after archive creation, then delegates automatic signing, build-number management, and direct App Store Connect upload of that same archive to `xcodebuild -exportArchive` using the account configured in Xcode. There is no pre-upload validation repeat. These transitional lanes use a normal option and do not load Fastlane dotenvs. An optional marketing-version override applies once at archive scope to both targets. `App/Info.plist` declares `ITSAppUsesNonExemptEncryption=false` because NeoGym uses only exempt system TLS/authentication encryption; reassess export compliance before adding custom cryptography, VPN behavior, or encrypted communications.
-- Build scheme `NeoGym Dev` with `Debug-Development` or scheme `NeoGym` with `Debug-Production`. Never inspect build settings with raw `xcodebuild -showBuildSettings`; use `Scripts/read-build-settings.py` with an explicit private output file.
+- Create ignored mode-`0600` `.env.development` and `.env.production` files from
+  the examples. Each contains exactly Team, bundle base, Nhost subdomain, and
+  Nhost region. `Scripts/materialize-config.py` is the sole standard-library
+  parser/validator/identity deriver.
+- The complete public workflow is `make check`,
+  `make deploy-device DEVICE_ID=<hardware-udid>`, and
+  `make upload-testflight VERSION=x.y`. Each target runs `nix flake check` then
+  one `Scripts/ios.sh` command. The shell clears Nix Apple-tool variables,
+  honors an explicit compatible `DEVELOPER_DIR` or selects Xcode supporting iOS
+  26.6, verifies XcodeGen and the adjacent Nhost SDK, and uses explicit output
+  paths.
+- `make check` runs host Swift build/tests, focused Python/shell tests,
+  materializes development and production once each, generates once, and builds
+  `NeoGym Dev`/`Debug-Development` and `NeoGym`/`Debug-Production` as unsigned
+  generic-simulator products. It performs no custom product validation.
+- Device deployment is development-only and always uses automatic signing plus
+  provisioning updates. It installs the deterministic built app with
+  `devicectl`, reads `CFBundleIdentifier` from the built plist, and launches it.
+- TestFlight upload requires a one-to-three-component decimal `VERSION` before
+  any workflow side effects. It archives `NeoGym`/`Release-Production`, runs
+  `Scripts/verify-archive.py` exactly once, and exports/uploads that exact archive
+  using `Configuration/TestFlightExportOptions.plist`, the authenticated local
+  Xcode account, automatic signing, and managed build numbering. The processed
+  TestFlight build is manually promoted without rebuilding. Never run this
+  authorized action unless explicitly requested.
+- Routine checks/device builds have no custom artifact validation. The release
+  validator checks only embedded-widget, unresolved-token, shared App
+  Group/Keychain, and app/widget version parity on the production archive.
+- `project.yml`, plain Python, XcodeGen, static `AppIconDev`,
+  `materialize-config.py`, `verify-archive.py`, and
+  `disable-xcode-debug-options.py` remain authoritative. Old build/simulator
+  wrappers, build-setting inspection, Fastlane/Ruby, and generated icon tooling
+  are intentionally removed.
+- Build scheme `NeoGym Dev` with `Debug-Development` or scheme `NeoGym` with
+  `Debug-Production` for direct Xcode simulator use. Bare low-level builds do not
+  materialize configuration; never use unsuppressed
+  `xcodebuild -showBuildSettings`.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 

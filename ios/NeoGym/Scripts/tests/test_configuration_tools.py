@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
-import os
 import stat
 import subprocess
 import sys
@@ -267,34 +265,18 @@ class MaterializerTests(unittest.TestCase):
             self.assertNotIn("fixture-project7", message)
 
 
-class TransitionalWrapperContractTests(unittest.TestCase):
-    def test_fastlane_uses_explicit_lane_option_without_dotenv_or_identifier_guard(self) -> None:
+class WorkflowContractTests(unittest.TestCase):
+    def test_one_shell_entry_point_owns_the_supported_workflow(self) -> None:
         makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
-        deploy = (SCRIPTS / "deploy-testflight.sh").read_text(encoding="utf-8")
-        fastfile = (PROJECT_ROOT / "fastlane" / "Fastfile").read_text(encoding="utf-8")
-
-        self.assertIn("fastlane check environment:production", makefile)
-        self.assertIn("arguments=(beta environment:production)", deploy)
-        self.assertIn("options[:environment]", fastfile)
-        for source in (makefile, deploy, fastfile):
-            self.assertNotIn("--env", source)
-        for forbidden in (
-            ".env.development",
-            ".env.production",
-            "EXPECTED_PRODUCTION_APP_IDENTIFIER",
-            "PRODUCT_BUNDLE_IDENTIFIER",
-        ):
-            self.assertNotIn(forbidden, fastfile)
-
-    def test_materialization_has_no_second_validator_or_xcode_build_phase(self) -> None:
-        generator = (SCRIPTS / "generate-project.sh").read_text(encoding="utf-8")
-        check = (SCRIPTS / "check.sh").read_text(encoding="utf-8")
+        workflow = (SCRIPTS / "ios.sh").read_text(encoding="utf-8")
         project = (PROJECT_ROOT / "project.yml").read_text(encoding="utf-8")
-        for source in (generator, check, project):
-            self.assertNotIn("validate-build-config", source)
-        self.assertNotIn("preBuildScripts:", project)
-        self.assertEqual(generator.count("Scripts/materialize-config.py"), 1)
 
+        for target in ("check", "deploy-device", "upload-testflight"):
+            self.assertIn(f"Scripts/ios.sh {target}", makefile)
+        self.assertIn("Scripts/materialize-config.py development", workflow)
+        self.assertIn("Scripts/materialize-config.py production", workflow)
+        self.assertIn("xcodegen generate", workflow)
+        self.assertNotIn("preBuildScripts:", project)
 
 class SchemePatcherTests(unittest.TestCase):
     def test_patcher_is_idempotent(self) -> None:
@@ -307,65 +289,6 @@ class SchemePatcherTests(unittest.TestCase):
             self.assertIn(f'{key} = "{value}"', once)
 
 
-class SafeInspectorTests(unittest.TestCase):
-    def test_sentinel_never_reaches_process_output_and_raw_capture_is_removed(self) -> None:
-        sentinel = "opaque-NHOST-stdout-secret"
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            fake_bin = root / "bin"
-            fake_bin.mkdir()
-            fake_xcrun = fake_bin / "xcrun"
-            fake_xcrun.write_text(
-                "#!/bin/sh\n"
-                'printf \'%s\\n\' \'[{"target":"NeoGym","buildSettings":{"NEOGYM_NHOST_SUBDOMAIN":"'
-                + sentinel
-                + '"}}]\'\n'
-                "printf '%s\\n' 'stderr-" + sentinel + "' >&2\n",
-                encoding="utf-8",
-            )
-            fake_xcrun.chmod(0o755)
-            output = root / "selected.json"
-            environment = os.environ.copy()
-            environment["NEOGYM_XCRUN"] = str(fake_xcrun)
-            environment["TMPDIR"] = str(root)
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    str(SCRIPTS / "read-build-settings.py"),
-                    "--scheme",
-                    "NeoGym",
-                    "--configuration",
-                    "Debug-Production",
-                    "--target",
-                    "NeoGym",
-                    "--field",
-                    "NEOGYM_NHOST_SUBDOMAIN",
-                    "--output",
-                    str(output),
-                ],
-                cwd=root,
-                env=environment,
-                text=True,
-                capture_output=True,
-                check=False,
-            )
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertNotIn(sentinel, result.stdout)
-            self.assertNotIn(sentinel, result.stderr)
-            try:
-                selected = json.loads(output.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError) as error:
-                self.fail(f"safe inspector did not produce valid JSON: {error}")
-            self.assertEqual(selected["NEOGYM_NHOST_SUBDOMAIN"], sentinel)
-            self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
-            self.assertEqual(list(root.glob("neogym-build-settings-*")), [])
-
-    def test_non_allowlisted_field_fails_without_naming_value(self) -> None:
-        inspector = load_script("read-build-settings.py")
-        with self.assertRaisesRegex(RuntimeError, "not allowlisted"):
-            inspector.read_settings(
-                Path("project"), "scheme", "config", "target", ["UNRELATED_PRIVATE_KEY"]
-            )
 
 
 if __name__ == "__main__":

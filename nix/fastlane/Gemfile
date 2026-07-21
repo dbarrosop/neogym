@@ -1,7 +1,0 @@
-source "https://rubygems.org"
-
-# Ruby 3.4 no longer ships these as default gems; Fastlane/tests require them.
-gem "abbrev", "0.1.2"
-gem "fastlane", "2.237.0"
-gem "minitest", "5.25.5"
-gem "ostruct", "0.6.3"

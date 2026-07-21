@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, XcodeGen, Python/Pillow/python-dotenv, Ruby, and Fastlane — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, XcodeGen, and plain Python — is provisioned through a Nix flake so contributors get a reproducible dev environment. Native release orchestration uses direct Xcode commands.
 
 ## Stack
 
@@ -28,7 +28,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun`, `biome`, Darwin-available XcodeGen, Python/Pillow/python-dotenv, Ruby, and Fastlane come from the Nix devshell — no host install needed for those tools. The repository overlay packages Fastlane 2.237.0 from a hashed gem closure under `nix/fastlane/`. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep the tracked iOS xcconfigs/plists/entitlements plus `project.yml` authoritative.
+`bun`, `biome`, Darwin-available XcodeGen, and plain Python come from the Nix devshell. The iOS workflow has no Ruby/Fastlane/Bundix or third-party Python-package closure. If pinned Nixpkgs lacks XcodeGen on Darwin, install it with Homebrew and keep the tracked iOS xcconfigs/plists/entitlements plus `project.yml` authoritative.
 
 ## Quick start
 
@@ -93,20 +93,17 @@ Native iOS (from `ios/NeoGym/`):
 
 | Command | What it does |
 |---|---|
-| `make simulator-up` / `make simulator-down` | Boot/open or shut down an iPhone simulator; optionally pass `SIMULATOR_ID=<udid>` |
-| `make build [VARIANT=development|production]` | Generate and compile one generic-simulator variant without tests or custom artifact validation |
-| `make check` | Run Nix, Xcode-release, Swift, Python/configuration tests, and both unsigned builds; it performs no custom built-product validation |
-| `make deploy-simulator [SIMULATOR_ID=<udid>]` | Check, build, install, and launch on a simulator without custom artifact validation |
-| `make deploy-device DEVICE_ID=<id>` | Check, sign, install, and launch on a physical device without custom artifact validation |
-| `make deploy-testflight [VERSION=x.y]` | Check, archive, validate the production archive once, and upload that same archive through Xcode |
+| `make check` | Run Nix, Swift, focused Python/shell tests, one generation, and both unsigned generic-simulator builds. |
+| `make deploy-device DEVICE_ID=<hardware-udid>` | Run the gate, automatically sign the development variant, install it, and launch it on a physical device. |
+| `make upload-testflight VERSION=x.y` | Run the gate, archive production, validate once, and export/upload that exact archive through the configured Xcode account. |
 
-See [`ios/NeoGym/README.md`](ios/NeoGym/README.md#make-workflow) for all
-parameters, the exact four-key ignored root dotenv contract, CLI identifier
-discovery, signing, and Xcode account prerequisites. Private app/widget/App
-Group/Keychain identities are derived from each environment's ignored bundle
-base; only callback, display-name, and icon differences are committed. Future
-Watch naming reserves `<base>.watch` and `<base>.watch.widgets`, but no Watch
-target or capability exists.
+See [`ios/NeoGym/README.md`](ios/NeoGym/README.md#supported-commands) for the
+four-key ignored dotenv contract, compatible-Xcode selection, device identifier
+discovery, Apple signing/account prerequisites, validation boundaries, and
+TestFlight workflow. The processed TestFlight build is manually promoted to
+production without rebuilding. A real device deployment and upload are explicit
+external acceptance actions. Future Watch naming reserves `<base>.watch` and
+`<base>.watch.widgets`; no Watch target or capability exists.
 
 The native app supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
@@ -190,14 +187,12 @@ Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — t
 
 Before relying on native email-change callbacks in production, apply the
 checked-in production overlay through the supported Nhost process and verify
-both callback schemes against that authoritative backend project. Fastlane does
-not apply Nhost configuration, create Apple portal resources, or replace local
-Xcode distribution signing. Its transitional release flow validates only the
-signed production `.xcarchive`, exactly once immediately after creation, before
-exporting that same archive; routine builds have no custom artifact validator.
-See `ios/NeoGym/README.md` for the temporary explicit-option Fastlane setup,
-Apple portal/signing/Xcode-account prerequisites, Xcode-managed build numbering,
-and clean-checkout release rehearsal.
+both callback schemes against that authoritative backend project. Those backend
+files are the authoritative exception to the iOS tracked-value audit. The direct
+Xcode workflow does not apply Nhost configuration or create Apple resources. It
+validates the signed production `.xcarchive` exactly once after creation, then
+exports/uploads that same archive with Xcode-managed build numbering; routine
+checks and device builds have no custom artifact validator.
 
 ## What's not in v1 (yet)
 

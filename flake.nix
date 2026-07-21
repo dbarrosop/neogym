@@ -49,12 +49,7 @@
             nhost.biome
             bun
             rover
-            ruby
-            fastlane
-            (python3.withPackages (pythonPackages: [
-              pythonPackages.pillow
-              pythonPackages.python-dotenv
-            ]))
+            python3
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen
