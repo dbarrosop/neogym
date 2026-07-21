@@ -17,7 +17,7 @@ class XcodeReleaseTest < Minitest::Test
   end
 
   def test_rejects_malformed_marketing_versions
-    ["1.", ".1", "1.0-beta", " 1.0", "1.0 "].each do |value|
+    ["1.", ".1", "1.0-beta", "1.2.3.4", " 1.0", "1.0 "].each do |value|
       assert_raises(NeoGym::XcodeRelease::InvalidMarketingVersion) do
         NeoGym::XcodeRelease.marketing_version(tracked: "1.0", override: value)
       end

@@ -8,7 +8,7 @@ module NeoGym
 
     def marketing_version(tracked:, override: nil)
       value = override.nil? || override.empty? ? tracked : override
-      unless /\A[0-9]+(?:\.[0-9]+)*\z/.match?(value)
+      unless /\A[0-9]+(?:\.[0-9]+){0,2}\z/.match?(value)
         raise InvalidMarketingVersion, "marketing version must contain decimal components only"
       end
       value

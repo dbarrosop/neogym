@@ -15,6 +15,7 @@ for application in /Applications/Xcode*.app; do
 	candidates+=("$application/Contents/Developer")
 done
 for candidate in "${candidates[@]}"; do
+	[[ -n "$candidate" && -d "$candidate" ]] || continue
 	[[ -x "$candidate/usr/bin/xcodebuild" ]] || continue
 	candidate_version="$(env DEVELOPER_DIR="$candidate" "$XCRUN" --sdk iphonesimulator --show-sdk-version 2>/dev/null || true)"
 	if /usr/bin/python3 - "$candidate_version" <<'PY'; then
