@@ -13,6 +13,7 @@ from io import StringIO
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = SCRIPTS.parent
 
 
 def load_script(name: str):
@@ -21,157 +22,278 @@ def load_script(name: str):
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {name}")
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
 
 materializer = load_script("materialize-config.py")
-validator = load_script("validate-build-config.py")
 patcher = load_script("disable-xcode-debug-options.py")
 
 
 class MaterializerTests(unittest.TestCase):
-    def test_escaping_round_trips_hostile_values_without_execution(self) -> None:
-        hostile_values = [
-            "  spaces stay  ",
-            "#hash // slash-comment",
-            "'single' and \"double\" quotes",
-            r"back\\slashes and bare$dollar",
-            "${INTERPOLATION_DISABLED}",
-            "$(XCCONFIG_EXPANSION_INERT)",
-            "`touch should-not-exist` ; $(touch should-not-exist)",
-        ]
-        for value in hostile_values:
-            encoded = materializer.escape_xcconfig(value)
-            self.assertEqual(materializer.unescape_xcconfig(encoded), value)
+    maxDiff = None
 
-    def test_dotenv_interpolation_is_disabled_and_shell_text_is_inert(self) -> None:
+    @staticmethod
+    def write_env(
+        directory: Path,
+        variant: str,
+        *,
+        team: str = "AB12CD34EF",
+        base: str | None = None,
+        subdomain: str | None = None,
+        region: str = "eu-test-1",
+    ) -> Path:
+        if base is None:
+            base = f"com.example.neogym.{variant}"
+        if subdomain is None:
+            subdomain = f"fixture-{variant}7"
+        path = directory / f".env.{variant}"
+        path.write_text(
+            "".join(
+                [
+                    f"DEVELOPMENT_TEAM={team}\n",
+                    f"BUNDLE_IDENTIFIER_BASE={base}\n",
+                    f"NHOST_SUBDOMAIN={subdomain}\n",
+                    f"NHOST_REGION={region}\n",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        path.chmod(0o600)
+        return path
+
+    def test_valid_real_shapes_and_derivations(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            marker = root / "executed"
-            env = root / ".env.development"
-            env.write_text(
-                "DEVELOPMENT_TEAM='TEAM # exact'\n"
-                "NHOST_SUBDOMAIN='${DO_NOT_INTERPOLATE}'\n"
-                f"NHOST_REGION='`touch {marker}`; // exact'\n"
-                "UNRELATED_SECRET=private-content-must-not-enter\n"
-                "UNRELATED_PATH=/private/value-must-not-enter\n"
-                "ALLOW_PROVISIONING_UPDATES=1\n"
-                "MARKETING_VERSION=9.9-must-not-enter\n",
-                encoding="utf-8",
+            path = self.write_env(
+                root,
+                "development",
+                base="com.example.team2.neo-gym.dev",
+                subdomain="project7-alpha",
+                region="us-test-2",
             )
-            values = materializer.load_dotenv(env)
-            self.assertEqual(values["DEVELOPMENT_TEAM"], "TEAM # exact")
-            self.assertEqual(values["NHOST_SUBDOMAIN"], "${DO_NOT_INTERPOLATE}")
-            self.assertEqual(values["NHOST_REGION"], f"`touch {marker}`; // exact")
-            self.assertFalse(marker.exists())
-            rendered = materializer.render_xcconfig(values)
-            for forbidden in [
-                "UNRELATED_SECRET",
-                "UNRELATED_PATH",
-                "private-content-must-not-enter",
-                "value-must-not-enter",
-                "ALLOW_PROVISIONING_UPDATES",
-                "MARKETING_VERSION",
-                "9.9-must-not-enter",
-            ]:
-                self.assertNotIn(forbidden, rendered)
-
-    def test_private_atomic_replacement_and_single_variant_preservation(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            env_dir = root / "fastlane"
-            output_dir = root / "Generated"
-            env_dir.mkdir()
-            for variant in ("development", "production"):
-                (env_dir / f".env.{variant}").write_text(
-                    f"DEVELOPMENT_TEAM=TEAM-{variant}\n"
-                    f"NHOST_SUBDOMAIN=subdomain-{variant}\n"
-                    f"NHOST_REGION=region-{variant}\n",
-                    encoding="utf-8",
-                )
-                materializer.materialize(variant, env_dir, output_dir)
-
-            production = output_dir / "Production.xcconfig"
-            production_before = production.read_bytes()
-            (env_dir / ".env.development").write_text(
-                "DEVELOPMENT_TEAM=REPLACED\nNHOST_SUBDOMAIN=sub\nNHOST_REGION=region\n",
-                encoding="utf-8",
-            )
-            development = materializer.materialize("development", env_dir, output_dir)
-            self.assertEqual(stat.S_IMODE(development.stat().st_mode), 0o600)
-            self.assertEqual(production.read_bytes(), production_before)
-            self.assertEqual(stat.S_IMODE(production.stat().st_mode), 0o600)
-
-    def test_missing_and_empty_errors_name_keys_without_values(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            path = Path(temporary) / ".env.production"
-            path.write_text(
-                "DEVELOPMENT_TEAM=\nNHOST_SUBDOMAIN=secret-value\n", encoding="utf-8"
-            )
-            with self.assertRaises(materializer.ConfigError) as context:
-                materializer.load_dotenv(path)
-            message = str(context.exception)
-            self.assertIn("DEVELOPMENT_TEAM", message)
-            self.assertIn("NHOST_REGION", message)
-            self.assertNotIn("secret-value", message)
-
-
-class PreflightTests(unittest.TestCase):
-    def test_placeholder_is_rejected_with_key_only_diagnostic(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            generated = Path(temporary)
-            content = materializer.render_xcconfig(
+            config = materializer.parse_dotenv(path)
+            self.assertEqual(
+                config.derived_settings(),
                 {
-                    "DEVELOPMENT_TEAM": "TEAM",
-                    "NHOST_SUBDOMAIN": "${UNEXPANDED_SENTINEL}",
-                    "NHOST_REGION": "opaque-region",
-                }
+                    "DEVELOPMENT_TEAM": "AB12CD34EF",
+                    "NEOGYM_APP_BUNDLE_IDENTIFIER": "com.example.team2.neo-gym.dev",
+                    "NEOGYM_WIDGET_BUNDLE_IDENTIFIER": "com.example.team2.neo-gym.dev.widgets",
+                    "NEOGYM_APP_GROUP_IDENTIFIER": "group.com.example.team2.neo-gym.dev",
+                    "NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX": "com.example.team2.neo-gym.dev.shared",
+                    "NEOGYM_NHOST_SUBDOMAIN": "project7-alpha",
+                    "NEOGYM_NHOST_REGION": "us-test-2",
+                },
             )
-            (generated / "Development.xcconfig").write_text(content, encoding="utf-8")
+
+            local = self.write_env(
+                root,
+                "production",
+                base="org.example.neogym",
+                subdomain="local",
+                region="local",
+            )
+            self.assertEqual(materializer.parse_dotenv(local).nhost_region, "local")
+
+    def test_examples_have_exact_keys_and_empty_values(self) -> None:
+        expected = [f"{key}=" for key in materializer.REQUIRED_KEYS]
+        for variant in materializer.VARIANTS:
+            path = PROJECT_ROOT / f".env.{variant}.example"
+            self.assertEqual(path.read_text(encoding="utf-8").splitlines(), expected)
+
+    def test_rejects_missing_empty_unknown_duplicate_and_non_private_mode(self) -> None:
+        cases = {
+            "missing": "DEVELOPMENT_TEAM=AB12CD34EF\nBUNDLE_IDENTIFIER_BASE=com.example.app\nNHOST_SUBDOMAIN=local\n",
+            "empty": "DEVELOPMENT_TEAM=\nBUNDLE_IDENTIFIER_BASE=com.example.app\nNHOST_SUBDOMAIN=local\nNHOST_REGION=local\n",
+            "unknown": "DEVELOPMENT_TEAM=AB12CD34EF\nBUNDLE_IDENTIFIER_BASE=com.example.app\nNHOST_SUBDOMAIN=local\nNHOST_REGION=local\nPRIVATE_TOKEN=do-not-print\n",
+            "duplicate": "DEVELOPMENT_TEAM=AB12CD34EF\nDEVELOPMENT_TEAM=ZX98YU76TR\nBUNDLE_IDENTIFIER_BASE=com.example.app\nNHOST_SUBDOMAIN=local\nNHOST_REGION=local\n",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for name, content in cases.items():
+                with self.subTest(name=name):
+                    path = root / f".{name}"
+                    path.write_text(content, encoding="utf-8")
+                    path.chmod(0o600)
+                    with self.assertRaises(materializer.ConfigError) as context:
+                        materializer.parse_dotenv(path)
+                    self.assertNotIn("PRIVATE_TOKEN", str(context.exception))
+                    self.assertNotIn("do-not-print", str(context.exception))
+                    self.assertNotIn("ZX98YU76TR", str(context.exception))
+            mode_path = self.write_env(root, "development")
+            mode_path.chmod(0o644)
+            with self.assertRaisesRegex(materializer.ConfigError, "mode 0600"):
+                materializer.parse_dotenv(mode_path)
+
+    def test_rejects_comments_quotes_whitespace_continuations_and_hostile_tokens(self) -> None:
+        invalid_lines = [
+            "# comment",
+            "export DEVELOPMENT_TEAM=AB12CD34EF",
+            " DEVELOPMENT_TEAM=AB12CD34EF",
+            "DEVELOPMENT_TEAM =AB12CD34EF",
+            "DEVELOPMENT_TEAM=AB12CD34EF ",
+            'DEVELOPMENT_TEAM="AB12CD34EF"',
+            "DEVELOPMENT_TEAM='AB12CD34EF'",
+            "DEVELOPMENT_TEAM=AB12CD34EF\\",
+            "DEVELOPMENT_TEAM=$AB12CD34EF",
+            "DEVELOPMENT_TEAM=$(AB12CD34EF)",
+            "DEVELOPMENT_TEAM=AB12CD34EF;touch-marker",
+            "DEVELOPMENT_TEAM=AB12CD34EF#comment",
+            "DEVELOPMENT_TEAM=AB12CD34EF=extra",
+            "   ",
+        ]
+        hostile_marker = "touch-marker"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for index, invalid in enumerate(invalid_lines):
+                with self.subTest(line=invalid):
+                    path = root / f".env-{index}"
+                    remaining = [
+                        "BUNDLE_IDENTIFIER_BASE=com.example.app",
+                        "NHOST_SUBDOMAIN=local",
+                        "NHOST_REGION=local",
+                    ]
+                    path.write_text("\n".join([invalid, *remaining]) + "\n", encoding="utf-8")
+                    path.chmod(0o600)
+                    with self.assertRaises(materializer.ConfigError) as context:
+                        materializer.parse_dotenv(path)
+                    self.assertNotIn(hostile_marker, str(context.exception))
+            self.assertFalse((root / "marker").exists())
+
+    def test_malformed_shapes_are_key_safe(self) -> None:
+        cases = {
+            "DEVELOPMENT_TEAM": "too-short",
+            "BUNDLE_IDENTIFIER_BASE": "singlelabel",
+            "NHOST_SUBDOMAIN": "UPPERCASE",
+            "NHOST_REGION": "region/unsafe",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            for key, bad_value in cases.items():
+                with self.subTest(key=key):
+                    path = self.write_env(root, "development")
+                    content = path.read_text(encoding="utf-8")
+                    content = content.replace(
+                        next(line for line in content.splitlines() if line.startswith(f"{key}=")),
+                        f"{key}={bad_value}",
+                    )
+                    path.write_text(content, encoding="utf-8")
+                    with self.assertRaises(materializer.ConfigError) as context:
+                        materializer.parse_dotenv(path)
+                    self.assertIn(key, str(context.exception))
+                    self.assertNotIn(bad_value, str(context.exception))
+
+    def test_counterpart_validation_and_separation_preserve_existing_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "Generated"
+            development = self.write_env(root, "development")
+            production = self.write_env(root, "production")
+            existing = output / "Development.xcconfig"
+            output.mkdir()
+            existing.write_text("preserve-me\n", encoding="utf-8")
+            existing.chmod(0o600)
+
+            production.write_text("NHOST_REGION=local\n", encoding="utf-8")
+            with self.assertRaises(materializer.ConfigError):
+                materializer.materialize("development", root, output)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "preserve-me\n")
+
+            self.write_env(root, "production", base="com.example.neogym.development")
+            with self.assertRaisesRegex(materializer.ConfigError, "bundle bases must differ"):
+                materializer.materialize("development", root, output)
+            self.assertEqual(existing.read_text(encoding="utf-8"), "preserve-me\n")
+            self.assertTrue(development.is_file())
+
+    def test_private_atomic_replacement_and_single_environment_preservation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "Generated"
+            self.write_env(root, "development")
+            self.write_env(root, "production")
+            materializer.materialize("all", root, output)
+
+            production = output / "Production.xcconfig"
+            production_before = production.read_bytes()
+            self.write_env(root, "development", subdomain="replacement7")
+            (development,) = materializer.materialize("development", root, output)
+            self.assertEqual(stat.S_IMODE(development.stat().st_mode), 0o600)
+            self.assertEqual(stat.S_IMODE(production.stat().st_mode), 0o600)
+            self.assertEqual(production.read_bytes(), production_before)
+            self.assertIn("NEOGYM_APP_GROUP_IDENTIFIER", development.read_text(encoding="utf-8"))
+            self.assertEqual(list(output.glob(".*.xcconfig.*")), [])
+
+    def test_diagnostics_do_not_disclose_supplied_values(self) -> None:
+        private_sentinel = "PRIVATE-SENTINEL-DO-NOT-PRINT"
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = self.write_env(root, "development")
+            path.write_text(
+                path.read_text(encoding="utf-8").replace(
+                    "NHOST_REGION=eu-test-1", f"NHOST_REGION={private_sentinel}"
+                ),
+                encoding="utf-8",
+            )
             stream = StringIO()
             with redirect_stderr(stream):
-                result = validator.main(
+                result = materializer.main(
                     [
-                        "--configuration",
-                        "Debug-Development",
-                        "--generated-dir",
-                        str(generated),
+                        "development",
+                        "--env-dir",
+                        str(root),
+                        "--output-dir",
+                        str(root / "Generated"),
                     ]
                 )
             self.assertEqual(result, 1)
-            self.assertIn("NEOGYM_NHOST_SUBDOMAIN", stream.getvalue())
-            self.assertNotIn("UNEXPANDED_SENTINEL", stream.getvalue())
+            self.assertNotIn(private_sentinel, stream.getvalue())
 
-    def test_build_environment_is_checked(self) -> None:
+    def test_tracked_value_audit_is_key_safe(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            generated = Path(temporary)
-            content = materializer.render_xcconfig(
-                {
-                    "DEVELOPMENT_TEAM": "TEAM",
-                    "NHOST_SUBDOMAIN": "opaque-subdomain",
-                    "NHOST_REGION": "opaque-region",
-                }
+            repo = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            tracked = repo / "README.md"
+            tracked.write_text("private fixture-project7 value\n", encoding="utf-8")
+            subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+            config = materializer.PrivateConfig(
+                "AB12CD34EF", "com.example.private", "fixture-project7", "eu-test-1"
             )
-            (generated / "Production.xcconfig").write_text(content, encoding="utf-8")
-            old = os.environ.copy()
-            try:
-                os.environ.update(
-                    DEVELOPMENT_TEAM="TEAM",
-                    NEOGYM_NHOST_SUBDOMAIN="opaque-subdomain",
-                    NEOGYM_NHOST_REGION="opaque-region",
-                )
-                self.assertEqual(
-                    validator.validate("Release-Production", generated, True), []
-                )
-                os.environ.pop("NEOGYM_NHOST_REGION")
-                self.assertEqual(
-                    validator.validate("Release-Production", generated, True),
-                    ["NEOGYM_NHOST_REGION"],
-                )
-            finally:
-                os.environ.clear()
-                os.environ.update(old)
+            with self.assertRaises(materializer.ConfigError) as context:
+                materializer.audit_tracked_values({"development": config}, repo)
+            message = str(context.exception)
+            self.assertIn("NHOST_SUBDOMAIN", message)
+            self.assertIn("README.md", message)
+            self.assertNotIn("fixture-project7", message)
+
+
+class TransitionalWrapperContractTests(unittest.TestCase):
+    def test_fastlane_uses_explicit_lane_option_without_dotenv_or_identifier_guard(self) -> None:
+        makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
+        deploy = (SCRIPTS / "deploy-testflight.sh").read_text(encoding="utf-8")
+        fastfile = (PROJECT_ROOT / "fastlane" / "Fastfile").read_text(encoding="utf-8")
+
+        self.assertIn("fastlane check environment:production", makefile)
+        self.assertIn("arguments=(beta environment:production)", deploy)
+        self.assertIn("options[:environment]", fastfile)
+        for source in (makefile, deploy, fastfile):
+            self.assertNotIn("--env", source)
+        for forbidden in (
+            ".env.development",
+            ".env.production",
+            "EXPECTED_PRODUCTION_APP_IDENTIFIER",
+            "PRODUCT_BUNDLE_IDENTIFIER",
+        ):
+            self.assertNotIn(forbidden, fastfile)
+
+    def test_materialization_has_no_second_validator_or_xcode_build_phase(self) -> None:
+        generator = (SCRIPTS / "generate-project.sh").read_text(encoding="utf-8")
+        check = (SCRIPTS / "check.sh").read_text(encoding="utf-8")
+        project = (PROJECT_ROOT / "project.yml").read_text(encoding="utf-8")
+        for source in (generator, check, project):
+            self.assertNotIn("validate-build-config", source)
+        self.assertNotIn("preBuildScripts:", project)
+        self.assertEqual(generator.count("Scripts/materialize-config.py"), 1)
 
 
 class SchemePatcherTests(unittest.TestCase):
@@ -186,9 +308,7 @@ class SchemePatcherTests(unittest.TestCase):
 
 
 class SafeInspectorTests(unittest.TestCase):
-    def test_sentinel_never_reaches_process_output_and_raw_capture_is_removed(
-        self,
-    ) -> None:
+    def test_sentinel_never_reaches_process_output_and_raw_capture_is_removed(self) -> None:
         sentinel = "opaque-NHOST-stdout-secret"
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -199,7 +319,7 @@ class SafeInspectorTests(unittest.TestCase):
                 "#!/bin/sh\n"
                 'printf \'%s\\n\' \'[{"target":"NeoGym","buildSettings":{"NEOGYM_NHOST_SUBDOMAIN":"'
                 + sentinel
-                + "\"}}]'\n"
+                + '"}}]\'\n'
                 "printf '%s\\n' 'stderr-" + sentinel + "' >&2\n",
                 encoding="utf-8",
             )
@@ -238,14 +358,7 @@ class SafeInspectorTests(unittest.TestCase):
                 self.fail(f"safe inspector did not produce valid JSON: {error}")
             self.assertEqual(selected["NEOGYM_NHOST_SUBDOMAIN"], sentinel)
             self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
-            self.assertEqual(
-                [
-                    path
-                    for path in root.glob("neogym-build-settings-*")
-                    if path.exists()
-                ],
-                [],
-            )
+            self.assertEqual(list(root.glob("neogym-build-settings-*")), [])
 
     def test_non_allowlisted_field_fails_without_naming_value(self) -> None:
         inspector = load_script("read-build-settings.py")

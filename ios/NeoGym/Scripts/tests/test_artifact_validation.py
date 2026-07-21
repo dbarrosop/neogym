@@ -282,10 +282,6 @@ class ArtifactCLIPrivacyTests(unittest.TestCase):
             "\n".join(
                 [
                     '#include "Generated/Development.xcconfig"',
-                    f"NEOGYM_APP_BUNDLE_IDENTIFIER = {self.expected['appBundleID']}",
-                    f"NEOGYM_WIDGET_BUNDLE_IDENTIFIER = {self.expected['widgetBundleID']}",
-                    f"NEOGYM_APP_GROUP_IDENTIFIER = {self.expected['appGroup']}",
-                    f"NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX = {self.expected['keychainSuffix']}",
                     f"NEOGYM_CALLBACK_SCHEME = {self.expected['callbackScheme']}",
                     f"NEOGYM_DISPLAY_NAME = {self.expected['appDisplayName']}",
                     f"NEOGYM_WIDGET_DISPLAY_NAME = {self.expected['widgetDisplayName']}",
@@ -298,10 +294,13 @@ class ArtifactCLIPrivacyTests(unittest.TestCase):
             encoding="utf-8",
         )
         (generated / "Development.xcconfig").write_text(
-            "NEOGYM_XCCONFIG_EMPTY =\n"
-            f"DEVELOPMENT_TEAM = $(NEOGYM_XCCONFIG_EMPTY){self.expected['developmentTeam']}$(NEOGYM_XCCONFIG_EMPTY)\n"
-            f"NEOGYM_NHOST_SUBDOMAIN = $(NEOGYM_XCCONFIG_EMPTY){subdomain}$(NEOGYM_XCCONFIG_EMPTY)\n"
-            f"NEOGYM_NHOST_REGION = $(NEOGYM_XCCONFIG_EMPTY){region}$(NEOGYM_XCCONFIG_EMPTY)\n",
+            f"DEVELOPMENT_TEAM = {self.expected['developmentTeam']}\n"
+            f"NEOGYM_APP_BUNDLE_IDENTIFIER = {self.expected['appBundleID']}\n"
+            f"NEOGYM_WIDGET_BUNDLE_IDENTIFIER = {self.expected['widgetBundleID']}\n"
+            f"NEOGYM_APP_GROUP_IDENTIFIER = {self.expected['appGroup']}\n"
+            f"NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX = {self.expected['keychainSuffix']}\n"
+            f"NEOGYM_NHOST_SUBDOMAIN = {subdomain}\n"
+            f"NEOGYM_NHOST_REGION = {region}\n",
             encoding="utf-8",
         )
         app_entitlements = {

@@ -23,8 +23,10 @@ harmless and intentionally out of scope.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
   tests.
-- Copy both `fastlane/.env.*.example` files to ignored `.env.development` and
-  `.env.production` files and supply opaque Team/Nhost values.
+- Copy the root `.env.development.example` and `.env.production.example` to
+  ignored root dotenvs, set mode `0600`, and supply exactly Team, bundle base,
+  Nhost subdomain, and Nhost region. `Scripts/materialize-config.py` is the sole
+  strict parser/validator/identity deriver and never prints supplied values.
 - The public local workflow is `Makefile`: `make build`, `make check`,
   `make simulator-up|simulator-down`, `make deploy-simulator`,
   `make deploy-device DEVICE_ID=<id>`, and `make deploy-testflight`. It enters
@@ -35,30 +37,31 @@ harmless and intentionally out of scope.
   validation so simulated App Group/Keychain entitlements are available; an
   unsigned installed app fails closed in `NeoGymApp.init()`.
 - `nix develop ../.. --command Scripts/check.sh` — canonical credential-free,
-  headless gate. It runs the host Swift gates, Python tooling/validator fixtures,
-  default `all` generation, icon drift, safe build-setting comparison, both
-  generic simulator builds, and unsigned product validation. It requires both
-  ignored dotenv inputs (non-secret sentinels are acceptable) but no booted
-  simulator, signing profile, distribution credential, or App Store Connect
-  access.
+  headless gate. It runs the host Swift gates, strict materializer and artifact
+  fixtures, default `all` generation, icon drift, safe build-setting comparison,
+  both generic simulator builds, and unsigned product validation. It requires
+  both ignored root dotenv inputs but no booted simulator, signing profile,
+  distribution credential, or App Store Connect access.
 - `nix develop ../.. --command Scripts/generate-project.sh all` — atomically
   materialize mode-0600 generated xcconfigs and regenerate both shared schemes.
   `development` and `production` refresh only the selected config without
-  deleting the other variant. Keep tracked xcconfigs, plists, entitlements, and
-  `project.yml` as the source of truth; never commit generated output.
+  deleting the other variant. The materializer validates before replacement;
+  there is no Xcode pre-build validator, so generate before low-level builds.
+  Keep tracked public xcconfigs, plists, entitlements, and `project.yml` plus
+  ignored private root dotenvs as inputs; never commit generated output.
 - `python3 Scripts/verify-artifact.py --variant development|production <path>`
   — validate an app, archive, or IPA plus embedded `NeoGymWidgets.appex` against
   authoritative selected configuration. Archives/IPAs require signed
   entitlements and embedded provisioning; unsigned app products use the tracked
   entitlement contract. Opaque mismatches must remain key-only diagnostics.
-- `nix develop ../.. --command fastlane check --env production` — run Ruby
+- `nix develop ../.. --command fastlane check environment:production` — run Ruby
   release tests plus the canonical iOS check with Fastlane 2.237.0 from the
   repository Nix overlay. Its hashed gem closure lives under `nix/fastlane/`;
   do not add a project-local Gemfile, run Bundler, or install a global gem.
-- `nix develop ../.. --command fastlane beta --env production` — local
+- `nix develop ../.. --command fastlane beta environment:production` — local
   TestFlight delivery through the Apple account configured in Xcode. Fastlane
   remains orchestration only: it calls canonical generation/artifact scripts,
-  resolves the production ID/version through the safe build-setting reader,
+  resolves the version through the safe build-setting reader,
   archives and validates locally, then uses `xcodebuild -exportArchive` with
   `destination=upload`, automatic signing, and Xcode-managed build numbering.
   `App/Info.plist` keeps `ITSAppUsesNonExemptEncryption=false` because NeoGym
@@ -113,8 +116,8 @@ changes.
   because the CLI does not hot-reload `nhost.toml`.
 - Production archive/beta require an authenticated Xcode account for the
   production team, automatic distribution signing, upload permission, and an
-  existing App Store Connect record for the authoritative
-  `io.nhost.dbarroso.neogym` build-setting value. `beta` delegates upload and
+  existing App Store Connect record matching the ignored production
+  `BUNDLE_IDENTIFIER_BASE`. `beta` delegates upload and
   build-number management to `xcodebuild -exportArchive`; standalone `archive`
   only creates and validates the local archive.
 - Sign-out must always call `clearSession()` after attempting remote sign-out so
@@ -155,9 +158,12 @@ changes.
   identity automatically from the canonical Keychain item identity instead of
   accepting a caller-owned namespace. The app acquisition budget is 5 seconds;
   the widget budget is 500
-  ms. Tracked Common/Development/Production xcconfigs own static deployment
-  settings, ignored generated xcconfigs own Team/Nhost inputs, and tracked
-  tokenized plists/entitlements resolve those settings for both targets. Keep
+  ms. Tracked xcconfigs own public platform/callback/display/icon settings;
+  ignored generated xcconfigs own Team, Nhost, and all base-derived Apple
+  identities, and tracked tokenized plists/entitlements resolve those settings
+  for both targets. Future Watch naming is `<base>.watch` and
+  `<base>.watch.widgets`; no Watch target, capability, configuration, or artifact
+  exists. Keep
   only the shared Keychain group plus App Group in both targets' entitlements. There is no app-private session, mirroring, reconciliation,
   credential copy, or App Group token storage. App shared-factory failure is a
   fatal developer/provisioning error for this controlled POC. Widget factory,

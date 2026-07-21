@@ -7,10 +7,12 @@ DerivedData/
 Configuration/Generated/*.xcconfig
 Scripts/**/__pycache__/
 
+# Private deployment inputs (examples remain tracked)
+.env.*
+!.env.*.example
+
 # Local Fastlane credentials and reports
 *.p8
-fastlane/.env.development
-fastlane/.env.production
 fastlane/output/
 fastlane/report.xml
 fastlane/Preview.html

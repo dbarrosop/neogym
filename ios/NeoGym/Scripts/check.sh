@@ -7,11 +7,6 @@ umask 077
 
 unset SDKROOT CC CXX LD AR LDFLAGS
 
-if ! python3 -c 'import dotenv' >/dev/null 2>&1; then
-	echo "check failed: python-dotenv is unavailable; run through the Nix devshell" >&2
-	exit 1
-fi
-
 private_root="$(mktemp -d "${TMPDIR:-/tmp}/neogym-check.XXXXXX")"
 chmod 700 "$private_root"
 cleanup() {

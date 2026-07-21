@@ -39,4 +39,4 @@ build:
 # Run Nix checks, Xcode-release tests, Swift tests, tooling tests, both builds, and artifact validation.
 check:
 	cd ../.. && nix flake check
-	nix develop ../.. --command fastlane check --env production
+	nix develop ../.. --command fastlane check environment:production

@@ -1,17 +1,17 @@
 {
   "expected": {
     "variant": "development",
-    "appBundleID": "io.nhost.dbarroso.neogym.dev",
-    "widgetBundleID": "io.nhost.dbarroso.neogym.dev.widgets",
-    "appGroup": "group.io.nhost.dbarroso.neogym.dev",
-    "keychainSuffix": "io.nhost.dbarroso.neogym.dev.shared",
+    "appBundleID": "com.example.neogym.dev",
+    "widgetBundleID": "com.example.neogym.dev.widgets",
+    "appGroup": "group.com.example.neogym.dev",
+    "keychainSuffix": "com.example.neogym.dev.shared",
     "callbackScheme": "neogym-dev",
     "appDisplayName": "NeoGym Dev",
     "widgetDisplayName": "NeoGym Dev Widgets",
     "iconName": "AppIconDev",
-    "nhostSubdomain": "opaque fixture subdomain",
-    "nhostRegion": "fixture#region//west",
-    "developmentTeam": "SENTINELTEAM",
+    "nhostSubdomain": "fixture-project7",
+    "nhostRegion": "eu-test-1",
+    "developmentTeam": "AB12CD34EF",
     "minimumOS": "26.6",
     "deviceFamily": "1"
   },
@@ -20,7 +20,7 @@
     "app": {
       "entitlementSource": "signed",
       "info": {
-        "CFBundleIdentifier": "io.nhost.dbarroso.neogym.dev",
+        "CFBundleIdentifier": "com.example.neogym.dev",
         "CFBundleDisplayName": "NeoGym Dev",
         "CFBundlePackageType": "APPL",
         "CFBundleShortVersionString": "1.0",
@@ -41,36 +41,36 @@
         "ITSAppUsesNonExemptEncryption": false,
         "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
         "UILaunchStoryboardName": "LaunchScreen",
-        "NeoGymNhostSubdomain": "opaque fixture subdomain",
-        "NeoGymNhostRegion": "fixture#region//west",
+        "NeoGymNhostSubdomain": "fixture-project7",
+        "NeoGymNhostRegion": "eu-test-1",
         "NeoGymCallbackScheme": "neogym-dev",
-        "NeoGymAppGroupIdentifier": "group.io.nhost.dbarroso.neogym.dev",
-        "NeoGymSharedKeychainAccessGroup": "PREFIX.io.nhost.dbarroso.neogym.dev.shared",
-        "NeoGymSharedKeychainAccessGroupSuffix": "io.nhost.dbarroso.neogym.dev.shared"
+        "NeoGymAppGroupIdentifier": "group.com.example.neogym.dev",
+        "NeoGymSharedKeychainAccessGroup": "PREFIX.com.example.neogym.dev.shared",
+        "NeoGymSharedKeychainAccessGroupSuffix": "com.example.neogym.dev.shared"
       },
       "entitlements": {
-        "application-identifier": "PREFIX.io.nhost.dbarroso.neogym.dev",
-        "com.apple.developer.team-identifier": "SENTINELTEAM",
+        "application-identifier": "PREFIX.com.example.neogym.dev",
+        "com.apple.developer.team-identifier": "AB12CD34EF",
         "com.apple.developer.healthkit": true,
-        "com.apple.security.application-groups": ["group.io.nhost.dbarroso.neogym.dev"],
-        "keychain-access-groups": ["PREFIX.io.nhost.dbarroso.neogym.dev.shared"]
+        "com.apple.security.application-groups": ["group.com.example.neogym.dev"],
+        "keychain-access-groups": ["PREFIX.com.example.neogym.dev.shared"]
       },
       "provisioning": {
         "ApplicationIdentifierPrefix": ["PREFIX"],
-        "TeamIdentifier": ["SENTINELTEAM"],
+        "TeamIdentifier": ["AB12CD34EF"],
         "Entitlements": {
-          "application-identifier": "PREFIX.io.nhost.dbarroso.neogym.dev",
-          "com.apple.developer.team-identifier": "SENTINELTEAM",
+          "application-identifier": "PREFIX.com.example.neogym.dev",
+          "com.apple.developer.team-identifier": "AB12CD34EF",
           "com.apple.developer.healthkit": true,
-          "com.apple.security.application-groups": ["group.io.nhost.dbarroso.neogym.dev"],
-          "keychain-access-groups": ["PREFIX.io.nhost.dbarroso.neogym.dev.shared"]
+          "com.apple.security.application-groups": ["group.com.example.neogym.dev"],
+          "keychain-access-groups": ["PREFIX.com.example.neogym.dev.shared"]
         }
       }
     },
     "widget": {
       "entitlementSource": "signed",
       "info": {
-        "CFBundleIdentifier": "io.nhost.dbarroso.neogym.dev.widgets",
+        "CFBundleIdentifier": "com.example.neogym.dev.widgets",
         "CFBundleDisplayName": "NeoGym Dev Widgets",
         "CFBundlePackageType": "XPC!",
         "CFBundleShortVersionString": "1.0",
@@ -80,34 +80,34 @@
         "MinimumOSVersion": "26.6",
         "UIDeviceFamily": [1],
         "NSExtension": {"NSExtensionPointIdentifier": "com.apple.widgetkit-extension"},
-        "NeoGymNhostSubdomain": "opaque fixture subdomain",
-        "NeoGymNhostRegion": "fixture#region//west",
+        "NeoGymNhostSubdomain": "fixture-project7",
+        "NeoGymNhostRegion": "eu-test-1",
         "NeoGymCallbackScheme": "neogym-dev",
-        "NeoGymAppGroupIdentifier": "group.io.nhost.dbarroso.neogym.dev",
-        "NeoGymSharedKeychainAccessGroup": "PREFIX.io.nhost.dbarroso.neogym.dev.shared",
-        "NeoGymSharedKeychainAccessGroupSuffix": "io.nhost.dbarroso.neogym.dev.shared"
+        "NeoGymAppGroupIdentifier": "group.com.example.neogym.dev",
+        "NeoGymSharedKeychainAccessGroup": "PREFIX.com.example.neogym.dev.shared",
+        "NeoGymSharedKeychainAccessGroupSuffix": "com.example.neogym.dev.shared"
       },
       "entitlements": {
-        "application-identifier": "PREFIX.io.nhost.dbarroso.neogym.dev.widgets",
-        "com.apple.developer.team-identifier": "SENTINELTEAM",
-        "com.apple.security.application-groups": ["group.io.nhost.dbarroso.neogym.dev"],
-        "keychain-access-groups": ["PREFIX.io.nhost.dbarroso.neogym.dev.shared"]
+        "application-identifier": "PREFIX.com.example.neogym.dev.widgets",
+        "com.apple.developer.team-identifier": "AB12CD34EF",
+        "com.apple.security.application-groups": ["group.com.example.neogym.dev"],
+        "keychain-access-groups": ["PREFIX.com.example.neogym.dev.shared"]
       },
       "provisioning": {
         "ApplicationIdentifierPrefix": ["PREFIX"],
-        "TeamIdentifier": ["SENTINELTEAM"],
+        "TeamIdentifier": ["AB12CD34EF"],
         "Entitlements": {
-          "application-identifier": "PREFIX.io.nhost.dbarroso.neogym.dev.widgets",
-          "com.apple.developer.team-identifier": "SENTINELTEAM",
-          "com.apple.security.application-groups": ["group.io.nhost.dbarroso.neogym.dev"],
-          "keychain-access-groups": ["PREFIX.io.nhost.dbarroso.neogym.dev.shared"]
+          "application-identifier": "PREFIX.com.example.neogym.dev.widgets",
+          "com.apple.developer.team-identifier": "AB12CD34EF",
+          "com.apple.security.application-groups": ["group.com.example.neogym.dev"],
+          "keychain-access-groups": ["PREFIX.com.example.neogym.dev.shared"]
         }
       }
     }
   },
   "negative": {
     "plist-drift": {
-      "set": {"app.info.CFBundleIdentifier": "io.nhost.invalid"},
+      "set": {"app.info.CFBundleIdentifier": "com.example.invalid"},
       "issue": "app.Info.CFBundleIdentifier"
     },
     "missing-extension": {
@@ -119,11 +119,11 @@
       "issue": "artifact.version-parity.CFBundleVersion"
     },
     "crossed-app-group": {
-      "set": {"widget.entitlements.com.apple.security.application-groups": ["group.io.nhost.dbarroso.neogym"]},
+      "set": {"widget.entitlements.com.apple.security.application-groups": ["group.com.example.neogym"]},
       "issue": "widget.entitlements.com.apple.security.application-groups"
     },
     "crossed-keychain": {
-      "set": {"widget.entitlements.keychain-access-groups": ["PREFIX.io.nhost.dbarroso.neogym.shared"]},
+      "set": {"widget.entitlements.keychain-access-groups": ["PREFIX.com.example.neogym.shared"]},
       "issue": "widget.entitlements.keychain-access-groups"
     },
     "forbidden-healthkit-metadata": {
@@ -144,12 +144,12 @@
     },
     "prefix-discrepancy": {
       "set": {
-        "widget.entitlements.application-identifier": "OTHER.io.nhost.dbarroso.neogym.dev.widgets",
-        "widget.entitlements.keychain-access-groups": ["OTHER.io.nhost.dbarroso.neogym.dev.shared"],
-        "widget.info.NeoGymSharedKeychainAccessGroup": "OTHER.io.nhost.dbarroso.neogym.dev.shared",
+        "widget.entitlements.application-identifier": "OTHER.com.example.neogym.dev.widgets",
+        "widget.entitlements.keychain-access-groups": ["OTHER.com.example.neogym.dev.shared"],
+        "widget.info.NeoGymSharedKeychainAccessGroup": "OTHER.com.example.neogym.dev.shared",
         "widget.provisioning.ApplicationIdentifierPrefix": ["OTHER"],
-        "widget.provisioning.Entitlements.application-identifier": "OTHER.io.nhost.dbarroso.neogym.dev.widgets",
-        "widget.provisioning.Entitlements.keychain-access-groups": ["OTHER.io.nhost.dbarroso.neogym.dev.shared"]
+        "widget.provisioning.Entitlements.application-identifier": "OTHER.com.example.neogym.dev.widgets",
+        "widget.provisioning.Entitlements.keychain-access-groups": ["OTHER.com.example.neogym.dev.shared"]
       },
       "issue": "artifact.application-identifier-prefix-parity"
     }

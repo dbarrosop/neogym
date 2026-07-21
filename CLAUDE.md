@@ -87,13 +87,13 @@ harmless and intentionally out of scope for this deployment change.
 
 - `swift build` — build the host-compatible `NeoGymKit` package. It must keep SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
-- Copy `fastlane/.env.development.example` and `.env.production.example` to their ignored non-example names and supply Team/Nhost values.
+- Copy root `.env.development.example` and `.env.production.example` to ignored root files, set mode `0600`, and supply exactly Team, bundle base, Nhost subdomain, and Nhost region. The standard-library materializer is the sole parser/validator/identity deriver.
 - Use the iOS `Makefile` as the public workflow: `make build`, `make check`, `make simulator-up|simulator-down`, `make deploy-simulator`, `make deploy-device DEVICE_ID=<id>`, and `make deploy-testflight`. It enters Nix itself; see `ios/NeoGym/README.md` for all parameters, CLI identifier discovery, signing, and Xcode account setup. Simulator deployment must remain locally signed so its simulated App Group/Keychain entitlements exist; unsigned check builds are not launchable because runtime session configuration fails closed.
-- `nix develop ../.. --command Scripts/check.sh` — canonical credential-free, headless iOS gate. It runs host Swift/tool fixtures, default `all` generation, icon drift, safe build-setting comparison, both generic simulator builds, and unsigned built-product validation. Both ignored dotenv inputs are required; non-secret sentinels are acceptable. It does not require a booted simulator or signing/App Store Connect credentials.
+- `nix develop ../.. --command Scripts/check.sh` — canonical credential-free, headless iOS gate. It runs host Swift/tool fixtures, default `all` generation, icon drift, safe build-setting comparison, both generic simulator builds, and unsigned built-product validation. Both ignored root dotenv inputs are required. It does not require a booted simulator or signing/App Store Connect credentials.
 - `nix develop ../.. --command Scripts/generate-project.sh all` — privately materialize both variant configs and generate `NeoGym.xcodeproj` from the authoritative xcconfigs/plists/entitlements plus `project.yml`. Single-variant `development`/`production` modes refresh only that input and preserve the other generated config.
   After adding/removing Swift app files, wait for generation to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors. The spec's post-generation script patches both shared schemes once.
 - `python3 Scripts/verify-artifact.py --variant development|production <app|xcarchive|ipa>` — explicitly validate a built app and embedded widget against the selected authoritative/materialized configuration. Archive/IPA validation additionally requires signed entitlements and provisioning; opaque mismatches use key-only diagnostics.
-- `nix develop ../.. --command fastlane check --env production` runs Ruby release tests plus the canonical check using the overlay-pinned Fastlane package. `fastlane beta --env production` archives and validates production, then delegates automatic signing, build-number management, and direct App Store Connect upload to `xcodebuild -exportArchive` using the account configured in Xcode. An optional marketing-version override applies once at archive scope to both targets. `App/Info.plist` declares `ITSAppUsesNonExemptEncryption=false` because NeoGym uses only exempt system TLS/authentication encryption; reassess export compliance before adding custom cryptography, VPN behavior, or encrypted communications.
+- `nix develop ../.. --command fastlane check environment:production` runs Ruby release tests plus the canonical check using the overlay-pinned Fastlane package. `fastlane beta environment:production` archives and validates production, then delegates automatic signing, build-number management, and direct App Store Connect upload to `xcodebuild -exportArchive` using the account configured in Xcode. These transitional lanes use a normal option and do not load Fastlane dotenvs. An optional marketing-version override applies once at archive scope to both targets. `App/Info.plist` declares `ITSAppUsesNonExemptEncryption=false` because NeoGym uses only exempt system TLS/authentication encryption; reassess export compliance before adding custom cryptography, VPN behavior, or encrypted communications.
 - Build scheme `NeoGym Dev` with `Debug-Development` or scheme `NeoGym` with `Debug-Production`. Never inspect build settings with raw `xcodebuild -showBuildSettings`; use `Scripts/read-build-settings.py` with an explicit private output file.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
@@ -129,10 +129,12 @@ coordinated Keychain item (service `io.nhost.swift.session`, account
 access group) plus the matching
 bundle-configured App Group; the SDK derives the shared lock identity
 automatically from the canonical Keychain item identity, and the app waits up to
-5 seconds while the widget waits up to 500 ms. Tracked variant xcconfigs own
-static identity, ignored mode-0600 generated xcconfigs own opaque Team/Nhost
-inputs, and tokenized plists/entitlements feed matching `NeoGym*` runtime keys to
-both targets. Shipped Swift constructs one injectable runtime configuration per
+5 seconds while the widget waits up to 500 ms. Tracked xcconfigs own public
+platform/callback/display/icon settings; ignored mode-0600 generated xcconfigs
+own Team, Nhost, and all bundle-base-derived Apple identities; tokenized
+plists/entitlements feed matching `NeoGym*` runtime keys to both targets. Future
+Watch naming is `<base>.watch` and `<base>.watch.widgets`; no Watch target,
+capability, configuration, or artifact exists. Shipped Swift constructs one injectable runtime configuration per
 process and contains no production endpoint/callback/storage literals. There
 is no private credential, mirroring, reconciliation, or token copy. App shared
 configuration failure is a fatal provisioning error for this POC; widget

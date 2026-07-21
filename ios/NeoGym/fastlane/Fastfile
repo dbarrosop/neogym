@@ -7,7 +7,6 @@ require "tempfile"
 require_relative "lib/xcode_release"
 
 IOS_ROOT = File.expand_path("..", __dir__)
-EXPECTED_PRODUCTION_APP_IDENTIFIER = "io.nhost.dbarroso.neogym"
 PRODUCTION_SCHEME = "NeoGym"
 PRODUCTION_CONFIGURATION = "Release-Production"
 RELEASE_OUTPUT_DIRECTORY = File.join(IOS_ROOT, "fastlane", "output")
@@ -16,19 +15,18 @@ opt_out_usage
 skip_docs
 
 
-def selected_environment!
-  # Fastlane records --env in lane_context; it does not export FASTLANE_ENV.
-  environment = Fastlane::Actions.lane_context[Fastlane::Actions::SharedValues::ENVIRONMENT]
+def selected_environment!(options)
+  environment = options[:environment]
   unless %w[development production].include?(environment)
-    UI.user_error!("invoke this lane with an explicit --env development or --env production")
+    UI.user_error!("pass environment:development or environment:production")
   end
   environment
 end
 
 
-def production_environment!
-  environment = selected_environment!
-  UI.user_error!("archive and beta require --env production") unless environment == "production"
+def production_environment!(options)
+  environment = selected_environment!(options)
+  UI.user_error!("archive and beta require environment:production") unless environment == "production"
 end
 
 
@@ -44,7 +42,7 @@ end
 
 
 def release_settings!
-  fields = %w[PRODUCT_BUNDLE_IDENTIFIER MARKETING_VERSION]
+  fields = %w[MARKETING_VERSION]
   Tempfile.create(["neogym-release-settings", ".json"]) do |file|
     file.chmod(0o600)
     command = [
@@ -70,14 +68,6 @@ def release_settings!
     end
     settings
   end
-end
-
-
-def production_app_identifier!(bundle_identifier)
-  unless bundle_identifier == EXPECTED_PRODUCTION_APP_IDENTIFIER
-    UI.user_error!("authoritative production app identifier is not the shipped identifier")
-  end
-  bundle_identifier
 end
 
 
@@ -111,11 +101,10 @@ end
 
 
 def create_release_archive!(options)
-  production_environment!
+  production_environment!(options)
   generate_variant!("production")
 
   settings = release_settings!
-  production_app_identifier!(settings.fetch("PRODUCT_BUNDLE_IDENTIFIER"))
   marketing_version = NeoGym::XcodeRelease.marketing_version(
     tracked: settings.fetch("MARKETING_VERSION"),
     override: options[:version] || ENV["MARKETING_VERSION"]
@@ -162,15 +151,15 @@ end
 
 
 desc "Materialize the explicitly selected variant and generate the Xcode project"
-lane :generate do
-  variant = selected_environment!
+lane :generate do |options|
+  variant = selected_environment!(options)
   generate_variant!(variant)
 end
 
 
 desc "Run Ruby release tests and the canonical credential-free iOS check"
-lane :check do
-  selected_environment!
+lane :check do |options|
+  selected_environment!(options)
   sh("cd #{Shellwords.escape(IOS_ROOT)} && ruby fastlane/test/xcode_release_test.rb")
   canonical_script!("Scripts/check.sh")
 end

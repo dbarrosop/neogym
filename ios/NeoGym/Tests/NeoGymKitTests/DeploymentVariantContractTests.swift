@@ -10,41 +10,34 @@ final class DeploymentVariantContractTests: XCTestCase {
             .deletingLastPathComponent()
     }
 
-    func testVariantXCConfigsOwnExactStaticIdentities() throws {
+    func testVariantXCConfigsContainOnlyPublicVariantSettings() throws {
+        let developmentSource = try source("Configuration/Development.xcconfig")
+        let productionSource = try source("Configuration/Production.xcconfig")
         let development = try xcconfig("Configuration/Development.xcconfig")
         let production = try xcconfig("Configuration/Production.xcconfig")
 
-        XCTAssertEqual(development["NEOGYM_APP_BUNDLE_IDENTIFIER"], "io.nhost.dbarroso.neogym.dev")
-        XCTAssertEqual(development["NEOGYM_WIDGET_BUNDLE_IDENTIFIER"], "io.nhost.dbarroso.neogym.dev.widgets")
-        XCTAssertEqual(development["NEOGYM_APP_GROUP_IDENTIFIER"], "group.io.nhost.dbarroso.neogym.dev")
-        XCTAssertEqual(development["NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX"], "io.nhost.dbarroso.neogym.dev.shared")
+        XCTAssertTrue(developmentSource.contains("#include? \"Generated/Development.xcconfig\""))
+        XCTAssertTrue(productionSource.contains("#include? \"Generated/Production.xcconfig\""))
         XCTAssertEqual(development["NEOGYM_CALLBACK_SCHEME"], "neogym-dev")
         XCTAssertEqual(development["NEOGYM_DISPLAY_NAME"], "NeoGym Dev")
+        XCTAssertEqual(development["NEOGYM_WIDGET_DISPLAY_NAME"], "NeoGym Dev Widgets")
         XCTAssertEqual(development["NEOGYM_APP_ICON_NAME"], "AppIconDev")
-
-        XCTAssertEqual(production["NEOGYM_APP_BUNDLE_IDENTIFIER"], "io.nhost.dbarroso.neogym")
-        XCTAssertEqual(production["NEOGYM_WIDGET_BUNDLE_IDENTIFIER"], "io.nhost.dbarroso.neogym.widgets")
-        XCTAssertEqual(production["NEOGYM_APP_GROUP_IDENTIFIER"], "group.io.nhost.dbarroso.neogym")
-        XCTAssertEqual(production["NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX"], "io.nhost.dbarroso.neogym.shared")
         XCTAssertEqual(production["NEOGYM_CALLBACK_SCHEME"], "neogym")
         XCTAssertEqual(production["NEOGYM_DISPLAY_NAME"], "NeoGym")
+        XCTAssertEqual(production["NEOGYM_WIDGET_DISPLAY_NAME"], "NeoGym Widgets")
         XCTAssertEqual(production["NEOGYM_APP_ICON_NAME"], "AppIcon")
 
         for key in [
+            "DEVELOPMENT_TEAM",
             "NEOGYM_APP_BUNDLE_IDENTIFIER",
             "NEOGYM_WIDGET_BUNDLE_IDENTIFIER",
             "NEOGYM_APP_GROUP_IDENTIFIER",
             "NEOGYM_KEYCHAIN_ACCESS_GROUP_SUFFIX",
-            "NEOGYM_CALLBACK_SCHEME",
-            "NEOGYM_DISPLAY_NAME",
-            "NEOGYM_APP_ICON_NAME"
+            "NEOGYM_NHOST_SUBDOMAIN",
+            "NEOGYM_NHOST_REGION"
         ] {
-            XCTAssertNotEqual(development[key], production[key], key)
-        }
-        for configuration in [development, production] {
-            XCTAssertNil(configuration["NHOST_SUBDOMAIN"])
-            XCTAssertNil(configuration["NHOST_REGION"])
-            XCTAssertNil(configuration["DEVELOPMENT_TEAM"])
+            XCTAssertNil(development[key], key)
+            XCTAssertNil(production[key], key)
         }
     }
 
@@ -63,7 +56,7 @@ final class DeploymentVariantContractTests: XCTestCase {
         XCTAssertTrue(package.contains(".macOS(.v12)"))
     }
 
-    func testProjectHasFourConfigurationsTwoExplicitSchemesAndBothGuards() throws {
+    func testProjectHasFourConfigurationsTwoExplicitSchemesAndNoBuildTimeValidator() throws {
         let project = try source("project.yml")
         for configuration in [
             "Debug-Development", "Release-Development",
@@ -76,14 +69,10 @@ final class DeploymentVariantContractTests: XCTestCase {
         XCTAssertTrue(project.contains("config: Release-Development"))
         XCTAssertTrue(project.contains("config: Debug-Production"))
         XCTAssertTrue(project.contains("config: Release-Production"))
-        XCTAssertEqual(
-            project.components(separatedBy: "Validate deployment configuration").count - 1,
-            2
-        )
+        XCTAssertFalse(project.contains("preBuildScripts:"))
+        XCTAssertFalse(project.contains("validate-build-config.py"))
         XCTAssertEqual(project.components(separatedBy: "deploymentTarget: \"26.6\"").count - 1, 2)
         XCTAssertFalse(project.contains("DEVELOPMENT_TEAM: \"\""))
-        XCTAssertFalse(project.contains("spmqtxqkdoxvtrkrfnnl"))
-        XCTAssertFalse(project.contains("eu-central-1"))
     }
 
     func testPlistsAndEntitlementsAreTokenizedTemplates() throws {
@@ -133,21 +122,6 @@ final class DeploymentVariantContractTests: XCTestCase {
             "Sources/NeoGymKit/DailyEnergyHealthImport.swift"
         ] {
             XCTAssertTrue(try source(path).contains("requestAuthorization(toShare: [], read:"), path)
-        }
-    }
-
-    func testCommittedRuntimeConfigurationHasNoProductionBackendOrStaleNamespace() throws {
-        let forbidden = ["spmqtxqkdoxvtrkrfnnl", "group.io.nhost.neogym", "io.nhost.neogym.shared"]
-        for directory in ["App", "Widgets", "Sources/NeoGymKit", "Configuration"] {
-            let root = packageRoot.appendingPathComponent(directory)
-            let enumerator = try XCTUnwrap(FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil))
-            for case let file as URL in enumerator where !file.path.contains("/Generated/") {
-                guard ["swift", "plist", "entitlements", "xcconfig"].contains(file.pathExtension) else { continue }
-                let contents = try String(contentsOf: file, encoding: .utf8)
-                for value in forbidden {
-                    XCTAssertFalse(contents.contains(value), "Stale deployment literal in \(file.lastPathComponent)")
-                }
-            }
         }
     }
 

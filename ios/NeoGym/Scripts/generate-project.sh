@@ -57,12 +57,6 @@ if [[ ! -f "$sdk_checkout" ]]; then
 fi
 
 python3 Scripts/materialize-config.py "$variant"
-if [[ "$variant" == "all" || "$variant" == "development" ]]; then
-	python3 Scripts/validate-build-config.py --configuration Debug-Development
-fi
-if [[ "$variant" == "all" || "$variant" == "production" ]]; then
-	python3 Scripts/validate-build-config.py --configuration Debug-Production
-fi
 
 # project.yml's postGenCommand is the sole scheme-patching owner.
 xcodegen generate --spec project.yml --project . >/dev/null

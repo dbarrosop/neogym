@@ -29,7 +29,7 @@ PY
 }
 export DEVELOPER_DIR
 
-arguments=(beta --env production)
+arguments=(beta environment:production)
 if [[ -n "${VERSION:-}" ]]; then
 	arguments+=("version:$VERSION")
 fi

@@ -15,8 +15,8 @@ ios/NeoGym/*.xcarchive
 ios/NeoGym/*.ipa
 ios/NeoGym/Configuration/Generated/*.xcconfig
 ios/NeoGym/**/*.p8
-ios/NeoGym/fastlane/.env.development
-ios/NeoGym/fastlane/.env.production
+ios/NeoGym/.env.*
+!ios/NeoGym/.env.*.example
 ios/NeoGym/fastlane/output
 ios/NeoGym/fastlane/report.xml
 ios/NeoGym/fastlane/Preview.html

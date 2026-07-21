@@ -87,8 +87,6 @@ final class URLSchemeRegistrationTests: XCTestCase {
             XCTAssertTrue(configSource.contains(expectedDeclaration))
         }
         XCTAssertFalse(configSource.contains("lockNamespace"))
-        XCTAssertFalse(configSource.contains("spmqtxqkdoxvtrkrfnnl"))
-        XCTAssertFalse(configSource.contains("group.io.nhost.neogym"))
 
         let appInfoPlist = try plist(at: "App/Info.plist")
         let widgetInfoPlist = try plist(at: "Widgets/Info.plist")

@@ -101,8 +101,12 @@ Native iOS (from `ios/NeoGym/`):
 | `make deploy-testflight [VERSION=x.y]` | Check, archive, validate, and upload through the account configured in Xcode |
 
 See [`ios/NeoGym/README.md`](ios/NeoGym/README.md#make-workflow) for all
-parameters, ignored dotenv fields, CLI identifier-discovery commands, signing,
-and Xcode account prerequisites.
+parameters, the exact four-key ignored root dotenv contract, CLI identifier
+discovery, signing, and Xcode account prerequisites. Private app/widget/App
+Group/Keychain identities are derived from each environment's ignored bundle
+base; only callback, display-name, and icon differences are committed. Future
+Watch naming reserves `<base>.watch` and `<base>.watch.widgets`, but no Watch
+target or capability exists.
 
 The native app supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
@@ -186,11 +190,11 @@ Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — t
 
 Before relying on native email-change callbacks in production, apply the
 checked-in production overlay through the supported Nhost process and verify
-both callback schemes against project `spmqtxqkdoxvtrkrfnnl`. Fastlane does not
-apply Nhost configuration, create Apple portal resources, or replace local Xcode
-distribution signing. See `ios/NeoGym/README.md` for the overlay-pinned Fastlane
-setup, Apple portal/signing/Xcode-account prerequisites, Xcode-managed build
-numbering, and clean-checkout release rehearsal.
+both callback schemes against that authoritative backend project. Fastlane does
+not apply Nhost configuration, create Apple portal resources, or replace local
+Xcode distribution signing. See `ios/NeoGym/README.md` for the temporary
+explicit-option Fastlane setup, Apple portal/signing/Xcode-account prerequisites,
+Xcode-managed build numbering, and clean-checkout release rehearsal.
 
 ## What's not in v1 (yet)
 
