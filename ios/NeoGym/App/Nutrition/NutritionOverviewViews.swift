@@ -16,6 +16,7 @@ struct NutritionOverviewView: View {
     @StateObject private var energySyncViewModel: DailyEnergyListViewModel
     @State private var isRefreshingOverview = false
     @State private var hasLoadedOverview = false
+    @State private var caloriesSeries: [TimeSeriesChartSeries] = []
     @Environment(\.locale) private var locale
     @Environment(\.scenePhase) private var scenePhase
 
@@ -68,18 +69,22 @@ struct NutritionOverviewView: View {
             Task { await loadOverview() }
         }
         .refreshable { await loadOverview() }
+        .onReceive(calorieViewModel.$state) { state in
+            // Loading and failed states keep the last chart, including offline cached emissions.
+            if case let .loaded(history) = state {
+                caloriesSeries = makeCaloriesSeries(history)
+            }
+        }
     }
 
-    private var caloriesSeries: [TimeSeriesChartSeries] {
+    private func makeCaloriesSeries(_ history: NutritionCalorieHistory) -> [TimeSeriesChartSeries] {
         [
             TimeSeriesChartSeries(
                 id: "calories",
                 name: "Consumed",
                 color: .accentColor,
-                points: (calorieViewModel.history?.consumedValues ?? []).compactMap { day in
-                    IntakeGrouping.localDateToDate(day.date).map { date in
-                        TimeSeriesChartDataPoint(id: day.date, date: date, value: day.calories)
-                    }
+                points: history.consumedChartPoints.map { day in
+                    TimeSeriesChartDataPoint(id: day.logDate, date: day.date, value: day.value)
                 },
                 valueFormatter: kcalValueText
             ),
@@ -89,10 +94,8 @@ struct NutritionOverviewView: View {
                 color: .orange,
                 axis: .right,
                 centersAxisOnZero: true,
-                points: (calorieViewModel.history?.dailyNetValues ?? []).compactMap { value in
-                    IntakeGrouping.localDateToDate(value.date).map { date in
-                        TimeSeriesChartDataPoint(id: "net-\(value.date)", date: date, value: value.net)
-                    }
+                points: history.dailyNetChartPoints.map { value in
+                    TimeSeriesChartDataPoint(id: "net-\(value.logDate)", date: value.date, value: value.value)
                 },
                 valueFormatter: signedKcalValueText
             ),
@@ -102,10 +105,8 @@ struct NutritionOverviewView: View {
                 color: .purple,
                 axis: .right,
                 centersAxisOnZero: true,
-                points: (calorieViewModel.history?.rollingNetAverageValues(days: 7) ?? []).compactMap { value in
-                    IntakeGrouping.localDateToDate(value.date).map { date in
-                        TimeSeriesChartDataPoint(id: "rolling-net-\(value.date)", date: date, value: value.net)
-                    }
+                points: history.rollingNetChartPoints.map { value in
+                    TimeSeriesChartDataPoint(id: "rolling-net-\(value.logDate)", date: value.date, value: value.value)
                 },
                 valueFormatter: signedKcalValueText
             )

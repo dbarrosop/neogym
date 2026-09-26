@@ -131,6 +131,74 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertFalse(request.query.contains("nutritionPlanMeals"))
     }
 
+    func testCalorieHistoryPreparesLongCalendarDaySeriesAndSparseRollingWindows() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let start = try XCTUnwrap(calendar.date(from: DateComponents(year: 2025, month: 1, day: 1)))
+        let entry = NutritionCalorieHistoryEntry(grams: .number(100), snapshotKcalPer100g: .number(250))
+        var days: [NutritionCalorieHistoryDay] = []
+        var energy: [DailyEnergy] = []
+
+        for index in 0..<425 {
+            let date = try XCTUnwrap(calendar.date(byAdding: .day, value: index, to: start))
+            let label = IntakeGrouping.formatLocalDate(date, calendar: calendar)
+            if index % 17 != 0 {
+                days.append(NutritionCalorieHistoryDay(logDate: label, nutritionLogEntries: [entry]))
+            }
+            if index >= 3, index % 11 != 0, !(120...130).contains(index) {
+                energy.append(DailyEnergy(id: "energy-\(index)", energyOn: label, activeKcal: Double(index % 9) * 10))
+            }
+        }
+        // The query is ordered, but the model must also handle unsorted fixtures/emissions.
+        let history = NutritionCalorieHistory(days: days.reversed(), dailyEnergyEntries: energy, calendar: calendar)
+        XCTAssertEqual(history.consumedChartPoints.count, days.count)
+        XCTAssertEqual(history.consumedChartPoints.map(\.logDate), history.consumedValues.map(\.date))
+        XCTAssertEqual(history.dailyNetChartPoints.map(\.logDate), history.dailyNetValues.map(\.date))
+        XCTAssertEqual(history.dailyNetChartPoints.map(\.value), history.dailyNetValues.map(\.net))
+        XCTAssertEqual(history.consumedChartPoints.first?.value, 250)
+        XCTAssertTrue(history.rollingNetChartPoints.allSatisfy { $0.value.isFinite })
+
+        let expected = history.rollingNetAverageValues(days: 7, calendar: calendar)
+        XCTAssertEqual(history.rollingNetChartPoints.map(\.logDate), expected.map(\.date))
+        for (point, value) in zip(history.rollingNetChartPoints, expected) {
+            XCTAssertEqual(point.value, value.net, accuracy: 0.000_001, "Rolling net on \(value.date)")
+            XCTAssertEqual(point.date, IntakeGrouping.localDateToDate(value.date, calendar: calendar))
+        }
+        let gapEnd = try XCTUnwrap(calendar.date(byAdding: .day, value: 130, to: start))
+        let gapLabel = IntakeGrouping.formatLocalDate(gapEnd, calendar: calendar)
+        XCTAssertFalse(history.rollingNetChartPoints.contains { $0.logDate == gapLabel })
+        XCTAssertFalse(history.rollingNetChartPoints.contains { $0.logDate == IntakeGrouping.formatLocalDate(start, calendar: calendar) })
+    }
+
+    func testCalorieHistoryRollingWindowIncludesOldestDayAcrossMidnightDSTJump() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        let start = try XCTUnwrap(IntakeGrouping.localDateToDate("2025-09-01", calendar: calendar))
+        let transition = try XCTUnwrap(IntakeGrouping.localDateToDate("2025-09-07", calendar: calendar))
+        XCTAssertEqual(calendar.component(.hour, from: start), 0)
+        XCTAssertEqual(calendar.component(.hour, from: transition), 1)
+
+        let entry = NutritionCalorieHistoryEntry(grams: .number(100), snapshotKcalPer100g: .number(250))
+        var labels: [String] = []
+        for index in 0..<7 {
+            let date = try XCTUnwrap(calendar.date(byAdding: .day, value: index, to: start))
+            labels.append(IntakeGrouping.formatLocalDate(date, calendar: calendar))
+        }
+        let days = labels.map { NutritionCalorieHistoryDay(logDate: $0, nutritionLogEntries: [entry]) }
+        let energy = labels.enumerated().map { index, label in
+            DailyEnergy(id: "energy-\(index)", energyOn: label, activeKcal: Double(index) * 10)
+        }
+        let history = NutritionCalorieHistory(days: days, dailyEnergyEntries: energy, calendar: calendar)
+        let expected = history.rollingNetAverageValues(days: 7, calendar: calendar)
+
+        XCTAssertEqual(history.rollingNetChartPoints.map(\.logDate), expected.map(\.date))
+        for (point, value) in zip(history.rollingNetChartPoints, expected) {
+            XCTAssertEqual(point.value, value.net, accuracy: 0.000_001, "Rolling net on \(value.date)")
+        }
+        XCTAssertEqual(history.rollingNetChartPoints.last?.logDate, "2025-09-07")
+        XCTAssertEqual(try XCTUnwrap(history.rollingNetChartPoints.last).value, 220, accuracy: 0.000_001)
+    }
+
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "nutritionDays": .array([nutritionDayFixture]),

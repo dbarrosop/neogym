@@ -48,13 +48,59 @@ public struct DatedCalorieIntake: Sendable, Equatable {
     public let calories: Double
 }
 
+public struct CalorieHistoryChartPoint: Sendable, Equatable {
+    public let logDate: String
+    public let date: Date
+    public let value: Double
+}
+
+private struct CalorieHistoryDatedDay {
+    let logDate: String
+    let date: Date
+    let calories: Double
+    let net: Double?
+}
+
 public struct NutritionCalorieHistory: Sendable, Equatable {
     public let days: [NutritionCalorieHistoryDay]
     public let dailyEnergyEntries: [DailyEnergy]
+    public let consumedChartPoints: [CalorieHistoryChartPoint]
+    public let dailyNetChartPoints: [CalorieHistoryChartPoint]
+    public let rollingNetChartPoints: [CalorieHistoryChartPoint]
 
-    public init(days: [NutritionCalorieHistoryDay], dailyEnergyEntries: [DailyEnergy]) {
+    public init(days: [NutritionCalorieHistoryDay], dailyEnergyEntries: [DailyEnergy], calendar: Calendar = .current) {
         self.days = days
         self.dailyEnergyEntries = dailyEnergyEntries
+
+        // Prepare the uncapped chart once for each cached/fresh history emission, not on every SwiftUI render.
+        let energyByDate = Dictionary(uniqueKeysWithValues: dailyEnergyEntries.map { ($0.energyOn, $0) })
+        let datedDays = days.compactMap { day -> CalorieHistoryDatedDay? in
+            guard let date = IntakeGrouping.localDateToDate(day.logDate, calendar: calendar) else { return nil }
+            let calories = day.calories
+            let net = DailyCalorieBalance(caloriesIn: calories, dailyEnergy: energyByDate[day.logDate]).net
+            return CalorieHistoryDatedDay(logDate: day.logDate, date: date, calories: calories, net: net)
+        }.sorted { $0.logDate < $1.logDate }
+
+        consumedChartPoints = datedDays.map {
+            CalorieHistoryChartPoint(logDate: $0.logDate, date: $0.date, value: $0.calories)
+        }
+        dailyNetChartPoints = datedDays.compactMap { day in
+            day.net.map { CalorieHistoryChartPoint(logDate: day.logDate, date: day.date, value: $0) }
+        }
+
+        var window: [(logDate: String, net: Double)] = []
+        var rolling: [CalorieHistoryChartPoint] = []
+        for day in datedDays {
+            // Compare calendar-day labels: a midnight DST jump can make the parsed date 01:00.
+            let firstDate = calendar.date(byAdding: .day, value: -6, to: day.date) ?? day.date
+            let firstLogDate = IntakeGrouping.formatLocalDate(firstDate, calendar: calendar)
+            window.removeAll { $0.logDate < firstLogDate }
+            if let net = day.net { window.append((day.logDate, net)) }
+            guard !window.isEmpty else { continue }
+            let average = window.reversed().reduce(0) { $0 + $1.net } / Double(window.count)
+            rolling.append(CalorieHistoryChartPoint(logDate: day.logDate, date: day.date, value: average))
+        }
+        rollingNetChartPoints = rolling
     }
 
     public var consumedValues: [DatedCalorieIntake] {
