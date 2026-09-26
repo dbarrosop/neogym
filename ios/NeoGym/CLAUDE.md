@@ -73,8 +73,9 @@ changes.
   with a 5-minute freshness window and 7-day stale-if-error window. Browsing list
   and display-detail repositories expose cached-first/fresh-second streams
   through `GraphQLServicing.cachedQuery`; view models must retain cached values
-  while revalidation runs or fails. Cached domains include workouts, sessions,
-  exercises, journal, foods, meals, nutrition plans/overview, Body, and Energy.
+  while revalidation runs or fails. Cached domains include workouts, sessions
+  (including workout progress), exercises, journal, foods, meals, nutrition
+  plans/overview, Body, and Energy.
   Edit/form, HealthKit reconciliation, daily-intake, and widget live-fetch reads
   stay network-only. Mutations also use the network-only `execute` path; browsing
   caches remain available after mutations and their stale-while-revalidate loads

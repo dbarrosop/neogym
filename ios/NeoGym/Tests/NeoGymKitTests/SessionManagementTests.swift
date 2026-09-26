@@ -181,6 +181,30 @@ final class SessionsRepositoryTests: XCTestCase {
 
 @MainActor
 final class SessionsViewModelTests: XCTestCase {
+    func testProgressModelRetainsCachedValueAfterRevalidationFails() async throws {
+        let repository = StubSessionsRepository()
+        repository.progressUpdateEntries = [WorkoutProgressEntry(
+            id: "cached",
+            exercise: WorkoutProgressExercise(id: "bench", name: "Bench"),
+            workoutSession: SessionPriorWorkoutSession(
+                id: "session", startedAt: ISO8601DateFormatter().string(from: Date())
+            ),
+            workoutSessionStrengthSets: [ExerciseStrengthSet(id: "set", setNumber: 1, reps: 5, weight: 100)]
+        )]
+        repository.progressUpdateError = GraphQLDomainError.missingData(operationName: "WorkoutStrengthProgress")
+        let viewModel = WorkoutProgressViewModel(repository: repository)
+
+        await viewModel.load()
+
+        let progress = try XCTUnwrap(viewModel.progress)
+        XCTAssertEqual(progress.recentExercises.map(\.id), ["bench"])
+        guard case let .failed(message, previous) = viewModel.state else {
+            return XCTFail("Expected failed revalidation with cached progress")
+        }
+        XCTAssertFalse(message.isEmpty)
+        XCTAssertEqual(previous, progress)
+    }
+
     func testListGroupsSessionsByMonthAndUsesDisplayNames() async {
         let repository = StubSessionsRepository(sessions: [
             SessionListItem(
@@ -708,6 +732,8 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var priorWorkoutRequests: [(workoutId: String, excludeSessionId: String)] = []
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
     var priorHistoryError: Error?
+    var progressUpdateEntries: [WorkoutProgressEntry] = []
+    var progressUpdateError: Error?
     var addedCardioEntryNumbers: [Int] = []
     var updatedCardioEntryIds: [String] = []
     var deletedCardioEntryIds: [String] = []
@@ -772,6 +798,13 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     }
 
     func strengthProgressEntries() async throws -> [WorkoutProgressEntry] { [] }
+
+    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield(progressUpdateEntries)
+            continuation.finish(throwing: progressUpdateError)
+        }
+    }
 
     func updateStartedAt(sessionId: String, startedAt: Date) async throws {
         updatedStartedAtSessionIds.append(sessionId)

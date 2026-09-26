@@ -92,6 +92,24 @@ final class WorkoutProgressTests: XCTestCase {
         XCTAssertTrue(request.query.contains("kind: { _eq: \"strength\" }"))
     }
 
+    func testProgressUpdatesUseSessionCache() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object(["workoutSessionExercises": .array([])]))])
+        let repository = SessionsRepository(graphQL: fake)
+
+        var emissions: [[WorkoutProgressEntry]] = []
+        for try await entries in repository.strengthProgressUpdates() {
+            emissions.append(entries)
+        }
+
+        XCTAssertEqual(emissions, [[]])
+        let requests = await fake.cachedRequestsSnapshot()
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.request.operationName, "WorkoutStrengthProgress")
+        XCTAssertEqual(request.namespace, "sessions")
+        XCTAssertEqual(request.tags, ["sessions"])
+        XCTAssertEqual(requests.count, 1)
+    }
+
     private func entry(
         _ id: String, _ exerciseId: String, _ name: String, _ startedAt: String,
         _ weight: Double, _ reps: Int, doubleWeight: Bool = false,

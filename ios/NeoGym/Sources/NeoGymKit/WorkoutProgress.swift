@@ -82,8 +82,9 @@ public final class WorkoutProgressViewModel: ObservableObject {
     public func load() async {
         state = .loading(previous: state.value)
         do {
-            let entries = try await repository.strengthProgressEntries()
-            state = .loaded(WorkoutProgressBuilder.build(entries: entries))
+            for try await entries in repository.strengthProgressUpdates() {
+                state = .loaded(WorkoutProgressBuilder.build(entries: entries))
+            }
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {

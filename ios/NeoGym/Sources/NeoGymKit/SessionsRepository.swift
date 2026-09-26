@@ -39,6 +39,7 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel]
     func strengthProgressEntries() async throws -> [WorkoutProgressEntry]
+    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error>
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -67,6 +68,10 @@ public extension SessionsRepositoryProtocol {
 
     func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error> {
         singleValueUpdates { try await sessionDetail(id: id) }
+    }
+
+    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+        singleValueUpdates { try await strengthProgressEntries() }
     }
 }
 
@@ -154,6 +159,17 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "WorkoutStrengthProgress"
         )
         return data.workoutSessionExercises
+    }
+
+    public func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+        graphQL.cachedValues(
+            WorkoutStrengthProgressData.self,
+            query: Self.workoutStrengthProgressQuery,
+            operationName: "WorkoutStrengthProgress",
+            namespace: "sessions",
+            tags: ["sessions"],
+            transform: \WorkoutStrengthProgressData.workoutSessionExercises
+        )
     }
 
     public func updateStartedAt(sessionId: String, startedAt: Date) async throws {

@@ -106,7 +106,8 @@ Body, and Energy; edit/form, HealthKit reconciliation, daily-intake, and widget
 live-fetch queries stay network-only. The cache uses a 5-minute freshness window
 and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
-remain available for responsive rendering and offline fallback. The SDK purges
+remain available for responsive rendering and offline fallback. Workout Progress
+uses the sessions cache for its read-only strength history. The SDK purges
 prior managed-user scopes on sign-out/session replacement. The
 file cache is app-process-only; the widget client deliberately has no GraphQL
 cache because the SDK requires each process to own a distinct cache directory.
