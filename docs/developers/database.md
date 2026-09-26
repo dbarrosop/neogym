@@ -256,7 +256,7 @@ The Hasura `user`-role select filter is `user_id = X-Hasura-User-Id OR is_public
 
 ## Cascade behavior
 
-Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. One direct-user cascade worth calling out here, plus the main domain exceptions:
+Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. The table calls out direct-user cascades and the main domain exceptions:
 
 | FK | Action | Why |
 |---|---|---|
