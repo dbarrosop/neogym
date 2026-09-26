@@ -1,0 +1,72 @@
+table:
+  name: health_workouts
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    healthkit_uuid:
+      custom_name: healthkitUuid
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    healthkit_uuid: healthkitUuid
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: healthWorkout
+  custom_root_fields:
+    delete: deleteHealthWorkouts
+    delete_by_pk: deleteHealthWorkout
+    insert: insertHealthWorkouts
+    insert_one: insertHealthWorkout
+    select: healthWorkouts
+    select_aggregate: healthWorkoutsAggregate
+    select_by_pk: healthWorkout
+    update: updateHealthWorkouts
+    update_by_pk: updateHealthWorkout
+object_relationships:
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - healthkit_uuid
+        - raw
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - healthkit_uuid
+        - raw
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - raw
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

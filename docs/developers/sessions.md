@@ -1,6 +1,6 @@
 # Sessions
 
-A **session** (`workout_sessions`) is the record of one workout you actually did — a timestamped container with an ordered list of exercises, and per-exercise entries (sets for strength, metric entries for cardio). Sessions belong to a user; there is no public/shared session concept.
+A **session** (`workout_sessions`) is the record of one workout you actually did — a timestamped container with an ordered list of exercises, and per-exercise entries (sets for strength, metric entries for cardio). Sessions belong to a user; there is no public/shared session concept. Apple Health workouts are stored separately in `health_workouts` as raw snapshots and are not converted to sessions (see [`health-workouts.md`](health-workouts.md)).
 
 This document is the source of truth for how the session data model behaves. If something here disagrees with the schema or the migrations, the schema wins — please open a PR to fix the doc.
 

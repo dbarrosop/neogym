@@ -39,7 +39,7 @@ The user can see, write, update, and delete only their own rows.
 - `check: { user_id: { _eq: X-Hasura-User-Id } }` on insert/update.
 - `set: { user_id: X-Hasura-User-Id }` on insert (so a malicious client can't write `user_id: someone-else`).
 
-Used for: `body_measurements`, `daily_energy`, `journal_entries`, `journal_labels`, `workout_sessions`.
+Used for: `body_measurements`, `daily_energy`, `health_workouts`, `journal_entries`, `journal_labels`, `workout_sessions`.
 
 ### B. Owner-or-public catalog
 
@@ -264,6 +264,12 @@ Active/resting kcal notes per energy date. Always private. The database addition
 | `user` | `update` | `energy_on`, `active_kcal`, `resting_kcal`, `notes` | filter: `user_id eq self`; check: `null` | Edit your own daily energy rows. `user_id` cannot be reassigned. |
 | `user` | `delete` | — | filter: `user_id eq self` | Delete your own daily energy rows. |
 
+## Apple Health workout snapshots
+
+### `health_workouts` — pattern **A (private per-user)**
+
+A separate raw import, not a `workout_sessions` or `workouts` row (see [`health-workouts.md`](health-workouts.md)). Select and delete are scoped by `user_id = self`; insert checks ownership and forcibly sets `user_id = self`, allowing only `healthkit_uuid` and `raw`. Updates filter by owner and allow only `raw`, not `healthkit_uuid` or `user_id`. The database requires `raw` to be a JSON object and uniquely keys `(user_id, healthkit_uuid)`, so upserts can replace a workout's snapshot without cross-user conflict. There are no unauthenticated permissions.
+
 ## Nutrition
 
 See [`nutrition.md`](nutrition.md) for model details. These permissions expose the full backend nutrition contract while keeping all user-owned rows private.
@@ -325,6 +331,7 @@ No insert / update / delete permissions for the user role: file lifecycle goes t
 
 A few intentional omissions worth calling out — these are the columns and tables the user role cannot reach via GraphQL:
 
+- **`health_workouts.user_id`, `health_workouts.healthkit_uuid` after insert** — ownership is forced from the JWT and immutable; the HealthKit UUID is insert-only. Sync can update only its own raw snapshot.
 - **`daily_energy.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`, so daily energy rows are pinned to the caller and cannot be reassigned through GraphQL.
 - **`exercises.is_public`, `exercises.slug`, `exercises.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`; the others are admin-only fields.
 - **`exercises.kind`** — generated, not insertable on any role.

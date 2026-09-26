@@ -1108,6 +1108,29 @@ type foods_variance_fields {
   sugarPer100g: Float
 }
 """
+columns and relationships of "health_workouts"
+"""
+type healthWorkout {
+  id: uuid!
+  userId: uuid!
+  healthkitUuid: uuid!
+  raw(
+    "JSON select path"
+    path: String
+  ): jsonb!
+  createdAt: timestamptz!
+  updatedAt: timestamptz!
+}
+"""
+response of any mutation on the table "health_workouts"
+"""
+type healthWorkout_mutation_response {
+  "number of rows affected by the mutation"
+  affected_rows: Int!
+  "data from the rows affected by the mutation"
+  returning: [healthWorkout!]!
+}
+"""
 columns and relationships of "journal_entries"
 """
 type journalEntries {
@@ -2033,6 +2056,77 @@ type mutation_root {
     "updates to execute, in order"
     updates: [foods_updates!]!
   ): [foods_mutation_response]
+  """
+  delete single row from the table: "health_workouts"
+  """
+  deleteHealthWorkout(id: uuid!): healthWorkout
+  """
+  delete data from the table: "health_workouts"
+  """
+  deleteHealthWorkouts(
+    "filter the rows which have to be deleted"
+    where: healthWorkout_bool_exp!
+  ): healthWorkout_mutation_response
+  """
+  insert a single row into the table: "health_workouts"
+  """
+  insertHealthWorkout(
+    "the row to be inserted"
+    object: healthWorkout_insert_input!,
+    "upsert condition"
+    on_conflict: healthWorkout_on_conflict
+  ): healthWorkout
+  """
+  insert data into the table: "health_workouts"
+  """
+  insertHealthWorkouts(
+    "the rows to be inserted"
+    objects: [healthWorkout_insert_input!]!,
+    "upsert condition"
+    on_conflict: healthWorkout_on_conflict
+  ): healthWorkout_mutation_response
+  """
+  update single row of the table: "health_workouts"
+  """
+  updateHealthWorkout(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: healthWorkout_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: healthWorkout_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: healthWorkout_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: healthWorkout_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: healthWorkout_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: healthWorkout_set_input,pk_columns: healthWorkout_pk_columns_input!  ): healthWorkout
+  """
+  update data of the table: "health_workouts"
+  """
+  updateHealthWorkouts(
+    "append existing jsonb value of filtered columns with new jsonb value"
+    _append: healthWorkout_append_input,
+    "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+    _delete_at_path: healthWorkout_delete_at_path_input,
+    "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+    _delete_elem: healthWorkout_delete_elem_input,
+    "delete key/value pair or string element. key/value pairs are matched based on their key value"
+    _delete_key: healthWorkout_delete_key_input,
+    "prepend existing jsonb value of filtered columns with new jsonb value"
+    _prepend: healthWorkout_prepend_input,
+    "sets the columns of the filtered rows to the given values"
+    _set: healthWorkout_set_input,
+    "filter the rows which have to be updated"
+    where: healthWorkout_bool_exp!
+  ): healthWorkout_mutation_response
+  """
+  update multiples rows of table: "health_workouts"
+  """
+  update_healthWorkout_many(
+    "updates to execute, in order"
+    updates: [healthWorkout_updates!]!
+  ): [healthWorkout_mutation_response]
   """
   delete single row from the table: "journal_entries"
   """
@@ -4270,6 +4364,25 @@ type query_root {
     where: foods_bool_exp
   ): foods_aggregate!
   """
+  fetch data from the table: "health_workouts"
+  """
+  healthWorkouts(
+    "distinct select on columns"
+    distinct_on: [healthWorkout_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [healthWorkout_order_by!],
+    "filter the rows returned"
+    where: healthWorkout_bool_exp
+  ): [healthWorkout!]!
+  """
+  fetch data from the table: "health_workouts" using primary key columns
+  """
+  healthWorkout(id: uuid!): healthWorkout
+  """
   fetch data from the table: "journal_entries"
   """
   journalEntries(
@@ -5510,6 +5623,36 @@ type subscription_root {
     "filter the rows returned"
     where: foods_bool_exp
   ): [foods!]!
+  """
+  fetch data from the table: "health_workouts"
+  """
+  healthWorkouts(
+    "distinct select on columns"
+    distinct_on: [healthWorkout_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [healthWorkout_order_by!],
+    "filter the rows returned"
+    where: healthWorkout_bool_exp
+  ): [healthWorkout!]!
+  """
+  fetch data from the table: "health_workouts" using primary key columns
+  """
+  healthWorkout(id: uuid!): healthWorkout
+  """
+  fetch data from the table in a streaming manner: "health_workouts"
+  """
+  healthWorkout_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [healthWorkout_stream_cursor_input]!,
+    "filter the rows returned"
+    where: healthWorkout_bool_exp
+  ): [healthWorkout!]!
   """
   fetch data from the table: "journal_entries"
   """
@@ -7642,6 +7785,43 @@ enum foods_update_column {
   sugarPer100g
 }
 """
+unique or primary key constraints on table "health_workouts"
+"""
+enum healthWorkout_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  health_workouts_pkey
+  """
+  unique or primary key constraint on columns "user_id", "healthkit_uuid"
+  """
+  health_workouts_user_healthkit_uuid_key
+}
+"""
+select columns of table "health_workouts"
+"""
+enum healthWorkout_select_column {
+  "column name"
+  id
+  "column name"
+  userId
+  "column name"
+  healthkitUuid
+  "column name"
+  raw
+  "column name"
+  createdAt
+  "column name"
+  updatedAt
+}
+"""
+update columns of table "health_workouts"
+"""
+enum healthWorkout_update_column {
+  "column name"
+  raw
+}
+"""
 unique or primary key constraints on table "journal_entries"
 """
 enum journalEntries_constraint {
@@ -9743,6 +9923,110 @@ input foods_updates {
   _set: foods_set_input
   "filter the rows which have to be updated"
   where: foods_bool_exp!
+}
+"append existing jsonb value of filtered columns with new jsonb value"
+input healthWorkout_append_input {
+  raw: jsonb
+}
+"""
+Boolean expression to filter rows from the table "health_workouts". All fields are combined with a logical 'AND'.
+"""
+input healthWorkout_bool_exp {
+  _and: [healthWorkout_bool_exp!]
+  _not: healthWorkout_bool_exp
+  _or: [healthWorkout_bool_exp!]
+  id: uuid_comparison_exp
+  userId: uuid_comparison_exp
+  healthkitUuid: uuid_comparison_exp
+  raw: jsonb_comparison_exp
+  createdAt: timestamptz_comparison_exp
+  updatedAt: timestamptz_comparison_exp
+}
+"delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+input healthWorkout_delete_at_path_input {
+  raw: [String!]
+}
+"delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+input healthWorkout_delete_elem_input {
+  raw: Int
+}
+"delete key/value pair or string element. key/value pairs are matched based on their key value"
+input healthWorkout_delete_key_input {
+  raw: String
+}
+"""
+input type for inserting data into table "health_workouts"
+"""
+input healthWorkout_insert_input {
+  healthkitUuid: uuid
+  raw: jsonb
+}
+"""
+on_conflict condition type for table "health_workouts"
+"""
+input healthWorkout_on_conflict {
+  constraint: healthWorkout_constraint!
+  update_columns: [healthWorkout_update_column!]! = []
+  where: healthWorkout_bool_exp
+}
+"""
+Ordering options when selecting data from "health_workouts".
+"""
+input healthWorkout_order_by {
+  id: order_by
+  userId: order_by
+  healthkitUuid: order_by
+  raw: order_by
+  createdAt: order_by
+  updatedAt: order_by
+}
+"primary key columns input for table: health_workouts"
+input healthWorkout_pk_columns_input {
+  id: uuid!
+}
+"prepend existing jsonb value of filtered columns with new jsonb value"
+input healthWorkout_prepend_input {
+  raw: jsonb
+}
+"""
+input type for updating data in table "health_workouts"
+"""
+input healthWorkout_set_input {
+  raw: jsonb
+}
+"""
+Streaming cursor of the table "healthWorkout"
+"""
+input healthWorkout_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: healthWorkout_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input healthWorkout_stream_cursor_value_input {
+  id: uuid
+  userId: uuid
+  healthkitUuid: uuid
+  raw: jsonb
+  createdAt: timestamptz
+  updatedAt: timestamptz
+}
+input healthWorkout_updates {
+  "append existing jsonb value of filtered columns with new jsonb value"
+  _append: healthWorkout_append_input
+  "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
+  _delete_at_path: healthWorkout_delete_at_path_input
+  "delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array"
+  _delete_elem: healthWorkout_delete_elem_input
+  "delete key/value pair or string element. key/value pairs are matched based on their key value"
+  _delete_key: healthWorkout_delete_key_input
+  "prepend existing jsonb value of filtered columns with new jsonb value"
+  _prepend: healthWorkout_prepend_input
+  "sets the columns of the filtered rows to the given values"
+  _set: healthWorkout_set_input
+  "filter the rows which have to be updated"
+  where: healthWorkout_bool_exp!
 }
 """
 Boolean expression to filter rows from the table "journal_entries". All fields are combined with a logical 'AND'.

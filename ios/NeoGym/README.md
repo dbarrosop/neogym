@@ -252,10 +252,19 @@ from the last 7 local days that still carry the exact
 `Imported from Apple Health` note can be refreshed from newer HealthKit values.
 Manual or edited rows are not overwritten.
 
+Opening the Workouts area (and pulling to refresh its hub) also reads HealthKit
+workouts into private `health_workouts` raw JSON snapshots. It requests workout
+read permission only, recording activity type, start/end time, active calories
+burned when available, and other workout-level metadata/events/statistics. It
+does not request route or heart-rate stream access, create NeoGym sessions, or
+export data. An on-device per-user HealthKit anchor handles additions, changes,
+and reported deletions; see `docs/developers/health-workouts.md` for the cursor
+reset caveat and the backend contract.
+
 The HealthKit capability and both `NSHealthShareUsageDescription` and
 `NSHealthUpdateUsageDescription` are declared in `project.yml`; regenerate the
 Xcode project after changing them. The concrete
-HealthKit importer is compiled only for non-macOS platforms so `NeoGymKit` keeps
+HealthKit importers are compiled only for non-macOS platforms so `NeoGymKit` keeps
 building and testing on the macOS host.
 
 ## Current auth scope

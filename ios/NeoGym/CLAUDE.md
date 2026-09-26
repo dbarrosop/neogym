@@ -143,6 +143,7 @@ changes.
   `DailyEnergyHealthImporting`, `HealthDailyEnergy`, and
   `DailyEnergyHealthSyncSummary`). Keep those host-testable; HealthKit itself is
   guarded with `#if canImport(HealthKit) && !os(macOS)`.
+- `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions on Workouts-area open/refresh. The user-scoped on-device cursor advances only after backend writes succeed. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
 - `HealthKitDailyEnergyImporter` is read-only (`toShare: []`) and sums active
   and basal/resting energy with bounded, DST-safe local-day buckets
   (`HKStatisticsCollectionQuery`, `.cumulativeSum`, local-midnight anchor,
