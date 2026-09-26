@@ -15,7 +15,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/_authed` layout navigation | Grouped native shell: Workouts, Nutrition, Me primary tabs with secondary sections for Sessions/Workouts/Exercises, Nutrition subsections, and Profile/Body/Journal | 1 | ☑ complete | All seven signed-in destinations are wired through the grouped shell; the native `TabView` uses only three primary tabs, so iOS 15 does not hide destinations behind `More`. |
+| `/_authed` layout navigation | Workouts, Nutrition, and Me hubs with native subsection navigation | 1 | ☑ complete | All signed-in destinations are reachable from their area hubs without a `TabView`; the app now targets iPhone/iOS 27. |
 | `/profile` view | Profile destination | 1 | ☑ complete | Existing profile UI remains the only non-placeholder Phase 1 destination. |
 | Profile sign out | Profile sign-out action | 1 | ☑ complete | Existing `AuthStore.signOut()` still clears local session after remote sign-out attempt. |
 | Profile change email request | Change email sheet | 1 | ☑ complete | Existing app-side PKCE flow preserved. |
@@ -27,7 +27,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | --- | --- | --- | --- | --- |
 | `/exercises` list | Exercises list/search/filter | 3 | ☑ complete | Query text, muscle, category, equipment, level, and visibility filters. |
 | `/exercises/$exerciseId` detail | Exercise detail | 3 | ☑ complete | Storage images, public/private visibility, strength/cardio sidecar display. |
-| Exercise history/progress | Exercise detail history/progress | 3 | ☑ complete | Includes prior session summaries with simple iOS 15-compatible trend visuals. |
+| Exercise history/progress | Exercise detail history/progress | 3 | ☑ complete | Includes prior session summaries with simple trend visuals. |
 | Start ad-hoc session from exercise | Exercise detail start action | 3 | ☑ complete | Insert session with nullable `workoutId` and one session exercise; Sessions detail navigation arrives in Phase 5. |
 | Workout-scoped exercise detail `/workouts/$workoutId/exercises/$exerciseId` | Reusable exercise detail from workout context | 4 | ☑ complete | Workout exercise rows navigate to the reusable native exercise detail. |
 | Session-scoped exercise detail `/sessions/$sessionId/exercises/$exerciseId` | Reusable exercise detail from session context | 5 | ☑ complete | Session exercise rows navigate to the reusable native exercise detail. |
@@ -62,7 +62,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
-| `/body` list/chart | Body list and trend | 7 | ☑ complete | Uses a custom iOS 15-compatible `Path` chart and Phase 2 date-only helpers. |
+| `/body` list/chart | Body list and trend | 7 | ☑ complete | Uses a custom `Path` chart and Phase 2 date-only helpers. |
 | `/body/new` | Create body measurement form | 7 | ☑ complete | Date-only values use `DateOnly` and mutation variables omit ownership fields. |
 | `/body/$id` detail | Body measurement detail | 7 | ☑ complete | Shows weight/body-fat/notes. |
 | `/body/$id/edit` | Edit/delete body measurement | 7 | ☑ complete | Surfaces friendly same-date uniqueness constraint errors. |

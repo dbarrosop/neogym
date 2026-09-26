@@ -19,8 +19,7 @@ public enum NhostSessionConfig {
     public static let keychainAccountPrefix = "default"
     public static let sharedKeychainAccessGroupSuffix = "io.nhost.neogym.shared"
     public static let sharedKeychainAccessGroupInfoPlistKey = "NeoGymSharedKeychainAccessGroup"
-    public static let appGroupIdentifier = "group.io.nhost.neogym"
-    public static let lockNamespace = "io.nhost.neogym.shared-session"
+    public static let appGroupIdentifier = "group.io.nhost.dbarroso.neogym"
     public static let appAcquisitionTimeout: TimeInterval = 5
     public static let widgetAcquisitionTimeout: TimeInterval = 0.5
 
@@ -53,7 +52,6 @@ public enum NhostSessionConfig {
                 accessGroup: sharedKeychainAccessGroup(bundle: bundle)
             ),
             appGroupIdentifier: appGroupIdentifier,
-            lockNamespace: lockNamespace,
             acquisitionTimeout: acquisitionTimeout
         )
     }

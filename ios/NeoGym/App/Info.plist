@@ -15,12 +15,12 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>io.nhost.neogym</string>
+			<string>io.nhost.dbarroso.neogym</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>neogym</string>
@@ -28,9 +28,13 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>NeoGym imports your weight, body-fat percentage, active energy, and resting energy from Apple Health to keep body and energy logs up to date.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>NeoGym does not write to Apple Health. It only reads your weight, body-fat percentage, active energy, and resting energy to update your NeoGym records.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NeoGymSharedKeychainAccessGroup</key>
