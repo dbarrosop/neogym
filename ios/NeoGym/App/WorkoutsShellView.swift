@@ -60,13 +60,15 @@ struct WorkoutsSectionNavigationView: View {
 
     private var rootContent: some View {
         List {
-            if let status = healthWorkoutStatus {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(NeoGymTheme.mutedText)
-                    .listRowBackground(Color.clear)
-                    .accessibilityLabel(status)
-            }
+            healthWorkoutStatus
+                .listRowInsets(EdgeInsets(
+                    top: NeoGymTheme.spacingXS,
+                    leading: NeoGymTheme.screenHorizontalPadding,
+                    bottom: NeoGymTheme.spacingXS,
+                    trailing: NeoGymTheme.screenHorizontalPadding
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             ForEach(WorkoutAreaSection.allCases) { section in
                 Button {
                     path.append(subsectionRoute(for: section))
@@ -105,13 +107,24 @@ struct WorkoutsSectionNavigationView: View {
         }
     }
 
-    private var healthWorkoutStatus: String? {
+    @ViewBuilder
+    private var healthWorkoutStatus: some View {
         switch healthWorkoutSync.state {
-        case .idle: nil
-        case .loading: "Syncing Apple Health workouts…"
+        case .loading:
+            FeedbackBanner(message: "Syncing Apple Health workouts…", tone: .info)
         case let .loaded(summary):
-            "Apple Health synced: \(summary.importedOrUpdated) saved, \(summary.deleted) removed."
-        case let .failed(message, _): message
+            if summary.importedOrUpdated > 0 || summary.deleted > 0 {
+                FeedbackBanner(
+                    message: "Apple Health synced: \(summary.importedOrUpdated) saved, \(summary.deleted) removed.",
+                    tone: .info
+                )
+            } else {
+                FeedbackBanner(message: "Apple Health checked; no workout changes to import.", tone: .info)
+            }
+        case let .failed(message, _):
+            FeedbackBanner(message: message)
+        case .idle:
+            EmptyView()
         }
     }
 
