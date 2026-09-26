@@ -157,9 +157,9 @@ intact instead of inventing one-off styles.
   `selection`; it is shown at each area's stack root only and disappears when a
   route is pushed. **Workouts (Phase 2a, shipped):** `WorkoutsSectionNavigationView`
   is now a HUB — its root is a native `List` of glass rows (Sessions / Workouts /
-  Exercises, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
-  that PUSH subsection-list routes (`WorkoutsRoute.sessionsList` /
-  `.workoutsList` / `.exercisesList`) rendered through
+  Exercises / Progress, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
+  that PUSH subsection routes (`WorkoutsRoute.sessionsList` /
+  `.workoutsList` / `.exercisesList` / `.progress`) rendered through
   `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
   area segmented `Picker` lives in the hub's nav-bar **principal** slot (chosen
   over `.safeAreaInset` so there is exactly one top row: the segmented control
@@ -169,6 +169,9 @@ intact instead of inventing one-off styles.
   with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
   deleted). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
+  On Progress, each exercise chart's header is a `NavigationLink` to the existing
+  `.exerciseDetail(id)` route; Back returns to Progress and the chart's period,
+  legend, and plot gestures remain independent of navigation.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;

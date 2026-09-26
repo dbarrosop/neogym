@@ -77,14 +77,37 @@ struct WorkoutProgressView: View {
                     }
                 } else {
                     ForEach(progress.recentExercises) { exercise in
-                        SectionShell(title: exercise.name, subtitle: "Session volume & estimated 1RM · kg") {
+                        GroupBox {
                             TimeSeriesTrendChartView(
                                 series: exerciseSeries(for: exercise),
                                 emptyMessage: "No sets in this period.",
                                 accessibilityLabel: "\(exercise.name) volume and estimated one-rep max chart",
                                 initialPeriod: .last8Weeks
                             )
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        } label: {
+                            NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
+                                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
+                                    HStack(spacing: NeoGymTheme.spacingXS) {
+                                        Text(exercise.name)
+                                            .font(.title2.bold())
+                                            .tracking(-0.4)
+                                        Spacer(minLength: NeoGymTheme.spacingSM)
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(NeoGymTheme.mutedText)
+                                    }
+                                    Text("Session volume & estimated 1RM · kg")
+                                        .font(.subheadline)
+                                        .foregroundStyle(NeoGymTheme.mutedText)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Opens exercise details")
                         }
+                        .groupBoxStyle(.automatic)
                     }
                 }
             }

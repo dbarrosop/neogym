@@ -159,6 +159,8 @@ shows calendar-week strength volume across all exercises and a per-exercise char
 with both session volume and estimated 1RM for every strength exercise with a logged
 set in the last 10 local days (separate axes for the two metrics);
 the charts default to the last eight calendar weeks and support other periods.
+Each exercise chart's tappable header pushes `WorkoutsRoute.exerciseDetail(id)`
+through the existing stack; Back returns to Progress without consuming chart gestures.
 On a session detail with strength entries, the totals are followed by the three
 most recent earlier sessions still linked to the same workout template (ad-hoc
 sessions have no same-workout comparison). No area uses
