@@ -387,6 +387,9 @@ struct SessionDetailView: View {
                 summary(session)
                 if viewModel.totals.hasStrength {
                     strengthTotals(viewModel.totals)
+                    if session.workout != nil {
+                        SessionPriorWorkoutSummary(sessions: viewModel.priorWorkoutSessions, state: viewModel.priorWorkoutState)
+                    }
                 }
                 exerciseSection(session)
                 if let message = viewModel.mutationState.errorMessage ?? errorMessage {

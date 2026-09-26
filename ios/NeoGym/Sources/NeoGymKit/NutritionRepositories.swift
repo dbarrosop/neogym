@@ -1,5 +1,90 @@
 import Foundation
 
+public struct NutritionCalorieHistoryEntry: Decodable, Sendable, Equatable {
+    public let grams: JSONValue
+    public let snapshotKcalPer100g: JSONValue
+
+    public init(grams: JSONValue, snapshotKcalPer100g: JSONValue) {
+        self.grams = grams
+        self.snapshotKcalPer100g = snapshotKcalPer100g
+    }
+
+    public var calories: Double {
+        NutritionMath.normalizeNumeric(grams) * NutritionMath.normalizeNumeric(snapshotKcalPer100g) / 100
+    }
+}
+
+public struct NutritionCalorieHistoryMeal: Decodable, Sendable, Equatable {
+    public let nutritionLogEntries: [NutritionCalorieHistoryEntry]
+
+    public init(nutritionLogEntries: [NutritionCalorieHistoryEntry]) {
+        self.nutritionLogEntries = nutritionLogEntries
+    }
+}
+
+public struct NutritionCalorieHistoryDay: Decodable, Sendable, Equatable {
+    public let logDate: String
+    public let nutritionLogEntries: [NutritionCalorieHistoryEntry]
+    public let nutritionLogMeals: [NutritionCalorieHistoryMeal]
+
+    public init(
+        logDate: String,
+        nutritionLogEntries: [NutritionCalorieHistoryEntry] = [],
+        nutritionLogMeals: [NutritionCalorieHistoryMeal] = []
+    ) {
+        self.logDate = logDate
+        self.nutritionLogEntries = nutritionLogEntries
+        self.nutritionLogMeals = nutritionLogMeals
+    }
+
+    public var calories: Double {
+        nutritionLogEntries.reduce(0) { $0 + $1.calories }
+            + nutritionLogMeals.flatMap(\.nutritionLogEntries).reduce(0) { $0 + $1.calories }
+    }
+}
+
+public struct DatedCalorieIntake: Sendable, Equatable {
+    public let date: String
+    public let calories: Double
+}
+
+public struct NutritionCalorieHistory: Sendable, Equatable {
+    public let days: [NutritionCalorieHistoryDay]
+    public let dailyEnergyEntries: [DailyEnergy]
+
+    public init(days: [NutritionCalorieHistoryDay], dailyEnergyEntries: [DailyEnergy]) {
+        self.days = days
+        self.dailyEnergyEntries = dailyEnergyEntries
+    }
+
+    public var consumedValues: [DatedCalorieIntake] {
+        days.map { DatedCalorieIntake(date: $0.logDate, calories: $0.calories) }
+            .sorted { $0.date < $1.date }
+    }
+
+    public var dailyNetValues: [DatedCalorieNet] {
+        let energyByDate = Dictionary(uniqueKeysWithValues: dailyEnergyEntries.map { ($0.energyOn, $0) })
+        return days.compactMap { day in
+            guard let energy = energyByDate[day.logDate] else { return nil }
+            return DailyCalorieBalance(caloriesIn: day.calories, dailyEnergy: energy).net.map {
+                DatedCalorieNet(date: day.logDate, net: $0)
+            }
+        }.sorted { $0.date < $1.date }
+    }
+
+    public func rollingNetAverageValues(days count: Int = 7, calendar: Calendar = .current) -> [DatedCalorieNet] {
+        let netByDate = Dictionary(uniqueKeysWithValues: dailyNetValues.map { ($0.date, $0.net) })
+        return days.compactMap { day in
+            let dates = (0..<max(count, 1)).map { offset in
+                IntakeGrouping.addLocalDateDays(day.logDate, days: -offset, calendar: calendar)
+            }
+            let nets = dates.compactMap { netByDate[$0] }
+            guard !nets.isEmpty else { return nil }
+            return DatedCalorieNet(date: day.logDate, net: nets.reduce(0, +) / Double(nets.count))
+        }.sorted { $0.date < $1.date }
+    }
+}
+
 public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func listFoods() async throws -> [Food]
     func foodListUpdates() -> AsyncThrowingStream<[Food], Error>
@@ -34,6 +119,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func nutritionOverview() async throws -> NutritionOverviewPayload
     func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error>
     func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error>
+    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error>
     func openDailyIntake(date: String) async throws -> DailyIntakePayload
     func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
@@ -79,6 +165,28 @@ public extension NutritionFoodMealRepositoryProtocol {
 
     func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error> {
         singleValueUpdates { .fresh(try await nutritionOverview()) }
+    }
+
+    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
+        singleValueUpdates {
+            let overview = try await nutritionOverview()
+            return NutritionCalorieHistory(
+                days: overview.days.map { day in
+                    NutritionCalorieHistoryDay(
+                        logDate: day.logDate,
+                        nutritionLogEntries: day.nutritionLogEntries.map {
+                            NutritionCalorieHistoryEntry(grams: $0.grams, snapshotKcalPer100g: $0.snapshotKcalPer100g)
+                        },
+                        nutritionLogMeals: day.nutritionLogMeals.map { meal in
+                            NutritionCalorieHistoryMeal(nutritionLogEntries: meal.nutritionLogEntries.map {
+                                NutritionCalorieHistoryEntry(grams: $0.grams, snapshotKcalPer100g: $0.snapshotKcalPer100g)
+                            })
+                        }
+                    )
+                },
+                dailyEnergyEntries: overview.dailyEnergyEntries
+            )
+        }
     }
 
     func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error> {
@@ -391,6 +499,17 @@ public extension NutritionFoodMealRepository {
         )
     }
 
+    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
+        graphQL.cachedValues(
+            NutritionCalorieHistoryData.self,
+            query: Self.nutritionCalorieHistoryQuery,
+            operationName: "NutritionCalorieHistory",
+            namespace: "nutrition-calorie-history",
+            tags: ["nutrition-days", "daily-energy"],
+            transform: { NutritionCalorieHistory(days: $0.nutritionDays, dailyEnergyEntries: $0.dailyEnergyEntries) }
+        )
+    }
+
     private static func overviewPayload(from data: NutritionDaysIndexData) -> NutritionOverviewPayload {
         NutritionOverviewPayload(
             days: data.nutritionDays,
@@ -583,6 +702,10 @@ private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritio
 private struct NutritionDaysIndexData: Decodable, Sendable {
     let nutritionDays: [NutritionDay]
     let dailyEnergyEntries: [DailyEnergy]?
+}
+private struct NutritionCalorieHistoryData: Decodable, Sendable {
+    let nutritionDays: [NutritionCalorieHistoryDay]
+    let dailyEnergyEntries: [DailyEnergy]
 }
 private struct DailyIntakeLogData: Decodable, Sendable {
     let nutritionDays: [NutritionDay]

@@ -3,6 +3,7 @@ import SwiftUI
 enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
     case last7Days
     case last30Days
+    case last8Weeks
     case last90Days
     case last180Days
     case custom
@@ -13,6 +14,7 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
         switch self {
         case .last7Days: "Last 7d"
         case .last30Days: "Last 30d"
+        case .last8Weeks: "Last 8 weeks"
         case .last90Days: "Last 90d"
         case .last180Days: "Last 180d"
         case .custom: "Custom…"
@@ -23,6 +25,7 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
         switch self {
         case .last7Days: 7
         case .last30Days: 30
+        case .last8Weeks: nil
         case .last90Days: 90
         case .last180Days: 180
         case .custom: nil
@@ -127,6 +130,11 @@ struct TimeSeriesTrendChartView: View {
 
     private var dateRange: (start: Date, endExclusive: Date)? {
         let calendar = Calendar.current
+        if period == .last8Weeks, let currentWeek = calendar.dateInterval(of: .weekOfYear, for: Date()) {
+            let start = calendar.date(byAdding: .weekOfYear, value: -7, to: currentWeek.start) ?? currentWeek.start
+            let endExclusive = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeek.start) ?? Date()
+            return (start, endExclusive)
+        }
         if let days = period.days {
             let end = calendar.startOfDay(for: Date())
             let endExclusive = calendar.date(byAdding: .day, value: 1, to: end) ?? Date()

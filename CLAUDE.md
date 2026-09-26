@@ -150,11 +150,18 @@ stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so eac
 area's stack path survives area switches). Areas are switched via a segmented
 `Picker` shown at each area's stack root only. **Workouts (Phase 2a) is now a
 hub:** its root is a native `List` of tappable glass rows
-(Sessions/Workouts/Exercises) that push subsection-list routes
-(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
+(Sessions/Workouts/Exercises/Progress) that push subsection routes
+(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`/`.progress`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area
 segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
-"New workout" lives on the `.workoutsList` route's own `.bottomBar`. No area uses
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Progress
+shows calendar-week strength volume across all exercises and a per-exercise chart
+with both session volume and estimated 1RM for every strength exercise with a logged
+set in the last 10 local days (separate axes for the two metrics);
+the charts default to the last eight calendar weeks and support other periods.
+On a session detail with strength entries, the totals are followed by the three
+most recent earlier sessions still linked to the same workout template (ad-hoc
+sessions have no same-workout comparison). No area uses
 `SecondarySectionContentHost` or `SectionTitleMenu` anymore (both, along with
 `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, are deleted). The
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
@@ -170,7 +177,10 @@ trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
 Energy from HealthKit on load and pull-to-refresh before the final backend
 overview fetch, then shows Energy balance, the Calories consumed chart, and Body
-composition trends from the post-sync backend data; Body and Energy sync both
+composition trends from the post-sync backend data; the Calories consumed
+chart uses a separate uncapped snapshot-kcal/grams + daily-energy history query
+(rather than the 14-day detailed overview/day-list query), so longer chart periods
+show all logged dates without loading historical plans. Body and Energy sync both
 create missing dates and refresh recent rows that still carry the exact
 "Imported from Apple Health" note. It does not show the old intro copy or recent
 daily-log list. `NutritionDaysView` no longer takes a

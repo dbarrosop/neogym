@@ -121,6 +121,12 @@ Sessions don't carry a name field. The label shown in the UI is computed by `ses
 
 This means ad-hoc sessions get a sensible label without storing one, and templated sessions follow the workout name even if the user later renames the workout.
 
+## Native progress and comparison
+
+In the iOS session detail, strength Sets/Reps/Volume totals are followed by up to three earlier sessions linked to the **same current `workout_id`**, newest first. This is only a historical comparison, not a constraint that those sessions contain the same exercises. Ad-hoc sessions have no matching workout comparison; a workout deleted or detached from a session also removes it from this comparison. Per-exercise "Recent" remains separate and shows the last three sessions with that exercise regardless of workout.
+
+The Workouts hub also has a Progress route: it sums strength-set volume (weight × reps, doubled for `double_weight`) into local calendar weeks across all session exercises, and shows both per-session volume and estimated 1RM (`weight × (1 + reps / 30)`, maximum set per session, *not* doubled for per-side weight) on separate chart axes for every unique strength exercise with a logged set in the last ten local days. That recent window selects exercises; their charts can show older history. Trends default to the last eight calendar weeks. Data is scoped by existing user-role Hasura permissions; cardio entries have no weight/reps and are not included in volume or 1RM.
+
 ## Editing a session
 
 The session detail page supports:

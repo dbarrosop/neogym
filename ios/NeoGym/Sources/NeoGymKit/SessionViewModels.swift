@@ -115,6 +115,7 @@ public final class SessionsListViewModel: ObservableObject {
 public final class SessionDetailViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<SessionDetailModel> = .idle
     @Published public private(set) var priorHistoryState: Loadable<SessionPriorHistory> = .idle
+    @Published public private(set) var priorWorkoutState: Loadable<[SessionDetailModel]> = .idle
     @Published public private(set) var mutationState: Loadable<String> = .idle
 
     public let sessionId: String
@@ -130,6 +131,8 @@ public final class SessionDetailViewModel: ObservableObject {
     public var totals: SessionStrengthTotals {
         session?.strengthTotals ?? SessionStrengthTotals(sets: 0, reps: 0, volume: 0, hasStrength: false)
     }
+
+    public var priorWorkoutSessions: [SessionDetailModel] { priorWorkoutState.value ?? [] }
 
     public var priorStrengthByExercise: [String: [SessionPriorStrengthEntry]] {
         priorHistoryState.value?.strengthByExercise ?? [:]
@@ -153,10 +156,12 @@ public final class SessionDetailViewModel: ObservableObject {
                 if receivedValue {
                     state = .failed(message: "Session not found.", previous: nil)
                     priorHistoryState = .loaded(SessionPriorHistory())
+                    priorWorkoutState = .loaded([])
                 }
                 return
             }
             await loadPriorHistory(for: latestSession)
+            await loadPriorWorkoutSessions(for: latestSession)
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -263,6 +268,30 @@ public final class SessionDetailViewModel: ObservableObject {
             priorHistoryState = .failed(
                 message: GraphQLDomainError.map(error).localizedDescription,
                 previous: priorHistoryState.value ?? SessionPriorHistory()
+            )
+        }
+    }
+
+    private func loadPriorWorkoutSessions(for session: SessionDetailModel) async {
+        guard let workoutId = session.workout?.id, let startedAt = session.startedAtDate else {
+            priorWorkoutState = .loaded([])
+            return
+        }
+        priorWorkoutState = .loading(previous: priorWorkoutState.value)
+        do {
+            let sessions = try await repository.priorWorkoutSessions(
+                workoutId: workoutId,
+                before: startedAt,
+                excludeSessionId: session.id
+            )
+            priorWorkoutState = .loaded(sessions)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            priorWorkoutState = priorWorkoutState.cancellationFallback
+        } catch {
+            // Comparison history should not prevent editing this session.
+            priorWorkoutState = .failed(
+                message: GraphQLDomainError.map(error).localizedDescription,
+                previous: priorWorkoutState.value ?? []
             )
         }
     }

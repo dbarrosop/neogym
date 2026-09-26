@@ -72,6 +72,65 @@ final class NutritionDayRepositoryTests: XCTestCase {
         ])
     }
 
+    func testCalorieHistoryFetchesAllDatesUsingOnlyLoggedSnapshots() async throws {
+        let oldDay: JSONValue = .object([
+            "logDate": .string("2026-02-01"),
+            "nutritionLogEntries": .array([.object([
+                "grams": .string("200"), "snapshotKcalPer100g": .string("150")
+            ])]),
+            "nutritionLogMeals": .array([.object([
+                "nutritionLogEntries": .array([.object([
+                    "grams": .string("50"), "snapshotKcalPer100g": .string("200")
+                ])])
+            ])])
+        ])
+        let newerDay: JSONValue = .object([
+            "logDate": .string("2026-06-27"),
+            "nutritionLogEntries": .array([.object([
+                "grams": .number(100), "snapshotKcalPer100g": .number(250)
+            ])]),
+            "nutritionLogMeals": .array([])
+        ])
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "nutritionDays": .array([oldDay, newerDay]),
+            "dailyEnergyEntries": .array([
+                .object([
+                    "id": .string("old-energy"), "energyOn": .string("2026-02-01"),
+                    "activeKcal": .string("100"), "restingKcal": .string("200")
+                ]),
+                .object([
+                    "id": .string("new-energy"), "energyOn": .string("2026-06-27"),
+                    "activeKcal": .string("50"), "restingKcal": .string("150")
+                ])
+            ])
+        ]))])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        var emissions: [NutritionCalorieHistory] = []
+
+        for try await history in repository.nutritionCalorieHistoryUpdates() {
+            emissions.append(history)
+        }
+
+        let history = try XCTUnwrap(emissions.last)
+        XCTAssertEqual(history.consumedValues, [
+            DatedCalorieIntake(date: "2026-02-01", calories: 400),
+            DatedCalorieIntake(date: "2026-06-27", calories: 250)
+        ])
+        XCTAssertEqual(history.dailyNetValues, [
+            DatedCalorieNet(date: "2026-02-01", net: 100),
+            DatedCalorieNet(date: "2026-06-27", net: 50)
+        ])
+        XCTAssertEqual(history.rollingNetAverageValues(), history.dailyNetValues)
+        let requests = await fake.requestsSnapshot()
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.operationName, "NutritionCalorieHistory")
+        XCTAssertFalse(request.query.contains("limit: 14"))
+        XCTAssertTrue(request.query.contains("snapshotKcalPer100g"))
+        XCTAssertTrue(request.query.contains("nutritionLogMeals"))
+        XCTAssertTrue(request.query.contains("nutritionLogMealId: { _is_null: true }"))
+        XCTAssertFalse(request.query.contains("nutritionPlanMeals"))
+    }
+
     func testOpenDailyIntakeDecodesPlansMealsFoodsAndSelectedPlan() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "nutritionDays": .array([nutritionDayFixture]),

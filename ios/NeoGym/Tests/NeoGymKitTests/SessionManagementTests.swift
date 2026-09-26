@@ -295,6 +295,25 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.priorHistoryState.errorMessage)
     }
 
+    func testPreviousSessionsOnlyRequestedForLinkedWorkout() async throws {
+        let linked = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: linked)
+        repository.priorWorkoutSessionsResult = [linked]
+        let viewModel = SessionDetailViewModel(sessionId: linked.id, repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.priorWorkoutSessions.map(\.id), [linked.id])
+        XCTAssertEqual(repository.priorWorkoutRequests.first?.workoutId, linked.workout?.id)
+        XCTAssertEqual(repository.priorWorkoutRequests.first?.excludeSessionId, linked.id)
+
+        let adHoc = SessionDetailModel(id: "ad-hoc", startedAt: linked.startedAt)
+        let adHocRepository = StubSessionsRepository(detail: adHoc)
+        let adHocViewModel = SessionDetailViewModel(sessionId: adHoc.id, repository: adHocRepository)
+        await adHocViewModel.load()
+        XCTAssertTrue(adHocRepository.priorWorkoutRequests.isEmpty)
+    }
+
     func testDetailMutationsCallRepositoryAndReload() async throws {
         let detail = try decodedSessionDetailFixture()
         let repository = StubSessionsRepository(detail: detail)
@@ -685,6 +704,8 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var updatedStrengthSetIds: [String] = []
     var deletedStrengthSetIds: [String] = []
     var priorHistory = SessionPriorHistory()
+    var priorWorkoutSessionsResult: [SessionDetailModel] = []
+    var priorWorkoutRequests: [(workoutId: String, excludeSessionId: String)] = []
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
     var priorHistoryError: Error?
     var addedCardioEntryNumbers: [Int] = []
@@ -744,6 +765,13 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         if let priorHistoryError { throw priorHistoryError }
         return priorHistory
     }
+
+    func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel] {
+        priorWorkoutRequests.append((workoutId: workoutId, excludeSessionId: excludeSessionId))
+        return priorWorkoutSessionsResult
+    }
+
+    func strengthProgressEntries() async throws -> [WorkoutProgressEntry] { [] }
 
     func updateStartedAt(sessionId: String, startedAt: Date) async throws {
         updatedStartedAtSessionIds.append(sessionId)

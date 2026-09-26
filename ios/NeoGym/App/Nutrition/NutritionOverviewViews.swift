@@ -12,6 +12,7 @@ struct NutritionOverviewView: View {
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
+    @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
     @StateObject private var energySyncViewModel: DailyEnergyListViewModel
     @State private var isRefreshingOverview = false
     @State private var hasLoadedOverview = false
@@ -33,6 +34,7 @@ struct NutritionOverviewView: View {
         self.energyHealthImporter = energyHealthImporter
         self.currentUserId = currentUserId
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
+        _calorieViewModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
         _bodyViewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: bodyRepository,
             healthImporter: bodyHealthImporter
@@ -74,9 +76,9 @@ struct NutritionOverviewView: View {
                 id: "calories",
                 name: "Consumed",
                 color: .accentColor,
-                points: viewModel.days.compactMap { day in
-                    IntakeGrouping.localDateToDate(day.logDate).map { date in
-                        TimeSeriesChartDataPoint(id: day.id, date: date, value: day.loggedTotals.kcal)
+                points: (calorieViewModel.history?.consumedValues ?? []).compactMap { day in
+                    IntakeGrouping.localDateToDate(day.date).map { date in
+                        TimeSeriesChartDataPoint(id: day.date, date: date, value: day.calories)
                     }
                 },
                 valueFormatter: kcalValueText
@@ -87,7 +89,7 @@ struct NutritionOverviewView: View {
                 color: .orange,
                 axis: .right,
                 centersAxisOnZero: true,
-                points: viewModel.overview.dailyNetValues().compactMap { value in
+                points: (calorieViewModel.history?.dailyNetValues ?? []).compactMap { value in
                     IntakeGrouping.localDateToDate(value.date).map { date in
                         TimeSeriesChartDataPoint(id: "net-\(value.date)", date: date, value: value.net)
                     }
@@ -100,7 +102,7 @@ struct NutritionOverviewView: View {
                 color: .purple,
                 axis: .right,
                 centersAxisOnZero: true,
-                points: viewModel.overview.rollingNetAverageValues(days: 7).compactMap { value in
+                points: (calorieViewModel.history?.rollingNetAverageValues(days: 7) ?? []).compactMap { value in
                     IntakeGrouping.localDateToDate(value.date).map { date in
                         TimeSeriesChartDataPoint(id: "rolling-net-\(value.date)", date: date, value: value.net)
                     }
@@ -174,7 +176,10 @@ struct NutritionOverviewView: View {
         await initialOverviewLoad
         await bodyLoad
         await energyLoad
-        await viewModel.load()
+        async let finalOverviewLoad: Void = viewModel.load()
+        async let calorieLoad: Void = calorieViewModel.load()
+        await finalOverviewLoad
+        await calorieLoad
 
         if case .loaded = viewModel.state {
             hasLoadedOverview = true
@@ -287,15 +292,17 @@ struct NutritionOverviewView: View {
         SectionShell(
             title: "Calories consumed",
             subtitle: "Consumed, net, and 7-day avg net",
-            isLoading: isRefreshingOverview || viewModel.state.isLoading
+            isLoading: isRefreshingOverview || calorieViewModel.state.isLoading
         ) {
-            switch viewModel.state {
+            switch calorieViewModel.state {
             case .idle:
                 AppLoadingStateView(message: "Loading calories…")
-            case .loading where viewModel.state.value == nil:
+            case .loading where calorieViewModel.history == nil:
                 AppLoadingStateView(message: "Loading calories…")
             case let .failed(message, previous) where previous == nil:
-                AppErrorStateView(title: "Failed to load calories", message: message) { Task { await loadOverview() } }
+                AppErrorStateView(title: "Failed to load calories", message: message) {
+                    Task { await calorieViewModel.load() }
+                }
             case .loading, .loaded, .failed:
                 TimeSeriesTrendChartView(
                     series: caloriesSeries,

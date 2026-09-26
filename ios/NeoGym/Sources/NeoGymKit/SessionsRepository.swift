@@ -1,11 +1,44 @@
 import Foundation
 
+public struct WorkoutProgressExercise: Decodable, Identifiable, Sendable, Equatable {
+    public let id: String
+    public let name: String
+    public let strength: ExerciseStrengthSummary?
+
+    public init(id: String, name: String, strength: ExerciseStrengthSummary? = nil) {
+        self.id = id
+        self.name = name
+        self.strength = strength
+    }
+}
+
+public struct WorkoutProgressEntry: Decodable, Identifiable, Sendable, Equatable {
+    public let id: String
+    public let exercise: WorkoutProgressExercise
+    public let workoutSession: SessionPriorWorkoutSession
+    public let workoutSessionStrengthSets: [ExerciseStrengthSet]
+
+    public init(
+        id: String,
+        exercise: WorkoutProgressExercise,
+        workoutSession: SessionPriorWorkoutSession,
+        workoutSessionStrengthSets: [ExerciseStrengthSet]
+    ) {
+        self.id = id
+        self.exercise = exercise
+        self.workoutSession = workoutSession
+        self.workoutSessionStrengthSets = workoutSessionStrengthSets
+    }
+}
+
 public protocol SessionsRepositoryProtocol: Sendable {
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem]
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error>
     func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error>
     func sessionDetail(id: String) async throws -> SessionDetailModel?
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
+    func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel]
+    func strengthProgressEntries() async throws -> [WorkoutProgressEntry]
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -100,6 +133,27 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "PriorSessionsPerExercise"
         )
         return SessionPriorHistory(exercises: data.exercises)
+    }
+
+    public func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel] {
+        let data: PriorWorkoutSessionsData = try await graphQL.execute(
+            query: Self.priorWorkoutSessionsQuery,
+            variables: [
+                "workoutId": GraphQLScalars.uuid(workoutId),
+                "before": GraphQLScalars.timestamptz(before),
+                "excludeSessionId": GraphQLScalars.uuid(excludeSessionId)
+            ],
+            operationName: "PriorWorkoutSessions"
+        )
+        return data.workoutSessions
+    }
+
+    public func strengthProgressEntries() async throws -> [WorkoutProgressEntry] {
+        let data: WorkoutStrengthProgressData = try await graphQL.execute(
+            query: Self.workoutStrengthProgressQuery,
+            operationName: "WorkoutStrengthProgress"
+        )
+        return data.workoutSessionExercises
     }
 
     public func updateStartedAt(sessionId: String, startedAt: Date) async throws {
@@ -237,6 +291,14 @@ private struct PriorSessionsData: Decodable, Sendable {
     let exercises: [SessionPriorExerciseHistory]
 }
 
+private struct PriorWorkoutSessionsData: Decodable, Sendable {
+    let workoutSessions: [SessionDetailModel]
+}
+
+private struct WorkoutStrengthProgressData: Decodable, Sendable {
+    let workoutSessionExercises: [WorkoutProgressEntry]
+}
+
 private struct UpdateSessionData: Decodable, Sendable {
     let updateWorkoutSession: MutationIdPayload?
 }
@@ -367,6 +429,40 @@ public extension SessionsRepository {
             metrics
           }
         }
+      }
+    }
+    """
+
+    static let priorWorkoutSessionsQuery = """
+    query PriorWorkoutSessions($workoutId: uuid!, $before: timestamptz!, $excludeSessionId: uuid!) {
+      workoutSessions(
+        where: { workoutId: { _eq: $workoutId }, id: { _neq: $excludeSessionId }, startedAt: { _lte: $before } }
+        order_by: [{ startedAt: desc }, { id: desc }]
+        limit: 3
+      ) {
+        id
+        startedAt
+        workoutSessionExercises {
+          id
+          position
+          exercise { id name kind primaryMuscleGroup strength { doubleWeight } }
+          workoutSessionStrengthSets { id setNumber reps weight }
+          workoutSessionCardioEntries { id entryNumber metrics }
+        }
+      }
+    }
+    """
+
+    static let workoutStrengthProgressQuery = """
+    query WorkoutStrengthProgress {
+      workoutSessionExercises(
+        where: { kind: { _eq: "strength" }, workoutSessionStrengthSets: {} }
+        order_by: { workoutSession: { startedAt: asc } }
+      ) {
+        id
+        exercise { id name strength { doubleWeight } }
+        workoutSession { id startedAt }
+        workoutSessionStrengthSets { id setNumber reps weight }
       }
     }
     """

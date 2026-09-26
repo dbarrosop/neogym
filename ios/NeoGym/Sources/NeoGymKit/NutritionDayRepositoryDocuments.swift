@@ -110,6 +110,31 @@ public extension NutritionFoodMealRepository {
     }
     """
 
+    // All logged dates, but only the snapshot fields needed for the chart; the 14-day dashboard query stays small.
+    static let nutritionCalorieHistoryQuery = """
+    query NutritionCalorieHistory {
+      nutritionDays(order_by: { logDate: asc }) {
+        logDate
+        nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
+          grams
+          snapshotKcalPer100g
+        }
+        nutritionLogMeals {
+          nutritionLogEntries {
+            grams
+            snapshotKcalPer100g
+          }
+        }
+      }
+      dailyEnergyEntries(order_by: { energyOn: asc }) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+      }
+    }
+    """
+
     static let dailyIntakeLogQuery = """
     query DailyIntakeLog($date: date!) {
       nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {

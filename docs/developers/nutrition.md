@@ -59,8 +59,12 @@ syncs used by the Body and Energy subsections, then shows Energy balance, the
 Calories consumed chart, and Body composition trends, with no intro/action copy
 or recent daily-log list. Energy balance summarizes today with logged kcal,
 active+resting energy, and net, and the calories chart overlays consumed kcal,
-daily net (`consumed - energy`), and 7-day average net. The 7-day rolling net
-average is computed from calendar days in the window that have both a nutrition
+daily net (`consumed - energy`), and 7-day average net. The dashboard/day-list
+query remains limited to 14 recent rows with full plan and meal details; the chart
+uses a separate, uncapped user-scoped history query selecting only logged snapshot
+kcal/grams (standalone and grouped entries) and daily energy, so 90-day, 180-day,
+and custom chart periods can display every logged date without loading full plans.
+The 7-day rolling net average is computed from calendar days in the window that have both a nutrition
 log day and a `daily_energy` row, so
 missing energy/intake data is not silently treated as a zero-output day. The
 body composition chart overlays weight, body-fat percentage, and independent
