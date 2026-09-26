@@ -71,7 +71,6 @@ public final class HealthKitWorkoutImporter: HealthWorkoutImporting, @unchecked 
         var value: [String: JSONValue] = [
             "uuid": .string(workout.uuid.uuidString.lowercased()),
             "workoutActivityType": .integer(Int64(workout.workoutActivityType.rawValue)),
-            "workoutActivityTypeDescription": .string(String(describing: workout.workoutActivityType)),
             "startDate": date(workout.startDate),
             "endDate": date(workout.endDate),
             "durationSeconds": number(workout.duration),
