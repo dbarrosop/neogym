@@ -72,7 +72,7 @@ public struct NutritionCalorieHistory: Sendable, Equatable {
         self.days = days
         self.dailyEnergyEntries = dailyEnergyEntries
 
-        // Prepare the uncapped chart once for each cached/fresh history emission, not on every SwiftUI render.
+        // Prepare the requested chart range once per cached/fresh emission, not on every SwiftUI render.
         let energyByDate = Dictionary(uniqueKeysWithValues: dailyEnergyEntries.map { ($0.energyOn, $0) })
         let datedDays = days.compactMap { day -> CalorieHistoryDatedDay? in
             guard let date = IntakeGrouping.localDateToDate(day.logDate, calendar: calendar) else { return nil }
@@ -165,7 +165,7 @@ public protocol NutritionFoodMealRepositoryProtocol: Sendable {
     func nutritionOverview() async throws -> NutritionOverviewPayload
     func nutritionOverviewEmissions() -> AsyncThrowingStream<GraphQLQueryEmission<NutritionOverviewPayload>, Error>
     func nutritionOverviewUpdates() -> AsyncThrowingStream<NutritionOverviewPayload, Error>
-    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error>
+    func nutritionCalorieHistoryUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<NutritionCalorieHistory, Error>
     func openDailyIntake(date: String) async throws -> DailyIntakePayload
     func createNutritionDay(date: String, nutritionPlanId: String?) async throws -> String
     func updateNutritionDayPlan(dayId: String, nutritionPlanId: String?) async throws
@@ -213,11 +213,11 @@ public extension NutritionFoodMealRepositoryProtocol {
         singleValueUpdates { .fresh(try await nutritionOverview()) }
     }
 
-    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
+    func nutritionCalorieHistoryUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
         singleValueUpdates {
             let overview = try await nutritionOverview()
             return NutritionCalorieHistory(
-                days: overview.days.map { day in
+                days: overview.days.filter { $0.logDate >= range.from && $0.logDate <= range.through }.map { day in
                     NutritionCalorieHistoryDay(
                         logDate: day.logDate,
                         nutritionLogEntries: day.nutritionLogEntries.map {
@@ -230,7 +230,9 @@ public extension NutritionFoodMealRepositoryProtocol {
                         }
                     )
                 },
-                dailyEnergyEntries: overview.dailyEnergyEntries
+                dailyEnergyEntries: overview.dailyEnergyEntries.filter {
+                    $0.energyOn >= range.from && $0.energyOn <= range.through
+                }
             )
         }
     }
@@ -545,10 +547,11 @@ public extension NutritionFoodMealRepository {
         )
     }
 
-    func nutritionCalorieHistoryUpdates() -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
+    func nutritionCalorieHistoryUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<NutritionCalorieHistory, Error> {
         graphQL.cachedValues(
             NutritionCalorieHistoryData.self,
             query: Self.nutritionCalorieHistoryQuery,
+            variables: ["from": GraphQLScalars.date(range.from), "through": GraphQLScalars.date(range.through)],
             operationName: "NutritionCalorieHistory",
             namespace: "nutrition-calorie-history",
             tags: ["nutrition-days", "daily-energy"],

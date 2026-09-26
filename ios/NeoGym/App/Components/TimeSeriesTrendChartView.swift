@@ -2,6 +2,7 @@ import SwiftUI
 
 enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
     case last7Days
+    case last14Days
     case last30Days
     case last8Weeks
     case last90Days
@@ -13,6 +14,7 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .last7Days: "Last 7d"
+        case .last14Days: "Last 14d"
         case .last30Days: "Last 30d"
         case .last8Weeks: "Last 8 weeks"
         case .last90Days: "Last 90d"
@@ -24,6 +26,7 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
     var days: Int? {
         switch self {
         case .last7Days: 7
+        case .last14Days: 14
         case .last30Days: 30
         case .last8Weeks: nil
         case .last90Days: 90
@@ -40,6 +43,7 @@ struct TimeSeriesTrendChartView: View {
     var emptyMessage = "No data in this range."
     var accessibilityLabel = "Time series chart"
     var accessibilityValue: String?
+    var onVisibleRangeChange: ((Date, Date) -> Void)?
 
     @State private var period: TimeSeriesChartPeriod
     @State private var customStart: Date
@@ -54,7 +58,8 @@ struct TimeSeriesTrendChartView: View {
         accessibilityValue: String? = nil,
         initialPeriod: TimeSeriesChartPeriod = .last90Days,
         now: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        onVisibleRangeChange: ((Date, Date) -> Void)? = nil
     ) {
         self.series = series
         self.maxRenderedPoints = maxRenderedPoints
@@ -62,6 +67,7 @@ struct TimeSeriesTrendChartView: View {
         self.emptyMessage = emptyMessage
         self.accessibilityLabel = accessibilityLabel
         self.accessibilityValue = accessibilityValue
+        self.onVisibleRangeChange = onVisibleRangeChange
         _period = State(initialValue: initialPeriod)
         _customStart = State(initialValue: calendar.date(byAdding: .day, value: -30, to: now) ?? now)
         _customEnd = State(initialValue: now)
@@ -99,6 +105,17 @@ struct TimeSeriesTrendChartView: View {
             )
             .frame(height: 240)
         }
+        .onAppear(perform: notifyVisibleRangeChange)
+        .onChange(of: period) { _, _ in notifyVisibleRangeChange() }
+        .onChange(of: customStart) { _, _ in notifyVisibleRangeChange() }
+        .onChange(of: customEnd) { _, _ in notifyVisibleRangeChange() }
+        // Refresh preset ranges if the Overview remains mounted across a local midnight.
+        .onChange(of: Calendar.current.startOfDay(for: Date())) { _, _ in notifyVisibleRangeChange() }
+    }
+
+    private func notifyVisibleRangeChange() {
+        guard let dateRange else { return }
+        onVisibleRangeChange?(dateRange.start, dateRange.endExclusive)
     }
 
     private var periodControls: some View {
@@ -137,7 +154,7 @@ struct TimeSeriesTrendChartView: View {
         }
         if let days = period.days {
             let end = calendar.startOfDay(for: Date())
-            let endExclusive = calendar.date(byAdding: .day, value: 1, to: end) ?? Date()
+            let endExclusive = calendar.dateInterval(of: .day, for: end)?.end ?? Date()
             let start = calendar.date(byAdding: .day, value: -days + 1, to: end) ?? end
             return (start, endExclusive)
         }
@@ -146,7 +163,7 @@ struct TimeSeriesTrendChartView: View {
         let endDay = calendar.startOfDay(for: customEnd)
         let start = min(startDay, endDay)
         let inclusiveEnd = max(startDay, endDay)
-        let endExclusive = calendar.date(byAdding: .day, value: 1, to: inclusiveEnd) ?? inclusiveEnd
+        let endExclusive = calendar.dateInterval(of: .day, for: inclusiveEnd)?.end ?? inclusiveEnd
         return (start, endExclusive)
     }
 }

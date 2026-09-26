@@ -199,8 +199,13 @@ intact instead of inventing one-off styles.
   under the Nutrition hub. The Overview screen (a pushed route) is a dashboard:
   it auto-syncs Body measurements and Energy from HealthKit on load and
   pull-to-refresh, then shows Energy balance, the Calories consumed chart, and
-  Body composition trends; it no longer shows the old intro copy or recent
-  daily-log list. There
+  Body composition trends; both charts initially request the last 14 local
+  days plus six warm-up days for rolling averages and fetch wider/custom date
+  ranges only when selected. The calorie chart queries logged snapshots and
+  daily energy separately from the detailed overview; the Body chart uses a
+  date-bounded measurements query. HealthKit reconciliation still checks
+  historical measurements independently. It no longer shows the old intro
+  copy or recent daily-log list. There
   is no more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
   `selectedDate` binding. Post-create,
   the create view pops itself via

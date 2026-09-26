@@ -110,10 +110,10 @@ public extension NutritionFoodMealRepository {
     }
     """
 
-    // All logged dates, but only the snapshot fields needed for the chart; the 14-day dashboard query stays small.
+    // Range-bound snapshots, with six warm-up days for rolling chart averages.
     static let nutritionCalorieHistoryQuery = """
-    query NutritionCalorieHistory {
-      nutritionDays(order_by: { logDate: asc }) {
+    query NutritionCalorieHistory($from: date!, $through: date!) {
+      nutritionDays(where: { logDate: { _gte: $from, _lte: $through } }, order_by: { logDate: asc }) {
         logDate
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
           grams
@@ -126,7 +126,7 @@ public extension NutritionFoodMealRepository {
           }
         }
       }
-      dailyEnergyEntries(order_by: { energyOn: asc }) {
+      dailyEnergyEntries(where: { energyOn: { _gte: $from, _lte: $through } }, order_by: { energyOn: asc }) {
         id
         energyOn
         activeKcal

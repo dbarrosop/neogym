@@ -180,11 +180,16 @@ list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
 trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
 Energy from HealthKit on load and pull-to-refresh before the final backend
-overview fetch, then shows Energy balance, the Calories consumed chart, and Body
-composition trends from the post-sync backend data; the Calories consumed
-chart uses a separate uncapped snapshot-kcal/grams + daily-energy history query
-(rather than the 14-day detailed overview/day-list query), so longer chart periods
-show all logged dates without loading historical plans. Body and Energy sync both
+overview fetch. Cached chart data can render during sync, then both charts
+refresh from post-sync backend data; the dashboard shows Energy balance,
+Calories consumed, and Body composition trends. Both charts default to the
+last 14 local days and query only their selected period plus six warm-up days
+for rolling averages. The Calories consumed chart uses a separate date-bounded
+snapshot-kcal/grams + daily-energy query (not the detailed overview/day-list
+query), and Body composition uses a date-bounded measurements query; changing
+a chart period or custom dates loads that range on demand. Body and Energy
+HealthKit reconciliation still inspect historical data independently of chart
+ranges. Body and Energy sync both
 create missing dates and refresh recent rows that still carry the exact
 "Imported from Apple Health" note. It does not show the old intro copy or recent
 daily-log list. `NutritionDaysView` no longer takes a

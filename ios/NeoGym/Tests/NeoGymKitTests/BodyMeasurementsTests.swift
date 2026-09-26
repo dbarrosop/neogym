@@ -22,6 +22,29 @@ final class BodyMeasurementsRepositoryTests: XCTestCase {
         XCTAssertTrue(requests.first?.query.contains("order_by: { measuredOn: desc }") ?? false)
     }
 
+    func testChartQueryIsDateBoundedAndUsesBodyCache() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "bodyMeasurements": .array([bodyMeasurementFixture])
+        ]))])
+        let repository = BodyMeasurementsRepository(graphQL: fake)
+        let range = ChartHistoryRange(from: "2026-06-01", through: "2026-06-27")
+        var emissions: [[BodyMeasurement]] = []
+
+        for try await measurements in repository.measurementChartUpdates(range: range) {
+            emissions.append(measurements)
+        }
+
+        XCTAssertEqual(emissions.last?.map(\.measuredOn), ["2026-06-25"])
+        let cachedRequests = await fake.cachedRequestsSnapshot()
+        let cached = try XCTUnwrap(cachedRequests.first)
+        XCTAssertEqual(cached.namespace, "body-measurements")
+        XCTAssertEqual(cached.tags, ["body-measurements"])
+        XCTAssertEqual(cached.request.operationName, "BodyMeasurementChart")
+        XCTAssertEqual(cached.request.variables, ["from": .string("2026-06-01"), "through": .string("2026-06-27")])
+        XCTAssertTrue(cached.request.query.contains("measuredOn: { _gte: $from, _lte: $through }"))
+        XCTAssertFalse(cached.request.query.contains("notes"))
+    }
+
     func testDecodesBodyMeasurementDetailWithUpdatedAt() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "bodyMeasurement": bodyMeasurementFixtureWithUpdatedAt
@@ -97,6 +120,23 @@ final class BodyMeasurementsRepositoryTests: XCTestCase {
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "DeleteBodyMeasurement")
         XCTAssertEqual(request.variables, ["id": .string("measurement-1")])
+    }
+}
+
+@MainActor
+final class BodyMeasurementsChartViewModelTests: XCTestCase {
+    func testChartRetainsPreviousRangeAfterFailure() async {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object(["bodyMeasurements": .array([bodyMeasurementFixture])])),
+            .failure(GraphQLDomainError.transport("offline"))
+        ])
+        let viewModel = BodyMeasurementsChartViewModel(repository: BodyMeasurementsRepository(graphQL: fake))
+        await viewModel.load(range: ChartHistoryRange(from: "2026-06-01", through: "2026-06-27"))
+        XCTAssertEqual(viewModel.trendData.points.map(\.measuredOn), ["2026-06-25"])
+
+        await viewModel.load(range: ChartHistoryRange(from: "2026-01-01", through: "2026-06-27"))
+        XCTAssertEqual(viewModel.trendData.points.map(\.measuredOn), ["2026-06-25"])
+        XCTAssertNotNil(viewModel.state.errorMessage)
     }
 }
 

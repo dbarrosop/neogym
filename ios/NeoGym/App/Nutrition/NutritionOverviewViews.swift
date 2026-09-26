@@ -12,11 +12,15 @@ struct NutritionOverviewView: View {
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
+    @StateObject private var bodyChartViewModel: BodyMeasurementsChartViewModel
     @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
     @StateObject private var energySyncViewModel: DailyEnergyListViewModel
     @State private var isRefreshingOverview = false
     @State private var hasLoadedOverview = false
+    @State private var hasRequestedCharts = false
     @State private var caloriesSeries: [TimeSeriesChartSeries] = []
+    @State private var calorieRange = ChartHistoryRange.recentDays(14)
+    @State private var bodyRange = ChartHistoryRange.recentDays(14)
     @Environment(\.locale) private var locale
     @Environment(\.scenePhase) private var scenePhase
 
@@ -40,6 +44,7 @@ struct NutritionOverviewView: View {
             repository: bodyRepository,
             healthImporter: bodyHealthImporter
         ))
+        _bodyChartViewModel = StateObject(wrappedValue: BodyMeasurementsChartViewModel(repository: bodyRepository))
         _energySyncViewModel = StateObject(wrappedValue: DailyEnergyListViewModel(
             repository: energyRepository,
             healthImporter: energyHealthImporter
@@ -69,6 +74,12 @@ struct NutritionOverviewView: View {
             Task { await loadOverview() }
         }
         .refreshable { await loadOverview() }
+        .task(id: calorieRange) {
+            if hasRequestedCharts { await calorieViewModel.load(range: calorieRange) }
+        }
+        .task(id: bodyRange) {
+            if hasRequestedCharts { await bodyChartViewModel.load(range: bodyRange) }
+        }
         .onReceive(calorieViewModel.$state) { state in
             // Loading and failed states keep the last chart, including offline cached emissions.
             if case let .loaded(history) = state {
@@ -114,7 +125,7 @@ struct NutritionOverviewView: View {
     }
 
     private var bodySeries: [TimeSeriesChartSeries] {
-        let trendData = bodyViewModel.trendData
+        let trendData = bodyChartViewModel.trendData
         let rollingAverages = trendData.rollingAverageValues(days: 7)
         return [
             TimeSeriesChartSeries(
@@ -172,15 +183,22 @@ struct NutritionOverviewView: View {
         defer { isRefreshingOverview = false }
 
         async let initialOverviewLoad: Void = viewModel.load()
-        async let bodyLoad: Void = bodyViewModel.load(shouldSyncHealthMeasurements: true)
+        async let initialCalorieLoad: Void = calorieViewModel.load(range: calorieRange)
+        async let initialBodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
+        async let bodySync: Void = bodyViewModel.syncHealthMeasurementsOnly()
         async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
         await initialOverviewLoad
-        await bodyLoad
+        await initialCalorieLoad
+        await initialBodyChartLoad
+        await bodySync
         await energyLoad
         async let finalOverviewLoad: Void = viewModel.load()
-        async let calorieLoad: Void = calorieViewModel.load()
+        async let calorieLoad: Void = calorieViewModel.load(range: calorieRange)
+        async let bodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
         await finalOverviewLoad
         await calorieLoad
+        await bodyChartLoad
+        hasRequestedCharts = true
 
         if case .loaded = viewModel.state {
             hasLoadedOverview = true
@@ -302,16 +320,25 @@ struct NutritionOverviewView: View {
                 AppLoadingStateView(message: "Loading calories…")
             case let .failed(message, previous) where previous == nil:
                 AppErrorStateView(title: "Failed to load calories", message: message) {
-                    Task { await calorieViewModel.load() }
+                    Task { await calorieViewModel.load(range: calorieRange) }
                 }
             case .loading, .loaded, .failed:
-                TimeSeriesTrendChartView(
-                    series: caloriesSeries,
-                    maxRenderedPoints: 48,
-                    emptyMessage: "No calorie or net data in this range.",
-                    accessibilityLabel: "Calories consumed, net, and rolling average net per day",
-                    initialPeriod: .last30Days
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    TimeSeriesTrendChartView(
+                        series: caloriesSeries,
+                        maxRenderedPoints: 48,
+                        emptyMessage: "No calorie or net data in this range.",
+                        accessibilityLabel: "Calories consumed, net, and rolling average net per day",
+                        initialPeriod: .last14Days,
+                        onVisibleRangeChange: { start, end in
+                            let range = ChartHistoryRange(visibleStart: start, endExclusive: end)
+                            if range != calorieRange { calorieRange = range }
+                        }
+                    )
+                    if case let .failed(message, _) = calorieViewModel.state {
+                        FeedbackBanner(message: "Could not load selected period: \(message)")
+                    }
+                }
             }
         }
     }
@@ -321,25 +348,34 @@ struct NutritionOverviewView: View {
         SectionShell(
             title: "Body composition",
             subtitle: "Weight, body fat, and 7-day averages",
-            isLoading: isRefreshingOverview || bodyViewModel.state.isLoading
+            isLoading: isRefreshingOverview || bodyChartViewModel.state.isLoading
         ) {
-            switch bodyViewModel.state {
+            switch bodyChartViewModel.state {
             case .idle:
                 AppLoadingStateView(message: "Loading body measurements…")
-            case .loading where bodyViewModel.state.value == nil:
+            case .loading where bodyChartViewModel.state.value == nil:
                 AppLoadingStateView(message: "Loading body measurements…")
             case let .failed(message, previous) where previous == nil:
                 AppErrorStateView(title: "Failed to load body measurements", message: message) {
-                    Task { await loadOverview() }
+                    Task { await bodyChartViewModel.load(range: bodyRange) }
                 }
             case .loading, .loaded, .failed:
-                TimeSeriesTrendChartView(
-                    series: bodySeries,
-                    maxRenderedPoints: 48,
-                    emptyMessage: "No body measurements in this range.",
-                    accessibilityLabel: "Weight, body fat, and rolling average trend chart",
-                    initialPeriod: .last30Days
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    TimeSeriesTrendChartView(
+                        series: bodySeries,
+                        maxRenderedPoints: 48,
+                        emptyMessage: "No body measurements in this range.",
+                        accessibilityLabel: "Weight, body fat, and rolling average trend chart",
+                        initialPeriod: .last14Days,
+                        onVisibleRangeChange: { start, end in
+                            let range = ChartHistoryRange(visibleStart: start, endExclusive: end)
+                            if range != bodyRange { bodyRange = range }
+                        }
+                    )
+                    if case let .failed(message, _) = bodyChartViewModel.state {
+                        FeedbackBanner(message: "Could not load selected period: \(message)")
+                    }
+                }
             }
         }
     }

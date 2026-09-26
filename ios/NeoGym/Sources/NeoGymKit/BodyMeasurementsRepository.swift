@@ -3,6 +3,7 @@ import Foundation
 public protocol BodyMeasurementsRepositoryProtocol: Sendable {
     func listMeasurements() async throws -> [BodyMeasurement]
     func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error>
+    func measurementChartUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<[BodyMeasurement], Error>
     func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error>
     func measurement(id: String) async throws -> BodyMeasurement?
     func editMeasurement(id: String) async throws -> BodyMeasurement?
@@ -14,6 +15,12 @@ public protocol BodyMeasurementsRepositoryProtocol: Sendable {
 public extension BodyMeasurementsRepositoryProtocol {
     func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error> {
         singleValueUpdates { try await listMeasurements() }
+    }
+
+    func measurementChartUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<[BodyMeasurement], Error> {
+        singleValueUpdates {
+            try await listMeasurements().filter { $0.measuredOn >= range.from && $0.measuredOn <= range.through }
+        }
     }
 
     func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error> {
@@ -41,6 +48,18 @@ public struct BodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
             BodyMeasurementsData.self,
             query: Self.bodyMeasurementsQuery,
             operationName: "BodyMeasurements",
+            namespace: "body-measurements",
+            tags: ["body-measurements"],
+            transform: \BodyMeasurementsData.bodyMeasurements
+        )
+    }
+
+    public func measurementChartUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<[BodyMeasurement], Error> {
+        graphQL.cachedValues(
+            BodyMeasurementsData.self,
+            query: Self.bodyMeasurementChartQuery,
+            variables: ["from": GraphQLScalars.date(range.from), "through": GraphQLScalars.date(range.through)],
+            operationName: "BodyMeasurementChart",
             namespace: "body-measurements",
             tags: ["body-measurements"],
             transform: \BodyMeasurementsData.bodyMeasurements
@@ -155,6 +174,20 @@ public extension BodyMeasurementsRepository {
         weightKg
         bodyFatPct
         notes
+      }
+    }
+    """
+
+    static let bodyMeasurementChartQuery = """
+    query BodyMeasurementChart($from: date!, $through: date!) {
+      bodyMeasurements(
+        where: { measuredOn: { _gte: $from, _lte: $through } }
+        order_by: { measuredOn: desc }
+      ) {
+        id
+        measuredOn
+        weightKg
+        bodyFatPct
       }
     }
     """
