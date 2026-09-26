@@ -132,10 +132,11 @@ is no private credential, mirroring, reconciliation, or token copy. App shared
 configuration failure is a fatal provisioning error for this POC; widget
 configuration, lock-timeout, cancellation, Auth, and network failures render the
 token-free cached/empty fallback and never write a failed live result. The
-widget never runs HealthKit import. WidgetKit timeline reloads and the iOS 17+
+widget never runs HealthKit import. WidgetKit timeline reloads and the
 in-widget Refresh button are best-effort triggers for the live-fetch provider
-path, not guaranteed freshness or cadence; keep all AppIntent/Button code
-availability-gated where used; the widget extension now targets iOS 27.
+path, not guaranteed freshness or cadence. At the widget extension's iOS 27
+floor, AppIntent/`Button(intent:)`/`containerBackground` need no older-OS
+availability gates; existing guards are vestigial, not a pattern for new code.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,

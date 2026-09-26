@@ -107,10 +107,11 @@ changes.
   lock-timeout, cancellation, Auth, and network failures must render the cached
   or empty token-free fallback and write no live snapshot. The widget does not
   run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
-  policies and the iOS 17+ in-widget Refresh button are best-effort triggers that
+  policies and the in-widget Refresh button are best-effort triggers that
   reload timelines and therefore run the live-fetch provider path when the
-  system grants runtime. Keep AppIntent/Button code availability-gated so the
-  widget extension remains buildable at its iOS 27 deployment floor, use immutable
+  system grants runtime. At the widget extension's iOS 27 deployment floor,
+  AppIntent/`Button(intent:)`/`containerBackground` need no older-OS availability
+  gates; existing guards are vestigial, not a pattern for new code. Use immutable
   `static let` metadata on AppIntent types so Swift 6 concurrency checks accept
   them as shared state, and do not describe widget refresh as guaranteed server
   freshness or an exact cadence.
