@@ -14,9 +14,9 @@ SwiftUI under `App/` owns layout, navigation, and presentation.
 
 Run these from `ios/NeoGym/`:
 
-The `NeoGym` app target is iOS 26-only. Keep `NeoGymWidgets` and the
-host-testable `NeoGymKit` package at their lower deployment floors unless their
-own code needs newer APIs.
+The `NeoGym` app and `NeoGymWidgets` extension target iPhone/iOS 27 only; Mac
+and Apple Vision compatibility are disabled. Keep the host-testable `NeoGymKit`
+package at its lower deployment floor unless its own code needs newer APIs.
 
 - `swift build` — build the host-compatible `NeoGymKit` package. Keep
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
@@ -43,9 +43,15 @@ reintroduces linker variables.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
-letterboxed on current devices. Keep `NSHealthShareUsageDescription` in both
-`App/Info.plist` and `project.yml` in sync; it must mention the read-only
-imports for weight, body-fat percentage, active energy, and resting energy.
+letterboxed on current devices. Keep both `NSHealthShareUsageDescription` and
+`NSHealthUpdateUsageDescription` in `App/Info.plist` and `project.yml` in sync;
+Apple requires both during upload even though the Health import requests only
+read access. The update string must not claim NeoGym writes to Health. Keep
+`CFBundleDisplayName` on the widget extension Info.plist; App Store Connect
+requires it for archive validation. The app's
+`ITSAppUsesNonExemptEncryption: false` in `project.yml` is an export-compliance
+declaration; verify it remains accurate before shipping changes to cryptography
+or dependencies.
 
 The package depends on the local Nhost Swift SDK at
 `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
@@ -80,7 +86,7 @@ changes.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
   Energy Balance widget. Energy Balance math, captions, the dependency-free
   token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
-  host-testable `NeoGymKit` and use the `group.io.nhost.neogym` App Group. The app
+  host-testable `NeoGymKit` and use the `group.io.nhost.dbarroso.neogym` App Group. The app
   writes snapshots only after a fresh backend Nutrition Overview emission (not
   an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
@@ -90,7 +96,7 @@ changes.
   app and widget both use the SDK's one coordinated Keychain item: service
   `io.nhost.swift.session`, account `default.nhostSession`, access group
   `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
-  `group.io.nhost.neogym`. The SDK derives the lock-file identity automatically
+  `group.io.nhost.dbarroso.neogym`. The SDK derives the lock-file identity automatically
   from the canonical Keychain item identity instead of accepting a caller-owned
   namespace. The app acquisition budget is 5 seconds; the widget budget is 500
   ms. Keep only `NeoGymSharedKeychainAccessGroup` in both
@@ -101,10 +107,11 @@ changes.
   lock-timeout, cancellation, Auth, and network failures must render the cached
   or empty token-free fallback and write no live snapshot. The widget does not
   run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
-  policies and the iOS 17+ in-widget Refresh button are best-effort triggers that
+  policies and the in-widget Refresh button are best-effort triggers that
   reload timelines and therefore run the live-fetch provider path when the
-  system grants runtime. Keep AppIntent/Button code availability-gated so the
-  widget extension's iOS 16.2 deployment floor remains buildable, use immutable
+  system grants runtime. At the widget extension's iOS 27 deployment floor,
+  AppIntent/`Button(intent:)`/`containerBackground` need no older-OS availability
+  gates; existing guards are vestigial, not a pattern for new code. Use immutable
   `static let` metadata on AppIntent types so Swift 6 concurrency checks accept
   them as shared state, and do not describe widget refresh as guaranteed server
   freshness or an exact cadence.

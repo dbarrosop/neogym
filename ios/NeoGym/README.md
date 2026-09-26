@@ -30,9 +30,10 @@ run on the macOS host. SwiftUI views belong in `App/`.
 
 ## Prerequisites
 
-- macOS with Xcode installed for simulator builds.
-- Nix devshell from the repository root. On Darwin, the shell includes XcodeGen
-  when the pinned Nixpkgs exposes `pkgs.xcodegen`.
+- macOS with Xcode installed for simulator builds. The app and widget both
+  target iPhone/iOS 27; iPad, Mac and Apple Vision destinations are disabled.
+- Nix devshell from the repository root. On Darwin it includes XcodeGen when
+  the pinned Nixpkgs exposes `pkgs.xcodegen`.
 - Local Nhost Swift SDK checkout at
   `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to this
   directory (normally
@@ -41,8 +42,10 @@ run on the macOS host. SwiftUI views belong in `App/`.
 
 If XcodeGen is not available from Nix on a Darwin host, install it with Homebrew
 (`brew install xcodegen`) and run the same `xcodegen generate` command below. Do
-not commit the generated `.xcodeproj`; `project.yml` is the source of truth. App
-Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
+not commit the generated `.xcodeproj`; `project.yml` is the source of truth.
+If Xcode offers to update recommended build settings on opening the generated
+project, choose **Cancel** and make intended changes in `project.yml` instead.
+App Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
 full-screen launch screen keys, are declared under the target `info.properties`
 in `project.yml`; rerun XcodeGen after changing them. The same spec also keeps
 the shared scheme's default debug diagnostics disabled: XcodeGen writes the
@@ -80,6 +83,64 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
+## Upload to TestFlight manually with Xcode
+
+This app uses the existing App Store Connect app `io.nhost.dbarroso.neogym`,
+widget bundle ID `io.nhost.dbarroso.neogym.widgets`, and App Group
+`group.io.nhost.dbarroso.neogym`. Both targets support only iPhone/iOS 27; Mac,
+iPad, and Apple Vision destinations are disabled. The app and widget still
+connect to the **production Nhost backend** when installed through TestFlight.
+No App Store Connect API key or production App Store release is needed.
+
+1. In `project.yml`, keep `MARKETING_VERSION: "1.0"` and choose a
+   `CURRENT_PROJECT_VERSION` **higher** than the latest TestFlight build for
+   1.0. If the latest is build 5, the current value `"6"` is ready; use 7 for
+   the next upload. These build settings feed **both** the app and widget Info
+   plists. Do not change version numbers only in Xcode or the generated plists:
+   XcodeGen overwrites them.
+2. From `ios/NeoGym/`, regenerate and open the project:
+
+   ```sh
+   nix develop ../.. --command xcodegen generate
+   open NeoGym.xcodeproj
+   ```
+
+   If Xcode offers to modernize/recommend project settings, choose **Cancel**.
+   `project.yml` is the source of truth; the generated `.xcodeproj` is ignored.
+3. In Xcode, choose your Apple Developer team under **Signing & Capabilities**
+   for **both** `NeoGym` and `NeoGymWidgets`, with automatic signing enabled.
+   Confirm HealthKit, the App Group above, and the shared Keychain access group
+   match your existing signed app and provisioning profiles. The shared
+   Keychain access group is currently
+   `$(AppIdentifierPrefix)io.nhost.neogym.shared` in both targets: unlike the
+   App Group, it was **not** changed to match the bundle ID. If your existing
+   signed app uses a different Keychain group, align both targets and the SDK
+   configuration before archiving; switching groups can sign users out and
+   break widget session sharing.
+4. Select the **NeoGym** scheme and an **Any iOS Device** destination (not a
+   simulator). Choose **Product → Archive**. In Organizer, select that archive,
+   then **Distribute App → TestFlight & App Store → Upload** (wording may vary by
+   Xcode version). Review signing and complete the upload.
+5. In App Store Connect → **TestFlight**, wait for processing, complete any
+   required compliance/test information, and assign the build to your tester
+   group if it is not assigned automatically. External testers may require
+   TestFlight Beta App Review. Do not submit the app version for App Store
+   release.
+
+The widget's `CFBundleDisplayName` and the app's `NSHealthUpdateUsageDescription`
+are required for Apple's upload validation. Both come from `project.yml`; the
+update purpose string accurately says NeoGym does **not** write to Apple Health.
+After changing either property, regenerate and create a **new archive** before
+retrying the upload—an existing archive cannot pick up Info.plist changes.
+
+The app Info.plist also declares `ITSAppUsesNonExemptEncryption = false` through
+`project.yml` to avoid repeated TestFlight export-compliance questions for
+builds with no non-exempt encryption. This is a compliance declaration, not a
+way to skip a required filing: check Apple's questionnaire for the actual app
+and its dependencies, and revisit this value if its encryption use changes.
+For an already uploaded build without the key, answer **Manage** in the
+TestFlight build details; the new key only affects new archives.
+
 ## Persistent GraphQL browsing cache
 
 The production app client enables the Nhost Swift SDK file-backed GraphQL cache.
@@ -105,7 +166,10 @@ The app and widget use one SDK-managed Keychain item and one SDK-managed App
 Group lock. Both use service `io.nhost.swift.session`, account
 `default.nhostSession`, Keychain access group
 `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
-`group.io.nhost.neogym`. The SDK derives the lock identity automatically from the
+`group.io.nhost.dbarroso.neogym`. The Keychain access group is a separate
+shared-session identity, not the app's bundle ID or its App Group; preserve it
+unless the signed app and widget actually use another Keychain access group.
+The SDK derives the lock identity automatically from the
 canonical Keychain item identity; callers no longer supply a lock namespace. The
 app waits up to 5 seconds for session ownership; the widget waits up to 500 ms.
 App configuration failure is a fatal developer/provisioning error in this
@@ -164,8 +228,9 @@ from the last 7 local days that still carry the exact
 `Imported from Apple Health` note can be refreshed from newer HealthKit values.
 Manual or edited rows are not overwritten.
 
-The HealthKit capability and `NSHealthShareUsageDescription` are declared in
-`project.yml`; regenerate the Xcode project after changing them. The concrete
+The HealthKit capability and both `NSHealthShareUsageDescription` and
+`NSHealthUpdateUsageDescription` are declared in `project.yml`; regenerate the
+Xcode project after changing them. The concrete
 HealthKit importer is compiled only for non-macOS platforms so `NeoGymKit` keeps
 building and testing on the macOS host.
 
