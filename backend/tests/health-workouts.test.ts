@@ -8,6 +8,7 @@ const USER = "f26ac88d-4dcd-48e8-a0ae-b4248918bc1c";
 const OTHER = "11111111-1111-4111-8111-111111111111";
 const workoutUuid = crypto.randomUUID();
 const ids = new Set<string>();
+const otherIds = new Set<string>();
 let reachable = false;
 
 type Response<T> = { data: T | null; errors?: Array<{ message: string; extensions?: { code?: string } }> };
@@ -36,10 +37,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-	if (!reachable || !ids.size) return;
-	await gql(USER, `mutation Cleanup($ids: [uuid!]!) {
+	if (!reachable) return;
+	const cleanup = `mutation Cleanup($ids: [uuid!]!) {
 		deleteHealthWorkouts(where: { id: { _in: $ids } }) { affectedRows: affected_rows }
-	}`, { ids: [...ids] });
+	}`;
+	if (ids.size) await gql(USER, cleanup, { ids: [...ids] });
+	if (otherIds.size) await gql(OTHER, cleanup, { ids: [...otherIds] });
 });
 
 describe("HealthKit workout snapshots", () => {
@@ -78,6 +81,50 @@ describe("HealthKit workout snapshots", () => {
 		expect(deleted.errors).toBeUndefined();
 		expect(deleted.data!.deleteHealthWorkouts.affectedRows).toBe(1);
 		ids.delete(row.id);
+	});
+
+	test("same HealthKit UUID syncs independently for two users", async () => {
+		if (!reachable) return;
+		const uuid = crypto.randomUUID();
+		const upsert = `mutation UpsertHealthWorkouts($objects: [healthWorkout_insert_input!]!) {
+			insertHealthWorkouts(objects: $objects, on_conflict: {
+				constraint: health_workouts_user_healthkit_uuid_key, update_columns: [raw]
+			}) { affectedRows: affected_rows returning { id userId raw } }
+		}`;
+		type Upsert = { insertHealthWorkouts: { affectedRows: number; returning: Array<{ id: string; userId: string; raw: unknown }> } };
+		const firstRaw = { account: "first" };
+		const first = await gql<Upsert>(USER, upsert, { objects: [{ healthkitUuid: uuid, raw: firstRaw }] });
+		expect(first.errors).toBeUndefined();
+		const firstRow = first.data!.insertHealthWorkouts.returning[0];
+		ids.add(firstRow.id);
+		expect(first.data!.insertHealthWorkouts.affectedRows).toBe(1);
+		expect(firstRow.userId).toBe(USER);
+
+		const second = await gql<Upsert>(OTHER, upsert, { objects: [{ healthkitUuid: uuid, raw: { account: "second" } }] });
+		expect(second.errors).toBeUndefined();
+		const secondRow = second.data!.insertHealthWorkouts.returning[0];
+		otherIds.add(secondRow.id);
+		expect(second.data!.insertHealthWorkouts.affectedRows).toBe(1);
+		expect(secondRow.userId).toBe(OTHER);
+		expect(secondRow.id).not.toBe(firstRow.id);
+
+		const read = `query Read($uuid: uuid!) {
+			healthWorkouts(where: { healthkitUuid: { _eq: $uuid } }) { id raw }
+		}`;
+		type Read = { healthWorkouts: Array<{ id: string; raw: unknown }> };
+		const beforeDelete = await gql<Read>(USER, read, { uuid });
+		expect(beforeDelete.errors).toBeUndefined();
+		expect(beforeDelete.data!.healthWorkouts).toEqual([{ id: firstRow.id, raw: firstRaw }]);
+
+		const deleted = await gql<{ deleteHealthWorkouts: { affectedRows: number } }>(OTHER,
+			`mutation DeleteHealthWorkouts($ids: [uuid!]!) {
+				deleteHealthWorkouts(where: { healthkitUuid: { _in: $ids } }) { affectedRows: affected_rows }
+			}`, { ids: [uuid] });
+		expect(deleted.errors).toBeUndefined();
+		expect(deleted.data!.deleteHealthWorkouts.affectedRows).toBe(1);
+		const afterDelete = await gql<Read>(USER, read, { uuid });
+		expect(afterDelete.errors).toBeUndefined();
+		expect(afterDelete.data!.healthWorkouts).toEqual([{ id: firstRow.id, raw: firstRaw }]);
 	});
 
 	test("foreign users cannot read, update, or delete another user's raw workout", async () => {
@@ -126,5 +173,10 @@ describe("HealthKit workout snapshots", () => {
 				updateHealthWorkouts(where: { healthkitUuid: { _eq: $uuid } }, _set: { healthkitUuid: $uuid }) { affectedRows: affected_rows }
 			}`, { uuid });
 		expect(immutable.errors?.[0]?.extensions?.code).toBe("validation-failed");
+		const ownerImmutable = await gql<unknown>(USER,
+			`mutation OwnerImmutable($uuid: uuid!, $owner: uuid!) {
+				updateHealthWorkouts(where: { healthkitUuid: { _eq: $uuid } }, _set: { userId: $owner }) { affectedRows: affected_rows }
+			}`, { uuid, owner: OTHER });
+		expect(ownerImmutable.errors?.[0]?.extensions?.code).toBe("validation-failed");
 	});
 });
