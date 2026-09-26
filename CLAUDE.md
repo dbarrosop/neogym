@@ -93,6 +93,7 @@ package at its lower deployment floor unless its own code needs newer APIs.
   Services, Queue Debugging/backtrace recording, View Debugging, and related
   default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
+- `make deploy-testflight` — regenerate XcodeGen, archive a Release device app + widget, and upload to App Store Connect. `project.yml` sets team `C7HCKFA2LG` for both targets; Xcode manages upload build numbers (the archive's `CURRENT_PROJECT_VERSION` can differ from the uploaded version). This requires an authorized Xcode account and does not wait for TestFlight processing or tester assignment. Do not run this target just to validate configuration; it uploads a real build.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 

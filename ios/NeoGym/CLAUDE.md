@@ -29,6 +29,14 @@ package at its lower deployment floor unless its own code needs newer APIs.
   `.xcodeproj` output.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
+- `make deploy-testflight` — regenerate, archive the app and widget for iOS
+  Release, and upload to App Store Connect. Requires XcodeGen, an Xcode account
+  authorized for team `C7HCKFA2LG`; never run this as a validation-only
+  command. Export enables Xcode-managed build numbers, so no manual
+  `CURRENT_PROJECT_VERSION` bump is needed for each upload (the archive and
+  uploaded build numbers can differ). It does not wait for TestFlight processing
+  or assign tester groups. Archives are retained under ignored
+  `.build/testflight/` for troubleshooting and export retries.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
