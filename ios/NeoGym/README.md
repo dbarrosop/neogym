@@ -29,8 +29,8 @@ views belong in `Watch/`.
 
 ## Prerequisites
 
-- macOS with Xcode installed for simulator builds. The app and widget both
-  target iPhone/iOS 27; iPad, Mac and Apple Vision destinations are disabled.
+- macOS with Xcode 27/watchOS 27 SDK for simulator and device builds. The app
+  and widget target iPhone/iOS 27; iPad, Mac and Apple Vision are disabled.
 - Nix devshell from the repository root. On Darwin it includes XcodeGen when
   the pinned Nixpkgs exposes `pkgs.xcodegen`.
 - Local Nhost Swift SDK checkout at
@@ -119,21 +119,58 @@ phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. No production `GET /user` contract or signed hardware
 acceptance is established merely by a simulator build.
 
-**Uploads remain blocked pending Phase 3 verification.**
-`make deploy-testflight` requires `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` per run
-and refuses watch-bearing uploads until both `Scripts/verify-release-archive.sh`
-and `Scripts/LocalExportOptions.plist` are installed. The local options must
-specify `destination=export` (never `upload`). It calls the verifier with
-`--archive PATH` after archiving and `--archive PATH --ipa PATH` after a
-non-upload local export; either failure stops before the upload export. Phase 3
-must implement those interfaces and signed artifact checks, plus a separate
-per-run opt-in before automatic provisioning updates. Do not bypass the guards
-with Xcode Organizer or direct `xcodebuild -exportArchive`. Each real upload
-requires operator approval separate from provisioning approval. No local
-simulator or host test substitutes for the signed archive/export gate. The app/widget shared
-Keychain and App Group remain unchanged and are **not** used by watch.
+### Release verification and guarded TestFlight upload
 
-### TestFlight release notes (uploads disabled)
+Provisioning the new watch App ID (`io.nhost.dbarroso.neogym.watchkitapp`)
+under team `C7HCKFA2LG` can change Apple account state: obtain operator
+acknowledgment first. Confirm Xcode Accounts has that team, distribution
+certificate, and phone/widget/watch profiles. Each run that permits Xcode to
+register/update profiles needs **separate** `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`;
+without it the scripts do not pass `-allowProvisioningUpdates` and may fail
+if suitable profiles are unavailable. This is not upload approval.
+
+```sh
+# After regenerating the project and building both simulator schemes:
+Scripts/verify-release-archive.sh --simulator /path/to/NeoGym.app
+python3 -m unittest Scripts/test_verify_release_archive.py
+# Non-upload: signed device archive, verify archive, export locally, verify IPA.
+NEOGYM_ALLOW_PROVISIONING_UPDATES=YES make archive-release
+# Only after separate explicit approval for THIS real upload:
+NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES NEOGYM_ALLOW_PROVISIONING_UPDATES=YES make deploy-testflight
+```
+
+Omit the provisioning opt-in if current profiles already work; never run the
+upload target merely to validate a release. `archive-release` uses
+`LocalExportOptions.plist` with `destination=export`; it retains its output
+under ignored `.build/testflight/`. The verifier checks exactly one phone app
+with embedded watch app and widget, identities, platform/family, watch icon,
+matched versions *within* each artifact, linked watch frameworks (including
+`NeoGymWatch.debug.dylib` when Xcode places Debug simulator app code behind a
+stub executable), and each bundle's non-ad-hoc signature, team, current provisioning profile and
+entitlements. An archive may be development-signed; the exported IPA must
+have `get-task-allow=false` for every bundle. Xcode-managed build numbering
+can differ **between** archive and IPA. Invalid or unsigned artifacts fail
+closed; the upload script reuses the complete non-upload path before calling
+`destination=upload`. Do not bypass it through Organizer or direct export.
+The phone/widget shared Keychain and App Group remain unchanged and are **not**
+used by watch. `swift test` and the offline verifier fixtures do not prove
+signing or provisioning; record signed archive/IPA checks as blocked until
+Apple signing is actually available.
+
+On paired development-signed iPhone/watch hardware, install the phone app and
+its companion, sign an existing account into the watch by OTP, edit that test
+account's name server-side (without saving an admin secret in this repo),
+background/reopen watch and confirm the new name from `GET /user`. Test retry
+after network loss, expiry/new OTP, watch-only internet while the phone is
+unreachable, and delayed phone sign-out/account-switch hints after reconnect.
+A paired iPhone is needed for installation, not independent watch network
+reads. Undelivered hints are not instant server revocation; failed remote
+sign-out may leave a server token active until expiry even though the watch
+clears locally. Confirm production `GET /user` contract before release. After
+an approved upload, wait for App Store Connect processing and install the
+processed TestFlight build on paired hardware before claiming acceptance.
+
+### TestFlight release notes
 
 The existing App Store Connect app remains `io.nhost.dbarroso.neogym`; the
 widget remains `io.nhost.dbarroso.neogym.widgets`, with App Group
@@ -147,9 +184,7 @@ and tester-group assignment happen after any future authorized upload, not at
 archive creation. External testers may require Beta App Review; uploading is
 not a production App Store release.
 
-For future authorized release work, Xcode Accounts must have team
-`C7HCKFA2LG` with distribution certificates and automatic signing profiles
-for the phone, widget, and new watch App ID. Keep the phone/widget shared
+Keep the phone/widget shared
 Keychain access group `$(AppIdentifierPrefix)io.nhost.neogym.shared` unchanged;
 if a signed installation uses a different group, reconcile both targets and
 SDK configuration before archiving or users may lose their shared session.
@@ -159,10 +194,11 @@ and create a **new archive** after changing them. The app's
 `ITSAppUsesNonExemptEncryption = false` avoids repeated export-compliance
 questions only if the actual app and dependencies qualify; revisit it after
 cryptography changes. For builds uploaded without the key, answer **Manage**
-in TestFlight build details. The former Organizer/direct export retry route is **not an allowed fallback**
-even after the verifier is installed; any retry must repeat the same signed
-archive and IPA verification before upload. Retained archives are for diagnosis
-or a guarded retry, not permission to bypass the gate.
+in TestFlight build details. Organizer and direct export are **not allowed
+fallback upload paths**. Retained archives are for diagnosis only: a retry
+must start a fresh `make deploy-testflight` run, with new per-run upload
+approval, and repeat archive creation and verification plus local IPA export
+and verification before upload. The scripts refuse to reuse an existing archive.
 
 ## Persistent GraphQL browsing cache
 

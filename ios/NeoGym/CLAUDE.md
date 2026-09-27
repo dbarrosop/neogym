@@ -31,17 +31,39 @@ package at its lower deployment floor unless its own code needs newer APIs.
   `.xcodeproj` output.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
-- `make deploy-testflight` — currently refuses upload even with the per-run
-  `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` opt-in until Phase 3 installs both
-  `Scripts/verify-release-archive.sh` and `Scripts/LocalExportOptions.plist`.
-  Before upload, the verifier must pass for the signed archive (`--archive PATH`)
-  and again for the local IPA (`--archive PATH --ipa PATH`). Never run it as a
-  validation-only command; real upload requires separate operator approval each
-  run and team `C7HCKFA2LG` signing. Export enables Xcode-managed build numbers,
-  so archive and upload build numbers can differ. It does not wait for TestFlight
-  processing or assign tester groups. Archives remain under ignored
-  `.build/testflight/` for diagnosis; retries must use the same verified path,
-  not direct export or Xcode Organizer upload.
+- `Scripts/verify-release-archive.sh --simulator PATH/NeoGym.app` — inspect
+  simulator structure/IDs/icon/platform and watch binary dependencies after
+  building both simulator schemes; this checks the watch executable and its
+  `.debug.dylib` when present (the Debug executable can be only a stub).
+  No signing assertion for simulator builds.
+- `python3 -m unittest Scripts/test_verify_release_archive.py` — offline
+  fail-closed fixture checks; macOS `/usr/bin/python3` is 3.9, so avoid newer
+  Python-only syntax/APIs in release scripts.
+- `make archive-release` — non-upload signed device archive, archive signature/
+  entitlement/profile verification, local `destination=export`, then IPA
+  distribution signature/entitlement verification. `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`
+  is a separate per-run permission to register/update Apple profiles; without it
+  Xcode gets no `-allowProvisioningUpdates`. Obtain operator acknowledgment for
+  new watch ID provisioning before enabling it. Stock macOS `/bin/bash` 3.2
+  treats expansion of an empty array under `set -u` as unbound; keep optional
+  provisioning arguments scalar/guarded and test both branches with stubbed
+  `xcodebuild`. If no signing account/profiles exist, this gate remains blocked;
+  simulator verification is not a substitute. Xcode can embed a development
+  watch profile with a team-scoped wildcard App ID (`TEAM.*`) even when the
+  signed watch entitlement uses its concrete App ID; the verifier accepts
+  component-bounded matching wildcards only when team, signing type, and
+  entitlement coverage still agree. Re-run the read-only verifier against a
+  retained archive when diagnosing this case; never bypass verification or
+  turn provisioning back on without per-run approval.
+- `make deploy-testflight` — requires **distinct per-run**
+  `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` approval and reuses the entire non-upload
+  verified path before `destination=upload`. Never run for validation; real
+  upload requires explicit operator approval each time. Xcode-managed build
+  numbers can differ across archive and export, but phone/watch/widget versions
+  must match within each artifact. Archives remain under ignored
+  `.build/testflight/` for diagnosis; never retry through direct export or
+  Organizer upload. TestFlight processing/hardware installation are separate.
+  See `README.md` for paired-watch acceptance and delayed-hint limits.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,

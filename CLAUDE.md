@@ -95,7 +95,8 @@ package at its lower deployment floor unless its own code needs newer APIs.
   Debugging, and related default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination 'generic/platform=watchOS Simulator' build` — build the watch companion after regenerating XcodeGen.
-- `make deploy-testflight` — currently refuses upload unless `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` is set for that run **and** Phase 3's executable archive/IPA verifier and local export options are installed; it then requires both artifact checks to succeed before upload. Never use it to validate configuration; each later real upload needs separate operator approval.
+- `make archive-release` — signed non-upload device archive and local export, verifying the archive and IPA independently; Apple signing/profiles are required. Automatic provisioning updates require a separate per-run `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES` and operator acknowledgment for the watch App ID. Without signing access this gate remains blocked; simulator checks do not replace it.
+- `make deploy-testflight` — reuses the verified non-upload path and refuses upload without a distinct per-run `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES`. Never use it for validation; each real upload needs separate operator approval. See `ios/NeoGym/README.md` for paired hardware and production `GET /user` acceptance.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
@@ -109,10 +110,11 @@ latest-state account hints, never credentials. A cold launch waits briefly for
 local WCSession activation, and background-to-active refreshes the name; an
 inactive wrist raise does not force a refresh. A paired iPhone is required to
 install the companion, not to perform the watch's independent network read.
-The TestFlight upload script refuses upload without per-run approval and remains
-blocked until Phase 3 installs `Scripts/verify-release-archive.sh` and
-`Scripts/LocalExportOptions.plist`; the script must successfully verify the
-signed archive and locally exported IPA before upload. Phone account
+The release scripts verify a signed archive and locally exported IPA before
+any explicitly approved upload; archive/export requires Apple signing access
+and any provisioning update requires its own per-run opt-in. No signed archive,
+TestFlight processing, or paired-device acceptance can be inferred from
+simulator/host checks. Phone account
 hints contain only version/state/user ID and an opaque delivery ID on re-send,
 never credentials or display name; known signed-out
 or different-account state blocks the watch while unknown state allows independent
