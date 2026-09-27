@@ -1,11 +1,41 @@
 import Foundation
+import Nhost
 
-/// Network-only: sync must never mistake a cached write or read for a committed import.
+/// Network-only. Each write refreshes the managed session, verifies the cursor
+/// owner and pins that fresh token so an account switch cannot redirect a batch.
 public struct HealthWorkoutRepository: HealthWorkoutStoring {
-    private let graphQL: any GraphQLServicing
+    private let client: NhostClient
+    private let ownerUserId: String
 
-    public init(graphQL: any GraphQLServicing) {
-        self.graphQL = graphQL
+    public init(client: NhostClient, ownerUserId: String) {
+        self.client = client
+        self.ownerUserId = ownerUserId
+    }
+
+    private func execute<Response: Decodable & Sendable>(
+        _ type: Response.Type, query: String, variables: [String: JSONValue], operationName: String
+    ) async throws -> Response {
+        do {
+            try Task.checkCancellation()
+            guard !ownerUserId.isEmpty,
+                  let session = try await client.refreshSession(marginSeconds: 60),
+                  session.user?.id == ownerUserId else {
+                throw CancellationError()
+            }
+            try Task.checkCancellation()
+            let response = try await client.graphql.request(
+                type,
+                query: query,
+                variables: variables,
+                operationName: operationName,
+                headers: ["Authorization": "Bearer \(session.accessToken)"]
+            )
+            return try GraphQLResponseMapper.unwrap(response.body, operationName: operationName)
+        } catch let error as CancellationError {
+            throw error
+        } catch {
+            throw GraphQLDomainError.map(error)
+        }
     }
 
     public func upsert(_ snapshots: [HealthWorkoutSnapshot]) async throws {
@@ -16,7 +46,8 @@ public struct HealthWorkoutRepository: HealthWorkoutStoring {
                 "raw": GraphQLScalars.jsonb(snapshot.raw)
             ])
         })
-        let response: UpsertHealthWorkoutsData = try await graphQL.execute(
+        let response: UpsertHealthWorkoutsData = try await execute(
+            UpsertHealthWorkoutsData.self,
             query: Self.upsertMutation,
             variables: ["objects": objects],
             operationName: "UpsertHealthWorkouts"
@@ -28,7 +59,8 @@ public struct HealthWorkoutRepository: HealthWorkoutStoring {
 
     public func delete(healthkitIds: [String]) async throws {
         guard !healthkitIds.isEmpty else { return }
-        let response: DeleteHealthWorkoutsData = try await graphQL.execute(
+        let response: DeleteHealthWorkoutsData = try await execute(
+            DeleteHealthWorkoutsData.self,
             query: Self.deleteMutation,
             variables: ["ids": .array(healthkitIds.map(GraphQLScalars.uuid))],
             operationName: "DeleteHealthWorkouts"

@@ -74,6 +74,7 @@ public final class HealthWorkoutSyncModel: ObservableObject {
                 if !batch.deletedIds.isEmpty {
                     try await repository.delete(healthkitIds: batch.deletedIds)
                 }
+                try Task.checkCancellation()
                 if !batch.added.isEmpty {
                     try await repository.upsert(batch.added)
                 }
