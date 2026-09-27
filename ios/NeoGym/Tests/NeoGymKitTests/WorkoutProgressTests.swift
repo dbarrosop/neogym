@@ -6,14 +6,14 @@ final class WorkoutProgressTests: XCTestCase {
     func testWeeklyVolumeAndRecentExerciseEligibility() throws {
         var calendar = Calendar(identifier: .iso8601)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-06-26T12:00:00Z"))
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-03T12:00:00Z"))
         let entries = [
             entry("old-bench", "bench", "Bench", "2026-06-10T12:00:00Z", 100, 5),
-            entry("recent-bench", "bench", "Bench", "2026-06-17T00:00:00Z", 120, 5),
-            entry("today-row", "row", "Row", "2026-06-26T10:00:00Z", 20, 10, doubleWeight: true),
-            entry("old-squat", "squat", "Squat", "2026-06-16T12:00:00Z", 80, 10),
-            entry("empty", "empty", "Empty", "2026-06-26T10:00:00Z", 50, 5, sets: []),
-            entry("future", "future", "Future", "2026-06-27T10:00:00Z", 50, 5)
+            entry("recent-bench", "bench", "Bench", "2026-06-24T00:00:00Z", 120, 5),
+            entry("recent-row", "row", "Row", "2026-06-26T10:00:00Z", 20, 10, doubleWeight: true),
+            entry("old-squat", "squat", "Squat", "2026-06-23T12:00:00Z", 80, 10),
+            entry("empty", "empty", "Empty", "2026-07-03T10:00:00Z", 50, 5, sets: []),
+            entry("future", "future", "Future", "2026-07-04T10:00:00Z", 50, 5)
         ]
 
         let result = WorkoutProgressBuilder.build(entries: entries, now: now, calendar: calendar)
@@ -22,7 +22,54 @@ final class WorkoutProgressTests: XCTestCase {
         XCTAssertEqual(result.recentExercises[0].points.map(\.volume), [500, 600])
         XCTAssertEqual(result.recentExercises[0].points.last?.oneRepMax ?? 0, 140, accuracy: 0.001)
         XCTAssertEqual(result.recentExercises[1].points.last?.oneRepMax ?? 0, 26.666, accuracy: 0.001)
-        XCTAssertEqual(result.weeklyVolume.map(\.volume), [500, 1_400, 400])
+        XCTAssertEqual(result.weeklyVolume.map(\.weekStart), try [
+            "2026-06-08T00:00:00Z", "2026-06-15T00:00:00Z",
+            "2026-06-22T00:00:00Z", "2026-06-29T00:00:00Z"
+        ].map { try XCTUnwrap(ExerciseDateParser.parseTimestamp($0)) })
+        XCTAssertEqual(result.weeklyVolume.map(\.volume), [500, 0, 1_800, 0])
+    }
+
+    func testTodayDatedSetIsRecentAndInCurrentWeek() throws {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-03T12:00:00Z"))
+        let result = WorkoutProgressBuilder.build(
+            entries: [entry("today-row", "row", "Row", "2026-07-03T10:00:00Z", 20, 10, doubleWeight: true)],
+            now: now,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(result.recentExercises.map(\.id), ["row"])
+        XCTAssertEqual(result.recentExercises.first?.points.map(\.volume), [400])
+        XCTAssertEqual(result.weeklyVolume.map(\.weekStart), [calendar.dateInterval(of: .weekOfYear, for: now)?.start])
+        XCTAssertEqual(result.weeklyVolume.map(\.volume), [400])
+    }
+
+    func testWeeklyVolumeKeepsTrainedWeekAfterMidnightDSTStart() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        calendar.firstWeekday = 1
+        calendar.minimumDaysInFirstWeek = 1
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2023-09-17T12:00:00Z"))
+        let entries = [
+            entry("before-dst", "bench", "Bench", "2023-08-28T12:00:00Z", 100, 5),
+            entry("after-dst", "bench", "Bench", "2023-09-11T12:00:00Z", 80, 10)
+        ]
+
+        let result = WorkoutProgressBuilder.build(entries: entries, now: now, calendar: calendar)
+
+        XCTAssertEqual(result.weeklyVolume.map(\.weekStart), try [
+            "2023-08-27T04:00:00Z", "2023-09-03T04:00:00Z",
+            "2023-09-10T03:00:00Z", "2023-09-17T03:00:00Z"
+        ].map { try XCTUnwrap(ExerciseDateParser.parseTimestamp($0)) })
+        XCTAssertEqual(result.weeklyVolume.map(\.volume), [500, 0, 800, 0])
+    }
+
+    func testNoStrengthHistoryHasNoWeeklyVolume() throws {
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-03T12:00:00Z"))
+        let result = WorkoutProgressBuilder.build(entries: [], now: now)
+
+        XCTAssertTrue(result.weeklyVolume.isEmpty)
     }
 
     func testPriorWorkoutQueryLimitsSameWorkoutAndDecodesTotals() async throws {

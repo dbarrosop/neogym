@@ -54,9 +54,20 @@ public enum WorkoutProgressBuilder {
             names[entry.exercise.id] = entry.exercise.name
         }
 
+        var weeklyVolume: [WorkoutWeeklyVolume] = []
+        if let firstWeek = weeks.keys.min(),
+           let currentWeek = calendar.dateInterval(of: .weekOfYear, for: now)?.start {
+            var weekStart = firstWeek
+            while weekStart <= currentWeek {
+                weeklyVolume.append(WorkoutWeeklyVolume(weekStart: weekStart, volume: weeks[weekStart] ?? 0))
+                guard let nextWeek = calendar.dateInterval(of: .weekOfYear, for: weekStart)?.end,
+                      nextWeek > weekStart else { break }
+                weekStart = nextWeek
+            }
+        }
+
         return WorkoutProgress(
-            weeklyVolume: weeks.map { WorkoutWeeklyVolume(weekStart: $0.key, volume: $0.value) }
-                .sorted { $0.weekStart < $1.weekStart },
+            weeklyVolume: weeklyVolume,
             recentExercises: recentIds.map { id in
                 WorkoutExerciseTrend(
                     id: id,
