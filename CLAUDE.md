@@ -93,6 +93,7 @@ package at its lower deployment floor unless its own code needs newer APIs.
   Services, Queue Debugging/backtrace recording, View Debugging, and related
   default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
+- `make deploy-testflight` — regenerate XcodeGen, archive a Release device app + widget, and upload to App Store Connect. `project.yml` sets team `C7HCKFA2LG` for both targets; Xcode manages upload build numbers (the archive's `CURRENT_PROJECT_VERSION` can differ from the uploaded version). This requires an authorized Xcode account and does not wait for TestFlight processing or tester assignment. Do not run this target just to validate configuration; it uploads a real build.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
@@ -106,7 +107,8 @@ Body, and Energy; edit/form, HealthKit reconciliation, daily-intake, and widget
 live-fetch queries stay network-only. The cache uses a 5-minute freshness window
 and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
-remain available for responsive rendering and offline fallback. The SDK purges
+remain available for responsive rendering and offline fallback. Workout Progress
+uses the sessions cache for its read-only strength history. The SDK purges
 prior managed-user scopes on sign-out/session replacement. The
 file cache is app-process-only; the widget client deliberately has no GraphQL
 cache because the SDK requires each process to own a distinct cache directory.
@@ -150,11 +152,27 @@ stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so eac
 area's stack path survives area switches). Areas are switched via a segmented
 `Picker` shown at each area's stack root only. **Workouts (Phase 2a) is now a
 hub:** its root is a native `List` of tappable glass rows
-(Sessions/Workouts/Exercises) that push subsection-list routes
-(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`) via
+(Sessions/Workouts/Exercises/Progress) that push subsection routes
+(`WorkoutsRoute.sessionsList`/`.workoutsList`/`.exercisesList`/`.progress`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area
 segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
-"New workout" lives on the `.workoutsList` route's own `.bottomBar`. No area uses
+"New workout" lives on the `.workoutsList` route's own `.bottomBar`. Progress
+shows calendar-week strength volume across all exercises and a per-exercise chart
+with both session volume and estimated 1RM for every strength exercise with a logged
+set in the last 10 local days (separate axes for the two metrics);
+the charts default to the last eight calendar weeks and support other periods.
+Progress initially fetches strength history from the local week containing the first
+of the last 180 local days; both charts extend that week-rounded bound for older
+custom ranges while keeping existing progress visible during revalidation. When
+its week-rounded cache key changes, an eligible previous-key SDK cache snapshot
+can render first without a network request; it is labeled as potentially missing
+newer sessions until the current-key stream emits (expired/missing entries do not
+provide an offline fallback).
+Each exercise chart's tappable header pushes `WorkoutsRoute.exerciseDetail(id)`
+through the existing stack; Back returns to Progress without consuming chart gestures.
+On a session detail with strength entries, the totals are followed by the three
+most recent earlier sessions still linked to the same workout template (ad-hoc
+sessions have no same-workout comparison). No area uses
 `SecondarySectionContentHost` or `SectionTitleMenu` anymore (both, along with
 `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, are deleted). The
 `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
@@ -169,8 +187,20 @@ list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
 trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
 Energy from HealthKit on load and pull-to-refresh before the final backend
-overview fetch, then shows Energy balance, the Calories consumed chart, and Body
-composition trends from the post-sync backend data; Body and Energy sync both
+overview fetch. Cached chart data can render during sync, then both charts
+refresh from post-sync backend data. On a cold launch across a local-day change,
+the default charts first read today's and up to seven earlier exact ranges from
+the SDK's user-scoped, age-bounded cache without network calls; any previous-range
+fallback is labeled as missing newer dates until the current-range refresh
+succeeds. No app-owned cache keys or chart snapshots are stored. The dashboard shows Energy balance,
+Calories consumed, and Body composition trends. Both charts default to the
+last 14 local days and query only their selected period plus six warm-up days
+for rolling averages. The Calories consumed chart uses a separate date-bounded
+snapshot-kcal/grams + daily-energy query (not the detailed overview/day-list
+query), and Body composition uses a date-bounded measurements query; changing
+a chart period or custom dates loads that range on demand. Body and Energy
+HealthKit reconciliation still inspect historical data independently of chart
+ranges. Body and Energy sync both
 create missing dates and refresh recent rows that still carry the exact
 "Imported from Apple Health" note. It does not show the old intro copy or recent
 daily-log list. `NutritionDaysView` no longer takes a

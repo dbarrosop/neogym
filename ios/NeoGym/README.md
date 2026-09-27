@@ -83,49 +83,73 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
-## Upload to TestFlight manually with Xcode
+## Upload to TestFlight
 
 This app uses the existing App Store Connect app `io.nhost.dbarroso.neogym`,
 widget bundle ID `io.nhost.dbarroso.neogym.widgets`, and App Group
 `group.io.nhost.dbarroso.neogym`. Both targets support only iPhone/iOS 27; Mac,
 iPad, and Apple Vision destinations are disabled. The app and widget still
 connect to the **production Nhost backend** when installed through TestFlight.
-No App Store Connect API key or production App Store release is needed.
+No App Store Connect API key or production App Store release is needed for a
+local upload if Xcode's Accounts settings have a signed-in developer account.
 
-1. In `project.yml`, keep `MARKETING_VERSION: "1.0"` and choose a
-   `CURRENT_PROJECT_VERSION` **higher** than the latest TestFlight build for
-   1.0. If the latest is build 5, the current value `"6"` is ready; use 7 for
-   the next upload. These build settings feed **both** the app and widget Info
-   plists. Do not change version numbers only in Xcode or the generated plists:
-   XcodeGen overwrites them.
-2. From `ios/NeoGym/`, regenerate and open the project:
-
-   ```sh
-   nix develop ../.. --command xcodegen generate
-   open NeoGym.xcodeproj
-   ```
-
-   If Xcode offers to modernize/recommend project settings, choose **Cancel**.
-   `project.yml` is the source of truth; the generated `.xcodeproj` is ignored.
-3. In Xcode, choose your Apple Developer team under **Signing & Capabilities**
-   for **both** `NeoGym` and `NeoGymWidgets`, with automatic signing enabled.
-   Confirm HealthKit, the App Group above, and the shared Keychain access group
-   match your existing signed app and provisioning profiles. The shared
-   Keychain access group is currently
-   `$(AppIdentifierPrefix)io.nhost.neogym.shared` in both targets: unlike the
-   App Group, it was **not** changed to match the bundle ID. If your existing
+1. In `project.yml`, keep the intended `MARKETING_VERSION` (currently `"1.0"`).
+   `CURRENT_PROJECT_VERSION` (currently `"6"`) seeds the app and widget in the
+   archive; **you do not need to raise it before each upload**. The export
+   options enable Xcode-managed version/build numbers, like Xcode's Organizer,
+   so Xcode selects a higher build number for the upload when needed. The
+   uploaded build number may differ from the archive and `project.yml`. Do not
+   change version settings only in Xcode or generated plists: XcodeGen
+   overwrites them.
+2. Once, sign in to the Apple Developer account for team `C7HCKFA2LG`
+   (Nhost AB) under Xcode → Settings → Accounts. Automatic signing must be
+   permitted for both bundle IDs and their capabilities, with a usable
+   distribution certificate/profiles. `project.yml` sets this team for both
+   targets, so there is no per-generation team selection in Xcode. Keep the
+   shared Keychain access group
+   `$(AppIdentifierPrefix)io.nhost.neogym.shared` on both targets: unlike the
+   App Group, it was **not** changed to match the bundle ID. If the existing
    signed app uses a different Keychain group, align both targets and the SDK
    configuration before archiving; switching groups can sign users out and
    break widget session sharing.
-4. Select the **NeoGym** scheme and an **Any iOS Device** destination (not a
-   simulator). Choose **Product → Archive**. In Organizer, select that archive,
-   then **Distribute App → TestFlight & App Store → Upload** (wording may vary by
-   Xcode version). Review signing and complete the upload.
-5. In App Store Connect → **TestFlight**, wait for processing, complete any
+3. From `ios/NeoGym/`, with `xcodegen` available (for example inside the Nix
+   devshell), run:
+
+   ```sh
+   make deploy-testflight
+   ```
+
+   This regenerates the project, archives the **NeoGym** scheme in Release for
+   a generic iOS device (including the widget), then exports with
+   `method=app-store-connect` and `destination=upload`. It uses the selected
+   host Xcode, not Nix compiler/SDK overrides, and passes
+   `-allowProvisioningUpdates` for automatic signing. The archive and any
+   export artifacts remain under ignored `.build/testflight/` in a unique run
+   directory, including if upload fails. The export options enable
+   Xcode-managed upload build numbers; uploading a previously used archive
+   build number should not require another archive.
+4. In App Store Connect → **TestFlight**, wait for processing, complete any
    required compliance/test information, and assign the build to your tester
    group if it is not assigned automatically. External testers may require
-   TestFlight Beta App Review. Do not submit the app version for App Store
-   release.
+   TestFlight Beta App Review. An upload success does not mean testers can
+   install it yet. Do not submit the app version for App Store release.
+
+To retry an upload after an export failure without building another archive,
+use the retained path printed by the script (and a new export directory):
+
+```sh
+xcodebuild -exportArchive \
+  -archivePath .build/testflight/<run>/NeoGym.xcarchive \
+  -exportPath .build/testflight/<run>/retry-export \
+  -exportOptionsPlist Scripts/TestFlightExportOptions.plist \
+  -allowProvisioningUpdates
+```
+
+If signing or upload cannot run headlessly, the manual fallback is to run
+`make generate-project`, open `NeoGym.xcodeproj`, choose the NeoGym scheme and
+**Any iOS Device**, then **Product → Archive** and **Distribute App → TestFlight
+& App Store → Upload** in Organizer. If Xcode offers to modernize project
+settings, choose **Cancel** and edit `project.yml` instead.
 
 The widget's `CFBundleDisplayName` and the app's `NSHealthUpdateUsageDescription`
 are required for Apple's upload validation. Both come from `project.yml`; the

@@ -110,6 +110,31 @@ public extension NutritionFoodMealRepository {
     }
     """
 
+    // Range-bound snapshots, with six warm-up days for rolling chart averages.
+    static let nutritionCalorieHistoryQuery = """
+    query NutritionCalorieHistory($from: date!, $through: date!) {
+      nutritionDays(where: { logDate: { _gte: $from, _lte: $through } }, order_by: { logDate: asc }) {
+        logDate
+        nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
+          grams
+          snapshotKcalPer100g
+        }
+        nutritionLogMeals {
+          nutritionLogEntries {
+            grams
+            snapshotKcalPer100g
+          }
+        }
+      }
+      dailyEnergyEntries(where: { energyOn: { _gte: $from, _lte: $through } }, order_by: { energyOn: asc }) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+      }
+    }
+    """
+
     static let dailyIntakeLogQuery = """
     query DailyIntakeLog($date: date!) {
       nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {

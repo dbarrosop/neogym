@@ -20,6 +20,34 @@ struct CardioMissingSchemaNotice: View {
     }
 }
 
+struct SessionPriorWorkoutSummary: View {
+    let sessions: [SessionDetailModel]
+    let state: Loadable<[SessionDetailModel]>
+
+    var body: some View {
+        if !sessions.isEmpty {
+            SectionShell(title: "Recent", subtitle: "Previous sessions of this workout") {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(sessions) { session in
+                        let totals = session.strengthTotals
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(session.startedAtDate?.formatted(date: .abbreviated, time: .omitted) ?? "—")
+                                .font(.caption.weight(.semibold))
+                            Spacer(minLength: 0)
+                            Text("\(totals.sets) sets · \(totals.reps) reps · \(Int(totals.volume.rounded()).formatted()) kg")
+                                .font(.caption.monospacedDigit())
+                                .foregroundColor(NeoGymTheme.mutedText)
+                        }
+                        if session.id != sessions.last?.id { Divider() }
+                    }
+                }
+            }
+        } else if case let .failed(message, _) = state {
+            FeedbackBanner(message: "Could not load previous workout sessions: \(message)")
+        }
+    }
+}
+
 struct StrengthPriorSummary: View {
     let entries: [SessionPriorStrengthEntry]
     let doubleWeight: Bool

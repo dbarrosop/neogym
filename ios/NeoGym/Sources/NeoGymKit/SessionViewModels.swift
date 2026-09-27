@@ -115,10 +115,18 @@ public final class SessionsListViewModel: ObservableObject {
 public final class SessionDetailViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<SessionDetailModel> = .idle
     @Published public private(set) var priorHistoryState: Loadable<SessionPriorHistory> = .idle
+    @Published public private(set) var priorWorkoutState: Loadable<[SessionDetailModel]> = .idle
     @Published public private(set) var mutationState: Loadable<String> = .idle
 
     public let sessionId: String
     private let repository: any SessionsRepositoryProtocol
+    private var loadedPriorWorkoutKey: PriorWorkoutKey?
+
+    private struct PriorWorkoutKey: Equatable {
+        let workoutId: String
+        let startedAt: Date
+        let sessionId: String
+    }
 
     public init(sessionId: String, repository: any SessionsRepositoryProtocol) {
         self.sessionId = sessionId
@@ -131,6 +139,8 @@ public final class SessionDetailViewModel: ObservableObject {
         session?.strengthTotals ?? SessionStrengthTotals(sets: 0, reps: 0, volume: 0, hasStrength: false)
     }
 
+    public var priorWorkoutSessions: [SessionDetailModel] { priorWorkoutState.value ?? [] }
+
     public var priorStrengthByExercise: [String: [SessionPriorStrengthEntry]] {
         priorHistoryState.value?.strengthByExercise ?? [:]
     }
@@ -139,7 +149,7 @@ public final class SessionDetailViewModel: ObservableObject {
         priorHistoryState.value?.cardioByExercise ?? [:]
     }
 
-    public func load() async {
+    public func load(refreshComparisons: Bool = false) async {
         state = .loading(previous: state.value)
         do {
             var receivedValue = false
@@ -153,10 +163,13 @@ public final class SessionDetailViewModel: ObservableObject {
                 if receivedValue {
                     state = .failed(message: "Session not found.", previous: nil)
                     priorHistoryState = .loaded(SessionPriorHistory())
+                    priorWorkoutState = .loaded([])
+                    loadedPriorWorkoutKey = nil
                 }
                 return
             }
             await loadPriorHistory(for: latestSession)
+            await loadPriorWorkoutSessions(for: latestSession, force: refreshComparisons)
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -263,6 +276,34 @@ public final class SessionDetailViewModel: ObservableObject {
             priorHistoryState = .failed(
                 message: GraphQLDomainError.map(error).localizedDescription,
                 previous: priorHistoryState.value ?? SessionPriorHistory()
+            )
+        }
+    }
+
+    private func loadPriorWorkoutSessions(for session: SessionDetailModel, force: Bool) async {
+        guard let workoutId = session.workout?.id, let startedAt = session.startedAtDate else {
+            loadedPriorWorkoutKey = nil
+            priorWorkoutState = .loaded([])
+            return
+        }
+        let key = PriorWorkoutKey(workoutId: workoutId, startedAt: startedAt, sessionId: session.id)
+        if !force, loadedPriorWorkoutKey == key, case .loaded = priorWorkoutState { return }
+        priorWorkoutState = .loading(previous: priorWorkoutState.value)
+        do {
+            let sessions = try await repository.priorWorkoutSessions(
+                workoutId: workoutId,
+                before: startedAt,
+                excludeSessionId: session.id
+            )
+            loadedPriorWorkoutKey = key
+            priorWorkoutState = .loaded(sessions)
+        } catch where GraphQLDomainError.isCancellation(error) {
+            priorWorkoutState = priorWorkoutState.cancellationFallback
+        } catch {
+            // Comparison history should not prevent editing this session.
+            priorWorkoutState = .failed(
+                message: GraphQLDomainError.map(error).localizedDescription,
+                previous: priorWorkoutState.value ?? []
             )
         }
     }

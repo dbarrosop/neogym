@@ -54,13 +54,32 @@ for "out". If no `daily_energy` row exists, clients show intake-only rather than
 output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
 values may arrive in clients as strings, so frontend helpers should normalize before doing
 macro math. The native Nutrition overview is a dashboard, not a shortcut list:
-on initial load and pull-to-refresh it triggers the same read-only Apple Health
-syncs used by the Body and Energy subsections, then shows Energy balance, the
-Calories consumed chart, and Body composition trends, with no intro/action copy
-or recent daily-log list. Energy balance summarizes today with logged kcal,
+on initial load and pull-to-refresh it starts chart reads alongside the same
+read-only Apple Health syncs used by the Body and Energy subsections, so cached
+charts can render promptly; it refreshes the charts and Energy balance after sync.
+On a cold launch after the default range has moved to a new local day, each chart
+checks the SDK's protected cache for today's exact range and up to seven earlier
+daily ranges without network calls, shows the newest eligible result marked as
+possibly missing newer dates, then replaces it with the fresh current-range
+result. If offline, the prior result stays visible within the cache's 7-day
+stale window; if there is no eligible entry, the chart shows the normal error.
+The SDK (not app-owned storage) enforces user scope and cache age. Selected
+longer/custom ranges still request their exact dates and retain in-memory data
+while refreshing; the fallback scan is only for the initial default range.
+The dashboard has no intro/action copy or recent daily-log list. Energy balance summarizes today with logged kcal,
 active+resting energy, and net, and the calories chart overlays consumed kcal,
-daily net (`consumed - energy`), and 7-day average net. The 7-day rolling net
-average is computed from calendar days in the window that have both a nutrition
+daily net (`consumed - energy`), and 7-day average net. Both the Calories consumed
+and Body composition charts open on the last 14 local calendar days; users can
+choose longer or custom periods. Each chart initially requests its 14 visible
+local dates plus six preceding days for its 7-day rolling averages, and requests
+the new date range when its period or custom dates change. The dashboard/day-list
+query remains limited to 14 recent rows with full plan and meal details; the
+Calories consumed chart uses a separate, date-bounded user-scoped snapshot
+kcal/grams + daily-energy query, and Body composition has its own date-bounded
+measurements query. Longer chart periods load on demand without fetching plans.
+Body and Energy HealthKit reconciliation still inspect historical data separately
+and are not limited by the chart period.
+The 7-day rolling net average is computed from calendar days in the window that have both a nutrition
 log day and a `daily_energy` row, so
 missing energy/intake data is not silently treated as a zero-output day. The
 body composition chart overlays weight, body-fat percentage, and independent

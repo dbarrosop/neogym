@@ -61,6 +61,14 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         }
     }
 
+    /// Used by the Overview, whose chart has its own date-bounded query.
+    public func syncHealthMeasurementsOnly() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        await syncHealthMeasurements()
+    }
+
     private func syncHealthMeasurements() async {
         guard let healthImporter else { return }
         healthSyncState = .loading(previous: healthSyncState.value)
@@ -149,6 +157,53 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
             abs(lhs - rhs) < 0.005
         case (.some, .none), (.none, .some):
             false
+        }
+    }
+}
+
+@MainActor
+public final class BodyMeasurementsChartViewModel: ObservableObject {
+    @Published public private(set) var state: Loadable<BodyMeasurementTrendData> = .idle
+    @Published public private(set) var cachedThrough: String?
+    private let repository: any BodyMeasurementsRepositoryProtocol
+    private let calendar: Calendar
+    private var requestGeneration = 0
+
+    public init(repository: any BodyMeasurementsRepositoryProtocol, calendar: Calendar = .current) {
+        self.repository = repository
+        self.calendar = calendar
+    }
+
+    public var trendData: BodyMeasurementTrendData { state.value ?? BodyMeasurementTrendData(points: []) }
+
+    public func load(range: ChartHistoryRange, cacheCandidates: [ChartHistoryRange] = []) async {
+        // Keep the chart mounted, including its selected period, while a wider range loads.
+        requestGeneration += 1
+        let generation = requestGeneration
+        state = .loading(previous: state.value)
+        if state.value == nil {
+            for candidate in cacheCandidates {
+                guard generation == requestGeneration, !Task.isCancelled else { return }
+                if let cached = try? await repository.cachedMeasurementChart(range: candidate) {
+                    guard generation == requestGeneration, !Task.isCancelled else { return }
+                    cachedThrough = candidate == range ? nil : candidate.through
+                    state = .loaded(BodyMeasurementTrendBuilder.make(from: cached, calendar: calendar))
+                    break
+                }
+            }
+        }
+        do {
+            for try await measurements in repository.measurementChartUpdates(range: range) {
+                guard generation == requestGeneration, !Task.isCancelled else { return }
+                cachedThrough = nil
+                state = .loaded(BodyMeasurementTrendBuilder.make(from: measurements, calendar: calendar))
+            }
+        } catch where GraphQLDomainError.isCancellation(error) {
+            guard generation == requestGeneration else { return }
+            state = state.cancellationFallback
+        } catch {
+            guard generation == requestGeneration, !Task.isCancelled else { return }
+            state = .failed(message: BodyMeasurementsErrorMapper.message(for: error), previous: state.value)
         }
     }
 }

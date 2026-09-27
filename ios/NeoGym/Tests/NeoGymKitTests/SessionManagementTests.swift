@@ -181,6 +181,30 @@ final class SessionsRepositoryTests: XCTestCase {
 
 @MainActor
 final class SessionsViewModelTests: XCTestCase {
+    func testProgressModelRetainsCachedValueAfterRevalidationFails() async throws {
+        let repository = StubSessionsRepository()
+        repository.progressUpdateEntries = [WorkoutProgressEntry(
+            id: "cached",
+            exercise: WorkoutProgressExercise(id: "bench", name: "Bench"),
+            workoutSession: SessionPriorWorkoutSession(
+                id: "session", startedAt: ISO8601DateFormatter().string(from: Date())
+            ),
+            workoutSessionStrengthSets: [ExerciseStrengthSet(id: "set", setNumber: 1, reps: 5, weight: 100)]
+        )]
+        repository.progressUpdateError = GraphQLDomainError.missingData(operationName: "WorkoutStrengthProgress")
+        let viewModel = WorkoutProgressViewModel(repository: repository)
+
+        await viewModel.load()
+
+        let progress = try XCTUnwrap(viewModel.progress)
+        XCTAssertEqual(progress.recentExercises.map(\.id), ["bench"])
+        guard case let .failed(message, previous) = viewModel.state else {
+            return XCTFail("Expected failed revalidation with cached progress")
+        }
+        XCTAssertFalse(message.isEmpty)
+        XCTAssertEqual(previous, progress)
+    }
+
     func testListGroupsSessionsByMonthAndUsesDisplayNames() async {
         let repository = StubSessionsRepository(sessions: [
             SessionListItem(
@@ -293,6 +317,72 @@ final class SessionsViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.session?.id, "session-1")
         XCTAssertNil(viewModel.priorHistoryState.errorMessage)
+    }
+
+    func testPreviousSessionsOnlyRequestedForLinkedWorkout() async throws {
+        let linked = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: linked)
+        repository.priorWorkoutSessionsResult = [linked]
+        let viewModel = SessionDetailViewModel(sessionId: linked.id, repository: repository)
+
+        await viewModel.load()
+
+        XCTAssertEqual(viewModel.priorWorkoutSessions.map(\.id), [linked.id])
+        XCTAssertEqual(repository.priorWorkoutRequests.first?.workoutId, linked.workout?.id)
+        XCTAssertEqual(repository.priorWorkoutRequests.first?.excludeSessionId, linked.id)
+
+        let adHoc = SessionDetailModel(id: "ad-hoc", startedAt: linked.startedAt)
+        let adHocRepository = StubSessionsRepository(detail: adHoc)
+        let adHocViewModel = SessionDetailViewModel(sessionId: adHoc.id, repository: adHocRepository)
+        await adHocViewModel.load()
+        XCTAssertTrue(adHocRepository.priorWorkoutRequests.isEmpty)
+    }
+
+    func testPriorWorkoutComparisonReusesSuccessfulLoadUntilInputsChangeOrRefreshIsRequested() async throws {
+        let detail = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: detail)
+        let viewModel = SessionDetailViewModel(sessionId: detail.id, repository: repository)
+        let newStartedAt = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-06-27T12:00:00Z"))
+
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+        let didAddSet = await viewModel.addStrengthSet(workoutSessionExerciseId: "wse-1", reps: 8, weight: 50)
+        let didUpdateCardio = await viewModel.updateCardioEntry(id: "entry-1", metrics: ["duration_s": 700])
+        let didAddExercises = await viewModel.addExercises([pickerExercise(id: "exercise-new")])
+        XCTAssertTrue(didAddSet)
+        XCTAssertTrue(didUpdateCardio)
+        XCTAssertTrue(didAddExercises)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+
+        await viewModel.load(refreshComparisons: true)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 2)
+
+        repository.detail = SessionDetailModel(
+            id: detail.id,
+            startedAt: "2026-06-27T12:00:00Z",
+            workout: detail.workout,
+            workoutSessionExercises: detail.workoutSessionExercises
+        )
+        let didUpdateStartedAt = await viewModel.updateStartedAt(newStartedAt)
+        XCTAssertTrue(didUpdateStartedAt)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 3)
+        XCTAssertEqual(repository.priorWorkoutRequests.last?.before, newStartedAt)
+    }
+
+    func testFailedPriorWorkoutComparisonRetriesOnNextLoad() async throws {
+        let detail = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: detail)
+        repository.priorWorkoutError = GraphQLDomainError.missingData(operationName: "PriorWorkoutSessions")
+        let viewModel = SessionDetailViewModel(sessionId: detail.id, repository: repository)
+
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+        XCTAssertNotNil(viewModel.priorWorkoutState.errorMessage)
+
+        repository.priorWorkoutError = nil
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 2)
+        XCTAssertNil(viewModel.priorWorkoutState.errorMessage)
     }
 
     func testDetailMutationsCallRepositoryAndReload() async throws {
@@ -685,8 +775,18 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var updatedStrengthSetIds: [String] = []
     var deletedStrengthSetIds: [String] = []
     var priorHistory = SessionPriorHistory()
+    var priorWorkoutSessionsResult: [SessionDetailModel] = []
+    struct PriorWorkoutRequest {
+        let workoutId: String
+        let before: Date
+        let excludeSessionId: String
+    }
+    var priorWorkoutRequests: [PriorWorkoutRequest] = []
+    var priorWorkoutError: Error?
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
     var priorHistoryError: Error?
+    var progressUpdateEntries: [WorkoutProgressEntry] = []
+    var progressUpdateError: Error?
     var addedCardioEntryNumbers: [Int] = []
     var updatedCardioEntryIds: [String] = []
     var deletedCardioEntryIds: [String] = []
@@ -743,6 +843,27 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         priorHistoryRequests.append((exerciseIds: exerciseIds, excludeSessionId: excludeSessionId))
         if let priorHistoryError { throw priorHistoryError }
         return priorHistory
+    }
+
+    func priorWorkoutSessions(
+        workoutId: String,
+        before: Date,
+        excludeSessionId: String
+    ) async throws -> [SessionDetailModel] {
+        priorWorkoutRequests.append(PriorWorkoutRequest(
+            workoutId: workoutId, before: before, excludeSessionId: excludeSessionId
+        ))
+        if let priorWorkoutError { throw priorWorkoutError }
+        return priorWorkoutSessionsResult
+    }
+
+    func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry] { [] }
+
+    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+        AsyncThrowingStream { continuation in
+            continuation.yield(progressUpdateEntries)
+            continuation.finish(throwing: progressUpdateError)
+        }
     }
 
     func updateStartedAt(sessionId: String, startedAt: Date) async throws {

@@ -4,6 +4,7 @@ enum WorkoutsRoute: Hashable {
     case sessionsList
     case workoutsList
     case exercisesList
+    case progress
     case sessionDetail(String)
     case workoutDetail(String)
     case workoutCreate

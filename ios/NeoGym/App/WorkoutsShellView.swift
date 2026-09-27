@@ -5,6 +5,7 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable {
     case sessions
     case workouts
     case exercises
+    case progress
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable {
         case .sessions: "Sessions"
         case .workouts: "Workouts"
         case .exercises: "Exercises"
+        case .progress: "Progress"
         }
     }
 
@@ -21,6 +23,7 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable {
         case .sessions: "calendar.badge.clock"
         case .workouts: "figure.strengthtraining.traditional"
         case .exercises: "list.bullet.clipboard"
+        case .progress: "chart.line.uptrend.xyaxis"
         }
     }
 }
@@ -93,13 +96,14 @@ struct WorkoutsSectionNavigationView: View {
         case .sessions: .sessionsList
         case .workouts: .workoutsList
         case .exercises: .exercisesList
+        case .progress: .progress
         }
     }
 
     @ViewBuilder
     private func routeDestination(for route: WorkoutsRoute) -> some View {
         switch route {
-        case .sessionsList, .workoutsList, .exercisesList:
+        case .sessionsList, .workoutsList, .exercisesList, .progress:
             subsectionListDestination(for: route)
         case let .sessionDetail(sessionId):
             SessionDetailView(
@@ -168,6 +172,8 @@ struct WorkoutsSectionNavigationView: View {
             )
             .navigationTitle("Exercises")
             .navigationBarTitleDisplayMode(.inline)
+        case .progress:
+            WorkoutProgressView(repository: sessionsRepository, reloadToken: reloadToken)
         case .sessionsList:
             SessionsListView(
                 sessionsRepository: sessionsRepository,

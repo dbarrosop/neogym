@@ -22,13 +22,22 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests.
+  tests. In XCTest, await actor snapshots into a local before passing them to
+  `XCTAssertEqual`: assertion autoclosures do not support `await`.
 - `nix develop ../.. --command xcodegen generate` — regenerate
   `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
   Keep `project.yml` as the source of truth and do not commit generated
   `.xcodeproj` output.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
+- `make deploy-testflight` — regenerate, archive the app and widget for iOS
+  Release, and upload to App Store Connect. Requires XcodeGen, an Xcode account
+  authorized for team `C7HCKFA2LG`; never run this as a validation-only
+  command. Export enables Xcode-managed build numbers, so no manual
+  `CURRENT_PROJECT_VERSION` bump is needed for each upload (the archive and
+  uploaded build numbers can differ). It does not wait for TestFlight processing
+  or assign tester groups. Archives are retained under ignored
+  `.build/testflight/` for troubleshooting and export retries.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
@@ -39,7 +48,12 @@ compile failure. For `xcodebuild`, also unset Nix toolchain overrides such as
 simulator link step fail with `ld: -objc_abi_version '-Xlinker' not supported`.
 When invoking `xcodebuild` through `nix develop --command`, put the cleanup `env
 -u ...` both before `nix develop` and immediately after `--command` if the shell
-reintroduces linker variables.
+reintroduces linker variables. In the Nix devshell, the xcbuild `xcrun` shim
+can shadow `/usr/bin/xcrun`; with both `SDKROOT` and `DEVELOPER_DIR` unset,
+that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
+test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
+`swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
+`AR`, and `LDFLAGS`.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
@@ -73,16 +87,21 @@ changes.
   with a 5-minute freshness window and 7-day stale-if-error window. Browsing list
   and display-detail repositories expose cached-first/fresh-second streams
   through `GraphQLServicing.cachedQuery`; view models must retain cached values
-  while revalidation runs or fails. Cached domains include workouts, sessions,
-  exercises, journal, foods, meals, nutrition plans/overview, Body, and Energy.
+  while revalidation runs or fails. Cached domains include workouts, sessions
+  (including workout progress), exercises, journal, foods, meals, nutrition
+  plans/overview, Body, and Energy.
   Edit/form, HealthKit reconciliation, daily-intake, and widget live-fetch reads
   stay network-only. Mutations also use the network-only `execute` path; browsing
   caches remain available after mutations and their stale-while-revalidate loads
   still fetch fresh backend data. The SDK scopes private cache entries by the
   managed session and purges prior user scopes on sign-out/session replacement.
   The file cache is app-process-only; the widget client has no GraphQL cache because each
-  process must own a distinct SDK cache directory. Do not add weaker app-owned
-  user cache keys.
+  process must own a distinct SDK cache directory. On a cold Nutrition Overview
+  launch, the default charts read today's exact range and up to seven prior
+  daily ranges through the SDK's age-bounded `.cacheOnly` policy before their
+  current-range refresh. Previous-range results are visibly labeled and kept
+  on network failure, never copied into app storage; the SDK enforces scope
+  and age on every read. Do not add weaker app-owned user cache keys.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
   Energy Balance widget. Energy Balance math, captions, the dependency-free
   token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
@@ -157,9 +176,9 @@ intact instead of inventing one-off styles.
   `selection`; it is shown at each area's stack root only and disappears when a
   route is pushed. **Workouts (Phase 2a, shipped):** `WorkoutsSectionNavigationView`
   is now a HUB — its root is a native `List` of glass rows (Sessions / Workouts /
-  Exercises, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
-  that PUSH subsection-list routes (`WorkoutsRoute.sessionsList` /
-  `.workoutsList` / `.exercisesList`) rendered through
+  Exercises / Progress, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
+  that PUSH subsection routes (`WorkoutsRoute.sessionsList` /
+  `.workoutsList` / `.exercisesList` / `.progress`) rendered through
   `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
   area segmented `Picker` lives in the hub's nav-bar **principal** slot (chosen
   over `.safeAreaInset` so there is exactly one top row: the segmented control
@@ -169,6 +188,18 @@ intact instead of inventing one-off styles.
   with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
   deleted). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
+  Progress fetches strength history from the local week containing the first of
+  the last 180 local days, then extends the week-rounded bound on demand for
+  older custom ranges in either chart; cached results remain visible during
+  revalidation. If the current week-rounded `since` cache key is cold, an eligible
+  previous-key SDK snapshot can render without a network read and stays visible
+  on network failure, labeled as potentially missing newer sessions until the
+  current stream emits; missing or expired snapshots cannot provide that fallback.
+  Weekly zero buckets begin at the first logged week in the
+  fetched window, not necessarily the first-ever workout. On Progress, each
+  exercise chart's header is a `NavigationLink` to the existing
+  `.exerciseDetail(id)` route; Back returns to Progress and the chart's period,
+  legend, and plot gestures remain independent of navigation.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;
@@ -187,8 +218,13 @@ intact instead of inventing one-off styles.
   under the Nutrition hub. The Overview screen (a pushed route) is a dashboard:
   it auto-syncs Body measurements and Energy from HealthKit on load and
   pull-to-refresh, then shows Energy balance, the Calories consumed chart, and
-  Body composition trends; it no longer shows the old intro copy or recent
-  daily-log list. There
+  Body composition trends; both charts initially request the last 14 local
+  days plus six warm-up days for rolling averages and fetch wider/custom date
+  ranges only when selected. The calorie chart queries logged snapshots and
+  daily energy separately from the detailed overview; the Body chart uses a
+  date-bounded measurements query. HealthKit reconciliation still checks
+  historical measurements independently. It no longer shows the old intro
+  copy or recent daily-log list. There
   is no more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
   `selectedDate` binding. Post-create,
   the create view pops itself via

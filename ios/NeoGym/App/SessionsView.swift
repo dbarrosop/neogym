@@ -379,7 +379,7 @@ struct SessionDetailView: View {
         case let .failed(message, _) where viewModel.session == nil:
             SectionShell(title: "Session") {
                 AppErrorStateView(title: "Failed to load", message: message) {
-                    Task { await viewModel.load() }
+                    Task { await viewModel.load(refreshComparisons: true) }
                 }
             }
         default:
@@ -387,6 +387,9 @@ struct SessionDetailView: View {
                 summary(session)
                 if viewModel.totals.hasStrength {
                     strengthTotals(viewModel.totals)
+                    if session.workout != nil {
+                        SessionPriorWorkoutSummary(sessions: viewModel.priorWorkoutSessions, state: viewModel.priorWorkoutState)
+                    }
                 }
                 exerciseSection(session)
                 if let message = viewModel.mutationState.errorMessage ?? errorMessage {
@@ -543,7 +546,7 @@ struct SessionDetailView: View {
     }
 
     private func reloadAll() async {
-        await viewModel.load()
+        await viewModel.load(refreshComparisons: true)
         onMutated()
     }
 }
