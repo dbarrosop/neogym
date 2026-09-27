@@ -1,11 +1,8 @@
 # NeoGym iOS
 
-Native SwiftUI app for NeoGym. The current milestone implements email OTP
-sign-in/sign-up, a protected grouped app shell with three primary tabs and
-secondary sections for the seven signed-in destinations, sign out, session
-bootstrap through local Nhost Swift SDK storage, app-side PKCE email-change
-handling through the `neogym://verify` URL scheme, and read-only Apple Health
-imports for body weight/body-fat measurements.
+Native SwiftUI iPhone app with a watchOS companion and widget. The phone
+uses email OTP, a protected Workouts/Nutrition/Me navigation shell, app-side
+PKCE email change, and read-only Apple Health imports.
 
 ## Layout
 
@@ -21,12 +18,14 @@ ios/NeoGym/
 │   ├── Info.plist              # URL scheme, HealthKit usage, launch screen
 │   ├── LaunchScreen.storyboard # required so iOS uses modern full-screen sizing
 │   └── Assets.xcassets/
-├── Sources/NeoGymKit/          # host-testable auth/session logic
+├── Watch/                      # companion SwiftUI, private connectivity, icon/plist
+├── Sources/NeoGymKit/          # host-testable auth/session and hint policy
 └── Tests/NeoGymKitTests/
 ```
 
 `NeoGymKit` must stay free of SwiftUI/UIKit so `swift build` and `swift test`
-run on the macOS host. SwiftUI views belong in `App/`.
+run on the macOS host. iPhone SwiftUI views belong in `App/`; watch SwiftUI
+views belong in `Watch/`.
 
 ## Prerequisites
 
@@ -48,11 +47,11 @@ project, choose **Cancel** and make intended changes in `project.yml` instead.
 App Info.plist entries that XcodeGen owns, including the `neogym` URL scheme and
 full-screen launch screen keys, are declared under the target `info.properties`
 in `project.yml`; rerun XcodeGen after changing them. The same spec also keeps
-the shared scheme's default debug diagnostics disabled: XcodeGen writes the
-supported GPU/main-thread/thread-performance settings, then
-`Scripts/disable-xcode-debug-options.py` patches the generated `.xcscheme` for
-XPC Services, Queue Debugging/backtrace recording, and View Debugging, which
-XcodeGen does not expose directly. Keep `LaunchScreen.storyboard` wired through
+both the `NeoGym` and `NeoGymWatch` schemes' default debug diagnostics disabled:
+XcodeGen writes the supported GPU/main-thread/thread-performance settings, then
+`Scripts/disable-xcode-debug-options.py` patches both generated `.xcscheme`
+files for XPC Services, Queue Debugging/backtrace recording, and View Debugging,
+which XcodeGen does not expose directly. Keep `LaunchScreen.storyboard` wired through
 `UILaunchStoryboardName`; without a launch screen, iOS can run the app in legacy
 letterboxed compatibility sizing on modern devices.
 
@@ -83,87 +82,87 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
-## Upload to TestFlight
+## Embedded Apple Watch companion (Phase 2)
 
-This app uses the existing App Store Connect app `io.nhost.dbarroso.neogym`,
-widget bundle ID `io.nhost.dbarroso.neogym.widgets`, and App Group
-`group.io.nhost.dbarroso.neogym`. Both targets support only iPhone/iOS 27; Mac,
-iPad, and Apple Vision destinations are disabled. The app and widget still
-connect to the **production Nhost backend** when installed through TestFlight.
-No App Store Connect API key or production App Store release is needed for a
-local upload if Xcode's Accounts settings have a signed-in developer account.
+`NeoGymWatch` is a watchOS 27 companion embedded in the existing iPhone app
+alongside `NeoGymWidgets`. It targets bundle ID
+`io.nhost.dbarroso.neogym.watchkitapp` under team `C7HCKFA2LG`; Xcode automatic
+signing may need to register this App ID and provision it. Operator permission
+is required before doing that. `Watch/Info.plist` declares the companion ID,
+non-independent installation, and versions from the shared project settings;
+`Watch/Assets.xcassets/AppIcon.appiconset` contains the opaque watch icon.
+Keep that catalog in the watch target's `sources` in `project.yml` (XcodeGen
+ignores target-level `resources:`); the built watch bundle must contain
+`Assets.car` and `CFBundleIcons/CFBundlePrimaryIcon/CFBundleIconName = AppIcon`. Regenerate with `nix develop ../.. --command xcodegen generate`, build the
+`NeoGym` iOS Simulator and `NeoGymWatch` watchOS Simulator schemes, and inspect
+`NeoGym.app/Watch/NeoGymWatch.app` and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
+A paired iPhone is required for companion installation; the watch subsequently
+uses its own internet connection and privately rotating Nhost SDK session.
 
-1. In `project.yml`, keep the intended `MARKETING_VERSION` (currently `"1.0"`).
-   `CURRENT_PROJECT_VERSION` (currently `"6"`) seeds the app and widget in the
-   archive; **you do not need to raise it before each upload**. The export
-   options enable Xcode-managed version/build numbers, like Xcode's Organizer,
-   so Xcode selects a higher build number for the upload when needed. The
-   uploaded build number may differ from the archive and `project.yml`. Do not
-   change version settings only in Xcode or generated plists: XcodeGen
-   overwrites them.
-2. Once, sign in to the Apple Developer account for team `C7HCKFA2LG`
-   (Nhost AB) under Xcode → Settings → Accounts. Automatic signing must be
-   permitted for both bundle IDs and their capabilities, with a usable
-   distribution certificate/profiles. `project.yml` sets this team for both
-   targets, so there is no per-generation team selection in Xcode. Keep the
-   shared Keychain access group
-   `$(AppIdentifierPrefix)io.nhost.neogym.shared` on both targets: unlike the
-   App Group, it was **not** changed to match the bundle ID. If the existing
-   signed app uses a different Keychain group, align both targets and the SDK
-   configuration before archiving; switching groups can sign users out and
-   break widget session sharing.
-3. From `ios/NeoGym/`, with `xcodegen` available (for example inside the Nix
-   devshell), run:
+The watch signs into an **existing** account with email OTP and displays only a
+fresh, managed Auth `GET /user` display name (blank names become “Athlete”). It
+reads the latest delivered account-only WatchConnectivity context after local
+activation and on foreground. A known signed-out or different iPhone account
+blocks the name and triggers remote sign-out plus mandatory local clearing. An
+unknown/unreachable phone does not block independent watch internet access.
+Hints contain no credential, email, or name; an undelivered hint cannot revoke
+the watch's server session instantly, and failed remote revocation can leave a
+server token valid until expiry despite successful local removal. The bounded
+watch expiring activity around auth work is best-effort, not a suspension
+promise: its 20-second local deadline releases the assertion without cancelling
+the request; system-reported expiry can cancel OTP or a name read, while local
+session clearing must complete. A verified OTP forces a fresh `/user` read even
+when the SDK already persisted a same-account session. On a paired test device,
+sign in via OTP, edit the server-side name,
+background/reopen the watch, and check that it shows the new name; repeat with
+phone unreachable, watch offline/retry, watch sign-out, and a later phone
+sign-out/account switch. No production `GET /user` contract or signed hardware
+acceptance is established merely by a simulator build.
 
-   ```sh
-   make deploy-testflight
-   ```
+**Uploads remain blocked pending Phase 3 verification.**
+`make deploy-testflight` requires `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` per run
+and refuses watch-bearing uploads until both `Scripts/verify-release-archive.sh`
+and `Scripts/LocalExportOptions.plist` are installed. The local options must
+specify `destination=export` (never `upload`). It calls the verifier with
+`--archive PATH` after archiving and `--archive PATH --ipa PATH` after a
+non-upload local export; either failure stops before the upload export. Phase 3
+must implement those interfaces and signed artifact checks, plus a separate
+per-run opt-in before automatic provisioning updates. Do not bypass the guards
+with Xcode Organizer or direct `xcodebuild -exportArchive`. Each real upload
+requires operator approval separate from provisioning approval. No local
+simulator or host test substitutes for the signed archive/export gate. The app/widget shared
+Keychain and App Group remain unchanged and are **not** used by watch.
 
-   This regenerates the project, archives the **NeoGym** scheme in Release for
-   a generic iOS device (including the widget), then exports with
-   `method=app-store-connect` and `destination=upload`. It uses the selected
-   host Xcode, not Nix compiler/SDK overrides, and passes
-   `-allowProvisioningUpdates` for automatic signing. The archive and any
-   export artifacts remain under ignored `.build/testflight/` in a unique run
-   directory, including if upload fails. The export options enable
-   Xcode-managed upload build numbers; uploading a previously used archive
-   build number should not require another archive.
-4. In App Store Connect → **TestFlight**, wait for processing, complete any
-   required compliance/test information, and assign the build to your tester
-   group if it is not assigned automatically. External testers may require
-   TestFlight Beta App Review. An upload success does not mean testers can
-   install it yet. Do not submit the app version for App Store release.
+### TestFlight release notes (uploads disabled)
 
-To retry an upload after an export failure without building another archive,
-use the retained path printed by the script (and a new export directory):
+The existing App Store Connect app remains `io.nhost.dbarroso.neogym`; the
+widget remains `io.nhost.dbarroso.neogym.widgets`, with App Group
+`group.io.nhost.dbarroso.neogym`. The phone and widget still connect to the
+production Nhost backend through TestFlight. Keep the intended
+`MARKETING_VERSION` in `project.yml`; `CURRENT_PROJECT_VERSION` seeds all three
+bundles in the archive. Export can use Xcode-managed build numbers, so the
+uploaded number may differ from the archive's; do not change only generated
+project settings or plists. App Store Connect processing, compliance answers,
+and tester-group assignment happen after any future authorized upload, not at
+archive creation. External testers may require Beta App Review; uploading is
+not a production App Store release.
 
-```sh
-xcodebuild -exportArchive \
-  -archivePath .build/testflight/<run>/NeoGym.xcarchive \
-  -exportPath .build/testflight/<run>/retry-export \
-  -exportOptionsPlist Scripts/TestFlightExportOptions.plist \
-  -allowProvisioningUpdates
-```
-
-If signing or upload cannot run headlessly, the manual fallback is to run
-`make generate-project`, open `NeoGym.xcodeproj`, choose the NeoGym scheme and
-**Any iOS Device**, then **Product → Archive** and **Distribute App → TestFlight
-& App Store → Upload** in Organizer. If Xcode offers to modernize project
-settings, choose **Cancel** and edit `project.yml` instead.
-
-The widget's `CFBundleDisplayName` and the app's `NSHealthUpdateUsageDescription`
-are required for Apple's upload validation. Both come from `project.yml`; the
-update purpose string accurately says NeoGym does **not** write to Apple Health.
-After changing either property, regenerate and create a **new archive** before
-retrying the upload—an existing archive cannot pick up Info.plist changes.
-
-The app Info.plist also declares `ITSAppUsesNonExemptEncryption = false` through
-`project.yml` to avoid repeated TestFlight export-compliance questions for
-builds with no non-exempt encryption. This is a compliance declaration, not a
-way to skip a required filing: check Apple's questionnaire for the actual app
-and its dependencies, and revisit this value if its encryption use changes.
-For an already uploaded build without the key, answer **Manage** in the
-TestFlight build details; the new key only affects new archives.
+For future authorized release work, Xcode Accounts must have team
+`C7HCKFA2LG` with distribution certificates and automatic signing profiles
+for the phone, widget, and new watch App ID. Keep the phone/widget shared
+Keychain access group `$(AppIdentifierPrefix)io.nhost.neogym.shared` unchanged;
+if a signed installation uses a different group, reconcile both targets and
+SDK configuration before archiving or users may lose their shared session.
+The widget's `CFBundleDisplayName` and the app's
+`NSHealthUpdateUsageDescription` are upload-validation requirements; regenerate
+and create a **new archive** after changing them. The app's
+`ITSAppUsesNonExemptEncryption = false` avoids repeated export-compliance
+questions only if the actual app and dependencies qualify; revisit it after
+cryptography changes. For builds uploaded without the key, answer **Manage**
+in TestFlight build details. The former Organizer/direct export retry route is **not an allowed fallback**
+even after the verifier is installed; any retry must repeat the same signed
+archive and IPA verification before upload. Retained archives are for diagnosis
+or a guarded retry, not permission to bypass the gate.
 
 ## Persistent GraphQL browsing cache
 

@@ -90,26 +90,36 @@ package at its lower deployment floor unless its own code needs newer APIs.
 - `swift test` — run deterministic package tests against fakes; do not require a live Nhost backend or real Keychain for unit tests.
 - `nix develop ../.. --command xcodegen generate` — generate `NeoGym.xcodeproj` from `project.yml`.
   After adding/removing Swift app files, wait for XcodeGen to finish before running `xcodebuild`; a stale generated project can omit new `App/*.swift` sources and surface misleading `cannot find type/member` compile errors.
-  The spec's post-generation script patches the shared scheme to keep XPC
-  Services, Queue Debugging/backtrace recording, View Debugging, and related
-  default diagnostics disabled after regeneration.
+  The spec's post-generation script patches both `NeoGym` and `NeoGymWatch`
+  schemes to keep XPC Services, Queue Debugging/backtrace recording, View
+  Debugging, and related default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
-- `make deploy-testflight` — regenerate XcodeGen, archive a Release device app + widget, and upload to App Store Connect. `project.yml` sets team `C7HCKFA2LG` for both targets; Xcode manages upload build numbers (the archive's `CURRENT_PROJECT_VERSION` can differ from the uploaded version). This requires an authorized Xcode account and does not wait for TestFlight processing or tester assignment. Do not run this target just to validate configuration; it uploads a real build.
+- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination 'generic/platform=watchOS Simulator' build` — build the watch companion after regenerating XcodeGen.
+- `make deploy-testflight` — currently refuses upload unless `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` is set for that run **and** Phase 3's executable archive/IPA verifier and local export options are installed; it then requires both artifact checks to succeed before upload. Never use it to validate configuration; each later real upload needs separate operator approval.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
 `NeoGymKit` also supports watchOS 8 without changing its iOS/macOS floors.
-The three HealthKit importer implementations are iOS-only. The phase-1 watch
-core has no embedded binary: its production factory uses a private, origin-scoped,
-device-only SDK Keychain session with legacy migration ignored, no GraphQL cache,
-and a managed, uncached Auth `GET /user` name read. Phone account hints contain
-only version/state/user ID, never credentials or display name; known signed-out
+The three HealthKit importer implementations are iOS-only. The embedded
+`NeoGymWatch` watchOS 27 companion uses the watch core's private,
+origin-scoped, device-only SDK Keychain session with legacy migration ignored,
+no GraphQL cache, and a managed, uncached Auth `GET /user` name read. The
+watch signs existing accounts in with email OTP; WatchConnectivity carries only
+latest-state account hints, never credentials. A cold launch waits briefly for
+local WCSession activation, and background-to-active refreshes the name; an
+inactive wrist raise does not force a refresh. A paired iPhone is required to
+install the companion, not to perform the watch's independent network read.
+The TestFlight upload script refuses upload without per-run approval and remains
+blocked until Phase 3 installs `Scripts/verify-release-archive.sh` and
+`Scripts/LocalExportOptions.plist`; the script must successfully verify the
+signed archive and locally exported IPA before upload. Phone account
+hints contain only version/state/user ID and an opaque delivery ID on re-send,
+never credentials or display name; known signed-out
 or different-account state blocks the watch while unknown state allows independent
 watch internet use. The watch model exposes non-actionable `.clearing` while a
 blocking hint's session removal is pending; only after clearing finishes may
 `.matchPhone` invite OTP. A later phone signed-in hint after explicit watch
-sign-out also changes the prompt to `.matchPhone`. Watch UI and connectivity
-targets are not yet installed.
+sign-out also changes the prompt to `.matchPhone`.
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
@@ -157,8 +167,9 @@ availability gates; existing guards are vestigial, not a pattern for new code.
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
-`AuthServicing` boundary; SwiftUI views under `ios/NeoGym/App/` call those
-models and route signed-in sessions into the full-screen `AppShellView`. The
+`AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
+those models and route signed-in sessions into the full-screen `AppShellView`.
+Watch SwiftUI views live under `ios/NeoGym/Watch/`. The
 native shell has NO `TabView`: the three primary areas (Workouts, Nutrition, Me)
 are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
 keyed by `@State selection: AppDestination` (the active area is shown; the others

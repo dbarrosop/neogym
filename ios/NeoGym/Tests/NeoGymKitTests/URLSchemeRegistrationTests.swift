@@ -65,6 +65,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
     func testDistributionPlistsIncludeWidgetNameAndHealthPurposeStrings() throws {
         let appInfo = try plist(at: "App/Info.plist")
         let widgetInfo = try plist(at: "Widgets/Info.plist")
+        let watchInfo = try plist(at: "Watch/Info.plist")
+        XCTAssertEqual(watchInfo["CFBundleDisplayName"] as? String, "NeoGym")
         XCTAssertEqual(widgetInfo["CFBundleDisplayName"] as? String, "NeoGym Widgets")
         XCTAssertFalse((appInfo["NSHealthShareUsageDescription"] as? String ?? "").isEmpty)
         XCTAssertTrue((appInfo["NSHealthUpdateUsageDescription"] as? String ?? "").contains("does not write"))
@@ -82,7 +84,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
     func testAppAndWidgetVersionsComeFromSharedBuildSettings() throws {
         let appInfo = try plist(at: "App/Info.plist")
         let widgetInfo = try plist(at: "Widgets/Info.plist")
-        for info in [appInfo, widgetInfo] {
+        let watchInfo = try plist(at: "Watch/Info.plist")
+        for info in [appInfo, widgetInfo, watchInfo] {
             XCTAssertEqual(info["CFBundleVersion"] as? String, "$(CURRENT_PROJECT_VERSION)")
             XCTAssertEqual(info["CFBundleShortVersionString"] as? String, "$(MARKETING_VERSION)")
         }
@@ -93,11 +96,11 @@ final class URLSchemeRegistrationTests: XCTestCase {
         )
         XCTAssertEqual(
             spec.components(separatedBy: "CFBundleVersion: \"$(CURRENT_PROJECT_VERSION)\"").count - 1,
-            2
+            3
         )
         XCTAssertEqual(
             spec.components(separatedBy: "CFBundleShortVersionString: \"$(MARKETING_VERSION)\"").count - 1,
-            2
+            3
         )
     }
 
@@ -146,6 +149,45 @@ final class URLSchemeRegistrationTests: XCTestCase {
             projectSpec.components(separatedBy: "group.io.nhost.dbarroso.neogym").count - 1,
             2
         )
+    }
+
+    func testWatchIsPrivateCompanionWithNoPhoneCapabilitiesOrSources() throws {
+        let watch = try plist(at: "Watch/Info.plist")
+        XCTAssertEqual(watch["WKApplication"] as? Bool, true)
+        XCTAssertEqual(watch["WKCompanionAppBundleIdentifier"] as? String, "io.nhost.dbarroso.neogym")
+        XCTAssertEqual(watch["WKRunsIndependentlyOfCompanionApp"] as? Bool, false)
+        XCTAssertNil(watch["NeoGymSharedKeychainAccessGroup"])
+        XCTAssertNil(watch["NSHealthShareUsageDescription"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath:
+            packageRoot.appendingPathComponent("Watch/NeoGymWatch.entitlements").path))
+
+        let spec = try String(contentsOf: packageRoot.appendingPathComponent("project.yml"), encoding: .utf8)
+        let watchTarget = try XCTUnwrap(spec.components(separatedBy: "  NeoGymWatch:\n    type: application").dropFirst().first?.components(separatedBy: "  NeoGymWidgets:\n").first)
+        XCTAssertTrue(watchTarget.contains("platform: watchOS\n    deploymentTarget: \"27.0\""))
+        XCTAssertTrue(watchTarget.contains("PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp"))
+        XCTAssertTrue(watchTarget.contains("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon"))
+        XCTAssertTrue(watchTarget.contains("- path: Watch\n        excludes:\n          - Info.plist"))
+        XCTAssertFalse(watchTarget.contains("- Assets.xcassets"), "The watch asset catalog must be included in sources")
+        XCTAssertFalse(watchTarget.contains("    resources:"), "XcodeGen ignores target-level resources")
+        let icon = packageRoot.appendingPathComponent("Watch/Assets.xcassets/AppIcon.appiconset/Contents.json")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: icon.path))
+        for forbidden in ["path: App", "path: Shared", "entitlements:", "NeoGymSharedKeychainAccessGroup", "com.apple.developer.healthkit", "application-groups", "keychain-access-groups"] {
+            XCTAssertFalse(watchTarget.contains(forbidden), "Watch target contains \(forbidden)")
+        }
+        XCTAssertTrue(spec.contains("- target: NeoGymWatch\n        embed: true"))
+        XCTAssertTrue(spec.contains("DEVELOPMENT_TEAM: C7HCKFA2LG"))
+        let script = try String(contentsOf: packageRoot.appendingPathComponent("Scripts/deploy-testflight.sh"), encoding: .utf8)
+        XCTAssertTrue(script.contains("NEOGYM_ALLOW_TESTFLIGHT_UPLOAD"))
+        XCTAssertTrue(script.contains("verifier=Scripts/verify-release-archive.sh"))
+        XCTAssertTrue(script.contains("local_options=Scripts/LocalExportOptions.plist"))
+        XCTAssertTrue(script.contains("-extract destination raw -o - \"$local_options\""))
+        let archiveVerification = try XCTUnwrap(script.range(of: "\"$verifier\" --archive \"$archive_path\""))
+        let localExport = try XCTUnwrap(script.range(of: "-exportOptionsPlist \"$local_options\""))
+        let ipaVerification = try XCTUnwrap(script.range(of: "\"$verifier\" --archive \"$archive_path\" --ipa \"${ipas[0]}\""))
+        let upload = try XCTUnwrap(script.range(of: "-exportOptionsPlist Scripts/TestFlightExportOptions.plist"))
+        XCTAssertLessThan(archiveVerification.lowerBound, localExport.lowerBound)
+        XCTAssertLessThan(localExport.lowerBound, ipaVerification.lowerBound)
+        XCTAssertLessThan(ipaVerification.lowerBound, upload.lowerBound)
     }
 
     private func plist(at relativePath: String) throws -> [String: Any] {

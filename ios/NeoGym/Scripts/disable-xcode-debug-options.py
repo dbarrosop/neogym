@@ -11,7 +11,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-SCHEME_PATH = Path("NeoGym.xcodeproj/xcshareddata/xcschemes/NeoGym.xcscheme")
+SCHEME_DIRECTORY = Path("NeoGym.xcodeproj/xcshareddata/xcschemes")
+SCHEME_NAMES = ("NeoGym", "NeoGymWatch")
 
 # Values match Xcode's .xcscheme spelling/casing.
 LAUNCH_ACTION_ATTRIBUTES = {
@@ -27,10 +28,10 @@ LAUNCH_ACTION_ATTRIBUTES = {
 }
 
 
-def set_launch_action_attributes(scheme_xml: str) -> str:
+def set_launch_action_attributes(scheme_xml: str, scheme_path: Path) -> str:
     match = re.search(r"(<LaunchAction\b[^>]*)(>)", scheme_xml, flags=re.DOTALL)
     if not match:
-        raise RuntimeError(f"LaunchAction not found in {SCHEME_PATH}")
+        raise RuntimeError(f"LaunchAction not found in {scheme_path}")
 
     launch_action = match.group(1)
     for key, value in LAUNCH_ACTION_ATTRIBUTES.items():
@@ -45,10 +46,12 @@ def set_launch_action_attributes(scheme_xml: str) -> str:
 
 
 def main() -> None:
-    scheme_xml = SCHEME_PATH.read_text(encoding="utf-8")
-    patched_xml = set_launch_action_attributes(scheme_xml)
-    if patched_xml != scheme_xml:
-        SCHEME_PATH.write_text(patched_xml, encoding="utf-8")
+    for name in SCHEME_NAMES:
+        scheme_path = SCHEME_DIRECTORY / f"{name}.xcscheme"
+        scheme_xml = scheme_path.read_text(encoding="utf-8")
+        patched_xml = set_launch_action_attributes(scheme_xml, scheme_path)
+        if patched_xml != scheme_xml:
+            scheme_path.write_text(patched_xml, encoding="utf-8")
 
 
 if __name__ == "__main__":

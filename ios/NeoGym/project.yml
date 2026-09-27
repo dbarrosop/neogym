@@ -4,6 +4,7 @@ options:
   postGenCommand: python3 Scripts/disable-xcode-debug-options.py
   deploymentTarget:
     iOS: "27.0"
+    watchOS: "27.0"
 packages:
   NeoGymKit:
     path: .
@@ -14,6 +15,15 @@ settings:
     CURRENT_PROJECT_VERSION: "6"
     DEVELOPMENT_TEAM: C7HCKFA2LG
 schemes:
+  NeoGymWatch:
+    build:
+      targets:
+        NeoGymWatch: all
+    run:
+      enableGPUFrameCaptureMode: disabled
+      enableGPUValidationMode: false
+      disableMainThreadChecker: true
+      disableThreadPerformanceChecker: true
   NeoGym:
     build:
       targets:
@@ -72,6 +82,8 @@ targets:
         product: NeoGymKit
       - target: NeoGymWidgets
         embed: true
+      - target: NeoGymWatch
+        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym
@@ -81,6 +93,33 @@ targets:
         PRODUCT_NAME: NeoGym
         INFOPLIST_FILE: App/Info.plist
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  NeoGymWatch:
+    type: application
+    platform: watchOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: Watch
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: NeoGymKit
+        product: NeoGymKit
+    info:
+      path: Watch/Info.plist
+      properties:
+        CFBundleDisplayName: NeoGym
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: io.nhost.dbarroso.neogym
+        WKRunsIndependentlyOfCompanionApp: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp
+        PRODUCT_NAME: NeoGymWatch
+        INFOPLIST_FILE: Watch/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
   NeoGymWidgets:

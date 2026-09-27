@@ -96,6 +96,9 @@ public final class WatchAccountModel: ObservableObject {
     private var explicitlyClearing = false
     private var generation: UInt64 = 0
     private var loadTask: Task<Void, Never>?
+    // Package tests retain the cancelled task to await its completion before
+    // asserting that a late response was never published.
+    var inFlightRead: Task<Void, Never>? { loadTask }
     private var loadingSessionID: String?
     private var clearTask: Task<Void, Never>?
     private var subscription: AnyCancellable?
@@ -145,10 +148,28 @@ public final class WatchAccountModel: ObservableObject {
         reconcile()
     }
 
+    /// OTP may already have persisted a same-ID SDK session before its caller
+    /// returns. Always invalidate an earlier read and fetch again from Auth;
+    /// reconciliation first blocks/clears a session that conflicts with a hint.
+    public func acceptVerifiedSession(_ session: StoredSession) {
+        invalidate()
+        state = .loading
+        authStore.applyVerifiedSession(session)
+        reconcile(forceFetch: true)
+    }
+
     /// Cold launch or background→active; caller does not invoke for wrist raises.
     public func refresh() {
         if state == .loading, loadTask != nil { return }
         reconcile(forceFetch: true)
+    }
+
+    /// Expiring watchOS activity stops a managed name read; Retry starts a new one.
+    /// Never cancel a session-clear task here: local removal must complete.
+    public func cancelPendingRead() {
+        guard loadTask != nil else { return }
+        invalidate()
+        state = .networkError
     }
 
     public func signOut() async {

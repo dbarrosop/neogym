@@ -355,10 +355,23 @@ final class WatchAccountTests: XCTestCase {
         XCTAssertEqual(CurrentWatchUser(id: "x", displayName: "  ").displayName, "Athlete")
     }
 
+    func testControlledUserMissingRequestFailsWithinDeadline() async {
+        let controlled = ControlledUser()
+        do {
+            try await controlled.waitForRequest(2, timeout: .milliseconds(50))
+            XCTFail("Expected a missing-request timeout")
+        } catch let error as ControlledUser.RequestTimeout {
+            XCTAssertEqual(error.expected, 2)
+            XCTAssertEqual(error.actual, 0)
+        } catch {
+            XCTFail("Unexpected wait error: \(error)")
+        }
+    }
+
     func testMatchingHintDuringReadKeepsReadAlive() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
-        await controlled.waitForRequest()
+        try await controlled.waitForRequest()
         model.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
         XCTAssertEqual(model.state, .loading)
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
@@ -370,7 +383,7 @@ final class WatchAccountTests: XCTestCase {
     func testRepeatedLocalContextDuringReadKeepsReadAlive() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
-        await controlled.waitForRequest()
+        try await controlled.waitForRequest()
         model.localContextReady(nil)
         model.localContextReady(["version": "2", "state": "signedOut"])
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
@@ -383,12 +396,12 @@ final class WatchAccountTests: XCTestCase {
         let (model, _, controlled) = try await controlledSetup()
         let hint = PhoneAccountHint.signedIn(userID: "watch-user").context
         model.localContextReady(hint)
-        await controlled.waitForRequest()
+        try await controlled.waitForRequest()
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Old"))
         await waitFor(model, .name("Old"))
         model.refresh()
         model.localContextReady(hint)
-        await controlled.waitForRequest(2)
+        try await controlled.waitForRequest(2)
         XCTAssertEqual(model.state, .loading)
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "New"))
         await waitFor(model, .name("New"))
@@ -399,7 +412,7 @@ final class WatchAccountTests: XCTestCase {
     func testLaterPhoneHintSuppressesInflightName() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
-        await controlled.waitForRequest()
+        try await controlled.waitForRequest()
         model.refresh() // Duplicate cold/foreground trigger must not start a second fetch.
         let requestCount = await controlled.requestCount
         XCTAssertEqual(requestCount, 1)
@@ -423,7 +436,7 @@ final class WatchAccountTests: XCTestCase {
         // SDK persists the OTP result before the UI's verification call returns.
         let persisted = try session()
         try await client.sessionStore.set(persisted)
-        model.authStore.applyVerifiedSession(persisted)
+        model.acceptVerifiedSession(persisted)
         await waitFor(model, .matchPhone)
         for _ in 0..<1000 {
             if try await client.getUserSession() == nil { break }
@@ -453,6 +466,71 @@ final class WatchAccountTests: XCTestCase {
         await model.bootstrap()
         model.localContextReady(nil)
         await waitFor(model, .authError)
+    }
+}
+
+extension WatchAccountTests {
+    func testExpiringReadCannotDisplayLateNameAndRetryFetchesAgain() async throws {
+        let (model, _, controlled) = try await controlledSetup()
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        let staleRead = try XCTUnwrap(model.inFlightRead)
+        var emitted: [WatchAccountState] = []
+        let observation = model.$state.sink { emitted.append($0) }
+        model.cancelPendingRead()
+        XCTAssertEqual(model.state, .networkError)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Too late"))
+        await staleRead.value // The cancelled service ignores cancellation; wait for the model to handle it.
+        XCTAssertEqual(model.state, .networkError)
+
+        model.refresh()
+        try await controlled.waitForRequest(2)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
+        await waitFor(model, .name("Fresh"))
+        withExtendedLifetime(observation) {
+            XCTAssertFalse(emitted.contains(.name("Too late")))
+        }
+    }
+
+    func testSameIDOTPAlwaysTriggersFreshReadWithoutDisplayingSessionOrEarlierName() async throws {
+        let (model, client, controlled) = try await controlledSetup()
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Before OTP"))
+        await waitFor(model, .name("Before OTP"))
+
+        // OTP writes to SDK storage before the UI is given its verified result.
+        let persisted = try session()
+        try await client.sessionStore.set(persisted)
+        model.acceptVerifiedSession(persisted)
+        XCTAssertEqual(model.state, .loading)
+        try await controlled.waitForRequest(2)
+        XCTAssertEqual(model.state, .loading)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "After OTP"))
+        await waitFor(model, .name("After OTP"))
+        let count = await controlled.requestCount
+        XCTAssertEqual(count, 2)
+    }
+
+    func testOTPInvalidatesAlreadyRunningSameIDNameRead() async throws {
+        let (model, client, controlled) = try await controlledSetup()
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        let staleRead = try XCTUnwrap(model.inFlightRead)
+        var emitted: [WatchAccountState] = []
+        let observation = model.$state.sink { emitted.append($0) }
+        let persisted = try session()
+        try await client.sessionStore.set(persisted)
+        model.acceptVerifiedSession(persisted)
+        try await controlled.waitForRequest(2)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Old response"))
+        await staleRead.value
+        XCTAssertEqual(model.state, .loading)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh response"))
+        await waitFor(model, .name("Fresh response"))
+        withExtendedLifetime(observation) {
+            XCTAssertFalse(emitted.contains(.name("Old response")))
+        }
     }
 }
 
@@ -546,24 +624,30 @@ private actor FailingWatchStorage: SessionStorageBackend {
 }
 
 private actor ControlledUser: CurrentUserServicing {
+    struct RequestTimeout: Error {
+        let expected: Int
+        let actual: Int
+    }
+
     private var pending: [CheckedContinuation<CurrentWatchUser, Never>] = []
-    private var waiter: (count: Int, continuation: CheckedContinuation<Void, Never>)?
     private(set) var requestCount = 0
 
     func getUser() async throws -> CurrentWatchUser {
         await withCheckedContinuation { continuation in
             requestCount += 1
             pending.append(continuation)
-            if let waiter, requestCount >= waiter.count {
-                waiter.continuation.resume()
-                self.waiter = nil
-            }
         }
     }
 
-    func waitForRequest(_ count: Int = 1) async {
-        if requestCount >= count { return }
-        await withCheckedContinuation { waiter = (count, $0) }
+    func waitForRequest(_ count: Int = 1, timeout: Duration = .seconds(5)) async throws {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: timeout)
+        while requestCount < count {
+            guard clock.now < deadline else {
+                throw RequestTimeout(expected: count, actual: requestCount)
+            }
+            try await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     func release(_ user: CurrentWatchUser) {

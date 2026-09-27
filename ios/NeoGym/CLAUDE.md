@@ -8,7 +8,8 @@ Native SwiftUI shell for NeoGym plus the host-testable `NeoGymKit` package.
 The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 `NeoGymKit` owns validators, auth/session models, repositories, domain view
 models, daily energy models/import helpers, and testable form validation;
-SwiftUI under `App/` owns layout, navigation, and presentation.
+iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
+watch SwiftUI and connectivity live only under `Watch/`.
 
 ## Commands
 
@@ -30,14 +31,17 @@ package at its lower deployment floor unless its own code needs newer APIs.
   `.xcodeproj` output.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
-- `make deploy-testflight` — regenerate, archive the app and widget for iOS
-  Release, and upload to App Store Connect. Requires XcodeGen, an Xcode account
-  authorized for team `C7HCKFA2LG`; never run this as a validation-only
-  command. Export enables Xcode-managed build numbers, so no manual
-  `CURRENT_PROJECT_VERSION` bump is needed for each upload (the archive and
-  uploaded build numbers can differ). It does not wait for TestFlight processing
-  or assign tester groups. Archives are retained under ignored
-  `.build/testflight/` for troubleshooting and export retries.
+- `make deploy-testflight` — currently refuses upload even with the per-run
+  `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` opt-in until Phase 3 installs both
+  `Scripts/verify-release-archive.sh` and `Scripts/LocalExportOptions.plist`.
+  Before upload, the verifier must pass for the signed archive (`--archive PATH`)
+  and again for the local IPA (`--archive PATH --ipa PATH`). Never run it as a
+  validation-only command; real upload requires separate operator approval each
+  run and team `C7HCKFA2LG` signing. Export enables Xcode-managed build numbers,
+  so archive and upload build numbers can differ. It does not wait for TestFlight
+  processing or assign tester groups. Archives remain under ignored
+  `.build/testflight/` for diagnosis; retries must use the same verified path,
+  not direct export or Xcode Organizer upload.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
@@ -67,17 +71,38 @@ selects the project instead of the package. After XcodeGen has run, copy
 change only that copy's `.package(path:)` to the SDK's absolute path (the
 relative path breaks outside `ios/NeoGym`), and use a separate
 `-derivedDataPath`. Confirm `xcodebuild -list` selects the package there.
-Use the Xcode environment cleanup above for both commands. Phase 1 does not
-embed a watch target.
+Use the Xcode environment cleanup above for both commands. The watchOS 27
+`NeoGymWatch` scheme is now embedded in the iPhone app alongside
+`NeoGymWidgets`; XcodeGen does not support target-level `resources:` here:
+watch assets must remain included in `sources` (do not exclude
+`Assets.xcassets`). After generation, verify the built watch app has
+`Assets.car` and `CFBundleIcons/CFBundlePrimaryIcon/CFBundleIconName = AppIcon`.
+Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
+'generic/platform=watchOS Simulator' build` after generation.
+`Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
 
 `NhostClientFactory.makeProductionWatchClient()` selects production and the
 SDK's origin-scoped private, device-only default Keychain session with legacy
 unscoped migration ignored; no shared Keychain/App Group and no GraphQL cache.
 `WatchAccountModel.production()` explicitly injects that client into both auth
-and uncached Auth `GET /user`. Watch UI must wait for local connectivity-context
-activation (not phone reachability), call `localContextReady`, and only display
-`.name` from that live read. Its pure `PhoneAccountHint` payload carries only
-version/state/userId, never credential or name material; unknown context allows
+and uncached Auth `GET /user`. Watch UI waits briefly for local connectivity-context activation (not phone
+reachability), calls `localContextReady`, and only displays `.name` from that
+live read. The phone publishes definitive `AuthStore` states through
+`PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
+activation/foreground. Transient bootstrap states do not overwrite hints.
+The watch refreshes on cold start or background-to-active, not inactive wrist
+raises; a bounded `performExpiringActivity` assertion protects OTP, live reads,
+and session clearing best-effort, not as a watchOS suspension guarantee. Its
+20-second local deadline releases only the assertion, never the operation; a
+system-reported expiry cancels OTP/read operations, but never interrupts
+mandatory local clearing. A late expiry from an old assertion cannot cancel a
+newer read; `WatchActivityExpiryGate` provides a host-tested generation guard
+for the queued main-actor callback. `acceptVerifiedSession` forces a fresh `/user` read even when OTP
+already persisted a same-ID session, subject to the latest blocking phone hint. Watch SwiftUI `TextField` has no iOS-style
+`.keyboardType` modifier. For a simulator OTP/session smoke test use a
+signed-to-run-locally build; `CODE_SIGNING_ALLOWED=NO` can launch the app but
+its private Keychain read fails with missing entitlement (`-34018`). Its pure `PhoneAccountHint` payload carries only
+version/state/userId and optional opaque deliveryId, never credential or name material; unknown context allows
 independent watch auth while a known signed-out/different-account hint blocks
 it. `.phoneSignedOut` distinguishes a blocking phone hint from the watch's
 ordinary `.signedOut` state, so watch UI must not offer OTP for that state.
