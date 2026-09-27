@@ -96,7 +96,7 @@ package at its lower deployment floor unless its own code needs newer APIs.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination 'generic/platform=watchOS Simulator' build` — build the watch companion after regenerating XcodeGen.
 - `make archive-release` — signed non-upload device archive and local export, verifying the archive and IPA independently; Apple signing/profiles are required. Automatic provisioning updates require a separate per-run `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES` and operator acknowledgment for the watch App ID. Without signing access this gate remains blocked; simulator checks do not replace it.
-- `make deploy-testflight` — reuses the verified non-upload path and refuses upload without a distinct per-run `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES`. Never use it for validation; each real upload needs separate operator approval. See `ios/NeoGym/README.md` for paired hardware and production `GET /user` acceptance.
+- `make deploy-testflight` — explicitly uploads after reusing the verified non-upload path. Never use it for validation; obtain operator approval for each real upload. See `ios/NeoGym/README.md` for paired hardware and production `GET /user` acceptance.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 

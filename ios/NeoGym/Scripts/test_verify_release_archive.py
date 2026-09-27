@@ -189,12 +189,32 @@ class ReleaseVerifierTests(unittest.TestCase):
                 self.assertIn(" archive", arguments[0])
                 self.assertEqual("-allowProvisioningUpdates" in arguments[0], approved)
 
-    def test_upload_requires_a_separate_per_run_opt_in(self):
-        script = SCRIPT.with_name("deploy-testflight.sh")
-        result = subprocess.run(("/bin/bash", str(script)), capture_output=True, text=True,
-                                env={"PATH": "/usr/bin:/bin"})
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES", result.stderr)
+    def test_deploy_without_upload_flag_still_requires_verified_release(self):
+        # Run a copy with a failing archive preflight and a fake Xcode binary.
+        # The real upload command must never be reachable from this fixture.
+        fixture = self.root / "deploy-fixture/NeoGym"
+        scripts = fixture / "Scripts"
+        scripts.mkdir(parents=True)
+        shutil.copy2(SCRIPT.with_name("deploy-testflight.sh"), scripts / "deploy-testflight.sh")
+        shutil.copy2(SCRIPT.with_name("TestFlightExportOptions.plist"),
+                     scripts / "TestFlightExportOptions.plist")
+        preflight = scripts / "archive-release.sh"
+        preflight.write_text("#!/bin/sh\necho preflight-reached >&2\nexit 71\n")
+        bin_dir = self.root / "deploy-stub-bin"
+        bin_dir.mkdir()
+        marker = self.root / "unexpected-upload"
+        xcode_stub = bin_dir / "xcodebuild"
+        xcode_stub.write_text("#!/bin/sh\nprintf upload > \"$NEOGYM_FIXTURE_MARKER\"\n")
+        xcode_stub.chmod(0o755)
+        result = subprocess.run(
+            ("/bin/bash", str(scripts / "deploy-testflight.sh")),
+            capture_output=True, text=True,
+            env={"PATH": str(bin_dir) + ":/usr/bin:/bin",
+                 "NEOGYM_FIXTURE_MARKER": str(marker)},
+        )
+        self.assertEqual(result.returncode, 71, result.stderr)
+        self.assertIn("preflight-reached", result.stderr)
+        self.assertFalse(marker.exists(), "Upload must not start after preflight fails")
 
     def test_profile_app_id_coverage_for_concrete_watch_signature(self):
         (self.watch / "embedded.mobileprovision").touch()

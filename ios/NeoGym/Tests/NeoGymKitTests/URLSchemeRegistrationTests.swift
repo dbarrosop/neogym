@@ -178,7 +178,6 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertTrue(spec.contains("DEVELOPMENT_TEAM: C7HCKFA2LG"))
         let uploadScript = try String(contentsOf: packageRoot.appendingPathComponent("Scripts/deploy-testflight.sh"), encoding: .utf8)
         let archiveScript = try String(contentsOf: packageRoot.appendingPathComponent("Scripts/archive-release.sh"), encoding: .utf8)
-        XCTAssertTrue(uploadScript.contains("NEOGYM_ALLOW_TESTFLIGHT_UPLOAD"))
         XCTAssertTrue(uploadScript.contains("bash Scripts/archive-release.sh \"$run_dir\""))
         XCTAssertTrue(archiveScript.contains("NEOGYM_ALLOW_PROVISIONING_UPDATES"))
         XCTAssertTrue(archiveScript.contains("verifier=Scripts/verify-release-archive.sh"))

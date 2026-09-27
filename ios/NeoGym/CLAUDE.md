@@ -55,11 +55,10 @@ package at its lower deployment floor unless its own code needs newer APIs.
   entitlement coverage still agree. Re-run the read-only verifier against a
   retained archive when diagnosing this case; never bypass verification or
   turn provisioning back on without per-run approval.
-- `make deploy-testflight` — requires **distinct per-run**
-  `NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES` approval and reuses the entire non-upload
-  verified path before `destination=upload`. Never run for validation; real
-  upload requires explicit operator approval each time. Xcode-managed build
-  numbers can differ across archive and export, but phone/watch/widget versions
+- `make deploy-testflight` — explicitly starts a real upload and reuses the
+  entire non-upload verified path before `destination=upload`. Never run for
+  validation; obtain explicit operator approval each time before running it.
+  Xcode-managed build numbers can differ across archive and export, but phone/watch/widget versions
   must match within each artifact. Archives remain under ignored
   `.build/testflight/` for diagnosis; never retry through direct export or
   Organizer upload. TestFlight processing/hardware installation are separate.

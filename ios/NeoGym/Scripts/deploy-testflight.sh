@@ -2,17 +2,14 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
-if [[ "${NEOGYM_ALLOW_TESTFLIGHT_UPLOAD:-}" != YES ]]; then
-  echo 'Refusing upload: set NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES for this run only.' >&2
-  exit 1
-fi
 if [[ "$(/usr/bin/plutil -extract destination raw -o - Scripts/TestFlightExportOptions.plist 2>/dev/null)" != upload ]] ||
    [[ "$(/usr/bin/plutil -extract method raw -o - Scripts/TestFlightExportOptions.plist 2>/dev/null)" != app-store-connect ]]; then
   echo 'Refusing upload: TestFlight options must specify app-store-connect upload.' >&2
   exit 1
 fi
 # The non-upload release path verifies the archive and separately checks its
-# exported IPA; neither upload opt-in nor provisioning opt-in implies the other.
+# exported IPA. Invoking deploy-testflight is the upload decision; provisioning
+# updates remain a separate opt-in.
 mkdir -p .build/testflight
 run_dir=$(mktemp -d "$PWD/.build/testflight/NeoGym-XXXXXXXX")
 bash Scripts/archive-release.sh "$run_dir"

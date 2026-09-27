@@ -134,12 +134,13 @@ if suitable profiles are unavailable. This is not upload approval.
 Scripts/verify-release-archive.sh --simulator /path/to/NeoGym.app
 python3 -m unittest Scripts/test_verify_release_archive.py
 # Non-upload: signed device archive, verify archive, export locally, verify IPA.
-NEOGYM_ALLOW_PROVISIONING_UPDATES=YES make archive-release
-# Only after separate explicit approval for THIS real upload:
-NEOGYM_ALLOW_TESTFLIGHT_UPLOAD=YES NEOGYM_ALLOW_PROVISIONING_UPDATES=YES make deploy-testflight
+make archive-release
+# Only after explicit approval for THIS real upload:
+make deploy-testflight
 ```
 
-Omit the provisioning opt-in if current profiles already work; never run the
+If current profiles do not work, obtain separate approval before prefixing
+**either** command with `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`. Never run the
 upload target merely to validate a release. `archive-release` uses
 `LocalExportOptions.plist` with `destination=export`; it retains its output
 under ignored `.build/testflight/`. The verifier checks exactly one phone app
@@ -196,9 +197,10 @@ questions only if the actual app and dependencies qualify; revisit it after
 cryptography changes. For builds uploaded without the key, answer **Manage**
 in TestFlight build details. Organizer and direct export are **not allowed
 fallback upload paths**. Retained archives are for diagnosis only: a retry
-must start a fresh `make deploy-testflight` run, with new per-run upload
-approval, and repeat archive creation and verification plus local IPA export
-and verification before upload. The scripts refuse to reuse an existing archive.
+must start a fresh `make deploy-testflight` run after obtaining upload
+approval for that run, repeating archive creation and verification plus local
+IPA export and verification before upload. The scripts refuse to reuse an
+existing archive.
 
 ## Persistent GraphQL browsing cache
 
