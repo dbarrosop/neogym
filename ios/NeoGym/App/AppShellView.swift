@@ -46,6 +46,11 @@ struct AppShellView: View {
             areaView(.workouts) {
                 WorkoutsSectionNavigationView(
                     workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
+                    healthWorkoutRepository: HealthWorkoutRepository(
+                        client: environment.client,
+                        ownerUserId: session.user?.id ?? ""
+                    ),
+                    healthWorkoutImporter: Self.makeWorkoutHealthImporter(),
                     sessionsRepository: SessionsRepository(graphQL: environment.graphQLService),
                     exercisesRepository: ExercisesRepository(graphQL: environment.graphQLService),
                     storageBaseURL: environment.client.serviceURLs.storage,
@@ -54,6 +59,9 @@ struct AppShellView: View {
                     restTimer: restTimer,
                     pendingSessionId: $pendingSessionId
                 )
+                // A new account needs a fresh task, sync model and status even if
+                // Workouts remains selected in the keep-warm shell.
+                .id(session.user?.id)
             }
 
             areaView(.nutrition) {
@@ -94,6 +102,14 @@ struct AppShellView: View {
     private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
         #if canImport(HealthKit) && !os(macOS)
         HealthKitBodyMeasurementImporter()
+        #else
+        nil
+        #endif
+    }
+
+    private static func makeWorkoutHealthImporter() -> (any HealthWorkoutImporting)? {
+        #if canImport(HealthKit) && !os(macOS)
+        HealthKitWorkoutImporter()
         #else
         nil
         #endif

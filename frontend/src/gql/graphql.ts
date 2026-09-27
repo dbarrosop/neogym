@@ -2900,6 +2900,168 @@ export type Foods_Variance_Fields = {
   sugarPer100g?: Maybe<Scalars['Float']['output']>;
 };
 
+/** columns and relationships of "health_workouts" */
+export type HealthWorkout = {
+  __typename?: 'healthWorkout';
+  createdAt: Scalars['timestamptz']['output'];
+  healthkitUuid: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  raw: Scalars['jsonb']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+
+/** columns and relationships of "health_workouts" */
+export type HealthWorkoutRawArgs = {
+  path?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** append existing jsonb value of filtered columns with new jsonb value */
+export type HealthWorkout_Append_Input = {
+  raw?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** Boolean expression to filter rows from the table "health_workouts". All fields are combined with a logical 'AND'. */
+export type HealthWorkout_Bool_Exp = {
+  _and?: InputMaybe<Array<HealthWorkout_Bool_Exp>>;
+  _not?: InputMaybe<HealthWorkout_Bool_Exp>;
+  _or?: InputMaybe<Array<HealthWorkout_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  healthkitUuid?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  raw?: InputMaybe<Jsonb_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "health_workouts" */
+export enum HealthWorkout_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  HealthWorkoutsPkey = 'health_workouts_pkey',
+  /** unique or primary key constraint on columns "user_id", "healthkit_uuid" */
+  HealthWorkoutsUserHealthkitUuidKey = 'health_workouts_user_healthkit_uuid_key'
+}
+
+/** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+export type HealthWorkout_Delete_At_Path_Input = {
+  raw?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+/** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+export type HealthWorkout_Delete_Elem_Input = {
+  raw?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** delete key/value pair or string element. key/value pairs are matched based on their key value */
+export type HealthWorkout_Delete_Key_Input = {
+  raw?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** input type for inserting data into table "health_workouts" */
+export type HealthWorkout_Insert_Input = {
+  healthkitUuid?: InputMaybe<Scalars['uuid']['input']>;
+  raw?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** response of any mutation on the table "health_workouts" */
+export type HealthWorkout_Mutation_Response = {
+  __typename?: 'healthWorkout_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<HealthWorkout>;
+};
+
+/** on_conflict condition type for table "health_workouts" */
+export type HealthWorkout_On_Conflict = {
+  constraint: HealthWorkout_Constraint;
+  update_columns?: Array<HealthWorkout_Update_Column>;
+  where?: InputMaybe<HealthWorkout_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "health_workouts". */
+export type HealthWorkout_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  healthkitUuid?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  raw?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: health_workouts */
+export type HealthWorkout_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** prepend existing jsonb value of filtered columns with new jsonb value */
+export type HealthWorkout_Prepend_Input = {
+  raw?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** select columns of table "health_workouts" */
+export enum HealthWorkout_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  HealthkitUuid = 'healthkitUuid',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  Raw = 'raw',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "health_workouts" */
+export type HealthWorkout_Set_Input = {
+  raw?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** Streaming cursor of the table "healthWorkout" */
+export type HealthWorkout_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: HealthWorkout_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type HealthWorkout_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  healthkitUuid?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  raw?: InputMaybe<Scalars['jsonb']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** update columns of table "health_workouts" */
+export enum HealthWorkout_Update_Column {
+  /** column name */
+  Raw = 'raw'
+}
+
+export type HealthWorkout_Updates = {
+  /** append existing jsonb value of filtered columns with new jsonb value */
+  _append?: InputMaybe<HealthWorkout_Append_Input>;
+  /** delete the field or element with specified path (for JSON arrays, negative integers count from the end) */
+  _delete_at_path?: InputMaybe<HealthWorkout_Delete_At_Path_Input>;
+  /** delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array */
+  _delete_elem?: InputMaybe<HealthWorkout_Delete_Elem_Input>;
+  /** delete key/value pair or string element. key/value pairs are matched based on their key value */
+  _delete_key?: InputMaybe<HealthWorkout_Delete_Key_Input>;
+  /** prepend existing jsonb value of filtered columns with new jsonb value */
+  _prepend?: InputMaybe<HealthWorkout_Prepend_Input>;
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<HealthWorkout_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: HealthWorkout_Bool_Exp;
+};
+
 /** columns and relationships of "journal_entries" */
 export type JournalEntries = {
   __typename?: 'journalEntries';
@@ -4504,6 +4666,10 @@ export type Mutation_Root = {
   deleteFood?: Maybe<Foods>;
   /** delete data from the table: "foods" */
   deleteFoods?: Maybe<Foods_Mutation_Response>;
+  /** delete single row from the table: "health_workouts" */
+  deleteHealthWorkout?: Maybe<HealthWorkout>;
+  /** delete data from the table: "health_workouts" */
+  deleteHealthWorkouts?: Maybe<HealthWorkout_Mutation_Response>;
   /** delete data from the table: "journal_entries" */
   deleteJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** delete single row from the table: "journal_entries" */
@@ -4604,6 +4770,10 @@ export type Mutation_Root = {
   insertFood?: Maybe<Foods>;
   /** insert data into the table: "foods" */
   insertFoods?: Maybe<Foods_Mutation_Response>;
+  /** insert a single row into the table: "health_workouts" */
+  insertHealthWorkout?: Maybe<HealthWorkout>;
+  /** insert data into the table: "health_workouts" */
+  insertHealthWorkouts?: Maybe<HealthWorkout_Mutation_Response>;
   /** insert data into the table: "journal_entries" */
   insertJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** insert a single row into the table: "journal_entries" */
@@ -4704,6 +4874,10 @@ export type Mutation_Root = {
   updateFood?: Maybe<Foods>;
   /** update data of the table: "foods" */
   updateFoods?: Maybe<Foods_Mutation_Response>;
+  /** update single row of the table: "health_workouts" */
+  updateHealthWorkout?: Maybe<HealthWorkout>;
+  /** update data of the table: "health_workouts" */
+  updateHealthWorkouts?: Maybe<HealthWorkout_Mutation_Response>;
   /** update data of the table: "journal_entries" */
   updateJournalEntries?: Maybe<JournalEntries_Mutation_Response>;
   /** update single row of the table: "journal_entries" */
@@ -4784,6 +4958,8 @@ export type Mutation_Root = {
   update_exercises_many?: Maybe<Array<Maybe<Exercises_Mutation_Response>>>;
   /** update multiples rows of table: "foods" */
   update_foods_many?: Maybe<Array<Maybe<Foods_Mutation_Response>>>;
+  /** update multiples rows of table: "health_workouts" */
+  update_healthWorkout_many?: Maybe<Array<Maybe<HealthWorkout_Mutation_Response>>>;
   /** update multiples rows of table: "journal_entries" */
   update_journalEntries_many?: Maybe<Array<Maybe<JournalEntries_Mutation_Response>>>;
   /** update multiples rows of table: "journal_labels" */
@@ -4866,6 +5042,18 @@ export type Mutation_RootDeleteFoodArgs = {
 /** mutation root */
 export type Mutation_RootDeleteFoodsArgs = {
   where: Foods_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteHealthWorkoutArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteHealthWorkoutsArgs = {
+  where: HealthWorkout_Bool_Exp;
 };
 
 
@@ -5180,6 +5368,20 @@ export type Mutation_RootInsertFoodArgs = {
 export type Mutation_RootInsertFoodsArgs = {
   objects: Array<Foods_Insert_Input>;
   on_conflict?: InputMaybe<Foods_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertHealthWorkoutArgs = {
+  object: HealthWorkout_Insert_Input;
+  on_conflict?: InputMaybe<HealthWorkout_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertHealthWorkoutsArgs = {
+  objects: Array<HealthWorkout_Insert_Input>;
+  on_conflict?: InputMaybe<HealthWorkout_On_Conflict>;
 };
 
 
@@ -5550,6 +5752,30 @@ export type Mutation_RootUpdateFoodsArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateHealthWorkoutArgs = {
+  _append?: InputMaybe<HealthWorkout_Append_Input>;
+  _delete_at_path?: InputMaybe<HealthWorkout_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<HealthWorkout_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<HealthWorkout_Delete_Key_Input>;
+  _prepend?: InputMaybe<HealthWorkout_Prepend_Input>;
+  _set?: InputMaybe<HealthWorkout_Set_Input>;
+  pk_columns: HealthWorkout_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateHealthWorkoutsArgs = {
+  _append?: InputMaybe<HealthWorkout_Append_Input>;
+  _delete_at_path?: InputMaybe<HealthWorkout_Delete_At_Path_Input>;
+  _delete_elem?: InputMaybe<HealthWorkout_Delete_Elem_Input>;
+  _delete_key?: InputMaybe<HealthWorkout_Delete_Key_Input>;
+  _prepend?: InputMaybe<HealthWorkout_Prepend_Input>;
+  _set?: InputMaybe<HealthWorkout_Set_Input>;
+  where: HealthWorkout_Bool_Exp;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateJournalEntriesArgs = {
   _set?: InputMaybe<JournalEntries_Set_Input>;
   where: JournalEntries_Bool_Exp;
@@ -5848,6 +6074,12 @@ export type Mutation_RootUpdate_Exercises_ManyArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_Foods_ManyArgs = {
   updates: Array<Foods_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_HealthWorkout_ManyArgs = {
+  updates: Array<HealthWorkout_Updates>;
 };
 
 
@@ -8493,6 +8725,10 @@ export type Query_Root = {
   foods: Array<Foods>;
   /** fetch aggregated fields from the table: "foods" */
   foodsAggregate: Foods_Aggregate;
+  /** fetch data from the table: "health_workouts" using primary key columns */
+  healthWorkout?: Maybe<HealthWorkout>;
+  /** fetch data from the table: "health_workouts" */
+  healthWorkouts: Array<HealthWorkout>;
   /** fetch data from the table: "journal_entries" */
   journalEntries: Array<JournalEntries>;
   /** fetch aggregated fields from the table: "journal_entries" */
@@ -8904,6 +9140,20 @@ export type Query_RootFoodsAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<Foods_Order_By>>;
   where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
+export type Query_RootHealthWorkoutArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootHealthWorkoutsArgs = {
+  distinct_on?: InputMaybe<Array<HealthWorkout_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<HealthWorkout_Order_By>>;
+  where?: InputMaybe<HealthWorkout_Bool_Exp>;
 };
 
 
@@ -9472,6 +9722,12 @@ export type Subscription_Root = {
   foodsAggregate: Foods_Aggregate;
   /** fetch data from the table in a streaming manner: "foods" */
   foods_stream: Array<Foods>;
+  /** fetch data from the table: "health_workouts" using primary key columns */
+  healthWorkout?: Maybe<HealthWorkout>;
+  /** fetch data from the table in a streaming manner: "health_workouts" */
+  healthWorkout_stream: Array<HealthWorkout>;
+  /** fetch data from the table: "health_workouts" */
+  healthWorkouts: Array<HealthWorkout>;
   /** fetch data from the table: "journal_entries" */
   journalEntries: Array<JournalEntries>;
   /** fetch aggregated fields from the table: "journal_entries" */
@@ -10014,6 +10270,27 @@ export type Subscription_RootFoods_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<Foods_Stream_Cursor_Input>>;
   where?: InputMaybe<Foods_Bool_Exp>;
+};
+
+
+export type Subscription_RootHealthWorkoutArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootHealthWorkout_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<HealthWorkout_Stream_Cursor_Input>>;
+  where?: InputMaybe<HealthWorkout_Bool_Exp>;
+};
+
+
+export type Subscription_RootHealthWorkoutsArgs = {
+  distinct_on?: InputMaybe<Array<HealthWorkout_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<HealthWorkout_Order_By>>;
+  where?: InputMaybe<HealthWorkout_Bool_Exp>;
 };
 
 

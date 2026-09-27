@@ -117,7 +117,7 @@ erDiagram
     LABELS   ||--o{ WORKOUT_LABELS  : "applied to"
 ```
 
-## Auxiliary domains — body measurements, journal, and daily energy
+## Auxiliary domains — body measurements, journal, daily energy, and HealthKit workouts
 
 These are unrelated to the workout/session model — they're separate per-user data streams attached directly to `auth.users`.
 
@@ -143,6 +143,13 @@ erDiagram
         text notes "nullable"
     }
 
+    HEALTH_WORKOUTS {
+        uuid id PK
+        uuid user_id "FK auth.users CASCADE"
+        uuid healthkit_uuid "UNIQUE per (user_id, healthkit_uuid)"
+        jsonb raw "workout snapshot"
+    }
+
     JOURNAL_ENTRIES {
         uuid id PK
         uuid user_id "FK auth.users CASCADE"
@@ -163,6 +170,7 @@ erDiagram
     }
 
     USERS ||--o{ BODY_MEASUREMENTS                : "logs"
+    USERS ||--o{ HEALTH_WORKOUTS                  : "imports"
     USERS ||--o{ DAILY_ENERGY                     : "logs"
     USERS ||--o{ JOURNAL_ENTRIES                  : "writes"
     USERS ||--o{ JOURNAL_LABELS                   : "owns (private)"
@@ -170,6 +178,8 @@ erDiagram
     JOURNAL_ENTRIES ||--o{ JOURNAL_ENTRY_LABELS   : "tagged with"
     JOURNAL_LABELS  ||--o{ JOURNAL_ENTRY_LABELS   : "applied to"
 ```
+
+`health_workouts` is a separate, private HealthKit snapshot stream, not a workout template or session. Its `(user_id, healthkit_uuid)` uniqueness enables idempotent raw JSON upserts; see [`health-workouts.md`](health-workouts.md) for scope and sync limitations.
 
 `daily_energy` mirrors body measurements as a private date-keyed metric stream: at least one of `active_kcal` or `resting_kcal` is required, each kcal value must be non-negative and below `30000`, and `(user_id, energy_on)` is unique. See [`energy.md`](energy.md) for the GraphQL and import-facing contract.
 
@@ -246,10 +256,11 @@ The Hasura `user`-role select filter is `user_id = X-Hasura-User-Id OR is_public
 
 ## Cascade behavior
 
-Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. One direct-user cascade worth calling out here, plus the main domain exceptions:
+Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deleting a session removes its session-exercises which remove their sets/entries, and deleting a user removes their directly owned private streams. The table calls out direct-user cascades and the main domain exceptions:
 
 | FK | Action | Why |
 |---|---|---|
+| `health_workouts.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Imported private workout snapshots are removed with the account. |
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |

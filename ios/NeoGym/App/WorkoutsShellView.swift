@@ -30,6 +30,8 @@ enum WorkoutAreaSection: String, CaseIterable, Identifiable {
 
 struct WorkoutsSectionNavigationView: View {
     let workoutsRepository: any WorkoutsRepositoryProtocol
+    let healthWorkoutRepository: any HealthWorkoutStoring
+    let healthWorkoutImporter: (any HealthWorkoutImporting)?
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
@@ -40,6 +42,7 @@ struct WorkoutsSectionNavigationView: View {
 
     @State private var path: [WorkoutsRoute] = []
     @State private var reloadToken = 0
+    @StateObject private var healthWorkoutSync = HealthWorkoutSyncModel()
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -49,11 +52,23 @@ struct WorkoutsSectionNavigationView: View {
                 }
         }
         .task { consumePendingSessionId() }
+        .task(id: areaSelection) {
+            if areaSelection == .workouts { await syncHealthWorkouts() }
+        }
         .onChange(of: pendingSessionId) { consumePendingSessionId() }
     }
 
     private var rootContent: some View {
         List {
+            healthWorkoutStatus
+                .listRowInsets(EdgeInsets(
+                    top: NeoGymTheme.spacingXS,
+                    leading: NeoGymTheme.screenHorizontalPadding,
+                    bottom: NeoGymTheme.spacingXS,
+                    trailing: NeoGymTheme.screenHorizontalPadding
+                ))
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
             ForEach(WorkoutAreaSection.allCases) { section in
                 Button {
                     path.append(subsectionRoute(for: section))
@@ -76,6 +91,7 @@ struct WorkoutsSectionNavigationView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .refreshable { await syncHealthWorkouts(waitForCurrent: true) }
         .navigationTitle("Workouts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -89,6 +105,37 @@ struct WorkoutsSectionNavigationView: View {
                 .accessibilityLabel("Primary area")
             }
         }
+    }
+
+    @ViewBuilder
+    private var healthWorkoutStatus: some View {
+        switch healthWorkoutSync.state {
+        case .loading:
+            FeedbackBanner(message: "Syncing Apple Health workouts…", tone: .info)
+        case let .loaded(summary):
+            if summary.importedOrUpdated > 0 || summary.deleted > 0 {
+                FeedbackBanner(
+                    message: "Apple Health synced: \(summary.importedOrUpdated) saved, \(summary.deleted) removed.",
+                    tone: .info
+                )
+            } else {
+                FeedbackBanner(message: "Apple Health checked; no workout changes to import.", tone: .info)
+            }
+        case let .failed(message, _):
+            FeedbackBanner(message: message)
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    private func syncHealthWorkouts(waitForCurrent: Bool = false) async {
+        guard let currentUserId, let healthWorkoutImporter else { return }
+        await healthWorkoutSync.sync(
+            userId: currentUserId,
+            importer: healthWorkoutImporter,
+            repository: healthWorkoutRepository,
+            waitForCurrent: waitForCurrent
+        )
     }
 
     private func subsectionRoute(for section: WorkoutAreaSection) -> WorkoutsRoute {

@@ -47,6 +47,7 @@
           with pkgs;
           [
             nhost.biome
+            hasura-cli
             bun
             rover
           ]

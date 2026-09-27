@@ -23,6 +23,7 @@
 - "!include public_exercises_cardio.yaml"
 - "!include public_exercises_strength.yaml"
 - "!include public_foods.yaml"
+- "!include public_health_workouts.yaml"
 - "!include public_journal_entries.yaml"
 - "!include public_journal_entry_labels.yaml"
 - "!include public_journal_labels.yaml"
