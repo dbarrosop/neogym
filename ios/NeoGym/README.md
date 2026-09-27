@@ -263,9 +263,9 @@ reset caveat and the backend contract.
 
 The HealthKit capability and both `NSHealthShareUsageDescription` and
 `NSHealthUpdateUsageDescription` are declared in `project.yml`; regenerate the
-Xcode project after changing them. The concrete
-HealthKit importers are compiled only for non-macOS platforms so `NeoGymKit` keeps
-building and testing on the macOS host.
+Xcode project after changing them. The concrete HealthKit importers compile
+only for iOS, so `NeoGymKit` builds and tests on the macOS host and builds for
+watchOS without linking HealthKit.
 
 ## Current auth scope
 

@@ -47,6 +47,15 @@ public enum NhostClientFactory {
         )
     }
 
+    /// A separate, origin-scoped device-only Keychain chain. Never use the phone/widget
+    /// shared Keychain or migrate the older unscoped default item on watch.
+    public static func makeProductionWatchClient() -> NhostClient {
+        makeClient(
+            config: .production,
+            sessionManagement: SessionManagementConfiguration(legacyDefaultSessionMigration: .ignore)
+        )
+    }
+
     public static func makeProductionWidgetClient() throws -> NhostClient {
         try makeClient(
             config: .production,

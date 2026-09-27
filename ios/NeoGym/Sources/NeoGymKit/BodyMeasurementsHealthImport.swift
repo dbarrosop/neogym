@@ -129,7 +129,7 @@ public enum HealthBodyMeasurementGrouper {
     }
 }
 
-#if canImport(HealthKit) && !os(macOS)
+#if canImport(HealthKit) && os(iOS)
 import HealthKit
 
 public enum HealthKitBodyMeasurementImportError: LocalizedError, Sendable, Equatable {

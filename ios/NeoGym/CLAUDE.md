@@ -55,6 +55,56 @@ test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
 `AR`, and `LDFLAGS`.
 
+The package now supports watchOS 8 without raising its iOS/macOS floors. Its
+three HealthKit implementations compile only on iOS; pure HealthKit grouping
+models remain host-testable. For package-only watch architecture checks, run
+`xcodebuild -scheme NeoGymKit -destination 'generic/platform=watchOS Simulator' build`
+and the `generic/platform=watchOS` variant with `CODE_SIGNING_ALLOWED=NO`
+from a directory without a generated `.xcodeproj`; `xcodebuild` otherwise
+selects the project instead of the package. After XcodeGen has run, copy
+`Package.swift`, `Sources/` and `Tests/` into the repo-root ignored directory
+`../../.nhost-code/tmp/watch-package-check/` (relative to `ios/NeoGym/`),
+change only that copy's `.package(path:)` to the SDK's absolute path (the
+relative path breaks outside `ios/NeoGym`), and use a separate
+`-derivedDataPath`. Confirm `xcodebuild -list` selects the package there.
+Use the Xcode environment cleanup above for both commands. Phase 1 does not
+embed a watch target.
+
+`NhostClientFactory.makeProductionWatchClient()` selects production and the
+SDK's origin-scoped private, device-only default Keychain session with legacy
+unscoped migration ignored; no shared Keychain/App Group and no GraphQL cache.
+`WatchAccountModel.production()` explicitly injects that client into both auth
+and uncached Auth `GET /user`. Watch UI must wait for local connectivity-context
+activation (not phone reachability), call `localContextReady`, and only display
+`.name` from that live read. Its pure `PhoneAccountHint` payload carries only
+version/state/userId, never credential or name material; unknown context allows
+independent watch auth while a known signed-out/different-account hint blocks
+it. `.phoneSignedOut` distinguishes a blocking phone hint from the watch's
+ordinary `.signedOut` state, so watch UI must not offer OTP for that state.
+A blocking hint shows non-actionable `.clearing` until the remote sign-out/local
+clear finishes; do not offer OTP during `.clearing`, even if newer hints arrive.
+After an explicit watch sign-out, a later phone `.signedIn` hint shows
+`.matchPhone` rather than the watch-only `.signedOut` prompt. A failed local
+session clear displays `.error`, not a false signed-out claim, and must not
+expose the previous name. Without a blocking phone hint, a bootstrap retry
+after that failure stays `.loading` until session restoration resolves; do not
+briefly offer OTP while AuthStore publishes `.loading` with no session.
+Re-reading identical/matching context
+must keep an in-flight same-session `/user` request alive; cancelling it
+without replacement strands the UI in loading. Reconcile every AuthStore state
+publication even when its user ID is unchanged: a retry through
+`authStore.bootstrap()` can move `.error` to `.signedOut` with nil IDs in both
+states. A delayed hint cannot revoke an undelivered watch token instantly.
+In stub-transport tests of managed Auth refresh, `/token` returns a bare
+`AuthSession` JSON object (not `{ "session": ... }`). Fixture JWTs need a
+future `exp` claim; `StoredSession(decodedToken:)` overrides the SDK's JWT
+decoding, so omit it or include `exp` in its claims to avoid an unnecessary
+refresh before `/user`. Never let host tests fall through to the real default
+HTTP transport. On a successful remote sign-out, the SDK tries local removal
+twice if the first attempt fails; `AuthStore` still attempts its own clear even
+if the SDK throws. For a deterministic single-clear failure test, fail the
+stubbed remote `/signout` after releasing its held response.
+
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
 letterboxed on current devices. Keep both `NSHealthShareUsageDescription` and
@@ -142,7 +192,7 @@ changes.
   values/validation, repository, list/detail/editor view models, trend builders,
   `DailyEnergyHealthImporting`, `HealthDailyEnergy`, and
   `DailyEnergyHealthSyncSummary`). Keep those host-testable; HealthKit itself is
-  guarded with `#if canImport(HealthKit) && !os(macOS)`.
+  guarded with `#if canImport(HealthKit) && os(iOS)`.
 - Do not pin `AuthStore`'s `session.accessToken` to a request: an explicit Authorization header is not replaced by SDK managed refresh, and the bootstrap session may already be expired. For account-bound writes, use `client.refreshSession(marginSeconds:)`, verify the cursor owner's user ID, then pin the returned token for that request.
 - `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions on Workouts-area open/refresh. The user-scoped on-device cursor advances only after backend writes succeed. A hub pull-to-refresh overlapping an import waits for it and runs another anchored pass; cancelled refreshes do not run a follow-up. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
 - `HealthKitDailyEnergyImporter` is read-only (`toShare: []`) and sums active

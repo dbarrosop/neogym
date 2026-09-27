@@ -98,6 +98,19 @@ package at its lower deployment floor unless its own code needs newer APIs.
 
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
+`NeoGymKit` also supports watchOS 8 without changing its iOS/macOS floors.
+The three HealthKit importer implementations are iOS-only. The phase-1 watch
+core has no embedded binary: its production factory uses a private, origin-scoped,
+device-only SDK Keychain session with legacy migration ignored, no GraphQL cache,
+and a managed, uncached Auth `GET /user` name read. Phone account hints contain
+only version/state/user ID, never credentials or display name; known signed-out
+or different-account state blocks the watch while unknown state allows independent
+watch internet use. The watch model exposes non-actionable `.clearing` while a
+blocking hint's session removal is pending; only after clearing finishes may
+`.matchPhone` invite OTP. A later phone signed-in hint after explicit watch
+sign-out also changes the prompt to `.matchPhone`. Watch UI and connectivity
+targets are not yet installed.
+
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
 
 The production iOS app enables the SDK's persistent, managed-session-scoped
