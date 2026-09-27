@@ -22,7 +22,8 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests.
+  tests. In XCTest, await actor snapshots into a local before passing them to
+  `XCTAssertEqual`: assertion autoclosures do not support `await`.
 - `nix develop ../.. --command xcodegen generate` — regenerate
   `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
   Keep `project.yml` as the source of truth and do not commit generated
@@ -187,7 +188,16 @@ intact instead of inventing one-off styles.
   with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
   deleted). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
-  On Progress, each exercise chart's header is a `NavigationLink` to the existing
+  Progress fetches strength history from the local week containing the first of
+  the last 180 local days, then extends the week-rounded bound on demand for
+  older custom ranges in either chart; cached results remain visible during
+  revalidation. If the current week-rounded `since` cache key is cold, an eligible
+  previous-key SDK snapshot can render without a network read and stays visible
+  on network failure, labeled as potentially missing newer sessions until the
+  current stream emits; missing or expired snapshots cannot provide that fallback.
+  Weekly zero buckets begin at the first logged week in the
+  fetched window, not necessarily the first-ever workout. On Progress, each
+  exercise chart's header is a `NavigationLink` to the existing
   `.exerciseDetail(id)` route; Back returns to Progress and the chart's period,
   legend, and plot gestures remain independent of navigation.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`

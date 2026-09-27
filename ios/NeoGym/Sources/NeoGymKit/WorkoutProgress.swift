@@ -82,23 +82,74 @@ public enum WorkoutProgressBuilder {
 @MainActor
 public final class WorkoutProgressViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<WorkoutProgress> = .idle
+    @Published public private(set) var isShowingPriorWeekCache = false
     private let repository: any SessionsRepositoryProtocol
+    private let calendar: Calendar
+    private let clock: @Sendable () -> Date
+    private var since: Date
+    private var loadVersion = 0
 
-    public init(repository: any SessionsRepositoryProtocol) {
+    public init(
+        repository: any SessionsRepositoryProtocol,
+        calendar: Calendar = .current,
+        clock: @escaping @Sendable () -> Date = Date.init
+    ) {
         self.repository = repository
+        self.calendar = calendar
+        self.clock = clock
+        let now = clock()
+        let firstDay = calendar.date(byAdding: .day, value: -179, to: calendar.startOfDay(for: now)) ?? now
+        self.since = Self.weekStart(containing: firstDay, calendar: calendar)
     }
 
     public var progress: WorkoutProgress? { state.value }
 
+    // Round requested bounds to local weeks so variable-keyed cache entries are reusable.
+    private static func weekStart(containing date: Date, calendar: Calendar) -> Date {
+        calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? calendar.startOfDay(for: date)
+    }
+
+    public func extendHistory(to visibleStart: Date) async {
+        let requested = Self.weekStart(containing: visibleStart, calendar: calendar)
+        guard requested < since else { return }
+        since = requested
+        await load()
+    }
+
     public func load() async {
+        loadVersion += 1
+        let version = loadVersion
+        let requestedSince = since
         state = .loading(previous: state.value)
+        // The default `since` moves when its 180-day start crosses a local week. Prefer the
+        // exact key; only a cold current key needs the preceding week's SDK-scoped fallback.
+        if state.value == nil {
+            let current = try? await repository.cachedStrengthProgressEntries(since: requestedSince)
+            guard version == loadVersion, !Task.isCancelled else { return }
+            if let current {
+                isShowingPriorWeekCache = false
+                state = .loaded(WorkoutProgressBuilder.build(entries: current, now: clock(), calendar: calendar))
+            } else if let precedingWeek = calendar.date(byAdding: .weekOfYear, value: -1, to: requestedSince) {
+                let candidate = Self.weekStart(containing: precedingWeek, calendar: calendar)
+                if let cached = try? await repository.cachedStrengthProgressEntries(since: candidate) {
+                    guard version == loadVersion, !Task.isCancelled else { return }
+                    isShowingPriorWeekCache = true
+                    state = .loaded(WorkoutProgressBuilder.build(entries: cached, now: clock(), calendar: calendar))
+                }
+            }
+        }
+        guard version == loadVersion, !Task.isCancelled else { return }
         do {
-            for try await entries in repository.strengthProgressUpdates() {
-                state = .loaded(WorkoutProgressBuilder.build(entries: entries))
+            for try await entries in repository.strengthProgressUpdates(since: requestedSince) {
+                guard version == loadVersion, !Task.isCancelled else { return }
+                isShowingPriorWeekCache = false
+                state = .loaded(WorkoutProgressBuilder.build(entries: entries, now: clock(), calendar: calendar))
             }
         } catch where GraphQLDomainError.isCancellation(error) {
+            guard version == loadVersion else { return }
             state = state.cancellationFallback
         } catch {
+            guard version == loadVersion else { return }
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
     }

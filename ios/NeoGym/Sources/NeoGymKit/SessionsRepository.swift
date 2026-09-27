@@ -38,8 +38,9 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func sessionDetail(id: String) async throws -> SessionDetailModel?
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel]
-    func strengthProgressEntries() async throws -> [WorkoutProgressEntry]
-    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error>
+    func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]
+    func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]?
+    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error>
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -70,8 +71,10 @@ public extension SessionsRepositoryProtocol {
         singleValueUpdates { try await sessionDetail(id: id) }
     }
 
-    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
-        singleValueUpdates { try await strengthProgressEntries() }
+    func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]? { nil }
+
+    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+        singleValueUpdates { try await strengthProgressEntries(since: since) }
     }
 }
 
@@ -153,18 +156,32 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
         return data.workoutSessions
     }
 
-    public func strengthProgressEntries() async throws -> [WorkoutProgressEntry] {
+    public func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry] {
         let data: WorkoutStrengthProgressData = try await graphQL.execute(
             query: Self.workoutStrengthProgressQuery,
+            variables: ["since": GraphQLScalars.timestamptz(since)],
             operationName: "WorkoutStrengthProgress"
         )
         return data.workoutSessionExercises
     }
 
-    public func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+    public func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]? {
+        let data: WorkoutStrengthProgressData? = try await graphQL.cachedSnapshot(
+            WorkoutStrengthProgressData.self,
+            query: Self.workoutStrengthProgressQuery,
+            variables: ["since": GraphQLScalars.timestamptz(since)],
+            operationName: "WorkoutStrengthProgress",
+            namespace: "sessions",
+            tags: ["sessions"]
+        )
+        return data?.workoutSessionExercises
+    }
+
+    public func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
         graphQL.cachedValues(
             WorkoutStrengthProgressData.self,
             query: Self.workoutStrengthProgressQuery,
+            variables: ["since": GraphQLScalars.timestamptz(since)],
             operationName: "WorkoutStrengthProgress",
             namespace: "sessions",
             tags: ["sessions"],
@@ -470,9 +487,9 @@ public extension SessionsRepository {
     """
 
     static let workoutStrengthProgressQuery = """
-    query WorkoutStrengthProgress {
+    query WorkoutStrengthProgress($since: timestamptz!) {
       workoutSessionExercises(
-        where: { kind: { _eq: "strength" }, workoutSessionStrengthSets: {} }
+        where: { kind: { _eq: "strength" }, workoutSessionStrengthSets: {}, workoutSession: { startedAt: { _gte: $since } } }
         order_by: { workoutSession: { startedAt: asc } }
       ) {
         id

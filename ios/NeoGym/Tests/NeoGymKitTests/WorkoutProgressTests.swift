@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCTest
 @testable import NeoGymKit
@@ -128,13 +129,17 @@ final class WorkoutProgressTests: XCTestCase {
         ]))])
         let repository = SessionsRepository(graphQL: fake)
 
-        let entries = try await repository.strengthProgressEntries()
+        let since = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+        let entries = try await repository.strengthProgressEntries(since: since)
 
         XCTAssertEqual(entries.first?.exercise.name, "Row")
         XCTAssertEqual(entries.first?.workoutSessionStrengthSets.first?.weight, 25)
         let requests = await fake.requestsSnapshot()
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "WorkoutStrengthProgress")
+        XCTAssertEqual(request.variables?["since"], .string("2026-01-05T00:00:00.000Z"))
+        XCTAssertTrue(request.query.contains("$since: timestamptz!"))
+        XCTAssertTrue(request.query.contains("startedAt: { _gte: $since }"))
         XCTAssertTrue(request.query.contains("workoutSessionStrengthSets: {}"))
         XCTAssertTrue(request.query.contains("kind: { _eq: \"strength\" }"))
     }
@@ -143,8 +148,9 @@ final class WorkoutProgressTests: XCTestCase {
         let fake = FakeGraphQLService(replies: [.json(.object(["workoutSessionExercises": .array([])]))])
         let repository = SessionsRepository(graphQL: fake)
 
+        let since = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
         var emissions: [[WorkoutProgressEntry]] = []
-        for try await entries in repository.strengthProgressUpdates() {
+        for try await entries in repository.strengthProgressUpdates(since: since) {
             emissions.append(entries)
         }
 
@@ -152,9 +158,162 @@ final class WorkoutProgressTests: XCTestCase {
         let requests = await fake.cachedRequestsSnapshot()
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.request.operationName, "WorkoutStrengthProgress")
+        XCTAssertEqual(request.request.variables?["since"], .string("2026-01-05T00:00:00.000Z"))
         XCTAssertEqual(request.namespace, "sessions")
         XCTAssertEqual(request.tags, ["sessions"])
         XCTAssertEqual(requests.count, 1)
+    }
+
+    func testProgressPriorWeekSnapshotUsesExactStreamCacheIdentityWithoutNetwork() async throws {
+        let fake = FakeGraphQLService(cachedOnlyReplies: [
+            .json(.object(["workoutSessionExercises": .array([])]))
+        ])
+        let repository = SessionsRepository(graphQL: fake)
+        let since = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+
+        let entries = try await repository.cachedStrengthProgressEntries(since: since)
+
+        XCTAssertEqual(entries, [])
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        let request = try XCTUnwrap(cacheReads.first)
+        XCTAssertEqual(cacheReads.count, 1)
+        XCTAssertEqual(request.request.query, SessionsRepository.workoutStrengthProgressQuery)
+        XCTAssertEqual(request.request.variables?["since"], GraphQLScalars.timestamptz(since))
+        XCTAssertEqual(request.request.operationName, "WorkoutStrengthProgress")
+        XCTAssertEqual(request.namespace, "sessions")
+        XCTAssertEqual(request.tags, ["sessions"])
+        let networkRequests = await fake.requestsSnapshot()
+        XCTAssertTrue(networkRequests.isEmpty)
+    }
+
+    @MainActor
+    func testWeekRolloverKeepsPriorCacheOfflineThenReplacesItWithFreshData() async throws {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-10T12:00:00Z"))
+        let previousSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+        let currentSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-12T00:00:00Z"))
+        let service = ControlledProgressGraphQL(
+            cachedSince: GraphQLScalars.timestamptz(previousSince), blockedRequestIndex: 1,
+            failedRequestIndex: 1, recentDate: "2026-07-10T10:00:00Z"
+        )
+        let viewModel = WorkoutProgressViewModel(
+            repository: SessionsRepository(graphQL: service), calendar: calendar, clock: { now }
+        )
+
+        let offlineLoad = Task { await viewModel.load() }
+        await service.waitForRequests(1)
+        XCTAssertEqual(viewModel.progress?.recentExercises.map(\.name), ["Cached"])
+        XCTAssertTrue(viewModel.isShowingPriorWeekCache)
+        let cacheReads = await service.cacheReadsSnapshot()
+        let read = try XCTUnwrap(cacheReads.first)
+        XCTAssertEqual(cacheReads.count, 2)
+        XCTAssertEqual(read.request.variables?["since"], GraphQLScalars.timestamptz(currentSince))
+        let priorRead = cacheReads[1]
+        XCTAssertEqual(priorRead.request.query, SessionsRepository.workoutStrengthProgressQuery)
+        XCTAssertEqual(priorRead.request.operationName, "WorkoutStrengthProgress")
+        XCTAssertEqual(priorRead.request.variables?["since"], GraphQLScalars.timestamptz(previousSince))
+        XCTAssertEqual(priorRead.namespace, "sessions")
+        XCTAssertEqual(priorRead.tags, ["sessions"])
+        let initialRequests = await service.requestDatesSnapshot()
+        XCTAssertEqual(initialRequests, [GraphQLScalars.timestamptz(currentSince)])
+
+        await service.releaseBlocked()
+        await offlineLoad.value
+        XCTAssertNotNil(viewModel.state.errorMessage)
+        XCTAssertEqual(viewModel.progress?.recentExercises.map(\.name), ["Cached"])
+        XCTAssertTrue(viewModel.isShowingPriorWeekCache)
+
+        await viewModel.load()
+        XCTAssertNil(viewModel.state.errorMessage)
+        XCTAssertEqual(viewModel.progress?.recentExercises.map(\.name), ["Bench"])
+        XCTAssertFalse(viewModel.isShowingPriorWeekCache)
+        let finalRequests = await service.requestDatesSnapshot()
+        XCTAssertEqual(finalRequests, [
+            GraphQLScalars.timestamptz(currentSince), GraphQLScalars.timestamptz(currentSince)
+        ])
+        let finalReads = await service.cacheReadsSnapshot()
+        XCTAssertEqual(finalReads.count, 2)
+    }
+
+    @MainActor
+    func testWarmCurrentWeekCacheSkipsOlderSnapshotAndNotice() async throws {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-10T12:00:00Z"))
+        let previousSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+        let currentSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-12T00:00:00Z"))
+        let service = ControlledProgressGraphQL(
+            cachedSince: GraphQLScalars.timestamptz(currentSince),
+            otherCachedSince: GraphQLScalars.timestamptz(previousSince),
+            blockedRequestIndex: 1, recentDate: "2026-07-10T10:00:00Z"
+        )
+        let viewModel = WorkoutProgressViewModel(
+            repository: SessionsRepository(graphQL: service), calendar: calendar, clock: { now }
+        )
+        var showedOlderNotice = false
+        let observation = viewModel.$isShowingPriorWeekCache.sink { showedOlderNotice = showedOlderNotice || $0 }
+        defer { observation.cancel() }
+
+        let load = Task { await viewModel.load() }
+        await service.waitForRequests(1)
+        XCTAssertEqual(viewModel.progress?.recentExercises.map(\.name), ["Cached"])
+        XCTAssertFalse(viewModel.isShowingPriorWeekCache)
+        let cacheReads = await service.cacheReadsSnapshot()
+        XCTAssertEqual(cacheReads.map { $0.request.variables?["since"] }, [GraphQLScalars.timestamptz(currentSince)])
+        let requests = await service.requestDatesSnapshot()
+        XCTAssertEqual(requests, [GraphQLScalars.timestamptz(currentSince)])
+
+        await service.releaseBlocked()
+        await load.value
+        XCTAssertEqual(viewModel.progress?.recentExercises.map(\.name), ["Bench"])
+        XCTAssertFalse(showedOlderNotice)
+    }
+
+    @MainActor
+    func testWiderRangeFetchesOnceAndRetainsPreviousWhileLoading() async throws {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-03T12:00:00Z"))
+        let service = ControlledProgressGraphQL()
+        let viewModel = WorkoutProgressViewModel(
+            repository: SessionsRepository(graphQL: service), calendar: calendar, clock: { now }
+        )
+
+        await viewModel.load()
+        let previous = try XCTUnwrap(viewModel.progress)
+        XCTAssertEqual(previous.recentExercises.first?.points.count, 1)
+        let initialSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+        let initialRequests = await service.requestDatesSnapshot()
+        XCTAssertEqual(initialRequests, [GraphQLScalars.timestamptz(initialSince)])
+        let initialCacheReads = await service.cacheReadsSnapshot()
+        XCTAssertEqual(initialCacheReads.count, 2) // Cache-only misses do not make network requests.
+        XCTAssertFalse(viewModel.isShowingPriorWeekCache)
+        // The widest preset is already covered; only an older custom start needs a new request.
+        let presetStart = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-01-05T00:00:00Z"))
+        await viewModel.extendHistory(to: presetStart)
+        let presetRequests = await service.requestDatesSnapshot()
+        XCTAssertEqual(presetRequests, initialRequests)
+
+        let olderStart = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2025-09-03T00:00:00Z"))
+        let extendedLoad = Task { await viewModel.extendHistory(to: olderStart) }
+        await service.waitForRequests(2)
+        XCTAssertEqual(viewModel.progress, previous)
+        XCTAssertTrue(viewModel.state.isLoading)
+        await viewModel.extendHistory(to: olderStart)
+        let requestCount = await service.requestDatesSnapshot().count
+        XCTAssertEqual(requestCount, 2)
+
+        await service.releaseBlocked()
+        await extendedLoad.value
+        XCTAssertEqual(viewModel.progress?.recentExercises.first?.points.count, 2)
+        let extendedSince = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2025-09-01T00:00:00Z"))
+        let finalRequests = await service.requestDatesSnapshot()
+        XCTAssertEqual(finalRequests, [
+            GraphQLScalars.timestamptz(initialSince), GraphQLScalars.timestamptz(extendedSince)
+        ])
+        let finalCacheReads = await service.cacheReadsSnapshot()
+        XCTAssertEqual(finalCacheReads.count, 2) // Expanding an already visible history does not probe keys.
     }
 
     private func entry(
@@ -170,5 +329,113 @@ final class WorkoutProgressTests: XCTestCase {
             workoutSession: SessionPriorWorkoutSession(id: id, startedAt: startedAt),
             workoutSessionStrengthSets: sets ?? [ExerciseStrengthSet(id: id, setNumber: 1, reps: reps, weight: weight)]
         )
+    }
+}
+
+private actor ControlledProgressGraphQL: GraphQLServicing {
+    private var dates: [JSONValue] = []
+    private var cacheReads: [GraphQLCachedRequestRecord] = []
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var release: CheckedContinuation<Void, Never>?
+    private let cachedSince: JSONValue?
+    private let otherCachedSince: JSONValue?
+    private let blockedRequestIndex: Int
+    private let failedRequestIndex: Int?
+    private let recentDate: String
+
+    init(
+        cachedSince: JSONValue? = nil, otherCachedSince: JSONValue? = nil,
+        blockedRequestIndex: Int = 2, failedRequestIndex: Int? = nil,
+        recentDate: String = "2026-07-03T10:00:00Z"
+    ) {
+        self.cachedSince = cachedSince
+        self.otherCachedSince = otherCachedSince
+        self.blockedRequestIndex = blockedRequestIndex
+        self.failedRequestIndex = failedRequestIndex
+        self.recentDate = recentDate
+    }
+
+    func requestDatesSnapshot() -> [JSONValue] { dates }
+    func cacheReadsSnapshot() -> [GraphQLCachedRequestRecord] { cacheReads }
+
+    func cachedSnapshot<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type, query: String, variables: [String: JSONValue]?,
+        operationName: String?, namespace: String, tags: Set<String>
+    ) async throws -> ResponseData? {
+        cacheReads.append(GraphQLCachedRequestRecord(
+            request: GraphQLRequestRecord(query: query, variables: variables, operationName: operationName),
+            namespace: namespace, tags: tags
+        ))
+        guard cachedSince == variables?["since"] || otherCachedSince == variables?["since"] else { return nil }
+        let isOlder = otherCachedSince == variables?["since"]
+        let cached = Self.entry(
+            id: "cached", exercise: isOlder ? "Prior" : "Cached", date: "2026-07-04T10:00:00Z"
+        )
+        return try JSONDecoder().decode(responseType, from: JSONEncoder().encode(
+            JSONValue.object(["workoutSessionExercises": .array([cached])])
+        ))
+    }
+
+    func waitForRequests(_ count: Int) async {
+        if dates.count >= count { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func releaseBlocked() { release?.resume(); release = nil }
+
+    func execute<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type, query: String, variables: [String: JSONValue]?, operationName: String?
+    ) async throws -> ResponseData {
+        throw GraphQLDomainError.missingData(operationName: operationName)
+    }
+
+    nonisolated func cachedQuery<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type, query: String, variables: [String: JSONValue]?,
+        operationName: String?, namespace: String, tags: Set<String>
+    ) -> AsyncThrowingStream<GraphQLQueryEmission<ResponseData>, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    let result = try await self.produce(responseType, since: variables?["since"])
+                    continuation.yield(.fresh(result))
+                    continuation.finish()
+                } catch { continuation.finish(throwing: error) }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
+    }
+
+    private func produce<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type, since: JSONValue?
+    ) async throws -> ResponseData {
+        dates.append(since ?? .null)
+        let isExtended = dates.count > 1 && since != dates.first
+        let ready = waiters
+        waiters.removeAll()
+        ready.forEach { $0.resume() }
+        if dates.count == blockedRequestIndex { await withCheckedContinuation { release = $0 } }
+        if dates.count == failedRequestIndex { throw URLError(.notConnectedToInternet) }
+        let recent = Self.entry(id: "recent", exercise: "Bench", date: recentDate)
+        let old: JSONValue = .object([
+            "id": .string("old"),
+            "exercise": .object(["id": .string("bench"), "name": .string("Bench"), "strength": .null]),
+            "workoutSession": .object(["id": .string("old"), "startedAt": .string("2025-09-01T10:00:00Z")]),
+            "workoutSessionStrengthSets": .array([.object([
+                "id": .string("old-set"), "setNumber": .number(1), "reps": .number(5), "weight": .number(80)
+            ])])
+        ])
+        let payload = JSONValue.object(["workoutSessionExercises": .array(isExtended ? [old, recent] : [recent])])
+        return try JSONDecoder().decode(responseType, from: JSONEncoder().encode(payload))
+    }
+
+    private static func entry(id: String, exercise: String, date: String) -> JSONValue {
+        .object([
+            "id": .string(id),
+            "exercise": .object(["id": .string(exercise.lowercased()), "name": .string(exercise), "strength": .null]),
+            "workoutSession": .object(["id": .string(id), "startedAt": .string(date)]),
+            "workoutSessionStrengthSets": .array([.object([
+                "id": .string("\(id)-set"), "setNumber": .number(1), "reps": .number(5), "weight": .number(100)
+            ])])
+        ])
     }
 }

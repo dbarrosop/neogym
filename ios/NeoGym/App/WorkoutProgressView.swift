@@ -47,6 +47,11 @@ struct WorkoutProgressView: View {
             }
         default:
             if let progress = viewModel.progress {
+                if viewModel.isShowingPriorWeekCache {
+                    FeedbackBanner(
+                        message: "Showing an earlier cached snapshot; newer sessions may be missing.", tone: .info
+                    )
+                }
                 SectionShell(title: "Weekly total volume", subtitle: "Strength · kg · all exercises") {
                     TimeSeriesTrendChartView(
                         series: [TimeSeriesChartSeries(
@@ -64,7 +69,10 @@ struct WorkoutProgressView: View {
                         )],
                         emptyMessage: "No strength sets in this period.",
                         accessibilityLabel: "Weekly strength volume chart",
-                        initialPeriod: .last8Weeks
+                        initialPeriod: .last8Weeks,
+                        onVisibleRangeChange: { start, _ in
+                            Task { await viewModel.extendHistory(to: start) }
+                        }
                     )
                 }
                 if progress.recentExercises.isEmpty {
@@ -82,7 +90,10 @@ struct WorkoutProgressView: View {
                                 series: exerciseSeries(for: exercise),
                                 emptyMessage: "No sets in this period.",
                                 accessibilityLabel: "\(exercise.name) volume and estimated one-rep max chart",
-                                initialPeriod: .last8Weeks
+                                initialPeriod: .last8Weeks,
+                                onVisibleRangeChange: { start, _ in
+                                    Task { await viewModel.extendHistory(to: start) }
+                                }
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
                         } label: {
@@ -109,6 +120,9 @@ struct WorkoutProgressView: View {
                         }
                         .groupBoxStyle(.automatic)
                     }
+                }
+                if case let .failed(message, _) = viewModel.state {
+                    FeedbackBanner(message: "Could not load selected period: \(message)")
                 }
             }
         }

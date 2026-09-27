@@ -857,9 +857,9 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         return priorWorkoutSessionsResult
     }
 
-    func strengthProgressEntries() async throws -> [WorkoutProgressEntry] { [] }
+    func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry] { [] }
 
-    func strengthProgressUpdates() -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
+    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
         AsyncThrowingStream { continuation in
             continuation.yield(progressUpdateEntries)
             continuation.finish(throwing: progressUpdateError)

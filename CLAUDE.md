@@ -161,6 +161,13 @@ shows calendar-week strength volume across all exercises and a per-exercise char
 with both session volume and estimated 1RM for every strength exercise with a logged
 set in the last 10 local days (separate axes for the two metrics);
 the charts default to the last eight calendar weeks and support other periods.
+Progress initially fetches strength history from the local week containing the first
+of the last 180 local days; both charts extend that week-rounded bound for older
+custom ranges while keeping existing progress visible during revalidation. When
+its week-rounded cache key changes, an eligible previous-key SDK cache snapshot
+can render first without a network request; it is labeled as potentially missing
+newer sessions until the current-key stream emits (expired/missing entries do not
+provide an offline fallback).
 Each exercise chart's tappable header pushes `WorkoutsRoute.exerciseDetail(id)`
 through the existing stack; Back returns to Progress without consuming chart gestures.
 On a session detail with strength entries, the totals are followed by the three
