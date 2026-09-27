@@ -42,14 +42,18 @@ private actor FakeWorkoutStore: HealthWorkoutStoring {
 private actor SuspendedWorkoutStore: HealthWorkoutStoring {
     private var continuation: CheckedContinuation<Void, Never>?
     private let didStart: XCTestExpectation
+    private var shouldSuspend = true
     private var savedIds: [String] = []
 
     init(didStart: XCTestExpectation) { self.didStart = didStart }
 
     func upsert(_ snapshots: [HealthWorkoutSnapshot]) async throws {
-        await withCheckedContinuation { continuation in
-            self.continuation = continuation
-            didStart.fulfill()
+        if shouldSuspend {
+            shouldSuspend = false
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                didStart.fulfill()
+            }
         }
         savedIds += snapshots.map(\.healthkitUuid)
     }
@@ -212,6 +216,73 @@ final class HealthWorkoutSyncTests: XCTestCase {
         XCTAssertNil(leakedToBob)
         XCTAssertNotNil(bobSaved)
         XCTAssertEqual(newModel.state.value, HealthWorkoutSyncSummary(importedOrUpdated: 1, deleted: 0))
+    }
+
+    func testManualRefreshDuringWriteReadsAgainAfterCommittedCursor() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let writeStarted = expectation(description: "First write started")
+        let refreshStarted = expectation(description: "Manual refresh requested")
+        let store = SuspendedWorkoutStore(didStart: writeStarted)
+        let importer = FakeWorkoutImporter([
+            HealthWorkoutChangeBatch(
+                added: [HealthWorkoutSnapshot(healthkitUuid: "old", raw: .object([:]))],
+                deletedIds: [], nextAnchor: Data([1]), hasMore: false
+            ),
+            HealthWorkoutChangeBatch(
+                added: [HealthWorkoutSnapshot(healthkitUuid: "new", raw: .object([:]))],
+                deletedIds: [], nextAnchor: Data([2]), hasMore: false
+            )
+        ])
+        let model = HealthWorkoutSyncModel(defaults: defaults)
+        let automatic = Task { await model.sync(userId: "alice", importer: importer, repository: store) }
+        await fulfillment(of: [writeStarted], timeout: 5)
+        let refresh = Task { @MainActor in
+            refreshStarted.fulfill()
+            await model.sync(userId: "alice", importer: importer, repository: store, waitForCurrent: true)
+        }
+        await fulfillment(of: [refreshStarted], timeout: 5)
+        // The first HealthKit read is already over, but the cursor is still uncommitted.
+        let beforeWrite = await importer.anchors()
+        XCTAssertEqual(beforeWrite.count, 1)
+        XCTAssertNil(defaults.data(forKey: "health-workouts.anchor.alice"))
+        await store.finishWrite()
+        await refresh.value
+        await automatic.value
+
+        let anchors = await importer.anchors()
+        let saved = await store.saved()
+        XCTAssertEqual(anchors, [nil, Data([1])])
+        XCTAssertEqual(saved, ["old", "new"])
+        XCTAssertEqual(defaults.data(forKey: "health-workouts.anchor.alice"), Data([2]))
+        XCTAssertEqual(model.state.value, HealthWorkoutSyncSummary(importedOrUpdated: 1, deleted: 0))
+    }
+
+    func testCancelledWaitingRefreshDoesNotReadOrCommitAnotherCursor() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let writeStarted = expectation(description: "First write started")
+        let refreshStarted = expectation(description: "Manual refresh requested")
+        let store = SuspendedWorkoutStore(didStart: writeStarted)
+        let importer = FakeWorkoutImporter([HealthWorkoutChangeBatch(
+            added: [HealthWorkoutSnapshot(healthkitUuid: "old", raw: .object([:]))],
+            deletedIds: [], nextAnchor: Data([1]), hasMore: false
+        )])
+        let model = HealthWorkoutSyncModel(defaults: defaults)
+        let automatic = Task { await model.sync(userId: "alice", importer: importer, repository: store) }
+        await fulfillment(of: [writeStarted], timeout: 5)
+        let refresh = Task { @MainActor in
+            refreshStarted.fulfill()
+            await model.sync(userId: "alice", importer: importer, repository: store, waitForCurrent: true)
+        }
+        await fulfillment(of: [refreshStarted], timeout: 5)
+        refresh.cancel()
+        // A cancelled refresh must finish even while the original write is still suspended.
+        await refresh.value
+        let anchors = await importer.anchors()
+        XCTAssertEqual(anchors.count, 1)
+        XCTAssertNil(defaults.data(forKey: "health-workouts.anchor.alice"))
+        await store.finishWrite()
+        await automatic.value
+        XCTAssertEqual(defaults.data(forKey: "health-workouts.anchor.alice"), Data([1]))
     }
 
     func testPagedUpsertDeletionAndPerUserAnchor() async throws {

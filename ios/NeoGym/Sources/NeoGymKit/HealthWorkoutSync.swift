@@ -50,16 +50,34 @@ public final class HealthWorkoutSyncModel: ObservableObject {
     @Published public private(set) var state: Loadable<HealthWorkoutSyncSummary> = .idle
     private let defaults: UserDefaults
     private var isSyncing = false
+    private var completionWaiters: [UUID: CheckedContinuation<Void, Never>] = [:]
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
-    public func sync(userId: String, importer: any HealthWorkoutImporting, repository: any HealthWorkoutStoring) async {
-        guard !userId.isEmpty, !isSyncing else { return }
+    /// An explicit refresh waits for an in-flight import, then reads HealthKit again
+    /// from the committed cursor. Automatic duplicate triggers still return early.
+    public func sync(
+        userId: String, importer: any HealthWorkoutImporting, repository: any HealthWorkoutStoring,
+        waitForCurrent: Bool = false
+    ) async {
+        guard !userId.isEmpty else { return }
+        if waitForCurrent {
+            while isSyncing {
+                await waitForCurrentSync()
+                if Task.isCancelled { return }
+            }
+        }
+        guard !isSyncing, !Task.isCancelled else { return }
         isSyncing = true
         state = .loading(previous: state.value)
-        defer { isSyncing = false }
+        defer {
+            isSyncing = false
+            let waiters = Array(completionWaiters.values)
+            completionWaiters.removeAll()
+            for waiter in waiters { waiter.resume() }
+        }
         let key = "health-workouts.anchor.\(userId)"
         var anchor = defaults.data(forKey: key)
         var importedOrUpdated = 0
@@ -97,5 +115,24 @@ public final class HealthWorkoutSyncModel: ObservableObject {
         } catch {
             state = .failed(message: "Apple Health workout sync failed: \(error.localizedDescription)", previous: state.value)
         }
+    }
+
+    private func waitForCurrentSync() async {
+        let id = UUID()
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled {
+                    continuation.resume()
+                } else {
+                    completionWaiters[id] = continuation
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.resumeWaiter(id) }
+        }
+    }
+
+    private func resumeWaiter(_ id: UUID) {
+        completionWaiters.removeValue(forKey: id)?.resume()
     }
 }

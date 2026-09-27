@@ -91,7 +91,7 @@ struct WorkoutsSectionNavigationView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable { await syncHealthWorkouts() }
+        .refreshable { await syncHealthWorkouts(waitForCurrent: true) }
         .navigationTitle("Workouts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -128,12 +128,13 @@ struct WorkoutsSectionNavigationView: View {
         }
     }
 
-    private func syncHealthWorkouts() async {
+    private func syncHealthWorkouts(waitForCurrent: Bool = false) async {
         guard let currentUserId, let healthWorkoutImporter else { return }
         await healthWorkoutSync.sync(
             userId: currentUserId,
             importer: healthWorkoutImporter,
-            repository: healthWorkoutRepository
+            repository: healthWorkoutRepository,
+            waitForCurrent: waitForCurrent
         )
     }
 
