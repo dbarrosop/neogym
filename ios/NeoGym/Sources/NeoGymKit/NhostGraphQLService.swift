@@ -30,6 +30,32 @@ public struct NhostGraphQLService: GraphQLServicing {
         }
     }
 
+    public func cachedSnapshot<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type,
+        query: String,
+        variables: [String: JSONValue]?,
+        operationName: String?,
+        namespace: String,
+        tags: Set<String>
+    ) async throws -> ResponseData? {
+        do {
+            let response = try await client.graphql.request(
+                responseType,
+                query: query,
+                variables: variables,
+                operationName: operationName,
+                cacheOptions: GraphQLCacheRequestOptions(
+                    policy: .cacheOnly,
+                    namespace: namespace,
+                    tags: tags
+                )
+            )
+            return try GraphQLResponseMapper.unwrap(response.body, operationName: operationName)
+        } catch GraphQLCacheError.miss, GraphQLCacheError.expired, GraphQLCacheError.notConfigured {
+            return nil
+        }
+    }
+
     public func cachedQuery<ResponseData: Decodable & Sendable>(
         _ responseType: ResponseData.Type = ResponseData.self,
         query: String,

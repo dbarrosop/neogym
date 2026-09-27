@@ -81,6 +81,59 @@ final class NutritionCalorieHistoryTests: XCTestCase {
         XCTAssertNotNil(viewModel.state.errorMessage)
     }
 
+    @MainActor
+    func testPreviousDayCacheRendersOfflineWithoutRequestingOldRange() async throws {
+        let today = ChartHistoryRange(from: "2026-06-01", through: "2026-06-20")
+        let yesterday = ChartHistoryRange(from: "2026-05-31", through: "2026-06-19")
+        let fake = FakeGraphQLService(
+            replies: [.failure(GraphQLDomainError.transport("offline"))],
+            cachedOnlyReplies: [.missingData, .json(.object([
+                "nutritionDays": .array([.object([
+                    "logDate": .string("2026-06-19"),
+                    "nutritionLogEntries": .array([.object([
+                        "grams": .number(100), "snapshotKcalPer100g": .number(200)
+                    ])]),
+                    "nutritionLogMeals": .array([])
+                ])]),
+                "dailyEnergyEntries": .array([])
+            ]))]
+        )
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = NutritionCalorieHistoryViewModel(repository: repository)
+        await viewModel.load(range: today, cacheCandidates: [today, yesterday])
+
+        XCTAssertEqual(viewModel.history?.consumedValues, [DatedCalorieIntake(date: "2026-06-19", calories: 200)])
+        XCTAssertEqual(viewModel.cachedThrough, "2026-06-19")
+        XCTAssertNotNil(viewModel.state.errorMessage)
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(cacheReads.count, 2)
+        XCTAssertEqual(cacheReads.map(\.request.variables?["through"]), [.string("2026-06-20"), .string("2026-06-19")])
+        XCTAssertTrue(cacheReads.allSatisfy { $0.namespace == "nutrition-calorie-history" })
+        let network = await fake.requestsSnapshot()
+        XCTAssertEqual(network.count, 1)
+        XCTAssertEqual(network.first?.variables?["through"], .string("2026-06-20"))
+    }
+
+    @MainActor
+    func testFreshRangeReplacesPreviousDayFallback() async throws {
+        let today = ChartHistoryRange(from: "2026-06-01", through: "2026-06-20")
+        let yesterday = ChartHistoryRange(from: "2026-05-31", through: "2026-06-19")
+        let fake = FakeGraphQLService(
+            replies: [.json(.object([
+                "nutritionDays": .array([]), "dailyEnergyEntries": .array([])
+            ]))],
+            cachedOnlyReplies: [.missingData, .json(.object([
+                "nutritionDays": .array([]), "dailyEnergyEntries": .array([])
+            ]))]
+        )
+        let viewModel = NutritionCalorieHistoryViewModel(repository: NutritionFoodMealRepository(graphQL: fake))
+        await viewModel.load(range: today, cacheCandidates: [today, yesterday])
+
+        XCTAssertNotNil(viewModel.history)
+        XCTAssertNil(viewModel.cachedThrough)
+        XCTAssertNil(viewModel.state.errorMessage)
+    }
+
     func testChartHistoryRangeAddsSixWarmupDaysAcrossMidnightDST() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
@@ -93,6 +146,13 @@ final class NutritionCalorieHistoryTests: XCTestCase {
         let custom = ChartHistoryRange(visibleStart: now, endExclusive: customEnd, calendar: calendar)
         XCTAssertEqual(custom.from, "2025-09-01")
         XCTAssertEqual(custom.through, "2025-09-08")
+
+        let candidates = ChartHistoryRange.recentCacheCandidates(14, now: now, calendar: calendar)
+        XCTAssertEqual(candidates.count, 8)
+        XCTAssertEqual(candidates.first, range)
+        XCTAssertEqual(candidates[1].through, "2025-09-06")
+        XCTAssertEqual(candidates.last?.through, "2025-08-31")
+        XCTAssertEqual(candidates.last?.from, "2025-08-12")
     }
 
     func testCalorieHistoryPreparesLongCalendarDaySeriesAndSparseRollingWindows() throws {

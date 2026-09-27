@@ -183,8 +183,14 @@ struct NutritionOverviewView: View {
         defer { isRefreshingOverview = false }
 
         async let initialOverviewLoad: Void = viewModel.load()
-        async let initialCalorieLoad: Void = calorieViewModel.load(range: calorieRange)
-        async let initialBodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
+        async let initialCalorieLoad: Void = calorieViewModel.load(
+            range: calorieRange,
+            cacheCandidates: ChartHistoryRange.recentCacheCandidates(14)
+        )
+        async let initialBodyChartLoad: Void = bodyChartViewModel.load(
+            range: bodyRange,
+            cacheCandidates: ChartHistoryRange.recentCacheCandidates(14)
+        )
         async let bodySync: Void = bodyViewModel.syncHealthMeasurementsOnly()
         async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
         await initialOverviewLoad
@@ -192,13 +198,14 @@ struct NutritionOverviewView: View {
         await initialBodyChartLoad
         await bodySync
         await energyLoad
+        // The charts are interactive now; allow range changes during post-sync revalidation.
+        hasRequestedCharts = true
         async let finalOverviewLoad: Void = viewModel.load()
         async let calorieLoad: Void = calorieViewModel.load(range: calorieRange)
         async let bodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
         await finalOverviewLoad
         await calorieLoad
         await bodyChartLoad
-        hasRequestedCharts = true
 
         if case .loaded = viewModel.state {
             hasLoadedOverview = true
@@ -305,7 +312,9 @@ struct NutritionOverviewView: View {
     private func bodyFatValueText(_ value: Double) -> String {
         String(format: "%.1f %%", value)
     }
+}
 
+private extension NutritionOverviewView {
     @ViewBuilder
     private var caloriesChart: some View {
         SectionShell(
@@ -335,6 +344,11 @@ struct NutritionOverviewView: View {
                             if range != calorieRange { calorieRange = range }
                         }
                     )
+                    if let through = calorieViewModel.cachedThrough {
+                        Text("Showing saved data through \(through); newer dates may be missing.")
+                            .font(.caption)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
                     if case let .failed(message, _) = calorieViewModel.state {
                         FeedbackBanner(message: "Could not load selected period: \(message)")
                     }
@@ -372,6 +386,11 @@ struct NutritionOverviewView: View {
                             if range != bodyRange { bodyRange = range }
                         }
                     )
+                    if let through = bodyChartViewModel.cachedThrough {
+                        Text("Showing saved data through \(through); newer dates may be missing.")
+                            .font(.caption)
+                            .foregroundColor(NeoGymTheme.mutedText)
+                    }
                     if case let .failed(message, _) = bodyChartViewModel.state {
                         FeedbackBanner(message: "Could not load selected period: \(message)")
                     }

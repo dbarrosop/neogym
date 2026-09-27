@@ -90,8 +90,12 @@ changes.
   still fetch fresh backend data. The SDK scopes private cache entries by the
   managed session and purges prior user scopes on sign-out/session replacement.
   The file cache is app-process-only; the widget client has no GraphQL cache because each
-  process must own a distinct SDK cache directory. Do not add weaker app-owned
-  user cache keys.
+  process must own a distinct SDK cache directory. On a cold Nutrition Overview
+  launch, the default charts read today's exact range and up to seven prior
+  daily ranges through the SDK's age-bounded `.cacheOnly` policy before their
+  current-range refresh. Previous-range results are visibly labeled and kept
+  on network failure, never copied into app storage; the SDK enforces scope
+  and age on every read. Do not add weaker app-owned user cache keys.
 - `NeoGymWidgets` contains both the rest timer Live Activity and the medium
   Energy Balance widget. Energy Balance math, captions, the dependency-free
   token-free aggregate DTO/store, and live-fetch/fallback orchestration live in

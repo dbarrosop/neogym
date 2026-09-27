@@ -37,9 +37,30 @@ public protocol GraphQLServicing: Sendable {
         namespace: String,
         tags: Set<String>
     ) -> AsyncThrowingStream<GraphQLQueryEmission<ResponseData>, Error>
+
+    /// Read an eligible fresh or stale SDK cache entry without making a request.
+    func cachedSnapshot<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type,
+        query: String,
+        variables: [String: JSONValue]?,
+        operationName: String?,
+        namespace: String,
+        tags: Set<String>
+    ) async throws -> ResponseData?
 }
 
 public extension GraphQLServicing {
+    func cachedSnapshot<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type,
+        query: String,
+        variables: [String: JSONValue]?,
+        operationName: String?,
+        namespace: String,
+        tags: Set<String>
+    ) async throws -> ResponseData? {
+        nil
+    }
+
     func execute<ResponseData: Decodable & Sendable>(
         _ responseType: ResponseData.Type = ResponseData.self,
         query: String,

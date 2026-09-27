@@ -181,7 +181,11 @@ trend, and read-only HealthKit import under the Nutrition hub. The Overview
 screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
 Energy from HealthKit on load and pull-to-refresh before the final backend
 overview fetch. Cached chart data can render during sync, then both charts
-refresh from post-sync backend data; the dashboard shows Energy balance,
+refresh from post-sync backend data. On a cold launch across a local-day change,
+the default charts first read today's and up to seven earlier exact ranges from
+the SDK's user-scoped, age-bounded cache without network calls; any previous-range
+fallback is labeled as missing newer dates until the current-range refresh
+succeeds. No app-owned cache keys or chart snapshots are stored. The dashboard shows Energy balance,
 Calories consumed, and Body composition trends. Both charts default to the
 last 14 local days and query only their selected period plus six warm-up days
 for rolling averages. The Calories consumed chart uses a separate date-bounded

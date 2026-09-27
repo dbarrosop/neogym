@@ -125,6 +125,35 @@ final class BodyMeasurementsRepositoryTests: XCTestCase {
 
 @MainActor
 final class BodyMeasurementsChartViewModelTests: XCTestCase {
+    func testPreviousDayCacheRendersOfflineAndUsesExactProtectedQueryShape() async throws {
+        let today = ChartHistoryRange(from: "2026-06-01", through: "2026-06-27")
+        let yesterday = ChartHistoryRange(from: "2026-05-31", through: "2026-06-26")
+        let fake = FakeGraphQLService(
+            replies: [.failure(GraphQLDomainError.transport("offline"))],
+            cachedOnlyReplies: [.missingData, .json(.object([
+                "bodyMeasurements": .array([bodyMeasurementFixture])
+            ]))]
+        )
+        let viewModel = BodyMeasurementsChartViewModel(repository: BodyMeasurementsRepository(graphQL: fake))
+        await viewModel.load(range: today, cacheCandidates: [today, yesterday])
+
+        XCTAssertEqual(viewModel.trendData.points.map(\.measuredOn), ["2026-06-25"])
+        XCTAssertEqual(viewModel.cachedThrough, "2026-06-26")
+        XCTAssertNotNil(viewModel.state.errorMessage)
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(cacheReads.count, 2)
+        XCTAssertTrue(cacheReads.allSatisfy {
+            $0.request.operationName == "BodyMeasurementChart" && $0.namespace == "body-measurements"
+                && $0.tags == ["body-measurements"]
+        })
+        XCTAssertEqual(cacheReads.last?.request.variables, [
+            "from": .string("2026-05-31"), "through": .string("2026-06-26")
+        ])
+        let network = await fake.requestsSnapshot()
+        XCTAssertEqual(network.count, 1)
+        XCTAssertEqual(network.first?.variables?["through"], .string("2026-06-27"))
+    }
+
     func testChartRetainsPreviousRangeAfterFailure() async {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["bodyMeasurements": .array([bodyMeasurementFixture])])),

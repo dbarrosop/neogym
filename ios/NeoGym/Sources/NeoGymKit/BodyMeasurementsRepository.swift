@@ -4,6 +4,7 @@ public protocol BodyMeasurementsRepositoryProtocol: Sendable {
     func listMeasurements() async throws -> [BodyMeasurement]
     func measurementListUpdates() -> AsyncThrowingStream<[BodyMeasurement], Error>
     func measurementChartUpdates(range: ChartHistoryRange) -> AsyncThrowingStream<[BodyMeasurement], Error>
+    func cachedMeasurementChart(range: ChartHistoryRange) async throws -> [BodyMeasurement]?
     func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error>
     func measurement(id: String) async throws -> BodyMeasurement?
     func editMeasurement(id: String) async throws -> BodyMeasurement?
@@ -21,6 +22,10 @@ public extension BodyMeasurementsRepositoryProtocol {
         singleValueUpdates {
             try await listMeasurements().filter { $0.measuredOn >= range.from && $0.measuredOn <= range.through }
         }
+    }
+
+    func cachedMeasurementChart(range: ChartHistoryRange) async throws -> [BodyMeasurement]? {
+        nil
     }
 
     func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error> {
@@ -64,6 +69,18 @@ public struct BodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol {
             tags: ["body-measurements"],
             transform: \BodyMeasurementsData.bodyMeasurements
         )
+    }
+
+    public func cachedMeasurementChart(range: ChartHistoryRange) async throws -> [BodyMeasurement]? {
+        let data: BodyMeasurementsData? = try await graphQL.cachedSnapshot(
+            BodyMeasurementsData.self,
+            query: Self.bodyMeasurementChartQuery,
+            variables: ["from": GraphQLScalars.date(range.from), "through": GraphQLScalars.date(range.through)],
+            operationName: "BodyMeasurementChart",
+            namespace: "body-measurements",
+            tags: ["body-measurements"]
+        )
+        return data?.bodyMeasurements
     }
 
     public func measurementUpdates(id: String) -> AsyncThrowingStream<BodyMeasurement?, Error> {

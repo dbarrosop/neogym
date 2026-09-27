@@ -57,6 +57,15 @@ macro math. The native Nutrition overview is a dashboard, not a shortcut list:
 on initial load and pull-to-refresh it starts chart reads alongside the same
 read-only Apple Health syncs used by the Body and Energy subsections, so cached
 charts can render promptly; it refreshes the charts and Energy balance after sync.
+On a cold launch after the default range has moved to a new local day, each chart
+checks the SDK's protected cache for today's exact range and up to seven earlier
+daily ranges without network calls, shows the newest eligible result marked as
+possibly missing newer dates, then replaces it with the fresh current-range
+result. If offline, the prior result stays visible within the cache's 7-day
+stale window; if there is no eligible entry, the chart shows the normal error.
+The SDK (not app-owned storage) enforces user scope and cache age. Selected
+longer/custom ranges still request their exact dates and retain in-memory data
+while refreshing; the fallback scan is only for the initial default range.
 The dashboard has no intro/action copy or recent daily-log list. Energy balance summarizes today with logged kcal,
 active+resting energy, and net, and the calories chart overlays consumed kcal,
 daily net (`consumed - energy`), and 7-day average net. Both the Calories consumed

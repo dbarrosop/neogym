@@ -164,6 +164,7 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
 @MainActor
 public final class BodyMeasurementsChartViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<BodyMeasurementTrendData> = .idle
+    @Published public private(set) var cachedThrough: String?
     private let repository: any BodyMeasurementsRepositoryProtocol
     private let calendar: Calendar
     private var requestGeneration = 0
@@ -175,14 +176,26 @@ public final class BodyMeasurementsChartViewModel: ObservableObject {
 
     public var trendData: BodyMeasurementTrendData { state.value ?? BodyMeasurementTrendData(points: []) }
 
-    public func load(range: ChartHistoryRange) async {
+    public func load(range: ChartHistoryRange, cacheCandidates: [ChartHistoryRange] = []) async {
         // Keep the chart mounted, including its selected period, while a wider range loads.
         requestGeneration += 1
         let generation = requestGeneration
         state = .loading(previous: state.value)
+        if state.value == nil {
+            for candidate in cacheCandidates {
+                guard generation == requestGeneration, !Task.isCancelled else { return }
+                if let cached = try? await repository.cachedMeasurementChart(range: candidate) {
+                    guard generation == requestGeneration, !Task.isCancelled else { return }
+                    cachedThrough = candidate == range ? nil : candidate.through
+                    state = .loaded(BodyMeasurementTrendBuilder.make(from: cached, calendar: calendar))
+                    break
+                }
+            }
+        }
         do {
             for try await measurements in repository.measurementChartUpdates(range: range) {
                 guard generation == requestGeneration, !Task.isCancelled else { return }
+                cachedThrough = nil
                 state = .loaded(BodyMeasurementTrendBuilder.make(from: measurements, calendar: calendar))
             }
         } catch where GraphQLDomainError.isCancellation(error) {

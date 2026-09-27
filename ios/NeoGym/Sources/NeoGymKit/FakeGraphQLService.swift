@@ -35,19 +35,24 @@ public enum FakeGraphQLReply: Sendable {
 
 public actor FakeGraphQLService: GraphQLServicing {
     private var replies: [FakeGraphQLReply]
+    private var cachedOnlyReplies: [FakeGraphQLReply]
     private var requests: [GraphQLRequestRecord]
     private var cachedRequests: [GraphQLCachedRequestRecord]
+    private var cachedOnlyRequests: [GraphQLCachedRequestRecord]
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
     public init(
         replies: [FakeGraphQLReply] = [],
+        cachedOnlyReplies: [FakeGraphQLReply] = [],
         encoder: JSONEncoder = JSONEncoder(),
         decoder: JSONDecoder = JSONDecoder()
     ) {
         self.replies = replies
+        self.cachedOnlyReplies = cachedOnlyReplies
         self.requests = []
         self.cachedRequests = []
+        self.cachedOnlyRequests = []
         self.encoder = encoder
         self.decoder = decoder
     }
@@ -62,6 +67,32 @@ public actor FakeGraphQLService: GraphQLServicing {
 
     public func cachedRequestsSnapshot() -> [GraphQLCachedRequestRecord] {
         cachedRequests
+    }
+
+    public func cachedOnlyRequestsSnapshot() -> [GraphQLCachedRequestRecord] {
+        cachedOnlyRequests
+    }
+
+    public func cachedSnapshot<ResponseData: Decodable & Sendable>(
+        _ responseType: ResponseData.Type,
+        query: String,
+        variables: [String: JSONValue]?,
+        operationName: String?,
+        namespace: String,
+        tags: Set<String>
+    ) async throws -> ResponseData? {
+        cachedOnlyRequests.append(GraphQLCachedRequestRecord(
+            request: GraphQLRequestRecord(query: query, variables: variables, operationName: operationName),
+            namespace: namespace,
+            tags: tags
+        ))
+        guard !cachedOnlyReplies.isEmpty else { return nil }
+        switch cachedOnlyReplies.removeFirst() {
+        case let .json(value): return try decode(responseType, from: encoder.encode(value))
+        case let .data(data): return try decode(responseType, from: data)
+        case let .failure(error): throw error
+        case .graphQLErrors, .missingData: return nil
+        }
     }
 
     public nonisolated func cachedQuery<ResponseData: Decodable & Sendable>(
