@@ -280,6 +280,93 @@ final class NhostGraphQLCacheAdapterTests: XCTestCase {
         XCTAssertFalse(offlineLoadWasFresh)
     }
 
+    func testCalorieHistoryCacheOnlyMatchesStreamKeyWithoutTransport() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let transportState = CacheTestTransportState()
+        await transportState.setBody(Data(#"""
+        {"data":{"nutritionDays":[{"logDate":"2026-06-19","nutritionLogEntries":[
+        {"grams":100,"snapshotKcalPer100g":200}],"nutritionLogMeals":[]}],"dailyEnergyEntries":[]}}
+        """#.utf8))
+        let repository = NutritionFoodMealRepository(graphQL: try makeService(directory: directory, transportState: transportState))
+        let range = ChartHistoryRange(from: "2026-06-01", through: "2026-06-19")
+
+        var online: [NutritionCalorieHistory] = []
+        for try await value in repository.nutritionCalorieHistoryUpdates(range: range) {
+            online.append(value)
+        }
+        XCTAssertEqual(online.last?.consumedValues, [DatedCalorieIntake(date: "2026-06-19", calories: 200)])
+        let countAfterFill = await transportState.requestCountSnapshot()
+        XCTAssertEqual(countAfterFill, 1)
+        await transportState.setOffline(true)
+
+        let hit = try await repository.cachedNutritionCalorieHistory(range: range)
+        XCTAssertEqual(hit?.consumedValues, online.last?.consumedValues)
+        let miss = try await repository.cachedNutritionCalorieHistory(
+            range: ChartHistoryRange(from: "2026-06-02", through: "2026-06-19")
+        )
+        XCTAssertNil(miss)
+        let countAfterReads = await transportState.requestCountSnapshot()
+        XCTAssertEqual(countAfterReads, countAfterFill)
+    }
+
+    func testMeasurementChartCacheOnlyMatchesStreamKeyWithoutTransport() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let transportState = CacheTestTransportState()
+        await transportState.setBody(Data(#"""
+        {"data":{"bodyMeasurements":[{"id":"measurement-1","measuredOn":"2026-06-19",
+        "weightKg":"80.5","bodyFatPct":null}]}}
+        """#.utf8))
+        let repository = BodyMeasurementsRepository(graphQL: try makeService(directory: directory, transportState: transportState))
+        let range = ChartHistoryRange(from: "2026-06-01", through: "2026-06-19")
+
+        var online: [[BodyMeasurement]] = []
+        for try await value in repository.measurementChartUpdates(range: range) {
+            online.append(value)
+        }
+        XCTAssertEqual(online.last?.map(\.weightKg), [80.5])
+        let countAfterFill = await transportState.requestCountSnapshot()
+        XCTAssertEqual(countAfterFill, 1)
+        await transportState.setOffline(true)
+
+        let hit = try await repository.cachedMeasurementChart(range: range)
+        XCTAssertEqual(hit, online.last)
+        let miss = try await repository.cachedMeasurementChart(
+            range: ChartHistoryRange(from: "2026-06-01", through: "2026-06-18")
+        )
+        XCTAssertNil(miss)
+        let countAfterReads = await transportState.requestCountSnapshot()
+        XCTAssertEqual(countAfterReads, countAfterFill)
+    }
+
+    func testCacheOnlyWithoutConfiguredCacheReturnsNilWithoutTransport() async throws {
+        let transportState = CacheTestTransportState()
+        let client = createNhostClient(NhostClientOptions(
+            graphqlURL: try XCTUnwrap(URL(string: "https://example.test/v1/graphql")),
+            transport: StubTransport { request in
+                try await transportState.fetch(request)
+            }
+        ))
+        let service = NhostGraphQLService(client: client)
+
+        let snapshot = try await service.cachedSnapshot(
+            ViewerData.self,
+            query: "query Viewer { viewer { id } }",
+            variables: nil,
+            operationName: "Viewer",
+            namespace: "viewer",
+            tags: ["viewer"]
+        )
+        XCTAssertNil(snapshot)
+        let count = await transportState.requestCountSnapshot()
+        XCTAssertEqual(count, 0)
+    }
+
     private func makeService(
         directory: URL,
         transportState: CacheTestTransportState
@@ -339,6 +426,11 @@ final class LoadableTests: XCTestCase {
 private actor CacheTestTransportState {
     private var isOffline = false
     private var body = Data(#"{"data":{"viewer":{"id":"cached-user"}}}"#.utf8)
+    private var requestCount = 0
+
+    func requestCountSnapshot() -> Int {
+        requestCount
+    }
 
     func setOffline(_ value: Bool) {
         isOffline = value
@@ -349,6 +441,7 @@ private actor CacheTestTransportState {
     }
 
     func fetch(_ request: NhostRequest) throws -> NhostRawResponse {
+        requestCount += 1
         if isOffline {
             throw FetchError.transport("URLError -1009: offline")
         }

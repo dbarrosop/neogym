@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import XCTest
 @testable import NeoGymKit
@@ -123,15 +124,52 @@ final class NutritionCalorieHistoryTests: XCTestCase {
                 "nutritionDays": .array([]), "dailyEnergyEntries": .array([])
             ]))],
             cachedOnlyReplies: [.missingData, .json(.object([
-                "nutritionDays": .array([]), "dailyEnergyEntries": .array([])
+                "nutritionDays": .array([.object([
+                    "logDate": .string("2026-06-19"),
+                    "nutritionLogEntries": .array([.object([
+                        "grams": .number(100), "snapshotKcalPer100g": .number(200)
+                    ])]),
+                    "nutritionLogMeals": .array([])
+                ])]),
+                "dailyEnergyEntries": .array([])
             ]))]
         )
         let viewModel = NutritionCalorieHistoryViewModel(repository: NutritionFoodMealRepository(graphQL: fake))
+        var observedFallbackDates: [String] = []
+        let observation = viewModel.$cachedThrough.compactMap { $0 }.sink { observedFallbackDates.append($0) }
+        defer { observation.cancel() }
         await viewModel.load(range: today, cacheCandidates: [today, yesterday])
 
-        XCTAssertNotNil(viewModel.history)
+        XCTAssertEqual(observedFallbackDates, [yesterday.through])
+        XCTAssertTrue(viewModel.history?.consumedValues.isEmpty == true)
         XCTAssertNil(viewModel.cachedThrough)
         XCTAssertNil(viewModel.state.errorMessage)
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(cacheReads.count, 2)
+    }
+
+    @MainActor
+    func testAlreadyLoadedChartDoesNotScanDefaultCandidatesForAnotherPeriod() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object(["nutritionDays": .array([]), "dailyEnergyEntries": .array([])])),
+            .failure(GraphQLDomainError.transport("offline"))
+        ])
+        let viewModel = NutritionCalorieHistoryViewModel(repository: NutritionFoodMealRepository(graphQL: fake))
+        let selected = ChartHistoryRange(from: "2026-01-01", through: "2026-06-20")
+        await viewModel.load(range: selected)
+        XCTAssertNotNil(viewModel.history)
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(IntakeGrouping.localDateToDate("2026-06-20", calendar: calendar))
+        let candidates = ChartHistoryRange.recentCacheCandidates(14, now: now, calendar: calendar)
+        await viewModel.load(range: selected, cacheCandidates: candidates)
+
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertTrue(cacheReads.isEmpty)
+        XCTAssertNil(viewModel.cachedThrough)
+        XCTAssertNotNil(viewModel.history)
+        XCTAssertNotNil(viewModel.state.errorMessage)
     }
 
     func testChartHistoryRangeAddsSixWarmupDaysAcrossMidnightDST() throws {
