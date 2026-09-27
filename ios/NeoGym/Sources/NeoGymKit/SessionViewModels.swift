@@ -120,6 +120,13 @@ public final class SessionDetailViewModel: ObservableObject {
 
     public let sessionId: String
     private let repository: any SessionsRepositoryProtocol
+    private var loadedPriorWorkoutKey: PriorWorkoutKey?
+
+    private struct PriorWorkoutKey: Equatable {
+        let workoutId: String
+        let startedAt: Date
+        let sessionId: String
+    }
 
     public init(sessionId: String, repository: any SessionsRepositoryProtocol) {
         self.sessionId = sessionId
@@ -142,7 +149,7 @@ public final class SessionDetailViewModel: ObservableObject {
         priorHistoryState.value?.cardioByExercise ?? [:]
     }
 
-    public func load() async {
+    public func load(refreshComparisons: Bool = false) async {
         state = .loading(previous: state.value)
         do {
             var receivedValue = false
@@ -157,11 +164,12 @@ public final class SessionDetailViewModel: ObservableObject {
                     state = .failed(message: "Session not found.", previous: nil)
                     priorHistoryState = .loaded(SessionPriorHistory())
                     priorWorkoutState = .loaded([])
+                    loadedPriorWorkoutKey = nil
                 }
                 return
             }
             await loadPriorHistory(for: latestSession)
-            await loadPriorWorkoutSessions(for: latestSession)
+            await loadPriorWorkoutSessions(for: latestSession, force: refreshComparisons)
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -272,11 +280,14 @@ public final class SessionDetailViewModel: ObservableObject {
         }
     }
 
-    private func loadPriorWorkoutSessions(for session: SessionDetailModel) async {
+    private func loadPriorWorkoutSessions(for session: SessionDetailModel, force: Bool) async {
         guard let workoutId = session.workout?.id, let startedAt = session.startedAtDate else {
+            loadedPriorWorkoutKey = nil
             priorWorkoutState = .loaded([])
             return
         }
+        let key = PriorWorkoutKey(workoutId: workoutId, startedAt: startedAt, sessionId: session.id)
+        if !force, loadedPriorWorkoutKey == key, case .loaded = priorWorkoutState { return }
         priorWorkoutState = .loading(previous: priorWorkoutState.value)
         do {
             let sessions = try await repository.priorWorkoutSessions(
@@ -284,6 +295,7 @@ public final class SessionDetailViewModel: ObservableObject {
                 before: startedAt,
                 excludeSessionId: session.id
             )
+            loadedPriorWorkoutKey = key
             priorWorkoutState = .loaded(sessions)
         } catch where GraphQLDomainError.isCancellation(error) {
             priorWorkoutState = priorWorkoutState.cancellationFallback

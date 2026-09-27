@@ -338,6 +338,53 @@ final class SessionsViewModelTests: XCTestCase {
         XCTAssertTrue(adHocRepository.priorWorkoutRequests.isEmpty)
     }
 
+    func testPriorWorkoutComparisonReusesSuccessfulLoadUntilInputsChangeOrRefreshIsRequested() async throws {
+        let detail = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: detail)
+        let viewModel = SessionDetailViewModel(sessionId: detail.id, repository: repository)
+        let newStartedAt = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-06-27T12:00:00Z"))
+
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+        let didAddSet = await viewModel.addStrengthSet(workoutSessionExerciseId: "wse-1", reps: 8, weight: 50)
+        let didUpdateCardio = await viewModel.updateCardioEntry(id: "entry-1", metrics: ["duration_s": 700])
+        let didAddExercises = await viewModel.addExercises([pickerExercise(id: "exercise-new")])
+        XCTAssertTrue(didAddSet)
+        XCTAssertTrue(didUpdateCardio)
+        XCTAssertTrue(didAddExercises)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+
+        await viewModel.load(refreshComparisons: true)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 2)
+
+        repository.detail = SessionDetailModel(
+            id: detail.id,
+            startedAt: "2026-06-27T12:00:00Z",
+            workout: detail.workout,
+            workoutSessionExercises: detail.workoutSessionExercises
+        )
+        let didUpdateStartedAt = await viewModel.updateStartedAt(newStartedAt)
+        XCTAssertTrue(didUpdateStartedAt)
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 3)
+        XCTAssertEqual(repository.priorWorkoutRequests.last?.before, newStartedAt)
+    }
+
+    func testFailedPriorWorkoutComparisonRetriesOnNextLoad() async throws {
+        let detail = try decodedSessionDetailFixture()
+        let repository = StubSessionsRepository(detail: detail)
+        repository.priorWorkoutError = GraphQLDomainError.missingData(operationName: "PriorWorkoutSessions")
+        let viewModel = SessionDetailViewModel(sessionId: detail.id, repository: repository)
+
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 1)
+        XCTAssertNotNil(viewModel.priorWorkoutState.errorMessage)
+
+        repository.priorWorkoutError = nil
+        await viewModel.load()
+        XCTAssertEqual(repository.priorWorkoutRequests.count, 2)
+        XCTAssertNil(viewModel.priorWorkoutState.errorMessage)
+    }
+
     func testDetailMutationsCallRepositoryAndReload() async throws {
         let detail = try decodedSessionDetailFixture()
         let repository = StubSessionsRepository(detail: detail)
@@ -729,7 +776,13 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var deletedStrengthSetIds: [String] = []
     var priorHistory = SessionPriorHistory()
     var priorWorkoutSessionsResult: [SessionDetailModel] = []
-    var priorWorkoutRequests: [(workoutId: String, excludeSessionId: String)] = []
+    struct PriorWorkoutRequest {
+        let workoutId: String
+        let before: Date
+        let excludeSessionId: String
+    }
+    var priorWorkoutRequests: [PriorWorkoutRequest] = []
+    var priorWorkoutError: Error?
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
     var priorHistoryError: Error?
     var progressUpdateEntries: [WorkoutProgressEntry] = []
@@ -792,8 +845,15 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         return priorHistory
     }
 
-    func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel] {
-        priorWorkoutRequests.append((workoutId: workoutId, excludeSessionId: excludeSessionId))
+    func priorWorkoutSessions(
+        workoutId: String,
+        before: Date,
+        excludeSessionId: String
+    ) async throws -> [SessionDetailModel] {
+        priorWorkoutRequests.append(PriorWorkoutRequest(
+            workoutId: workoutId, before: before, excludeSessionId: excludeSessionId
+        ))
+        if let priorWorkoutError { throw priorWorkoutError }
         return priorWorkoutSessionsResult
     }
 

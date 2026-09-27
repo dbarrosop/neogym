@@ -47,7 +47,12 @@ compile failure. For `xcodebuild`, also unset Nix toolchain overrides such as
 simulator link step fail with `ld: -objc_abi_version '-Xlinker' not supported`.
 When invoking `xcodebuild` through `nix develop --command`, put the cleanup `env
 -u ...` both before `nix develop` and immediately after `--command` if the shell
-reintroduces linker variables.
+reintroduces linker variables. In the Nix devshell, the xcbuild `xcrun` shim
+can shadow `/usr/bin/xcrun`; with both `SDKROOT` and `DEVELOPER_DIR` unset,
+that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
+test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
+`swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
+`AR`, and `LDFLAGS`.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
