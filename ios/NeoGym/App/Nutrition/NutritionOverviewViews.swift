@@ -6,15 +6,12 @@ struct NutritionOverviewView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let bodyRepository: any BodyMeasurementsRepositoryProtocol
     let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
-    let energyRepository: any DailyEnergyRepositoryProtocol
-    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
     @StateObject private var bodyChartViewModel: BodyMeasurementsChartViewModel
     @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
-    @StateObject private var energySyncViewModel: DailyEnergyListViewModel
     @State private var isRefreshingOverview = false
     @State private var hasLoadedOverview = false
     @State private var hasRequestedCharts = false
@@ -28,15 +25,11 @@ struct NutritionOverviewView: View {
         repository: any NutritionFoodMealRepositoryProtocol,
         bodyRepository: any BodyMeasurementsRepositoryProtocol,
         bodyHealthImporter: (any BodyMeasurementsHealthImporting)?,
-        energyRepository: any DailyEnergyRepositoryProtocol,
-        energyHealthImporter: (any DailyEnergyHealthImporting)?,
         currentUserId: String?
     ) {
         self.repository = repository
         self.bodyRepository = bodyRepository
         self.bodyHealthImporter = bodyHealthImporter
-        self.energyRepository = energyRepository
-        self.energyHealthImporter = energyHealthImporter
         self.currentUserId = currentUserId
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
         _calorieViewModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
@@ -45,10 +38,6 @@ struct NutritionOverviewView: View {
             healthImporter: bodyHealthImporter
         ))
         _bodyChartViewModel = StateObject(wrappedValue: BodyMeasurementsChartViewModel(repository: bodyRepository))
-        _energySyncViewModel = StateObject(wrappedValue: DailyEnergyListViewModel(
-            repository: energyRepository,
-            healthImporter: energyHealthImporter
-        ))
     }
 
     var body: some View {
@@ -192,12 +181,10 @@ struct NutritionOverviewView: View {
             cacheCandidates: ChartHistoryRange.recentCacheCandidates(14)
         )
         async let bodySync: Void = bodyViewModel.syncHealthMeasurementsOnly()
-        async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
         await initialOverviewLoad
         await initialCalorieLoad
         await initialBodyChartLoad
         await bodySync
-        await energyLoad
         // The charts are interactive now; allow range changes during post-sync revalidation.
         hasRequestedCharts = true
         async let finalOverviewLoad: Void = viewModel.load()

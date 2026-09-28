@@ -47,6 +47,9 @@ final class WatchEnergyTests: XCTestCase {
         let snapshot = try await service.refresh(userID: "person-1", syncHealth: true, now: now)
         XCTAssertEqual(snapshot.consumedKcal, 350)
         XCTAssertEqual(snapshot.burnedKcal, 120)
+        XCTAssertEqual(snapshot.activeKcal, 120)
+        XCTAssertNil(snapshot.restingKcal)
+        XCTAssertEqual(snapshot.netKcal, 230)
         XCTAssertEqual(snapshot.userID, "person-1")
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.map(\.operationName), ["DailyEnergyHealthRefreshEntries", "UpdateDailyEnergy", "WatchTodayEnergy"])
@@ -57,6 +60,23 @@ final class WatchEnergyTests: XCTestCase {
         } else {
             XCTFail("Expected energy update fields")
         }
+    }
+
+    func testTotalIncludesActiveAndRestingAndNetCanBeNegative() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "nutritionDays": .array([]),
+            "dailyEnergyEntries": .array([row(
+                date: "2026-06-25", notes: "Manual", active: 120, resting: 580
+            )])
+        ]))])
+        let service = WatchEnergyService(graphQL: fake, energy: DailyEnergyRepository(graphQL: fake),
+                                         importer: WatchEnergyFakeImporter(entries: []), calendar: calendar)
+        let snapshot = try await service.refresh(userID: "person-1", syncHealth: false, now: now)
+        XCTAssertEqual(snapshot.consumedKcal, 0)
+        XCTAssertEqual(snapshot.activeKcal, 120)
+        XCTAssertEqual(snapshot.restingKcal, 580)
+        XCTAssertEqual(snapshot.burnedKcal, 700)
+        XCTAssertEqual(snapshot.netKcal, -700)
     }
 
     func testMissingDayIsCreatedWithoutOwnerFieldAndComplicationUsesServerValue() async throws {
@@ -95,6 +115,9 @@ final class WatchEnergyTests: XCTestCase {
         let snapshot = try await service.refresh(userID: "person-1", syncHealth: true, now: now)
         XCTAssertEqual(snapshot.consumedKcal, 0)
         XCTAssertNil(snapshot.burnedKcal)
+        XCTAssertNil(snapshot.activeKcal)
+        XCTAssertNil(snapshot.restingKcal)
+        XCTAssertNil(snapshot.netKcal)
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.count, 2)
     }
@@ -102,7 +125,9 @@ final class WatchEnergyTests: XCTestCase {
     func testSnapshotDoesNotCrossDayAndCanBeCleared() {
         let store = WatchEnergySnapshotStore(suite: "WatchEnergyTests.\(UUID().uuidString)")
         let snapshot = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
-                                           consumedKcal: 350, burnedKcal: 120, updatedAt: now)
+                                           consumedKcal: 350, burnedKcal: 120,
+                                           activeKcal: 20, restingKcal: 100, updatedAt: now)
+        XCTAssertEqual(snapshot.netKcal, 230)
         XCTAssertTrue(store.save(snapshot))
         XCTAssertEqual(store.load(for: "2026-06-25"), snapshot)
         XCTAssertNil(store.load(for: "2026-06-26"))
@@ -110,8 +135,16 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertNil(store.load(for: "2026-06-25"))
     }
 
-    private func row(date: String, notes: String, active: Int) -> JSONValue {
+    func testOldSnapshotWithoutBreakdownStillDecodes() throws {
+        let old = Data(#"{"userID":"person-1","localDate":"2026-06-25","consumedKcal":350,"burnedKcal":120,"updatedAt":0}"#.utf8)
+        let snapshot = try JSONDecoder().decode(WatchEnergySnapshot.self, from: old)
+        XCTAssertEqual(snapshot.netKcal, 230)
+        XCTAssertNil(snapshot.activeKcal)
+        XCTAssertNil(snapshot.restingKcal)
+    }
+
+    private func row(date: String, notes: String, active: Int, resting: Int? = nil) -> JSONValue {
         .object(["id": .string(date), "energyOn": .string(date), "activeKcal": .number(Double(active)),
-                 "restingKcal": .null, "notes": .string(notes)])
+                 "restingKcal": resting.map { .number(Double($0)) } ?? .null, "notes": .string(notes)])
     }
 }

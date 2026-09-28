@@ -222,7 +222,7 @@ final class DailyEnergyFormModelTests: XCTestCase {
 }
 
 @MainActor
-final class DailyEnergyHealthSyncViewModelTests: XCTestCase {
+final class DailyEnergyListViewModelTests: XCTestCase {
     func testListViewModelLoadsEnergyEntriesInPages() async throws {
         let repository = FakeDailyEnergyRepository(entries: [
             DailyEnergy(id: "one", energyOn: "2026-06-27", activeKcal: 400, restingKcal: nil),
@@ -243,130 +243,30 @@ final class DailyEnergyHealthSyncViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.loadMoreErrorMessage)
     }
 
-    func testHealthSyncRefreshesRecentImportedHealthRows() async throws {
+    func testRefreshReadsLatestBackendEnergyWithoutImporting() async {
         let repository = FakeDailyEnergyRepository(entries: [
-            DailyEnergy(
-                id: "today",
-                energyOn: "2026-07-09",
-                activeKcal: 150,
-                restingKcal: 900,
-                notes: "Imported from Apple Health"
-            ),
-            DailyEnergy(
-                id: "manual",
-                energyOn: "2026-07-08",
-                activeKcal: 250,
-                restingKcal: 1000,
-                notes: "Manual correction"
-            ),
-            DailyEnergy(
-                id: "old-import",
-                energyOn: "2026-06-30",
-                activeKcal: 300,
-                restingKcal: 1200,
-                notes: "Imported from Apple Health"
-            )
+            DailyEnergy(id: "today", energyOn: "2026-07-09", activeKcal: 150, restingKcal: 900,
+                        notes: "Imported from Apple Health")
         ])
-        let importer = FakeDailyEnergyHealthImporter(entries: [
-            HealthDailyEnergy(energyOn: "2026-07-09", activeKcal: 450, restingKcal: 1500),
-            HealthDailyEnergy(energyOn: "2026-07-08", activeKcal: 500, restingKcal: 1600),
-            HealthDailyEnergy(energyOn: "2026-06-30", activeKcal: 700, restingKcal: 1700),
-            HealthDailyEnergy(energyOn: "2026-07-07", activeKcal: 300, restingKcal: nil)
+        let viewModel = DailyEnergyListViewModel(repository: repository)
+
+        await viewModel.load()
+        XCTAssertEqual(viewModel.entries.first?.activeKcal, 150)
+
+        await repository.replaceEntries([
+            DailyEnergy(id: "today", energyOn: "2026-07-09", activeKcal: 450, restingKcal: 1500,
+                        notes: "Imported from Apple Health")
         ])
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
-        let now = try XCTUnwrap(DateOnly.parse("2026-07-09", calendar: calendar))
-        let viewModel = DailyEnergyListViewModel(
-            repository: repository,
-            healthImporter: importer,
-            calendar: calendar,
-            now: { now }
-        )
+        await viewModel.load()
 
-        await viewModel.load(shouldSyncHealthEnergy: true)
-
-        let updatedValues = await repository.updatedValuesSnapshot()
-        XCTAssertEqual(updatedValues, ["today": DailyEnergyFormValues(
-            energyOn: "2026-07-09",
-            activeKcal: "450",
-            restingKcal: "1500",
-            notes: "Imported from Apple Health"
-        )])
-        let createdValues = await repository.createdValuesSnapshot()
-        XCTAssertEqual(createdValues, [DailyEnergyFormValues(
-            energyOn: "2026-07-07",
-            activeKcal: "300",
-            restingKcal: "",
-            notes: "Imported from Apple Health"
-        )])
-        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
-            importedCount: 1,
-            updatedCount: 1,
-            skippedExistingCount: 2
-        ))
+        XCTAssertEqual(viewModel.entries.first?.activeKcal, 450)
+        XCTAssertEqual(viewModel.entries.first?.restingKcal, 1500)
+        let created = await repository.createdValuesSnapshot()
+        let updated = await repository.updatedValuesSnapshot()
+        XCTAssertTrue(created.isEmpty)
+        XCTAssertTrue(updated.isEmpty)
     }
 
-    func testHealthSyncSkipsExistingDatesAndImportsNewDatesOnLoad() async throws {
-        let repository = FakeDailyEnergyRepository(entries: [
-            DailyEnergy(id: "existing", energyOn: "2026-06-25", activeKcal: 400, restingKcal: nil)
-        ])
-        let importer = FakeDailyEnergyHealthImporter(entries: [
-            HealthDailyEnergy(energyOn: "2026-06-25", activeKcal: 450, restingKcal: 1500),
-            HealthDailyEnergy(energyOn: "2026-06-26", activeKcal: 500.25, restingKcal: 1600)
-        ])
-        let viewModel = DailyEnergyListViewModel(repository: repository, healthImporter: importer)
-
-        await viewModel.load(shouldSyncHealthEnergy: true)
-
-        let createdValues = await repository.createdValuesSnapshot()
-        XCTAssertEqual(createdValues, [DailyEnergyFormValues(
-            energyOn: "2026-06-26",
-            activeKcal: "500.25",
-            restingKcal: "1600",
-            notes: "Imported from Apple Health"
-        )])
-        XCTAssertEqual(viewModel.entries.map(\.energyOn), ["2026-06-25", "2026-06-26"])
-        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
-            importedCount: 1,
-            skippedExistingCount: 1
-        ))
-    }
-
-    func testHealthSyncTreatsUniqueConflictOnCreateAsSkippedExisting() async throws {
-        let repository = FakeDailyEnergyRepository(
-            entries: [],
-            duplicateOnCreateDates: ["2026-06-26"]
-        )
-        let importer = FakeDailyEnergyHealthImporter(entries: [
-            HealthDailyEnergy(energyOn: "2026-06-26", activeKcal: 500, restingKcal: 1600)
-        ])
-        let viewModel = DailyEnergyListViewModel(repository: repository, healthImporter: importer)
-
-        await viewModel.load(shouldSyncHealthEnergy: true)
-
-        let createdValues = await repository.createdValuesSnapshot()
-        XCTAssertTrue(createdValues.isEmpty)
-        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
-            importedCount: 0,
-            skippedExistingCount: 1
-        ))
-        XCTAssertNil(viewModel.healthSyncState.errorMessage)
-    }
-
-    func testHealthSyncDoesNotCountUnimportableHealthRowsAsSkippedExisting() async throws {
-        let repository = FakeDailyEnergyRepository(entries: [])
-        let importer = FakeDailyEnergyHealthImporter(entries: [
-            HealthDailyEnergy(energyOn: "2026-06-26", activeKcal: .nan, restingKcal: nil)
-        ])
-        let viewModel = DailyEnergyListViewModel(repository: repository, healthImporter: importer)
-
-        await viewModel.load(shouldSyncHealthEnergy: true)
-
-        XCTAssertEqual(viewModel.healthSyncState.value, DailyEnergyHealthSyncSummary(
-            importedCount: 0,
-            skippedExistingCount: 0
-        ))
-    }
 }
 
 
@@ -412,11 +312,12 @@ private actor FakeDailyEnergyRepository: DailyEnergyRepositoryProtocol {
     private var entries: [DailyEnergy]
     private var createdValues: [DailyEnergyFormValues] = []
     private var updatedValues: [String: DailyEnergyFormValues] = [:]
-    private let duplicateOnCreateDates: Set<String>
-
-    init(entries: [DailyEnergy], duplicateOnCreateDates: Set<String> = []) {
+    init(entries: [DailyEnergy]) {
         self.entries = entries
-        self.duplicateOnCreateDates = duplicateOnCreateDates
+    }
+
+    func replaceEntries(_ entries: [DailyEnergy]) {
+        self.entries = entries
     }
 
     func listEntries() async throws -> [DailyEnergy] {
@@ -436,15 +337,6 @@ private actor FakeDailyEnergyRepository: DailyEnergyRepositoryProtocol {
     }
 
     func createEntry(_ values: DailyEnergyFormValues) async throws -> String {
-        if duplicateOnCreateDates.contains(values.energyOn) {
-            throw GraphQLDomainError.graphQLErrors([
-                GraphQLErrorDetail(
-                    message: "Uniqueness violation",
-                    code: "constraint-violation",
-                    constraintName: "daily_energy_user_date_key"
-                )
-            ])
-        }
         let id = "created-\(createdValues.count + 1)"
         createdValues.append(values)
         entries.append(DailyEnergy(
@@ -479,14 +371,6 @@ private actor FakeDailyEnergyRepository: DailyEnergyRepositoryProtocol {
 
     func updatedValuesSnapshot() -> [String: DailyEnergyFormValues] {
         updatedValues
-    }
-}
-
-private struct FakeDailyEnergyHealthImporter: DailyEnergyHealthImporting {
-    let entries: [HealthDailyEnergy]
-
-    func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {
-        entries
     }
 }
 

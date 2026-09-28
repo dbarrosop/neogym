@@ -70,6 +70,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertEqual(widgetInfo["CFBundleDisplayName"] as? String, "NeoGym Widgets")
         XCTAssertFalse((appInfo["NSHealthShareUsageDescription"] as? String ?? "").isEmpty)
         XCTAssertTrue((appInfo["NSHealthUpdateUsageDescription"] as? String ?? "").contains("does not write"))
+        XCTAssertTrue((watchInfo["NSHealthShareUsageDescription"] as? String ?? "").contains("active and resting"))
+        XCTAssertTrue((watchInfo["NSHealthUpdateUsageDescription"] as? String ?? "").contains("does not write"))
         XCTAssertEqual(appInfo["ITSAppUsesNonExemptEncryption"] as? Bool, false)
 
         let spec = try String(
@@ -159,6 +161,7 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertEqual(watch["WKRunsIndependentlyOfCompanionApp"] as? Bool, false)
         XCTAssertNil(watch["NeoGymSharedKeychainAccessGroup"])
         XCTAssertNotNil(watch["NSHealthShareUsageDescription"])
+        XCTAssertNotNil(watch["NSHealthUpdateUsageDescription"])
         let entitlements = try plist(at: "Watch/NeoGymWatch.entitlements")
         XCTAssertEqual(entitlements["com.apple.developer.healthkit"] as? Bool, true)
         XCTAssertEqual(entitlements["com.apple.developer.healthkit.background-delivery"] as? Bool, true)
@@ -171,6 +174,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertTrue(watchTarget.contains("platform: watchOS\n    deploymentTarget: \"27.0\""))
         XCTAssertTrue(watchTarget.contains("PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp"))
         XCTAssertTrue(watchTarget.contains("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon"))
+        XCTAssertTrue(watchTarget.contains("NSHealthShareUsageDescription: >-"))
+        XCTAssertTrue(watchTarget.contains("NSHealthUpdateUsageDescription: >-"))
         XCTAssertTrue(watchTarget.contains("- path: Watch\n        excludes:\n          - Info.plist"))
         XCTAssertFalse(watchTarget.contains("- Assets.xcassets"), "The watch asset catalog must be included in sources")
         XCTAssertFalse(watchTarget.contains("    resources:"), "XcodeGen ignores target-level resources")

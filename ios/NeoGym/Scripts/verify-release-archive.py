@@ -95,6 +95,9 @@ def verify_structure(root, app, platform):
             isinstance(infos[1].get("WKRunsIndependentlyOfCompanionApp"), bool) and
             not infos[1]["WKRunsIndependentlyOfCompanionApp"],
             "Watch companion metadata mismatch")
+    for key in ("NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"):
+        require(isinstance(infos[1].get(key), str) and infos[1][key].strip(),
+                f"Watch HealthKit purpose string missing: {key}")
     icon = infos[1].get("CFBundleIcons", {}).get("CFBundlePrimaryIcon", {})
     require(icon.get("CFBundleIconName") == "AppIcon" and (watch / "Assets.car").is_file(),
             "Watch AppIcon or compiled asset catalog missing")

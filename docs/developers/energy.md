@@ -71,43 +71,44 @@ and delete flows. The primary navbar includes Energy as its own top-level item;
 the mobile tab bar is horizontally scrollable to accommodate all eight top-level
 items.
 
-The native app exposes Energy as a Nutrition subsection alongside Overview,
-Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
+The native iPhone app exposes Energy as a Nutrition subsection alongside
+Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
-pure HealthKit grouping helpers; SwiftUI views under `ios/NeoGym/App/` own
-presentation and navigation.
+pure HealthKit grouping helpers shared with the watch; SwiftUI views under
+`ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
+active or resting HealthKit energy** or upload imported energy. Opening and
+pull-refreshing Energy loads the backend list; opening and refreshing Nutrition
+Overview reads backend energy for the balance and calorie chart. Manual energy
+CRUD remains available on iPhone. The watch app is the only automatic HealthKit
+energy uploader for now, so users without a synced watch need manual entries.
 
-## One-way HealthKit import
+## One-way watch HealthKit import
 
-The iOS HealthKit import is read-only (`toShare: []`) and never writes energy
-back to Apple Health. It reads `.activeEnergyBurned` and `.basalEnergyBurned` in
-kilocalories and groups cumulative samples into local-calendar-day buckets.
+The watch app's HealthKit import is read-only (`toShare: []`) and never writes
+energy back to Apple Health. It reads `.activeEnergyBurned` and
+`.basalEnergyBurned` in kilocalories and groups cumulative samples into
+local-calendar-day buckets.
 
 Import rules:
 
 - Daily totals are summed per metric per local day.
-- The concrete HealthKit importer uses `HKStatisticsCollectionQuery` with
+- The watch HealthKit importer uses `HKStatisticsCollectionQuery` with
   `.cumulativeSum`, an anchor at local midnight, `DateComponents(day: 1)`, and
-  an explicitly bounded enumeration window. Do not replace this with raw
+  a seven-day enumeration window. Do not replace this with raw
   `86400`-second windows; that is not DST-safe.
 - Each metric drops non-finite values and values `<= 0` independently. For
   example, `active = 0` with `resting = 1500` imports as a resting-only row;
   a day where both metrics are absent/zero/non-finite/negative is skipped.
 - Missing `energy_on` dates are created through the normal GraphQL create path
   and carry an "Imported from Apple Health" note.
-- Existing dates older than the recent refresh window are skipped before insert
-  so historical import remains one-way fill-missing behavior. If a stale list
-  races another writer and hits `daily_energy_user_date_key`, the sync treats
-  that conflict as a skipped existing row rather than a fatal import error.
-- iOS sync runs when the Energy subsection loads, when that subsection is
-  pull-refreshed, and when the Nutrition overview loads or is pull-refreshed.
-  HealthKit import is attempted before the final backend list/overview fetch, so
-  the visible charts and balance summaries are built from post-sync backend
-  data.
-- On each iOS sync, the last 7 local calendar days (today plus the previous 6
-  days) are refreshed from HealthKit **only** when the existing row still carries
-  the exact "Imported from Apple Health" note. Manual rows or edited imported
-  rows with different notes are skipped instead of overwritten.
+- Sync covers only the last 7 local calendar days (today plus the previous 6).
+  If an insert races another writer and hits `daily_energy_user_date_key`, the
+  sync treats that conflict as a skipped existing row.
+- On each watch sync, existing rows in that window are refreshed from HealthKit
+  **only** when they still carry the exact "Imported from Apple Health" note.
+  Manual rows or edited imported rows with different notes are not overwritten.
+- A fresh backend read follows the watch's writes. Phone views query the backend
+  independently and do not trigger or wait for watch HealthKit sync.
 
 ## Nutrition balance
 
@@ -130,12 +131,13 @@ tokens. The app writes snapshots after successful Nutrition Overview loads,
 clears them on sign-out/signed-out bootstrap/auth errors/user switches, and asks
 WidgetKit to reload timelines. Nutrition mutations and Energy-list loads also ask
 WidgetKit to reload timelines so the widget can try a live server refresh after
-app-owned HealthKit or backend changes. The app and widget use one SDK-managed,
+backend changes. The app and widget use one SDK-managed,
 App-Group-coordinated shared Keychain session. The widget falls back to the
 cached snapshot or signed-out/empty state without a live write on coordination
 timeout, cancellation, no session, Auth, network, or provisioning failure.
-The **iPhone** widget does not import HealthKit data; its HealthKit import remains
-phone-app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
+The **iPhone** widget does not import HealthKit data; only the watch app
+imports HealthKit energy. The iPhone app continues its separate Body and raw
+workout HealthKit imports. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
 are best-effort triggers, not guaranteed fresh server data or an exact refresh
 cadence.
 
@@ -145,18 +147,31 @@ The signed-in watch app has swipeable Energy and Profile pages. Profile fetches
 name and email from uncached Auth `GET /user` and offers watch-only sign-out;
 phone account hints still block mismatched or signed-out accounts. Energy shows
 today's consumed kcal from nutrition log snapshots (including standalone entries
-and logged-meal children) and burned kcal from today's `daily_energy` active plus
-resting values. An absent energy row displays `—`, not a zero burn. It reads a
-small date-bounded GraphQL query from the watch's own managed session.
+and logged-meal children), total burned kcal from today's `daily_energy` active
+plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
+An absent energy row displays `—` for burned, its breakdown, and Net rather
+than treating burned as zero. A missing component on an existing energy row
+shows `—` in the breakdown but counts as zero toward total burned, matching
+the backend balance contract. The watch app uses icons instead of visible Consumed/Burned labels while
+retaining VoiceOver labels. Net uses the same prominent icon-and-value style
+with a balance-scale symbol in both the app and the complication. The Energy
+heading includes a smaller `(kcal)` unit, with no redundant Today subheading.
+An icon-only circular-arrow refresh control sits before the last-synced time;
+there is no separate Refresh text button. Its rectangular complication shows
+intake and total burn, active/resting, and icon-labeled Net in three compact
+rows. Net is derived from the token-free snapshot, not stored as a
+separate value; older snapshots lacking the optional breakdown still decode
+until the next refresh. The app reads a small date-bounded GraphQL query from
+the watch's own managed session.
 
 After the user taps **Sync Apple Health**, the watch requests read-only
 `.activeEnergyBurned` and `.basalEnergyBurned` access (never writes HealthKit),
 sums statistics across local calendar days, and syncs the last seven dates to
-the same private backend `daily_energy` table. Like the phone importer, it only
-creates dates with positive valid data and refreshes rows bearing the exact
-"Imported from Apple Health" note; it never overwrites manual/edited rows.
-Unique-date insert races with the phone are skipped. Watch and phone may both
-refresh imported dates; neither has exclusive ownership of those rows. A fresh
+the private backend `daily_energy` table. It only creates dates with positive
+valid data and refreshes rows bearing the exact "Imported from Apple Health"
+note; it never overwrites manual/edited rows. Unique-date insert races are
+skipped. The iPhone no longer uploads HealthKit energy; previously imported
+phone rows with that exact note may be refreshed by the watch. A fresh
 backend read follows the watch write so the Energy page and complication use
 post-sync values, including food logs recorded on another device.
 
@@ -169,11 +184,16 @@ reconciles the local watch session and phone account hint and does nothing if
 blocked/signed out. The watch widget extension has no Keychain or HealthKit
 entitlement: it reads only the token-free today's aggregate snapshot written by
 the watch app into their shared App Group, and app writes request a WidgetKit
-timeline reload. The rectangular watch-face complication presents consumed and
-burned kcal; it never uploads data itself. Snapshots are cleared when the watch
+timeline reload. The rectangular watch-face complication presents consumed,
+total burned, active/resting, and Net kcal; it never uploads data itself. Snapshots are cleared when the watch
 leaves authenticated state and never carried into the next local date. The
 phone and watch share an App Group **identifier**, not files across devices.
 Signing the watch app and watch widget requires App Group provisioning and
-HealthKit background-delivery capability on the watch app ID; simulator builds
-cannot validate background timing, permission behavior, or physical complication
-refresh cadence.
+HealthKit background-delivery capability on the watch app ID. Even though the
+watch requests **read-only** HealthKit authorization, its own Info.plist must
+contain both `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription`
+with truthful purpose strings: App Store Connect rejects uploads without the
+update key when the watch bundle has a HealthKit entitlement. Declaring that
+string does **not** request write permission. The release verifier checks both
+keys in the archived/exported watch bundle. Simulator builds cannot validate
+background timing, permission behavior, or physical complication refresh cadence.

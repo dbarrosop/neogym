@@ -70,7 +70,6 @@ struct AppShellView: View {
                     bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
                     bodyHealthImporter: Self.makeBodyHealthImporter(),
                     energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
-                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     currentUserId: session.user?.id,
                     areaSelection: $selection
                 )
@@ -115,13 +114,6 @@ struct AppShellView: View {
         #endif
     }
 
-    private static func makeEnergyHealthImporter() -> (any DailyEnergyHealthImporting)? {
-        #if canImport(HealthKit) && !os(macOS)
-        HealthKitDailyEnergyImporter()
-        #else
-        nil
-        #endif
-    }
 }
 
 #Preview {

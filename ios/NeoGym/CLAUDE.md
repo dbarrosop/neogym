@@ -213,7 +213,7 @@ changes.
   signed-out bootstrap, auth errors, and user switches before new user data is
   available. Nutrition mutations and
   Energy-list loads also ask WidgetKit to reload timelines so the widget can take
-  the live server-fetch path after app-owned HealthKit or backend changes. The
+  the live server-fetch path after backend changes. The
   app and widget both use the SDK's one coordinated Keychain item: service
   `io.nhost.swift.session`, account `default.nhostSession`, access group
   `$(AppIdentifierPrefix)io.nhost.neogym.shared`, and App Group
@@ -227,7 +227,8 @@ changes.
   fatal developer/provisioning error for this controlled POC. Widget factory,
   lock-timeout, cancellation, Auth, and network failures must render the cached
   or empty token-free fallback and write no live snapshot. The widget does not
-  run HealthKit import; only the app syncs HealthKit data. WidgetKit timeline
+  run HealthKit import; the watch app syncs energy, while the iPhone app only
+  syncs Body measurements and raw workouts from HealthKit. WidgetKit timeline
   policies and the in-widget Refresh button are best-effort triggers that
   reload timelines and therefore run the live-fetch provider path when the
   system grants runtime. At the widget extension's iOS 27 deployment floor,
@@ -242,26 +243,25 @@ changes.
   environment values; verify those modes in simulator Accessibility settings.
 - Daily energy uses `DailyEnergy*` types in `NeoGymKit` (`DailyEnergy`, form
   values/validation, repository, list/detail/editor view models, trend builders,
-  `DailyEnergyHealthImporting`, `HealthDailyEnergy`, and
-  `DailyEnergyHealthSyncSummary`). Keep those host-testable; HealthKit itself is
-  guarded with `#if canImport(HealthKit) && os(iOS)`.
+  `DailyEnergyHealthImporting` and `HealthDailyEnergy`). Keep those host-testable;
+  only the watch app requests active/basal HealthKit energy read permission.
+  The iPhone energy list and Nutrition overview read energy from the backend.
 - Do not pin `AuthStore`'s `session.accessToken` to a request: an explicit Authorization header is not replaced by SDK managed refresh, and the bootstrap session may already be expired. For account-bound writes, use `client.refreshSession(marginSeconds:)`, verify the cursor owner's user ID, then pin the returned token for that request.
 - `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions on Workouts-area open/refresh. The user-scoped on-device cursor advances only after backend writes succeed. A hub pull-to-refresh overlapping an import waits for it and runs another anchored pass; cancelled refreshes do not run a follow-up. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
-- `HealthKitDailyEnergyImporter` is read-only (`toShare: []`) and sums active
-  and basal/resting energy with bounded, DST-safe local-day buckets
-  (`HKStatisticsCollectionQuery`, `.cumulativeSum`, local-midnight anchor,
-  `DateComponents(day: 1)`). The pure `HealthDailyEnergyGrouper` drops
-  non-finite/`<= 0` values per metric independently and skips only days where
-  both metrics are absent. Daily energy sync runs from the Energy subsection and
-  from the Nutrition overview on initial load and pull-to-refresh; it creates
-  missing dates and refreshes the last 7 local calendar days only for rows still
-  carrying the exact "Imported from Apple Health" note; manual or edited rows
-  are not overwritten. Body measurement HealthKit sync likewise runs from both
-  the Body subsection and the Nutrition overview on initial load and
-  pull-to-refresh; it creates missing dates and refreshes the last 7 local days
-  only for rows still carrying the exact "Imported from Apple Health" note.
-  HealthKit sync runs before the final backend list/overview fetch so charts and
-  summaries consume the post-sync backend state.
+- The watch's read-only HealthKit energy importer sums active and basal/resting
+  energy in bounded, DST-safe local-day buckets (`HKStatisticsCollectionQuery`,
+  `.cumulativeSum`, local-midnight anchor, `DateComponents(day: 1)`). The pure
+  `HealthDailyEnergyGrouper` drops non-finite/`<= 0` values per metric
+  independently and skips only days where both metrics are absent. Watch energy
+  sync creates missing dates and refreshes the last 7 local calendar days only
+  for rows still carrying the exact "Imported from Apple Health" note; manual
+  or edited rows are not overwritten. The iPhone no longer imports HealthKit
+  energy, even when opening or refreshing the Energy subsection or Nutrition
+  overview. Body measurement HealthKit sync still runs from both the Body
+  subsection and the Nutrition overview on initial load and pull-to-refresh;
+  it creates missing dates and refreshes the last 7 local days only for rows
+  still carrying that note. Body sync runs before the final backend
+  overview/chart fetch.
 
 ## Native iOS design guide
 
@@ -318,10 +318,11 @@ intact instead of inventing one-off styles.
   nav-bar **principal** slot, matching 2a exactly. New plan / New food / New
   meal / Log measurement / Log energy live on their subsection list's own
   `.bottomBar` via `RootPrimaryActionToolbar` (not shell-owned). Energy hosts
-  the daily active/resting kcal CRUD list, trend, and read-only HealthKit import
-  under the Nutrition hub. The Overview screen (a pushed route) is a dashboard:
-  it auto-syncs Body measurements and Energy from HealthKit on load and
-  pull-to-refresh, then shows Energy balance, the Calories consumed chart, and
+  the daily active/resting kcal CRUD list and trend under the Nutrition hub;
+  it loads energy from the backend only. The Overview screen (a pushed route)
+  is a dashboard: it reads backend energy and auto-syncs Body measurements
+  from HealthKit on load and pull-to-refresh, then shows Energy balance,
+  the Calories consumed chart, and
   Body composition trends; both charts initially request the last 14 local
   days plus six warm-up days for rolling averages and fetch wider/custom date
   ranges only when selected. The calorie chart queries logged snapshots and

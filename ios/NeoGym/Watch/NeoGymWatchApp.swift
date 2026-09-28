@@ -134,23 +134,61 @@ private struct WatchHomeView: View {
     private var energyPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 9) {
-                Text("Energy").font(.headline)
-                Text("Today · kcal").font(.caption).foregroundStyle(.secondary)
-                HStack {
-                    VStack(alignment: .leading) {
-                        Label("Consumed", systemImage: "fork.knife").font(.caption2)
-                        Text(runtime.snapshot.map { $0.consumedKcal.formatted(.number.precision(.fractionLength(0))) } ?? "—")
-                            .font(.title3.bold())
-                    }
-                    Spacer()
-                    VStack(alignment: .leading) {
-                        Label("Burned", systemImage: "flame").font(.caption2)
-                        Text(runtime.snapshot?.burnedKcal.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—")
-                            .font(.title3.bold())
-                    }
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("Energy").font(.headline)
+                    Text("(kcal)").font(.caption2).foregroundStyle(.secondary)
                 }
-                if let snapshot = runtime.snapshot {
-                    Text("Synced \(snapshot.updatedAt, style: .time)").font(.caption2).foregroundStyle(.secondary)
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isHeader)
+                HStack {
+                    HStack(spacing: 4) {
+                        Image(systemName: "fork.knife").font(.caption2)
+                        Text(consumedText).font(.title3.bold())
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(runtime.snapshot == nil
+                        ? "Consumed calories unavailable" : "Consumed \(consumedText) kilocalories")
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Image(systemName: "flame").font(.caption2)
+                        Text(burnedText).font(.title3.bold())
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(runtime.snapshot?.burnedKcal == nil
+                        ? "Burned calories unavailable" : "Burned \(burnedText) kilocalories")
+                }
+                HStack(spacing: 4) {
+                    Image(systemName: "scalemass").font(.caption2)
+                    Text(netText).font(.title3.bold())
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(runtime.snapshot?.netKcal == nil
+                    ? "Net calories unavailable" : "Net \(netText) kilocalories")
+                HStack(spacing: 6) {
+                    Text("Active \(activeText)")
+                    Spacer(minLength: 0)
+                    Text("Resting \(restingText)")
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(breakdownAccessibilityText)
+                HStack(spacing: 6) {
+                    Button { Task { await runtime.refresh() } } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption)
+                            .frame(width: 32, height: 32)
+                            .background(.thinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(runtime.isRefreshing)
+                    .accessibilityLabel("Refresh energy")
+                    if let snapshot = runtime.snapshot {
+                        Text("Synced \(snapshot.updatedAt, style: .time)")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
                 }
                 if !runtime.healthEnabled {
                     Button("Sync Apple Health") { Task { await runtime.enableHealth() } }
@@ -160,12 +198,40 @@ private struct WatchHomeView: View {
                 if let error = runtime.errorMessage {
                     Text(error).font(.caption2).foregroundStyle(.red)
                 }
-                Button("Refresh") { Task { await runtime.refresh() } }
-                    .disabled(runtime.isRefreshing)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
+    }
+
+    private var consumedText: String {
+        runtime.snapshot.map { $0.consumedKcal.formatted(.number.precision(.fractionLength(0))) } ?? "—"
+    }
+
+    private var burnedText: String {
+        runtime.snapshot?.burnedKcal.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—"
+    }
+
+    private var activeText: String {
+        runtime.snapshot?.activeKcal.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—"
+    }
+
+    private var restingText: String {
+        runtime.snapshot?.restingKcal.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—"
+    }
+
+    private var netText: String {
+        guard let net = runtime.snapshot?.netKcal else { return "—" }
+        let formatted = net.formatted(.number.precision(.fractionLength(0)))
+        return net > 0 ? "+\(formatted)" : formatted
+    }
+
+    private var breakdownAccessibilityText: String {
+        let active = runtime.snapshot?.activeKcal == nil
+            ? "Active energy unavailable" : "Active \(activeText) kilocalories"
+        let resting = runtime.snapshot?.restingKcal == nil
+            ? "Resting energy unavailable" : "Resting \(restingText) kilocalories"
+        return "\(active), \(resting)"
     }
 
     private var profilePage: some View {

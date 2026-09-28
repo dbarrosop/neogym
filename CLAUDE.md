@@ -101,14 +101,24 @@ package at its lower deployment floor unless its own code needs newer APIs.
 Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in both `App/Info.plist` and `project.yml`. The storyboard can stay visually minimal, but it is required for iOS to opt the app into modern full-screen sizing on current devices; removing it can make the simulator/device run the app letterboxed with large empty top/bottom bands.
 
 `NeoGymKit` also supports watchOS 8 without changing its iOS/macOS floors.
-The three HealthKit importer implementations are iOS-only. The embedded
+The Body and raw-workout HealthKit importers are iOS-only; watch energy
+HealthKit reads live in the watch app. The embedded
 `NeoGymWatch` watchOS 27 companion uses the watch core's private,
 origin-scoped, device-only SDK Keychain session with legacy migration ignored,
 no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read. The
 watch signs existing accounts in with email OTP; WatchConnectivity carries only
 latest-state account hints, never credentials. Signed-in watch users swipe between
-Energy (today's logged consumed kcal and active+resting burned kcal) and Profile
-(uncached Auth name/email and watch-only sign-out). The watch app, not its
+Energy (today's logged consumed kcal, active+resting burned total and its
+active/resting breakdown, and Net = consumed minus burned) and Profile
+(uncached Auth name/email and watch-only sign-out). Consumed/Burned use icons
+without visible labels on the watch page; Net uses a balance-scale icon and the
+same prominent number style. VoiceOver labels still name all metrics. The
+Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
+circular-arrow Refresh control sits before the last-synced time. A
+missing energy row leaves burned and Net unavailable; a missing component on an
+existing row shows `—` but contributes zero to total. The compact rectangular
+complication displays all values from a token-free snapshot; Net is computed,
+not persisted. The watch app, not its
 rectangular WidgetKit complication, reads active/basal HealthKit energy and
 syncs the last seven local dates to private `daily_energy` after explicit read
 permission. It refreshes imported-note rows without replacing manual entries;
@@ -117,7 +127,12 @@ best-effort, not guaranteed periodic uploads. The complication reads only a
 token-free, today-only App Group snapshot written after a fresh backend read
 and cleared on sign-out/blocking auth changes; the watch widget has no Keychain
 or HealthKit access. Watch App Group and HealthKit background-delivery signing
-capabilities must be provisioned for physical-device validation. A cold launch
+capabilities must be provisioned for physical-device validation. The watch
+Info.plist must include **both** `NSHealthShareUsageDescription` and
+`NSHealthUpdateUsageDescription` even though watch HealthKit access is read-only:
+App Store Connect rejects a HealthKit-entitled watch bundle without the update
+purpose string. The update string truthfully says NeoGym does not write Health
+samples; the release verifier checks both keys in archive and IPA. A cold launch
 waits briefly for local WCSession activation; background-to-active cancels any in-flight name
 read before refreshing the eligible session, including when the view was first
 created in the background. An inactive wrist raise does not force a refresh. A
@@ -162,7 +177,7 @@ DTO/store, and live-fetch/fallback orchestration live in host-testable
 emission (never from an offline cached fallback) and clears/reloads it on
 sign-out, definitive signed-out bootstrap, auth errors, and user switches. Nutrition mutations and Energy-list loads also ask WidgetKit to
 reload timelines so the widget can take the live server-fetch path after
-app-owned HealthKit or backend changes. The app and widget use the SDK's single
+backend changes. The app and widget use the SDK's single
 coordinated Keychain item (service `io.nhost.swift.session`, account
 `default.nhostSession`, access group
 `$(AppIdentifierPrefix)io.nhost.neogym.shared`) and App Group
@@ -226,12 +241,14 @@ routes (`NutritionRoute.overview`/`.daysList`/`.plansList`/`.foodsList`/`.mealsL
 via `.navigationDestination(for:)`, each with its own `navigationTitle`; the
 area segmented `Picker` lives in the Nutrition hub's nav-bar **principal** slot,
 and New plan/food/meal, Log measurement, and Log energy live on their subsection
-list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list,
-trend, and read-only HealthKit import under the Nutrition hub. The Overview
-screen (a pushed route) is a dashboard: it auto-syncs Body measurements and
-Energy from HealthKit on load and pull-to-refresh before the final backend
-overview fetch. Cached chart data can render during sync, then both charts
-refresh from post-sync backend data. On a cold launch across a local-day change,
+list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list and trend under the
+Nutrition hub; opening or refreshing it reads the backend only. The Overview
+screen (a pushed route) is a dashboard: on load and pull-to-refresh it reads
+Energy from the backend, auto-syncs Body measurements from HealthKit, then
+refreshes its backend overview and charts. The iPhone does not request
+active/resting HealthKit energy access or upload energy; the watch app owns
+that import. Cached chart data can render during Body sync, then both charts
+refresh from the backend. On a cold launch across a local-day change,
 the default charts first read today's and up to seven earlier exact ranges from
 the SDK's user-scoped, age-bounded cache without network calls; any previous-range
 fallback is labeled as missing newer dates until the current-range refresh
@@ -241,11 +258,10 @@ last 14 local days and query only their selected period plus six warm-up days
 for rolling averages. The Calories consumed chart uses a separate date-bounded
 snapshot-kcal/grams + daily-energy query (not the detailed overview/day-list
 query), and Body composition uses a date-bounded measurements query; changing
-a chart period or custom dates loads that range on demand. Body and Energy
-HealthKit reconciliation still inspect historical data independently of chart
-ranges. Body and Energy sync both
-create missing dates and refresh recent rows that still carry the exact
-"Imported from Apple Health" note. It does not show the old intro copy or recent
+a chart period or custom dates loads that range on demand. Body HealthKit reconciliation still inspects historical data independently
+of chart ranges, creates missing dates, and refreshes recent rows that still
+carry the exact "Imported from Apple Health" note. Watch energy sync remains
+limited to the last seven local dates; iPhone energy views do not sync it. It does not show the old intro copy or recent
 daily-log list. `NutritionDaysView` no longer takes a
 `selectedDate` binding. After a create the shell replaces only the top create
 route with the new detail route so Back returns to the subsection list, not the

@@ -102,15 +102,22 @@ A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
 The watch signs into an **existing** account with email OTP. Signed-in users
-swipe between Energy (today's consumed and burned kcal) and Profile (fresh
-Auth `GET /user` name/email and watch-only sign-out; blank names become
-“Athlete”). The watch app syncs active and resting HealthKit statistics for
+swipe between Energy (today's consumed, total burned, active/resting, and
+Net = consumed minus burned kcal) and Profile (fresh Auth `GET /user`
+name/email and watch-only sign-out; blank names become “Athlete”). Consumed
+and Burned use icons rather than visible labels on the watch page; Net uses a
+balance-scale icon and equally prominent value. The Energy title carries a
+small `(kcal)` unit, while an icon-only refresh button sits beside the sync
+time. Missing backend energy leaves total burn and Net unavailable; absent
+active/resting components on an existing row are shown as `—` but count as zero
+in the total.
+The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
 taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
 best-effort, not a guaranteed hourly schedule. The rectangular watch complication
-reads only the watch app's token-free, today-only App Group snapshot after a
-fresh backend fetch. Neither Keychain nor HealthKit is available to the watch
+shows intake, total burn, active/resting, and Net from the watch app's token-free,
+today-only App Group snapshot after a fresh backend fetch. Neither Keychain nor HealthKit is available to the watch
 widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
 hardware rather than inferring behavior from simulator builds. The watch
@@ -168,10 +175,11 @@ have `get-task-allow=false` for every bundle. Xcode-managed build numbering
 can differ **between** archive and IPA. Invalid or unsigned artifacts fail
 closed; the upload script reuses the complete non-upload path before calling
 `destination=upload`. Do not bypass it through Organizer or direct export.
-The phone/widget shared Keychain and App Group remain unchanged and are **not**
-used by watch. `swift test` and the offline verifier fixtures do not prove
-signing or provisioning; record signed archive/IPA checks as blocked until
-Apple signing is actually available.
+The phone/widget shared Keychain remains unused by watch. Watch app and watch
+widget use the same App Group **identifier** for a separate, watch-local
+snapshot; no files are shared across devices. `swift test` and offline
+verifier fixtures do not prove signing or provisioning; on a machine without
+Apple signing, report signed archive/IPA checks as blocked.
 
 On paired development-signed iPhone/watch hardware, install the phone app and
 its companion, sign an existing account into the watch by OTP, edit that test
@@ -192,7 +200,7 @@ The existing App Store Connect app remains `io.nhost.dbarroso.neogym`; the
 widget remains `io.nhost.dbarroso.neogym.widgets`, with App Group
 `group.io.nhost.dbarroso.neogym`. The phone and widget still connect to the
 production Nhost backend through TestFlight. Keep the intended
-`MARKETING_VERSION` in `project.yml`; `CURRENT_PROJECT_VERSION` seeds all three
+`MARKETING_VERSION` in `project.yml`; `CURRENT_PROJECT_VERSION` seeds all four
 bundles in the archive. Export can use Xcode-managed build numbers, so the
 uploaded number may differ from the archive's; do not change only generated
 project settings or plists. App Store Connect processing, compliance answers,
@@ -204,9 +212,14 @@ Keep the phone/widget shared
 Keychain access group `$(AppIdentifierPrefix)io.nhost.neogym.shared` unchanged;
 if a signed installation uses a different group, reconcile both targets and
 SDK configuration before archiving or users may lose their shared session.
-The widget's `CFBundleDisplayName` and the app's
-`NSHealthUpdateUsageDescription` are upload-validation requirements; regenerate
-and create a **new archive** after changing them. The app's
+The phone widget's `CFBundleDisplayName`, the phone app's
+`NSHealthUpdateUsageDescription`, and **both** the watch app's
+`NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription` are
+upload-validation requirements. App Store Connect requires the watch update
+purpose key because of its HealthKit entitlement even though NeoGym requests
+read-only watch access and the string explicitly says it does not write Health
+data. The release verifier checks the purpose keys in the built watch bundle;
+regenerate and create a **new archive** after changing them. The app's
 `ITSAppUsesNonExemptEncryption = false` avoids repeated export-compliance
 questions only if the actual app and dependencies qualify; revisit it after
 cryptography changes. For builds uploaded without the key, answer **Manage**
@@ -304,6 +317,13 @@ from the last 7 local days that still carry the exact
 `Imported from Apple Health` note can be refreshed from newer HealthKit values.
 Manual or edited rows are not overwritten.
 
+The iPhone no longer reads active/resting energy from HealthKit. Opening or
+refreshing Nutrition Overview and Energy fetches `daily_energy` from the
+backend; manual Energy logging still works. The watch app is the only HealthKit
+energy uploader for now, so without a synced watch, energy must be entered
+manually. The iPhone Energy Balance widget also reads the backend, never
+HealthKit.
+
 Opening the Workouts area (and pulling to refresh its hub) also reads HealthKit
 workouts into private `health_workouts` raw JSON snapshots. It requests workout
 read permission only, recording activity type, start/end time, active calories
@@ -315,9 +335,10 @@ reset caveat and the backend contract.
 
 The HealthKit capability and both `NSHealthShareUsageDescription` and
 `NSHealthUpdateUsageDescription` are declared in `project.yml`; regenerate the
-Xcode project after changing them. The concrete HealthKit importers compile
-only for iOS, so `NeoGymKit` builds and tests on the macOS host and builds for
-watchOS without linking HealthKit.
+Xcode project after changing them. The concrete Body and workout HealthKit importers compile
+only for iOS; the watch energy importer lives in the watch app. `NeoGymKit`
+builds and tests on the macOS host and builds for watchOS without linking
+HealthKit.
 
 ## Current auth scope
 

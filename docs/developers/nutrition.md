@@ -54,9 +54,11 @@ for "out". If no `daily_energy` row exists, clients show intake-only rather than
 output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
 values may arrive in clients as strings, so frontend helpers should normalize before doing
 macro math. The native Nutrition overview is a dashboard, not a shortcut list:
-on initial load and pull-to-refresh it starts chart reads alongside the same
-read-only Apple Health syncs used by the Body and Energy subsections, so cached
-charts can render promptly; it refreshes the charts and Energy balance after sync.
+on initial load and pull-to-refresh it reads energy from the backend and
+starts chart reads alongside the read-only Body Apple Health sync, so cached
+charts can render promptly; it refreshes the charts and Energy balance from
+the backend after Body sync. The iPhone does not import HealthKit energy;
+only the watch app does.
 On a cold launch after the default range has moved to a new local day, each chart
 checks the SDK's protected cache for today's exact range and up to seven earlier
 daily ranges without network calls, shows the newest eligible result marked as
@@ -77,8 +79,9 @@ query remains limited to 14 recent rows with full plan and meal details; the
 Calories consumed chart uses a separate, date-bounded user-scoped snapshot
 kcal/grams + daily-energy query, and Body composition has its own date-bounded
 measurements query. Longer chart periods load on demand without fetching plans.
-Body and Energy HealthKit reconciliation still inspect historical data separately
-and are not limited by the chart period.
+Body HealthKit reconciliation still inspects historical data separately and
+is not limited by the chart period; watch energy sync covers seven local dates
+and is independent of the iPhone chart period.
 The 7-day rolling net average is computed from calendar days in the window that have both a nutrition
 log day and a `daily_energy` row, so
 missing energy/intake data is not silently treated as a zero-output day. The

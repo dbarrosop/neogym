@@ -6,13 +6,23 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public let localDate: String
     public let consumedKcal: Double
     public let burnedKcal: Double?
+    public let activeKcal: Double?
+    public let restingKcal: Double?
     public let updatedAt: Date
 
-    public init(userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?, updatedAt: Date) {
+    /// Calories in minus calories out. A missing energy row is unknown, not zero.
+    public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
+
+    public init(
+        userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?,
+        activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date
+    ) {
         self.userID = userID
         self.localDate = localDate
         self.consumedKcal = consumedKcal
         self.burnedKcal = burnedKcal
+        self.activeKcal = activeKcal
+        self.restingKcal = restingKcal
         self.updatedAt = updatedAt
     }
 }
@@ -70,9 +80,12 @@ public struct WatchEnergyService: Sendable {
             operationName: "WatchTodayEnergy"
         )
         let consumed = data.nutritionDays.first?.calories ?? 0
-        let burned = data.dailyEnergyEntries.first.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
-        return WatchEnergySnapshot(userID: userID, localDate: today,
-                                   consumedKcal: consumed, burnedKcal: burned, updatedAt: now)
+        let energyEntry = data.dailyEnergyEntries.first
+        let burned = energyEntry.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
+        return WatchEnergySnapshot(
+            userID: userID, localDate: today, consumedKcal: consumed, burnedKcal: burned,
+            activeKcal: energyEntry?.activeKcal, restingKcal: energyEntry?.restingKcal, updatedAt: now
+        )
     }
 
     private func sync(today: Date) async throws {

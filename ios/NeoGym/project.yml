@@ -60,13 +60,11 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: >-
-          NeoGym reads workouts, weight, body-fat percentage, active energy,
-          and resting energy from Apple Health to keep private workout imports
-          and body and energy logs up to date.
+          NeoGym reads workouts, weight, and body-fat percentage from Apple
+          Health to keep private workout imports and body logs up to date.
         NSHealthUpdateUsageDescription: >-
           NeoGym does not write to Apple Health. It only reads your workouts,
-          weight, body-fat percentage, active energy, and resting energy to
-          update your NeoGym records.
+          weight, and body-fat percentage to update your NeoGym records.
         NeoGymSharedKeychainAccessGroup: >-
           $(AppIdentifierPrefix)io.nhost.neogym.shared
     entitlements:
@@ -127,6 +125,9 @@ targets:
         NSHealthShareUsageDescription: >-
           NeoGym reads active and resting energy from Apple Health on your watch
           to sync your daily calories burned to your private NeoGym account.
+        NSHealthUpdateUsageDescription: >-
+          NeoGym does not write to Apple Health. It only reads active and
+          resting energy on your watch to update your private NeoGym energy log.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp

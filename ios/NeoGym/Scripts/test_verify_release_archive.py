@@ -49,6 +49,8 @@ class ReleaseVerifierTests(unittest.TestCase):
             if bundle == self.watch:
                 info.update(WKApplication=True, WKCompanionAppBundleIdentifier=verifier.PHONE,
                             WKRunsIndependentlyOfCompanionApp=False,
+                            NSHealthShareUsageDescription="Reads energy from HealthKit.",
+                            NSHealthUpdateUsageDescription="Does not write to HealthKit; reads energy for NeoGym.",
                             CFBundleIcons={"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}})
                 (bundle / "Assets.car").touch()
             if bundle in (self.widget, self.watch_widget):
@@ -86,6 +88,16 @@ class ReleaseVerifierTests(unittest.TestCase):
         self.set_info(self.watch, info)
         with patch.object(verifier, "command", return_value=b"ok"), self.assertRaisesRegex(
             verifier.InvalidArtifact, "companion metadata"
+        ):
+            verifier.verify_structure(self.archive / "Products/Applications", self.app,
+                                      ("iphoneos", "watchos"))
+
+    def test_watch_healthkit_update_purpose_string_is_required(self):
+        info = self.info(self.watch)
+        del info["NSHealthUpdateUsageDescription"]
+        self.set_info(self.watch, info)
+        with patch.object(verifier, "command", return_value=b"ok"), self.assertRaisesRegex(
+            verifier.InvalidArtifact, "Watch HealthKit purpose string missing: NSHealthUpdateUsageDescription"
         ):
             verifier.verify_structure(self.archive / "Products/Applications", self.app,
                                       ("iphoneos", "watchos"))

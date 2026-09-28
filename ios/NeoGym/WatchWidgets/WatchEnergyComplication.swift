@@ -35,25 +35,52 @@ private struct EnergyProvider: TimelineProvider {
 private struct WatchEnergyComplication: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: WatchEnergySnapshotStore.widgetKind, provider: EnergyProvider()) { entry in
-            VStack(alignment: .leading, spacing: 3) {
-                Text("ENERGY · TODAY").font(.caption2).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
                 if let snapshot = entry.snapshot {
-                    HStack(spacing: 12) {
-                        Label("\(snapshot.consumedKcal.formatted(.number.precision(.fractionLength(0)))) in", systemImage: "fork.knife")
-                        Label(snapshot.burnedKcal.map { "\($0.formatted(.number.precision(.fractionLength(0)))) out" } ?? "— out",
-                              systemImage: "flame")
+                    HStack(spacing: 8) {
+                        Label("\(kcal(snapshot.consumedKcal)) in", systemImage: "fork.knife")
+                            .accessibilityLabel("Consumed \(kcal(snapshot.consumedKcal)) kilocalories")
+                        Label("\(kcal(snapshot.burnedKcal)) out", systemImage: "flame")
+                            .accessibilityLabel(snapshot.burnedKcal == nil
+                                ? "Burned calories unavailable" : "Burned \(kcal(snapshot.burnedKcal)) kilocalories")
                     }
-                    .font(.caption.bold())
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
+                    .font(.caption2.bold())
+                    Text("Active \(kcal(snapshot.activeKcal)) · Rest \(kcal(snapshot.restingKcal))")
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(
+                            "\(metricAccessibility("Active", snapshot.activeKcal)), "
+                                + metricAccessibility("Resting", snapshot.restingKcal)
+                        )
+                    Label(signedKcal(snapshot.netKcal), systemImage: "scalemass")
+                        .font(.caption2.bold())
+                        .accessibilityLabel(snapshot.netKcal == nil
+                            ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories")
                 } else {
                     Text("Open NeoGym to sync").font(.caption2)
                 }
             }
+            .font(.caption2)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .containerBackground(.background, for: .widget)
         }
         .configurationDisplayName("Energy")
-        .description("Today's consumed and burned calories from NeoGym.")
+        .description("Today's consumed, total, active, resting, and net calories from NeoGym.")
         .supportedFamilies([.accessoryRectangular])
+    }
+
+    private func kcal(_ value: Double?) -> String {
+        value.map { $0.formatted(.number.precision(.fractionLength(0))) } ?? "—"
+    }
+
+    private func signedKcal(_ value: Double?) -> String {
+        guard let value else { return "—" }
+        let formatted = kcal(value)
+        return value > 0 ? "+\(formatted)" : formatted
+    }
+
+    private func metricAccessibility(_ name: String, _ value: Double?) -> String {
+        guard let value else { return "\(name) energy unavailable" }
+        return "\(name) \(kcal(value)) kilocalories"
     }
 }
