@@ -190,9 +190,11 @@ after that failure stays `.loading` until session restoration resolves; do not
 briefly offer OTP while AuthStore publishes `.loading` with no session.
 Re-reading identical/matching context
 must keep an in-flight same-session `/user` request alive; cancelling it
-without replacement strands profile revalidation. An offline read retains the
-same-user profile and offers Retry; an Auth failure removes it. Reconcile every AuthStore state
-publication even when its user ID is unchanged: a retry through
+without replacement strands profile revalidation. A non-auth `/user` read
+failure retains the same-user profile and offers Retry; only transport failures
+suggest reconnecting, while other failures use a neutral refresh warning. An
+Auth failure removes it. Reconcile every AuthStore state publication even when
+its user ID is unchanged: a retry through
 `authStore.bootstrap()` can move `.error` to `.signedOut` with nil IDs in both
 states. A delayed hint cannot revoke an undelivered watch token instantly.
 In stub-transport tests of managed Auth refresh, `/token` returns a bare

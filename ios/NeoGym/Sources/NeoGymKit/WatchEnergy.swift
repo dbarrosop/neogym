@@ -27,8 +27,9 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     }
 }
 
-/// A transient read failure can retain only today's snapshot for the currently
-/// known session owner. A blocking/terminal account state must clear it.
+/// Bootstrap may retain today's snapshot until the session owner is known.
+/// Once signed in, the watch keeps a same-owner snapshot via the `.name` path;
+/// blocking/terminal states clear it.
 public enum WatchEnergySnapshotPolicy {
     public static func keepsStoredSnapshot(
         in state: WatchAccountState, snapshotUserID: String?, sessionUserID: String?
@@ -37,8 +38,6 @@ public enum WatchEnergySnapshotPolicy {
         case .awaitingLocalContext, .loading:
             // During bootstrap the SDK may not have restored a session yet.
             return sessionUserID == nil || snapshotUserID == sessionUserID
-        case .networkError:
-            return sessionUserID != nil && snapshotUserID == sessionUserID
         default:
             return false
         }

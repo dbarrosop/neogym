@@ -109,7 +109,6 @@ public enum WatchAccountState: Equatable {
     case clearing
     case loading
     case name(String)
-    case networkError
     case authError
     case reauthenticate
     case error(String)
@@ -222,8 +221,7 @@ public final class WatchAccountModel: ObservableObject {
     public func cancelPendingRead() {
         guard loadTask != nil else { return }
         invalidateRead()
-        if currentUser == nil { state = .networkError }
-        else { profileError = "Profile may be out of date." }
+        profileError = "Profile may be out of date."
     }
 
     public func signOut() async {
@@ -427,6 +425,8 @@ public final class WatchAccountModel: ObservableObject {
         loadTask = nil
         loadingSessionID = nil
         isReadingProfile = false
+        // startRead seeds an owner-checked profile before the request; only
+        // invalidation can clear it, and that also changes the generation.
         if error is SessionRefreshError {
             invalidate()
             currentUserStore?.clear()
@@ -440,10 +440,12 @@ public final class WatchAccountModel: ObservableObject {
             invalidate()
             currentUserStore?.clear()
             state = .authError
-        } else if currentUser != nil {
+        } else if error is URLError {
             profileError = "Profile may be out of date. Retry when connected."
-        } else if error is URLError { state = .networkError }
-        else if let fetch = error as? FetchError, case .transport = fetch { state = .networkError }
-        else { state = .error(error.localizedDescription) }
+        } else if let fetch = error as? FetchError, case .transport = fetch {
+            profileError = "Profile may be out of date. Retry when connected."
+        } else {
+            profileError = "Profile could not be refreshed. Retry."
+        }
     }
 }

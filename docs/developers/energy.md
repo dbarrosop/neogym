@@ -165,7 +165,9 @@ restores the local SDK session, shows the last fetched name/email from a
 watch-app-only, session-user-ID-checked cache (falling back to the SDK session
 name) and today's same-owner energy snapshot, then revalidates name/email from
 uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
-network errors retain the cached profile with Retry, while Auth errors clear it.
+non-auth `/user` errors retain the same-owner cached or session-fallback
+profile with Retry; connectivity failures say to retry when connected, while
+other failures use a neutral refresh warning. Auth errors clear the profile.
 Local WCSession activation also runs without delaying this foreground display.
 An already delivered signed-out/different-account hint blocks immediately; one
 delivered later may leave stale values visible briefly before the watch clears
@@ -225,8 +227,9 @@ WidgetKit to reload after a successful local write; local read-back still does
 not prove the extension read it or rendered a new timeline. The rectangular watch-face complication presents consumed,
 total burned, active/resting, and Net kcal; it never uploads data itself. Today's
 last-good snapshot survives session validation while the SDK restores the
-session; after a transient network failure it remains only if the SDK identifies
-the same session owner. Definitive sign-out, blocking phone hints, auth errors,
+session; after a non-auth `/user` failure the watch remains in the signed-in
+name state and keeps the snapshot only for the same session owner. Definitive
+sign-out, blocking phone hints, auth errors,
 and account switches clear it; snapshots are
 never carried into the next local date. The
 phone and watch share an App Group **identifier**, not files across devices.

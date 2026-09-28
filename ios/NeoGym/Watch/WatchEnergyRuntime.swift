@@ -75,8 +75,8 @@ final class WatchEnergyRuntime: ObservableObject {
             snapshot = nil
             healthEnabled = false
             errorMessage = nil
-            // Keep today's last-good value through a transient offline read only
-            // if the SDK still knows the same session owner. Blocking states clear.
+            // Signed-in reads (including failures) stay on the `.name` path above,
+            // which retains today's same-owner snapshot. Blocking states clear it.
             let savedUserID = store.load(for: DateOnly.todayLocalISO())?.userID
             let sessionUserID = account.authStore.state.session?.user?.id
             if !WatchEnergySnapshotPolicy.keepsStoredSnapshot(

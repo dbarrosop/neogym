@@ -66,6 +66,9 @@ private actor WatchTransport: HTTPTransport {
         if status == 401 {
             return NhostRawResponse(status: 401, body: Data(#"{"status":401,"message":"Unauthorized"}"#.utf8))
         }
+        if status != 200 {
+            return NhostRawResponse(status: status, body: Data(#"{"status":500,"message":"Server error"}"#.utf8))
+        }
         return NhostRawResponse(status: 200, body: Data("""
         {"id":"watch-user","displayName":"\(displayName)","email":"watch@example.test","avatarUrl":"",
         "createdAt":"2024-01-01T00:00:00Z", "defaultRole":"user", "emailVerified":true,
@@ -140,10 +143,12 @@ final class WatchAccountTests: XCTestCase {
         model.refresh()
         await waitForProfileError(model)
         XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
         await transport.set(status: 200, transportFailure: true)
         model.refresh()
         await waitForProfileError(model) // Production transport wraps offline errors in FetchError.transport.
         XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
         await transport.set(status: 200, name: "Recovered")
         model.refresh()
         await waitFor(model, .name("Recovered"))
@@ -358,7 +363,9 @@ final class WatchAccountTests: XCTestCase {
         XCTAssertNil(PhoneAccountHint.decode(["version": "1", "state": "signedIn", "userId": " "]))
         XCTAssertEqual(CurrentWatchUser(id: "x", displayName: "  ").displayName, "Athlete")
     }
+}
 
+extension WatchAccountTests {
     func testWatchProfileCacheRequiresMatchingRestoredUserAndClearsOnSignOut() async throws {
         let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
         cache.save(CurrentWatchUser(id: "watch-user", displayName: "Recently fetched", email: "cached@example.test"))
@@ -550,9 +557,21 @@ final class WatchAccountTests: XCTestCase {
         model.localContextReady(nil)
         await waitFor(model, .authError)
     }
-}
 
-extension WatchAccountTests {
+    func testServerErrorRetainsSessionFallbackWithoutConnectivityWarning() async throws {
+        let (model, _, transport) = try await setup()
+        await transport.set(status: 500)
+        model.localContextReady(nil)
+        await waitForProfileError(model)
+        XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.currentUser?.displayName, "Old Session")
+        XCTAssertEqual(model.profileError, "Profile could not be refreshed. Retry.")
+        await transport.set(status: 200, name: "Recovered")
+        model.refresh()
+        await waitFor(model, .name("Recovered"))
+        XCTAssertNil(model.profileError)
+    }
+
     func testPublishedNameCarriesCurrentUserBeforeStoredStateChanges() async throws {
         let (model, _, controlled) = try await controlledSetup()
         struct Emission {

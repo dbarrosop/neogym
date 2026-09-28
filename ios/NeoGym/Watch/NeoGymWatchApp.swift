@@ -82,10 +82,6 @@ private struct WatchHomeView: View {
             otpForm
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")
-        case .networkError:
-            Text("Network unavailable. Check the watch connection and retry.")
-            Button("Retry") { account.refresh() }
-            signOutButton
         case .authError:
             Text("Authentication failed. Retry or sign out of this watch.")
             Button("Retry") { account.refresh() }

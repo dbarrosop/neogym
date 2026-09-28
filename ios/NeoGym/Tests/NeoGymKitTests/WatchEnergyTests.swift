@@ -226,7 +226,7 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertEqual(requests.count, 2)
     }
 
-    func testSnapshotPolicyRetainsOnlySameSessionOnTransientNetworkError() {
+    func testSnapshotPolicyRetainsDuringBootstrapAndClearsOnBlockingStates() {
         let policy = WatchEnergySnapshotPolicy.self
         XCTAssertTrue(policy.keepsStoredSnapshot(in: .loading, snapshotUserID: "person-1", sessionUserID: nil))
         XCTAssertTrue(policy.keepsStoredSnapshot(
@@ -234,14 +234,6 @@ final class WatchEnergyTests: XCTestCase {
         ))
         XCTAssertTrue(policy.keepsStoredSnapshot(
             in: .awaitingLocalContext, snapshotUserID: "person-1", sessionUserID: nil
-        ))
-        XCTAssertTrue(policy.keepsStoredSnapshot(
-            in: .networkError, snapshotUserID: "person-1", sessionUserID: "person-1"
-        ))
-        XCTAssertFalse(policy.keepsStoredSnapshot(in: .networkError, snapshotUserID: "person-1", sessionUserID: nil))
-        XCTAssertFalse(policy.keepsStoredSnapshot(in: .networkError, snapshotUserID: nil, sessionUserID: "person-1"))
-        XCTAssertFalse(policy.keepsStoredSnapshot(
-            in: .networkError, snapshotUserID: "person-1", sessionUserID: "person-2"
         ))
         XCTAssertFalse(policy.keepsStoredSnapshot(in: .loading, snapshotUserID: "person-1", sessionUserID: "person-2"))
         for state: WatchAccountState in [
