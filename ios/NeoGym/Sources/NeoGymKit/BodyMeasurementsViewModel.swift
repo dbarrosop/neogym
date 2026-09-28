@@ -12,6 +12,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
     private let calendar: Calendar
     private let healthRefreshLookbackDays: Int
     private let now: @Sendable () -> Date
+    private let userId: String?
+    private let defaults: UserDefaults
 
     private static let healthImportNote = "Imported from Apple Health"
 
@@ -20,13 +22,17 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
         calendar: Calendar = .current,
         healthRefreshLookbackDays: Int = 7,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = Date.init,
+        userId: String? = nil,
+        defaults: UserDefaults = .standard
     ) {
         self.repository = repository
         self.healthImporter = healthImporter
         self.calendar = calendar
         self.healthRefreshLookbackDays = healthRefreshLookbackDays
         self.now = now
+        self.userId = userId
+        self.defaults = defaults
     }
 
     public var measurements: [BodyMeasurement] { state.value ?? [] }
@@ -42,9 +48,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         do {
             if shouldSyncHealthMeasurements {
                 async let initialLoad: Void = loadMeasurementUpdates()
-                await syncHealthMeasurements()
+                let didWrite = await syncHealthMeasurements()
                 try await initialLoad
-                try await loadMeasurementUpdates()
+                if didWrite { try await loadMeasurementUpdates() }
             } else {
                 try await loadMeasurementUpdates()
             }
@@ -62,22 +68,37 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
     }
 
     /// Used by the Overview, whose chart has its own date-bounded query.
-    public func syncHealthMeasurementsOnly() async {
-        guard !isRefreshing else { return }
+    @discardableResult
+    public func syncHealthMeasurementsOnly() async -> Bool {
+        guard !isRefreshing else { return false }
         isRefreshing = true
         defer { isRefreshing = false }
-        await syncHealthMeasurements()
+        return await syncHealthMeasurements()
     }
 
-    private func syncHealthMeasurements() async {
-        guard let healthImporter else { return }
+    private func syncHealthMeasurements() async -> Bool {
+        guard let healthImporter else { return false }
         healthSyncState = .loading(previous: healthSyncState.value)
+        var didWrite = false
         do {
-            async let importedMeasurementsTask = healthImporter.dailyMeasurements()
-            async let existingMeasurementsTask = repository.listMeasurements()
-
-            let importedMeasurements = try await importedMeasurementsTask
-            let existingMeasurements = (try? await existingMeasurementsTask) ?? []
+            let key = userId.map { "body-health.anchor.v1.\($0)" }
+            let saved = key.flatMap { defaults.data(forKey: $0) }
+                .flatMap { try? JSONDecoder().decode(BodyHealthAnchors.self, from: $0) }
+            // A timezone change moves local-day boundaries; rebuild once from history.
+            let anchors = saved?.timeZone == calendar.timeZone.identifier ? saved : nil
+            let batch = try await healthImporter.changes(since: anchors)
+            try Task.checkCancellation()
+            if batch.measurements.isEmpty {
+                // HealthKit hides whether read permission was denied. Only checkpoint
+                // a baseline when it actually delivered an event; otherwise retry
+                // after the user grants permission.
+                if batch.hasEvents, let key, let next = batch.nextAnchors {
+                    defaults.set(try JSONEncoder().encode(next), forKey: key)
+                }
+                healthSyncState = .loaded(BodyMeasurementsHealthSyncSummary(importedCount: 0, skippedExistingCount: 0))
+                return false
+            }
+            let existingMeasurements = try await repository.listMeasurements()
             let refreshStart = healthRefreshStartDate()
             var knownDates = Set(existingMeasurements.map(\.measuredOn))
             let existingMeasurementsByDate = Dictionary(
@@ -87,7 +108,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
             var updatedCount = 0
             var skippedExistingCount = 0
 
-            for measurement in importedMeasurements {
+            for measurement in batch.measurements {
+                try Task.checkCancellation()
                 guard let values = measurement.formValues(notes: Self.healthImportNote) else { continue }
 
                 if let existingMeasurement = existingMeasurementsByDate[measurement.measuredOn] {
@@ -98,7 +120,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                         skippedExistingCount += 1
                         continue
                     }
+                    try Task.checkCancellation()
                     try await repository.updateMeasurement(id: existingMeasurement.id, values: values)
+                    didWrite = true
                     knownDates.insert(values.measuredOn)
                     updatedCount += 1
                     continue
@@ -110,7 +134,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                 }
 
                 do {
+                    try Task.checkCancellation()
                     _ = try await repository.createMeasurement(values)
+                    didWrite = true
                     knownDates.insert(values.measuredOn)
                     importedCount += 1
                 } catch where BodyMeasurementsErrorMapper.isDuplicateMeasuredOnError(error) {
@@ -118,11 +144,16 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                     skippedExistingCount += 1
                 }
             }
+            try Task.checkCancellation()
+            if let key, let next = batch.nextAnchors, batch.hasEvents {
+                defaults.set(try JSONEncoder().encode(next), forKey: key)
+            }
             healthSyncState = .loaded(BodyMeasurementsHealthSyncSummary(
                 importedCount: importedCount,
                 updatedCount: updatedCount,
                 skippedExistingCount: skippedExistingCount
             ))
+            return didWrite
         } catch where GraphQLDomainError.isCancellation(error) {
             healthSyncState = healthSyncState.cancellationFallback
         } catch {
@@ -131,6 +162,7 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                 previous: healthSyncState.value
             )
         }
+        return didWrite
     }
 
     private func healthRefreshStartDate() -> String {

@@ -363,6 +363,144 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         ))
     }
 
+    func testIncrementalBodyImportCommitsCursorAndSkipsUnchangedBackendRead() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let anchors = BodyHealthAnchors(
+            weight: Data("weight-cursor".utf8), bodyFat: Data("fat-cursor".utf8),
+            timeZone: Calendar.current.timeZone.identifier
+        )
+        let importer = FakeIncrementalBodyHealthImporter(batches: [
+            BodyHealthChangeBatch(
+                measurements: [HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80)],
+                nextAnchors: anchors, hasEvents: true
+            ),
+            BodyHealthChangeBatch(measurements: [], nextAnchors: anchors, hasEvents: false)
+        ])
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let model = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: importer, userId: "user-one", defaults: defaults
+        )
+
+        let firstChanged = await model.syncHealthMeasurementsOnly()
+        let secondChanged = await model.syncHealthMeasurementsOnly()
+        XCTAssertTrue(firstChanged)
+        XCTAssertFalse(secondChanged)
+        let cursors = await importer.receivedAnchors()
+        XCTAssertNil(cursors[0])
+        XCTAssertEqual(cursors[1]?.weight, anchors.weight)
+        XCTAssertEqual(cursors[1]?.bodyFat, anchors.bodyFat)
+        let listCalls = await repository.listCallCountSnapshot()
+        let created = await repository.createdValuesSnapshot()
+        XCTAssertEqual(listCalls, 1)
+        XCTAssertEqual(created.count, 1)
+    }
+
+    func testEmptyInitialReadDoesNotCheckpointAndAnotherUserStartsAtBaseline() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let anchors = BodyHealthAnchors(
+            weight: Data("weight-cursor".utf8), bodyFat: Data("fat-cursor".utf8),
+            timeZone: Calendar.current.timeZone.identifier
+        )
+        let empty = BodyHealthChangeBatch(measurements: [], nextAnchors: anchors, hasEvents: false)
+        let firstImporter = FakeIncrementalBodyHealthImporter(batches: [empty, empty])
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let firstUser = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: firstImporter, userId: "user-one", defaults: defaults
+        )
+        await firstUser.syncHealthMeasurementsOnly()
+        await firstUser.syncHealthMeasurementsOnly()
+        let firstCursors = await firstImporter.receivedAnchors()
+        XCTAssertNil(firstCursors[0])
+        XCTAssertNil(firstCursors[1])
+
+        let secondImporter = FakeIncrementalBodyHealthImporter(batches: [empty])
+        let secondUser = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: secondImporter, userId: "user-two", defaults: defaults
+        )
+        await secondUser.syncHealthMeasurementsOnly()
+        let secondCursors = await secondImporter.receivedAnchors()
+        XCTAssertNil(secondCursors[0])
+        let listCalls = await repository.listCallCountSnapshot()
+        XCTAssertEqual(listCalls, 0)
+    }
+
+    func testBodyHealthCursorIsScopedToUserAndLocalTimezone() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let anchors = BodyHealthAnchors(
+            weight: Data("weight-cursor".utf8), bodyFat: Data("fat-cursor".utf8),
+            timeZone: Calendar.current.timeZone.identifier
+        )
+        let initial = BodyHealthChangeBatch(
+            measurements: [HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80)],
+            nextAnchors: anchors, hasEvents: true
+        )
+        let empty = BodyHealthChangeBatch(measurements: [], nextAnchors: anchors, hasEvents: false)
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let first = BodyMeasurementsListViewModel(
+            repository: repository,
+            healthImporter: FakeIncrementalBodyHealthImporter(batches: [initial]),
+            userId: "user-one", defaults: defaults
+        )
+        await first.syncHealthMeasurementsOnly()
+
+        let secondImporter = FakeIncrementalBodyHealthImporter(batches: [empty])
+        let second = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: secondImporter, userId: "user-two", defaults: defaults
+        )
+        await second.syncHealthMeasurementsOnly()
+        let secondCursors = await secondImporter.receivedAnchors()
+        XCTAssertNil(secondCursors[0])
+
+        var differentCalendar = Calendar.current
+        differentCalendar.timeZone = try XCTUnwrap(TimeZone(
+            identifier: anchors.timeZone == "Pacific/Honolulu" ? "Europe/London" : "Pacific/Honolulu"
+        ))
+        let timezoneImporter = FakeIncrementalBodyHealthImporter(batches: [empty])
+        let differentTimezone = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: timezoneImporter,
+            calendar: differentCalendar, userId: "user-one", defaults: defaults
+        )
+        await differentTimezone.syncHealthMeasurementsOnly()
+        let timezoneCursors = await timezoneImporter.receivedAnchors()
+        XCTAssertNil(timezoneCursors[0])
+    }
+
+    func testFailedBodyReconciliationRetriesUncommittedCursor() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let anchors = BodyHealthAnchors(
+            weight: Data("weight-cursor".utf8), bodyFat: Data("fat-cursor".utf8),
+            timeZone: Calendar.current.timeZone.identifier
+        )
+        let batch = BodyHealthChangeBatch(
+            measurements: [HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80)],
+            nextAnchors: anchors, hasEvents: true
+        )
+        let importer = FakeIncrementalBodyHealthImporter(batches: [batch, batch])
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        let model = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: importer, userId: "user-one", defaults: defaults
+        )
+        await repository.setListError(GraphQLDomainError.transport("offline"))
+        let failedChanged = await model.syncHealthMeasurementsOnly()
+        XCTAssertFalse(failedChanged)
+        await repository.setListError(nil)
+        let retriedChanged = await model.syncHealthMeasurementsOnly()
+        XCTAssertTrue(retriedChanged)
+        let cursors = await importer.receivedAnchors()
+        XCTAssertNil(cursors[0])
+        XCTAssertNil(cursors[1])
+        let created = await repository.createdValuesSnapshot()
+        XCTAssertEqual(created.count, 1)
+    }
+
     func testHealthSyncRefreshesRecentImportedHealthRows() async throws {
         let repository = FakeBodyMeasurementsRepository(measurements: [
             BodyMeasurement(
@@ -530,15 +668,19 @@ private actor FakeBodyMeasurementsRepository: BodyMeasurementsRepositoryProtocol
     private var createdValues: [BodyMeasurementFormValues] = []
     private var updatedValues: [String: BodyMeasurementFormValues] = [:]
     private var listError: Error?
+    private var listCallCount = 0
 
     init(measurements: [BodyMeasurement]) {
         self.measurements = measurements
     }
 
     func listMeasurements() async throws -> [BodyMeasurement] {
+        listCallCount += 1
         if let listError { throw listError }
         return measurements
     }
+
+    func listCallCountSnapshot() -> Int { listCallCount }
 
     func setListError(_ error: Error?) {
         listError = error
@@ -621,6 +763,22 @@ private actor BlockingBodyMeasurementsHealthImporter: BodyMeasurementsHealthImpo
     func callCountSnapshot() -> Int {
         callCount
     }
+}
+
+private actor FakeIncrementalBodyHealthImporter: BodyMeasurementsHealthImporting {
+    private var batches: [BodyHealthChangeBatch]
+    private var received: [BodyHealthAnchors?] = []
+
+    init(batches: [BodyHealthChangeBatch]) { self.batches = batches }
+
+    func dailyMeasurements() async throws -> [HealthBodyMeasurement] { [] }
+
+    func changes(since anchors: BodyHealthAnchors?) async throws -> BodyHealthChangeBatch {
+        received.append(anchors)
+        return batches.removeFirst()
+    }
+
+    func receivedAnchors() -> [BodyHealthAnchors?] { received }
 }
 
 private struct FakeBodyMeasurementsHealthImporter: BodyMeasurementsHealthImporting {

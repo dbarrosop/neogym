@@ -10,11 +10,13 @@ struct BodyMeasurementsListView: View {
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
         healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
+        userId: String? = nil,
         reloadToken: Int
     ) {
         _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: repository,
-            healthImporter: healthImporter
+            healthImporter: healthImporter,
+            userId: userId
         ))
         self.repository = repository
         self.healthImporter = healthImporter

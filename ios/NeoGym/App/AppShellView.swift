@@ -73,6 +73,9 @@ struct AppShellView: View {
                     currentUserId: session.user?.id,
                     areaSelection: $selection
                 )
+                // Recreate Body sync models when the signed-in account changes;
+                // HealthKit cursors are scoped to the backend owner.
+                .id(session.user?.id)
             }
 
             areaView(.me) {

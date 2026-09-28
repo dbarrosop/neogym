@@ -262,10 +262,14 @@ changes.
   or edited rows are not overwritten. The iPhone no longer imports HealthKit
   energy, even when opening or refreshing the Energy subsection or Nutrition
   overview. Body measurement HealthKit sync still runs from both the Body
-  subsection and the Nutrition overview on initial load and pull-to-refresh;
-  it creates missing dates and refreshes the last 7 local days only for rows
-  still carrying that note. Body sync runs before the final backend
-  overview/chart fetch.
+  subsection and the Nutrition overview on initial load and pull-to-refresh.
+  It scans history once per app user/timezone, then uses per-type anchored
+  additions to re-query affected local dates; cursors commit only after
+  successful backend reconciliation. It creates missing dates and refreshes
+  the last 7 local days only for rows still carrying that note. An empty
+  initial HealthKit read is not checkpointed, and deletions are not yet
+  reconciled. Overview revalidates its backend queries after sync only when
+  Body rows changed.
 
 ## Native iOS design guide
 

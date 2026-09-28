@@ -309,13 +309,17 @@ After reset:
 
 ## Apple Health body imports
 
-Opening the Body measurements view requests read-only Apple Health access for
-body mass and body-fat percentage, then imports the latest sample per metric per
-local calendar day. The app requests no write authorization and does not export
-NeoGym measurements back to HealthKit. Missing dates are created, while rows
-from the last 7 local days that still carry the exact
-`Imported from Apple Health` note can be refreshed from newer HealthKit values.
-Manual or edited rows are not overwritten.
+Opening Body or Nutrition Overview requests read-only Apple Health access for
+body mass and body-fat percentage. The first import scans historical samples;
+subsequent visits use per-type HealthKit anchors to check additions only, then
+re-read the affected local dates to keep the latest sample per metric. Cursors
+are scoped to the app user/timezone and saved after backend reconciliation, not
+before; an empty initial read is retried after permission is granted. The app
+requests no write authorization and does not export NeoGym measurements back
+to HealthKit. Missing dates are created, while rows from the last 7 local days
+that still carry the exact `Imported from Apple Health` note can be refreshed.
+Manual or edited rows are not overwritten. HealthKit sample deletions are not
+reconciled yet; deleting a sample alone does not remove its imported Body row.
 
 The iPhone no longer reads active/resting energy from HealthKit. Opening or
 refreshing Nutrition Overview and Energy fetches `daily_energy` from the

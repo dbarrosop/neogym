@@ -250,6 +250,7 @@ struct NutritionNavigationView: View {
             BodyMeasurementsListView(
                 repository: bodyRepository,
                 healthImporter: bodyHealthImporter,
+                userId: currentUserId,
                 reloadToken: reloadToken
             )
             .navigationTitle("Body")

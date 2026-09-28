@@ -244,11 +244,11 @@ and New plan/food/meal, Log measurement, and Log energy live on their subsection
 list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list and trend under the
 Nutrition hub; opening or refreshing it reads the backend only. The Overview
 screen (a pushed route) is a dashboard: on load and pull-to-refresh it reads
-Energy from the backend, auto-syncs Body measurements from HealthKit, then
-refreshes its backend overview and charts. The iPhone does not request
-active/resting HealthKit energy access or upload energy; the watch app owns
-that import. Cached chart data can render during Body sync, then both charts
-refresh from the backend. On a cold launch across a local-day change,
+Energy from the backend and auto-syncs Body measurements from HealthKit;
+it revalidates the backend overview and charts after sync only when Body rows
+changed. The iPhone does not request active/resting HealthKit energy access or
+upload energy; the watch app owns that import. Cached chart data can render
+during Body sync. On a cold launch across a local-day change,
 the default charts first read today's and up to seven earlier exact ranges from
 the SDK's user-scoped, age-bounded cache without network calls; any previous-range
 fallback is labeled as missing newer dates until the current-range refresh
@@ -258,9 +258,13 @@ last 14 local days and query only their selected period plus six warm-up days
 for rolling averages. The Calories consumed chart uses a separate date-bounded
 snapshot-kcal/grams + daily-energy query (not the detailed overview/day-list
 query), and Body composition uses a date-bounded measurements query; changing
-a chart period or custom dates loads that range on demand. Body HealthKit reconciliation still inspects historical data independently
-of chart ranges, creates missing dates, and refreshes recent rows that still
-carry the exact "Imported from Apple Health" note. Watch energy sync remains
+a chart period or custom dates loads that range on demand. Body HealthKit reconciliation scans history once per app user/timezone, then uses
+per-type anchored additions to recheck only affected local dates, independently
+of chart ranges. Cursors advance after successful backend reconciliation; an
+empty initial read is not checkpointed because HealthKit read denial is opaque.
+It creates missing dates and refreshes recent rows that still carry the exact
+"Imported from Apple Health" note. HealthKit deletions are intentionally not
+reconciled yet. Watch energy sync remains
 limited to the last seven local dates; iPhone energy views do not sync it. It does not show the old intro copy or recent
 daily-log list. `NutritionDaysView` no longer takes a
 `selectedDate` binding. After a create the shell replaces only the top create
