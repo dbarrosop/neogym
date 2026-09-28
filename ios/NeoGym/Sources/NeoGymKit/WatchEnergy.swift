@@ -119,8 +119,22 @@ public struct WatchEnergyService: Sendable {
         let since = DateOnly.formatLocalISO(start, calendar: calendar)
         async let samples = importer.dailyEnergyEntries()
         async let rows = energy.listEntriesForHealthRefresh(since: since)
-        let imported = try await samples
-        let existing = Dictionary(uniqueKeysWithValues: try await rows.map { ($0.energyOn, $0) })
+        let imported: [HealthDailyEnergy]
+        do {
+            imported = try await samples
+        } catch {
+            if error is CancellationError { throw error }
+            if let failure = error as? WatchHealthSyncFailure { throw failure }
+            throw WatchHealthSyncFailure(stage: .healthRead, cause: error)
+        }
+        let backendRows: [DailyEnergy]
+        do {
+            backendRows = try await rows
+        } catch {
+            if error is CancellationError { throw error }
+            throw WatchHealthSyncFailure(stage: .backendRead, cause: error)
+        }
+        let existing = Dictionary(uniqueKeysWithValues: backendRows.map { ($0.energyOn, $0) })
         let todayString = DateOnly.formatLocalISO(today, calendar: calendar)
         for sample in imported where sample.energyOn >= since && sample.energyOn <= todayString {
             try Task.checkCancellation()
@@ -131,12 +145,20 @@ public struct WatchEnergyService: Sendable {
                 guard row.activeKcal != Double(values.activeKcal) || row.restingKcal != Double(values.restingKcal) else {
                     continue
                 }
-                try await energy.updateEntry(id: row.id, values: values)
+                do {
+                    try await energy.updateEntry(id: row.id, values: values)
+                } catch {
+                    if error is CancellationError { throw error }
+                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error)
+                }
             } else {
                 do {
                     _ = try await energy.createEntry(values)
                 } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
                     // Another writer (including the phone) won the unique date race.
+                } catch {
+                    if error is CancellationError { throw error }
+                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error)
                 }
             }
         }

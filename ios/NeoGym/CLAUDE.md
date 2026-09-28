@@ -127,9 +127,16 @@ at most 100 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule
 requested/accepted/failed with numeric codes, actual wakes started/finished,
 Health permission/reconciliation, fresh energy reads, local snapshot saves,
-and WidgetKit reload requests. An accepted schedule does not guarantee a wake;
-a reload request does not prove the complication updated. Never log tokens,
-user identifiers, email/name, URLs, or raw localized/server error text.
+and WidgetKit reload requests. Failures now include a fixed stage (active or
+resting HealthKit query, backend read/write, authorization, scheduling) and
+allowlisted source (HealthKit, network, backend, other); older records still
+have only numeric codes. HealthKit code 3 is only labeled "invalid argument"
+when the original domain matches `HKErrorDomain`. An accepted schedule does not
+guarantee a wake; a reload request does not prove the complication updated.
+The Events-page `ShareLink` exports a temporary `.txt` attachment through the
+watchOS system share sheet only on user action (no automatic send). The
+host-tested exporter uses typed events only. Never log or export tokens, user
+identifiers, email/name, URLs, or raw localized/server error text.
 A snapshot-save failure remains visible in the watch Energy page and does not
 request a reload. The phone publishes definitive `AuthStore` states through
 `PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on

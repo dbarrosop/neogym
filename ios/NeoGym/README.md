@@ -108,11 +108,18 @@ revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
 background scheduling, wake, Health sync, backend read, snapshot save, and
 complication reload-request outcomes). The last 100 events stay on the watch,
-not in its widget or on a server; only fixed event kinds and optional numeric
-error codes are stored. “Accepted” means watchOS accepted a background request,
-not that it woke the app; “Requested” means WidgetKit was asked to reload, not
-that the watch face rendered new data. Snapshot-save failure is shown on the
-Energy page and logged rather than silently claiming a fresh complication.
+not in its widget or on a server; only fixed event kinds, timestamps, optional
+numeric error codes, allowlisted error sources, and failure stages are stored.
+New failures distinguish active/resting HealthKit queries from backend
+reads/writes. Older events retain their numeric-only detail. In Events, tap
+**Share logs** to choose an app/destination in the watchOS share sheet for a
+plain-text `.txt` attachment. Available destinations depend on the watchOS
+share sheet and installed apps; nothing is sent automatically. Exports contain no account details,
+tokens, URLs, or raw error messages; they contain only these diagnostic events.
+“Accepted” means watchOS accepted a background request, not that it woke the
+app; “Requested” means WidgetKit was asked to reload, not that the watch face
+rendered new data. Snapshot-save failure is shown on the Energy page and logged
+rather than silently claiming a fresh complication.
 Consumed and Burned use icons rather than visible labels on the watch page; Net uses a
 balance-scale icon and equally prominent value. The Energy title carries a
 small `(kcal)` unit, while an icon-only refresh button sits beside the sync
@@ -149,8 +156,11 @@ sign in via OTP, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
-background wakes and for snapshot-save failures; only a paired-device test can
-confirm that WidgetKit ultimately updated the watch face. No production `GET /user` contract or signed hardware
+background wakes and for snapshot-save failures. Tap **Share logs** on the
+paired watch, pick an available destination, and inspect the resulting `.txt`
+attachment for failure stage, source, and code; simulator builds only prove the
+share API compiles, not which services appear on real hardware. Only a
+paired-device test can confirm that WidgetKit ultimately updated the watch face. No production `GET /user` contract or signed hardware
 acceptance is established merely by a simulator build.
 
 ### Release verification and guarded TestFlight upload
@@ -191,8 +201,8 @@ closed; the upload script reuses the complete non-upload path before calling
 `destination=upload`. Do not bypass it through Organizer or direct export.
 The phone/widget shared Keychain remains unused by watch. Watch app and watch
 widget use the same App Group **identifier** for a separate, watch-local
-snapshot; no files are shared across devices. `swift test` and offline
-verifier fixtures do not prove signing or provisioning; on a machine without
+snapshot; App Group files do not sync across devices (unlike a user-initiated
+Events-page share). `swift test` and offline verifier fixtures do not prove signing or provisioning; on a machine without
 Apple signing, report signed archive/IPA checks as blocked.
 
 On paired development-signed iPhone/watch hardware, install the phone app and

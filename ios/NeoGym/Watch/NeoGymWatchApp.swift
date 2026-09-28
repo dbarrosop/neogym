@@ -1,5 +1,7 @@
+import CoreTransferable
 import NeoGymKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 @main
 struct NeoGymWatchApp: App {
@@ -261,6 +263,11 @@ private struct WatchHomeView: View {
                 Text("Events").font(.headline)
                 Text("Saved on this watch. Requested or accepted does not mean WidgetKit displayed new data.")
                     .font(.caption2).foregroundStyle(.secondary)
+                ShareLink(item: WatchEventsFile(events: runtime.events),
+                          preview: SharePreview("NeoGym Watch events")) {
+                    Label("Share logs", systemImage: "square.and.arrow.up")
+                }
+                .accessibilityHint("Choose a destination in the system share sheet; nothing is sent automatically.")
                 if runtime.events.isEmpty {
                     Text("No events yet.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -271,10 +278,11 @@ private struct WatchHomeView: View {
                                 .foregroundStyle(eventColor(event.outcome))
                             Text(event.action.title).font(.caption.bold())
                         }
-                        Text(event.outcome.title
-                             + (event.trigger.map { " · \($0.title)" } ?? "")
-                             + (event.errorCode.map { " · code \($0)" } ?? ""))
+                        Text(event.outcome.title + (event.trigger.map { " · \($0.title)" } ?? ""))
                             .font(.caption2)
+                        if let details = event.failureDetails {
+                            Text(details).font(.caption2).foregroundStyle(.secondary)
+                        }
                         Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened))
                             .font(.caption2).foregroundStyle(.secondary)
                     }
@@ -313,6 +321,18 @@ private struct WatchHomeView: View {
                 signIn.reset()
                 signIn.email = ""
             }
+        }
+    }
+}
+
+/// FileRepresentation preserves the .txt attachment instead of sharing a URL string.
+/// The file is generated only when the user initiates a share.
+private struct WatchEventsFile: Transferable {
+    let events: [WatchEvent]
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(exportedContentType: .plainText) { item in
+            SentTransferredFile(try WatchEventExport.write(events: item.events))
         }
     }
 }

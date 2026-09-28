@@ -45,7 +45,21 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
         let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
         async let activeValues = dailyTotals(type: active, start: start, end: end)
         async let restingValues = dailyTotals(type: resting, start: start, end: end)
-        return try await HealthDailyEnergyGrouper.sum(active: activeValues, resting: restingValues)
+        let activeSamples: [(measuredOn: String, value: Double)]
+        do {
+            activeSamples = try await activeValues
+        } catch {
+            if error is CancellationError { throw error }
+            throw WatchHealthSyncFailure(stage: .activeHealthQuery, cause: error)
+        }
+        let restingSamples: [(measuredOn: String, value: Double)]
+        do {
+            restingSamples = try await restingValues
+        } catch {
+            if error is CancellationError { throw error }
+            throw WatchHealthSyncFailure(stage: .restingHealthQuery, cause: error)
+        }
+        return HealthDailyEnergyGrouper.sum(active: activeSamples, resting: restingSamples)
     }
 
     private func dailyTotals(type: HKQuantityType, start: Date, end: Date) async throws -> [(measuredOn: String, value: Double)] {

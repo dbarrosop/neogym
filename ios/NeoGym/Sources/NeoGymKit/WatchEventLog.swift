@@ -64,18 +64,69 @@ public enum WatchEventTrigger: String, Codable, Sendable {
     }
 }
 
+public enum WatchEventStage: String, Codable, Sendable {
+    case activeHealthQuery
+    case restingHealthQuery
+    case healthRead
+    case backendRead
+    case backendWrite
+    case authorization
+    case scheduling
+
+    public var title: String {
+        switch self {
+        case .activeHealthQuery: "Active energy HealthKit query"
+        case .restingHealthQuery: "Resting energy HealthKit query"
+        case .healthRead: "HealthKit import"
+        case .backendRead: "Backend read"
+        case .backendWrite: "Backend write"
+        case .authorization: "Health permission request"
+        case .scheduling: "Background scheduling"
+        }
+    }
+}
+
+public enum WatchEventErrorSource: String, Codable, Sendable {
+    case healthKit
+    case network
+    case backend
+    case other
+
+    public var title: String {
+        switch self {
+        case .healthKit: "HealthKit"
+        case .network: "Network"
+        case .backend: "Backend"
+        case .other: "Other"
+        }
+    }
+}
+
 public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let occurredAt: Date
     public let action: WatchEventAction
     public let outcome: WatchEventOutcome
     public let trigger: WatchEventTrigger?
-    /// Numeric system error codes only; no raw descriptions or domains are persisted.
+    /// Numeric code and allowlisted category/stage only; never persist raw error
+    /// descriptions, domains, URLs, or response bodies. Optional for v1 log compatibility.
     public let errorCode: Int?
+    public let errorSource: WatchEventErrorSource?
+    public let stage: WatchEventStage?
+
+    public var failureDetails: String? {
+        guard outcome == .failed else { return nil }
+        var parts = [stage?.title, errorSource?.title, errorCode.map { "code \($0)" }].compactMap { $0 }
+        if errorSource == .healthKit, errorCode == 3 {
+            parts.append("Invalid HealthKit argument")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 
     public init(
         action: WatchEventAction, outcome: WatchEventOutcome,
         trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
+        errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil,
         occurredAt: Date = Date(), id: UUID = UUID()
     ) {
         self.id = id
@@ -84,7 +135,29 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         self.outcome = outcome
         self.trigger = trigger
         self.errorCode = errorCode
+        self.errorSource = errorSource
+        self.stage = stage
     }
+}
+
+/// Carries a sync failure's precise phase across the host-testable repository
+/// boundary. The original description is only used for the ephemeral watch UI,
+/// not stored in WatchEventStore or included in a shared log.
+public struct WatchHealthSyncFailure: LocalizedError, Sendable {
+    public let stage: WatchEventStage
+    public let underlyingDomain: String
+    public let underlyingCode: Int
+    private let reason: String
+
+    public init(stage: WatchEventStage, cause: any Error) {
+        let error = cause as NSError
+        self.stage = stage
+        underlyingDomain = error.domain
+        underlyingCode = error.code
+        reason = error.localizedDescription
+    }
+
+    public var errorDescription: String? { "\(stage.title): \(reason)" }
 }
 
 /// Bounded, watch-app-only history. The complication never reads or writes this store.

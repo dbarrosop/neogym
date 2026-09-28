@@ -8,6 +8,12 @@ private struct WatchEnergyFakeImporter: DailyEnergyHealthImporting {
     func dailyEnergyEntries() async throws -> [HealthDailyEnergy] { entries }
 }
 
+private struct FailingWatchEnergyImporter: DailyEnergyHealthImporting {
+    func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {
+        throw NSError(domain: "HKErrorDomain", code: 3)
+    }
+}
+
 final class WatchEnergyTests: XCTestCase {
     private let now = ISO8601DateFormatter().date(from: "2026-06-25T12:00:00Z")!
     private let calendar: Calendar = {
@@ -60,6 +66,51 @@ final class WatchEnergyTests: XCTestCase {
         } else {
             XCTFail("Expected energy update fields")
         }
+    }
+
+    func testSyncFailureIdentifiesHealthKitReadAndBackendReadOrWrite() async {
+        let healthGraphQL = FakeGraphQLService(replies: [.json(.object(["dailyEnergyEntries": .array([])]))])
+        let healthService = WatchEnergyService(
+            graphQL: healthGraphQL, energy: DailyEnergyRepository(graphQL: healthGraphQL),
+            importer: FailingWatchEnergyImporter(), calendar: calendar
+        )
+        do {
+            try await healthService.syncHealth(now: now)
+            XCTFail("Expected HealthKit failure")
+        } catch let failure as WatchHealthSyncFailure {
+            XCTAssertEqual(failure.stage, .healthRead)
+            XCTAssertEqual(failure.underlyingDomain, "HKErrorDomain")
+            XCTAssertEqual(failure.underlyingCode, 3)
+        } catch { XCTFail("Unexpected error: \(error)") }
+
+        let readGraphQL = FakeGraphQLService(replies: [.failure(URLError(.notConnectedToInternet))])
+        let readService = WatchEnergyService(
+            graphQL: readGraphQL, energy: DailyEnergyRepository(graphQL: readGraphQL),
+            importer: WatchEnergyFakeImporter(entries: []), calendar: calendar
+        )
+        do {
+            try await readService.syncHealth(now: now)
+            XCTFail("Expected backend-read failure")
+        } catch let failure as WatchHealthSyncFailure {
+            XCTAssertEqual(failure.stage, .backendRead)
+        } catch { XCTFail("Unexpected error: \(error)") }
+
+        let writeGraphQL = FakeGraphQLService(replies: [
+            .json(.object(["dailyEnergyEntries": .array([])])),
+            .failure(URLError(.notConnectedToInternet))
+        ])
+        let writeService = WatchEnergyService(
+            graphQL: writeGraphQL, energy: DailyEnergyRepository(graphQL: writeGraphQL),
+            importer: WatchEnergyFakeImporter(entries: [
+                HealthDailyEnergy(energyOn: "2026-06-25", activeKcal: 120)
+            ]), calendar: calendar
+        )
+        do {
+            try await writeService.syncHealth(now: now)
+            XCTFail("Expected backend-write failure")
+        } catch let failure as WatchHealthSyncFailure {
+            XCTAssertEqual(failure.stage, .backendWrite)
+        } catch { XCTFail("Unexpected error: \(error)") }
     }
 
     func testTotalIncludesActiveAndRestingAndNetCanBeNegative() async throws {

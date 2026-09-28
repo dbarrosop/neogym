@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import HealthKit
 import NeoGymKit
 import SwiftUI
 import WatchKit
@@ -113,7 +114,7 @@ final class WatchEnergyRuntime: ObservableObject {
             startObservers()
             await refresh(trigger: .healthAuthorization)
         } catch {
-            record(.healthPermission, .failed, errorCode: (error as NSError).code)
+            recordFailure(.healthPermission, error: error, stage: .authorization)
             errorMessage = error.localizedDescription
         }
     }
@@ -151,7 +152,7 @@ final class WatchEnergyRuntime: ObservableObject {
                     record(.healthSync, .succeeded, trigger: trigger)
                 } catch {
                     if error is CancellationError { return }
-                    record(.healthSync, .failed, trigger: trigger, errorCode: (error as NSError).code)
+                    recordFailure(.healthSync, trigger: trigger, error: error, stage: .healthRead)
                     syncError = "Apple Health sync failed: \(error.localizedDescription)"
                 }
             }
@@ -172,7 +173,7 @@ final class WatchEnergyRuntime: ObservableObject {
                 record(.energyRefresh, .succeeded, trigger: trigger)
             } catch {
                 if error is CancellationError { return }
-                record(.energyRefresh, .failed, trigger: trigger, errorCode: (error as NSError).code)
+                recordFailure(.energyRefresh, trigger: trigger, error: error, stage: .backendRead)
                 if case .name = account.state, account.currentUser?.id == id {
                     errorMessage = error.localizedDescription
                 }
@@ -205,10 +206,26 @@ final class WatchEnergyRuntime: ObservableObject {
     }
 
     func record(_ action: WatchEventAction, _ outcome: WatchEventOutcome,
-                trigger: WatchEventTrigger? = nil, errorCode: Int? = nil) {
+                trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
+                errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil) {
         events = eventStore.record(WatchEvent(
-            action: action, outcome: outcome, trigger: trigger, errorCode: errorCode
+            action: action, outcome: outcome, trigger: trigger, errorCode: errorCode,
+            errorSource: errorSource, stage: stage
         ))
+    }
+
+    private func recordFailure(_ action: WatchEventAction, trigger: WatchEventTrigger? = nil,
+                               error: any Error, stage fallback: WatchEventStage) {
+        let wrapped = error as? WatchHealthSyncFailure
+        let actualStage = wrapped?.stage ?? fallback
+        let domain = wrapped?.underlyingDomain ?? (error as NSError).domain
+        let code = wrapped?.underlyingCode ?? (error as NSError).code
+        let source: WatchEventErrorSource
+        if domain == HKErrorDomain { source = .healthKit }
+        else if domain == NSURLErrorDomain { source = .network }
+        else if actualStage == .backendRead || actualStage == .backendWrite { source = .backend }
+        else { source = .other }
+        record(action, .failed, trigger: trigger, errorCode: code, errorSource: source, stage: actualStage)
     }
 
     func clearEvents() {
@@ -231,8 +248,11 @@ final class WatchEnergyRuntime: ObservableObject {
             withPreferredDate: Date().addingTimeInterval(60 * 60), userInfo: nil
         ) { [weak self] error in
             let code = error.map { ($0 as NSError).code }
+            let isNetworkError = error.map { ($0 as NSError).domain == NSURLErrorDomain } ?? false
             Task { @MainActor [weak self] in
-                self?.record(.backgroundScheduling, code == nil ? .accepted : .failed, errorCode: code)
+                self?.record(.backgroundScheduling, code == nil ? .accepted : .failed,
+                             errorCode: code, errorSource: code == nil ? nil : (isNetworkError ? .network : .other),
+                             stage: code == nil ? nil : .scheduling)
             }
         }
     }

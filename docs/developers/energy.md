@@ -147,10 +147,17 @@ The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
 retain the last 100 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
 permission/reconciliation, fresh backend reads, snapshot saves, and WidgetKit
-reload requests. Only fixed labels and optional numeric error codes are stored;
-no credentials, account identifiers, names, URLs, or raw server errors. An
-accepted hourly-preferred request does not guarantee an OS wake, nor does a
-WidgetKit reload request confirm a new watch-face rendering. A local snapshot
+reload requests. Entries store only fixed labels, optional numeric codes,
+allowlisted error sources, and failing stages (including active/resting
+HealthKit statistics versus backend read/write); previously saved entries with
+only a numeric code still display. A code of 3 is identified as invalid
+HealthKit argument **only** when its source domain is `HKErrorDomain`. The
+Events page offers **Share logs** via the watchOS system share sheet; it builds
+a temporary `.txt` export of these same typed entries on user request, with no
+automatic email/upload. Neither stored entries nor exports include credentials,
+account IDs, names, URLs, or raw localized/server errors. An accepted
+hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
+reload request confirm a new watch-face rendering. A local snapshot
 save failure also appears on the Energy page and skips the reload request. On launch it
 restores the local SDK session, shows the last fetched name/email from a
 watch-app-only, session-user-ID-checked cache (falling back to the SDK session

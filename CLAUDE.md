@@ -119,8 +119,13 @@ timestamped, watch-app-only diagnostic outcomes). Events distinguish background
 requests accepted by watchOS from actual wakes, Health reconciliation and fresh
 energy reads, local snapshot-save success/failure, and WidgetKit reload requests;
 a reload request does not confirm the complication displayed new values. Entries
-contain fixed labels and optional numeric error codes, never credentials, names,
-URLs, or raw server responses. Consumed/Burned use icons
+contain fixed labels and optional numeric error codes, error-source categories,
+and failing stages (HealthKit active/resting query vs backend read/write); legacy
+entries remain numeric-only. HealthKit code 3 is labeled invalid argument only
+when its error domain is HealthKit. The Events page has a **Share logs** link
+that creates a temporary plain-text file for the watchOS system share sheet on
+request; it never sends automatically. Neither events nor shared files include
+credentials, account IDs, names, URLs, or raw error/server descriptions. Consumed/Burned use icons
 without visible labels on the watch page; Net uses a balance-scale icon and the
 same prominent number style. VoiceOver labels still name all metrics. The
 Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
