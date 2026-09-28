@@ -153,8 +153,8 @@ class ReleaseVerifierTests(unittest.TestCase):
             verifier.verify_signatures((self.app, self.watch, self.widget), True)
 
     def test_archive_provisioning_opt_in_under_system_bash(self):
-        # Isolate the release script: fake Xcode, and force verification to fail
-        # before any export. No Apple account, device, or upload is touched.
+        # Both verification outcomes run against fake Xcode; successful export
+        # creates only a dummy IPA. No Apple account, device, or upload is touched.
         fixture = self.root / "isolated/NeoGym"
         scripts = fixture / "Scripts"
         scripts.mkdir(parents=True)
@@ -162,32 +162,57 @@ class ReleaseVerifierTests(unittest.TestCase):
         shutil.copy2(SCRIPT.with_name("LocalExportOptions.plist"),
                      scripts / "LocalExportOptions.plist")
         verifier_stub = scripts / "verify-release-archive.sh"
-        verifier_stub.write_text("#!/bin/sh\necho verifier-reached >&2\nexit 71\n")
+        verifier_stub.write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$NEOGYM_FIXTURE_VERIFY_LOG\"\n"
+            "exit \"$NEOGYM_FIXTURE_VERIFY_EXIT\"\n"
+        )
         verifier_stub.chmod(0o755)
         bin_dir = self.root / "stub-bin"
         bin_dir.mkdir()
         xcode_stub = bin_dir / "xcodebuild"
-        xcode_stub.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$NEOGYM_FIXTURE_LOG\"\n")
+        xcode_stub.write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$NEOGYM_FIXTURE_LOG\"\n"
+            "while [ \"$#\" -gt 0 ]; do\n"
+            "  if [ \"$1\" = -exportPath ]; then\n"
+            "    shift\n    mkdir -p \"$1\"\n    touch \"$1/NeoGym.ipa\"\n"
+            "  fi\n  shift\ndone\n"
+        )
         xcode_stub.chmod(0o755)
         log = self.root / "xcodebuild.log"
-        run_dir = self.root / "release-output"
-        run_dir.mkdir()
-        env = {"PATH": str(bin_dir) + ":/usr/bin:/bin", "NEOGYM_FIXTURE_LOG": str(log)}
-        for approved in (False, True):
-            with self.subTest(provisioning_approved=approved):
-                log.unlink(missing_ok=True)
-                case_env = dict(env)
-                if approved:
-                    case_env["NEOGYM_ALLOW_PROVISIONING_UPDATES"] = "YES"
-                result = subprocess.run(("/bin/bash", str(scripts / "archive-release.sh"),
-                                         str(run_dir)), env=case_env, capture_output=True,
-                                        text=True)
-                self.assertEqual(result.returncode, 71, result.stderr)
-                self.assertIn("verifier-reached", result.stderr)
-                arguments = log.read_text().splitlines()
-                self.assertEqual(len(arguments), 1)
-                self.assertIn(" archive", arguments[0])
-                self.assertEqual("-allowProvisioningUpdates" in arguments[0], approved)
+        verify_log = self.root / "verifier.log"
+        env = {"PATH": str(bin_dir) + ":/usr/bin:/bin", "NEOGYM_FIXTURE_LOG": str(log),
+               "NEOGYM_FIXTURE_VERIFY_LOG": str(verify_log)}
+        for verified in (False, True):
+            for approved in (False, True):
+                with self.subTest(archive_verified=verified, provisioning_approved=approved):
+                    log.unlink(missing_ok=True)
+                    verify_log.unlink(missing_ok=True)
+                    run_dir = self.root / f"release-output-{verified}-{approved}"
+                    run_dir.mkdir()
+                    case_env = dict(env, NEOGYM_FIXTURE_VERIFY_EXIT="0" if verified else "71")
+                    if approved:
+                        case_env["NEOGYM_ALLOW_PROVISIONING_UPDATES"] = "YES"
+                    result = subprocess.run(("/bin/bash", str(scripts / "archive-release.sh"),
+                                             str(run_dir)), env=case_env, capture_output=True,
+                                            text=True)
+                    self.assertEqual(result.returncode, 0 if verified else 71, result.stderr)
+                    arguments = log.read_text().splitlines()
+                    self.assertEqual(len(arguments), 2 if verified else 1)
+                    self.assertIn(" archive", arguments[0])
+                    if verified:
+                        self.assertIn("-exportArchive", arguments[1])
+                        self.assertIn("-exportOptionsPlist Scripts/LocalExportOptions.plist",
+                                      arguments[1])
+                    for call in arguments:
+                        self.assertEqual(call.split().count("-allowProvisioningUpdates"),
+                                         int(approved))
+                    archive_path = run_dir / "NeoGym.xcarchive"
+                    expected_verification = [f"--archive {archive_path}"]
+                    if verified:
+                        expected_verification.append(
+                            f"--archive {archive_path} --ipa {run_dir / 'local-export/NeoGym.ipa'}"
+                        )
+                    self.assertEqual(verify_log.read_text().splitlines(), expected_verification)
 
     def test_deploy_without_upload_flag_still_requires_verified_release(self):
         # Run a copy with a failing archive preflight and a fake Xcode binary.
@@ -215,6 +240,41 @@ class ReleaseVerifierTests(unittest.TestCase):
         self.assertEqual(result.returncode, 71, result.stderr)
         self.assertIn("preflight-reached", result.stderr)
         self.assertFalse(marker.exists(), "Upload must not start after preflight fails")
+
+    def test_deploy_upload_provisioning_opt_in_under_system_bash(self):
+        # Stub the verified non-upload path and Xcode; even the upload branch
+        # reaches only a local logger, never a real upload or provisioning call.
+        fixture = self.root / "deploy-opt-in-fixture/NeoGym"
+        scripts = fixture / "Scripts"
+        scripts.mkdir(parents=True)
+        shutil.copy2(SCRIPT.with_name("deploy-testflight.sh"), scripts / "deploy-testflight.sh")
+        shutil.copy2(SCRIPT.with_name("TestFlightExportOptions.plist"),
+                     scripts / "TestFlightExportOptions.plist")
+        preflight = scripts / "archive-release.sh"
+        preflight.write_text("#!/bin/sh\necho preflight-reached >&2\nexit 0\n")
+        bin_dir = self.root / "deploy-opt-in-stub-bin"
+        bin_dir.mkdir()
+        log = self.root / "upload-xcodebuild.log"
+        xcode_stub = bin_dir / "xcodebuild"
+        xcode_stub.write_text("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$NEOGYM_FIXTURE_LOG\"\n")
+        xcode_stub.chmod(0o755)
+        for approved in (False, True):
+            with self.subTest(provisioning_approved=approved):
+                log.unlink(missing_ok=True)
+                env = {"PATH": str(bin_dir) + ":/usr/bin:/bin", "NEOGYM_FIXTURE_LOG": str(log)}
+                if approved:
+                    env["NEOGYM_ALLOW_PROVISIONING_UPDATES"] = "YES"
+                result = subprocess.run(("/bin/bash", str(scripts / "deploy-testflight.sh")),
+                                        env=env, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("preflight-reached", result.stderr)
+                arguments = log.read_text().splitlines()
+                self.assertEqual(len(arguments), 1)
+                self.assertIn("-exportArchive", arguments[0])
+                self.assertIn("-exportOptionsPlist Scripts/TestFlightExportOptions.plist",
+                              arguments[0])
+                self.assertEqual(arguments[0].split().count("-allowProvisioningUpdates"),
+                                 int(approved))
 
     def test_profile_app_id_coverage_for_concrete_watch_signature(self):
         (self.watch / "embedded.mobileprovision").touch()
