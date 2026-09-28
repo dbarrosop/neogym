@@ -113,13 +113,18 @@ calorie text. Consumed/burned values share the same bold typography without
 visible “in/out”; preserve their full VoiceOver labels. This icon is specific
 to the complication; the watch app Energy page still uses its SF Symbol.
 
-`NhostClientFactory.makeProductionWatchClient()` selects production and the
-SDK's origin-scoped private, device-only default Keychain session with legacy
-unscoped migration ignored; no shared Keychain/App Group and no GraphQL cache.
-`WatchAccountModel.production()` explicitly injects that client into both auth
-and uncached Auth `GET /user`. The watch app caches only the most recently fetched
-name/email in its own UserDefaults, keyed by session user ID; the SDK's persisted
-session name is the fallback. Neither cache is available to the watch widget.
+`WatchEnergyRuntime.init` is the watch composition point: it creates one
+`NhostClientFactory.makeProductionWatchClient()` client for `NhostAuthService`
+(in `AuthStore`), the uncached Auth `GET /user` via `NhostCurrentUserService`,
+and `NhostGraphQLService` (used by `WatchEnergyService` and
+`DailyEnergyRepository` for private energy/nutrition reads and energy writes).
+That client selects production and the SDK's origin-scoped private, device-only
+Keychain session with legacy unscoped migration ignored; it has no shared
+Keychain/App Group session lock or GraphQL cache. The watch target does have an
+App Group entitlement for the token-free complication snapshot, not its session.
+The watch app caches only the most recently fetched name/email in its own
+UserDefaults, keyed by session user ID; the SDK's persisted session name is the
+fallback. Neither cache is available to the watch widget.
 Foreground startup restores the local Keychain session and checks any already
 received account hint without waiting for WCSession activation (not phone
 reachability) or the network name read. It renders a cached profile and today's
