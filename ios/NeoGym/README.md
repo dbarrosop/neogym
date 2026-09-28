@@ -132,7 +132,10 @@ taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
 best-effort, not a guaranteed hourly schedule. The rectangular watch complication
 shows intake, total burn, active/resting, and Net from the watch app's token-free,
-today-only App Group snapshot after a fresh backend fetch. Neither Keychain nor HealthKit is available to the watch
+today-only App Group snapshot after a fresh backend fetch. Only its cutlery,
+flame, and custom two-pan balance icons are colored green, red, and teal;
+consumed and burned use equal bold type with no visible “in/out” words.
+VoiceOver still identifies each metric. Neither Keychain nor HealthKit is available to the watch
 widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
 hardware rather than inferring behavior from simulator builds. The watch first restores the local session and shows the same-user cached

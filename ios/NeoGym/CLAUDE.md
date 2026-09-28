@@ -107,6 +107,11 @@ watch assets must remain included in `sources` (do not exclude
 Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 'generic/platform=watchOS Simulator' build` after generation.
 `Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
+The `WatchWidgets/WatchEnergyComplication.swift` rectangular view tints only
+its icons (green cutlery, red flame, teal hand-drawn two-pan balance), not the
+calorie text. Consumed/burned values share the same bold typography without
+visible “in/out”; preserve their full VoiceOver labels. This icon is specific
+to the complication; the watch app Energy page still uses its SF Symbol.
 
 `NhostClientFactory.makeProductionWatchClient()` selects production and the
 SDK's origin-scoped private, device-only default Keychain session with legacy

@@ -133,7 +133,9 @@ circular-arrow Refresh control sits before the last-synced time. A
 missing energy row leaves burned and Net unavailable; a missing component on an
 existing row shows `—` but contributes zero to total. The compact rectangular
 complication displays all values from a token-free snapshot; Net is computed,
-not persisted. The watch app, not its
+not persisted. Its cutlery, fire, and custom two-pan balance icons alone are
+green, red, and turquoise/teal; consumed and burned values use identical bold
+type without visible “in/out” words. VoiceOver still names each value. The watch app, not its
 rectangular WidgetKit complication, reads active/basal HealthKit energy and
 syncs the last seven local dates to private `daily_energy` after explicit read
 permission. It refreshes imported-note rows without replacing manual entries;

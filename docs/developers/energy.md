@@ -177,8 +177,11 @@ than treating burned as zero. A missing component on an existing energy row
 shows `—` in the breakdown but counts as zero toward total burned, matching
 the backend balance contract. The watch app uses icons instead of visible Consumed/Burned labels while
 retaining VoiceOver labels. Net uses the same prominent icon-and-value style
-with a balance-scale symbol in both the app and the complication. The Energy
-heading includes a smaller `(kcal)` unit, with no redundant Today subheading.
+with a balance-scale symbol in the app and a custom two-pan balance icon in
+the complication. Only the complication's icons are tinted: cutlery green,
+flame red, balance teal/turquoise. Its consumed and burned values have the
+same bold type and no visible “in/out” words; VoiceOver still names them.
+The Energy heading includes a smaller `(kcal)` unit, with no redundant Today subheading.
 An icon-only circular-arrow refresh control sits before the last-synced time;
 there is no separate Refresh text button. Its rectangular complication shows
 intake and total burn, active/resting, and icon-labeled Net in three compact

@@ -41,23 +41,39 @@ private struct WatchEnergyComplication: Widget {
             VStack(alignment: .leading, spacing: 2) {
                 if let snapshot = entry.snapshot {
                     HStack(spacing: 8) {
-                        Label("\(kcal(snapshot.consumedKcal)) in", systemImage: "fork.knife")
-                            .accessibilityLabel("Consumed \(kcal(snapshot.consumedKcal)) kilocalories")
-                        Label("\(kcal(snapshot.burnedKcal)) out", systemImage: "flame")
-                            .accessibilityLabel(snapshot.burnedKcal == nil
-                                ? "Burned calories unavailable" : "Burned \(kcal(snapshot.burnedKcal)) kilocalories")
+                        HStack(spacing: 3) {
+                            Image(systemName: "fork.knife").foregroundStyle(.green)
+                            Text(kcal(snapshot.consumedKcal))
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Consumed \(kcal(snapshot.consumedKcal)) kilocalories")
+                        Spacer(minLength: 0)
+                        HStack(spacing: 3) {
+                            Image(systemName: "flame").foregroundStyle(.red)
+                            Text(kcal(snapshot.burnedKcal))
+                        }
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(snapshot.burnedKcal == nil
+                            ? "Burned calories unavailable" : "Burned \(kcal(snapshot.burnedKcal)) kilocalories")
                     }
                     .font(.caption2.bold())
+                    .monospacedDigit()
                     Text("Active \(kcal(snapshot.activeKcal)) · Rest \(kcal(snapshot.restingKcal))")
                         .foregroundStyle(.secondary)
                         .accessibilityLabel(
                             "\(metricAccessibility("Active", snapshot.activeKcal)), "
                                 + metricAccessibility("Resting", snapshot.restingKcal)
                         )
-                    Label(signedKcal(snapshot.netKcal), systemImage: "scalemass")
-                        .font(.caption2.bold())
-                        .accessibilityLabel(snapshot.netKcal == nil
-                            ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories")
+                    HStack(spacing: 3) {
+                        BalanceScaleIcon()
+                            .stroke(.teal, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                            .frame(width: 16, height: 16)
+                        Text(signedKcal(snapshot.netKcal)).monospacedDigit()
+                    }
+                    .font(.caption2.bold())
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(snapshot.netKcal == nil
+                        ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories")
                 } else {
                     Text("Open NeoGym to sync").font(.caption2)
                 }
@@ -85,5 +101,37 @@ private struct WatchEnergyComplication: Widget {
     private func metricAccessibility(_ name: String, _ value: Double?) -> String {
         guard let value else { return "\(name) energy unavailable" }
         return "\(name) \(kcal(value)) kilocalories"
+    }
+}
+
+/// A compact two-pan balance, rather than SF Symbols' mass/weight icon.
+private struct BalanceScaleIcon: Shape {
+    func path(in rect: CGRect) -> Path {
+        let unit = min(rect.width, rect.height) / 24
+        func point(_ horizontal: CGFloat, _ vertical: CGFloat) -> CGPoint {
+            CGPoint(x: rect.midX + (horizontal - 12) * unit,
+                    y: rect.midY + (vertical - 12) * unit)
+        }
+
+        var path = Path()
+        path.move(to: point(3, 6))
+        path.addLine(to: point(21, 6)) // beam
+        path.move(to: point(12, 7))
+        path.addLine(to: point(12, 21)) // post
+        path.move(to: point(8, 21))
+        path.addLine(to: point(16, 21)) // base
+        path.addEllipse(in: CGRect(x: point(10, 3).x, y: point(10, 3).y,
+                                   width: 4 * unit, height: 4 * unit))
+
+        for (hook, left, right) in [(4.0, 2.0, 10.0), (20.0, 14.0, 22.0)] {
+            path.move(to: point(hook, 6))
+            path.addLine(to: point(left, 14))
+            path.move(to: point(hook, 6))
+            path.addLine(to: point(right, 14))
+            path.move(to: point(left, 14))
+            path.addLine(to: point(right, 14))
+            path.addQuadCurve(to: point(left, 14), control: point((left + right) / 2, 19))
+        }
+        return path
     }
 }
