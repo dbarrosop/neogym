@@ -53,6 +53,10 @@ When used in a session, entries are stored in `workout_session_strength_sets`: `
 
 Hasura exposes the sidecar as an `object_relationship` on `exercises` named `strength`, so the frontend reads as `exercise.strength?.doubleWeight`. For a cardio exercise the relationship resolves to `null`.
 
+## Muscle targets for Progress
+
+`exercises.primary_muscle_group` contributes one set per logged strength set, and each distinct `exercise_secondary_muscle_groups.muscle_group` contributes half a set (unless it duplicates the primary group). The catalog includes `front_delts`, `side_delts`, and `rear_delts` for explicitly reviewed public exercise associations; ambiguous movements and user-owned exercises may still use `shoulders` (display as “Shoulders (unspecified)”). Migration `1790000570000_muscle_set_progress` updates existing public rows by stable ID, and `1778235894691_exercise-catalog.sql` has the same targets for fresh databases. Do not classify ambiguous movements by name at query time. Catalog corrections intentionally reclassify past logged sessions.
+
 ## Cardio exercises
 
 A cardio exercise is one where `category = 'cardio'` (and therefore `kind = 'cardio'` by the generated-column rule). Cardio uses a **schema-driven** logging model: each cardio exercise carries a JSON Schema in the `exercises_cardio` sidecar table, and a database trigger validates each inserted entry's metrics against that schema.

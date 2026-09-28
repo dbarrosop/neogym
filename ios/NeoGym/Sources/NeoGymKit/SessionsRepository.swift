@@ -41,6 +41,9 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]
     func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]?
     func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error>
+    func muscleSetProgressUpdates(
+        fromDay: String, throughDay: String, timeZone: String
+    ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error>
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -72,6 +75,12 @@ public extension SessionsRepositoryProtocol {
     }
 
     func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]? { nil }
+
+    func muscleSetProgressUpdates(
+        fromDay: String, throughDay: String, timeZone: String
+    ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error> {
+        singleValueUpdates { throw GraphQLDomainError.missingData(operationName: "MuscleSetProgress") }
+    }
 
     func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
         singleValueUpdates { try await strengthProgressEntries(since: since) }
@@ -186,6 +195,24 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             namespace: "sessions",
             tags: ["sessions"],
             transform: \WorkoutStrengthProgressData.workoutSessionExercises
+        )
+    }
+
+    public func muscleSetProgressUpdates(
+        fromDay: String, throughDay: String, timeZone: String
+    ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error> {
+        graphQL.cachedValues(
+            MuscleSetProgressData.self,
+            query: Self.muscleSetProgressQuery,
+            variables: [
+                "from": GraphQLScalars.date(fromDay),
+                "through": GraphQLScalars.date(throughDay),
+                "timeZone": .string(timeZone)
+            ],
+            operationName: "MuscleSetProgress",
+            namespace: "sessions",
+            tags: ["sessions"],
+            transform: \.muscleSetProgress
         )
     }
 
@@ -326,6 +353,10 @@ private struct PriorSessionsData: Decodable, Sendable {
 
 private struct PriorWorkoutSessionsData: Decodable, Sendable {
     let workoutSessions: [SessionDetailModel]
+}
+
+private struct MuscleSetProgressData: Decodable, Sendable {
+    let muscleSetProgress: [MuscleSetProgressRow]
 }
 
 private struct WorkoutStrengthProgressData: Decodable, Sendable {
@@ -482,6 +513,15 @@ public extension SessionsRepository {
           workoutSessionStrengthSets { id setNumber reps weight }
           workoutSessionCardioEntries { id entryNumber metrics }
         }
+      }
+    }
+    """
+
+    static let muscleSetProgressQuery = """
+    query MuscleSetProgress($from: date!, $through: date!, $timeZone: String!) {
+      muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $timeZone}) {
+        day muscleGroup directSets indirectSets weightedSets
+        rollingDirectSets rollingIndirectSets rollingWeightedSets
       }
     }
     """

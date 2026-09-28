@@ -360,7 +360,7 @@ public enum ExerciseDateParser {
     }
 }
 
-private extension KeyedDecodingContainer {
+extension KeyedDecodingContainer {
     func decodeFlexibleDouble(forKey key: Key) throws -> Double {
         if let double = try? decode(Double.self, forKey: key) {
             return double

@@ -2,18 +2,19 @@ import NeoGymKit
 import SwiftUI
 
 struct WorkoutProgressView: View {
-    @StateObject private var viewModel: WorkoutProgressViewModel
+    @StateObject private var viewModel: MuscleSetProgressViewModel
+    @State private var selectedMuscle: String?
     let reloadToken: Int
 
     init(repository: any SessionsRepositoryProtocol, reloadToken: Int) {
-        _viewModel = StateObject(wrappedValue: WorkoutProgressViewModel(repository: repository))
+        _viewModel = StateObject(wrappedValue: MuscleSetProgressViewModel(repository: repository))
         self.reloadToken = reloadToken
     }
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                Text("Weekly total volume, plus session volume and estimated one-rep max for exercises logged in the last 10 days.")
+                Text("Logged strength sets by muscle. A primary muscle gets one set; a secondary muscle gets half a set. Totals cover the trailing seven local days.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
                 content
@@ -35,123 +36,97 @@ struct WorkoutProgressView: View {
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
-        case .idle:
-            SectionShell(title: "Progress") { AppLoadingStateView(title: "Loading progress") }
-        case .loading where viewModel.progress == nil:
-            SectionShell(title: "Progress") { AppLoadingStateView(title: "Loading progress") }
-        case let .failed(message, _) where viewModel.progress == nil:
-            SectionShell(title: "Progress") {
+        case .idle, .loading where viewModel.rows == nil:
+            SectionShell(title: "Muscle sets") { AppLoadingStateView(title: "Loading progress") }
+        case let .failed(message, _) where viewModel.rows == nil:
+            SectionShell(title: "Muscle sets") {
                 AppErrorStateView(title: "Failed to load progress", message: message) {
                     Task { await viewModel.load() }
                 }
             }
         default:
-            if let progress = viewModel.progress {
-                if viewModel.isShowingPriorWeekCache {
-                    FeedbackBanner(
-                        message: "Showing an earlier cached snapshot; newer sessions may be missing.", tone: .info
-                    )
-                }
-                SectionShell(title: "Weekly total volume", subtitle: "Strength · kg · all exercises") {
-                    TimeSeriesTrendChartView(
-                        series: [TimeSeriesChartSeries(
-                            id: "weekly-volume",
-                            name: "Volume (kg)",
-                            color: .accentColor,
-                            points: progress.weeklyVolume.map { week in
-                                TimeSeriesChartDataPoint(
-                                    id: week.weekStart.ISO8601Format(),
-                                    date: week.weekStart,
-                                    value: week.volume
-                                )
-                            },
-                            valueFormatter: { "\(Int($0.rounded()).formatted()) kg" }
-                        )],
-                        emptyMessage: "No strength sets in this period.",
-                        accessibilityLabel: "Weekly strength volume chart",
-                        initialPeriod: .last8Weeks,
-                        onVisibleRangeChange: { start, _ in
-                            Task { await viewModel.extendHistory(to: start) }
+            if let rows = viewModel.rows {
+                let latestDay = rows.map(\.day).max()
+                let latest = rows.filter { $0.day == latestDay }
+                    .sorted { left, right in
+                        if left.rollingWeightedSets != right.rollingWeightedSets {
+                            return left.rollingWeightedSets > right.rollingWeightedSets
                         }
-                    )
-                }
-                if progress.recentExercises.isEmpty {
-                    SectionShell(title: "Exercise progress") {
+                        return left.muscleName < right.muscleName
+                    }
+                if latest.isEmpty {
+                    SectionShell(title: "Muscle sets") {
                         AppEmptyStateView(
-                            title: "No recent strength exercises",
-                            message: "Log a strength set to see its volume and estimated 1RM progress here for the next 10 days.",
-                            systemImage: "chart.line.uptrend.xyaxis"
+                            title: "No strength sets",
+                            message: "Log a strength set to see sets by muscle here.",
+                            systemImage: "chart.bar"
                         )
                     }
                 } else {
-                    ForEach(progress.recentExercises) { exercise in
-                        GroupBox {
+                    SectionShell(title: "Sets by muscle", subtitle: "Trailing 7 days · direct + half of indirect") {
+                        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                            ForEach(latest) { row in
+                                Button {
+                                    selectedMuscle = row.muscleGroup
+                                } label: {
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(row.muscleName)
+                                            .font(.body.weight(row.muscleGroup == activeMuscle(in: latest) ? .semibold : .regular))
+                                        Spacer()
+                                        VStack(alignment: .trailing, spacing: 2) {
+                                            Text(String(format: "%.1f sets", row.rollingWeightedSets))
+                                                .font(.headline.monospacedDigit())
+                                            Text("\(row.rollingDirectSets) direct + \(row.rollingIndirectSets) indirect")
+                                                .font(.caption)
+                                                .foregroundStyle(NeoGymTheme.mutedText)
+                                        }
+                                    }
+                                    .frame(minHeight: 44)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Shows \(row.muscleName) set history")
+                            }
+                        }
+                    }
+                    if let muscle = activeMuscle(in: latest),
+                       let name = latest.first(where: { $0.muscleGroup == muscle })?.muscleName {
+                        SectionShell(title: "\(name) history", subtitle: "Trailing 7-day weighted sets · up to 1 year") {
                             TimeSeriesTrendChartView(
-                                series: exerciseSeries(for: exercise),
-                                emptyMessage: "No sets in this period.",
-                                accessibilityLabel: "\(exercise.name) volume and estimated one-rep max chart",
+                                series: [TimeSeriesChartSeries(
+                                    id: muscle,
+                                    name: "Weighted sets",
+                                    color: .accentColor,
+                                    points: rows.filter { $0.muscleGroup == muscle }
+                                        .sorted { $0.day < $1.day }.compactMap { row in
+                                        guard let date = row.date(in: .current) else { return nil }
+                                        return TimeSeriesChartDataPoint(
+                                            id: row.id, date: date, value: row.rollingWeightedSets
+                                        )
+                                    },
+                                    valueFormatter: { String(format: "%.1f sets", $0) }
+                                )],
+                                emptyMessage: "No logged sets in this period.",
+                                accessibilityLabel: "\(name) weighted set history",
                                 initialPeriod: .last8Weeks,
                                 onVisibleRangeChange: { start, _ in
                                     Task { await viewModel.extendHistory(to: start) }
                                 }
                             )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } label: {
-                            NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
-                                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                                    HStack(spacing: NeoGymTheme.spacingXS) {
-                                        Text(exercise.name)
-                                            .font(.title2.bold())
-                                            .tracking(-0.4)
-                                        Spacer(minLength: NeoGymTheme.spacingSM)
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(NeoGymTheme.mutedText)
-                                    }
-                                    Text("Session volume & estimated 1RM · kg")
-                                        .font(.subheadline)
-                                        .foregroundStyle(NeoGymTheme.mutedText)
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Opens exercise details")
                         }
-                        .groupBoxStyle(.automatic)
                     }
                 }
                 if case let .failed(message, _) = viewModel.state {
-                    FeedbackBanner(message: "Could not load selected period: \(message)")
+                    FeedbackBanner(message: "Could not refresh progress: \(message)")
                 }
             }
         }
     }
 
-    private func exerciseSeries(for exercise: WorkoutExerciseTrend) -> [TimeSeriesChartSeries] {
-        let points = exercise.points.enumerated().map { index, point in
-            (id: "\(exercise.id)-\(index)", point: point)
+    private func activeMuscle(in rows: [MuscleSetProgressRow]) -> String? {
+        if let selectedMuscle, rows.contains(where: { $0.muscleGroup == selectedMuscle }) {
+            return selectedMuscle
         }
-        return [
-            TimeSeriesChartSeries(
-                id: "\(exercise.id)-volume",
-                name: "Volume (kg)",
-                color: .accentColor,
-                points: points.map { item in
-                    TimeSeriesChartDataPoint(id: item.id, date: item.point.date, value: item.point.volume)
-                },
-                valueFormatter: { "\(Int($0.rounded()).formatted()) kg" }
-            ),
-            TimeSeriesChartSeries(
-                id: "\(exercise.id)-one-rep-max",
-                name: "Est. 1RM (kg)",
-                color: .orange,
-                axis: .right,
-                points: points.map { item in
-                    TimeSeriesChartDataPoint(id: item.id, date: item.point.date, value: item.point.oneRepMax)
-                },
-                valueFormatter: { String(format: "%.1f kg", $0) }
-            )
-        ]
+        return rows.first?.muscleGroup
     }
 }

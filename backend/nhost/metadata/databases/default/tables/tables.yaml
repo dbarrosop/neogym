@@ -31,6 +31,7 @@
 - "!include public_meal_ingredients.yaml"
 - "!include public_meals.yaml"
 - "!include public_muscle_groups.yaml"
+- "!include public_muscle_set_progress_rows.yaml"
 - "!include public_nutrition_days.yaml"
 - "!include public_nutrition_log_entries.yaml"
 - "!include public_nutrition_log_meals.yaml"

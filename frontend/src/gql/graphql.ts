@@ -14,6 +14,7 @@ export type Scalars = {
   Boolean: { input: boolean; output: boolean; }
   Int: { input: number; output: number; }
   Float: { input: number; output: number; }
+  bigint: { input: any; output: any; }
   date: { input: any; output: any; }
   jsonb: { input: any; output: any; }
   numeric: { input: any; output: any; }
@@ -96,6 +97,19 @@ export type String_Comparison_Exp = {
   _regex?: InputMaybe<Scalars['String']['input']>;
   /** does the column match the given SQL regular expression */
   _similar?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Boolean expression to compare columns of type "bigint". All fields are combined with logical 'AND'. */
+export type Bigint_Comparison_Exp = {
+  _eq?: InputMaybe<Scalars['bigint']['input']>;
+  _gt?: InputMaybe<Scalars['bigint']['input']>;
+  _gte?: InputMaybe<Scalars['bigint']['input']>;
+  _in?: InputMaybe<Array<Scalars['bigint']['input']>>;
+  _is_null?: InputMaybe<Scalars['Boolean']['input']>;
+  _lt?: InputMaybe<Scalars['bigint']['input']>;
+  _lte?: InputMaybe<Scalars['bigint']['input']>;
+  _neq?: InputMaybe<Scalars['bigint']['input']>;
+  _nin?: InputMaybe<Array<Scalars['bigint']['input']>>;
 };
 
 /** columns and relationships of "body_measurements" */
@@ -2903,12 +2917,23 @@ export type Foods_Variance_Fields = {
 /** columns and relationships of "health_workouts" */
 export type HealthWorkout = {
   __typename?: 'healthWorkout';
+  activeKcal?: Maybe<Scalars['numeric']['output']>;
+  activityType?: Maybe<Scalars['bigint']['output']>;
   createdAt: Scalars['timestamptz']['output'];
+  distanceMeters?: Maybe<Scalars['numeric']['output']>;
+  durationSeconds?: Maybe<Scalars['numeric']['output']>;
+  endedAt?: Maybe<Scalars['timestamptz']['output']>;
   healthkitUuid: Scalars['uuid']['output'];
   id: Scalars['uuid']['output'];
   raw: Scalars['jsonb']['output'];
+  sourceName?: Maybe<Scalars['String']['output']>;
+  startedAt?: Maybe<Scalars['timestamptz']['output']>;
+  suppressMatchSuggestions: Scalars['Boolean']['output'];
   updatedAt: Scalars['timestamptz']['output'];
   userId: Scalars['uuid']['output'];
+  /** An object relationship */
+  workoutSession?: Maybe<WorkoutSessions>;
+  workoutSessionId?: Maybe<Scalars['uuid']['output']>;
 };
 
 
@@ -2917,9 +2942,39 @@ export type HealthWorkoutRawArgs = {
   path?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** order by aggregate values of table "health_workouts" */
+export type HealthWorkout_Aggregate_Order_By = {
+  avg?: InputMaybe<HealthWorkout_Avg_Order_By>;
+  count?: InputMaybe<Order_By>;
+  max?: InputMaybe<HealthWorkout_Max_Order_By>;
+  min?: InputMaybe<HealthWorkout_Min_Order_By>;
+  stddev?: InputMaybe<HealthWorkout_Stddev_Order_By>;
+  stddev_pop?: InputMaybe<HealthWorkout_Stddev_Pop_Order_By>;
+  stddev_samp?: InputMaybe<HealthWorkout_Stddev_Samp_Order_By>;
+  sum?: InputMaybe<HealthWorkout_Sum_Order_By>;
+  var_pop?: InputMaybe<HealthWorkout_Var_Pop_Order_By>;
+  var_samp?: InputMaybe<HealthWorkout_Var_Samp_Order_By>;
+  variance?: InputMaybe<HealthWorkout_Variance_Order_By>;
+};
+
 /** append existing jsonb value of filtered columns with new jsonb value */
 export type HealthWorkout_Append_Input = {
   raw?: InputMaybe<Scalars['jsonb']['input']>;
+};
+
+/** input type for inserting array relation for remote table "health_workouts" */
+export type HealthWorkout_Arr_Rel_Insert_Input = {
+  data: Array<HealthWorkout_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<HealthWorkout_On_Conflict>;
+};
+
+/** order by avg() on columns of table "health_workouts" */
+export type HealthWorkout_Avg_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
 };
 
 /** Boolean expression to filter rows from the table "health_workouts". All fields are combined with a logical 'AND'. */
@@ -2927,12 +2982,22 @@ export type HealthWorkout_Bool_Exp = {
   _and?: InputMaybe<Array<HealthWorkout_Bool_Exp>>;
   _not?: InputMaybe<HealthWorkout_Bool_Exp>;
   _or?: InputMaybe<Array<HealthWorkout_Bool_Exp>>;
+  activeKcal?: InputMaybe<Numeric_Comparison_Exp>;
+  activityType?: InputMaybe<Bigint_Comparison_Exp>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  distanceMeters?: InputMaybe<Numeric_Comparison_Exp>;
+  durationSeconds?: InputMaybe<Numeric_Comparison_Exp>;
+  endedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   healthkitUuid?: InputMaybe<Uuid_Comparison_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   raw?: InputMaybe<Jsonb_Comparison_Exp>;
+  sourceName?: InputMaybe<String_Comparison_Exp>;
+  startedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  suppressMatchSuggestions?: InputMaybe<Boolean_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   userId?: InputMaybe<Uuid_Comparison_Exp>;
+  workoutSession?: InputMaybe<WorkoutSessions_Bool_Exp>;
+  workoutSessionId?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
 /** unique or primary key constraints on table "health_workouts" */
@@ -2962,6 +3027,45 @@ export type HealthWorkout_Delete_Key_Input = {
 export type HealthWorkout_Insert_Input = {
   healthkitUuid?: InputMaybe<Scalars['uuid']['input']>;
   raw?: InputMaybe<Scalars['jsonb']['input']>;
+  workoutSession?: InputMaybe<WorkoutSessions_Obj_Rel_Insert_Input>;
+};
+
+/** order by max() on columns of table "health_workouts" */
+export type HealthWorkout_Max_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  createdAt?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+  endedAt?: InputMaybe<Order_By>;
+  healthkitUuid?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  raw?: InputMaybe<Order_By>;
+  sourceName?: InputMaybe<Order_By>;
+  startedAt?: InputMaybe<Order_By>;
+  suppressMatchSuggestions?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+  workoutSessionId?: InputMaybe<Order_By>;
+};
+
+/** order by min() on columns of table "health_workouts" */
+export type HealthWorkout_Min_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  createdAt?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+  endedAt?: InputMaybe<Order_By>;
+  healthkitUuid?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  raw?: InputMaybe<Order_By>;
+  sourceName?: InputMaybe<Order_By>;
+  startedAt?: InputMaybe<Order_By>;
+  suppressMatchSuggestions?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+  workoutSessionId?: InputMaybe<Order_By>;
 };
 
 /** response of any mutation on the table "health_workouts" */
@@ -2982,12 +3086,22 @@ export type HealthWorkout_On_Conflict = {
 
 /** Ordering options when selecting data from "health_workouts". */
 export type HealthWorkout_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
   createdAt?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+  endedAt?: InputMaybe<Order_By>;
   healthkitUuid?: InputMaybe<Order_By>;
   id?: InputMaybe<Order_By>;
   raw?: InputMaybe<Order_By>;
+  sourceName?: InputMaybe<Order_By>;
+  startedAt?: InputMaybe<Order_By>;
+  suppressMatchSuggestions?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   userId?: InputMaybe<Order_By>;
+  workoutSession?: InputMaybe<WorkoutSessions_Order_By>;
+  workoutSessionId?: InputMaybe<Order_By>;
 };
 
 /** primary key columns input for table: health_workouts */
@@ -3003,7 +3117,17 @@ export type HealthWorkout_Prepend_Input = {
 /** select columns of table "health_workouts" */
 export enum HealthWorkout_Select_Column {
   /** column name */
+  ActiveKcal = 'activeKcal',
+  /** column name */
+  ActivityType = 'activityType',
+  /** column name */
   CreatedAt = 'createdAt',
+  /** column name */
+  DistanceMeters = 'distanceMeters',
+  /** column name */
+  DurationSeconds = 'durationSeconds',
+  /** column name */
+  EndedAt = 'endedAt',
   /** column name */
   HealthkitUuid = 'healthkitUuid',
   /** column name */
@@ -3011,14 +3135,48 @@ export enum HealthWorkout_Select_Column {
   /** column name */
   Raw = 'raw',
   /** column name */
+  SourceName = 'sourceName',
+  /** column name */
+  StartedAt = 'startedAt',
+  /** column name */
+  SuppressMatchSuggestions = 'suppressMatchSuggestions',
+  /** column name */
   UpdatedAt = 'updatedAt',
   /** column name */
-  UserId = 'userId'
+  UserId = 'userId',
+  /** column name */
+  WorkoutSessionId = 'workoutSessionId'
 }
 
 /** input type for updating data in table "health_workouts" */
 export type HealthWorkout_Set_Input = {
   raw?: InputMaybe<Scalars['jsonb']['input']>;
+  suppressMatchSuggestions?: InputMaybe<Scalars['Boolean']['input']>;
+  workoutSessionId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** order by stddev() on columns of table "health_workouts" */
+export type HealthWorkout_Stddev_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+};
+
+/** order by stddev_pop() on columns of table "health_workouts" */
+export type HealthWorkout_Stddev_Pop_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+};
+
+/** order by stddev_samp() on columns of table "health_workouts" */
+export type HealthWorkout_Stddev_Samp_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
 };
 
 /** Streaming cursor of the table "healthWorkout" */
@@ -3031,18 +3189,39 @@ export type HealthWorkout_Stream_Cursor_Input = {
 
 /** Initial value of the column from where the streaming should start */
 export type HealthWorkout_Stream_Cursor_Value_Input = {
+  activeKcal?: InputMaybe<Scalars['numeric']['input']>;
+  activityType?: InputMaybe<Scalars['bigint']['input']>;
   createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  distanceMeters?: InputMaybe<Scalars['numeric']['input']>;
+  durationSeconds?: InputMaybe<Scalars['numeric']['input']>;
+  endedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   healthkitUuid?: InputMaybe<Scalars['uuid']['input']>;
   id?: InputMaybe<Scalars['uuid']['input']>;
   raw?: InputMaybe<Scalars['jsonb']['input']>;
+  sourceName?: InputMaybe<Scalars['String']['input']>;
+  startedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  suppressMatchSuggestions?: InputMaybe<Scalars['Boolean']['input']>;
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   userId?: InputMaybe<Scalars['uuid']['input']>;
+  workoutSessionId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** order by sum() on columns of table "health_workouts" */
+export type HealthWorkout_Sum_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
 };
 
 /** update columns of table "health_workouts" */
 export enum HealthWorkout_Update_Column {
   /** column name */
-  Raw = 'raw'
+  Raw = 'raw',
+  /** column name */
+  SuppressMatchSuggestions = 'suppressMatchSuggestions',
+  /** column name */
+  WorkoutSessionId = 'workoutSessionId'
 }
 
 export type HealthWorkout_Updates = {
@@ -3060,6 +3239,30 @@ export type HealthWorkout_Updates = {
   _set?: InputMaybe<HealthWorkout_Set_Input>;
   /** filter the rows which have to be updated */
   where: HealthWorkout_Bool_Exp;
+};
+
+/** order by var_pop() on columns of table "health_workouts" */
+export type HealthWorkout_Var_Pop_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+};
+
+/** order by var_samp() on columns of table "health_workouts" */
+export type HealthWorkout_Var_Samp_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
+};
+
+/** order by variance() on columns of table "health_workouts" */
+export type HealthWorkout_Variance_Order_By = {
+  activeKcal?: InputMaybe<Order_By>;
+  activityType?: InputMaybe<Order_By>;
+  distanceMeters?: InputMaybe<Order_By>;
+  durationSeconds?: InputMaybe<Order_By>;
 };
 
 /** columns and relationships of "journal_entries" */
@@ -4582,6 +4785,7 @@ export enum MuscleGroups_Enum {
   Calves = 'calves',
   Chest = 'chest',
   Forearms = 'forearms',
+  FrontDelts = 'front_delts',
   Glutes = 'glutes',
   Hamstrings = 'hamstrings',
   Lats = 'lats',
@@ -4589,7 +4793,9 @@ export enum MuscleGroups_Enum {
   MiddleBack = 'middle_back',
   Neck = 'neck',
   Quadriceps = 'quadriceps',
+  RearDelts = 'rear_delts',
   Shoulders = 'shoulders',
+  SideDelts = 'side_delts',
   Traps = 'traps',
   Triceps = 'triceps'
 }
@@ -4645,6 +4851,92 @@ export type MuscleGroups_Stream_Cursor_Input = {
 export type MuscleGroups_Stream_Cursor_Value_Input = {
   comment?: InputMaybe<Scalars['String']['input']>;
   value?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** columns and relationships of "muscle_set_progress_rows" */
+export type MuscleSetProgressRows = {
+  __typename?: 'muscleSetProgressRows';
+  day: Scalars['date']['output'];
+  directSets: Scalars['Int']['output'];
+  indirectSets: Scalars['Int']['output'];
+  muscleGroup: Scalars['String']['output'];
+  rollingDirectSets: Scalars['Int']['output'];
+  rollingIndirectSets: Scalars['Int']['output'];
+  rollingWeightedSets: Scalars['numeric']['output'];
+  weightedSets: Scalars['numeric']['output'];
+};
+
+/** Boolean expression to filter rows from the table "muscle_set_progress_rows". All fields are combined with a logical 'AND'. */
+export type MuscleSetProgressRows_Bool_Exp = {
+  _and?: InputMaybe<Array<MuscleSetProgressRows_Bool_Exp>>;
+  _not?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+  _or?: InputMaybe<Array<MuscleSetProgressRows_Bool_Exp>>;
+  day?: InputMaybe<Date_Comparison_Exp>;
+  directSets?: InputMaybe<Int_Comparison_Exp>;
+  indirectSets?: InputMaybe<Int_Comparison_Exp>;
+  muscleGroup?: InputMaybe<String_Comparison_Exp>;
+  rollingDirectSets?: InputMaybe<Int_Comparison_Exp>;
+  rollingIndirectSets?: InputMaybe<Int_Comparison_Exp>;
+  rollingWeightedSets?: InputMaybe<Numeric_Comparison_Exp>;
+  weightedSets?: InputMaybe<Numeric_Comparison_Exp>;
+};
+
+/** Ordering options when selecting data from "muscle_set_progress_rows". */
+export type MuscleSetProgressRows_Order_By = {
+  day?: InputMaybe<Order_By>;
+  directSets?: InputMaybe<Order_By>;
+  indirectSets?: InputMaybe<Order_By>;
+  muscleGroup?: InputMaybe<Order_By>;
+  rollingDirectSets?: InputMaybe<Order_By>;
+  rollingIndirectSets?: InputMaybe<Order_By>;
+  rollingWeightedSets?: InputMaybe<Order_By>;
+  weightedSets?: InputMaybe<Order_By>;
+};
+
+/** select columns of table "muscle_set_progress_rows" */
+export enum MuscleSetProgressRows_Select_Column {
+  /** column name */
+  Day = 'day',
+  /** column name */
+  DirectSets = 'directSets',
+  /** column name */
+  IndirectSets = 'indirectSets',
+  /** column name */
+  MuscleGroup = 'muscleGroup',
+  /** column name */
+  RollingDirectSets = 'rollingDirectSets',
+  /** column name */
+  RollingIndirectSets = 'rollingIndirectSets',
+  /** column name */
+  RollingWeightedSets = 'rollingWeightedSets',
+  /** column name */
+  WeightedSets = 'weightedSets'
+}
+
+/** Streaming cursor of the table "muscleSetProgressRows" */
+export type MuscleSetProgressRows_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: MuscleSetProgressRows_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type MuscleSetProgressRows_Stream_Cursor_Value_Input = {
+  day?: InputMaybe<Scalars['date']['input']>;
+  directSets?: InputMaybe<Scalars['Int']['input']>;
+  indirectSets?: InputMaybe<Scalars['Int']['input']>;
+  muscleGroup?: InputMaybe<Scalars['String']['input']>;
+  rollingDirectSets?: InputMaybe<Scalars['Int']['input']>;
+  rollingIndirectSets?: InputMaybe<Scalars['Int']['input']>;
+  rollingWeightedSets?: InputMaybe<Scalars['numeric']['input']>;
+  weightedSets?: InputMaybe<Scalars['numeric']['input']>;
+};
+
+export type MuscleSetProgress_Args = {
+  from_day: Scalars['date']['input'];
+  through_day: Scalars['date']['input'];
+  time_zone: Scalars['String']['input'];
 };
 
 /** mutation root */
@@ -8771,6 +9063,10 @@ export type Query_Root = {
   muscleGroups: Array<MuscleGroups>;
   /** fetch aggregated fields from the table: "muscle_groups" */
   muscleGroupsAggregate: MuscleGroups_Aggregate;
+  /** execute function "muscle_set_progress" which returns "muscleSetProgressRows" */
+  muscleSetProgress: Array<MuscleSetProgressRows>;
+  /** fetch data from the table: "muscle_set_progress_rows" */
+  muscleSetProgressRows: Array<MuscleSetProgressRows>;
   /** fetch data from the table: "nutrition_days" using primary key columns */
   nutritionDay?: Maybe<NutritionDays>;
   /** fetch data from the table: "nutrition_days" */
@@ -8815,6 +9111,8 @@ export type Query_Root = {
   workoutExercises: Array<WorkoutExercises>;
   /** fetch aggregated fields from the table: "workout_exercises" */
   workoutExercisesAggregate: WorkoutExercises_Aggregate;
+  /** fetch data from the table: "workout_history_items" */
+  workoutHistoryItems: Array<WorkoutHistoryItem>;
   /** fetch data from the table: "workout_labels" using primary key columns */
   workoutLabel?: Maybe<WorkoutLabels>;
   /** fetch data from the table: "workout_labels" */
@@ -9319,6 +9617,25 @@ export type Query_RootMuscleGroupsAggregateArgs = {
 };
 
 
+export type Query_RootMuscleSetProgressArgs = {
+  args: MuscleSetProgress_Args;
+  distinct_on?: InputMaybe<Array<MuscleSetProgressRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MuscleSetProgressRows_Order_By>>;
+  where?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+};
+
+
+export type Query_RootMuscleSetProgressRowsArgs = {
+  distinct_on?: InputMaybe<Array<MuscleSetProgressRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MuscleSetProgressRows_Order_By>>;
+  where?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+};
+
+
 export type Query_RootNutritionDayArgs = {
   id: Scalars['uuid']['input'];
 };
@@ -9482,6 +9799,15 @@ export type Query_RootWorkoutExercisesAggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<WorkoutExercises_Order_By>>;
   where?: InputMaybe<WorkoutExercises_Bool_Exp>;
+};
+
+
+export type Query_RootWorkoutHistoryItemsArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutHistoryItem_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<WorkoutHistoryItem_Order_By>>;
+  where?: InputMaybe<WorkoutHistoryItem_Bool_Exp>;
 };
 
 
@@ -9784,6 +10110,12 @@ export type Subscription_Root = {
   muscleGroupsAggregate: MuscleGroups_Aggregate;
   /** fetch data from the table in a streaming manner: "muscle_groups" */
   muscleGroups_stream: Array<MuscleGroups>;
+  /** execute function "muscle_set_progress" which returns "muscleSetProgressRows" */
+  muscleSetProgress: Array<MuscleSetProgressRows>;
+  /** fetch data from the table: "muscle_set_progress_rows" */
+  muscleSetProgressRows: Array<MuscleSetProgressRows>;
+  /** fetch data from the table in a streaming manner: "muscle_set_progress_rows" */
+  muscleSetProgressRows_stream: Array<MuscleSetProgressRows>;
   /** fetch data from the table: "nutrition_days" using primary key columns */
   nutritionDay?: Maybe<NutritionDays>;
   /** fetch data from the table: "nutrition_days" */
@@ -9842,6 +10174,10 @@ export type Subscription_Root = {
   workoutExercisesAggregate: WorkoutExercises_Aggregate;
   /** fetch data from the table in a streaming manner: "workout_exercises" */
   workoutExercises_stream: Array<WorkoutExercises>;
+  /** fetch data from the table in a streaming manner: "workout_history_items" */
+  workoutHistoryItem_stream: Array<WorkoutHistoryItem>;
+  /** fetch data from the table: "workout_history_items" */
+  workoutHistoryItems: Array<WorkoutHistoryItem>;
   /** fetch data from the table: "workout_labels" using primary key columns */
   workoutLabel?: Maybe<WorkoutLabels>;
   /** fetch data from the table: "workout_labels" */
@@ -10505,6 +10841,32 @@ export type Subscription_RootMuscleGroups_StreamArgs = {
 };
 
 
+export type Subscription_RootMuscleSetProgressArgs = {
+  args: MuscleSetProgress_Args;
+  distinct_on?: InputMaybe<Array<MuscleSetProgressRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MuscleSetProgressRows_Order_By>>;
+  where?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+};
+
+
+export type Subscription_RootMuscleSetProgressRowsArgs = {
+  distinct_on?: InputMaybe<Array<MuscleSetProgressRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<MuscleSetProgressRows_Order_By>>;
+  where?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+};
+
+
+export type Subscription_RootMuscleSetProgressRows_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<MuscleSetProgressRows_Stream_Cursor_Input>>;
+  where?: InputMaybe<MuscleSetProgressRows_Bool_Exp>;
+};
+
+
 export type Subscription_RootNutritionDayArgs = {
   id: Scalars['uuid']['input'];
 };
@@ -10717,6 +11079,22 @@ export type Subscription_RootWorkoutExercises_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<WorkoutExercises_Stream_Cursor_Input>>;
   where?: InputMaybe<WorkoutExercises_Bool_Exp>;
+};
+
+
+export type Subscription_RootWorkoutHistoryItem_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<WorkoutHistoryItem_Stream_Cursor_Input>>;
+  where?: InputMaybe<WorkoutHistoryItem_Bool_Exp>;
+};
+
+
+export type Subscription_RootWorkoutHistoryItemsArgs = {
+  distinct_on?: InputMaybe<Array<WorkoutHistoryItem_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<WorkoutHistoryItem_Order_By>>;
+  where?: InputMaybe<WorkoutHistoryItem_Bool_Exp>;
 };
 
 
@@ -11282,6 +11660,82 @@ export type WorkoutExercises_Variance_Fields = {
 /** order by variance() on columns of table "workout_exercises" */
 export type WorkoutExercises_Variance_Order_By = {
   position?: InputMaybe<Order_By>;
+};
+
+/** columns and relationships of "workout_history_items" */
+export type WorkoutHistoryItem = {
+  __typename?: 'workoutHistoryItem';
+  /** An object relationship */
+  healthWorkout?: Maybe<HealthWorkout>;
+  healthWorkoutId?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  itemType?: Maybe<Scalars['String']['output']>;
+  occurredAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+  /** An object relationship */
+  workoutSession?: Maybe<WorkoutSessions>;
+  workoutSessionId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "workout_history_items". All fields are combined with a logical 'AND'. */
+export type WorkoutHistoryItem_Bool_Exp = {
+  _and?: InputMaybe<Array<WorkoutHistoryItem_Bool_Exp>>;
+  _not?: InputMaybe<WorkoutHistoryItem_Bool_Exp>;
+  _or?: InputMaybe<Array<WorkoutHistoryItem_Bool_Exp>>;
+  healthWorkout?: InputMaybe<HealthWorkout_Bool_Exp>;
+  healthWorkoutId?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  itemType?: InputMaybe<String_Comparison_Exp>;
+  occurredAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+  workoutSession?: InputMaybe<WorkoutSessions_Bool_Exp>;
+  workoutSessionId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** Ordering options when selecting data from "workout_history_items". */
+export type WorkoutHistoryItem_Order_By = {
+  healthWorkout?: InputMaybe<HealthWorkout_Order_By>;
+  healthWorkoutId?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  itemType?: InputMaybe<Order_By>;
+  occurredAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+  workoutSession?: InputMaybe<WorkoutSessions_Order_By>;
+  workoutSessionId?: InputMaybe<Order_By>;
+};
+
+/** select columns of table "workout_history_items" */
+export enum WorkoutHistoryItem_Select_Column {
+  /** column name */
+  HealthWorkoutId = 'healthWorkoutId',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  ItemType = 'itemType',
+  /** column name */
+  OccurredAt = 'occurredAt',
+  /** column name */
+  UserId = 'userId',
+  /** column name */
+  WorkoutSessionId = 'workoutSessionId'
+}
+
+/** Streaming cursor of the table "workoutHistoryItem" */
+export type WorkoutHistoryItem_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: WorkoutHistoryItem_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type WorkoutHistoryItem_Stream_Cursor_Value_Input = {
+  healthWorkoutId?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  itemType?: InputMaybe<Scalars['String']['input']>;
+  occurredAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+  workoutSessionId?: InputMaybe<Scalars['uuid']['input']>;
 };
 
 /** columns and relationships of "workout_labels" */
@@ -12638,6 +13092,8 @@ export type WorkoutSessionStrengthSets_Variance_Order_By = {
 export type WorkoutSessions = {
   __typename?: 'workoutSessions';
   createdAt: Scalars['timestamptz']['output'];
+  /** An array relationship */
+  healthWorkouts: Array<HealthWorkout>;
   id: Scalars['uuid']['output'];
   startedAt: Scalars['timestamptz']['output'];
   updatedAt: Scalars['timestamptz']['output'];
@@ -12650,6 +13106,16 @@ export type WorkoutSessions = {
   workoutSessionExercises: Array<WorkoutSessionExercises>;
   /** An aggregate relationship */
   workoutSessionExercises_aggregate: WorkoutSessionExercises_Aggregate;
+};
+
+
+/** columns and relationships of "workout_sessions" */
+export type WorkoutSessionsHealthWorkoutsArgs = {
+  distinct_on?: InputMaybe<Array<HealthWorkout_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<HealthWorkout_Order_By>>;
+  where?: InputMaybe<HealthWorkout_Bool_Exp>;
 };
 
 
@@ -12725,6 +13191,7 @@ export type WorkoutSessions_Bool_Exp = {
   _not?: InputMaybe<WorkoutSessions_Bool_Exp>;
   _or?: InputMaybe<Array<WorkoutSessions_Bool_Exp>>;
   createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  healthWorkouts?: InputMaybe<HealthWorkout_Bool_Exp>;
   id?: InputMaybe<Uuid_Comparison_Exp>;
   startedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
@@ -12738,12 +13205,15 @@ export type WorkoutSessions_Bool_Exp = {
 
 /** unique or primary key constraints on table "workout_sessions" */
 export enum WorkoutSessions_Constraint {
+  /** unique or primary key constraint on columns "id", "user_id" */
+  WorkoutSessionsIdUserIdKey = 'workout_sessions_id_user_id_key',
   /** unique or primary key constraint on columns "id" */
   WorkoutSessionsPkey = 'workout_sessions_pkey'
 }
 
 /** input type for inserting data into table "workout_sessions" */
 export type WorkoutSessions_Insert_Input = {
+  healthWorkouts?: InputMaybe<HealthWorkout_Arr_Rel_Insert_Input>;
   startedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   workout?: InputMaybe<Workouts_Obj_Rel_Insert_Input>;
   /** NULL = ad-hoc session (no parent workout template, e.g. quick cardio logging). Non-NULL = session was started from a workout, but this is a template link, not a contract: the session's exercises don't have to match the workout's, and workout_id can be changed or cleared after creation. Workout deletion detaches sessions to ad-hoc (ON DELETE SET NULL, migration 1790000460000). */
@@ -12823,6 +13293,7 @@ export type WorkoutSessions_On_Conflict = {
 /** Ordering options when selecting data from "workout_sessions". */
 export type WorkoutSessions_Order_By = {
   createdAt?: InputMaybe<Order_By>;
+  healthWorkouts_aggregate?: InputMaybe<HealthWorkout_Aggregate_Order_By>;
   id?: InputMaybe<Order_By>;
   startedAt?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;

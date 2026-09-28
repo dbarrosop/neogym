@@ -1,0 +1,8 @@
+function:
+  name: muscle_set_progress
+  schema: public
+configuration:
+  custom_name: muscleSetProgress
+  session_argument: hasura_session
+permissions:
+  - role: user

@@ -60,6 +60,10 @@ The table itself has no `user_id` column — ownership is determined by walking 
 
 Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_strength_sets`, `workout_session_cardio_entries`, `workout_labels`, `journal_entry_labels`, `exercises_strength`, `exercises_cardio`, `meal_ingredients`, `nutrition_plan_meals`, `nutrition_log_meals`, `nutrition_log_entries`.
 
+## Progress function (private read-only aggregate)
+
+`muscleSetProgress(from_day, through_day, time_zone)` is a tracked `STABLE` Hasura query. Hasura injects the `hasura_session` JSON argument, and SQL restricts `workout_sessions.user_id` to `x-hasura-user-id`; no user ID argument is accepted from the client. Its tracked return-shape table `muscle_set_progress_rows` has `CHECK (false)` and no user insert/update/delete permissions. The `user` role may read only rows filtered by `user_id = X-Hasura-User-Id` and cannot select the `user_id` output column. The function has an explicit `user` function permission. The two guards (SQL scope and result permission) keep the aggregate private even though exercise-muscle catalog associations are globally readable. See `backend/tests/muscle-set-progress.test.ts` for cross-user proof.
+
 ## Public, user-readable catalog data
 
 These tables expose canonical lists used as foreign keys / enums. Everything in them is admin-managed; the user role only reads them.

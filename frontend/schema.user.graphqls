@@ -3,6 +3,7 @@ schema {
   mutation: mutation_root
   subscription: subscription_root
 }
+scalar bigint
 scalar date
 scalar jsonb
 scalar numeric
@@ -1120,6 +1121,17 @@ type healthWorkout {
   ): jsonb!
   createdAt: timestamptz!
   updatedAt: timestamptz!
+  startedAt: timestamptz
+  endedAt: timestamptz
+  activityType: bigint
+  durationSeconds: numeric
+  distanceMeters: numeric
+  activeKcal: numeric
+  sourceName: String
+  workoutSessionId: uuid
+  suppressMatchSuggestions: Boolean!
+  "An object relationship"
+  workoutSession: workoutSessions
 }
 """
 response of any mutation on the table "health_workouts"
@@ -1737,6 +1749,19 @@ type muscleGroups_max_fields {
 type muscleGroups_min_fields {
   value: String
   comment: String
+}
+"""
+columns and relationships of "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows {
+  day: date!
+  muscleGroup: String!
+  directSets: Int!
+  indirectSets: Int!
+  weightedSets: numeric!
+  rollingDirectSets: Int!
+  rollingIndirectSets: Int!
+  rollingWeightedSets: numeric!
 }
 "mutation root"
 type mutation_root {
@@ -4621,6 +4646,21 @@ type query_root {
     where: muscleGroups_bool_exp
   ): muscleGroups_aggregate!
   """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    "distinct select on columns"
+    distinct_on: [muscleSetProgressRows_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [muscleSetProgressRows_order_by!],
+    "filter the rows returned"
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
   fetch data from the table: "nutrition_days"
   """
   nutritionDays(
@@ -4859,6 +4899,21 @@ type query_root {
     where: workoutExercises_bool_exp
   ): workoutExercises_aggregate!
   """
+  fetch data from the table: "workout_history_items"
+  """
+  workoutHistoryItems(
+    "distinct select on columns"
+    distinct_on: [workoutHistoryItem_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutHistoryItem_order_by!],
+    "filter the rows returned"
+    where: workoutHistoryItem_bool_exp
+  ): [workoutHistoryItem!]!
+  """
   fetch data from the table: "workout_labels"
   """
   workoutLabels(
@@ -5081,6 +5136,25 @@ type query_root {
   fetch data from the table: "storage.files" using primary key columns
   """
   file(id: uuid!): files
+  """
+  execute function "muscle_set_progress" which returns "muscleSetProgressRows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!,
+    "distinct select on columns"
+    distinct_on: [muscleSetProgressRows_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [muscleSetProgressRows_order_by!],
+    "filter the rows returned"
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
 }
 type subscription_root {
   """
@@ -5969,6 +6043,32 @@ type subscription_root {
     where: muscleGroups_bool_exp
   ): [muscleGroups!]!
   """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    "distinct select on columns"
+    distinct_on: [muscleSetProgressRows_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [muscleSetProgressRows_order_by!],
+    "filter the rows returned"
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch data from the table in a streaming manner: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [muscleSetProgressRows_stream_cursor_input]!,
+    "filter the rows returned"
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
   fetch data from the table: "nutrition_days"
   """
   nutritionDays(
@@ -6284,6 +6384,32 @@ type subscription_root {
     where: workoutExercises_bool_exp
   ): [workoutExercises!]!
   """
+  fetch data from the table: "workout_history_items"
+  """
+  workoutHistoryItems(
+    "distinct select on columns"
+    distinct_on: [workoutHistoryItem_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [workoutHistoryItem_order_by!],
+    "filter the rows returned"
+    where: workoutHistoryItem_bool_exp
+  ): [workoutHistoryItem!]!
+  """
+  fetch data from the table in a streaming manner: "workout_history_items"
+  """
+  workoutHistoryItem_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!,
+    "cursor to stream the results returned by the query"
+    cursor: [workoutHistoryItem_stream_cursor_input]!,
+    "filter the rows returned"
+    where: workoutHistoryItem_bool_exp
+  ): [workoutHistoryItem!]!
+  """
   fetch data from the table: "workout_labels"
   """
   workoutLabels(
@@ -6583,6 +6709,25 @@ type subscription_root {
     "filter the rows returned"
     where: files_bool_exp
   ): [files!]!
+  """
+  execute function "muscle_set_progress" which returns "muscleSetProgressRows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!,
+    "distinct select on columns"
+    distinct_on: [muscleSetProgressRows_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [muscleSetProgressRows_order_by!],
+    "filter the rows returned"
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
 }
 """
 columns and relationships of "workout_exercises"
@@ -6686,6 +6831,21 @@ type workoutExercises_var_samp_fields {
 "aggregate variance on columns"
 type workoutExercises_variance_fields {
   position: Float
+}
+"""
+columns and relationships of "workout_history_items"
+"""
+type workoutHistoryItem {
+  itemType: String
+  id: uuid
+  userId: uuid
+  occurredAt: timestamptz
+  workoutSessionId: uuid
+  healthWorkoutId: uuid
+  "An object relationship"
+  healthWorkout: healthWorkout
+  "An object relationship"
+  workoutSession: workoutSessions
 }
 """
 columns and relationships of "workout_labels"
@@ -7116,6 +7276,19 @@ type workoutSessions {
   updatedAt: timestamptz!
   "An object relationship"
   workout: workouts
+  "An array relationship"
+  healthWorkouts(
+    "distinct select on columns"
+    distinct_on: [healthWorkout_select_column!],
+    "limit the number of rows returned"
+    limit: Int,
+    "skip the first n rows. Use only with order_by"
+    offset: Int,
+    "sort the rows by one or more columns"
+    order_by: [healthWorkout_order_by!],
+    "filter the rows returned"
+    where: healthWorkout_bool_exp
+  ): [healthWorkout!]!
   "An array relationship"
   workoutSessionExercises(
     "distinct select on columns"
@@ -7813,6 +7986,24 @@ enum healthWorkout_select_column {
   createdAt
   "column name"
   updatedAt
+  "column name"
+  startedAt
+  "column name"
+  endedAt
+  "column name"
+  activityType
+  "column name"
+  durationSeconds
+  "column name"
+  distanceMeters
+  "column name"
+  activeKcal
+  "column name"
+  sourceName
+  "column name"
+  workoutSessionId
+  "column name"
+  suppressMatchSuggestions
 }
 """
 update columns of table "health_workouts"
@@ -7820,6 +8011,10 @@ update columns of table "health_workouts"
 enum healthWorkout_update_column {
   "column name"
   raw
+  "column name"
+  workoutSessionId
+  "column name"
+  suppressMatchSuggestions
 }
 """
 unique or primary key constraints on table "journal_entries"
@@ -8043,6 +8238,7 @@ enum muscleGroups_enum {
   calves
   chest
   forearms
+  front_delts
   glutes
   hamstrings
   lats
@@ -8050,7 +8246,9 @@ enum muscleGroups_enum {
   middle_back
   neck
   quadriceps
+  rear_delts
   shoulders
+  side_delts
   traps
   triceps
 }
@@ -8062,6 +8260,27 @@ enum muscleGroups_select_column {
   value
   "column name"
   comment
+}
+"""
+select columns of table "muscle_set_progress_rows"
+"""
+enum muscleSetProgressRows_select_column {
+  "column name"
+  day
+  "column name"
+  muscleGroup
+  "column name"
+  directSets
+  "column name"
+  indirectSets
+  "column name"
+  weightedSets
+  "column name"
+  rollingDirectSets
+  "column name"
+  rollingIndirectSets
+  "column name"
+  rollingWeightedSets
 }
 """
 unique or primary key constraints on table "nutrition_days"
@@ -8404,6 +8623,23 @@ enum workoutExercises_update_column {
   position
 }
 """
+select columns of table "workout_history_items"
+"""
+enum workoutHistoryItem_select_column {
+  "column name"
+  itemType
+  "column name"
+  id
+  "column name"
+  userId
+  "column name"
+  occurredAt
+  "column name"
+  workoutSessionId
+  "column name"
+  healthWorkoutId
+}
+"""
 unique or primary key constraints on table "workout_labels"
 """
 enum workoutLabels_constraint {
@@ -8563,6 +8799,10 @@ enum workoutSessions_constraint {
   unique or primary key constraint on columns "id"
   """
   workout_sessions_pkey
+  """
+  unique or primary key constraint on columns "id", "user_id"
+  """
+  workout_sessions_id_user_id_key
 }
 """
 select columns of table "workout_sessions"
@@ -8710,6 +8950,20 @@ input String_comparison_exp {
   _regex: String
   "does the column match the given SQL regular expression"
   _similar: String
+}
+"""
+Boolean expression to compare columns of type "bigint". All fields are combined with logical 'AND'.
+"""
+input bigint_comparison_exp {
+  _eq: bigint
+  _gt: bigint
+  _gte: bigint
+  _in: [bigint!]
+  _is_null: Boolean
+  _lt: bigint
+  _lte: bigint
+  _neq: bigint
+  _nin: [bigint!]
 }
 """
 Boolean expression to filter rows from the table "body_measurements". All fields are combined with a logical 'AND'.
@@ -9924,9 +10178,42 @@ input foods_updates {
   "filter the rows which have to be updated"
   where: foods_bool_exp!
 }
+"""
+order by aggregate values of table "health_workouts"
+"""
+input healthWorkout_aggregate_order_by {
+  count: order_by
+  max: healthWorkout_max_order_by
+  min: healthWorkout_min_order_by
+  avg: healthWorkout_avg_order_by
+  stddev: healthWorkout_stddev_order_by
+  stddev_pop: healthWorkout_stddev_pop_order_by
+  stddev_samp: healthWorkout_stddev_samp_order_by
+  sum: healthWorkout_sum_order_by
+  var_pop: healthWorkout_var_pop_order_by
+  var_samp: healthWorkout_var_samp_order_by
+  variance: healthWorkout_variance_order_by
+}
 "append existing jsonb value of filtered columns with new jsonb value"
 input healthWorkout_append_input {
   raw: jsonb
+}
+"""
+input type for inserting array relation for remote table "health_workouts"
+"""
+input healthWorkout_arr_rel_insert_input {
+  data: [healthWorkout_insert_input!]!
+  "upsert condition"
+  on_conflict: healthWorkout_on_conflict
+}
+"""
+order by avg() on columns of table "health_workouts"
+"""
+input healthWorkout_avg_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
 }
 """
 Boolean expression to filter rows from the table "health_workouts". All fields are combined with a logical 'AND'.
@@ -9941,6 +10228,16 @@ input healthWorkout_bool_exp {
   raw: jsonb_comparison_exp
   createdAt: timestamptz_comparison_exp
   updatedAt: timestamptz_comparison_exp
+  startedAt: timestamptz_comparison_exp
+  endedAt: timestamptz_comparison_exp
+  activityType: bigint_comparison_exp
+  durationSeconds: numeric_comparison_exp
+  distanceMeters: numeric_comparison_exp
+  activeKcal: numeric_comparison_exp
+  sourceName: String_comparison_exp
+  workoutSessionId: uuid_comparison_exp
+  suppressMatchSuggestions: Boolean_comparison_exp
+  workoutSession: workoutSessions_bool_exp
 }
 "delete the field or element with specified path (for JSON arrays, negative integers count from the end)"
 input healthWorkout_delete_at_path_input {
@@ -9960,6 +10257,47 @@ input type for inserting data into table "health_workouts"
 input healthWorkout_insert_input {
   healthkitUuid: uuid
   raw: jsonb
+  workoutSession: workoutSessions_obj_rel_insert_input
+}
+"""
+order by max() on columns of table "health_workouts"
+"""
+input healthWorkout_max_order_by {
+  id: order_by
+  userId: order_by
+  healthkitUuid: order_by
+  raw: order_by
+  createdAt: order_by
+  updatedAt: order_by
+  startedAt: order_by
+  endedAt: order_by
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+  sourceName: order_by
+  workoutSessionId: order_by
+  suppressMatchSuggestions: order_by
+}
+"""
+order by min() on columns of table "health_workouts"
+"""
+input healthWorkout_min_order_by {
+  id: order_by
+  userId: order_by
+  healthkitUuid: order_by
+  raw: order_by
+  createdAt: order_by
+  updatedAt: order_by
+  startedAt: order_by
+  endedAt: order_by
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+  sourceName: order_by
+  workoutSessionId: order_by
+  suppressMatchSuggestions: order_by
 }
 """
 on_conflict condition type for table "health_workouts"
@@ -9979,6 +10317,16 @@ input healthWorkout_order_by {
   raw: order_by
   createdAt: order_by
   updatedAt: order_by
+  startedAt: order_by
+  endedAt: order_by
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+  sourceName: order_by
+  workoutSessionId: order_by
+  suppressMatchSuggestions: order_by
+  workoutSession: workoutSessions_order_by
 }
 "primary key columns input for table: health_workouts"
 input healthWorkout_pk_columns_input {
@@ -9993,6 +10341,35 @@ input type for updating data in table "health_workouts"
 """
 input healthWorkout_set_input {
   raw: jsonb
+  workoutSessionId: uuid
+  suppressMatchSuggestions: Boolean
+}
+"""
+order by stddev() on columns of table "health_workouts"
+"""
+input healthWorkout_stddev_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+}
+"""
+order by stddev_pop() on columns of table "health_workouts"
+"""
+input healthWorkout_stddev_pop_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+}
+"""
+order by stddev_samp() on columns of table "health_workouts"
+"""
+input healthWorkout_stddev_samp_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
 }
 """
 Streaming cursor of the table "healthWorkout"
@@ -10011,6 +10388,24 @@ input healthWorkout_stream_cursor_value_input {
   raw: jsonb
   createdAt: timestamptz
   updatedAt: timestamptz
+  startedAt: timestamptz
+  endedAt: timestamptz
+  activityType: bigint
+  durationSeconds: numeric
+  distanceMeters: numeric
+  activeKcal: numeric
+  sourceName: String
+  workoutSessionId: uuid
+  suppressMatchSuggestions: Boolean
+}
+"""
+order by sum() on columns of table "health_workouts"
+"""
+input healthWorkout_sum_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
 }
 input healthWorkout_updates {
   "append existing jsonb value of filtered columns with new jsonb value"
@@ -10027,6 +10422,33 @@ input healthWorkout_updates {
   _set: healthWorkout_set_input
   "filter the rows which have to be updated"
   where: healthWorkout_bool_exp!
+}
+"""
+order by var_pop() on columns of table "health_workouts"
+"""
+input healthWorkout_var_pop_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+}
+"""
+order by var_samp() on columns of table "health_workouts"
+"""
+input healthWorkout_var_samp_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
+}
+"""
+order by variance() on columns of table "health_workouts"
+"""
+input healthWorkout_variance_order_by {
+  activityType: order_by
+  durationSeconds: order_by
+  distanceMeters: order_by
+  activeKcal: order_by
 }
 """
 Boolean expression to filter rows from the table "journal_entries". All fields are combined with a logical 'AND'.
@@ -10760,6 +11182,60 @@ input muscleGroups_stream_cursor_input {
 input muscleGroups_stream_cursor_value_input {
   value: String
   comment: String
+}
+"""
+Boolean expression to filter rows from the table "muscle_set_progress_rows". All fields are combined with a logical 'AND'.
+"""
+input muscleSetProgressRows_bool_exp {
+  _and: [muscleSetProgressRows_bool_exp!]
+  _not: muscleSetProgressRows_bool_exp
+  _or: [muscleSetProgressRows_bool_exp!]
+  day: date_comparison_exp
+  muscleGroup: String_comparison_exp
+  directSets: Int_comparison_exp
+  indirectSets: Int_comparison_exp
+  weightedSets: numeric_comparison_exp
+  rollingDirectSets: Int_comparison_exp
+  rollingIndirectSets: Int_comparison_exp
+  rollingWeightedSets: numeric_comparison_exp
+}
+"""
+Ordering options when selecting data from "muscle_set_progress_rows".
+"""
+input muscleSetProgressRows_order_by {
+  day: order_by
+  muscleGroup: order_by
+  directSets: order_by
+  indirectSets: order_by
+  weightedSets: order_by
+  rollingDirectSets: order_by
+  rollingIndirectSets: order_by
+  rollingWeightedSets: order_by
+}
+"""
+Streaming cursor of the table "muscleSetProgressRows"
+"""
+input muscleSetProgressRows_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: muscleSetProgressRows_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input muscleSetProgressRows_stream_cursor_value_input {
+  day: date
+  muscleGroup: String
+  directSets: Int
+  indirectSets: Int
+  weightedSets: numeric
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+}
+input muscleSetProgress_args {
+  from_day: date!
+  through_day: date!
+  time_zone: String!
 }
 """
 Boolean expression to compare columns of type "numeric". All fields are combined with logical 'AND'.
@@ -12309,6 +12785,53 @@ order by variance() on columns of table "workout_exercises"
 input workoutExercises_variance_order_by {
   position: order_by
 }
+"""
+Boolean expression to filter rows from the table "workout_history_items". All fields are combined with a logical 'AND'.
+"""
+input workoutHistoryItem_bool_exp {
+  _and: [workoutHistoryItem_bool_exp!]
+  _not: workoutHistoryItem_bool_exp
+  _or: [workoutHistoryItem_bool_exp!]
+  itemType: String_comparison_exp
+  id: uuid_comparison_exp
+  userId: uuid_comparison_exp
+  occurredAt: timestamptz_comparison_exp
+  workoutSessionId: uuid_comparison_exp
+  healthWorkoutId: uuid_comparison_exp
+  healthWorkout: healthWorkout_bool_exp
+  workoutSession: workoutSessions_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_history_items".
+"""
+input workoutHistoryItem_order_by {
+  itemType: order_by
+  id: order_by
+  userId: order_by
+  occurredAt: order_by
+  workoutSessionId: order_by
+  healthWorkoutId: order_by
+  healthWorkout: healthWorkout_order_by
+  workoutSession: workoutSessions_order_by
+}
+"""
+Streaming cursor of the table "workoutHistoryItem"
+"""
+input workoutHistoryItem_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: workoutHistoryItem_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+"Initial value of the column from where the streaming should start"
+input workoutHistoryItem_stream_cursor_value_input {
+  itemType: String
+  id: uuid
+  userId: uuid
+  occurredAt: timestamptz
+  workoutSessionId: uuid
+  healthWorkoutId: uuid
+}
 input workoutLabels_aggregate_bool_exp {
   count: workoutLabels_aggregate_bool_exp_count
 }
@@ -13110,6 +13633,7 @@ input workoutSessions_bool_exp {
   createdAt: timestamptz_comparison_exp
   updatedAt: timestamptz_comparison_exp
   workout: workouts_bool_exp
+  healthWorkouts: healthWorkout_bool_exp
   workoutSessionExercises: workoutSessionExercises_bool_exp
   workoutSessionExercises_aggregate: workoutSessionExercises_aggregate_bool_exp
 }
@@ -13121,6 +13645,7 @@ input workoutSessions_insert_input {
   workoutId: uuid
   startedAt: timestamptz
   workout: workouts_obj_rel_insert_input
+  healthWorkouts: healthWorkout_arr_rel_insert_input
   workoutSessionExercises: workoutSessionExercises_arr_rel_insert_input
 }
 """
@@ -13175,6 +13700,7 @@ input workoutSessions_order_by {
   createdAt: order_by
   updatedAt: order_by
   workout: workouts_order_by
+  healthWorkouts_aggregate: healthWorkout_aggregate_order_by
   workoutSessionExercises_aggregate: workoutSessionExercises_aggregate_order_by
 }
 "primary key columns input for table: workout_sessions"
