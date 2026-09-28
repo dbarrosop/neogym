@@ -28,15 +28,17 @@ class ReleaseVerifierTests(unittest.TestCase):
         self.app = self.archive / "Products/Applications/NeoGym.app"
         self.watch = self.app / "Watch/NeoGymWatch.app"
         self.widget = self.app / "PlugIns/NeoGymWidgets.appex"
+        self.watch_widget = self.watch / "PlugIns/NeoGymWatchWidgets.appex"
         for bundle, identifier, os_name, family, executable in (
             (self.app, verifier.PHONE, "iphoneos", [1], "NeoGym"),
             (self.watch, verifier.WATCH, "watchos", [4], "NeoGymWatch"),
             (self.widget, verifier.WIDGET, "iphoneos", [1], "NeoGymWidgets"),
+            (self.watch_widget, verifier.WATCH_WIDGET, "watchos", [4], "NeoGymWatchWidgets"),
         ):
             bundle.mkdir(parents=True)
             info = {
                 "CFBundleIdentifier": identifier,
-                "CFBundlePackageType": "XPC!" if bundle == self.widget else "APPL",
+                "CFBundlePackageType": "XPC!" if bundle in (self.widget, self.watch_widget) else "APPL",
                 "DTPlatformName": os_name,
                 "MinimumOSVersion": "27.0",
                 "UIDeviceFamily": family,
@@ -49,7 +51,7 @@ class ReleaseVerifierTests(unittest.TestCase):
                             WKRunsIndependentlyOfCompanionApp=False,
                             CFBundleIcons={"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}})
                 (bundle / "Assets.car").touch()
-            if bundle == self.widget:
+            if bundle in (self.widget, self.watch_widget):
                 info["NSExtension"] = {"NSExtensionPointIdentifier": "com.apple.widgetkit-extension"}
             self.set_info(bundle, info)
             (bundle / executable).touch()
@@ -64,7 +66,7 @@ class ReleaseVerifierTests(unittest.TestCase):
         with patch.object(verifier, "command", return_value=b"no forbidden frameworks"):
             bundles, _ = verifier.verify_structure(self.archive / "Products/Applications",
                                                     self.app, ("iphoneos", "watchos"))
-        self.assertEqual(bundles, (self.app, self.watch, self.widget))
+        self.assertEqual(bundles, (self.app, self.watch, self.widget, self.watch_widget))
         proc = subprocess.run((str(SCRIPT.with_suffix(".sh")), "--archive", str(self.archive)),
                               capture_output=True, text=True)
         self.assertNotEqual(proc.returncode, 0)
@@ -93,16 +95,21 @@ class ReleaseVerifierTests(unittest.TestCase):
         with self.assertRaises(verifier.InvalidArtifact):
             verifier.bundles(self.archive / "Products/Applications", self.app)
         (self.app / "Watch/Extra.app").rmdir()
-        with patch.object(verifier, "command", return_value=b"/System/Library/Frameworks/HealthKit.framework/HealthKit"), self.assertRaisesRegex(
+        missing_widget = self.root / "missing-widget"
+        self.watch_widget.rename(missing_widget)
+        with self.assertRaisesRegex(verifier.InvalidArtifact, "Expected exactly one .appex"):
+            verifier.bundles(self.archive / "Products/Applications", self.app)
+        missing_widget.rename(self.watch_widget)
+        with patch.object(verifier, "command", return_value=b"/System/Library/Frameworks/ActivityKit.framework/ActivityKit"), self.assertRaisesRegex(
             verifier.InvalidArtifact, "forbidden framework"
         ):
             verifier.verify_structure(self.archive / "Products/Applications", self.app,
                                       ("iphoneos", "watchos"))
 
     def test_rejects_forbidden_link_in_watch_debug_dylib(self):
-        for bundle in (self.app, self.watch, self.widget):
+        for bundle in (self.app, self.watch, self.widget, self.watch_widget):
             info = self.info(bundle)
-            info["DTPlatformName"] = "watchsimulator" if bundle == self.watch else "iphonesimulator"
+            info["DTPlatformName"] = "watchsimulator" if bundle in (self.watch, self.watch_widget) else "iphonesimulator"
             self.set_info(bundle, info)
         debug_binary = self.watch / "NeoGymWatch.debug.dylib"
         debug_binary.touch()
@@ -111,7 +118,7 @@ class ReleaseVerifierTests(unittest.TestCase):
         def fake_otool(*args):
             inspected.append(args[-1])
             if args[-1] == str(debug_binary):
-                return b"/System/Library/Frameworks/WidgetKit.framework/WidgetKit"
+                return b"/System/Library/Frameworks/ActivityKit.framework/ActivityKit"
             return b"/usr/lib/libSystem.B.dylib"
 
         with patch.object(verifier, "command", side_effect=fake_otool), self.assertRaisesRegex(
@@ -134,23 +141,36 @@ class ReleaseVerifierTests(unittest.TestCase):
                 "com.apple.security.application-groups": [verifier.SHARED_GROUP]}
         phone: dict[str, object] = dict(base, **{"com.apple.developer.healthkit": True})
         widget = dict(base)
-        watch = {"keychain-access-groups": [prefix + "." + verifier.WATCH]}
-        with patch.object(verifier, "signed_entitlements",
-                          side_effect=[(phone, prefix), (watch, prefix), (widget, prefix)]):
-            verifier.verify_signatures((self.app, self.watch, self.widget), True)
+        watch = {"keychain-access-groups": [prefix + "." + verifier.WATCH],
+                 "com.apple.security.application-groups": [verifier.SHARED_GROUP],
+                 "com.apple.developer.healthkit": True,
+                 "com.apple.developer.healthkit.background-delivery": True}
+        watch_widget: dict[str, object] = {"com.apple.security.application-groups": [verifier.SHARED_GROUP]}
+        def entitlements():
+            return [(phone, prefix), (watch, prefix), (widget, prefix), (watch_widget, prefix)]
+        bundles = (self.app, self.watch, self.widget, self.watch_widget)
+        with patch.object(verifier, "signed_entitlements", side_effect=entitlements()):
+            verifier.verify_signatures(bundles, True)
         watch["keychain-access-groups"] = base["keychain-access-groups"]
         with patch.object(verifier, "signed_entitlements",
-                          side_effect=[(phone, prefix), (watch, prefix), (widget, prefix)]), self.assertRaisesRegex(
+                          side_effect=entitlements()), self.assertRaisesRegex(
             verifier.InvalidArtifact, "Watch has"
         ):
-            verifier.verify_signatures((self.app, self.watch, self.widget), True)
+            verifier.verify_signatures(bundles, True)
         watch["keychain-access-groups"] = [prefix + "." + verifier.WATCH]
+        watch_widget["com.apple.developer.healthkit"] = True
+        with patch.object(verifier, "signed_entitlements",
+                          side_effect=entitlements()), self.assertRaisesRegex(
+            verifier.InvalidArtifact, "Watch widget has"
+        ):
+            verifier.verify_signatures(bundles, True)
+        del watch_widget["com.apple.developer.healthkit"]
         phone["com.apple.security.application-groups"] = []
         with patch.object(verifier, "signed_entitlements",
-                          side_effect=[(phone, prefix), (watch, prefix), (widget, prefix)]), self.assertRaisesRegex(
+                          side_effect=entitlements()), self.assertRaisesRegex(
             verifier.InvalidArtifact, "phone App Group"
         ):
-            verifier.verify_signatures((self.app, self.watch, self.widget), True)
+            verifier.verify_signatures(bundles, True)
 
     def test_archive_provisioning_opt_in_under_system_bash(self):
         # Both verification outcomes run against fake Xcode; successful export

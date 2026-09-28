@@ -67,7 +67,7 @@ private actor WatchTransport: HTTPTransport {
             return NhostRawResponse(status: 401, body: Data(#"{"status":401,"message":"Unauthorized"}"#.utf8))
         }
         return NhostRawResponse(status: 200, body: Data("""
-        {"id":"watch-user","displayName":"\(displayName)","avatarUrl":"",
+        {"id":"watch-user","displayName":"\(displayName)","email":"watch@example.test","avatarUrl":"",
         "createdAt":"2024-01-01T00:00:00Z", "defaultRole":"user", "emailVerified":true,
         "isAnonymous":false, "locale":"en", "metadata":{},
         "phoneNumberVerified":false, "roles":["user"]}
@@ -100,6 +100,7 @@ final class WatchAccountTests: XCTestCase {
         let originalToken = try XCTUnwrap(model.authStore.state.session?.accessToken)
         model.localContextReady(nil)
         await waitFor(model, .name("Server Name"))
+        XCTAssertEqual(model.currentUser?.email, "watch@example.test")
         let requests = await transport.requests
         XCTAssertEqual(requests.map(\.url.path), ["/v1/user"]) // Unexpired session does not consume its refresh token.
         XCTAssertEqual(requests.last?.headers.first { $0.key.lowercased() == "authorization" }?.value,
@@ -109,6 +110,7 @@ final class WatchAccountTests: XCTestCase {
         XCTAssertEqual(model.state, .name("Server Name")) // A hint is not a refresh trigger.
         model.refresh()
         XCTAssertEqual(model.state, .loading) // Never retains stale name on refresh.
+        XCTAssertNil(model.currentUser) // Email is also removed during revalidation.
         await waitFor(model, .name("Renamed on server"))
         model.receiveContext(["version": "2", "state": "signedOut"])
         XCTAssertEqual(model.state, .name("Renamed on server"))

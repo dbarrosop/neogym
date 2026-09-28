@@ -18,7 +18,8 @@ ios/NeoGym/
 │   ├── Info.plist              # URL scheme, HealthKit usage, launch screen
 │   ├── LaunchScreen.storyboard # required so iOS uses modern full-screen sizing
 │   └── Assets.xcassets/
-├── Watch/                      # companion SwiftUI, private connectivity, icon/plist
+├── Watch/                      # companion SwiftUI, HealthKit energy sync, private connectivity
+├── WatchWidgets/               # watch-face Energy complication, token-free snapshot only
 ├── Sources/NeoGymKit/          # host-testable auth/session and hint policy
 └── Tests/NeoGymKitTests/
 ```
@@ -95,12 +96,24 @@ Keep that catalog in the watch target's `sources` in `project.yml` (XcodeGen
 ignores target-level `resources:`); the built watch bundle must contain
 `Assets.car` and `CFBundleIcons/CFBundlePrimaryIcon/CFBundleIconName = AppIcon`. Regenerate with `nix develop ../.. --command xcodegen generate`, build the
 `NeoGym` iOS Simulator and `NeoGymWatch` watchOS Simulator schemes, and inspect
-`NeoGym.app/Watch/NeoGymWatch.app` and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
+`NeoGym.app/Watch/NeoGymWatch.app` (including `PlugIns/NeoGymWatchWidgets.appex`)
+and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs into an **existing** account with email OTP and displays only a
-fresh, managed Auth `GET /user` display name (blank names become “Athlete”). It
+The watch signs into an **existing** account with email OTP. Signed-in users
+swipe between Energy (today's consumed and burned kcal) and Profile (fresh
+Auth `GET /user` name/email and watch-only sign-out; blank names become
+“Athlete”). The watch app syncs active and resting HealthKit statistics for
+the last seven local dates to private backend daily energy only after the user
+taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
+preferred hourly background task and HealthKit observer delivery are
+best-effort, not a guaranteed hourly schedule. The rectangular watch complication
+reads only the watch app's token-free, today-only App Group snapshot after a
+fresh backend fetch. Neither Keychain nor HealthKit is available to the watch
+widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
+background delivery on the watch app ID; test refreshes and permission on paired
+hardware rather than inferring behavior from simulator builds. The watch
 reads the latest delivered account-only WatchConnectivity context after local
 activation and on foreground. A known signed-out or different iPhone account
 blocks the name and triggers remote sign-out plus mandatory local clearing. An
@@ -121,11 +134,12 @@ acceptance is established merely by a simulator build.
 
 ### Release verification and guarded TestFlight upload
 
-Provisioning the new watch App ID (`io.nhost.dbarroso.neogym.watchkitapp`)
+Provisioning the watch and watch widget App IDs (`io.nhost.dbarroso.neogym.watchkitapp`
+and `io.nhost.dbarroso.neogym.watchkitapp.widgets`)
 under team `C7HCKFA2LG` can change Apple account state: obtain operator
-acknowledgment first. Confirm Xcode Accounts has that team, distribution
-certificate, and phone/widget/watch profiles. Each run that permits Xcode to
-register/update profiles needs **separate** `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`;
+acknowledgment first. Confirm Xcode Accounts has that team, a distribution
+certificate, and phone/phone-widget/watch/watch-widget profiles. Each run that
+permits Xcode to register/update profiles needs **separate** `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`;
 without it the scripts do not pass `-allowProvisioningUpdates` and may fail
 if suitable profiles are unavailable. This is not upload approval.
 
@@ -144,7 +158,8 @@ If current profiles do not work, obtain separate approval before prefixing
 upload target merely to validate a release. `archive-release` uses
 `LocalExportOptions.plist` with `destination=export`; it retains its output
 under ignored `.build/testflight/`. The verifier checks exactly one phone app
-with embedded watch app and widget, identities, platform/family, watch icon,
+with embedded watch app, phone widget, and watch complication extension, identities,
+platform/family, watch icon,
 matched versions *within* each artifact, linked watch frameworks (including
 `NeoGymWatch.debug.dylib` when Xcode places Debug simulator app code behind a
 stub executable), and each bundle's non-ad-hoc signature, team, current provisioning profile and

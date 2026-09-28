@@ -43,11 +43,14 @@ public enum PhoneAccountHint: Sendable, Equatable {
 public struct CurrentWatchUser: Sendable, Equatable {
     public let id: String
     public let displayName: String
+    public let email: String?
 
-    public init(id: String, displayName: String) {
+    public init(id: String, displayName: String, email: String? = nil) {
         self.id = id
         let trimmed = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
         self.displayName = trimmed.isEmpty ? "Athlete" : trimmed
+        let trimmedEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.email = trimmedEmail?.isEmpty == false ? trimmedEmail : nil
     }
 }
 
@@ -63,7 +66,7 @@ public struct NhostCurrentUserService: CurrentUserServicing {
     public func getUser() async throws -> CurrentWatchUser {
         // Auth's managed bearer/refresh middleware runs for this uncached request.
         let user = try await client.auth.getUser().body
-        return CurrentWatchUser(id: user.id, displayName: user.displayName)
+        return CurrentWatchUser(id: user.id, displayName: user.displayName, email: user.email)
     }
 }
 
@@ -86,8 +89,9 @@ public enum WatchAccountState: Equatable {
 @MainActor
 public final class WatchAccountModel: ObservableObject {
     @Published public private(set) var state: WatchAccountState = .awaitingLocalContext
+    @Published public private(set) var currentUser: CurrentWatchUser?
     public let authStore: AuthStore
-    private let currentUser: any CurrentUserServicing
+    private let currentUserService: any CurrentUserServicing
     private var phone: PhoneKnowledge = .pending
     private var sessionID: String?
     private var observedAuthState: AuthState = .loading
@@ -107,7 +111,7 @@ public final class WatchAccountModel: ObservableObject {
 
     public init(authStore: AuthStore, currentUser: any CurrentUserServicing) {
         self.authStore = authStore
-        self.currentUser = currentUser
+        self.currentUserService = currentUser
         subscription = authStore.$state.sink { [weak self] state in
             // Publisher delivery is synchronous on the main actor for AuthStore.
             MainActor.assumeIsolated { self?.sessionChanged(state) }
@@ -125,6 +129,12 @@ public final class WatchAccountModel: ObservableObject {
     public func bootstrap() async {
         await authStore.bootstrap()
         reconcile()
+    }
+
+    /// Background refresh must not finish its system task before the uncached
+    /// account read has established that this session may access private data.
+    public func waitForCurrentRead() async {
+        await loadTask?.value
     }
 
     /// Call after bounded *local* WCSession activation, not after a phone reply.
@@ -201,6 +211,7 @@ public final class WatchAccountModel: ObservableObject {
     }
 
     private func invalidate() {
+        currentUser = nil
         generation &+= 1
         loadTask?.cancel()
         loadTask = nil
@@ -279,9 +290,9 @@ public final class WatchAccountModel: ObservableObject {
             state = .loading
             loadingSessionID = id
             let revision = generation
-            loadTask = Task { [weak self, currentUser] in
+            loadTask = Task { [weak self, currentUserService] in
                 do {
-                    let user = try await currentUser.getUser()
+                    let user = try await currentUserService.getUser()
                     self?.finish(user: user, id: id, revision: revision)
                 } catch {
                     self?.fail(error, revision: revision)
@@ -314,6 +325,7 @@ public final class WatchAccountModel: ObservableObject {
             blockAndClear(.matchPhone)
             return
         }
+        currentUser = user
         state = .name(user.displayName)
     }
 

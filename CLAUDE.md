@@ -94,7 +94,7 @@ package at its lower deployment floor unless its own code needs newer APIs.
   schemes to keep XPC Services, Queue Debugging/backtrace recording, View
   Debugging, and related default diagnostics disabled after regeneration.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator destination.
-- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination 'generic/platform=watchOS Simulator' build` — build the watch companion after regenerating XcodeGen.
+- `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination 'generic/platform=watchOS Simulator' build` — build the watch companion and its embedded complication after regenerating XcodeGen.
 - `make archive-release` — signed non-upload device archive and local export, verifying the archive and IPA independently; Apple signing/profiles are required. Automatic provisioning updates require a separate per-run `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES` and operator acknowledgment for the watch App ID. Without signing access this gate remains blocked; simulator checks do not replace it.
 - `make deploy-testflight` — explicitly uploads after reusing the verified non-upload path. Never use it for validation; obtain operator approval for each real upload. See `ios/NeoGym/README.md` for paired hardware and production `GET /user` acceptance.
 
@@ -104,10 +104,21 @@ Keep `ios/NeoGym/App/LaunchScreen.storyboard` wired through `UILaunchStoryboardN
 The three HealthKit importer implementations are iOS-only. The embedded
 `NeoGymWatch` watchOS 27 companion uses the watch core's private,
 origin-scoped, device-only SDK Keychain session with legacy migration ignored,
-no GraphQL cache, and a managed, uncached Auth `GET /user` name read. The
+no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read. The
 watch signs existing accounts in with email OTP; WatchConnectivity carries only
-latest-state account hints, never credentials. A cold launch waits briefly for
-local WCSession activation; background-to-active cancels any in-flight name
+latest-state account hints, never credentials. Signed-in watch users swipe between
+Energy (today's logged consumed kcal and active+resting burned kcal) and Profile
+(uncached Auth name/email and watch-only sign-out). The watch app, not its
+rectangular WidgetKit complication, reads active/basal HealthKit energy and
+syncs the last seven local dates to private `daily_energy` after explicit read
+permission. It refreshes imported-note rows without replacing manual entries;
+observer delivery and hourly-preferred watchOS background refresh are
+best-effort, not guaranteed periodic uploads. The complication reads only a
+token-free, today-only App Group snapshot written after a fresh backend read
+and cleared on sign-out/blocking auth changes; the watch widget has no Keychain
+or HealthKit access. Watch App Group and HealthKit background-delivery signing
+capabilities must be provisioned for physical-device validation. A cold launch
+waits briefly for local WCSession activation; background-to-active cancels any in-flight name
 read before refreshing the eligible session, including when the view was first
 created in the background. An inactive wrist raise does not force a refresh. A
 paired iPhone is required to install the companion, not to perform the watch's
@@ -173,7 +184,8 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
 those models and route signed-in sessions into the full-screen `AppShellView`.
-Watch SwiftUI views live under `ios/NeoGym/Watch/`. The
+Watch SwiftUI views live under `ios/NeoGym/Watch/`; the rectangular watch
+complication lives under `ios/NeoGym/WatchWidgets/`. The **iPhone**
 native shell has NO `TabView`: the three primary areas (Workouts, Nutrition, Me)
 are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
 keyed by `@State selection: AppDestination` (the active area is shown; the others

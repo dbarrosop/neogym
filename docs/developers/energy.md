@@ -134,7 +134,46 @@ app-owned HealthKit or backend changes. The app and widget use one SDK-managed,
 App-Group-coordinated shared Keychain session. The widget falls back to the
 cached snapshot or signed-out/empty state without a live write on coordination
 timeout, cancellation, no session, Auth, network, or provisioning failure.
-The widget does not import HealthKit data; HealthKit energy import remains
-app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
+The **iPhone** widget does not import HealthKit data; its HealthKit import remains
+phone-app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
 are best-effort triggers, not guaranteed fresh server data or an exact refresh
 cadence.
+
+## Watch Energy and complication
+
+The signed-in watch app has swipeable Energy and Profile pages. Profile fetches
+name and email from uncached Auth `GET /user` and offers watch-only sign-out;
+phone account hints still block mismatched or signed-out accounts. Energy shows
+today's consumed kcal from nutrition log snapshots (including standalone entries
+and logged-meal children) and burned kcal from today's `daily_energy` active plus
+resting values. An absent energy row displays `—`, not a zero burn. It reads a
+small date-bounded GraphQL query from the watch's own managed session.
+
+After the user taps **Sync Apple Health**, the watch requests read-only
+`.activeEnergyBurned` and `.basalEnergyBurned` access (never writes HealthKit),
+sums statistics across local calendar days, and syncs the last seven dates to
+the same private backend `daily_energy` table. Like the phone importer, it only
+creates dates with positive valid data and refreshes rows bearing the exact
+"Imported from Apple Health" note; it never overwrites manual/edited rows.
+Unique-date insert races with the phone are skipped. Watch and phone may both
+refresh imported dates; neither has exclusive ownership of those rows. A fresh
+backend read follows the watch write so the Energy page and complication use
+post-sync values, including food logs recorded on another device.
+
+The **watch app**, not the complication, owns authorization, HealthKit queries,
+GraphQL writes, and network refreshes. After the explicit permission flow it
+registers HealthKit observer/background delivery for both energy types; it also
+asks watchOS for an hourly preferred background refresh. These are best-effort
+OS wakeups, **not** a guaranteed hourly schedule. Background work first
+reconciles the local watch session and phone account hint and does nothing if
+blocked/signed out. The watch widget extension has no Keychain or HealthKit
+entitlement: it reads only the token-free today's aggregate snapshot written by
+the watch app into their shared App Group, and app writes request a WidgetKit
+timeline reload. The rectangular watch-face complication presents consumed and
+burned kcal; it never uploads data itself. Snapshots are cleared when the watch
+leaves authenticated state and never carried into the next local date. The
+phone and watch share an App Group **identifier**, not files across devices.
+Signing the watch app and watch widget requires App Group provisioning and
+HealthKit background-delivery capability on the watch app ID; simulator builds
+cannot validate background timing, permission behavior, or physical complication
+refresh cadence.
