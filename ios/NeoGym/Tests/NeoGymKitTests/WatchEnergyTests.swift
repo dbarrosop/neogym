@@ -103,6 +103,59 @@ final class WatchEnergyTests: XCTestCase {
         }
     }
 
+    func testDuplicateDateInsertSkipsConflictAndContinuesWithOlderDate() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object(["dailyEnergyEntries": .array([])])),
+            .failure(GraphQLDomainError.graphQLErrors([
+                GraphQLErrorDetail(message: "Uniqueness violation", code: "constraint-violation",
+                                   constraintName: "daily_energy_user_date_key")
+            ])),
+            .json(.object(["insertDailyEnergyEntry": .object(["id": .string("older")])])),
+            .json(.object(["nutritionDays": .array([]), "dailyEnergyEntries": .array([
+                row(date: "2026-06-25", notes: "Manual", active: 150)
+            ])]))
+        ])
+        let service = WatchEnergyService(graphQL: fake, energy: DailyEnergyRepository(graphQL: fake),
+                                         importer: WatchEnergyFakeImporter(entries: [
+                                             HealthDailyEnergy(energyOn: "2026-06-25", activeKcal: 120),
+                                             HealthDailyEnergy(energyOn: "2026-06-24", activeKcal: 90)
+                                         ]), calendar: calendar)
+
+        let snapshot = try await service.refresh(userID: "person-1", syncHealth: true, now: now)
+        XCTAssertEqual(snapshot.burnedKcal, 150)
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.map(\.operationName), [
+            "DailyEnergyHealthRefreshEntries", "InsertDailyEnergy", "InsertDailyEnergy", "WatchTodayEnergy"
+        ])
+        if case .object(let today) = requests[1].variables?["obj"],
+           case .object(let older) = requests[2].variables?["obj"] {
+            XCTAssertEqual(today["energyOn"], .string("2026-06-25"))
+            XCTAssertEqual(older["energyOn"], .string("2026-06-24"))
+        } else {
+            XCTFail("Expected date-bearing energy inserts")
+        }
+    }
+
+    func testUnchangedImportedRowSkipsUpdateBeforeReadingSnapshot() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(.object(["dailyEnergyEntries": .array([
+                row(date: "2026-06-25", notes: "Imported from Apple Health", active: 120)
+            ])])),
+            .json(.object(["nutritionDays": .array([]), "dailyEnergyEntries": .array([
+                row(date: "2026-06-25", notes: "Imported from Apple Health", active: 120)
+            ])]))
+        ])
+        let service = WatchEnergyService(graphQL: fake, energy: DailyEnergyRepository(graphQL: fake),
+                                         importer: WatchEnergyFakeImporter(entries: [
+                                             HealthDailyEnergy(energyOn: "2026-06-25", activeKcal: 120)
+                                         ]), calendar: calendar)
+
+        let snapshot = try await service.refresh(userID: "person-1", syncHealth: true, now: now)
+        XCTAssertEqual(snapshot.burnedKcal, 120)
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.map(\.operationName), ["DailyEnergyHealthRefreshEntries", "WatchTodayEnergy"])
+    }
+
     func testNoHealthValueDoesNotCreateZeroEnergyAndNoBackendRowIsUnknown() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["dailyEnergyEntries": .array([])])),
