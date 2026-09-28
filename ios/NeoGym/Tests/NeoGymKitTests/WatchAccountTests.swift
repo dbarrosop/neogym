@@ -413,7 +413,7 @@ final class WatchAccountTests: XCTestCase {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
         try await controlled.waitForRequest()
-        model.refresh() // Duplicate cold/foreground trigger must not start a second fetch.
+        model.refresh() // A direct refresh coalesces; the view cancels first on background→active.
         let requestCount = await controlled.requestCount
         XCTAssertEqual(requestCount, 1)
         model.receiveContext(PhoneAccountHint.signedOut.context)
@@ -470,6 +470,25 @@ final class WatchAccountTests: XCTestCase {
 }
 
 extension WatchAccountTests {
+    func testForegroundAfterBackgroundReadStartsFreshRequestAndIgnoresLateResponse() async throws {
+        let (model, _, controlled) = try await controlledSetup()
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        let backgroundRead = try XCTUnwrap(model.inFlightRead)
+
+        model.cancelPendingRead()
+        model.refresh()
+        XCTAssertEqual(model.state, .loading)
+        try await controlled.waitForRequest(2)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Background"))
+        await backgroundRead.value
+        XCTAssertEqual(model.state, .loading)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Opened"))
+        await waitFor(model, .name("Opened"))
+        let count = await controlled.requestCount
+        XCTAssertEqual(count, 2)
+    }
+
     func testExpiringReadCannotDisplayLateNameAndRetryFetchesAgain() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)

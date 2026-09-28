@@ -36,11 +36,14 @@ private struct WatchHomeView: View {
             account.localContextReady(await connectivity.activate())
             await account.bootstrap()
         }
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            // A context delivery can launch the view already in the background.
             if phase == .background { wasBackground = true }
             if phase == .active, wasBackground {
                 wasBackground = false
                 if let context = connectivity.currentContext() { account.receiveContext(context) }
+                // A read started in the background must not stand in for a fresh open.
+                account.cancelPendingRead()
                 account.refresh()
             }
         }

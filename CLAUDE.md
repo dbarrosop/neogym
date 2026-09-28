@@ -107,9 +107,11 @@ origin-scoped, device-only SDK Keychain session with legacy migration ignored,
 no GraphQL cache, and a managed, uncached Auth `GET /user` name read. The
 watch signs existing accounts in with email OTP; WatchConnectivity carries only
 latest-state account hints, never credentials. A cold launch waits briefly for
-local WCSession activation, and background-to-active refreshes the name; an
-inactive wrist raise does not force a refresh. A paired iPhone is required to
-install the companion, not to perform the watch's independent network read.
+local WCSession activation; background-to-active cancels any in-flight name
+read before refreshing the eligible session, including when the view was first
+created in the background. An inactive wrist raise does not force a refresh. A
+paired iPhone is required to install the companion, not to perform the watch's
+independent network read.
 The release scripts verify a signed archive and locally exported IPA before
 any explicitly approved upload; archive/export requires Apple signing access
 and any provisioning update requires its own per-run opt-in. No signed archive,

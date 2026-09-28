@@ -158,7 +158,8 @@ public final class WatchAccountModel: ObservableObject {
         reconcile(forceFetch: true)
     }
 
-    /// Cold launch or background→active; caller does not invoke for wrist raises.
+    /// Coalesces with an in-flight read. The watch view cancels that read first
+    /// on background→active so a background-started request cannot serve the open.
     public func refresh() {
         if state == .loading, loadTask != nil { return }
         reconcile(forceFetch: true)
@@ -268,8 +269,8 @@ public final class WatchAccountModel: ObservableObject {
                 state = .reauthenticate
                 return
             }
-            // Preserve a same-session read across new matching phone knowledge.
-            // A foreground refresh coalesces with an already-running request.
+            // Preserve a same-session read across matching phone hints or direct
+            // refresh calls. The view cancels first on background→active to replace it.
             if loadTask != nil, loadingSessionID == id { return }
             if !forceFetch, state != .loading, state != .awaitingLocalContext,
                state != .signedOut, state != .phoneSignedOut, state != .matchPhone,

@@ -24,7 +24,9 @@ package at its lower deployment floor unless its own code needs newer APIs.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
   tests. In XCTest, await actor snapshots into a local before passing them to
-  `XCTAssertEqual`: assertion autoclosures do not support `await`.
+  `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
+  `WatchAccountTests` methods in its existing extension: the main class is near
+  the Swift lint 350-line type-body limit.
 - `nix develop ../.. --command xcodegen generate` — regenerate
   `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
   Keep `project.yml` as the source of truth and do not commit generated
@@ -111,8 +113,12 @@ reachability), calls `localContextReady`, and only displays `.name` from that
 live read. The phone publishes definitive `AuthStore` states through
 `PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
 activation/foreground. Transient bootstrap states do not overwrite hints.
-The watch refreshes on cold start or background-to-active, not inactive wrist
-raises; a bounded `performExpiringActivity` assertion protects OTP, live reads,
+The watch reads on cold start. On background-to-active (including a view first
+created in the background), it cancels any in-flight name read before refreshing,
+so an eligible session starts a fresh `/user` request on open. Direct
+`WatchAccountModel.refresh()` calls still coalesce with an in-flight read;
+inactive wrist raises do not refresh.
+A bounded `performExpiringActivity` assertion protects OTP, live reads,
 and session clearing best-effort, not as a watchOS suspension guarantee. Its
 20-second local deadline releases only the assertion, never the operation; a
 system-reported expiry cancels OTP/read operations, but never interrupts
