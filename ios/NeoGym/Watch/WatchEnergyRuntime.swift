@@ -120,6 +120,9 @@ final class WatchEnergyRuntime: ObservableObject {
     }
 
     func refresh(trigger: WatchEventTrigger = .automatic) async {
+        if trigger == .manual || trigger == .healthObserver {
+            await revalidateAccountIfNeeded()
+        }
         guard contextReady, !account.isReadingProfile, account.profileError == nil else { return }
         if let refreshTask {
             let previousID = refreshingUserID
@@ -195,7 +198,7 @@ final class WatchEnergyRuntime: ObservableObject {
         // Unlike foreground display, background work waits for the local phone
         // hint and account read before touching the private energy endpoint.
         await bootstrap()
-        await account.waitForCurrentRead()
+        await revalidateAccountIfNeeded()
         if case .name = account.state, contextReady, !account.isReadingProfile,
            account.profileError == nil {
             await refresh(trigger: .background)
@@ -203,6 +206,15 @@ final class WatchEnergyRuntime: ObservableObject {
             record(.energyRefresh, .skipped, trigger: .background)
         }
         scheduleRefresh()
+    }
+
+    private func revalidateAccountIfNeeded() async {
+        // A transient /user failure keeps the same owner's cached profile, but
+        // cannot authorize a private energy read until a fresh check succeeds.
+        if case .name = account.state, account.profileError != nil, !account.isReadingProfile {
+            account.refresh()
+        }
+        await account.waitForCurrentRead()
     }
 
     func record(_ action: WatchEventAction, _ outcome: WatchEventOutcome,

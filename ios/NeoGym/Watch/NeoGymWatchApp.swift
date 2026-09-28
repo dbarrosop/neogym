@@ -185,8 +185,7 @@ private struct WatchHomeView: View {
                             .background(.thinMaterial, in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(runtime.isRefreshing || !runtime.contextReady
-                        || account.isReadingProfile || account.profileError != nil)
+                    .disabled(runtime.isRefreshing || !runtime.contextReady || account.isReadingProfile)
                     .accessibilityLabel("Refresh energy")
                     if let snapshot = runtime.snapshot {
                         Text("Synced \(snapshot.updatedAt, style: .time)")
@@ -198,6 +197,10 @@ private struct WatchHomeView: View {
                         .disabled(!runtime.contextReady || account.isReadingProfile
                             || account.profileError != nil)
                     Text("Allow active and resting energy on this watch. NeoGym only reads Health data.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                if let error = account.profileError {
+                    Text("\(error) Tap Refresh to retry.")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
                 if let error = runtime.errorMessage {

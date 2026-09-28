@@ -168,9 +168,14 @@ Local WCSession activation also runs without delaying this foreground display.
 An already delivered signed-out/different-account hint blocks immediately; one
 delivered later may leave stale values visible briefly before the watch clears
 the local session, profile cache, and energy snapshot. Background tasks wait for
-activation and account validation before accessing the private backend. Energy shows
-today's consumed kcal from nutrition log snapshots (including standalone entries
-and logged-meal children), total burned kcal from today's `daily_energy` active
+activation and account validation before accessing the private backend. If a
+transient `/user` failure leaves a same-owner cached profile visible, later
+background wakes and HealthKit observer deliveries retry validation before
+private energy access; a still-failing or rejected account skips sync. The
+Energy page shows the validation warning and its Refresh control retries the
+read before fetching energy. Energy shows today's consumed kcal from nutrition
+log snapshots (including standalone entries and logged-meal children), total
+burned kcal from today's `daily_energy` active
 plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
 An absent energy row displays `—` for burned, its breakdown, and Net rather
 than treating burned as zero. A missing component on an existing energy row
