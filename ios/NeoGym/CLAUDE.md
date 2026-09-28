@@ -9,7 +9,9 @@ The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 `NeoGymKit` owns validators, auth/session models, repositories, domain view
 models, daily energy models/import helpers, and testable form validation;
 iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
-watch SwiftUI and connectivity live only under `Watch/`.
+watch app SwiftUI and connectivity live under `Watch/`; the token-free
+rectangular complication lives under `WatchWidgets/` in the separate
+`NeoGymWatchWidgets` extension, without Keychain or HealthKit access.
 
 ## Commands
 
@@ -83,8 +85,10 @@ test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `AR`, and `LDFLAGS`.
 
 The package now supports watchOS 8 without raising its iOS/macOS floors. Its
-three HealthKit implementations compile only on iOS; pure HealthKit grouping
-models remain host-testable. For package-only watch architecture checks, run
+two HealthKit implementations (Body measurements and raw workouts) compile
+only on iOS; the watch energy importer lives in the watch app target
+(`Watch/WatchHealthEnergy.swift`), and pure HealthKit grouping models remain
+host-testable. For package-only watch architecture checks, run
 `xcodebuild -scheme NeoGymKit -destination 'generic/platform=watchOS Simulator' build`
 and the `generic/platform=watchOS` variant with `CODE_SIGNING_ALLOWED=NO`
 from a directory without a generated `.xcodeproj`; `xcodebuild` otherwise
