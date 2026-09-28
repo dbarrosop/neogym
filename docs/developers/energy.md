@@ -185,8 +185,12 @@ blocked/signed out. The watch widget extension has no Keychain or HealthKit
 entitlement: it reads only the token-free today's aggregate snapshot written by
 the watch app into their shared App Group, and app writes request a WidgetKit
 timeline reload. The rectangular watch-face complication presents consumed,
-total burned, active/resting, and Net kcal; it never uploads data itself. Snapshots are cleared when the watch
-leaves authenticated state and never carried into the next local date. The
+total burned, active/resting, and Net kcal; it never uploads data itself. Today's
+last-good snapshot survives session validation while the SDK restores the
+session; after a transient network failure it remains only if the SDK identifies
+the same session owner. Definitive sign-out, blocking phone hints, auth errors,
+and account switches clear it; snapshots are
+never carried into the next local date. The
 phone and watch share an App Group **identifier**, not files across devices.
 Signing the watch app and watch widget requires App Group provisioning and
 HealthKit background-delivery capability on the watch app ID. Even though the

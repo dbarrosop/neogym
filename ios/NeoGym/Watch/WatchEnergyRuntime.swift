@@ -33,8 +33,9 @@ final class WatchEnergyRuntime: ObservableObject {
         let graphQL = NhostGraphQLService(client: client)
         service = WatchEnergyService(graphQL: graphQL, energy: DailyEnergyRepository(graphQL: graphQL),
                                      importer: health)
-        accountSubscription = account.$state.sink { [weak self] _ in
-            MainActor.assumeIsolated { self?.accountChanged() }
+        accountSubscription = account.$state.sink { [weak self] state in
+            // @Published emits before account.state changes; use the emitted state.
+            MainActor.assumeIsolated { self?.accountChanged(state) }
         }
     }
 
@@ -53,12 +54,18 @@ final class WatchEnergyRuntime: ObservableObject {
         bootstrapTask = nil
     }
 
-    func accountChanged() {
-        guard case .name = account.state, let user = account.currentUser else {
+    func accountChanged(_ state: WatchAccountState) {
+        guard case .name = state, let user = account.currentUser else {
             snapshot = nil
-            // An awaiting/refreshing Auth state is not a definitive sign-out.
-            // Keep today's last-good complication while the SDK validates its session.
-            if account.state != .loading && account.state != .awaitingLocalContext {
+            healthEnabled = false
+            errorMessage = nil
+            // Keep today's last-good value through a transient offline read only
+            // if the SDK still knows the same session owner. Blocking states clear.
+            let savedUserID = store.load(for: DateOnly.todayLocalISO())?.userID
+            let sessionUserID = account.authStore.state.session?.user?.id
+            if !WatchEnergySnapshotPolicy.keepsStoredSnapshot(
+                in: state, snapshotUserID: savedUserID, sessionUserID: sessionUserID
+            ) {
                 store.clear()
                 WidgetCenter.shared.reloadTimelines(ofKind: WatchEnergySnapshotStore.widgetKind)
             }
@@ -138,7 +145,7 @@ final class WatchEnergyRuntime: ObservableObject {
         snapshot = nil
         WidgetCenter.shared.reloadTimelines(ofKind: WatchEnergySnapshotStore.widgetKind)
         await account.signOut()
-        accountChanged()
+        accountChanged(account.state)
     }
 
     func backgroundRefresh() async {

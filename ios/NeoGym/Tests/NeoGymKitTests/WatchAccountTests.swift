@@ -472,6 +472,35 @@ final class WatchAccountTests: XCTestCase {
 }
 
 extension WatchAccountTests {
+    func testPublishedNameCarriesCurrentUserBeforeStoredStateChanges() async throws {
+        let (model, _, controlled) = try await controlledSetup()
+        struct Emission {
+            let published: WatchAccountState
+            let stored: WatchAccountState
+            let userID: String?
+        }
+        var emissions: [Emission] = []
+        let observation = model.$state.sink { state in
+            emissions.append(Emission(published: state, stored: model.state, userID: model.currentUser?.id))
+        }
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
+        await waitFor(model, .name("Fresh"))
+        model.refresh()
+        withExtendedLifetime(observation) {
+            let name = emissions.first { $0.published == .name("Fresh") }
+            XCTAssertEqual(name?.stored, .loading) // @Published sends in willSet.
+            XCTAssertEqual(name?.userID, "watch-user") // Runtime may use the emitted state and this user.
+            let loadingAfterName = emissions.last { $0.published == .loading }
+            XCTAssertEqual(loadingAfterName?.stored, .name("Fresh"))
+            XCTAssertNil(loadingAfterName?.userID)
+        }
+        try await controlled.waitForRequest(2)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Updated"))
+        await waitFor(model, .name("Updated"))
+    }
+
     func testForegroundAfterBackgroundReadStartsFreshRequestAndIgnoresLateResponse() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
