@@ -112,9 +112,26 @@ Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 SDK's origin-scoped private, device-only default Keychain session with legacy
 unscoped migration ignored; no shared Keychain/App Group and no GraphQL cache.
 `WatchAccountModel.production()` explicitly injects that client into both auth
-and uncached Auth `GET /user`. Watch UI waits briefly for local connectivity-context activation (not phone
-reachability), calls `localContextReady`, and only displays `.name` from that
-live read. The phone publishes definitive `AuthStore` states through
+and uncached Auth `GET /user`. The watch app caches only the most recently fetched
+name/email in its own UserDefaults, keyed by session user ID; the SDK's persisted
+session name is the fallback. Neither cache is available to the watch widget.
+Foreground startup restores the local Keychain session and checks any already
+received account hint without waiting for WCSession activation (not phone
+reachability) or the network name read. It renders a cached profile and today's
+same-owner energy snapshot, then activates WCSession and revalidates the profile
+in the background. A delayed blocking hint clears both caches and the local
+session; on a phone sign-out there can be a short stale display before delivery.
+Background refresh still waits for activation and the managed account read.
+Signed-in watch users can swipe to a third Events page: `WatchEventStore` keeps
+at most 100 typed, timestamped, non-sensitive outcomes in watch-app-only
+UserDefaults (not the widget App Group). It records watchOS background schedule
+requested/accepted/failed with numeric codes, actual wakes started/finished,
+Health permission/reconciliation, fresh energy reads, local snapshot saves,
+and WidgetKit reload requests. An accepted schedule does not guarantee a wake;
+a reload request does not prove the complication updated. Never log tokens,
+user identifiers, email/name, URLs, or raw localized/server error text.
+A snapshot-save failure remains visible in the watch Energy page and does not
+request a reload. The phone publishes definitive `AuthStore` states through
 `PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
 activation/foreground. Transient bootstrap states do not overwrite hints.
 The watch reads on cold start. On background-to-active (including a view first
@@ -147,7 +164,8 @@ after that failure stays `.loading` until session restoration resolves; do not
 briefly offer OTP while AuthStore publishes `.loading` with no session.
 Re-reading identical/matching context
 must keep an in-flight same-session `/user` request alive; cancelling it
-without replacement strands the UI in loading. Reconcile every AuthStore state
+without replacement strands profile revalidation. An offline read retains the
+same-user profile and offers Retry; an Auth failure removes it. Reconcile every AuthStore state
 publication even when its user ID is unchanged: a retry through
 `authStore.bootstrap()` can move `.error` to `.signedOut` with nil IDs in both
 states. A delayed hint cannot revoke an undelivered watch token instantly.

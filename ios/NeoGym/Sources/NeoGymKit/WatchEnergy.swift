@@ -65,7 +65,9 @@ public struct WatchEnergySnapshotStore: Sendable {
         guard let defaults = UserDefaults(suiteName: suite),
               let data = try? JSONEncoder().encode(snapshot) else { return false }
         defaults.set(data, forKey: key)
-        return true
+        // Only confirm a local suite read-back. WidgetKit may still defer a
+        // timeline reload or be unable to read the shared container.
+        return defaults.data(forKey: key) == data
     }
 
     public func clear() { UserDefaults(suiteName: suite)?.removeObject(forKey: key) }
@@ -88,9 +90,15 @@ public struct WatchEnergyService: Sendable {
         self.calendar = calendar
     }
 
+    /// Kept separate from the fresh backend read so callers can report HealthKit
+    /// reconciliation failures without mistaking a later GraphQL failure for one.
+    public func syncHealth(now: Date = Date()) async throws {
+        try await sync(today: now)
+    }
+
     public func refresh(userID: String, syncHealth: Bool, now: Date = Date()) async throws -> WatchEnergySnapshot {
         let today = DateOnly.formatLocalISO(now, calendar: calendar)
-        if syncHealth { try await sync(today: now) }
+        if syncHealth { try await self.syncHealth(now: now) }
         try Task.checkCancellation()
         let data: WatchTodayData = try await graphQL.execute(
             query: Self.todayQuery,

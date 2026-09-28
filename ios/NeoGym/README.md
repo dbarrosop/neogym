@@ -103,9 +103,17 @@ uses its own internet connection and privately rotating Nhost SDK session.
 
 The watch signs into an **existing** account with email OTP. Signed-in users
 swipe between Energy (today's consumed, total burned, active/resting, and
-Net = consumed minus burned kcal) and Profile (fresh Auth `GET /user`
-name/email and watch-only sign-out; blank names become “Athlete”). Consumed
-and Burned use icons rather than visible labels on the watch page; Net uses a
+Net = consumed minus burned kcal) and Profile (a locally cached name/email,
+revalidated by uncached Auth `GET /user` in the background, plus watch-only
+sign-out; blank names become “Athlete”), and Events (recent timestamped
+background scheduling, wake, Health sync, backend read, snapshot save, and
+complication reload-request outcomes). The last 100 events stay on the watch,
+not in its widget or on a server; only fixed event kinds and optional numeric
+error codes are stored. “Accepted” means watchOS accepted a background request,
+not that it woke the app; “Requested” means WidgetKit was asked to reload, not
+that the watch face rendered new data. Snapshot-save failure is shown on the
+Energy page and logged rather than silently claiming a fresh complication.
+Consumed and Burned use icons rather than visible labels on the watch page; Net uses a
 balance-scale icon and equally prominent value. The Energy title carries a
 small `(kcal)` unit, while an icon-only refresh button sits beside the sync
 time. Missing backend energy leaves total burn and Net unavailable; absent
@@ -120,10 +128,14 @@ shows intake, total burn, active/resting, and Net from the watch app's token-fre
 today-only App Group snapshot after a fresh backend fetch. Neither Keychain nor HealthKit is available to the watch
 widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
-hardware rather than inferring behavior from simulator builds. The watch
-reads the latest delivered account-only WatchConnectivity context after local
-activation and on foreground. A known signed-out or different iPhone account
-blocks the name and triggers remote sign-out plus mandatory local clearing. An
+hardware rather than inferring behavior from simulator builds. The watch first restores the local session and shows the same-user cached
+profile and today's energy snapshot without waiting for a phone connection,
+local WCSession activation, or `GET /user`. It reads any already delivered
+account-only WatchConnectivity context immediately, then completes local
+activation in the background and checks the latest hint again. A known
+signed-out or different iPhone account blocks the display, clears cached data,
+and triggers remote sign-out plus mandatory local clearing. A hint delivered
+after launch may briefly leave stale data visible before it is processed. An
 unknown/unreachable phone does not block independent watch internet access.
 Hints contain no credential, email, or name; an undelivered hint cannot revoke
 the watch's server session instantly, and failed remote revocation can leave a
@@ -136,7 +148,9 @@ when the SDK already persisted a same-account session. On a paired test device,
 sign in via OTP, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
-sign-out/account switch. No production `GET /user` contract or signed hardware
+sign-out/account switch. Check Events for accepted scheduling versus actual
+background wakes and for snapshot-save failures; only a paired-device test can
+confirm that WidgetKit ultimately updated the watch face. No production `GET /user` contract or signed hardware
 acceptance is established merely by a simulator build.
 
 ### Release verification and guarded TestFlight upload

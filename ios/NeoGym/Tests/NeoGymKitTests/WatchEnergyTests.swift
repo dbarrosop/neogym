@@ -215,6 +215,18 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertNil(store.load(for: "2026-06-25"))
     }
 
+    func testSnapshotStoreReportsEncodingFailureAndKeepsLastGoodValue() {
+        let store = WatchEnergySnapshotStore(suite: "WatchEnergyTests.\(UUID().uuidString)")
+        let good = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                       consumedKcal: 350, burnedKcal: 120, updatedAt: now)
+        XCTAssertTrue(store.save(good))
+        let invalid = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                          consumedKcal: .nan, burnedKcal: 120, updatedAt: now)
+        XCTAssertFalse(store.save(invalid))
+        XCTAssertEqual(store.load(for: "2026-06-25"), good)
+        store.clear()
+    }
+
     func testOldSnapshotWithoutBreakdownStillDecodes() throws {
         let old = Data(#"{"userID":"person-1","localDate":"2026-06-25","consumedKcal":350,"burnedKcal":120,"updatedAt":0}"#.utf8)
         let snapshot = try JSONDecoder().decode(WatchEnergySnapshot.self, from: old)

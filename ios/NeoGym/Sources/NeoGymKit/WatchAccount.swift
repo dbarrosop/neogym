@@ -40,7 +40,7 @@ public enum PhoneAccountHint: Sendable, Equatable {
     }
 }
 
-public struct CurrentWatchUser: Sendable, Equatable {
+public struct CurrentWatchUser: Codable, Sendable, Equatable {
     public let id: String
     public let displayName: String
     public let email: String?
@@ -51,6 +51,37 @@ public struct CurrentWatchUser: Sendable, Equatable {
         self.displayName = trimmed.isEmpty ? "Athlete" : trimmed
         let trimmedEmail = email?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.email = trimmedEmail?.isEmpty == false ? trimmedEmail : nil
+    }
+}
+
+/// Watch-app-only profile cache. The session's user ID must be restored from the
+/// SDK Keychain before a cached profile can be read; the complication cannot access it.
+public struct WatchCurrentUserStore: Sendable {
+    private let suite: String?
+    private let key = "watchCurrentUser.v1"
+
+    public init(suite: String? = nil) { self.suite = suite }
+
+    public func load(for userID: String) -> CurrentWatchUser? {
+        guard let data = defaults.data(forKey: key),
+              let user = try? JSONDecoder().decode(CurrentWatchUser.self, from: data),
+              user.id == userID else { return nil }
+        return user
+    }
+
+    public func save(_ user: CurrentWatchUser) {
+        guard let data = try? JSONEncoder().encode(user) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    public func retainOnly(userID: String) {
+        if defaults.data(forKey: key) != nil && load(for: userID) == nil { clear() }
+    }
+
+    public func clear() { defaults.removeObject(forKey: key) }
+
+    private var defaults: UserDefaults {
+        suite.flatMap(UserDefaults.init(suiteName:)) ?? .standard
     }
 }
 
@@ -84,14 +115,17 @@ public enum WatchAccountState: Equatable {
     case error(String)
 }
 
-/// Owns no name cache. A generation invalidates in-flight responses when the
-/// session changes or a phone hint blocks it; a refresh hides the prior name.
+/// Restores a same-user cached profile after local session bootstrap, then reads
+/// Auth in the background. A generation discards late responses after blocking hints.
 @MainActor
 public final class WatchAccountModel: ObservableObject {
     @Published public private(set) var state: WatchAccountState = .awaitingLocalContext
     @Published public private(set) var currentUser: CurrentWatchUser?
+    @Published public private(set) var profileError: String?
+    @Published public private(set) var isReadingProfile = false
     public let authStore: AuthStore
     private let currentUserService: any CurrentUserServicing
+    private let currentUserStore: WatchCurrentUserStore?
     private var phone: PhoneKnowledge = .pending
     private var sessionID: String?
     private var observedAuthState: AuthState = .loading
@@ -109,9 +143,11 @@ public final class WatchAccountModel: ObservableObject {
 
     private enum PhoneKnowledge: Equatable { case pending, unknown, known(PhoneAccountHint) }
 
-    public init(authStore: AuthStore, currentUser: any CurrentUserServicing) {
+    public init(authStore: AuthStore, currentUser: any CurrentUserServicing,
+                currentUserStore: WatchCurrentUserStore? = nil) {
         self.authStore = authStore
         self.currentUserService = currentUser
+        self.currentUserStore = currentUserStore
         subscription = authStore.$state.sink { [weak self] state in
             // Publisher delivery is synchronous on the main actor for AuthStore.
             MainActor.assumeIsolated { self?.sessionChanged(state) }
@@ -122,7 +158,8 @@ public final class WatchAccountModel: ObservableObject {
         let client = NhostClientFactory.makeProductionWatchClient()
         return WatchAccountModel(
             authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
-            currentUser: NhostCurrentUserService(client: client)
+            currentUser: NhostCurrentUserService(client: client),
+            currentUserStore: WatchCurrentUserStore()
         )
     }
 
@@ -162,8 +199,13 @@ public final class WatchAccountModel: ObservableObject {
     /// returns. Always invalidate an earlier read and fetch again from Auth;
     /// reconciliation first blocks/clears a session that conflicts with a hint.
     public func acceptVerifiedSession(_ session: StoredSession) {
-        invalidate()
-        state = .loading
+        if currentUser?.id == session.user?.id {
+            invalidateRead()
+        } else {
+            invalidate()
+            currentUserStore?.clear()
+            state = .loading
+        }
         authStore.applyVerifiedSession(session)
         reconcile(forceFetch: true)
     }
@@ -171,7 +213,7 @@ public final class WatchAccountModel: ObservableObject {
     /// Coalesces with an in-flight read. The watch view cancels that read first
     /// on background→active so a background-started request cannot serve the open.
     public func refresh() {
-        if state == .loading, loadTask != nil { return }
+        if loadTask != nil { return }
         reconcile(forceFetch: true)
     }
 
@@ -179,12 +221,14 @@ public final class WatchAccountModel: ObservableObject {
     /// Never cancel a session-clear task here: local removal must complete.
     public func cancelPendingRead() {
         guard loadTask != nil else { return }
-        invalidate()
-        state = .networkError
+        invalidateRead()
+        if currentUser == nil { state = .networkError }
+        else { profileError = "Profile may be out of date." }
     }
 
     public func signOut() async {
         invalidate()
+        currentUserStore?.clear()
         requiresReauthentication = false
         explicitSignOut = true
         explicitlyClearing = true
@@ -202,7 +246,9 @@ public final class WatchAccountModel: ObservableObject {
             return
         }
         if id == nil, sessionID != nil, !explicitSignOut { requiresReauthentication = true }
-        if id != nil {
+        if id == nil || (sessionID != nil && sessionID != id) { currentUserStore?.clear() }
+        if let id {
+            currentUserStore?.retainOnly(userID: id)
             requiresReauthentication = false
             explicitSignOut = false
         }
@@ -212,6 +258,12 @@ public final class WatchAccountModel: ObservableObject {
 
     private func invalidate() {
         currentUser = nil
+        profileError = nil
+        invalidateRead()
+    }
+
+    private func invalidateRead() {
+        isReadingProfile = false
         generation &+= 1
         loadTask?.cancel()
         loadTask = nil
@@ -219,56 +271,73 @@ public final class WatchAccountModel: ObservableObject {
     }
 
     private func reconcile(forceFetch: Bool = false) {
+        if handleBlockingState() { return }
+        if explicitSignOut {
+            reconcileExplicitSignOut()
+            return
+        }
+        reconcileAuthState(forceFetch: forceFetch)
+    }
+
+    private func handleBlockingState() -> Bool {
         if case .error(let error) = observedAuthState {
             invalidate()
+            currentUserStore?.clear()
             state = .error(error) // A failed local clear must remain visible, even under a blocking hint.
-            return
+            return true
         }
         if explicitlyClearing {
             invalidate()
             state = .loading // An explicit sign-out already owns the local removal.
-            return
+            return true
         }
         if clearTask != nil {
             invalidate()
             state = .clearing // Do not offer OTP while local removal may still delete a new session.
-            return
+            return true
         }
         if case .pending = phone {
             invalidate()
             state = .awaitingLocalContext
-            return
+            return true
         }
         switch phone {
         case .known(.signedOut):
             invalidate()
+            currentUserStore?.clear()
             blockAndClear(.phoneSignedOut)
-            return
+            return true
         case .known(.signedIn(let phoneID)):
             if let id = sessionID, id != phoneID {
                 invalidate()
+                currentUserStore?.clear()
                 blockAndClear(.matchPhone)
-                return
+                return true
             }
         case .pending, .unknown: break
         }
-        if explicitSignOut {
-            invalidate()
-            if observedAuthState.isLoading || observedAuthState.session != nil {
-                state = .loading // A bootstrap retry may still restore the failed-to-clear credential.
-            } else if case .known(.signedIn) = phone {
-                state = .matchPhone // A later phone account hint still asks for watch sign-in.
-            } else {
-                state = .signedOut
-            }
-            return
+        return false
+    }
+
+    private func reconcileExplicitSignOut() {
+        invalidate()
+        if observedAuthState.isLoading || observedAuthState.session != nil {
+            state = .loading // A bootstrap retry may still restore the failed-to-clear credential.
+        } else if case .known(.signedIn) = phone {
+            state = .matchPhone // A later phone account hint still asks for watch sign-in.
+        } else {
+            state = .signedOut
         }
+    }
+
+    private func reconcileAuthState(forceFetch: Bool) {
         switch observedAuthState {
         case .loading:
             invalidate()
             state = .loading // AuthStore.bootstrap(), not a /user task, owns this loading state.
         case .signedOut:
             invalidate()
+            currentUserStore?.clear()
             if case .known(.signedIn) = phone { state = .matchPhone }
             else { state = requiresReauthentication ? .reauthenticate : .signedOut }
         case .error(let error):
@@ -286,19 +355,33 @@ public final class WatchAccountModel: ObservableObject {
             if !forceFetch, state != .loading, state != .awaitingLocalContext,
                state != .signedOut, state != .phoneSignedOut, state != .matchPhone,
                state != .clearing { return }
-            invalidate()
-            state = .loading
-            loadingSessionID = id
-            let revision = generation
-            loadTask = Task { [weak self, currentUserService] in
-                do {
-                    let user = try await currentUserService.getUser()
-                    self?.finish(user: user, id: id, revision: revision)
-                } catch {
-                    self?.fail(error, revision: revision)
-                }
+            startRead(id: id)
+        }
+    }
+
+    private func startRead(id: String) {
+        invalidateRead()
+        if currentUser?.id != id {
+            // The session is local and owner-checked. A previously fetched name
+            // wins over the older SDK session payload until Auth revalidates.
+            let cached = currentUserStore?.load(for: id)
+            let fallback = CurrentWatchUser(id: id,
+                displayName: observedAuthState.session?.user?.displayName ?? "Athlete")
+            currentUser = cached ?? fallback
+        }
+        profileError = nil
+        loadingSessionID = id
+        isReadingProfile = true
+        let revision = generation
+        loadTask = Task { [weak self, currentUserService] in
+            do {
+                let user = try await currentUserService.getUser()
+                self?.finish(user: user, id: id, revision: revision)
+            } catch {
+                self?.fail(error, revision: revision)
             }
         }
+        state = .name(currentUser?.displayName ?? "Athlete")
     }
 
     private func blockAndClear(_ blocked: WatchAccountState) {
@@ -320,12 +403,22 @@ public final class WatchAccountModel: ObservableObject {
         guard revision == generation, !Task.isCancelled else { return }
         loadTask = nil
         loadingSessionID = nil
-        guard user.id == id, !user.id.isEmpty else { state = .authError; return }
+        isReadingProfile = false
+        guard user.id == id, !user.id.isEmpty else {
+            invalidate()
+            currentUserStore?.clear()
+            state = .authError
+            return
+        }
         if case .known(.signedIn(let phoneID)) = phone, phoneID != user.id {
+            invalidate()
+            currentUserStore?.clear()
             blockAndClear(.matchPhone)
             return
         }
+        currentUserStore?.save(user)
         currentUser = user
+        profileError = nil
         state = .name(user.displayName)
     }
 
@@ -333,13 +426,23 @@ public final class WatchAccountModel: ObservableObject {
         guard revision == generation, !Task.isCancelled else { return }
         loadTask = nil
         loadingSessionID = nil
-        if error is SessionRefreshError { state = .reauthenticate }
-        else if let fetch = error as? FetchError,
-                fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidRefreshToken {
+        isReadingProfile = false
+        if error is SessionRefreshError {
+            invalidate()
+            currentUserStore?.clear()
             state = .reauthenticate
-        }
-        else if let fetch = error as? FetchError, fetch.status == 401 { state = .authError }
-        else if error is URLError { state = .networkError }
+        } else if let fetch = error as? FetchError,
+                  fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidRefreshToken {
+            invalidate()
+            currentUserStore?.clear()
+            state = .reauthenticate
+        } else if let fetch = error as? FetchError, fetch.status == 401 {
+            invalidate()
+            currentUserStore?.clear()
+            state = .authError
+        } else if currentUser != nil {
+            profileError = "Profile may be out of date. Retry when connected."
+        } else if error is URLError { state = .networkError }
         else if let fetch = error as? FetchError, case .transport = fetch { state = .networkError }
         else { state = .error(error.localizedDescription) }
     }

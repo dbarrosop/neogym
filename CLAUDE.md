@@ -105,12 +105,22 @@ The Body and raw-workout HealthKit importers are iOS-only; watch energy
 HealthKit reads live in the watch app. The embedded
 `NeoGymWatch` watchOS 27 companion uses the watch core's private,
 origin-scoped, device-only SDK Keychain session with legacy migration ignored,
-no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read. The
-watch signs existing accounts in with email OTP; WatchConnectivity carries only
-latest-state account hints, never credentials. Signed-in watch users swipe between
+no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read.
+The watch restores its local Keychain session first, displays a same-user
+watch-app-only cached profile (or the SDK session's name) and today's token-free
+energy snapshot immediately, and revalidates the profile in the background;
+WCSession activation does not hold up the foreground UI. The watch signs
+existing accounts in with email OTP; WatchConnectivity carries only latest-state
+account hints, never credentials. Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
-active/resting breakdown, and Net = consumed minus burned) and Profile
-(uncached Auth name/email and watch-only sign-out). Consumed/Burned use icons
+active/resting breakdown, and Net = consumed minus burned), Profile
+(uncached Auth name/email and watch-only sign-out), and Events (the last 100
+timestamped, watch-app-only diagnostic outcomes). Events distinguish background
+requests accepted by watchOS from actual wakes, Health reconciliation and fresh
+energy reads, local snapshot-save success/failure, and WidgetKit reload requests;
+a reload request does not confirm the complication displayed new values. Entries
+contain fixed labels and optional numeric error codes, never credentials, names,
+URLs, or raw server responses. Consumed/Burned use icons
 without visible labels on the watch page; Net uses a balance-scale icon and the
 same prominent number style. VoiceOver labels still name all metrics. The
 Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
@@ -132,10 +142,12 @@ Info.plist must include **both** `NSHealthShareUsageDescription` and
 `NSHealthUpdateUsageDescription` even though watch HealthKit access is read-only:
 App Store Connect rejects a HealthKit-entitled watch bundle without the update
 purpose string. The update string truthfully says NeoGym does not write Health
-samples; the release verifier checks both keys in archive and IPA. A cold launch
-waits briefly for local WCSession activation; background-to-active cancels any in-flight name
-read before refreshing the eligible session, including when the view was first
-created in the background. An inactive wrist raise does not force a refresh. A
+samples; the release verifier checks both keys in archive and IPA. A cold launch does not wait for local WCSession activation or `GET /user` to
+show a restored session's cached profile; if a later phone hint blocks it, the
+watch clears the profile/energy display and local session. Background work still
+waits for local activation and account validation. Background-to-active cancels
+any in-flight name read before refreshing the eligible session, including when
+the view was first created in the background. An inactive wrist raise does not force a refresh. A
 paired iPhone is required to install the companion, not to perform the watch's
 independent network read.
 The release scripts verify a signed archive and locally exported IPA before

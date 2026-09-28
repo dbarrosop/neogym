@@ -143,9 +143,25 @@ cadence.
 
 ## Watch Energy and complication
 
-The signed-in watch app has swipeable Energy and Profile pages. Profile fetches
-name and email from uncached Auth `GET /user` and offers watch-only sign-out;
-phone account hints still block mismatched or signed-out accounts. Energy shows
+The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
+retain the last 100 timestamped, watch-app-only typed outcomes across launches:
+background scheduling requests/acceptances/failures, actual wakes, Health
+permission/reconciliation, fresh backend reads, snapshot saves, and WidgetKit
+reload requests. Only fixed labels and optional numeric error codes are stored;
+no credentials, account identifiers, names, URLs, or raw server errors. An
+accepted hourly-preferred request does not guarantee an OS wake, nor does a
+WidgetKit reload request confirm a new watch-face rendering. A local snapshot
+save failure also appears on the Energy page and skips the reload request. On launch it
+restores the local SDK session, shows the last fetched name/email from a
+watch-app-only, session-user-ID-checked cache (falling back to the SDK session
+name) and today's same-owner energy snapshot, then revalidates name/email from
+uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
+network errors retain the cached profile with Retry, while Auth errors clear it.
+Local WCSession activation also runs without delaying this foreground display.
+An already delivered signed-out/different-account hint blocks immediately; one
+delivered later may leave stale values visible briefly before the watch clears
+the local session, profile cache, and energy snapshot. Background tasks wait for
+activation and account validation before accessing the private backend. Energy shows
 today's consumed kcal from nutrition log snapshots (including standalone entries
 and logged-meal children), total burned kcal from today's `daily_energy` active
 plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
@@ -183,8 +199,10 @@ OS wakeups, **not** a guaranteed hourly schedule. Background work first
 reconciles the local watch session and phone account hint and does nothing if
 blocked/signed out. The watch widget extension has no Keychain or HealthKit
 entitlement: it reads only the token-free today's aggregate snapshot written by
-the watch app into their shared App Group, and app writes request a WidgetKit
-timeline reload. The rectangular watch-face complication presents consumed,
+the watch app into their shared App Group. The app verifies a local read-back
+after writing, records a failed write instead of requesting a reload, and asks
+WidgetKit to reload after a successful local write; local read-back still does
+not prove the extension read it or rendered a new timeline. The rectangular watch-face complication presents consumed,
 total burned, active/resting, and Net kcal; it never uploads data itself. Today's
 last-good snapshot survives session validation while the SDK restores the
 session; after a transient network failure it remains only if the SDK identifies

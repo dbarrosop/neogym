@@ -30,6 +30,7 @@ private struct WatchHomeView: View {
                 TabView {
                     energyPage
                     profilePage
+                    eventsPage
                 }
                 .tabViewStyle(.page)
             } else {
@@ -55,12 +56,11 @@ private struct WatchHomeView: View {
                 account.refresh()
             }
         }
+        .onChange(of: account.isReadingProfile, initial: true) { _, reading in
+            if reading { activity.begin("read", onExpire: { account.cancelPendingRead() }) }
+            else { activity.end("read") }
+        }
         .onChange(of: account.state) { _, state in
-            if state == .loading {
-                activity.begin("read", onExpire: { account.cancelPendingRead() })
-            } else {
-                activity.end("read")
-            }
             if state == .clearing { activity.begin("clear") }
             else { activity.end("clear") }
         }
@@ -70,9 +70,9 @@ private struct WatchHomeView: View {
     private var content: some View {
         switch account.state {
         case .awaitingLocalContext, .loading, .clearing:
-            ProgressView(account.state == .clearing ? "Clearing watch session…" : "Loading account…")
+            ProgressView(account.state == .clearing ? "Clearing watch session…" : "Opening NeoGym…")
         case .name:
-            EmptyView() // Signed-in content uses the Energy/Profile pages above.
+            EmptyView() // Signed-in content uses the Energy/Profile/Events pages above.
         case .signedOut, .matchPhone, .reauthenticate:
             if account.state == .matchPhone { Text("Sign in to match your iPhone account.") }
             else if account.state == .reauthenticate { Text("Session expired. Sign in again.") }
@@ -176,14 +176,15 @@ private struct WatchHomeView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(breakdownAccessibilityText)
                 HStack(spacing: 6) {
-                    Button { Task { await runtime.refresh() } } label: {
+                    Button { Task { await runtime.refresh(trigger: .manual) } } label: {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption)
                             .frame(width: 32, height: 32)
                             .background(.thinMaterial, in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .disabled(runtime.isRefreshing)
+                    .disabled(runtime.isRefreshing || !runtime.contextReady
+                        || account.isReadingProfile || account.profileError != nil)
                     .accessibilityLabel("Refresh energy")
                     if let snapshot = runtime.snapshot {
                         Text("Synced \(snapshot.updatedAt, style: .time)")
@@ -192,6 +193,8 @@ private struct WatchHomeView: View {
                 }
                 if !runtime.healthEnabled {
                     Button("Sync Apple Health") { Task { await runtime.enableHealth() } }
+                        .disabled(!runtime.contextReady || account.isReadingProfile
+                            || account.profileError != nil)
                     Text("Allow active and resting energy on this watch. NeoGym only reads Health data.")
                         .font(.caption2).foregroundStyle(.secondary)
                 }
@@ -241,10 +244,65 @@ private struct WatchHomeView: View {
                 Text(account.currentUser?.displayName ?? "Athlete").font(.title3.bold())
                 Text(account.currentUser?.email ?? "No email available")
                     .font(.caption).foregroundStyle(.secondary)
+                if let error = account.profileError {
+                    Text(error).font(.caption2).foregroundStyle(.secondary)
+                    Button("Retry profile") { account.refresh() }
+                }
                 signOutButton
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
+        }
+    }
+
+    private var eventsPage: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 9) {
+                Text("Events").font(.headline)
+                Text("Saved on this watch. Requested or accepted does not mean WidgetKit displayed new data.")
+                    .font(.caption2).foregroundStyle(.secondary)
+                if runtime.events.isEmpty {
+                    Text("No events yet.").font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(runtime.events) { event in
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 4) {
+                            Image(systemName: eventSymbol(event.outcome))
+                                .foregroundStyle(eventColor(event.outcome))
+                            Text(event.action.title).font(.caption.bold())
+                        }
+                        Text(event.outcome.title
+                             + (event.trigger.map { " · \($0.title)" } ?? "")
+                             + (event.errorCode.map { " · code \($0)" } ?? ""))
+                            .font(.caption2)
+                        Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened))
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(7)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 9))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+        }
+    }
+
+    private func eventSymbol(_ outcome: WatchEventOutcome) -> String {
+        switch outcome {
+        case .failed: "xmark.circle.fill"
+        case .succeeded: "checkmark.circle.fill"
+        case .accepted, .finished: "checkmark.circle"
+        case .started, .requested, .skipped: "clock"
+        }
+    }
+
+    private func eventColor(_ outcome: WatchEventOutcome) -> Color {
+        switch outcome {
+        case .failed: .red
+        case .succeeded: .green
+        case .started, .accepted, .requested, .finished, .skipped: .secondary
         }
     }
 
