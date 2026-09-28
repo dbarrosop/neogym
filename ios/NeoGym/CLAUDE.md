@@ -307,8 +307,9 @@ changes.
   successful backend reconciliation. It creates missing dates and refreshes
   the last 7 local days only for rows still carrying that note. An empty
   initial HealthKit read is not checkpointed, and deletions are not yet
-  reconciled. Overview revalidates its backend queries after sync only when
-  Body rows changed.
+  reconciled. Overview revalidates its backend queries after sync when Body
+  rows changed or when refresh/Retry was requested while sync was pending;
+  queued requests keep the dashboard's loading indicator visible.
 
 ## Native iOS design guide
 

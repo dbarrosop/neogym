@@ -14,6 +14,7 @@ struct NutritionOverviewView: View {
     @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
     @State private var isRefreshingOverview = false
     @State private var isLoadingPipeline = false
+    @State private var needsRevalidationAfterBodySync = false
     @State private var hasLoadedOverview = false
     @State private var hasRequestedCharts = false
     @State private var caloriesSeries: [TimeSeriesChartSeries] = []
@@ -169,7 +170,15 @@ struct NutritionOverviewView: View {
     }
 
     private func loadOverview() async {
-        guard !isLoadingPipeline else { return }
+        guard !isLoadingPipeline else {
+            // Initial reads are already in flight; a request after they finish
+            // must wait for the Body sync and then fetch fresh backend data.
+            if !isRefreshingOverview {
+                needsRevalidationAfterBodySync = true
+                isRefreshingOverview = true
+            }
+            return
+        }
         isLoadingPipeline = true
         isRefreshingOverview = true
         defer {
@@ -195,8 +204,10 @@ struct NutritionOverviewView: View {
         hasRequestedCharts = true
         isRefreshingOverview = false
         let bodyChanged = await bodySync
-        // Revalidate after HealthKit only if it actually changed backend Body rows.
-        if bodyChanged {
+        let shouldRevalidate = bodyChanged || needsRevalidationAfterBodySync
+        needsRevalidationAfterBodySync = false
+        // Also honor refresh/Retry requests made while the Body sync was running.
+        if shouldRevalidate {
             isRefreshingOverview = true
             async let finalOverviewLoad: Void = viewModel.load()
             async let calorieLoad: Void = calorieViewModel.load(range: calorieRange)

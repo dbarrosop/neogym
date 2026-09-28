@@ -57,8 +57,10 @@ macro math. The native Nutrition overview is a dashboard, not a shortcut list:
 on initial load and pull-to-refresh it reads energy from the backend and
 starts chart reads alongside the read-only Body Apple Health sync. The initial
 dashboard stops showing section spinners once those reads finish even if a
-first-time HealthKit scan continues; it revalidates the overview and charts
-after Body sync only if backend Body rows changed. The iPhone does not import HealthKit energy;
+first-time HealthKit scan continues. A refresh or balance Retry during that scan
+keeps the section loading indicator visible and queues another backend read;
+after Body sync the overview and charts revalidate if backend Body rows changed
+or a request was queued. The iPhone does not import HealthKit energy;
 only the watch app does.
 On a cold launch after the default range has moved to a new local day, each chart
 checks the SDK's protected cache for today's exact range and up to seven earlier

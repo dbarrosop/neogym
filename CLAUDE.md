@@ -264,9 +264,10 @@ list's own `.bottomBar`. Energy hosts the daily active/resting kcal CRUD list an
 Nutrition hub; opening or refreshing it reads the backend only. The Overview
 screen (a pushed route) is a dashboard: on load and pull-to-refresh it reads
 Energy from the backend and auto-syncs Body measurements from HealthKit;
-it revalidates the backend overview and charts after sync only when Body rows
-changed. The iPhone does not request active/resting HealthKit energy access or
-upload energy; the watch app owns that import. Cached chart data can render
+it revalidates the backend overview and charts after sync when Body rows
+changed or when a refresh/Retry was requested while the sync was pending.
+The iPhone does not request active/resting HealthKit energy access or upload
+energy; the watch app owns that import. Cached chart data can render
 during Body sync. On a cold launch across a local-day change,
 the default charts first read today's and up to seven earlier exact ranges from
 the SDK's user-scoped, age-bounded cache without network calls; any previous-range
