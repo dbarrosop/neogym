@@ -9,6 +9,8 @@ struct NeoGymApp: App {
     private let notificationDelegate: NeoGymNotificationDelegate
     @StateObject private var authStore: AuthStore
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
+    @StateObject private var phoneConnectivity = PhoneAccountConnectivity()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         let appEnvironment = NhostClientFactory.makeProductionEnvironment()
@@ -34,6 +36,11 @@ struct NeoGymApp: App {
                 .environmentObject(authCallbackURLRouter)
                 .onOpenURL { url in
                     authCallbackURLRouter.open(url)
+                }
+                .onAppear { phoneConnectivity.start() }
+                .onReceive(authStore.$state) { phoneConnectivity.observe($0) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { phoneConnectivity.foreground() }
                 }
         }
     }

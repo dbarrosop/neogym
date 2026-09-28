@@ -86,7 +86,7 @@ public enum HealthDailyEnergyGrouper {
     }
 }
 
-#if canImport(HealthKit) && !os(macOS)
+#if canImport(HealthKit) && os(iOS)
 import HealthKit
 
 public enum HealthKitDailyEnergyImportError: LocalizedError, Sendable, Equatable {

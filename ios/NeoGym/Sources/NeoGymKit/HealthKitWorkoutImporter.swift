@@ -1,6 +1,6 @@
 import Foundation
 
-#if canImport(HealthKit) && !os(macOS)
+#if canImport(HealthKit) && os(iOS)
 import CoreFoundation
 import HealthKit
 

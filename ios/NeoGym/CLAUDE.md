@@ -8,7 +8,8 @@ Native SwiftUI shell for NeoGym plus the host-testable `NeoGymKit` package.
 The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 `NeoGymKit` owns validators, auth/session models, repositories, domain view
 models, daily energy models/import helpers, and testable form validation;
-SwiftUI under `App/` owns layout, navigation, and presentation.
+iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
+watch SwiftUI and connectivity live only under `Watch/`.
 
 ## Commands
 
@@ -23,21 +24,47 @@ package at its lower deployment floor unless its own code needs newer APIs.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
   tests. In XCTest, await actor snapshots into a local before passing them to
-  `XCTAssertEqual`: assertion autoclosures do not support `await`.
+  `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
+  `WatchAccountTests` methods in its existing extension: the main class is near
+  the Swift lint 350-line type-body limit.
 - `nix develop ../.. --command xcodegen generate` — regenerate
   `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
   Keep `project.yml` as the source of truth and do not commit generated
   `.xcodeproj` output.
 - `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` — build the SwiftUI app for a simulator
   destination.
-- `make deploy-testflight` — regenerate, archive the app and widget for iOS
-  Release, and upload to App Store Connect. Requires XcodeGen, an Xcode account
-  authorized for team `C7HCKFA2LG`; never run this as a validation-only
-  command. Export enables Xcode-managed build numbers, so no manual
-  `CURRENT_PROJECT_VERSION` bump is needed for each upload (the archive and
-  uploaded build numbers can differ). It does not wait for TestFlight processing
-  or assign tester groups. Archives are retained under ignored
-  `.build/testflight/` for troubleshooting and export retries.
+- `Scripts/verify-release-archive.sh --simulator PATH/NeoGym.app` — inspect
+  simulator structure/IDs/icon/platform and watch binary dependencies after
+  building both simulator schemes; this checks the watch executable and its
+  `.debug.dylib` when present (the Debug executable can be only a stub).
+  No signing assertion for simulator builds.
+- `python3 -m unittest Scripts/test_verify_release_archive.py` — offline
+  fail-closed fixture checks; macOS `/usr/bin/python3` is 3.9, so avoid newer
+  Python-only syntax/APIs in release scripts.
+- `make archive-release` — non-upload signed device archive, archive signature/
+  entitlement/profile verification, local `destination=export`, then IPA
+  distribution signature/entitlement verification. `NEOGYM_ALLOW_PROVISIONING_UPDATES=YES`
+  is a separate per-run permission to register/update Apple profiles; without it
+  Xcode gets no `-allowProvisioningUpdates`. Obtain operator acknowledgment for
+  new watch ID provisioning before enabling it. Stock macOS `/bin/bash` 3.2
+  treats expansion of an empty array under `set -u` as unbound; keep optional
+  provisioning arguments scalar/guarded and test both branches with stubbed
+  `xcodebuild`. If no signing account/profiles exist, this gate remains blocked;
+  simulator verification is not a substitute. Xcode can embed a development
+  watch profile with a team-scoped wildcard App ID (`TEAM.*`) even when the
+  signed watch entitlement uses its concrete App ID; the verifier accepts
+  component-bounded matching wildcards only when team, signing type, and
+  entitlement coverage still agree. Re-run the read-only verifier against a
+  retained archive when diagnosing this case; never bypass verification or
+  turn provisioning back on without per-run approval.
+- `make deploy-testflight` — explicitly starts a real upload and reuses the
+  entire non-upload verified path before `destination=upload`. Never run for
+  validation; obtain explicit operator approval each time before running it.
+  Xcode-managed build numbers can differ across archive and export, but phone/watch/widget versions
+  must match within each artifact. Archives remain under ignored
+  `.build/testflight/` for diagnosis; never retry through direct export or
+  Organizer upload. TestFlight processing/hardware installation are separate.
+  See `README.md` for paired-watch acceptance and delayed-hint limits.
 
 If an inherited Nix shell exports `DEVELOPER_DIR`/`SDKROOT` to an older
 `apple-sdk` and `swift build`/`swift test` fail with an SDK/compiler mismatch,
@@ -54,6 +81,81 @@ that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
 test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
 `AR`, and `LDFLAGS`.
+
+The package now supports watchOS 8 without raising its iOS/macOS floors. Its
+three HealthKit implementations compile only on iOS; pure HealthKit grouping
+models remain host-testable. For package-only watch architecture checks, run
+`xcodebuild -scheme NeoGymKit -destination 'generic/platform=watchOS Simulator' build`
+and the `generic/platform=watchOS` variant with `CODE_SIGNING_ALLOWED=NO`
+from a directory without a generated `.xcodeproj`; `xcodebuild` otherwise
+selects the project instead of the package. After XcodeGen has run, copy
+`Package.swift`, `Sources/` and `Tests/` into the repo-root ignored directory
+`../../.nhost-code/tmp/watch-package-check/` (relative to `ios/NeoGym/`),
+change only that copy's `.package(path:)` to the SDK's absolute path (the
+relative path breaks outside `ios/NeoGym`), and use a separate
+`-derivedDataPath`. Confirm `xcodebuild -list` selects the package there.
+Use the Xcode environment cleanup above for both commands. The watchOS 27
+`NeoGymWatch` scheme is now embedded in the iPhone app alongside
+`NeoGymWidgets`; XcodeGen does not support target-level `resources:` here:
+watch assets must remain included in `sources` (do not exclude
+`Assets.xcassets`). After generation, verify the built watch app has
+`Assets.car` and `CFBundleIcons/CFBundlePrimaryIcon/CFBundleIconName = AppIcon`.
+Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
+'generic/platform=watchOS Simulator' build` after generation.
+`Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
+
+`NhostClientFactory.makeProductionWatchClient()` selects production and the
+SDK's origin-scoped private, device-only default Keychain session with legacy
+unscoped migration ignored; no shared Keychain/App Group and no GraphQL cache.
+`WatchAccountModel.production()` explicitly injects that client into both auth
+and uncached Auth `GET /user`. Watch UI waits briefly for local connectivity-context activation (not phone
+reachability), calls `localContextReady`, and only displays `.name` from that
+live read. The phone publishes definitive `AuthStore` states through
+`PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
+activation/foreground. Transient bootstrap states do not overwrite hints.
+The watch reads on cold start. On background-to-active (including a view first
+created in the background), it cancels any in-flight name read before refreshing,
+so an eligible session starts a fresh `/user` request on open. Direct
+`WatchAccountModel.refresh()` calls still coalesce with an in-flight read;
+inactive wrist raises do not refresh.
+A bounded `performExpiringActivity` assertion protects OTP, live reads,
+and session clearing best-effort, not as a watchOS suspension guarantee. Its
+20-second local deadline releases only the assertion, never the operation; a
+system-reported expiry cancels OTP/read operations, but never interrupts
+mandatory local clearing. A late expiry from an old assertion cannot cancel a
+newer read; `WatchActivityExpiryGate` provides a host-tested generation guard
+for the queued main-actor callback. `acceptVerifiedSession` forces a fresh `/user` read even when OTP
+already persisted a same-ID session, subject to the latest blocking phone hint. Watch SwiftUI `TextField` has no iOS-style
+`.keyboardType` modifier. For a simulator OTP/session smoke test use a
+signed-to-run-locally build; `CODE_SIGNING_ALLOWED=NO` can launch the app but
+its private Keychain read fails with missing entitlement (`-34018`). Its pure `PhoneAccountHint` payload carries only
+version/state/userId and optional opaque deliveryId, never credential or name material; unknown context allows
+independent watch auth while a known signed-out/different-account hint blocks
+it. `.phoneSignedOut` distinguishes a blocking phone hint from the watch's
+ordinary `.signedOut` state, so watch UI must not offer OTP for that state.
+A blocking hint shows non-actionable `.clearing` until the remote sign-out/local
+clear finishes; do not offer OTP during `.clearing`, even if newer hints arrive.
+After an explicit watch sign-out, a later phone `.signedIn` hint shows
+`.matchPhone` rather than the watch-only `.signedOut` prompt. A failed local
+session clear displays `.error`, not a false signed-out claim, and must not
+expose the previous name. Without a blocking phone hint, a bootstrap retry
+after that failure stays `.loading` until session restoration resolves; do not
+briefly offer OTP while AuthStore publishes `.loading` with no session.
+Re-reading identical/matching context
+must keep an in-flight same-session `/user` request alive; cancelling it
+without replacement strands the UI in loading. Reconcile every AuthStore state
+publication even when its user ID is unchanged: a retry through
+`authStore.bootstrap()` can move `.error` to `.signedOut` with nil IDs in both
+states. A delayed hint cannot revoke an undelivered watch token instantly.
+In stub-transport tests of managed Auth refresh, `/token` returns a bare
+`AuthSession` JSON object (not `{ "session": ... }`). Fixture JWTs need a
+future `exp` claim; `StoredSession(decodedToken:)` overrides the SDK's JWT
+decoding, so omit it or include `exp` in its claims to avoid an unnecessary
+refresh before `/user`. Never let host tests fall through to the real default
+HTTP transport. On a successful remote sign-out, the SDK tries local removal
+twice if the first attempt fails; `AuthStore` still attempts its own clear even
+if the SDK throws. For a deterministic single-clear failure test, fail the
+stubbed remote `/signout` after releasing its held response.
 
 Keep `App/LaunchScreen.storyboard` wired through `UILaunchStoryboardName` in
 both `App/Info.plist` and `project.yml`. Removing it can make the app run
@@ -142,7 +244,7 @@ changes.
   values/validation, repository, list/detail/editor view models, trend builders,
   `DailyEnergyHealthImporting`, `HealthDailyEnergy`, and
   `DailyEnergyHealthSyncSummary`). Keep those host-testable; HealthKit itself is
-  guarded with `#if canImport(HealthKit) && !os(macOS)`.
+  guarded with `#if canImport(HealthKit) && os(iOS)`.
 - Do not pin `AuthStore`'s `session.accessToken` to a request: an explicit Authorization header is not replaced by SDK managed refresh, and the bootstrap session may already be expired. For account-bound writes, use `client.refreshSession(marginSeconds:)`, verify the cursor owner's user ID, then pin the returned token for that request.
 - `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions on Workouts-area open/refresh. The user-scoped on-device cursor advances only after backend writes succeed. A hub pull-to-refresh overlapping an import waits for it and runs another anchored pass; cancelled refreshes do not run a follow-up. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
 - `HealthKitDailyEnergyImporter` is read-only (`toShare: []`) and sums active
