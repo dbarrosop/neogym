@@ -7,6 +7,8 @@ public enum WatchEventAction: String, Codable, Sendable {
     case backgroundTask
     case energyRefresh
     case healthPermission
+    case healthObservation
+    case healthBackgroundDelivery
     case healthSync
     case snapshotSave
     case complicationReload
@@ -17,6 +19,8 @@ public enum WatchEventAction: String, Codable, Sendable {
         case .backgroundTask: "Background wake"
         case .energyRefresh: "Energy refresh"
         case .healthPermission: "Apple Health permission"
+        case .healthObservation: "Health observer"
+        case .healthBackgroundDelivery: "Health background delivery"
         case .healthSync: "Apple Health sync"
         case .snapshotSave: "Complication snapshot save"
         case .complicationReload: "Complication reload request"
@@ -68,6 +72,8 @@ public enum WatchEventStage: String, Codable, Sendable {
     case activeHealthQuery
     case restingHealthQuery
     case healthRead
+    case observerQuery
+    case backgroundDelivery
     case backendRead
     case backendWrite
     case authorization
@@ -78,6 +84,8 @@ public enum WatchEventStage: String, Codable, Sendable {
         case .activeHealthQuery: "Active energy HealthKit query"
         case .restingHealthQuery: "Resting energy HealthKit query"
         case .healthRead: "HealthKit import"
+        case .observerQuery: "HealthKit observer query"
+        case .backgroundDelivery: "HealthKit background delivery registration"
         case .backendRead: "Backend read"
         case .backendWrite: "Backend write"
         case .authorization: "Health permission request"

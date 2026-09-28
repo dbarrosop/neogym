@@ -146,12 +146,14 @@ cadence.
 The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
 retain the last 100 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
-permission/reconciliation, fresh backend reads, snapshot saves, and WidgetKit
-reload requests. Entries store only fixed labels, optional numeric codes,
-allowlisted error sources, and failing stages (including active/resting
-HealthKit statistics versus backend read/write); previously saved entries with
-only a numeric code still display. A code of 3 is identified as invalid
-HealthKit argument **only** when its source domain is `HKErrorDomain`. The
+permission/reconciliation, observer-query and background-delivery registration
+failures, fresh backend reads, snapshot saves, and WidgetKit reload requests.
+Entries store only fixed labels, optional numeric codes, allowlisted error
+sources, and failing stages (including active/resting HealthKit statistics,
+observer queries and delivery registration versus backend read/write);
+previously saved entries with only a numeric code still display. A code of 3
+is identified as invalid HealthKit argument **only** when its source domain is
+`HKErrorDomain`. The
 Events page offers **Share logs** via the watchOS system share sheet; it builds
 a temporary `.txt` export of these same typed entries on user request, with no
 automatic email/upload. Neither stored entries nor exports include credentials,
@@ -210,10 +212,13 @@ The **watch app**, not the complication, owns authorization, HealthKit queries,
 GraphQL writes, and network refreshes. After the explicit permission flow it
 registers HealthKit observer/background delivery for both energy types; it also
 asks watchOS for an hourly preferred background refresh. These are best-effort
-OS wakeups, **not** a guaranteed hourly schedule. Background work first
-reconciles the local watch session and phone account hint and does nothing if
-blocked/signed out. The watch widget extension has no Keychain or HealthKit
-entitlement: it reads only the token-free today's aggregate snapshot written by
+OS wakeups, **not** a guaranteed hourly schedule. HealthKit observer deliveries
+wait for local activation and account validation before syncing or acknowledging
+the delivery; if ineligible, they record a skipped Energy refresh · Health event
+before completion. Background work first reconciles the local watch session and
+phone account hint and does nothing if blocked/signed out. The watch widget
+extension has no Keychain or HealthKit entitlement: it reads only the token-free
+today's aggregate snapshot written by
 the watch app into their shared App Group. The app verifies a local read-back
 after writing, records a failed write instead of requesting a reload, and asks
 WidgetKit to reload after a successful local write; local read-back still does

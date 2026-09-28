@@ -106,14 +106,16 @@ swipe between Energy (today's consumed, total burned, active/resting, and
 Net = consumed minus burned kcal) and Profile (a locally cached name/email,
 revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
-background scheduling, wake, Health sync, backend read, snapshot save, and
-complication reload-request outcomes). The last 100 events stay on the watch,
-not in its widget or on a server; only fixed event kinds, timestamps, optional
-numeric error codes, allowlisted error sources, and failure stages are stored.
-New failures distinguish active/resting HealthKit queries from backend
-reads/writes. Older events retain their numeric-only detail. In Events, tap
-**Share logs** to choose an app/destination in the watchOS share sheet for a
-plain-text `.txt` attachment. Available destinations depend on the watchOS
+background scheduling, wake, Health sync, observer-query and background-delivery
+registration failures, backend read, snapshot save, and complication
+reload-request outcomes). The last 100 events stay on the watch, not in its
+widget or on a server; only fixed event kinds, timestamps, optional numeric
+error codes, allowlisted error sources, and failure stages are stored. Failures
+distinguish active/resting HealthKit queries, observer queries, and
+background-delivery registration from backend reads/writes. Older events
+retain their numeric-only detail. In Events, tap **Share logs** to choose an
+app/destination in the watchOS share sheet for a plain-text `.txt` attachment.
+Available destinations depend on the watchOS
 share sheet and installed apps; nothing is sent automatically. Exports contain no account details,
 tokens, URLs, or raw error messages; they contain only these diagnostic events.
 “Accepted” means watchOS accepted a background request, not that it woke the
@@ -130,8 +132,11 @@ The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
 taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
-best-effort, not a guaranteed hourly schedule. The rectangular watch complication
-shows intake, total burn, active/resting, and Net from the watch app's token-free,
+best-effort, not a guaranteed hourly schedule. Observer deliveries wait for local
+activation and account validation before syncing or calling HealthKit's
+completion; ineligible deliveries record a skipped Energy refresh · Health event
+before completion. The rectangular watch complication shows intake, total burn,
+active/resting, and Net from the watch app's token-free,
 today-only App Group snapshot after a fresh backend fetch. Only its cutlery,
 flame, and custom two-pan balance icons are colored green, red, and teal;
 consumed and burned use equal bold type with no visible “in/out” words.

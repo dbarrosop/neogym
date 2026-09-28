@@ -22,11 +22,19 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
         }
     }
 
-    func startObserving(onChange: @escaping @Sendable () async -> Void) {
+    func startObserving(
+        onChange: @escaping @Sendable () async -> Void,
+        onFailure: @escaping @Sendable (WatchEventAction, WatchEventStage, Int?, WatchEventErrorSource) -> Void
+    ) {
         guard observers.isEmpty, HKHealthStore.isHealthDataAvailable() else { return }
         for type in [active, resting] {
             let query = HKObserverQuery(sampleType: type, predicate: nil) { _, completion, error in
-                guard error == nil else { completion(); return }
+                if let error {
+                    let (code, source) = Self.failureDetails(error, stage: .observerQuery)
+                    onFailure(.healthObservation, .observerQuery, code, source)
+                    completion()
+                    return
+                }
                 let finished = HealthObserverCompletion(completion)
                 Task {
                     await onChange()
@@ -35,8 +43,17 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
             }
             observers.append(query)
             store.execute(query)
-            store.enableBackgroundDelivery(for: type, frequency: .hourly) { _, _ in }
+            store.enableBackgroundDelivery(for: type, frequency: .hourly) { success, error in
+                guard !success || error != nil else { return }
+                let (code, source) = Self.failureDetails(error, stage: .backgroundDelivery)
+                onFailure(.healthBackgroundDelivery, .backgroundDelivery, code, source)
+            }
         }
+    }
+
+    private static func failureDetails(_ error: (any Error)?, stage: WatchEventStage) -> (Int?, WatchEventErrorSource) {
+        guard let error = error as NSError? else { return (nil, .other) }
+        return (error.code, .classify(domain: error.domain, stage: stage))
     }
 
     func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {

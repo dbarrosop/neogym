@@ -120,7 +120,7 @@ final class WatchEnergyRuntime: ObservableObject {
     }
 
     func refresh(trigger: WatchEventTrigger = .automatic) async {
-        if trigger == .manual || trigger == .healthObserver {
+        if trigger == .manual {
             await revalidateAccountIfNeeded()
         }
         guard contextReady, !account.isReadingProfile, account.profileError == nil else { return }
@@ -195,17 +195,21 @@ final class WatchEnergyRuntime: ObservableObject {
     }
 
     func backgroundRefresh() async {
-        // Unlike foreground display, background work waits for the local phone
-        // hint and account read before touching the private energy endpoint.
+        await refreshWhenEligible(trigger: .background)
+        scheduleRefresh()
+    }
+
+    private func refreshWhenEligible(trigger: WatchEventTrigger) async {
+        // Background tasks and HealthKit deliveries must hold their completion
+        // until local context and the uncached account read have settled.
         await bootstrap()
         await revalidateAccountIfNeeded()
         if case .name = account.state, contextReady, !account.isReadingProfile,
            account.profileError == nil {
-            await refresh(trigger: .background)
+            await refresh(trigger: trigger)
         } else {
-            record(.energyRefresh, .skipped, trigger: .background)
+            record(.energyRefresh, .skipped, trigger: trigger)
         }
-        scheduleRefresh()
     }
 
     private func revalidateAccountIfNeeded() async {
@@ -232,11 +236,7 @@ final class WatchEnergyRuntime: ObservableObject {
         let actualStage = wrapped?.stage ?? fallback
         let domain = wrapped?.underlyingDomain ?? (error as NSError).domain
         let code = wrapped?.underlyingCode ?? (error as NSError).code
-        let source: WatchEventErrorSource
-        if domain == HKErrorDomain { source = .healthKit }
-        else if domain == NSURLErrorDomain { source = .network }
-        else if actualStage == .backendRead || actualStage == .backendWrite { source = .backend }
-        else { source = .other }
+        let source = WatchEventErrorSource.classify(domain: domain, stage: actualStage)
         record(action, .failed, trigger: trigger, errorCode: code, errorSource: source, stage: actualStage)
     }
 
@@ -251,7 +251,14 @@ final class WatchEnergyRuntime: ObservableObject {
     }
 
     private func startObservers() {
-        health.startObserving { [weak self] in await self?.refresh(trigger: .healthObserver) }
+        health.startObserving { [weak self] in
+            await self?.refreshWhenEligible(trigger: .healthObserver)
+        } onFailure: { [weak self] action, stage, code, source in
+            Task { @MainActor [weak self] in
+                self?.record(action, .failed, trigger: .healthObserver,
+                             errorCode: code, errorSource: source, stage: stage)
+            }
+        }
     }
 
     private func scheduleRefresh() {
@@ -267,6 +274,17 @@ final class WatchEnergyRuntime: ObservableObject {
                              stage: code == nil ? nil : .scheduling)
             }
         }
+    }
+}
+
+// Keep HealthKit and network classification consistent for asynchronous observer
+// callbacks and regular refresh failures without carrying raw errors into events.
+extension WatchEventErrorSource {
+    static func classify(domain: String, stage: WatchEventStage) -> Self {
+        if domain == HKErrorDomain { return .healthKit }
+        if domain == NSURLErrorDomain { return .network }
+        if stage == .backendRead || stage == .backendWrite { return .backend }
+        return .other
     }
 }
 

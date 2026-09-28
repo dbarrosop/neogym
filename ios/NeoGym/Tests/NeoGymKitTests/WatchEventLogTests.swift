@@ -57,6 +57,29 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertFalse(contents.contains("https://private.example.test"))
     }
 
+    func testHealthObserverAndDeliveryFailuresExportOnlyTypedDetails() {
+        let suite = "WatchEventLogTests.\(UUID().uuidString)"
+        let store = WatchEventStore(suite: suite)
+        defer { store.clear() }
+        let observer = WatchEvent(action: .healthObservation, outcome: .failed,
+                                  trigger: .healthObserver, errorCode: 3,
+                                  errorSource: .healthKit, stage: .observerQuery)
+        let delivery = WatchEvent(action: .healthBackgroundDelivery, outcome: .failed,
+                                  trigger: .healthObserver, errorSource: .other,
+                                  stage: .backgroundDelivery)
+        store.record(observer)
+        store.record(delivery)
+        let restored = store.load()
+        XCTAssertEqual(restored, [delivery, observer])
+        let exported = WatchEventExport.text(events: restored)
+        XCTAssertTrue(exported.contains(
+            "Health observer | Failed · Health event · HealthKit observer query · HealthKit · code 3"
+        ))
+        XCTAssertTrue(exported.contains(
+            "Health background delivery | Failed · Health event · HealthKit background delivery registration · Other"
+        ))
+    }
+
     func testOldNumericOnlyEventsStillDecode() throws {
         let legacy = Data(#"{"id":"00000000-0000-0000-0000-000000000001","occurredAt":0,"action":"healthSync","outcome":"failed","trigger":"healthObserver","errorCode":3}"#.utf8)
         let event = try JSONDecoder().decode(WatchEvent.self, from: legacy)

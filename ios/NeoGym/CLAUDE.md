@@ -126,19 +126,24 @@ reachability) or the network name read. It renders a cached profile and today's
 same-owner energy snapshot, then activates WCSession and revalidates the profile
 in the background. A delayed blocking hint clears both caches and the local
 session; on a phone sign-out there can be a short stale display before delivery.
-Background refresh still waits for activation and the managed account read. If
-that read fails transiently while the same owner's cached profile remains,
-later background wakes and HealthKit observer deliveries retry `/user` before
-private energy access. Energy's Refresh control also retries validation and
-shows the profile warning; a still-failing or auth-rejected read cannot sync.
+Background refresh and HealthKit observer deliveries wait for activation and
+the managed account read before private energy access or acknowledging a
+HealthKit delivery. If that read fails transiently while the same owner's
+cached profile remains, later background wakes and observer deliveries retry
+`/user`. Ineligible deliveries record a skipped event; observer-query and
+background-delivery registration failures record only typed stage, source, and
+numeric error code (when available). Energy's Refresh control also retries
+validation and shows the profile warning; a still-failing or auth-rejected read
+cannot sync.
 Signed-in watch users can swipe to a third Events page: `WatchEventStore` keeps
 at most 100 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule
 requested/accepted/failed with numeric codes, actual wakes started/finished,
-Health permission/reconciliation, fresh energy reads, local snapshot saves,
-and WidgetKit reload requests. Failures now include a fixed stage (active or
-resting HealthKit query, backend read/write, authorization, scheduling) and
-allowlisted source (HealthKit, network, backend, other); older records still
+Health permission/reconciliation, observer and background-delivery failures,
+fresh energy reads, local snapshot saves, and WidgetKit reload requests.
+Failures include a fixed stage (HealthKit energy/observer query or delivery
+registration, backend read/write, authorization, scheduling) and allowlisted
+source (HealthKit, network, backend, other); older records still
 have only numeric codes. HealthKit code 3 is only labeled "invalid argument"
 when the original domain matches `HKErrorDomain`. An accepted schedule does not
 guarantee a wake; a reload request does not prove the complication updated.
