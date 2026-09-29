@@ -6,8 +6,16 @@ public struct WatchRefreshSchedule: Sendable {
     public private(set) var pendingPreferredDate: Date?
     public private(set) var consecutiveFailures = 0
     private var pendingRetryDate: Date?
+    private var pendingHealthDate: Date?
 
     public init() {}
+
+    /// A suspended app cannot run a watchdog on time. When a new eligible
+    /// trigger arrives, let it replace a refresh started over 30s ago rather
+    /// than joining a possibly suspended or stuck in-flight task forever.
+    public static func isStaleRefresh(startedAt: Date, now: Date) -> Bool {
+        now.timeIntervalSince(startedAt) >= 30
+    }
 
     public mutating func requestHourly(now: Date) -> Date? {
         request(now.addingTimeInterval(60 * 60), now: now)
@@ -26,16 +34,27 @@ public struct WatchRefreshSchedule: Sendable {
         return date
     }
 
+    /// A HealthKit callback was locally persisted; prefer a sooner fallback
+    /// wake without counting it as a failed sync. Bursts share one request.
+    public mutating func requestPendingHealth(now: Date) -> Date? {
+        if let pendingHealthDate, pendingHealthDate > now { return nil }
+        let date = request(now.addingTimeInterval(15 * 60), now: now)
+        pendingHealthDate = date ?? pendingPreferredDate
+        return date
+    }
+
     public mutating func didRefreshSuccessfully() { consecutiveFailures = 0 }
 
     public mutating func didWake() {
         pendingPreferredDate = nil
         pendingRetryDate = nil
+        pendingHealthDate = nil
     }
 
     public mutating func didFailToSchedule(_ date: Date) {
         if pendingPreferredDate == date { pendingPreferredDate = nil }
         if pendingRetryDate == date { pendingRetryDate = nil }
+        if pendingHealthDate == date { pendingHealthDate = nil }
     }
 
     private mutating func request(_ date: Date, now: Date) -> Date? {

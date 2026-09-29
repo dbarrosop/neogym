@@ -88,6 +88,7 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertNil(event.attemptID)
         XCTAssertNil(event.metric)
         XCTAssertNil(event.durationSeconds)
+        XCTAssertNil(event.pendingWallSeconds)
         XCTAssertEqual(event.failureDetails, "code 3")
         XCTAssertEqual(event.diagnosticDetails, "code 3")
     }
@@ -128,6 +129,15 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertEqual(skipped.diagnosticDetails, "attempt 00000000 · account validation failed")
         XCTAssertFalse(export.contains("private.example.test"))
         XCTAssertFalse(export.contains("secret"))
+        XCTAssertTrue(export.contains("Legacy timeout events may have been acknowledged long after 25s"))
+    }
+
+    func testPendingWallClockAgeIsExportedSeparatelyFromActiveDuration() {
+        let event = WatchEvent(action: .energyRefresh, outcome: .started, trigger: .automatic,
+                               durationSeconds: 2, pendingWallSeconds: 3_300)
+        let export = WatchEventExport.text(events: [event])
+        XCTAssertTrue(export.contains("2s · pending 3300s wall"))
+        XCTAssertTrue(export.contains("including watch sleep"))
     }
 
     func testDefaultStoreKeepsMoreThanOneHundredEvents() {

@@ -8,6 +8,7 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
     private let store = HKHealthStore()
     private let calendar = Calendar.current
     private var observers: [HKObserverQuery] = []
+    private var registration: WatchObserverRegistrationGate?
     private let active = HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
     private let resting = HKQuantityType.quantityType(forIdentifier: .basalEnergyBurned)!
 
@@ -23,12 +24,14 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
     }
 
     func startObserving(
-        onChange: @escaping @Sendable (WatchEventMetric, UUID) async -> Void,
+        onChange: @escaping @Sendable (WatchEventMetric, UUID) -> Void,
         onCompletion: @escaping @Sendable (WatchEventMetric, UUID, WatchEventOutcome, Int) -> Void,
         onFailure: @escaping @Sendable (WatchEventMetric, WatchEventAction, WatchEventStage,
                                        Int?, WatchEventErrorSource) -> Void
     ) {
         guard observers.isEmpty, HKHealthStore.isHealthDataAvailable() else { return }
+        let gate = WatchObserverRegistrationGate()
+        registration = gate
         for (type, metric) in [(active, WatchEventMetric.activeEnergy), (resting, .restingEnergy)] {
             let query = HKObserverQuery(sampleType: type, predicate: nil) { _, completion, error in
                 if let error {
@@ -38,26 +41,16 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
                     return
                 }
                 let id = UUID()
-                let started = ProcessInfo.processInfo.systemUptime
+                let receivedAt = Date()
+                // The synchronous handoff persists a pending marker before
+                // HealthKit is acknowledged. Never hold its callback through
+                // account validation, HealthKit queries or network work: a
+                // suspended watch cannot run an in-process watchdog.
+                let accepted = gate.runIfActive { onChange(metric, id) }
                 let finished = WatchObserverCompletionGate(completion)
-                let elapsed: @Sendable () -> Int = {
-                    max(0, Int((ProcessInfo.processInfo.systemUptime - started).rounded(.up)))
-                }
-                let work = Task { await onChange(metric, id) }
-                let watchdog = Task {
-                    do { try await Task.sleep(for: .seconds(25)) }
-                    catch { return }
-                    if finished.complete() {
-                        onCompletion(metric, id, .timedOut, elapsed())
-                        work.cancel()
-                    }
-                }
-                Task {
-                    await work.value
-                    watchdog.cancel()
-                    if finished.complete() {
-                        onCompletion(metric, id, .acknowledged, elapsed())
-                    }
+                if finished.complete(), accepted {
+                    onCompletion(metric, id, .acknowledged,
+                                 max(0, Int(Date().timeIntervalSince(receivedAt).rounded(.up))))
                 }
             }
             observers.append(query)
@@ -68,6 +61,13 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
                 onFailure(metric, .healthBackgroundDelivery, .backgroundDelivery, code, source)
             }
         }
+    }
+
+    func stopObserving() {
+        registration?.invalidate()
+        registration = nil
+        for query in observers { store.stop(query) }
+        observers.removeAll()
     }
 
     private static func failureDetails(_ error: (any Error)?, stage: WatchEventStage) -> (Int?, WatchEventErrorSource) {

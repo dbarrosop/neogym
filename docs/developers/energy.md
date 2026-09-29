@@ -146,11 +146,14 @@ cadence.
 The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
 retain the last 300 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
-observer arrival/acknowledgement/timeout, permission/reconciliation,
+observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
 observer-query and background-delivery registration failures, fresh backend
-reads, snapshot saves, and WidgetKit reload requests. Random per-attempt IDs,
-active/resting metric, app state when handled, elapsed seconds, backend operation and
-account-gate skip reason make related records identifiable without storing
+reads, snapshot saves, and WidgetKit reload requests. Random IDs correlate
+same-run observer/refresh/snapshot events; resumed pending work uses a new
+attempt ID. Active/resting metric, app state when handled, active elapsed
+seconds, wall-clock age of a pending delivery at refresh start, backend
+operation and account-gate
+skip reason make related records identifiable without storing
 Health values or account data. Failures carry fixed stages and safe categories:
 HealthKit, network, backend, GraphQL transport, other. GraphQL transport
 includes network/HTTP/service failures but doesn't identify which one; its
@@ -222,16 +225,32 @@ These are best-effort
 OS wakeups, **not** a guaranteed hourly schedule. `WatchRefreshSchedule`
 coalesces duplicate preferred dates, re-arms after account bootstrap but
 before energy reconciliation, and requests best-effort 15/30/60-minute retries after an
-observer timeout, backend sync failure, or transient `/user` validation failure.
-Repeated failures before a pending retry wakes do not advance backoff, and
-acceptance is not evidence of a delivered wake. Background-to-active waits
-for the fresh uncached `/user` read then explicitly refreshes Energy even if
-the profile name was unchanged. HealthKit observer deliveries
-wait for local activation and account validation before syncing. They call
-the HealthKit completion exactly once after work or after a 25-second watchdog
-which cancels only the matching active energy refresh and records a timed-out
-acknowledgement (not a successful sync). When account validation is ineligible,
-Events record a skipped Energy refresh with a safe reason before acknowledging.
+backend sync failure or transient `/user` validation failure. A pending Health
+delivery separately requests a coalesced 15-minute preferred fallback without
+incrementing the failure backoff. Repeated failures before a pending retry wakes
+do not advance backoff, and acceptance is not evidence of a delivered wake.
+Background-to-active waits for the fresh uncached `/user` read then explicitly
+refreshes Energy even if the profile name was unchanged. Each HealthKit
+observer callback synchronously attempts a read-back-verified private,
+user-scoped pending marker, then calls completion exactly once, without
+holding HealthKit acknowledgement
+through account validation or backend work. An eligible run attempts the sync;
+a fresh backend read and saved complication snapshot following a successful
+Health import clear only the generation present when that run began. A later
+callback remains pending, and a signed-out/blocked or different account cannot
+inherit the old owner's pending import. Stopping observers invalidates their
+registration before clearing the old marker, so a late callback cannot replace
+a new owner's marker. On the next eligible app or background
+wake, pending work retries; the pending wall-clock age includes watch sleep.
+A failed local handoff is logged before still acknowledging HealthKit; that
+exception cannot guarantee an eventual retry if the app is suspended.
+Ineligible runs log a skipped Energy refresh but do not clear a same-owner
+pending marker after a transient validation failure. If a new eligible trigger
+arrives after an in-flight refresh has been open for 30 wall-clock seconds, it
+cancels and replaces that stale task instead of joining it indefinitely; the
+cancelled task cannot clear the replacement's state or save its result. Legacy
+25-second timeout
+events may have been acknowledged much later if watchOS suspended the app.
 Suspension or termination may prevent a terminal log, and a scheduled watchOS
 wake is separate from HealthKit observer delivery. Background work first reconciles the local watch session and
 phone account hint and does nothing if blocked/signed out. The watch widget

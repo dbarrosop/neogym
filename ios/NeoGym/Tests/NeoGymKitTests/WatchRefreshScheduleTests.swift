@@ -28,6 +28,31 @@ final class WatchRefreshScheduleTests: XCTestCase {
         XCTAssertEqual(schedule.consecutiveFailures, 0)
     }
 
+    func testExpiredInFlightRefreshCanBeReplacedAfterResume() {
+        let started = Date(timeIntervalSince1970: 100)
+        XCTAssertFalse(WatchRefreshSchedule.isStaleRefresh(startedAt: started,
+                                                            now: started.addingTimeInterval(29)))
+        XCTAssertTrue(WatchRefreshSchedule.isStaleRefresh(startedAt: started,
+                                                           now: started.addingTimeInterval(30)))
+        XCTAssertTrue(WatchRefreshSchedule.isStaleRefresh(startedAt: started,
+                                                           now: started.addingTimeInterval(3_300)))
+    }
+
+    func testPendingHealthEventPrefersSoonerWakeWithoutAdvancingFailureBackoff() throws {
+        let now = Date(timeIntervalSince1970: 10_000)
+        var schedule = WatchRefreshSchedule()
+        let hourly = try XCTUnwrap(schedule.requestHourly(now: now))
+        let pending = try XCTUnwrap(schedule.requestPendingHealth(now: now))
+        XCTAssertEqual(pending, now.addingTimeInterval(900))
+        XCTAssertNil(schedule.requestPendingHealth(now: now.addingTimeInterval(30)))
+        XCTAssertEqual(schedule.consecutiveFailures, 0)
+        schedule.didFailToSchedule(hourly)
+        XCTAssertEqual(schedule.pendingPreferredDate, pending)
+        schedule.didWake()
+        XCTAssertEqual(schedule.requestPendingHealth(now: now.addingTimeInterval(40)),
+                       now.addingTimeInterval(940))
+    }
+
     func testPassedPreferredDateRearmsEvenWhenNoWakeWasRecorded() throws {
         let now = Date(timeIntervalSince1970: 10_000)
         var schedule = WatchRefreshSchedule()

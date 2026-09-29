@@ -120,10 +120,22 @@ requests accepted by watchOS from actual wakes, Health observer delivery from
 Health sync, fresh energy reads, local snapshot-save success/failure, and
 WidgetKit reload requests; a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
-acknowledgement; entries include active/resting metric, app state, elapsed time,
-backend operation or skip reason when relevant. A 25-second observer watchdog
-acknowledges HealthKit and cancels its own active refresh on timeout; neither
-that acknowledgement nor a scheduled wake promises completed sync. Errors retain
+acknowledgement within one in-process attempt; a resumed pending import uses a
+new attempt ID and records the pending wall-clock age instead. Entries include
+active/resting metric, app state, elapsed time,
+backend operation or skip reason when relevant. HealthKit observer callbacks
+attempt a read-back-verified private, user-scoped pending-sync marker before
+promptly acknowledging HealthKit; failed local handoffs are logged but cannot
+guarantee a deferred retry. Backend work never holds the callback through
+watchOS suspension.
+The marker survives relaunch, is cleared only after a successful Health import,
+fresh backend read and snapshot save for the same owner, and protects newer
+deliveries from an in-flight refresh. A 15-minute preferred fallback wake is
+requested for pending deliveries; acceptance is not proof of a wake. Events
+show the pending delivery's wall-clock age when a refresh starts. A new eligible
+trigger cancels and replaces a refresh open for over 30 wall-clock seconds, so a
+suspended/stuck task cannot block foreground recovery; legacy 25s timeout
+events could have been logged much later after suspension. Errors retain
 fixed stages, numeric codes and safe sources, including a distinct GraphQL
 transport category (network/HTTP/service causes remain indistinguishable).
 HealthKit code 3 means invalid argument only for `HKErrorDomain`; legacy entries
@@ -146,9 +158,10 @@ syncs the last seven local dates to private `daily_energy` after explicit read
 permission. It refreshes imported-note rows without replacing manual entries;
 observer delivery and hourly-preferred watchOS background refresh are
 best-effort, not guaranteed periodic uploads. `WatchRefreshSchedule` coalesces
-duplicate preferred wake requests and asks for 15/30/60-minute backed-off
-retries after a timed-out observer, backend failure, or transient profile
-validation failure; a scheduled wake is not guaranteed. A delivered background
+duplicate preferred wake requests, asks for a 15-minute pending-delivery
+fallback without counting it as a failure, and asks for 15/30/60-minute
+backed-off retries after backend failure or transient profile validation
+failure; a scheduled wake is not guaranteed. A delivered background
 task requests its next preferred wake after account bootstrap but before energy reconciliation. On
 background-to-active, the watch explicitly waits for the uncached account read
 and refreshes Energy even if the account name is unchanged. The watch saves a

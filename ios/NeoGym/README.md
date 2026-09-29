@@ -110,12 +110,21 @@ background scheduling, wake, Health sync, observer-query and background-delivery
 registration failures, backend read, snapshot save, and complication
 reload-request outcomes). The last 300 events stay on the watch, not in its
 widget or on a server. A random attempt ID ties together observer arrival,
-energy reconciliation, snapshot save, and HealthKit acknowledgement. Entries
+energy reconciliation, snapshot save, and HealthKit acknowledgement within
+one in-process attempt; a resumed pending import has a new ID. Entries
 include the observed active/resting metric, app state when handled, elapsed
-seconds, backend operation or account-gate skip reason. Observer processing is
-acknowledged when it finishes or at a 25-second deadline that cancels only that
-attempt's active refresh; watchOS suspension can prevent a terminal event from
-being logged. Error categories distinguish HealthKit queries, background
+seconds, backend operation or account-gate skip reason. Each observer callback
+first attempts a read-back-verified private, user-scoped pending Health sync,
+then promptly acknowledges HealthKit without waiting for backend or HealthKit
+queries. A failed local handoff is logged but cannot guarantee a deferred retry. An
+eligible app run reconciles the marker and clears it only after Health sync,
+fresh backend read and local snapshot save; a newer delivery cannot be cleared
+by an older in-flight sync. Events report wall-clock age since the earliest
+pending delivery separately from active runtime. A new eligible trigger
+replaces an in-flight refresh older than 30 wall-clock seconds rather than
+joining a suspended task indefinitely. Legacy 25-second timeout events may
+have been acknowledged much later if the app was suspended. Error
+categories distinguish HealthKit queries, background
 registration, backend reads/writes and GraphQL transport (which still combines
 network, HTTP and service failures). Older events retain numeric-only detail. In Events, tap **Share logs** to choose an
 app/destination in the watchOS share sheet for a plain-text `.txt` attachment.
@@ -137,7 +146,10 @@ The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
 taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
-best-effort, not a guaranteed hourly schedule. NeoGym observes active/basal
+best-effort, not a guaranteed hourly schedule. Pending observer deliveries
+request a coalesced, 15-minute preferred fallback wake; accepted requests do
+not guarantee delivery, and a foreground open retries any pending work. NeoGym
+observes active/basal
 energy samples, not Workout records; a Fitness workout is not itself a NeoGym
 background wake. Observer deliveries wait for local
 activation and account validation before syncing or calling HealthKit's

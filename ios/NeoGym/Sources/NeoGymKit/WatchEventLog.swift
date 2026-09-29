@@ -63,6 +63,7 @@ public enum WatchEventTrigger: String, Codable, Sendable {
     case retry
     case healthObserver
     case healthAuthorization
+    case pendingHealth
 
     public var title: String {
         switch self {
@@ -72,6 +73,7 @@ public enum WatchEventTrigger: String, Codable, Sendable {
         case .retry: "retry after failure"
         case .healthObserver: "Health event"
         case .healthAuthorization: "Health permission"
+        case .pendingHealth: "pending Health event"
         }
     }
 }
@@ -86,6 +88,7 @@ public enum WatchEventStage: String, Codable, Sendable {
     case backendWrite
     case authorization
     case scheduling
+    case localHandoff
 
     public var title: String {
         switch self {
@@ -98,6 +101,7 @@ public enum WatchEventStage: String, Codable, Sendable {
         case .backendWrite: "Backend write"
         case .authorization: "Health permission request"
         case .scheduling: "Background scheduling"
+        case .localHandoff: "Local Health handoff"
         }
     }
 }
@@ -168,6 +172,7 @@ public enum WatchEventSkipReason: String, Codable, Sendable {
     case accountValidationFailed
     case accountChanged
     case cancelled
+    case staleRefresh
 
     public var title: String {
         switch self {
@@ -176,6 +181,7 @@ public enum WatchEventSkipReason: String, Codable, Sendable {
         case .accountValidationFailed: "account validation failed"
         case .accountChanged: "account changed"
         case .cancelled: "cancelled"
+        case .staleRefresh: "stale in-flight refresh replaced"
         }
     }
 }
@@ -198,6 +204,9 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     public let backendOperation: WatchEventBackendOperation?
     public let skipReason: WatchEventSkipReason?
     public let durationSeconds: Int?
+    /// Wall-clock age of a durable pending delivery when a refresh starts.
+    /// Unlike system uptime, this includes time the watch was asleep.
+    public let pendingWallSeconds: Int?
 
     public var diagnosticDetails: String? {
         var parts: [String] = []
@@ -208,6 +217,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         if let skipReason { parts.append(skipReason.title) }
         if let failureDetails { parts.append(failureDetails) }
         if let durationSeconds { parts.append("\(durationSeconds)s") }
+        if let pendingWallSeconds { parts.append("pending \(pendingWallSeconds)s wall") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
@@ -227,7 +237,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
         runtimeState: WatchEventRuntimeState? = nil, backendOperation: WatchEventBackendOperation? = nil,
         skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
-        occurredAt: Date = Date(), id: UUID = UUID()
+        pendingWallSeconds: Int? = nil, occurredAt: Date = Date(), id: UUID = UUID()
     ) {
         self.id = id
         self.occurredAt = occurredAt
@@ -243,6 +253,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         self.backendOperation = backendOperation
         self.skipReason = skipReason
         self.durationSeconds = durationSeconds
+        self.pendingWallSeconds = pendingWallSeconds
     }
 }
 

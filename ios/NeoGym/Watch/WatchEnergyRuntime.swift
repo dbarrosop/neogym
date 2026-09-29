@@ -21,11 +21,15 @@ final class WatchEnergyRuntime: ObservableObject {
     private let service: WatchEnergyService
     private let store = WatchEnergySnapshotStore.shared
     private let eventStore = WatchEventStore()
+    private let pendingHealth = WatchPendingHealthSyncStore()
     private var refreshSchedule = WatchRefreshSchedule()
     private var refreshTask: Task<Void, Never>?
+    private var activeRefreshID: UUID?
+    private var refreshStartedAt: Date?
     private var refreshingUserID: String?
-    private var refreshingAttemptID: UUID?
     private var refreshingWithHealth = false
+    private var refreshingPendingGeneration: UUID?
+    private var observedUserID: String?
     private var bootstrapTask: Task<Void, Never>?
     private var bootstrapped = false
     private var accountSubscription: AnyCancellable?
@@ -84,11 +88,19 @@ final class WatchEnergyRuntime: ObservableObject {
             if !WatchEnergySnapshotPolicy.keepsStoredSnapshot(
                 in: state, snapshotUserID: savedUserID, sessionUserID: sessionUserID
             ) {
+                health.stopObserving()
+                observedUserID = nil
+                pendingHealth.clear()
                 store.clear()
                 requestComplicationReload()
             }
             return
         }
+        if observedUserID != nil, observedUserID != user.id {
+            health.stopObserving()
+            observedUserID = nil
+        }
+        pendingHealth.clearIfDifferentOwner(user.id)
         let date = DateOnly.todayLocalISO()
         let saved = store.load(for: date)
         if let saved, saved.userID != user.id {
@@ -97,8 +109,8 @@ final class WatchEnergyRuntime: ObservableObject {
         }
         snapshot = saved.flatMap { $0.userID == user.id ? $0 : nil }
         healthEnabled = UserDefaults.standard.string(forKey: authorizationKey) == user.id
-        if healthEnabled { startObservers() }
-        scheduleRefresh()
+        if healthEnabled { startObservers(for: user.id) }
+        scheduleRefresh(pending: healthEnabled && pendingHealth.pending(for: user.id) != nil)
         if contextReady, !account.isReadingProfile, account.profileError == nil {
             Task { await refresh() }
         }
@@ -113,7 +125,7 @@ final class WatchEnergyRuntime: ObservableObject {
             record(.healthPermission, .succeeded)
             UserDefaults.standard.set(id, forKey: authorizationKey)
             healthEnabled = true
-            startObservers()
+            startObservers(for: id)
             await refresh(trigger: .healthAuthorization)
         } catch {
             recordFailure(.healthPermission, error: error, stage: .authorization)
@@ -135,33 +147,38 @@ final class WatchEnergyRuntime: ObservableObject {
             }
             return
         }
+        abandonStaleRefresh()
         if let refreshTask {
-            record(.energyRefresh, .joined, trigger: trigger, attemptID: attemptID)
-            let previousID = refreshingUserID
-            let hadHealth = refreshingWithHealth
-            await refreshTask.value
-            if previousID != account.currentUser?.id || (healthEnabled && !hadHealth) {
-                await refresh(trigger: trigger, attemptID: attemptID)
-            }
+            await joinRefresh(refreshTask, trigger: trigger, attemptID: attemptID)
             return
         }
         let id = user.id
         let runID = attemptID ?? UUID()
         let syncHealth = healthEnabled
+        let pending = syncHealth ? pendingHealth.pending(for: id) : nil
         let now = Date()
         let started = ProcessInfo.processInfo.systemUptime
+        activeRefreshID = runID
+        refreshStartedAt = now
         refreshingUserID = id
-        refreshingAttemptID = runID
         refreshingWithHealth = syncHealth
-        record(.energyRefresh, .started, trigger: trigger, attemptID: runID)
+        refreshingPendingGeneration = pending?.generation
+        let pendingAge = pending.map { max(0, Int(now.timeIntervalSince($0.firstObservedAt).rounded(.up))) }
+        record(.energyRefresh, .started, trigger: trigger, attemptID: runID,
+               pendingWallSeconds: pendingAge)
         let task = Task { [self] in
             isRefreshing = true
             defer {
-                isRefreshing = false
-                refreshTask = nil
-                refreshingUserID = nil
-                refreshingAttemptID = nil
-                refreshingWithHealth = false
+                // A resumed stale task must not reset a newer refresh's state.
+                if activeRefreshID == runID {
+                    isRefreshing = false
+                    refreshTask = nil
+                    activeRefreshID = nil
+                    refreshStartedAt = nil
+                    refreshingUserID = nil
+                    refreshingWithHealth = false
+                    refreshingPendingGeneration = nil
+                }
             }
             var syncError: String?
             if syncHealth {
@@ -195,16 +212,8 @@ final class WatchEnergyRuntime: ObservableObject {
                     return
                 }
                 try Task.checkCancellation()
-                snapshot = result
-                let save = store.saveReportingDisplayChange(result)
-                record(.snapshotSave, save.saved ? .succeeded : .failed, trigger: trigger, attemptID: runID)
-                if save.displayValuesChanged { requestComplicationReload(attemptID: runID) }
-                if save.saved, syncError == nil { refreshSchedule.didRefreshSuccessfully() }
-                errorMessage = [syncError, save.saved ? nil : "Complication snapshot could not be saved."]
-                    .compactMap { $0 }.joined(separator: "\n")
-                if errorMessage?.isEmpty == true { errorMessage = nil }
-                record(.energyRefresh, .succeeded, trigger: trigger, attemptID: runID,
-                       durationSeconds: elapsed(since: started))
+                finishRefresh(result, userID: id, pending: pending, syncError: syncError,
+                              trigger: trigger, attemptID: runID, started: started)
             } catch {
                 if Task.isCancelled || error is CancellationError {
                     record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
@@ -224,7 +233,58 @@ final class WatchEnergyRuntime: ObservableObject {
         await task.value
     }
 
+    private func finishRefresh(_ result: WatchEnergySnapshot, userID: String,
+                               pending: WatchPendingHealthSync?, syncError: String?,
+                               trigger: WatchEventTrigger, attemptID: UUID, started: TimeInterval) {
+        snapshot = result
+        let save = store.saveReportingDisplayChange(result)
+        record(.snapshotSave, save.saved ? .succeeded : .failed, trigger: trigger, attemptID: attemptID)
+        if save.displayValuesChanged { requestComplicationReload(attemptID: attemptID) }
+        if save.saved, syncError == nil {
+            if let pending { _ = pendingHealth.clearIfUnchanged(pending) }
+            refreshSchedule.didRefreshSuccessfully()
+            if pendingHealth.pending(for: userID) != nil { scheduleRefresh(pending: true) }
+        }
+        errorMessage = [syncError, save.saved ? nil : "Complication snapshot could not be saved."]
+            .compactMap { $0 }.joined(separator: "\n")
+        if errorMessage?.isEmpty == true { errorMessage = nil }
+        record(.energyRefresh, .succeeded, trigger: trigger, attemptID: attemptID,
+               durationSeconds: elapsed(since: started))
+    }
+
+    private func abandonStaleRefresh() {
+        guard let startedAt = refreshStartedAt,
+              WatchRefreshSchedule.isStaleRefresh(startedAt: startedAt, now: Date()),
+              let task = refreshTask else { return }
+        task.cancel()
+        record(.energyRefresh, .skipped, attemptID: activeRefreshID, skipReason: .staleRefresh)
+        refreshTask = nil
+        activeRefreshID = nil
+        refreshStartedAt = nil
+        refreshingUserID = nil
+        refreshingWithHealth = false
+        refreshingPendingGeneration = nil
+    }
+
+    private func joinRefresh(_ task: Task<Void, Never>, trigger: WatchEventTrigger,
+                             attemptID: UUID?) async {
+        record(.energyRefresh, .joined, trigger: trigger, attemptID: attemptID)
+        let previousID = refreshingUserID
+        let hadHealth = refreshingWithHealth
+        let handledGeneration = refreshingPendingGeneration
+        await task.value
+        let pendingGeneration = previousID.flatMap { pendingHealth.pending(for: $0)?.generation }
+        let unhandledDelivery = trigger == .healthObserver && pendingGeneration != nil
+            && pendingGeneration != handledGeneration
+        if previousID != account.currentUser?.id || (healthEnabled && !hadHealth) || unhandledDelivery {
+            await refresh(trigger: trigger, attemptID: attemptID)
+        }
+    }
+
     func signOut() async {
+        health.stopObserving()
+        observedUserID = nil
+        pendingHealth.clear()
         store.clear()
         snapshot = nil
         requestComplicationReload()
@@ -245,13 +305,15 @@ final class WatchEnergyRuntime: ObservableObject {
         await bootstrap()
         // Re-arm before network/HealthKit work; if it is interrupted, the next
         // preferred wake has still been requested. Signed-out watches stop.
-        if case .name = account.state { scheduleRefresh() }
+        if case .name = account.state, let id = account.currentUser?.id {
+            scheduleRefresh(pending: healthEnabled && pendingHealth.pending(for: id) != nil)
+        }
         await refreshWhenEligible(trigger: .background, attemptID: attemptID)
     }
 
     private func refreshWhenEligible(trigger: WatchEventTrigger, attemptID: UUID) async {
-        // Background tasks and HealthKit deliveries must hold their completion
-        // until local context and the uncached account read have settled.
+        // The observer callback was already acknowledged after its durable
+        // handoff. Private reads still wait for a valid local account.
         await bootstrap()
         if Task.isCancelled {
             record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: .cancelled)
@@ -288,12 +350,14 @@ final class WatchEnergyRuntime: ObservableObject {
                 attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
                 runtimeState: WatchEventRuntimeState? = nil,
                 backendOperation: WatchEventBackendOperation? = nil,
-                skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil) {
+                skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
+                pendingWallSeconds: Int? = nil) {
         events = eventStore.record(WatchEvent(
             action: action, outcome: outcome, trigger: trigger, errorCode: errorCode,
             errorSource: errorSource, stage: stage, attemptID: attemptID, metric: metric,
             runtimeState: runtimeState, backendOperation: backendOperation,
-            skipReason: skipReason, durationSeconds: durationSeconds
+            skipReason: skipReason, durationSeconds: durationSeconds,
+            pendingWallSeconds: pendingWallSeconds
         ))
     }
 
@@ -326,19 +390,27 @@ final class WatchEnergyRuntime: ObservableObject {
         WidgetCenter.shared.reloadTimelines(ofKind: WatchEnergySnapshotStore.widgetKind)
     }
 
-    private func startObservers() {
+    private func startObservers(for ownerID: String) {
+        guard observedUserID != ownerID else { return }
+        observedUserID = ownerID
+        let pendingHealth = pendingHealth
         health.startObserving { [weak self] metric, id in
-            await self?.handleObserver(metric: metric, id: id)
+            // This runs on HealthKit's callback executor, before completion().
+            // Capture the authorized owner, not mutable account state.
+            let saved = pendingHealth.markPending(for: ownerID)
+            Task { @MainActor [weak self] in
+                if !saved {
+                    self?.record(.healthObservation, .failed, trigger: .healthObserver,
+                                 stage: .localHandoff, attemptID: id, metric: metric)
+                }
+                await self?.handleObserver(metric: metric, id: id, ownerID: ownerID)
+            }
         } onCompletion: { [weak self] metric, id, outcome, seconds in
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 self.record(.healthObservation, outcome, trigger: .healthObserver,
                             attemptID: id, metric: metric, runtimeState: self.runtimeState,
                             durationSeconds: seconds)
-                if outcome == .timedOut {
-                    self.cancelObserverAttempt(id)
-                    self.scheduleRefresh(retry: true)
-                }
             }
         } onFailure: { [weak self] metric, action, stage, code, source in
             Task { @MainActor [weak self] in
@@ -348,9 +420,15 @@ final class WatchEnergyRuntime: ObservableObject {
         }
     }
 
-    private func handleObserver(metric: WatchEventMetric, id: UUID) async {
+    private func handleObserver(metric: WatchEventMetric, id: UUID, ownerID: String) async {
         record(.healthObservation, .started, trigger: .healthObserver,
                attemptID: id, metric: metric, runtimeState: runtimeState)
+        guard case .name = account.state, account.currentUser?.id == ownerID, healthEnabled else {
+            record(.energyRefresh, .skipped, trigger: .healthObserver, attemptID: id,
+                   skipReason: .accountChanged)
+            return
+        }
+        scheduleRefresh(pending: true)
         await refreshWhenEligible(trigger: .healthObserver, attemptID: id)
     }
 
@@ -363,18 +441,15 @@ final class WatchEnergyRuntime: ObservableObject {
         }
     }
 
-    private func cancelObserverAttempt(_ id: UUID) {
-        if refreshingAttemptID == id { refreshTask?.cancel() }
-    }
-
-    private func scheduleRefresh(retry: Bool = false) {
-        if retry {
+    private func scheduleRefresh(retry: Bool = false, pending: Bool = false) {
+        if retry || pending {
             guard case .name = account.state else { return }
         }
         let now = Date()
-        let preferredDate = retry ? refreshSchedule.requestRetry(now: now) : refreshSchedule.requestHourly(now: now)
+        let preferredDate = retry ? refreshSchedule.requestRetry(now: now)
+            : (pending ? refreshSchedule.requestPendingHealth(now: now) : refreshSchedule.requestHourly(now: now))
         guard let preferredDate else { return }
-        let trigger: WatchEventTrigger? = retry ? .retry : nil
+        let trigger: WatchEventTrigger? = retry ? .retry : (pending ? .pendingHealth : nil)
         record(.backgroundScheduling, .requested, trigger: trigger)
         WKApplication.shared().scheduleBackgroundRefresh(
             withPreferredDate: preferredDate, userInfo: nil

@@ -131,14 +131,23 @@ reachability) or the network name read. It renders a cached profile and today's
 same-owner energy snapshot, then activates WCSession and revalidates the profile
 in the background. A delayed blocking hint clears both caches and the local
 session; on a phone sign-out there can be a short stale display before delivery.
-Background refresh and HealthKit observer deliveries wait for activation and
-the managed account read before private energy access. A HealthKit delivery is
-acknowledged after work finishes or after a 25-second watchdog; a timeout cancels
-only the matching in-flight energy refresh (not another attempt's refresh).
-`WatchObserverCompletionGate` ensures exactly one acknowledgement even if work
-and watchdog race. If the account read fails transiently while the same owner's
-cached profile remains, later background wakes and observer deliveries retry
-`/user`. Ineligible deliveries record a skipped event; observer-query and
+Background refresh and HealthKit observer **sync work** waits for activation
+and the managed account read before private energy access. Each observer callback
+synchronously attempts a read-back-verified private pending marker for the
+authorized watch owner and acknowledges HealthKit promptly, without waiting
+for HealthKit queries or backend work. A failed handoff is logged, but cannot
+promise a deferred retry. `WatchObserverCompletionGate` still ensures one acknowledgement. The
+watch requests a 15-minute preferred fallback wake for pending events without
+counting them as sync failures, and tries to reconcile immediately when eligible.
+The marker survives relaunch; only a successful Health import, fresh backend
+read and saved snapshot for that owner can clear the generation observed at the
+start of the refresh. A later delivery remains pending. A new eligible trigger
+replaces an in-flight refresh open for 30 wall-clock seconds rather than joining
+a suspended/stuck task; a cancelled old task cannot save or reset the new one.
+On sign-out/blocking state or different owner the marker is discarded, never
+imported under another account. If account validation fails transiently while the same owner's cached
+profile remains, a later eligible wake/open retries `/user` and the pending
+import. Ineligible deliveries record a skipped energy refresh; observer-query and
 background-delivery registration failures record only typed stage, source, and
 numeric error code (when available). Energy's Refresh control also retries
 validation and shows the profile warning; a still-failing or auth-rejected read
@@ -147,15 +156,17 @@ Signed-in watch users can swipe to a third Events page: `WatchEventStore` keeps
 at most 300 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule
 requested/accepted/failed with numeric codes, actual wakes started/finished,
-Health observer arrival/acknowledgement/timeout and delivery failures, Health
-permission/reconciliation, fresh energy reads, local snapshot saves, and
-WidgetKit reload requests. Random per-attempt IDs correlate these outcomes;
-metric, active/inactive/background state at observer entry, duration, backend
-operation and account-gate skip reason are typed optional fields. A missing
-terminal event may mean suspension/termination and cannot by itself prove a
-network hang; 25s watchdog execution is also best-effort if the app is suspended.
-Failures include a fixed stage (HealthKit energy/observer query or delivery
-registration, backend read/write, authorization, scheduling) and allowlisted
+Health observer arrival/acknowledgement (plus legacy timeout) and delivery
+failures, Health permission/reconciliation, fresh energy reads, local snapshot
+saves, and WidgetKit reload requests. Random per-attempt IDs correlate same-run
+outcomes, while a resumed pending import has a new ID; metric, app state when
+handled, active duration, wall-clock age of the earliest pending delivery when
+a refresh starts, backend operation and
+account-gate skip reason are typed optional fields. A missing terminal event
+may mean suspension/termination and cannot by itself prove a network hang;
+legacy 25s watchdog callbacks could run much later after suspension. Failures
+include a fixed stage (HealthKit energy/observer query or delivery registration,
+local handoff, backend read/write, authorization, scheduling) and allowlisted
 source (HealthKit, network, backend, GraphQL transport, other). GraphQL transport
 may mean network, HTTP or service failure; its numeric code is not a HealthKit
 code. Older records still have only numeric codes. HealthKit code 3 is only
@@ -167,11 +178,12 @@ watchOS system share sheet only on user action (no automatic send). The
 host-tested exporter uses typed events only. Never log or export tokens, user
 identifiers, email/name, URLs, Health values, or raw localized/server error text.
 A snapshot-save failure remains visible in the watch Energy page and does not
-request a reload. `WatchRefreshSchedule` coalesces duplicate hourly requests
-and asks for best-effort 15/30/60-minute backoff after timed-out observer work,
-backend reads/writes, or failed profile validation. After account bootstrap, a
-delivered background task re-arms before energy reconciliation; a pending
-earlier retry beats an hourly request. Repeated failures before that retry wakes
+request a reload. `WatchRefreshSchedule` coalesces duplicate hourly requests, prefers a
+best-effort 15-minute fallback for pending Health events without advancing
+failure backoff, and asks for 15/30/60-minute retries after backend
+reads/writes or failed profile validation. After account bootstrap, a delivered
+background task re-arms before energy reconciliation; a pending earlier
+request beats an hourly request. Repeated failures before that retry wakes
 do not accelerate backoff. Neither accepted
 scheduling nor WidgetKit reload guarantees a wake or fresh display. After a
 successful fresh backend read the watch saves the new snapshot timestamp; it

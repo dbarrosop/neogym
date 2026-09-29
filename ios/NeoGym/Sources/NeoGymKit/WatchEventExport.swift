@@ -12,8 +12,11 @@ public enum WatchEventExport {
             "Generated: \(formatter.string(from: generatedAt)) (UTC)",
             "Events: \(events.count) (newest first)",
             "Accepted scheduling does not guarantee a wake; a WidgetKit reload request does not confirm a new display.",
-            "A random attempt ID links Health observer, energy refresh, and snapshot events.",
-            "HealthKit acknowledged means its callback finished, not necessarily that a sync succeeded. Timed out means it was acknowledged at the 25s deadline.",
+            "A random attempt ID links events within one in-process attempt; "
+                + "a later retry has a new ID and may show the pending wall-clock age.",
+            "HealthKit acknowledged means its callback finished after a local handoff, not that a sync succeeded. "
+                + "Legacy timeout events may have been acknowledged long after 25s if the app was suspended.",
+            "Pending age is wall-clock time since the earliest unprocessed Health event, including watch sleep.",
             "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
             ""
         ]
