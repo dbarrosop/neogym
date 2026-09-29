@@ -144,8 +144,14 @@ trigger cancels and replaces a refresh open for over 30 wall-clock seconds, so a
 suspended/stuck task cannot block foreground recovery; legacy 25s timeout
 events could have been logged much later after suspension. Errors retain
 fixed stages, numeric codes and safe sources, including a distinct GraphQL
-transport category (network/HTTP/service causes remain indistinguishable).
-HealthKit code 3 means invalid argument only for `HKErrorDomain`; legacy entries
+transport category. New events retain only a typed URLSession error number,
+HTTP status, service/response category or unknown cause; no URLs, headers,
+response bodies or raw descriptions are exported. The old GraphQL transport
+`code 3` was a Swift enum index, not an HTTP/HealthKit status. A watch scene
+transition event distinguishes active/inactive/background (but does not prove
+continuous execution), and an uncached Auth `/user` read failure records the
+same safe cause separately. HealthKit code 3 means invalid argument only for
+`HKErrorDomain`; legacy entries
 remain numeric-only. **Share logs** opens the watchOS system share sheet with a
 temporary plain-text file on request; it never sends automatically. Events and
 exports exclude credentials, account IDs, names, URLs, Health values and raw

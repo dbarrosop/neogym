@@ -30,6 +30,7 @@ final class WatchEnergyRuntime: ObservableObject {
     private var refreshingWithHealth = false
     private var refreshingPendingGeneration: UUID?
     private var observedUserID: String?
+    private var lastSceneState: WatchEventRuntimeState?
     private var bootstrapTask: Task<Void, Never>?
     private var bootstrapped = false
     private var accountSubscription: AnyCancellable?
@@ -46,6 +47,17 @@ final class WatchEnergyRuntime: ObservableObject {
         service = WatchEnergyService(graphQL: graphQL, energy: DailyEnergyRepository(graphQL: graphQL),
                                      importer: health)
         events = eventStore.load()
+        account.onReadFailure = { [weak self] diagnostic in
+            guard let self else { return }
+            let source: WatchEventErrorSource = switch diagnostic.kind {
+            case .unknown, .sessionRefresh: .other
+            default: .transport
+            }
+            self.record(.accountValidation, .failed,
+                        errorCode: diagnostic.code, errorSource: source,
+                        transportKind: diagnostic.kind, stage: .profileRead,
+                        runtimeState: self.runtimeState)
+        }
         accountSubscription = account.$state.sink { [weak self] state in
             // @Published emits before account.state changes; use the emitted state.
             MainActor.assumeIsolated { self?.accountChanged(state) }
@@ -166,13 +178,7 @@ final class WatchEnergyRuntime: ObservableObject {
         let pendingAge = pending.map { max(0, Int(now.timeIntervalSince($0.firstObservedAt).rounded(.up))) }
         record(.energyRefresh, .started, trigger: trigger, attemptID: runID,
                pendingWallSeconds: pendingAge)
-        let stageReporter: WatchEnergyStageReporter = { [weak self] stage in
-            Task { @MainActor [weak self] in
-                self?.record(.refreshStage, stage.outcome, trigger: trigger, stage: stage.stage,
-                             attemptID: runID, backendOperation: stage.backendOperation,
-                             wallSeconds: stage.wallSeconds, occurredAt: stage.occurredAt)
-            }
-        }
+        let stageReporter = makeStageReporter(trigger: trigger, attemptID: runID)
         let task = Task { [self] in
             isRefreshing = true
             defer {
@@ -289,6 +295,19 @@ final class WatchEnergyRuntime: ObservableObject {
         }
     }
 
+    func scenePhaseChanged(_ phase: ScenePhase) {
+        let state: WatchEventRuntimeState
+        switch phase {
+        case .active: state = .active
+        case .inactive: state = .inactive
+        case .background: state = .background
+        @unknown default: state = .unknown
+        }
+        guard state != lastSceneState else { return }
+        lastSceneState = state
+        record(.appLifecycle, .entered, attemptID: activeRefreshID, runtimeState: state)
+    }
+
     func signOut() async {
         health.stopObserving()
         observedUserID = nil
@@ -352,9 +371,23 @@ final class WatchEnergyRuntime: ObservableObject {
         await account.waitForCurrentRead()
     }
 
+}
+
+extension WatchEnergyRuntime {
+    private func makeStageReporter(trigger: WatchEventTrigger, attemptID: UUID) -> WatchEnergyStageReporter {
+        { [weak self] stage in
+            Task { @MainActor [weak self] in
+                self?.record(.refreshStage, stage.outcome, trigger: trigger, stage: stage.stage,
+                             attemptID: attemptID, backendOperation: stage.backendOperation,
+                             wallSeconds: stage.wallSeconds, occurredAt: stage.occurredAt)
+            }
+        }
+    }
+
     func record(_ action: WatchEventAction, _ outcome: WatchEventOutcome,
                 trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
-                errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil,
+                errorSource: WatchEventErrorSource? = nil, transportKind: WatchTransportKind? = nil,
+                stage: WatchEventStage? = nil,
                 attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
                 runtimeState: WatchEventRuntimeState? = nil,
                 backendOperation: WatchEventBackendOperation? = nil,
@@ -363,7 +396,8 @@ final class WatchEnergyRuntime: ObservableObject {
                 occurredAt: Date = Date()) {
         events = eventStore.record(WatchEvent(
             action: action, outcome: outcome, trigger: trigger, errorCode: errorCode,
-            errorSource: errorSource, stage: stage, attemptID: attemptID, metric: metric,
+            errorSource: errorSource, transportKind: transportKind, stage: stage,
+            attemptID: attemptID, metric: metric,
             runtimeState: runtimeState, backendOperation: backendOperation,
             skipReason: skipReason, durationSeconds: durationSeconds,
             pendingWallSeconds: pendingWallSeconds, wallSeconds: wallSeconds,
@@ -379,10 +413,17 @@ final class WatchEnergyRuntime: ObservableObject {
         let actualStage = wrapped?.stage ?? fallback
         let domain = wrapped?.underlyingDomain ?? (error as NSError).domain
         let code = wrapped?.underlyingCode ?? (error as NSError).code
-        let graphQLSource = wrapped?.diagnosticSource ?? (error as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
+        let graphQLSource = wrapped?.diagnosticSource
+            ?? (error as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
         let source = graphQLSource ?? WatchEventErrorSource.classify(domain: domain, stage: actualStage)
-        record(action, .failed, trigger: trigger, errorCode: code, errorSource: source, stage: actualStage,
-               attemptID: attemptID, backendOperation: wrapped?.backendOperation ?? backendOperation,
+        let transport = wrapped?.transportDiagnostic ?? (error as? GraphQLDomainError)?.transportDiagnostic
+        // GraphQLDomainError's NSError code is its Swift enum case index, not a
+        // network error or HTTP status. Unknown transports have no safe code.
+        let safeCode = source == .transport ? transport?.code : code
+        record(action, .failed, trigger: trigger, errorCode: safeCode, errorSource: source,
+               transportKind: transport?.kind, stage: actualStage,
+               attemptID: attemptID, runtimeState: runtimeState,
+               backendOperation: wrapped?.backendOperation ?? backendOperation,
                durationSeconds: durationSeconds)
     }
 

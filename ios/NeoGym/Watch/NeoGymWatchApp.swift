@@ -48,6 +48,7 @@ private struct WatchHomeView: View {
         }
         .task { await runtime.bootstrap() }
         .onChange(of: scenePhase, initial: true) { _, phase in
+            runtime.scenePhaseChanged(phase)
             // A context delivery can launch the view already in the background.
             if phase == .background { wasBackground = true }
             if phase == .active, wasBackground {
@@ -302,7 +303,7 @@ private struct WatchHomeView: View {
         case .failed, .timedOut, .expired: "xmark.circle.fill"
         case .succeeded: "checkmark.circle.fill"
         case .accepted, .finished, .acknowledged: "checkmark.circle"
-        case .started, .requested, .joined, .skipped: "clock"
+        case .started, .entered, .requested, .joined, .skipped: "clock"
         }
     }
 
@@ -310,7 +311,7 @@ private struct WatchHomeView: View {
         switch outcome {
         case .failed, .timedOut, .expired: .red
         case .succeeded: .green
-        case .started, .accepted, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
+        case .started, .entered, .accepted, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
         }
     }
 

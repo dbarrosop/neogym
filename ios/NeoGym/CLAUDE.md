@@ -176,9 +176,16 @@ suspension/termination and cannot by itself prove a network hang;
 legacy 25s watchdog callbacks could run much later after suspension. Failures
 include a fixed stage (HealthKit energy/observer query or delivery registration,
 local handoff, backend read/write, authorization, scheduling) and allowlisted
-source (HealthKit, network, backend, GraphQL transport, other). GraphQL transport
-may mean network, HTTP or service failure; its numeric code is not a HealthKit
-code. Older records still have only numeric codes. HealthKit code 3 is only
+source (HealthKit, network, backend, GraphQL transport, other). New GraphQL
+transport events carry only an allowlisted URLSession numeric error, HTTP
+status, fixed service/response category or unknown; the pinned SDK's
+`FetchError.transport` includes a trusted `URLError <code>:` prefix, never
+persist its description. A Swift NSError enum case index such as legacy
+GraphQL transport `code 3` is not a HealthKit code, URL error, or HTTP status.
+Auth `/user` failures likewise emit only safe fixed cause/status events. The
+watch scene logs active/inactive/background transitions with an in-flight
+attempt ID, but a transition does not prove continuous background execution.
+Older records still have only numeric codes. HealthKit code 3 is only
 labeled "invalid argument" when the original domain matches `HKErrorDomain`.
 An accepted schedule does not guarantee a wake; a reload request does not prove
 the complication updated.

@@ -159,10 +159,13 @@ seconds, wall-clock age of a pending delivery at refresh start, backend
 operation and account-gate skip reason make related records identifiable
 without storing
 Health values or account data. Failures carry fixed stages and safe categories:
-HealthKit, network, backend, GraphQL transport, other. GraphQL transport
-includes network/HTTP/service failures but doesn't identify which one; its
-numeric code is not a HealthKit code. Previously saved numeric-only entries
-still display. Code 3 means invalid HealthKit argument **only** when the
+HealthKit, network, backend, GraphQL transport, other. New transport events
+preserve only a safe provenance: URLSession numeric error, HTTP status, fixed
+service/response category, or unknown. `FetchError.transport` can expose an
+SDK-generated `URLError <code>:` prefix; only the numeric prefix is retained,
+never the raw description. The earlier GraphQL transport `code 3` was an
+NSError bridge of a Swift enum case, not a HealthKit or HTTP code. Previously
+saved numeric-only entries still display. Code 3 means invalid HealthKit argument **only** when the
 original domain is `HKErrorDomain`. The
 Events page offers **Share logs** via the watchOS system share sheet; it builds
 a temporary `.txt` export of these same typed entries on user request, with no
@@ -172,7 +175,12 @@ starts and terminal outcomes are timestamped at their operation boundaries;
 wall elapsed time includes watch sleep. A missing terminal stage cannot on its
 own distinguish suspension from a stalled query. HealthKit acknowledgement is
 timestamped at the callback, not the later MainActor log write, and the bounded
-store/exports sort late-written events by occurrence. Observer `Started`
+store/exports sort late-written events by occurrence. The watch scene logs
+active/inactive/background transitions, optionally linking the refresh attempt
+open when the transition was handled; no transition proves a continuous OS
+execution lease. The uncached Auth `/user` read separately records a safe
+typed failure cause without leaking account details or server messages.
+Observer `Started`
 marks main-actor handling, not raw callback receipt, so `acknowledged` can
 precede it after suspension. The app-state field is omitted for acknowledgement
 because recording-time state could be different from callback-time state. An accepted hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit

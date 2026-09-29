@@ -20,7 +20,10 @@ public enum WatchEventExport {
                 + "stage starts without ends may reflect suspension, not a failed query.",
             "Observer Started marks main-actor handling; acknowledgement uses callback time, "
                 + "so the two can appear in either order after suspension.",
-            "A missing background expiry event does not prove work finished.",
+            "A missing background expiry event does not prove work finished. "
+                + "App state is recorded only when the scene reports a transition.",
+            "Transport diagnostics contain only a fixed cause and URLSession code or HTTP status; "
+                + "legacy code 3 was a Swift enum index.",
             "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
             ""
         ]

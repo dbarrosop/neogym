@@ -1,4 +1,5 @@
 import Foundation
+import Nhost
 import XCTest
 @testable import NeoGymKit
 
@@ -84,6 +85,7 @@ final class WatchEventLogTests: XCTestCase {
         let legacy = Data(#"{"id":"00000000-0000-0000-0000-000000000001","occurredAt":0,"action":"healthSync","outcome":"failed","trigger":"healthObserver","errorCode":3}"#.utf8)
         let event = try JSONDecoder().decode(WatchEvent.self, from: legacy)
         XCTAssertNil(event.errorSource)
+        XCTAssertNil(event.transportKind)
         XCTAssertNil(event.stage)
         XCTAssertNil(event.attemptID)
         XCTAssertNil(event.metric)
@@ -96,10 +98,13 @@ final class WatchEventLogTests: XCTestCase {
 
     func testCorrelatedObserverTimeoutAndTypedTransportStayPrivateInExport() throws {
         let id = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-0000000000AB"))
-        let transport = GraphQLDomainError.transport("https://private.example.test?token=secret")
+        let transport = GraphQLDomainError.map(FetchError.transport(
+            "URLError -1009: https://private.example.test?token=secret"
+        ))
         let failure = WatchHealthSyncFailure(stage: .backendRead, cause: transport,
                                               backendOperation: .healthReconciliationRead)
         XCTAssertEqual(failure.diagnosticSource, .transport)
+        XCTAssertEqual(failure.transportDiagnostic, .init(kind: .urlSession, code: -1009))
         XCTAssertEqual(failure.backendOperation, .healthReconciliationRead)
         XCTAssertEqual(WatchEventErrorSource.graphQL(.decoding("private")), .backend)
 
@@ -107,8 +112,9 @@ final class WatchEventLogTests: XCTestCase {
                                   trigger: .healthObserver, attemptID: id, metric: .activeEnergy,
                                   runtimeState: .background)
         let readFailure = WatchEvent(action: .healthSync, outcome: .failed,
-                                     trigger: .healthObserver, errorCode: failure.underlyingCode,
-                                     errorSource: failure.diagnosticSource, stage: failure.stage,
+                                     trigger: .healthObserver, errorCode: failure.transportDiagnostic?.code,
+                                     errorSource: failure.diagnosticSource,
+                                     transportKind: failure.transportDiagnostic?.kind, stage: failure.stage,
                                      attemptID: id, backendOperation: failure.backendOperation,
                                      durationSeconds: 14)
         let acknowledged = WatchEvent(action: .healthObservation, outcome: .timedOut,
@@ -124,13 +130,59 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertEqual(events, [acknowledged, readFailure, received])
         let export = WatchEventExport.text(events: events)
         XCTAssertTrue(export.contains("attempt 00000000 · active energy · app background · 25s"))
-        XCTAssertTrue(export.contains("Health reconciliation read · Backend read · GraphQL transport · code 3"))
+        XCTAssertTrue(export.contains(
+            "Health reconciliation read · Backend read · GraphQL transport · URLSession · code -1009"
+        ))
         let skipped = WatchEvent(action: .energyRefresh, outcome: .skipped, attemptID: id,
                                  skipReason: .accountValidationFailed)
         XCTAssertEqual(skipped.diagnosticDetails, "attempt 00000000 · account validation failed")
         XCTAssertFalse(export.contains("private.example.test"))
         XCTAssertFalse(export.contains("secret"))
         XCTAssertTrue(export.contains("Legacy timeout events may have been acknowledged long after 25s"))
+    }
+
+    func testHTTPAndUnknownTransportExportsNeverIncludeRawResponses() {
+        let response = NhostHTTPError(
+            status: 503, headers: ["x-secret": "token"], body: nil,
+            rawBody: Data("user@example.test https://private.example.test".utf8),
+            messages: ["user@example.test https://private.example.test"]
+        )
+        let mapped = GraphQLDomainError.map(FetchError.http(response))
+        XCTAssertEqual(mapped.transportDiagnostic, .init(kind: .http, code: 503))
+        let event = WatchEvent(action: .energyRefresh, outcome: .failed,
+                               errorCode: mapped.transportDiagnostic?.code,
+                               errorSource: .graphQL(mapped),
+                               transportKind: mapped.transportDiagnostic?.kind, stage: .backendRead)
+        let unknown = GraphQLDomainError.map(FetchError.transport("token=private"))
+        XCTAssertEqual(unknown.transportDiagnostic, .init(kind: .unknown))
+        XCTAssertEqual(WatchTransportDiagnostic.classify(FetchError.transport(
+            "URLError -1009 https://private.example.test"
+        )), .init(kind: .unknown))
+        XCTAssertEqual(WatchTransportDiagnostic.classify(URLError(.timedOut)),
+                       .init(kind: .urlSession, code: -1001))
+        let suite = "WatchEventLogTests.\(UUID().uuidString)"
+        let store = WatchEventStore(suite: suite)
+        defer { store.clear() }
+        store.record(event)
+        XCTAssertEqual(store.load().first?.transportKind, .http)
+        XCTAssertEqual(store.load().first?.errorCode, 503)
+        let export = WatchEventExport.text(events: store.load())
+        XCTAssertTrue(export.contains("Backend read · GraphQL transport · HTTP status · code 503"))
+        XCTAssertFalse(export.contains("token"))
+        XCTAssertFalse(export.contains("private.example.test"))
+        XCTAssertFalse(export.contains("user@example.test"))
+    }
+
+    func testLifecycleAndAccountValidationEmitOnlyFixedStateAndCodes() {
+        let changed = WatchEvent(action: .appLifecycle, outcome: .entered,
+                                 runtimeState: .background)
+        let validation = WatchEvent(action: .accountValidation, outcome: .failed,
+                                    errorCode: -1009, errorSource: .transport,
+                                    transportKind: .urlSession, stage: .profileRead,
+                                    runtimeState: .background)
+        let export = WatchEventExport.text(events: [changed, validation])
+        XCTAssertTrue(export.contains("App state | Entered · app background"))
+        XCTAssertTrue(export.contains("Auth profile read · GraphQL transport · URLSession · code -1009"))
     }
 
     func testPendingWallClockAgeIsExportedSeparatelyFromActiveDuration() {

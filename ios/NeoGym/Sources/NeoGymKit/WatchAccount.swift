@@ -122,6 +122,9 @@ public final class WatchAccountModel: ObservableObject {
     @Published public private(set) var currentUser: CurrentWatchUser?
     @Published public private(set) var profileError: String?
     @Published public private(set) var isReadingProfile = false
+    /// Watch-app-only, typed failure hook; never forwards Auth response bodies,
+    /// account details, URLs or localized descriptions into diagnostics.
+    public var onReadFailure: (@MainActor (WatchTransportDiagnostic) -> Void)?
     public let authStore: AuthStore
     private let currentUserService: any CurrentUserServicing
     private let currentUserStore: WatchCurrentUserStore?
@@ -422,6 +425,7 @@ public final class WatchAccountModel: ObservableObject {
 
     private func fail(_ error: Error, revision: UInt64) {
         guard revision == generation, !Task.isCancelled else { return }
+        onReadFailure?(WatchTransportDiagnostic.classify(error))
         loadTask = nil
         loadingSessionID = nil
         isReadingProfile = false

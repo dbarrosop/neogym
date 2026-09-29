@@ -5,6 +5,8 @@ import Foundation
 public enum WatchEventAction: String, Codable, Sendable {
     case backgroundScheduling
     case backgroundTask
+    case appLifecycle
+    case accountValidation
     case energyRefresh
     case healthPermission
     case healthObservation
@@ -18,6 +20,8 @@ public enum WatchEventAction: String, Codable, Sendable {
         switch self {
         case .backgroundScheduling: "Background refresh request"
         case .backgroundTask: "Background wake"
+        case .appLifecycle: "App state"
+        case .accountValidation: "Account validation"
         case .energyRefresh: "Energy refresh"
         case .healthPermission: "Apple Health permission"
         case .healthObservation: "Health observer"
@@ -32,6 +36,7 @@ public enum WatchEventAction: String, Codable, Sendable {
 
 public enum WatchEventOutcome: String, Codable, Sendable {
     case started
+    case entered
     case accepted
     case succeeded
     case failed
@@ -46,6 +51,7 @@ public enum WatchEventOutcome: String, Codable, Sendable {
     public var title: String {
         switch self {
         case .started: "Started"
+        case .entered: "Entered"
         case .accepted: "Accepted by watchOS"
         case .succeeded: "Succeeded"
         case .failed: "Failed"
@@ -92,6 +98,7 @@ public enum WatchEventStage: String, Codable, Sendable {
     case backendWrite
     case authorization
     case scheduling
+    case profileRead
     case localHandoff
 
     public var title: String {
@@ -105,6 +112,7 @@ public enum WatchEventStage: String, Codable, Sendable {
         case .backendWrite: "Backend write"
         case .authorization: "Health permission request"
         case .scheduling: "Background scheduling"
+        case .profileRead: "Auth profile read"
         case .localHandoff: "Local Health handoff"
         }
     }
@@ -127,11 +135,13 @@ public enum WatchEventErrorSource: String, Codable, Sendable {
         }
     }
 
-    /// A GraphQL transport failure can represent an HTTP, network, or service
-    /// problem. Do not mistake its Swift NSError code for a HealthKit code.
+    /// Safe provenance is carried separately; never use a Swift NSError enum
+    /// index as a network or HTTP code.
     public static func graphQL(_ error: GraphQLDomainError) -> Self {
-        if case .transport = error { return .transport }
-        return .backend
+        switch error {
+        case .transport, .transportDetailed: .transport
+        case .graphQLErrors, .missingData, .decoding: .backend
+        }
     }
 }
 
@@ -200,6 +210,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     /// descriptions, domains, URLs, or response bodies. Optional for v1 log compatibility.
     public let errorCode: Int?
     public let errorSource: WatchEventErrorSource?
+    public let transportKind: WatchTransportKind?
     public let stage: WatchEventStage?
     /// Random per-attempt ID, never a user/session/HealthKit identifier.
     public let attemptID: UUID?
@@ -222,6 +233,8 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         if let backendOperation { parts.append(backendOperation.title) }
         if outcome != .failed, let stage { parts.append(stage.title) }
         if let skipReason { parts.append(skipReason.title) }
+        if outcome != .failed, let transportKind { parts.append(transportKind.title) }
+        if outcome != .failed, let errorCode, transportKind != nil { parts.append("code \(errorCode)") }
         if let failureDetails { parts.append(failureDetails) }
         if let durationSeconds { parts.append("\(durationSeconds)s") }
         if let wallSeconds { parts.append("elapsed \(wallSeconds)s wall") }
@@ -231,7 +244,8 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
 
     public var failureDetails: String? {
         guard outcome == .failed else { return nil }
-        var parts = [stage?.title, errorSource?.title, errorCode.map { "code \($0)" }].compactMap { $0 }
+        var parts = [stage?.title, errorSource?.title, transportKind?.title,
+                     errorCode.map { "code \($0)" }].compactMap { $0 }
         if errorSource == .healthKit, errorCode == 3 {
             parts.append("Invalid HealthKit argument")
         }
@@ -241,7 +255,8 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     public init(
         action: WatchEventAction, outcome: WatchEventOutcome,
         trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
-        errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil,
+        errorSource: WatchEventErrorSource? = nil, transportKind: WatchTransportKind? = nil,
+        stage: WatchEventStage? = nil,
         attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
         runtimeState: WatchEventRuntimeState? = nil, backendOperation: WatchEventBackendOperation? = nil,
         skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
@@ -255,6 +270,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         self.trigger = trigger
         self.errorCode = errorCode
         self.errorSource = errorSource
+        self.transportKind = transportKind
         self.stage = stage
         self.attemptID = attemptID
         self.metric = metric
@@ -275,6 +291,7 @@ public struct WatchHealthSyncFailure: LocalizedError, Sendable {
     public let underlyingDomain: String
     public let underlyingCode: Int
     public let diagnosticSource: WatchEventErrorSource?
+    public let transportDiagnostic: WatchTransportDiagnostic?
     public let backendOperation: WatchEventBackendOperation?
     private let reason: String
 
@@ -285,6 +302,7 @@ public struct WatchHealthSyncFailure: LocalizedError, Sendable {
         underlyingDomain = error.domain
         underlyingCode = error.code
         diagnosticSource = (cause as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
+        transportDiagnostic = (cause as? GraphQLDomainError)?.transportDiagnostic
         self.backendOperation = backendOperation
         reason = error.localizedDescription
     }

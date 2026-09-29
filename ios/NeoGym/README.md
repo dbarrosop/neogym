@@ -133,9 +133,14 @@ delayed; exports sort late-stored events by actual occurrence. A new eligible tr
 replaces an in-flight refresh older than 30 wall-clock seconds rather than
 joining a suspended task indefinitely. Legacy 25-second timeout events may
 have been acknowledged much later if the app was suspended. Error
-categories distinguish HealthKit queries, background
-registration, backend reads/writes and GraphQL transport (which still combines
-network, HTTP and service failures). Older events retain numeric-only detail. In Events, tap **Share logs** to choose an
+categories distinguish HealthKit queries, background registration and
+backend reads/writes. New GraphQL transport failures report only a fixed
+URLSession, HTTP, service/response or unknown cause (and real URLSession error
+number or HTTP status when available); older `GraphQL transport · code 3`
+records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
+failures record their own safe cause; scene transitions record
+active/inactive/background but cannot prove uninterrupted background work.
+Older events retain numeric-only detail. In Events, tap **Share logs** to choose an
 app/destination in the watchOS share sheet for a plain-text `.txt` attachment.
 Available destinations depend on the watchOS
 share sheet and installed apps; nothing is sent automatically. Exports contain

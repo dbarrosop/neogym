@@ -133,20 +133,25 @@ final class WatchAccountTests: XCTestCase {
 
     func testAuthErrorsHideNameButOfflineKeepsLastProfileAndAllowsRetry() async throws {
         let (model, _, transport) = try await setup()
+        var diagnostics: [WatchTransportDiagnostic] = []
+        model.onReadFailure = { diagnostics.append($0) }
         model.localContextReady(nil)
         await waitFor(model, .name("Server Name"))
         await transport.set(status: 401)
         model.refresh()
         await waitFor(model, .authError)
         XCTAssertNil(model.currentUser)
+        XCTAssertEqual(diagnostics.last, .init(kind: .http, code: 401))
         await transport.set(status: 200, refresh: true)
         model.refresh()
         await waitForProfileError(model)
         XCTAssertEqual(model.state, .name("Old Session"))
         XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
+        XCTAssertEqual(diagnostics.last, .init(kind: .urlSession, code: -1009))
         await transport.set(status: 200, transportFailure: true)
         model.refresh()
         await waitForProfileError(model) // Production transport wraps offline errors in FetchError.transport.
+        XCTAssertEqual(diagnostics.last, .init(kind: .unknown))
         XCTAssertEqual(model.state, .name("Old Session"))
         XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
         await transport.set(status: 200, name: "Recovered")
