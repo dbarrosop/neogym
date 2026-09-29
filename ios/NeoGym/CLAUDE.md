@@ -520,18 +520,17 @@ intact instead of inventing one-off styles.
   with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
   deleted). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
-  Progress fetches strength history from the local week containing the first of
-  the last 180 local days, then extends the week-rounded bound on demand for
-  older custom ranges in either chart; cached results remain visible during
-  revalidation. If the current week-rounded `since` cache key is cold, an eligible
-  previous-key SDK snapshot can render without a network read and stays visible
-  on network failure, labeled as potentially missing newer sessions until the
-  current stream emits; missing or expired snapshots cannot provide that fallback.
-  Weekly zero buckets begin at the first logged week in the
-  fetched window, not necessarily the first-ever workout. On Progress, each
-  exercise chart's header is a `NavigationLink` to the existing
-  `.exerciseDetail(id)` route; Back returns to Progress and the chart's period,
-  legend, and plot gestures remain independent of navigation.
+  Progress reads server-calculated muscle sets via
+  `SessionsRepository.muscleSetProgressUpdates` and the user-scoped
+  `muscleSetProgress(args: {from_day, through_day, time_zone})` function; it does
+  not download raw sets. It requests the last 180 local days by default and
+  extends the date range on demand for older chart periods, up to one year.
+  The "Sets by muscle" list shows the latest day's trailing seven-local-day
+  direct, indirect, and weighted set totals. Tapping a muscle selects it for
+  the single weighted-set history chart without navigating; `shoulders` is
+  labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
+  cache namespace/tag: an exact-key cached result can render during backend
+  revalidation, but a cold key has no older-range snapshot fallback.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;
