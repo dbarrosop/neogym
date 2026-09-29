@@ -104,6 +104,10 @@ public final class MuscleSetProgressViewModel: ObservableObject {
         // The default window must advance on a new local day even if this model stays mounted.
         if !hasExtendedHistory {
             historyStart = calendar.date(byAdding: .day, value: -179, to: today) ?? today
+        } else {
+            // A kept-alive custom window must stay within the server's 365-day span after midnight.
+            let earliest = calendar.date(byAdding: .day, value: -365, to: today) ?? today
+            historyStart = max(historyStart, earliest)
         }
         let from = GraphQLScalars.date(historyStart, calendar: calendar)
         let through = GraphQLScalars.date(today, calendar: calendar)

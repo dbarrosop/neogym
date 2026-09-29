@@ -159,8 +159,52 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertNotNil(model.state.errorMessage)
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.map { $0.variables?["from"] }, [.string("2026-01-08"), .string("2026-01-09")])
+        XCTAssertEqual(requests.map { $0.variables?["through"] }, [.string("2026-07-06"), .string("2026-07-07")])
         let cacheReads = await fake.cachedOnlyRequestsSnapshot()
         XCTAssertEqual(cacheReads.last?.request.variables?["through"], .string("2026-07-07"))
+    }
+
+    @MainActor
+    func testExtendedHistoryStaysWithinServerLimitAfterLocalMidnightAndOnRepeatedReload() async throws {
+        let beforeMidnight = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-08T03:59:00Z"))
+        let afterMidnight = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-08T04:01:00Z"))
+        let olderStart = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2024-01-01T12:00:00Z"))
+        let clock = ProgressTestClock(beforeMidnight)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let fake = FakeGraphQLService(replies: [
+            .json(Self.progressReply(day: "2026-07-07", sets: 1)),
+            .json(Self.progressReply(day: "2026-07-08", sets: 2)),
+            .json(Self.progressReply(day: "2026-07-08", sets: 3))
+        ])
+        let model = MuscleSetProgressViewModel(
+            repository: SessionsRepository(graphQL: fake), calendar: calendar, clock: { clock.now() }
+        )
+
+        await model.extendHistory(to: olderStart)
+        clock.set(afterMidnight)
+        await model.load()
+        await model.load()
+
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.map { $0.variables?["from"] }, [
+            .string("2025-07-07"), .string("2025-07-08"), .string("2025-07-08")
+        ])
+        XCTAssertEqual(requests.map { $0.variables?["through"] }, [
+            .string("2026-07-07"), .string("2026-07-08"), .string("2026-07-08")
+        ])
+        XCTAssertTrue(requests.allSatisfy { $0.variables?["timeZone"] == .string("America/New_York") })
+        let firstDay = try XCTUnwrap(calendar.date(from: DateComponents(year: 2025, month: 7, day: 7)))
+        let nextDay = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 7)))
+        XCTAssertEqual(calendar.dateComponents([.day], from: firstDay, to: nextDay).day, 365)
+        XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 3)
+        XCTAssertNil(model.state.errorMessage)
+        XCTAssertNil(model.cachedThrough)
+        XCTAssertFalse(model.isShowingPartialHistory)
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(cacheReads.map { $0.request.variables?["from"] }, [
+            .string("2025-07-07"), .string("2025-07-08")
+        ])
     }
 
     @MainActor
