@@ -73,15 +73,21 @@ public struct BodyMeasurementsHealthSyncSummary: Sendable, Equatable {
 }
 
 /// Opaque HealthKit cursors are committed only after the corresponding backend writes succeed.
+/// A nil metric cursor keeps retrying its full history until HealthKit delivers an event for that type.
 public struct BodyHealthAnchors: Codable, Sendable {
-    public let weight: Data
-    public let bodyFat: Data
+    public let weight: Data?
+    public let bodyFat: Data?
     public let timeZone: String
 
-    public init(weight: Data, bodyFat: Data, timeZone: String) {
+    public init(weight: Data?, bodyFat: Data?, timeZone: String) {
         self.weight = weight
         self.bodyFat = bodyFat
         self.timeZone = timeZone
+    }
+
+    static func checkpointedAnchor(_ next: Data, previous: Data?, hasEvents: Bool) -> Data? {
+        // An empty read can mean revoked permission; keep the last known cursor.
+        hasEvents ? next : previous
     }
 }
 
@@ -219,11 +225,11 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
         let hasEvents = !weights.samples.isEmpty || !fats.samples.isEmpty
             || weights.deletedCount > 0 || fats.deletedCount > 0
 
-        // A nil cursor performs the historical import once. An incremental batch may
-        // contain an older sample for a date, so re-read only changed dates to retain
-        // the latest *current* weight and fat measurement for each affected day.
+        // When neither metric is checkpointed, the anchored queries already include
+        // full history. Otherwise re-read affected days so older added samples cannot
+        // replace a day's latest current measurement (including the other metric).
         let measurements: [HealthBodyMeasurement]
-        if anchors == nil {
+        if anchors?.weight == nil && anchors?.bodyFat == nil {
             measurements = HealthBodyMeasurementGrouper.merge(
                 weightSamples: mapped(weights.samples, unit: .gramUnit(with: .kilo), multiplier: 1),
                 bodyFatSamples: mapped(fats.samples, unit: .percent(), multiplier: 100)
@@ -234,17 +240,34 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
             })
             var currentWeights: [DatedHealthMetricSample] = []
             var currentFats: [DatedHealthMetricSample] = []
-            for date in dates.sorted() {
-                guard let start = DateOnly.parse(date, calendar: calendar),
-                      let end = calendar.date(byAdding: .day, value: 1, to: start) else { continue }
-                async let dayWeights = queryQuantitySamples(
+            if anchors?.weight == nil || anchors?.bodyFat == nil,
+               let first = dates.min(), let last = dates.max(),
+               let start = DateOnly.parse(first, calendar: calendar),
+               let lastStart = DateOnly.parse(last, calendar: calendar),
+               let end = calendar.date(byAdding: .day, value: 1, to: lastStart) {
+                // With one type unanchored, affected dates may span years. Query each
+                // type once across those dates rather than issuing two queries per day.
+                async let rangeWeights = queryQuantitySamples(
                     type: bodyMassType, unit: .gramUnit(with: .kilo), multiplier: 1, start: start, end: end
                 )
-                async let dayFats = queryQuantitySamples(
+                async let rangeFats = queryQuantitySamples(
                     type: bodyFatType, unit: .percent(), multiplier: 100, start: start, end: end
                 )
-                currentWeights += try await dayWeights
-                currentFats += try await dayFats
+                currentWeights = try await rangeWeights.filter { dates.contains($0.measuredOn) }
+                currentFats = try await rangeFats.filter { dates.contains($0.measuredOn) }
+            } else {
+                for date in dates.sorted() {
+                    guard let start = DateOnly.parse(date, calendar: calendar),
+                          let end = calendar.date(byAdding: .day, value: 1, to: start) else { continue }
+                    async let dayWeights = queryQuantitySamples(
+                        type: bodyMassType, unit: .gramUnit(with: .kilo), multiplier: 1, start: start, end: end
+                    )
+                    async let dayFats = queryQuantitySamples(
+                        type: bodyFatType, unit: .percent(), multiplier: 100, start: start, end: end
+                    )
+                    currentWeights += try await dayWeights
+                    currentFats += try await dayFats
+                }
             }
             measurements = HealthBodyMeasurementGrouper.merge(
                 weightSamples: currentWeights, bodyFatSamples: currentFats
@@ -253,7 +276,15 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
         return BodyHealthChangeBatch(
             measurements: measurements,
             nextAnchors: BodyHealthAnchors(
-                weight: weights.nextAnchor, bodyFat: fats.nextAnchor, timeZone: calendar.timeZone.identifier
+                weight: BodyHealthAnchors.checkpointedAnchor(
+                    weights.nextAnchor, previous: anchors?.weight,
+                    hasEvents: !weights.samples.isEmpty || weights.deletedCount > 0
+                ),
+                bodyFat: BodyHealthAnchors.checkpointedAnchor(
+                    fats.nextAnchor, previous: anchors?.bodyFat,
+                    hasEvents: !fats.samples.isEmpty || fats.deletedCount > 0
+                ),
+                timeZone: calendar.timeZone.identifier
             ),
             hasEvents: hasEvents
         )

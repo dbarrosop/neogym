@@ -311,11 +311,17 @@ changes.
   subsection and the Nutrition overview on initial load and pull-to-refresh.
   It scans history once per app user/timezone, then uses per-type anchored
   additions to re-query affected local dates; cursors commit only after
-  successful backend reconciliation. It creates missing dates and refreshes
-  the last 7 local days only for rows still carrying that note. An empty
-  initial HealthKit read is not checkpointed, and deletions are not yet
-  reconciled. Overview revalidates its backend queries after sync when Body
-  rows changed or when refresh/Retry was requested while sync was pending;
+  successful backend reconciliation. A type whose first read is empty stays
+  unanchored even if the other type has samples, so later permission grants
+  retry that type's history. On any sync with one type unanchored and affected
+  dates, one bounded query per metric re-reads the affected values. An anchored
+  type with no events retains its prior cursor in case access was revoked.
+  Cursors live under `body-health.anchor.v2.<userId>`; the previous
+  `body-health.anchor.v1.*` paired key is ignored if present so a previously
+  unreadable type starts from history. It creates missing dates and refreshes
+  the last 7 local days only for rows still carrying that note. Deletions are
+  not yet reconciled. Overview revalidates its backend queries after sync when
+  Body rows changed or when refresh/Retry was requested while sync was pending;
   queued requests keep the dashboard's loading indicator visible.
 
 ## Native iOS design guide

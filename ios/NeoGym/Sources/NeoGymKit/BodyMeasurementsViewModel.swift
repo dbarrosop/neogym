@@ -81,7 +81,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         healthSyncState = .loading(previous: healthSyncState.value)
         var didWrite = false
         do {
-            let key = userId.map { "body-health.anchor.v1.\($0)" }
+            // V1 could have checkpointed a type whose first read was empty while
+            // the other type had samples. Start both types from history once on upgrade.
+            let key = userId.map { "body-health.anchor.v2.\($0)" }
             let saved = key.flatMap { defaults.data(forKey: $0) }
                 .flatMap { try? JSONDecoder().decode(BodyHealthAnchors.self, from: $0) }
             // A timezone change moves local-day boundaries; rebuild once from history.
@@ -89,9 +91,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
             let batch = try await healthImporter.changes(since: anchors)
             try Task.checkCancellation()
             if batch.measurements.isEmpty {
-                // HealthKit hides whether read permission was denied. Only checkpoint
-                // a baseline when it actually delivered an event; otherwise retry
-                // after the user grants permission.
+                // HealthKit hides read denial. The importer leaves an empty type's
+                // first cursor nil so that type is retried after permission changes.
                 if batch.hasEvents, let key, let next = batch.nextAnchors {
                     defaults.set(try JSONEncoder().encode(next), forKey: key)
                 }

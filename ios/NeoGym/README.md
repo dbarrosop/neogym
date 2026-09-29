@@ -344,12 +344,19 @@ After reset:
 Opening Body or Nutrition Overview requests read-only Apple Health access for
 body mass and body-fat percentage. The first import scans historical samples;
 subsequent visits use per-type HealthKit anchors to check additions only, then
-re-read the affected local dates to keep the latest sample per metric. Cursors
-are scoped to the app user/timezone and saved after backend reconciliation, not
-before; an empty initial read is retried after permission is granted. The app
-requests no write authorization and does not export NeoGym measurements back
-to HealthKit. Missing dates are created, while rows from the last 7 local days
-that still carry the exact `Imported from Apple Health` note can be refreshed.
+re-read the affected local dates to keep the latest sample per metric. Whenever
+one type is unanchored and dates are affected, both metrics are re-read in one
+date-bounded query per type. Cursors are scoped to the app user/timezone and
+saved after backend reconciliation, not before; a type with an empty first
+read keeps a nil anchor so it can retry if permission is granted later, even
+when the other type already imported samples. An anchored type with no events
+keeps its previous cursor in case its read access was revoked. Cursors live
+under `body-health.anchor.v2.<userId>`; the previous
+`body-health.anchor.v1.*` paired key is ignored if present so a previously
+unreadable type starts from history. The app requests no write authorization
+and does not export NeoGym measurements back to HealthKit. Missing dates are
+created, while rows from the last 7 local days that still carry the exact
+`Imported from Apple Health` note can be refreshed.
 Manual or edited rows are not overwritten. HealthKit sample deletions are not
 reconciled yet; deleting a sample alone does not remove its imported Body row.
 

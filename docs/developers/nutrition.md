@@ -84,18 +84,25 @@ kcal/grams + daily-energy query, and Body composition has its own date-bounded
 measurements query. Longer chart periods load on demand without fetching plans.
 Body HealthKit reconciliation scans historical samples once per app user and
 local timezone, then saves per-type HealthKit anchors only after backend writes
-succeed. Later visits inspect added samples and re-query only their affected
-local dates (both weight and fat to retain the latest value per metric),
-independently of the selected chart period. No-change reads skip the backend
+succeed. A metric whose first read is empty keeps a nil anchor and retries its
+history on later visits, even when the other metric was imported; HealthKit
+cannot distinguish read denial from no samples. Cursors live under
+`body-health.anchor.v2.<userId>`; the previous `body-health.anchor.v1.*` paired
+key is ignored if present so a previously unreadable type starts from history.
+Later visits inspect added samples and re-query affected local dates (both
+weight and fat to retain the latest value per metric). On any sync with one type
+unanchored and affected dates, one bounded range query per metric re-reads both
+values for those dates; an anchored type with no events keeps its previous
+cursor, since an empty read can also mean revoked permission. This is
+independent of the selected chart period. No-change reads skip the backend
 measurement list and the duplicate dashboard revalidation. HealthKit deletions
 are intentionally ignored for now: removing a Health sample does not remove or
-recompute an already-imported Body row until another addition affects that date.
-An empty initial HealthKit read does not advance the anchors because read denial
-is indistinguishable from no samples. Watch energy sync covers seven local dates
-and is independent of the iPhone chart period.
-The 7-day rolling net average is computed from calendar days in the window that have both a nutrition
-log day and a `daily_energy` row, so
-missing energy/intake data is not silently treated as a zero-output day. The
+recompute an already-imported Body row until another addition affects that
+date. Watch energy sync covers seven local dates and is independent of the
+iPhone chart period.
+The 7-day rolling net average is computed from calendar days in the window
+that have both a nutrition log day and a `daily_energy` row, so missing
+energy/intake data is not silently treated as a zero-output day. The
 body composition chart overlays weight, body-fat percentage, and independent
 7-day rolling averages for both metrics; each rolling body point uses available
 measurements from that point's date plus the previous 6 local calendar days.

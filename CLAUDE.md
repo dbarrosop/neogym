@@ -278,18 +278,24 @@ last 14 local days and query only their selected period plus six warm-up days
 for rolling averages. The Calories consumed chart uses a separate date-bounded
 snapshot-kcal/grams + daily-energy query (not the detailed overview/day-list
 query), and Body composition uses a date-bounded measurements query; changing
-a chart period or custom dates loads that range on demand. Body HealthKit reconciliation scans history once per app user/timezone, then uses
-per-type anchored additions to recheck only affected local dates, independently
-of chart ranges. Cursors advance after successful backend reconciliation; an
-empty initial read is not checkpointed because HealthKit read denial is opaque.
-It creates missing dates and refreshes recent rows that still carry the exact
-"Imported from Apple Health" note. HealthKit deletions are intentionally not
-reconciled yet. Watch energy sync remains
-limited to the last seven local dates; iPhone energy views do not sync it. It does not show the old intro copy or recent
-daily-log list. `NutritionDaysView` no longer takes a
-`selectedDate` binding. After a create the shell replaces only the top create
-route with the new detail route so Back returns to the subsection list, not the
-hub.
+a chart period or custom dates loads that range on demand. Body HealthKit
+reconciliation scans history once per app user/timezone, then uses per-type
+anchored additions to recheck only affected local dates, independently of chart
+ranges. Cursors advance after successful backend reconciliation; an empty
+initial read is not checkpointed because HealthKit read denial is opaque. It
+creates missing dates and refreshes recent rows that still carry the exact
+"Imported from Apple Health" note. Each metric whose first read is empty stays
+unanchored and retries its history even when the other metric has samples; an
+anchored type with no events retains its cursor if access was revoked. On any
+sync with one type unanchored and affected dates, both types are re-read across
+one bounded range per type. Cursors live under `body-health.anchor.v2.<userId>`;
+the previous `body-health.anchor.v1.*` paired key is ignored if present.
+HealthKit deletions are intentionally not reconciled yet. Watch energy sync
+remains limited to the last seven local dates; iPhone energy views do not sync
+it. It does not show the old intro copy or recent daily-log list.
+`NutritionDaysView` no longer takes a `selectedDate` binding. After a create
+the shell replaces only the top create route with the new detail route so Back
+returns to the subsection list, not the hub.
 **Me is now a hub too:** its root is a native `List` of tappable glass rows
 (Profile/Journal) that push subsection-list routes (`MeRoute.profile`/`.journalList`) via
 `.navigationDestination(for:)`, each with its own `navigationTitle`; the area

@@ -271,6 +271,31 @@ final class HealthBodyMeasurementImportTests: XCTestCase {
         XCTAssertEqual(merged[1].bodyFatPct, 18.1)
     }
 
+    func testEmptyMetricDoesNotAdvanceItsFirstCursorAndOldPairsDecode() throws {
+        let weight = Data("weight-cursor".utf8)
+        let fat = Data("fat-cursor".utf8)
+        XCTAssertEqual(BodyHealthAnchors.checkpointedAnchor(weight, previous: nil, hasEvents: true), weight)
+        XCTAssertNil(BodyHealthAnchors.checkpointedAnchor(fat, previous: nil, hasEvents: false))
+        XCTAssertEqual(BodyHealthAnchors.checkpointedAnchor(fat, previous: fat, hasEvents: false), fat)
+        XCTAssertNil(BodyHealthAnchors.checkpointedAnchor(weight, previous: nil, hasEvents: false))
+        XCTAssertEqual(BodyHealthAnchors.checkpointedAnchor(fat, previous: nil, hasEvents: true), fat)
+
+        let oldPair = BodyHealthAnchors(weight: weight, bodyFat: fat, timeZone: "UTC")
+        let decoded = try JSONDecoder().decode(BodyHealthAnchors.self, from: JSONEncoder().encode(oldPair))
+        XCTAssertEqual(decoded.weight, weight)
+        XCTAssertEqual(decoded.bodyFat, fat)
+    }
+
+    func testAnchoredMetricWithNoEventsKeepsPreviousCursor() {
+        let previous = Data("previous-cursor".utf8)
+        let next = Data("next-cursor".utf8)
+
+        XCTAssertNotEqual(previous, next)
+        XCTAssertEqual(BodyHealthAnchors.checkpointedAnchor(next, previous: previous, hasEvents: false), previous)
+        XCTAssertEqual(BodyHealthAnchors.checkpointedAnchor(next, previous: previous, hasEvents: true), next)
+        XCTAssertNil(BodyHealthAnchors.checkpointedAnchor(next, previous: nil, hasEvents: false))
+    }
+
     func testImportedHealthMeasurementsFormatValuesAndDropOutOfRangeMetrics() {
         let values = HealthBodyMeasurement(
             measuredOn: "2026-06-26",
@@ -395,6 +420,85 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         let created = await repository.createdValuesSnapshot()
         XCTAssertEqual(listCalls, 1)
         XCTAssertEqual(created.count, 1)
+    }
+
+    func testOneEmptyMetricRetainsNilCursorUntilItsSamplesArrive() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let weight = Data("weight-cursor".utf8)
+        let fat = Data("fat-cursor".utf8)
+        let timeZone = Calendar.current.timeZone.identifier
+        let partial = BodyHealthAnchors(weight: weight, bodyFat: nil, timeZone: timeZone)
+        let complete = BodyHealthAnchors(weight: weight, bodyFat: fat, timeZone: timeZone)
+        let importer = FakeIncrementalBodyHealthImporter(batches: [
+            BodyHealthChangeBatch(
+                measurements: [HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80)],
+                nextAnchors: partial, hasEvents: true
+            ),
+            BodyHealthChangeBatch(
+                measurements: [
+                    HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80, bodyFatPct: 18),
+                    HealthBodyMeasurement(measuredOn: "2026-07-08", bodyFatPct: 19)
+                ], nextAnchors: complete, hasEvents: true
+            )
+        ])
+        let repository = FakeBodyMeasurementsRepository(measurements: [])
+        var calendar = Calendar.current
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: timeZone))
+        let today = try XCTUnwrap(DateOnly.parse("2026-07-09", calendar: calendar))
+        let model = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: importer, calendar: calendar,
+            now: { today }, userId: "user-one", defaults: defaults
+        )
+
+        let firstChanged = await model.syncHealthMeasurementsOnly()
+        XCTAssertTrue(firstChanged)
+        let key = "body-health.anchor.v2.user-one"
+        let savedPartial = try JSONDecoder().decode(
+            BodyHealthAnchors.self, from: XCTUnwrap(defaults.data(forKey: key))
+        )
+        XCTAssertEqual(savedPartial.weight, weight)
+        XCTAssertNil(savedPartial.bodyFat)
+
+        let secondChanged = await model.syncHealthMeasurementsOnly()
+        XCTAssertTrue(secondChanged)
+        let cursors = await importer.receivedAnchors()
+        XCTAssertNil(cursors[0])
+        XCTAssertEqual(cursors[1]?.weight, weight)
+        XCTAssertNil(cursors[1]?.bodyFat)
+        let savedComplete = try JSONDecoder().decode(
+            BodyHealthAnchors.self, from: XCTUnwrap(defaults.data(forKey: key))
+        )
+        XCTAssertEqual(savedComplete.bodyFat, fat)
+        let created = await repository.createdValuesSnapshot()
+        let updated = await repository.updatedValuesSnapshot()
+        XCTAssertEqual(created.map(\.measuredOn), ["2026-07-09", "2026-07-08"])
+        XCTAssertEqual(created[1].bodyFatPct, "19")
+        XCTAssertEqual(updated["created-1"]?.bodyFatPct, "18")
+    }
+
+    func testLegacyPairIsIgnoredSoPreviouslyUnreadableMetricCanRetry() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let old = BodyHealthAnchors(
+            weight: Data("weight-cursor".utf8), bodyFat: Data("fat-cursor".utf8),
+            timeZone: Calendar.current.timeZone.identifier
+        )
+        defaults.set(try JSONEncoder().encode(old), forKey: "body-health.anchor.v1.user-one")
+        let importer = FakeIncrementalBodyHealthImporter(batches: [
+            BodyHealthChangeBatch(measurements: [], nextAnchors: old, hasEvents: false)
+        ])
+        let model = BodyMeasurementsListViewModel(
+            repository: FakeBodyMeasurementsRepository(measurements: []),
+            healthImporter: importer, userId: "user-one", defaults: defaults
+        )
+
+        await model.syncHealthMeasurementsOnly()
+        let cursors = await importer.receivedAnchors()
+        XCTAssertNil(cursors[0])
+        XCTAssertNil(defaults.data(forKey: "body-health.anchor.v2.user-one"))
     }
 
     func testEmptyInitialReadDoesNotCheckpointAndAnotherUserStartsAtBaseline() async throws {
