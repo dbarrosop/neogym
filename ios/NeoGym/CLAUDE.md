@@ -155,15 +155,24 @@ cannot sync.
 Signed-in watch users can swipe to a third Events page: `WatchEventStore` keeps
 at most 300 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule
-requested/accepted/failed with numeric codes, actual wakes started/finished,
-Health observer arrival/acknowledgement (plus legacy timeout) and delivery
-failures, Health permission/reconciliation, fresh energy reads, local snapshot
-saves, and WidgetKit reload requests. Random per-attempt IDs correlate same-run
+requested/accepted/failed with numeric codes, actual wakes
+started/finished/expired-by-watchOS, Health observer
+arrival/acknowledgement (plus legacy timeout) and delivery failures, typed
+starts/ends for both HealthKit statistics queries, Health import, backend
+reconciliation read/write, and final today read, fresh energy results, local
+snapshot saves, and WidgetKit reload requests. Random per-attempt IDs correlate same-run
 outcomes, while a resumed pending import has a new ID; metric, app state when
 handled, active duration, wall-clock age of the earliest pending delivery when
-a refresh starts, backend operation and
-account-gate skip reason are typed optional fields. A missing terminal event
-may mean suspension/termination and cannot by itself prove a network hang;
+a refresh starts, stage wall elapsed time, backend operation and account-gate
+skip reason are typed optional fields. Stage events capture start/end timestamps
+at the operation boundary, then MainActor stores them in occurrence order.
+Observer `Started` marks main-actor handling, not raw callback receipt;
+acknowledgement uses its actual HealthKit callback timestamp and omits app
+state (which might change before the log is written). The two can appear in
+either order. Background task
+expiry cancels work and completes the watchOS task exactly once if the system
+calls its handler; a missing expiry or terminal event may mean
+suspension/termination and cannot by itself prove a network hang;
 legacy 25s watchdog callbacks could run much later after suspension. Failures
 include a fixed stage (HealthKit energy/observer query or delivery registration,
 local handoff, backend read/write, authorization, scheduling) and allowlisted

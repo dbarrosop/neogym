@@ -113,14 +113,23 @@ widget or on a server. A random attempt ID ties together observer arrival,
 energy reconciliation, snapshot save, and HealthKit acknowledgement within
 one in-process attempt; a resumed pending import has a new ID. Entries
 include the observed active/resting metric, app state when handled, elapsed
-seconds, backend operation or account-gate skip reason. Each observer callback
+seconds, backend operation or account-gate skip reason. A refresh now emits
+start and terminal events for the active/resting HealthKit statistics queries,
+Health import, reconciliation read/write, and today's final backend read.
+These stage durations use wall time (including suspension), not the older
+active-runtime seconds. A missing terminal stage does not prove a query failed;
+watchOS may have suspended or killed the app. An actual scheduled background
+wake has a separate `Expired by watchOS` event if its expiration handler ran;
+absence of that event is not evidence of success. Each observer callback
 first attempts a read-back-verified private, user-scoped pending Health sync,
 then promptly acknowledges HealthKit without waiting for backend or HealthKit
 queries. A failed local handoff is logged but cannot guarantee a deferred retry. An
 eligible app run reconciles the marker and clears it only after Health sync,
 fresh backend read and local snapshot save; a newer delivery cannot be cleared
 by an older in-flight sync. Events report wall-clock age since the earliest
-pending delivery separately from active runtime. A new eligible trigger
+pending delivery separately from active runtime. Observer acknowledgements
+carry the callback's timestamp even if storing the event on the main actor is
+delayed; exports sort late-stored events by actual occurrence. A new eligible trigger
 replaces an in-flight refresh older than 30 wall-clock seconds rather than
 joining a suspended task indefinitely. Legacy 25-second timeout events may
 have been acknowledged much later if the app was suspended. Error
@@ -151,11 +160,11 @@ request a coalesced, 15-minute preferred fallback wake; accepted requests do
 not guarantee delivery, and a foreground open retries any pending work. NeoGym
 observes active/basal
 energy samples, not Workout records; a Fitness workout is not itself a NeoGym
-background wake. Observer deliveries wait for local
-activation and account validation before syncing or calling HealthKit's
-completion; ineligible deliveries record a skipped Energy refresh · Health event
-before completion. After a failed backend sync, transient account-validation
-failure, or timed-out Health observer, the app requests another background wake
+background wake. Observer sync work waits for local activation and account
+validation, but HealthKit completion follows the local handoff immediately;
+ineligible runs log a skipped Energy refresh while the same-owner pending
+marker remains for a later eligible run. After a failed backend sync or
+transient account-validation failure, the app requests another background wake
 with 15/30/60-minute backoff. It coalesces duplicate hourly requests and
 re-arms after account bootstrap but before energy reconciliation so an
 interrupted sync is less likely to omit the next request. watchOS may still defer or skip that wake. Returning from
@@ -197,18 +206,20 @@ phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
 background wakes and for snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
-attachment for matching observer/refresh attempt IDs, metric, active/background
-state, acknowledgement or timeout, duration, and backend stage/source/code.
+attachment for matching same-run observer/refresh attempt IDs, callback-time
+acknowledgement, active/background state when the handler ran, typed stage
+starts/ends and wall durations, background-task expiry (if delivered), and
+backend stage/source/code.
 Compare local workout time to export UTC (e.g. 06:19 UTC+2 = 04:19Z). No
 `Background wake` event is required for a HealthKit delivery. A missing
-acknowledgement can mean watchOS suspended or terminated the app; a timed-out
-acknowledgement means no completed sync is assured. Verify that scrolling into
+acknowledgement log can mean watchOS suspended or terminated the app before it
+could record the callback; older timed-out events do not prove a sync completed. Verify that scrolling into
 the widget shows an advancing snapshot age but does not claim a new sync. Tap
 the widget to open NeoGym, and check that account revalidation is followed by a
 fresh Energy read. With unchanged energy/intake values, expect a successful
 snapshot save but **no** WidgetKit reload request; after a real value change,
 expect a reload request and verify the widget's actual display separately.
-After a timeout or transient backend failure, look for a preferred retry request
+After a transient backend failure, look for a preferred retry request
 (15/30/60-minute backoff); acceptance still does not prove an OS wake. Simulator
 builds only prove the share API compiles, not which services appear on real hardware. Only a
 paired-device test can confirm that WidgetKit ultimately updated the watch face. No production `GET /user` contract or signed hardware

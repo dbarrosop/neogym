@@ -14,6 +14,23 @@ private struct FailingWatchEnergyImporter: DailyEnergyHealthImporting {
     }
 }
 
+private final class StageEvents: @unchecked Sendable {
+    private let lock = NSLock()
+    private var recorded: [WatchEnergyStageEvent] = []
+
+    func add(_ event: WatchEnergyStageEvent) {
+        lock.lock()
+        recorded.append(event)
+        lock.unlock()
+    }
+
+    var all: [WatchEnergyStageEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return recorded
+    }
+}
+
 final class WatchEnergyTests: XCTestCase {
     private let now = ISO8601DateFormatter().date(from: "2026-06-25T12:00:00Z")!
     private let calendar: Calendar = {
@@ -50,7 +67,22 @@ final class WatchEnergyTests: XCTestCase {
         let service = WatchEnergyService(graphQL: fake, energy: DailyEnergyRepository(graphQL: fake),
                                          importer: importer, calendar: calendar)
 
-        let snapshot = try await service.refresh(userID: "person-1", syncHealth: true, now: now)
+        let stages = StageEvents()
+        let snapshot = try await service.refresh(userID: "person-1", syncHealth: true,
+                                                 now: now, onStage: { stages.add($0) })
+        let stageEvents = stages.all
+        for (stage, operation) in [
+            (WatchEventStage.healthRead, Optional<WatchEventBackendOperation>.none),
+            (.backendRead, .some(.healthReconciliationRead)),
+            (.backendWrite, .some(.updateEnergy)),
+            (.backendRead, .some(.todayEnergyRead))
+        ] {
+            let events = stageEvents.filter { $0.stage == stage && $0.backendOperation == operation }
+            XCTAssertEqual(events.map(\.outcome), [.started, .succeeded])
+            XCTAssertNil(events.first?.wallSeconds)
+            XCTAssertNotNil(events.last?.wallSeconds)
+            if events.count == 2 { XCTAssertGreaterThanOrEqual(events[1].occurredAt, events[0].occurredAt) }
+        }
         XCTAssertEqual(snapshot.consumedKcal, 350)
         XCTAssertEqual(snapshot.burnedKcal, 120)
         XCTAssertEqual(snapshot.activeKcal, 120)
@@ -88,13 +120,16 @@ final class WatchEnergyTests: XCTestCase {
             graphQL: readGraphQL, energy: DailyEnergyRepository(graphQL: readGraphQL),
             importer: WatchEnergyFakeImporter(entries: []), calendar: calendar
         )
+        let failedStages = StageEvents()
         do {
-            try await readService.syncHealth(now: now)
+            try await readService.syncHealth(now: now, onStage: { failedStages.add($0) })
             XCTFail("Expected backend-read failure")
         } catch let failure as WatchHealthSyncFailure {
             XCTAssertEqual(failure.stage, .backendRead)
             XCTAssertEqual(failure.backendOperation, .healthReconciliationRead)
         } catch { XCTFail("Unexpected error: \(error)") }
+        let readEvents = failedStages.all.filter { $0.backendOperation == .healthReconciliationRead }
+        XCTAssertEqual(readEvents.map(\.outcome), [.started, .failed])
 
         let writeGraphQL = FakeGraphQLService(replies: [
             .json(.object(["dailyEnergyEntries": .array([])])),

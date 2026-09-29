@@ -1,9 +1,9 @@
 import Foundation
 
-/// HealthKit's observer completion must be called exactly once, whether work
-/// finishes normally or a watchdog acknowledges it after a deadline. The
-/// callback is provided by HealthKit on an arbitrary executor.
-public final class WatchObserverCompletionGate: @unchecked Sendable {
+/// Finish a HealthKit observer callback or watchOS background task exactly
+/// once, even when normal completion races with system expiration. Callbacks
+/// may arrive on arbitrary executors.
+public final class WatchCompletionGate: @unchecked Sendable {
     private let lock = NSLock()
     private let completion: () -> Void
     private var completed = false
@@ -12,7 +12,7 @@ public final class WatchObserverCompletionGate: @unchecked Sendable {
         self.completion = completion
     }
 
-    /// Returns true only for the caller that acknowledged HealthKit.
+    /// Returns true only for the caller that invoked the completion.
     @discardableResult
     public func complete() -> Bool {
         lock.lock()
@@ -23,6 +23,8 @@ public final class WatchObserverCompletionGate: @unchecked Sendable {
         return shouldComplete
     }
 }
+
+public typealias WatchObserverCompletionGate = WatchCompletionGate
 
 /// Serializes a HealthKit callback's local handoff with observer shutdown.
 /// A callback from an old account may still arrive after stop(query); it must

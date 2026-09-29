@@ -147,13 +147,17 @@ The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
 retain the last 300 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
 observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
-observer-query and background-delivery registration failures, fresh backend
-reads, snapshot saves, and WidgetKit reload requests. Random IDs correlate
+observer-query and background-delivery registration failures, stage-level
+HealthKit active/resting queries, Health import, backend reconciliation
+read/write and final today read, fresh backend results, snapshot saves, and
+WidgetKit reload requests. Actual scheduled background wakes have separate
+started/finished/expired-by-watchOS events; expiry may not be recorded if the
+process is suspended or killed first. Random IDs correlate
 same-run observer/refresh/snapshot events; resumed pending work uses a new
 attempt ID. Active/resting metric, app state when handled, active elapsed
 seconds, wall-clock age of a pending delivery at refresh start, backend
-operation and account-gate
-skip reason make related records identifiable without storing
+operation and account-gate skip reason make related records identifiable
+without storing
 Health values or account data. Failures carry fixed stages and safe categories:
 HealthKit, network, backend, GraphQL transport, other. GraphQL transport
 includes network/HTTP/service failures but doesn't identify which one; its
@@ -163,8 +167,15 @@ original domain is `HKErrorDomain`. The
 Events page offers **Share logs** via the watchOS system share sheet; it builds
 a temporary `.txt` export of these same typed entries on user request, with no
 automatic email/upload. Neither stored entries nor exports include credentials,
-account IDs, names, URLs, Health values, or raw localized/server errors. An accepted
-hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
+account IDs, names, URLs, Health values, or raw localized/server errors. Stage
+starts and terminal outcomes are timestamped at their operation boundaries;
+wall elapsed time includes watch sleep. A missing terminal stage cannot on its
+own distinguish suspension from a stalled query. HealthKit acknowledgement is
+timestamped at the callback, not the later MainActor log write, and the bounded
+store/exports sort late-written events by occurrence. Observer `Started`
+marks main-actor handling, not raw callback receipt, so `acknowledged` can
+precede it after suspension. The app-state field is omitted for acknowledgement
+because recording-time state could be different from callback-time state. An accepted hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
 reload request confirm a new watch-face rendering. A local snapshot
 save failure also appears on the Energy page and skips the reload request. On launch it
 restores the local SDK session, shows the last fetched name/email from a

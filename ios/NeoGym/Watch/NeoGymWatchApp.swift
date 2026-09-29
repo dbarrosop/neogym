@@ -299,7 +299,7 @@ private struct WatchHomeView: View {
 
     private func eventSymbol(_ outcome: WatchEventOutcome) -> String {
         switch outcome {
-        case .failed, .timedOut: "xmark.circle.fill"
+        case .failed, .timedOut, .expired: "xmark.circle.fill"
         case .succeeded: "checkmark.circle.fill"
         case .accepted, .finished, .acknowledged: "checkmark.circle"
         case .started, .requested, .joined, .skipped: "clock"
@@ -308,7 +308,7 @@ private struct WatchHomeView: View {
 
     private func eventColor(_ outcome: WatchEventOutcome) -> Color {
         switch outcome {
-        case .failed, .timedOut: .red
+        case .failed, .timedOut, .expired: .red
         case .succeeded: .green
         case .started, .accepted, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
         }

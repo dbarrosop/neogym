@@ -118,19 +118,24 @@ public struct WatchEnergyService: Sendable {
 
     /// Kept separate from the fresh backend read so callers can report HealthKit
     /// reconciliation failures without mistaking a later GraphQL failure for one.
-    public func syncHealth(now: Date = Date()) async throws {
-        try await sync(today: now)
+    public func syncHealth(now: Date = Date(), onStage: WatchEnergyStageReporter? = nil) async throws {
+        try await sync(today: now, onStage: onStage)
     }
 
-    public func refresh(userID: String, syncHealth: Bool, now: Date = Date()) async throws -> WatchEnergySnapshot {
+    public func refresh(userID: String, syncHealth: Bool, now: Date = Date(),
+                        onStage: WatchEnergyStageReporter? = nil) async throws -> WatchEnergySnapshot {
         let today = DateOnly.formatLocalISO(now, calendar: calendar)
-        if syncHealth { try await self.syncHealth(now: now) }
+        if syncHealth { try await self.syncHealth(now: now, onStage: onStage) }
         try Task.checkCancellation()
-        let data: WatchTodayData = try await graphQL.execute(
-            query: Self.todayQuery,
-            variables: ["date": GraphQLScalars.date(today)],
-            operationName: "WatchTodayEnergy"
-        )
+        let data: WatchTodayData = try await WatchEnergyStageTrace(onStage).run(
+            .backendRead, operation: .todayEnergyRead
+        ) {
+            try await graphQL.execute(
+                query: Self.todayQuery,
+                variables: ["date": GraphQLScalars.date(today)],
+                operationName: "WatchTodayEnergy"
+            )
+        }
         let consumed = data.nutritionDays.first?.calories ?? 0
         let energyEntry = data.dailyEnergyEntries.first
         let burned = energyEntry.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
@@ -140,11 +145,19 @@ public struct WatchEnergyService: Sendable {
         )
     }
 
-    private func sync(today: Date) async throws {
+    private func sync(today: Date, onStage: WatchEnergyStageReporter?) async throws {
         let start = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: today)) ?? today
         let since = DateOnly.formatLocalISO(start, calendar: calendar)
-        async let samples = importer.dailyEnergyEntries()
-        async let rows = energy.listEntriesForHealthRefresh(since: since)
+        let trace = WatchEnergyStageTrace(onStage)
+        async let samples = trace.run(.healthRead) {
+            if let reporting = importer as? any WatchEnergyHealthStageReporting {
+                return try await reporting.dailyEnergyEntries(report: onStage)
+            }
+            return try await importer.dailyEnergyEntries()
+        }
+        async let rows = trace.run(.backendRead, operation: .healthReconciliationRead) {
+            try await energy.listEntriesForHealthRefresh(since: since)
+        }
         let imported: [HealthDailyEnergy]
         do {
             imported = try await samples
@@ -173,7 +186,9 @@ public struct WatchEnergyService: Sendable {
                     continue
                 }
                 do {
-                    try await energy.updateEntry(id: row.id, values: values)
+                    try await trace.run(.backendWrite, operation: .updateEnergy) {
+                        try await energy.updateEntry(id: row.id, values: values)
+                    }
                 } catch {
                     if error is CancellationError { throw error }
                     throw WatchHealthSyncFailure(stage: .backendWrite, cause: error,
@@ -181,9 +196,13 @@ public struct WatchEnergyService: Sendable {
                 }
             } else {
                 do {
-                    _ = try await energy.createEntry(values)
-                } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
-                    // Another writer (including the phone) won the unique date race.
+                    try await trace.run(.backendWrite, operation: .createEnergy) {
+                        do {
+                            _ = try await energy.createEntry(values)
+                        } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
+                            // Another writer (including the phone) won the unique date race.
+                        }
+                    }
                 } catch {
                     if error is CancellationError { throw error }
                     throw WatchHealthSyncFailure(stage: .backendWrite, cause: error,

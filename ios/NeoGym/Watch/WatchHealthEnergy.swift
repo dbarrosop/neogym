@@ -4,7 +4,7 @@ import NeoGymKit
 
 /// Read-only watch HealthKit access. Authorization is requested only from an explicit Energy-page tap;
 /// observer callbacks and scheduled background refreshes never present a permission prompt.
-final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
+final class WatchHealthEnergy: WatchEnergyHealthStageReporting, @unchecked Sendable {
     private let store = HKHealthStore()
     private let calendar = Calendar.current
     private var observers: [HKObserverQuery] = []
@@ -25,7 +25,7 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
 
     func startObserving(
         onChange: @escaping @Sendable (WatchEventMetric, UUID) -> Void,
-        onCompletion: @escaping @Sendable (WatchEventMetric, UUID, WatchEventOutcome, Int) -> Void,
+        onCompletion: @escaping @Sendable (WatchEventMetric, UUID, WatchEventOutcome, Int, Date) -> Void,
         onFailure: @escaping @Sendable (WatchEventMetric, WatchEventAction, WatchEventStage,
                                        Int?, WatchEventErrorSource) -> Void
     ) {
@@ -49,8 +49,10 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
                 let accepted = gate.runIfActive { onChange(metric, id) }
                 let finished = WatchObserverCompletionGate(completion)
                 if finished.complete(), accepted {
+                    let acknowledgedAt = Date()
                     onCompletion(metric, id, .acknowledged,
-                                 max(0, Int(Date().timeIntervalSince(receivedAt).rounded(.up))))
+                                 max(0, Int(acknowledgedAt.timeIntervalSince(receivedAt).rounded(.up))),
+                                 acknowledgedAt)
                 }
             }
             observers.append(query)
@@ -76,11 +78,17 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
     }
 
     func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {
+        try await dailyEnergyEntries(report: nil)
+    }
+
+    func dailyEnergyEntries(report: WatchEnergyStageReporter?) async throws -> [HealthDailyEnergy] {
         guard HKHealthStore.isHealthDataAvailable() else { return [] }
         let start = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: Date()))!
         let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        async let activeValues = dailyTotals(type: active, start: start, end: end)
-        async let restingValues = dailyTotals(type: resting, start: start, end: end)
+        async let activeValues = dailyTotals(type: active, start: start, end: end,
+                                              stage: .activeHealthQuery, report: report)
+        async let restingValues = dailyTotals(type: resting, start: start, end: end,
+                                               stage: .restingHealthQuery, report: report)
         let activeSamples: [(measuredOn: String, value: Double)]
         do {
             activeSamples = try await activeValues
@@ -98,27 +106,31 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
         return HealthDailyEnergyGrouper.sum(active: activeSamples, resting: restingSamples)
     }
 
-    private func dailyTotals(type: HKQuantityType, start: Date, end: Date) async throws -> [(measuredOn: String, value: Double)] {
+    private func dailyTotals(type: HKQuantityType, start: Date, end: Date,
+                             stage: WatchEventStage, report: WatchEnergyStageReporter?) async throws
+        -> [(measuredOn: String, value: Double)] {
         let calendar = self.calendar
         let store = self.store
-        return try await withCheckedThrowingContinuation { continuation in
-            let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
-                                                        options: [.strictStartDate, .strictEndDate])
-            let query = HKStatisticsCollectionQuery(quantityType: type, quantitySamplePredicate: predicate,
-                                                    options: .cumulativeSum, anchorDate: start,
-                                                    intervalComponents: DateComponents(day: 1))
-            query.initialResultsHandler = { query, collection, error in
-                defer { store.stop(query) }
-                if let error { continuation.resume(throwing: error); return }
-                var values: [(measuredOn: String, value: Double)] = []
-                collection?.enumerateStatistics(from: start, to: end) { statistics, _ in
-                    guard let quantity = statistics.sumQuantity() else { return }
-                    values.append((DateOnly.formatLocalISO(statistics.startDate, calendar: calendar),
-                                   quantity.doubleValue(for: .kilocalorie())))
+        return try await WatchEnergyStageTrace(report).run(stage) {
+            try await withCheckedThrowingContinuation { continuation in
+                let predicate = HKQuery.predicateForSamples(withStart: start, end: end,
+                                                            options: [.strictStartDate, .strictEndDate])
+                let query = HKStatisticsCollectionQuery(quantityType: type, quantitySamplePredicate: predicate,
+                                                        options: .cumulativeSum, anchorDate: start,
+                                                        intervalComponents: DateComponents(day: 1))
+                query.initialResultsHandler = { query, collection, error in
+                    defer { store.stop(query) }
+                    if let error { continuation.resume(throwing: error); return }
+                    var values: [(measuredOn: String, value: Double)] = []
+                    collection?.enumerateStatistics(from: start, to: end) { statistics, _ in
+                        guard let quantity = statistics.sumQuantity() else { return }
+                        values.append((DateOnly.formatLocalISO(statistics.startDate, calendar: calendar),
+                                       quantity.doubleValue(for: .kilocalorie())))
+                    }
+                    continuation.resume(returning: values)
                 }
-                continuation.resume(returning: values)
+                store.execute(query)
             }
-            store.execute(query)
         }
     }
 }

@@ -116,14 +116,21 @@ Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile
 (uncached Auth name/email and watch-only sign-out), and Events (the last 300
 timestamped, watch-app-only diagnostic outcomes). Events distinguish background
-requests accepted by watchOS from actual wakes, Health observer delivery from
-Health sync, fresh energy reads, local snapshot-save success/failure, and
-WidgetKit reload requests; a reload request does not confirm a new display.
+requests accepted by watchOS from actual wakes and delivered task expiry,
+Health observer delivery from sync, typed starts/ends for active/resting
+HealthKit queries and backend reconciliation/read/write stages, fresh energy
+reads, local snapshot-save success/failure, and WidgetKit reload requests;
+a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
 acknowledgement within one in-process attempt; a resumed pending import uses a
 new attempt ID and records the pending wall-clock age instead. Entries include
 active/resting metric, app state, elapsed time,
-backend operation or skip reason when relevant. HealthKit observer callbacks
+backend operation or skip reason when relevant. Stage elapsed times and
+pending age use wall clock (including watch sleep); a missing stage end or
+expiry event cannot prove a hung query or a successful wake. Observer
+acknowledgement is timestamped in the HealthKit callback rather than at a
+delayed MainActor log write, and exports remain occurrence-sorted.
+HealthKit observer callbacks
 attempt a read-back-verified private, user-scoped pending-sync marker before
 promptly acknowledging HealthKit; failed local handoffs are logged but cannot
 guarantee a deferred retry. Backend work never holds the callback through

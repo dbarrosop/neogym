@@ -89,6 +89,7 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertNil(event.metric)
         XCTAssertNil(event.durationSeconds)
         XCTAssertNil(event.pendingWallSeconds)
+        XCTAssertNil(event.wallSeconds)
         XCTAssertEqual(event.failureDetails, "code 3")
         XCTAssertEqual(event.diagnosticDetails, "code 3")
     }
@@ -138,6 +139,42 @@ final class WatchEventLogTests: XCTestCase {
         let export = WatchEventExport.text(events: [event])
         XCTAssertTrue(export.contains("2s · pending 3300s wall"))
         XCTAssertTrue(export.contains("including watch sleep"))
+    }
+
+    func testDelayedCallbackRetainsActualTimestampAndChronologicalExportOrder() {
+        let suite = "WatchEventLogTests.\(UUID().uuidString)"
+        let store = WatchEventStore(suite: suite)
+        defer { store.clear() }
+        let acknowledgedAt = Date(timeIntervalSince1970: 1_000)
+        let persistedLater = Date(timeIntervalSince1970: 1_050)
+        store.record(WatchEvent(action: .healthObservation, outcome: .started,
+                                occurredAt: persistedLater))
+        store.record(WatchEvent(action: .healthObservation, outcome: .acknowledged,
+                                occurredAt: acknowledgedAt))
+        XCTAssertEqual(store.load().map(\.occurredAt), [persistedLater, acknowledgedAt])
+        let export = WatchEventExport.text(events: store.load())
+        let lines = export.split(separator: "\n").filter { $0.contains(" | Health observer | ") }
+        XCTAssertEqual(lines.count, 2)
+        if lines.count == 2 {
+            XCTAssertTrue(lines[0].contains("| Started"))
+            XCTAssertTrue(lines[1].contains("| HealthKit acknowledged"))
+        }
+    }
+
+    func testStageStartCompletionAndExpiryExportOnlyTypedWallClockDetails() {
+        let id = UUID()
+        let started = WatchEvent(action: .refreshStage, outcome: .started,
+                                 stage: .activeHealthQuery, attemptID: id)
+        let completed = WatchEvent(action: .refreshStage, outcome: .succeeded,
+                                   stage: .activeHealthQuery, attemptID: id, wallSeconds: 120)
+        let expired = WatchEvent(action: .backgroundTask, outcome: .expired,
+                                 attemptID: id, wallSeconds: 25)
+        let export = WatchEventExport.text(events: [expired, completed, started])
+        XCTAssertTrue(export.contains("Refresh stage | Started · attempt \(id.uuidString.prefix(8))"
+                                       + " · Active energy HealthKit query"))
+        XCTAssertTrue(export.contains("Active energy HealthKit query · elapsed 120s wall"))
+        XCTAssertTrue(export.contains("Background wake | Expired by watchOS"
+                                       + " · attempt \(id.uuidString.prefix(8)) · elapsed 25s wall"))
     }
 
     func testDefaultStoreKeepsMoreThanOneHundredEvents() {

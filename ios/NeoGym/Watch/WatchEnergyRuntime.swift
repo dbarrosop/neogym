@@ -166,6 +166,13 @@ final class WatchEnergyRuntime: ObservableObject {
         let pendingAge = pending.map { max(0, Int(now.timeIntervalSince($0.firstObservedAt).rounded(.up))) }
         record(.energyRefresh, .started, trigger: trigger, attemptID: runID,
                pendingWallSeconds: pendingAge)
+        let stageReporter: WatchEnergyStageReporter = { [weak self] stage in
+            Task { @MainActor [weak self] in
+                self?.record(.refreshStage, stage.outcome, trigger: trigger, stage: stage.stage,
+                             attemptID: runID, backendOperation: stage.backendOperation,
+                             wallSeconds: stage.wallSeconds, occurredAt: stage.occurredAt)
+            }
+        }
         let task = Task { [self] in
             isRefreshing = true
             defer {
@@ -184,7 +191,7 @@ final class WatchEnergyRuntime: ObservableObject {
             if syncHealth {
                 let healthStarted = ProcessInfo.processInfo.systemUptime
                 do {
-                    try await service.syncHealth(now: now)
+                    try await service.syncHealth(now: now, onStage: stageReporter)
                     record(.healthSync, .succeeded, trigger: trigger, attemptID: runID,
                            durationSeconds: elapsed(since: healthStarted))
                 } catch {
@@ -205,7 +212,8 @@ final class WatchEnergyRuntime: ObservableObject {
             }
             do {
                 // Still read the backend after a Health failure; this is a separate outcome.
-                let result = try await service.refresh(userID: id, syncHealth: false, now: now)
+                let result = try await service.refresh(userID: id, syncHealth: false,
+                                                       now: now, onStage: stageReporter)
                 guard case .name = account.state, account.currentUser?.id == id else {
                     record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
                            skipReason: .accountChanged, durationSeconds: elapsed(since: started))
@@ -351,13 +359,15 @@ final class WatchEnergyRuntime: ObservableObject {
                 runtimeState: WatchEventRuntimeState? = nil,
                 backendOperation: WatchEventBackendOperation? = nil,
                 skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
-                pendingWallSeconds: Int? = nil) {
+                pendingWallSeconds: Int? = nil, wallSeconds: Int? = nil,
+                occurredAt: Date = Date()) {
         events = eventStore.record(WatchEvent(
             action: action, outcome: outcome, trigger: trigger, errorCode: errorCode,
             errorSource: errorSource, stage: stage, attemptID: attemptID, metric: metric,
             runtimeState: runtimeState, backendOperation: backendOperation,
             skipReason: skipReason, durationSeconds: durationSeconds,
-            pendingWallSeconds: pendingWallSeconds
+            pendingWallSeconds: pendingWallSeconds, wallSeconds: wallSeconds,
+            occurredAt: occurredAt
         ))
     }
 
@@ -405,12 +415,11 @@ final class WatchEnergyRuntime: ObservableObject {
                 }
                 await self?.handleObserver(metric: metric, id: id, ownerID: ownerID)
             }
-        } onCompletion: { [weak self] metric, id, outcome, seconds in
+        } onCompletion: { [weak self] metric, id, outcome, seconds, acknowledgedAt in
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                self.record(.healthObservation, outcome, trigger: .healthObserver,
-                            attemptID: id, metric: metric, runtimeState: self.runtimeState,
-                            durationSeconds: seconds)
+                self?.record(.healthObservation, outcome, trigger: .healthObserver,
+                             attemptID: id, metric: metric, durationSeconds: seconds,
+                             occurredAt: acknowledgedAt)
             }
         } onFailure: { [weak self] metric, action, stage, code, source in
             Task { @MainActor [weak self] in
@@ -489,14 +498,39 @@ final class WatchEnergyBackgroundDelegate: NSObject, WKApplicationDelegate {
                 continue
             }
             let id = UUID()
-            let started = ProcessInfo.processInfo.systemUptime
-            runtime.record(.backgroundTask, .started, attemptID: id, runtimeState: .background)
-            Task {
-                await runtime.backgroundRefresh(attemptID: id)
-                let seconds = max(0, Int((ProcessInfo.processInfo.systemUptime - started).rounded(.up)))
-                runtime.record(.backgroundTask, .finished, attemptID: id, durationSeconds: seconds)
+            let startedAt = Date()
+            runtime.record(.backgroundTask, .started, attemptID: id, runtimeState: .background,
+                           occurredAt: startedAt)
+            let completion = WatchCompletionGate {
+                task.expirationHandler = nil
                 task.setTaskCompletedWithSnapshot(false)
             }
+            let work = Task {
+                await runtime.backgroundRefresh(attemptID: id)
+                let finishedAt = Date()
+                if completion.complete() {
+                    runtime.record(.backgroundTask, .finished, attemptID: id,
+                                   wallSeconds: Self.wallSeconds(from: startedAt, to: finishedAt),
+                                   occurredAt: finishedAt)
+                }
+            }
+            task.expirationHandler = { [weak self] in
+                let expiredAt = Date()
+                work.cancel()
+                // Complete promptly on watchOS's callback executor. The log
+                // task may itself be deferred if the app is about to suspend.
+                if completion.complete() {
+                    Task { @MainActor [weak self] in
+                        self?.runtime.record(.backgroundTask, .expired, attemptID: id,
+                                             wallSeconds: Self.wallSeconds(from: startedAt, to: expiredAt),
+                                             occurredAt: expiredAt)
+                    }
+                }
+            }
         }
+    }
+
+    private static func wallSeconds(from start: Date, to end: Date) -> Int {
+        max(0, Int(end.timeIntervalSince(start).rounded(.up)))
     }
 }

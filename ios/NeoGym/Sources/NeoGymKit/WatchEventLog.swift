@@ -10,6 +10,7 @@ public enum WatchEventAction: String, Codable, Sendable {
     case healthObservation
     case healthBackgroundDelivery
     case healthSync
+    case refreshStage
     case snapshotSave
     case complicationReload
 
@@ -22,6 +23,7 @@ public enum WatchEventAction: String, Codable, Sendable {
         case .healthObservation: "Health observer"
         case .healthBackgroundDelivery: "Health background delivery"
         case .healthSync: "Apple Health sync"
+        case .refreshStage: "Refresh stage"
         case .snapshotSave: "Complication snapshot save"
         case .complicationReload: "Complication reload request"
         }
@@ -35,6 +37,7 @@ public enum WatchEventOutcome: String, Codable, Sendable {
     case failed
     case requested
     case finished
+    case expired
     case acknowledged
     case timedOut
     case joined
@@ -48,6 +51,7 @@ public enum WatchEventOutcome: String, Codable, Sendable {
         case .failed: "Failed"
         case .requested: "Requested"
         case .finished: "Finished"
+        case .expired: "Expired by watchOS"
         case .acknowledged: "HealthKit acknowledged"
         case .timedOut: "Timed out; HealthKit acknowledged"
         case .joined: "Joined ongoing refresh"
@@ -207,6 +211,8 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     /// Wall-clock age of a durable pending delivery when a refresh starts.
     /// Unlike system uptime, this includes time the watch was asleep.
     public let pendingWallSeconds: Int?
+    /// Elapsed wall-clock time for stage/background-task terminal events.
+    public let wallSeconds: Int?
 
     public var diagnosticDetails: String? {
         var parts: [String] = []
@@ -214,9 +220,11 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         if let metric { parts.append(metric.title) }
         if let runtimeState { parts.append("app \(runtimeState.rawValue)") }
         if let backendOperation { parts.append(backendOperation.title) }
+        if outcome != .failed, let stage { parts.append(stage.title) }
         if let skipReason { parts.append(skipReason.title) }
         if let failureDetails { parts.append(failureDetails) }
         if let durationSeconds { parts.append("\(durationSeconds)s") }
+        if let wallSeconds { parts.append("elapsed \(wallSeconds)s wall") }
         if let pendingWallSeconds { parts.append("pending \(pendingWallSeconds)s wall") }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
@@ -237,7 +245,8 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
         runtimeState: WatchEventRuntimeState? = nil, backendOperation: WatchEventBackendOperation? = nil,
         skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
-        pendingWallSeconds: Int? = nil, occurredAt: Date = Date(), id: UUID = UUID()
+        pendingWallSeconds: Int? = nil, wallSeconds: Int? = nil,
+        occurredAt: Date = Date(), id: UUID = UUID()
     ) {
         self.id = id
         self.occurredAt = occurredAt
@@ -254,6 +263,7 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         self.skipReason = skipReason
         self.durationSeconds = durationSeconds
         self.pendingWallSeconds = pendingWallSeconds
+        self.wallSeconds = wallSeconds
     }
 }
 
@@ -301,7 +311,9 @@ public struct WatchEventStore: Sendable {
 
     @discardableResult
     public func record(_ event: WatchEvent) -> [WatchEvent] {
-        let events = Array(([event] + load()).prefix(maximumCount))
+        // A callback may capture its timestamp before MainActor can persist
+        // it. Keep exports truly newest-first even after a delayed write.
+        let events = Array(([event] + load()).sorted { $0.occurredAt > $1.occurredAt }.prefix(maximumCount))
         if let data = try? JSONEncoder().encode(events) { defaults.set(data, forKey: key) }
         return events
     }

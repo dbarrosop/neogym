@@ -16,12 +16,16 @@ public enum WatchEventExport {
                 + "a later retry has a new ID and may show the pending wall-clock age.",
             "HealthKit acknowledged means its callback finished after a local handoff, not that a sync succeeded. "
                 + "Legacy timeout events may have been acknowledged long after 25s if the app was suspended.",
-            "Pending age is wall-clock time since the earliest unprocessed Health event, including watch sleep.",
+            "Pending age and stage elapsed times use wall clock, including watch sleep; "
+                + "stage starts without ends may reflect suspension, not a failed query.",
+            "Observer Started marks main-actor handling; acknowledgement uses callback time, "
+                + "so the two can appear in either order after suspension.",
+            "A missing background expiry event does not prove work finished.",
             "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
             ""
         ]
         if events.isEmpty { lines.append("No events recorded.") }
-        for event in events {
+        for event in events.sorted(by: { $0.occurredAt > $1.occurredAt }) {
             let trigger = event.trigger.map { " · \($0.title)" } ?? ""
             let details = event.diagnosticDetails.map { " · \($0)" } ?? ""
             lines.append(
