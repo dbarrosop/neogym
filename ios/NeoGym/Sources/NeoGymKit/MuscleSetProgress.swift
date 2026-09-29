@@ -62,6 +62,11 @@ public struct MuscleSetProgressRow: Decodable, Sendable, Equatable, Identifiable
 @MainActor
 public final class MuscleSetProgressViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[MuscleSetProgressRow]> = .idle
+    @Published public private(set) var cachedThrough: String?
+    @Published public private(set) var isShowingPartialHistory = false
+    private var displayedFromDay: String?
+    private var displayedThroughDay: String?
+    private var hasExtendedHistory = false
     private let repository: any SessionsRepositoryProtocol
     private let calendar: Calendar
     private let clock: @Sendable () -> Date
@@ -88,28 +93,72 @@ public final class MuscleSetProgressViewModel: ObservableObject {
         let requested = max(earliest, calendar.startOfDay(for: visibleStart))
         guard requested < historyStart else { return }
         historyStart = requested
+        hasExtendedHistory = true
         await load()
     }
 
     public func load() async {
         loadVersion += 1
         let version = loadVersion
+        let today = calendar.startOfDay(for: clock())
+        // The default window must advance on a new local day even if this model stays mounted.
+        if !hasExtendedHistory {
+            historyStart = calendar.date(byAdding: .day, value: -179, to: today) ?? today
+        }
+        let from = GraphQLScalars.date(historyStart, calendar: calendar)
+        let through = GraphQLScalars.date(today, calendar: calendar)
+        guard case let .string(from) = from, case let .string(through) = through else { return }
         state = .loading(previous: state.value)
-        let fromDay = GraphQLScalars.date(historyStart, calendar: calendar)
-        let throughDay = GraphQLScalars.date(clock(), calendar: calendar)
-        guard case let .string(from) = fromDay, case let .string(through) = throughDay else { return }
+        isShowingPartialHistory = displayedFromDay.map { $0 > from } ?? false
+        // A keep-warm Progress model may still display yesterday's live value.
+        // Label it before refreshing today's key, even without a cache-only read.
+        if let displayedThroughDay, displayedThroughDay < through, state.value != nil {
+            cachedThrough = displayedThroughDay
+        }
+        let timeZone = calendar.timeZone.identifier
+        if state.value == nil || displayedThroughDay != through {
+            // Custom/extended windows only probe their exact key. A default 180-day
+            // snapshot cannot stand in for the requested wider history.
+            let candidates = hasExtendedHistory || state.value != nil ? [today] : (0...7).compactMap {
+                calendar.date(byAdding: .day, value: -$0, to: today)
+            }
+            for day in candidates {
+                guard version == loadVersion, !Task.isCancelled else { return }
+                let candidateFromDate = hasExtendedHistory ? historyStart :
+                    (calendar.date(byAdding: .day, value: -179, to: day) ?? day)
+                guard case let .string(candidateFrom) = GraphQLScalars.date(candidateFromDate, calendar: calendar),
+                      case let .string(candidateThrough) = GraphQLScalars.date(day, calendar: calendar) else { continue }
+                let cached = try? await repository.cachedMuscleSetProgress(
+                    fromDay: candidateFrom, throughDay: candidateThrough, timeZone: timeZone
+                )
+                guard version == loadVersion, !Task.isCancelled else { return }
+                if let cached {
+                    cachedThrough = candidateThrough == through ? nil : candidateThrough
+                    displayedFromDay = candidateFrom
+                    displayedThroughDay = candidateThrough
+                    isShowingPartialHistory = candidateFrom > from
+                    state = .loaded(cached)
+                    break
+                }
+            }
+        }
+        guard version == loadVersion, !Task.isCancelled else { return }
         do {
             for try await rows in repository.muscleSetProgressUpdates(
-                fromDay: from, throughDay: through, timeZone: calendar.timeZone.identifier
+                fromDay: from, throughDay: through, timeZone: timeZone
             ) {
                 guard version == loadVersion, !Task.isCancelled else { return }
+                cachedThrough = nil
+                displayedFromDay = from
+                displayedThroughDay = through
+                isShowingPartialHistory = false
                 state = .loaded(rows)
             }
         } catch where GraphQLDomainError.isCancellation(error) {
             guard version == loadVersion else { return }
             state = state.cancellationFallback
         } catch {
-            guard version == loadVersion else { return }
+            guard version == loadVersion, !Task.isCancelled else { return }
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
     }

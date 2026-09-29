@@ -44,6 +44,9 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func muscleSetProgressUpdates(
         fromDay: String, throughDay: String, timeZone: String
     ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error>
+    func cachedMuscleSetProgress(
+        fromDay: String, throughDay: String, timeZone: String
+    ) async throws -> [MuscleSetProgressRow]?
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -81,6 +84,10 @@ public extension SessionsRepositoryProtocol {
     ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error> {
         singleValueUpdates { throw GraphQLDomainError.missingData(operationName: "MuscleSetProgress") }
     }
+
+    func cachedMuscleSetProgress(
+        fromDay: String, throughDay: String, timeZone: String
+    ) async throws -> [MuscleSetProgressRow]? { nil }
 
     func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
         singleValueUpdates { try await strengthProgressEntries(since: since) }
@@ -204,16 +211,36 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
         graphQL.cachedValues(
             MuscleSetProgressData.self,
             query: Self.muscleSetProgressQuery,
-            variables: [
-                "from": GraphQLScalars.date(fromDay),
-                "through": GraphQLScalars.date(throughDay),
-                "timeZone": .string(timeZone)
-            ],
+            variables: Self.muscleSetProgressVariables(fromDay: fromDay, throughDay: throughDay, timeZone: timeZone),
             operationName: "MuscleSetProgress",
             namespace: "sessions",
             tags: ["sessions"],
             transform: \.muscleSetProgress
         )
+    }
+
+    public func cachedMuscleSetProgress(
+        fromDay: String, throughDay: String, timeZone: String
+    ) async throws -> [MuscleSetProgressRow]? {
+        let data: MuscleSetProgressData? = try await graphQL.cachedSnapshot(
+            MuscleSetProgressData.self,
+            query: Self.muscleSetProgressQuery,
+            variables: Self.muscleSetProgressVariables(fromDay: fromDay, throughDay: throughDay, timeZone: timeZone),
+            operationName: "MuscleSetProgress",
+            namespace: "sessions",
+            tags: ["sessions"]
+        )
+        return data?.muscleSetProgress
+    }
+
+    private static func muscleSetProgressVariables(
+        fromDay: String, throughDay: String, timeZone: String
+    ) -> [String: JSONValue] {
+        [
+            "from": GraphQLScalars.date(fromDay),
+            "through": GraphQLScalars.date(throughDay),
+            "timeZone": .string(timeZone)
+        ]
     }
 
     public func updateStartedAt(sessionId: String, startedAt: Date) async throws {

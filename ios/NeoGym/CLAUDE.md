@@ -529,8 +529,14 @@ intact instead of inventing one-off styles.
   direct, indirect, and weighted set totals. Tapping a muscle selects it for
   the single weighted-set history chart without navigating; `shoulders` is
   labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
-  cache namespace/tag: an exact-key cached result can render during backend
-  revalidation, but a cold key has no older-range snapshot fallback.
+  cache namespace/tag. A cold default local-day key probes its exact SDK cache
+  entry, then up to seven preceding default daily keys without network requests,
+  before refreshing the current key; a prior-day hit is labeled through its
+  date and retained on refresh failure. Only the exact key is probed for
+  extended/custom history, so a shorter default snapshot is not shown as full
+  history. If visible shorter history is retained while extending, it is
+  labeled partial until refreshed. The SDK enforces user scope and cache age;
+  no app-owned snapshots are stored.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;

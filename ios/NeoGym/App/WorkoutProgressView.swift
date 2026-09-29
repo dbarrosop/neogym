@@ -46,6 +46,17 @@ struct WorkoutProgressView: View {
             }
         default:
             if let rows = viewModel.rows {
+                if let through = viewModel.cachedThrough {
+                    FeedbackBanner(
+                        message: viewModel.isShowingPartialHistory
+                            ? "Showing cached progress through \(through); "
+                                + "newer sessions or selected history may be missing."
+                            : "Showing cached progress through \(through); newer sessions may be missing.",
+                        tone: .info
+                    )
+                } else if viewModel.isShowingPartialHistory {
+                    FeedbackBanner(message: "Showing partial history while the selected range refreshes.", tone: .info)
+                }
                 let latestDay = rows.map(\.day).max()
                 let latest = rows.filter { $0.day == latestDay }
                     .sorted { left, right in

@@ -292,8 +292,13 @@ live-fetch queries stay network-only. The cache uses a 5-minute freshness window
 and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
 remain available for responsive rendering and offline fallback. Workout Progress
-uses the sessions cache for server-calculated muscle-set summaries. The SDK purges
-prior managed-user scopes on sign-out/session replacement. The
+uses the sessions cache for server-calculated muscle-set summaries. For a cold
+180-local-day key it probes today's exact SDK entry and up to seven prior daily
+keys cache-only, then refreshes today; earlier snapshots are labeled through
+that day and kept if the network fails. Wider/custom ranges probe only their
+exact key, with previously displayed shorter history labeled partial until
+refreshed. The SDK enforces managed-user scope and cache age; no app-owned
+snapshot is saved. The SDK purges prior managed-user scopes on sign-out/session replacement. The
 file cache is app-process-only; the widget client deliberately has no GraphQL
 cache because the SDK requires each process to own a distinct cache directory.
 Keep cache identity and authorization isolation in the SDK rather than adding
