@@ -85,7 +85,57 @@ final class WatchEventLogTests: XCTestCase {
         let event = try JSONDecoder().decode(WatchEvent.self, from: legacy)
         XCTAssertNil(event.errorSource)
         XCTAssertNil(event.stage)
+        XCTAssertNil(event.attemptID)
+        XCTAssertNil(event.metric)
+        XCTAssertNil(event.durationSeconds)
         XCTAssertEqual(event.failureDetails, "code 3")
+        XCTAssertEqual(event.diagnosticDetails, "code 3")
+    }
+
+    func testCorrelatedObserverTimeoutAndTypedTransportStayPrivateInExport() throws {
+        let id = try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-0000000000AB"))
+        let transport = GraphQLDomainError.transport("https://private.example.test?token=secret")
+        let failure = WatchHealthSyncFailure(stage: .backendRead, cause: transport,
+                                              backendOperation: .healthReconciliationRead)
+        XCTAssertEqual(failure.diagnosticSource, .transport)
+        XCTAssertEqual(failure.backendOperation, .healthReconciliationRead)
+        XCTAssertEqual(WatchEventErrorSource.graphQL(.decoding("private")), .backend)
+
+        let received = WatchEvent(action: .healthObservation, outcome: .started,
+                                  trigger: .healthObserver, attemptID: id, metric: .activeEnergy,
+                                  runtimeState: .background)
+        let readFailure = WatchEvent(action: .healthSync, outcome: .failed,
+                                     trigger: .healthObserver, errorCode: failure.underlyingCode,
+                                     errorSource: failure.diagnosticSource, stage: failure.stage,
+                                     attemptID: id, backendOperation: failure.backendOperation,
+                                     durationSeconds: 14)
+        let acknowledged = WatchEvent(action: .healthObservation, outcome: .timedOut,
+                                      trigger: .healthObserver, attemptID: id, metric: .activeEnergy,
+                                      runtimeState: .background, durationSeconds: 25)
+        let suite = "WatchEventLogTests.\(UUID().uuidString)"
+        let store = WatchEventStore(suite: suite)
+        defer { store.clear() }
+        store.record(received)
+        store.record(readFailure)
+        store.record(acknowledged)
+        let events = store.load()
+        XCTAssertEqual(events, [acknowledged, readFailure, received])
+        let export = WatchEventExport.text(events: events)
+        XCTAssertTrue(export.contains("attempt 00000000 · active energy · app background · 25s"))
+        XCTAssertTrue(export.contains("Health reconciliation read · Backend read · GraphQL transport · code 3"))
+        let skipped = WatchEvent(action: .energyRefresh, outcome: .skipped, attemptID: id,
+                                 skipReason: .accountValidationFailed)
+        XCTAssertEqual(skipped.diagnosticDetails, "attempt 00000000 · account validation failed")
+        XCTAssertFalse(export.contains("private.example.test"))
+        XCTAssertFalse(export.contains("secret"))
+    }
+
+    func testDefaultStoreKeepsMoreThanOneHundredEvents() {
+        let suite = "WatchEventLogTests.\(UUID().uuidString)"
+        let store = WatchEventStore(suite: suite)
+        defer { store.clear() }
+        for _ in 0..<105 { store.record(WatchEvent(action: .healthObservation, outcome: .started)) }
+        XCTAssertEqual(store.load().count, 105)
     }
 
     func testInvalidStorageIsIgnoredAndOnlyTypedEventsArePersisted() {

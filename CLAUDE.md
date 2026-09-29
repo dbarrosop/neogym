@@ -114,18 +114,23 @@ existing accounts in with email OTP; WatchConnectivity carries only latest-state
 account hints, never credentials. Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile
-(uncached Auth name/email and watch-only sign-out), and Events (the last 100
+(uncached Auth name/email and watch-only sign-out), and Events (the last 300
 timestamped, watch-app-only diagnostic outcomes). Events distinguish background
-requests accepted by watchOS from actual wakes, Health reconciliation and fresh
-energy reads, local snapshot-save success/failure, and WidgetKit reload requests;
-a reload request does not confirm the complication displayed new values. Entries
-contain fixed labels and optional numeric error codes, error-source categories,
-and failing stages (HealthKit active/resting query vs backend read/write); legacy
-entries remain numeric-only. HealthKit code 3 is labeled invalid argument only
-when its error domain is HealthKit. The Events page has a **Share logs** link
-that creates a temporary plain-text file for the watchOS system share sheet on
-request; it never sends automatically. Neither events nor shared files include
-credentials, account IDs, names, URLs, or raw error/server descriptions. Consumed/Burned use icons
+requests accepted by watchOS from actual wakes, Health observer delivery from
+Health sync, fresh energy reads, local snapshot-save success/failure, and
+WidgetKit reload requests; a reload request does not confirm a new display.
+Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
+acknowledgement; entries include active/resting metric, app state, elapsed time,
+backend operation or skip reason when relevant. A 25-second observer watchdog
+acknowledges HealthKit and cancels its own active refresh on timeout; neither
+that acknowledgement nor a scheduled wake promises completed sync. Errors retain
+fixed stages, numeric codes and safe sources, including a distinct GraphQL
+transport category (network/HTTP/service causes remain indistinguishable).
+HealthKit code 3 means invalid argument only for `HKErrorDomain`; legacy entries
+remain numeric-only. **Share logs** opens the watchOS system share sheet with a
+temporary plain-text file on request; it never sends automatically. Events and
+exports exclude credentials, account IDs, names, URLs, Health values and raw
+error/server descriptions. Consumed/Burned use icons
 without visible labels on the watch page; Net uses a balance-scale icon and the
 same prominent number style. VoiceOver labels still name all metrics. The
 Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
@@ -140,10 +145,19 @@ rectangular WidgetKit complication, reads active/basal HealthKit energy and
 syncs the last seven local dates to private `daily_energy` after explicit read
 permission. It refreshes imported-note rows without replacing manual entries;
 observer delivery and hourly-preferred watchOS background refresh are
-best-effort, not guaranteed periodic uploads. The complication reads only a
-token-free, today-only App Group snapshot written after a fresh backend read
-and cleared on sign-out/blocking auth changes; the watch widget has no Keychain
-or HealthKit access. Watch App Group and HealthKit background-delivery signing
+best-effort, not guaranteed periodic uploads. `WatchRefreshSchedule` coalesces
+duplicate preferred wake requests and asks for 15/30/60-minute backed-off
+retries after a timed-out observer, backend failure, or transient profile
+validation failure; a scheduled wake is not guaranteed. A delivered background
+task requests its next preferred wake after account bootstrap but before energy reconciliation. On
+background-to-active, the watch explicitly waits for the uncached account read
+and refreshes Energy even if the account name is unchanged. The watch saves a
+fresh token-free, today-only App Group snapshot after each successful backend
+read, but asks WidgetKit to reload only if its visible energy values change
+(or the snapshot is cleared). The rectangular widget shows relative snapshot
+age; an unchanged-value backend read may not update that age until WidgetKit
+requests another timeline. The widget has no Keychain or HealthKit access;
+blocking auth changes/sign-out clear its snapshot. Watch App Group and HealthKit background-delivery signing
 capabilities must be provisioned for physical-device validation. The watch
 Info.plist must include **both** `NSHealthShareUsageDescription` and
 `NSHealthUpdateUsageDescription` even though watch HealthKit access is read-only:

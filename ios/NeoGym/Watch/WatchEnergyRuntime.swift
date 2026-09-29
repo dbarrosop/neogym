@@ -21,8 +21,10 @@ final class WatchEnergyRuntime: ObservableObject {
     private let service: WatchEnergyService
     private let store = WatchEnergySnapshotStore.shared
     private let eventStore = WatchEventStore()
+    private var refreshSchedule = WatchRefreshSchedule()
     private var refreshTask: Task<Void, Never>?
     private var refreshingUserID: String?
+    private var refreshingAttemptID: UUID?
     private var refreshingWithHealth = false
     private var bootstrapTask: Task<Void, Never>?
     private var bootstrapped = false
@@ -119,43 +121,68 @@ final class WatchEnergyRuntime: ObservableObject {
         }
     }
 
-    func refresh(trigger: WatchEventTrigger = .automatic) async {
-        if trigger == .manual {
-            await revalidateAccountIfNeeded()
+    func refresh(trigger: WatchEventTrigger = .automatic, attemptID: UUID? = nil) async {
+        if trigger == .manual { await revalidateAccountIfNeeded() }
+        if Task.isCancelled {
+            record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: .cancelled)
+            return
         }
-        guard contextReady, !account.isReadingProfile, account.profileError == nil else { return }
+        guard contextReady, !account.isReadingProfile, account.profileError == nil,
+              case .name = account.state, let user = account.currentUser else {
+            if trigger == .manual {
+                record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID,
+                       skipReason: account.profileError == nil ? .accountUnavailable : .accountValidationFailed)
+            }
+            return
+        }
         if let refreshTask {
+            record(.energyRefresh, .joined, trigger: trigger, attemptID: attemptID)
             let previousID = refreshingUserID
             let hadHealth = refreshingWithHealth
             await refreshTask.value
             if previousID != account.currentUser?.id || (healthEnabled && !hadHealth) {
-                await refresh(trigger: trigger)
+                await refresh(trigger: trigger, attemptID: attemptID)
             }
             return
         }
-        guard case .name = account.state, let user = account.currentUser else { return }
         let id = user.id
+        let runID = attemptID ?? UUID()
         let syncHealth = healthEnabled
         let now = Date()
+        let started = ProcessInfo.processInfo.systemUptime
         refreshingUserID = id
+        refreshingAttemptID = runID
         refreshingWithHealth = syncHealth
-        record(.energyRefresh, .started, trigger: trigger)
+        record(.energyRefresh, .started, trigger: trigger, attemptID: runID)
         let task = Task { [self] in
             isRefreshing = true
             defer {
                 isRefreshing = false
                 refreshTask = nil
                 refreshingUserID = nil
+                refreshingAttemptID = nil
                 refreshingWithHealth = false
             }
             var syncError: String?
             if syncHealth {
+                let healthStarted = ProcessInfo.processInfo.systemUptime
                 do {
                     try await service.syncHealth(now: now)
-                    record(.healthSync, .succeeded, trigger: trigger)
+                    record(.healthSync, .succeeded, trigger: trigger, attemptID: runID,
+                           durationSeconds: elapsed(since: healthStarted))
                 } catch {
-                    if error is CancellationError { return }
-                    recordFailure(.healthSync, trigger: trigger, error: error, stage: .healthRead)
+                    if Task.isCancelled || error is CancellationError {
+                        record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
+                               skipReason: .cancelled, durationSeconds: elapsed(since: started))
+                        return
+                    }
+                    recordFailure(.healthSync, trigger: trigger, error: error, stage: .healthRead,
+                                  attemptID: runID, durationSeconds: elapsed(since: healthStarted))
+                    if let failure = error as? WatchHealthSyncFailure,
+                       failure.stage == .backendRead || failure.stage == .backendWrite
+                        || failure.diagnosticSource == .transport || failure.diagnosticSource == .network {
+                        scheduleRefresh(retry: true)
+                    }
                     syncError = "Apple Health sync failed: \(error.localizedDescription)"
                 }
             }
@@ -163,20 +190,31 @@ final class WatchEnergyRuntime: ObservableObject {
                 // Still read the backend after a Health failure; this is a separate outcome.
                 let result = try await service.refresh(userID: id, syncHealth: false, now: now)
                 guard case .name = account.state, account.currentUser?.id == id else {
-                    record(.energyRefresh, .skipped, trigger: trigger)
+                    record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
+                           skipReason: .accountChanged, durationSeconds: elapsed(since: started))
                     return
                 }
+                try Task.checkCancellation()
                 snapshot = result
-                let saved = store.save(result)
-                record(.snapshotSave, saved ? .succeeded : .failed, trigger: trigger)
-                if saved { requestComplicationReload() }
-                errorMessage = [syncError, saved ? nil : "Complication snapshot could not be saved."]
+                let save = store.saveReportingDisplayChange(result)
+                record(.snapshotSave, save.saved ? .succeeded : .failed, trigger: trigger, attemptID: runID)
+                if save.displayValuesChanged { requestComplicationReload(attemptID: runID) }
+                if save.saved, syncError == nil { refreshSchedule.didRefreshSuccessfully() }
+                errorMessage = [syncError, save.saved ? nil : "Complication snapshot could not be saved."]
                     .compactMap { $0 }.joined(separator: "\n")
                 if errorMessage?.isEmpty == true { errorMessage = nil }
-                record(.energyRefresh, .succeeded, trigger: trigger)
+                record(.energyRefresh, .succeeded, trigger: trigger, attemptID: runID,
+                       durationSeconds: elapsed(since: started))
             } catch {
-                if error is CancellationError { return }
-                recordFailure(.energyRefresh, trigger: trigger, error: error, stage: .backendRead)
+                if Task.isCancelled || error is CancellationError {
+                    record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
+                           skipReason: .cancelled, durationSeconds: elapsed(since: started))
+                    return
+                }
+                recordFailure(.energyRefresh, trigger: trigger, error: error, stage: .backendRead,
+                              attemptID: runID, backendOperation: .todayEnergyRead,
+                              durationSeconds: elapsed(since: started))
+                scheduleRefresh(retry: true)
                 if case .name = account.state, account.currentUser?.id == id {
                     errorMessage = error.localizedDescription
                 }
@@ -194,21 +232,44 @@ final class WatchEnergyRuntime: ObservableObject {
         accountChanged(account.state)
     }
 
-    func backgroundRefresh() async {
-        await refreshWhenEligible(trigger: .background)
-        scheduleRefresh()
+    /// Explicitly refresh energy after a foreground account revalidation, even
+    /// when the account model republishes an unchanged name/state.
+    func foregroundRefresh() async {
+        await bootstrap()
+        await account.waitForCurrentRead()
+        if !Task.isCancelled { await refresh() }
     }
 
-    private func refreshWhenEligible(trigger: WatchEventTrigger) async {
+    func backgroundRefresh(attemptID: UUID) async {
+        refreshSchedule.didWake()
+        await bootstrap()
+        // Re-arm before network/HealthKit work; if it is interrupted, the next
+        // preferred wake has still been requested. Signed-out watches stop.
+        if case .name = account.state { scheduleRefresh() }
+        await refreshWhenEligible(trigger: .background, attemptID: attemptID)
+    }
+
+    private func refreshWhenEligible(trigger: WatchEventTrigger, attemptID: UUID) async {
         // Background tasks and HealthKit deliveries must hold their completion
         // until local context and the uncached account read have settled.
         await bootstrap()
+        if Task.isCancelled {
+            record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: .cancelled)
+            return
+        }
         await revalidateAccountIfNeeded()
+        if Task.isCancelled {
+            record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: .cancelled)
+            return
+        }
         if case .name = account.state, contextReady, !account.isReadingProfile,
            account.profileError == nil {
-            await refresh(trigger: trigger)
+            await refresh(trigger: trigger, attemptID: attemptID)
         } else {
-            record(.energyRefresh, .skipped, trigger: trigger)
+            let reason: WatchEventSkipReason = !contextReady ? .contextUnavailable
+                : (account.profileError == nil ? .accountUnavailable : .accountValidationFailed)
+            record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: reason)
+            if reason == .accountValidationFailed { scheduleRefresh(retry: true) }
         }
     }
 
@@ -223,21 +284,36 @@ final class WatchEnergyRuntime: ObservableObject {
 
     func record(_ action: WatchEventAction, _ outcome: WatchEventOutcome,
                 trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
-                errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil) {
+                errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil,
+                attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
+                runtimeState: WatchEventRuntimeState? = nil,
+                backendOperation: WatchEventBackendOperation? = nil,
+                skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil) {
         events = eventStore.record(WatchEvent(
             action: action, outcome: outcome, trigger: trigger, errorCode: errorCode,
-            errorSource: errorSource, stage: stage
+            errorSource: errorSource, stage: stage, attemptID: attemptID, metric: metric,
+            runtimeState: runtimeState, backendOperation: backendOperation,
+            skipReason: skipReason, durationSeconds: durationSeconds
         ))
     }
 
     private func recordFailure(_ action: WatchEventAction, trigger: WatchEventTrigger? = nil,
-                               error: any Error, stage fallback: WatchEventStage) {
+                               error: any Error, stage fallback: WatchEventStage,
+                               attemptID: UUID? = nil, backendOperation: WatchEventBackendOperation? = nil,
+                               durationSeconds: Int? = nil) {
         let wrapped = error as? WatchHealthSyncFailure
         let actualStage = wrapped?.stage ?? fallback
         let domain = wrapped?.underlyingDomain ?? (error as NSError).domain
         let code = wrapped?.underlyingCode ?? (error as NSError).code
-        let source = WatchEventErrorSource.classify(domain: domain, stage: actualStage)
-        record(action, .failed, trigger: trigger, errorCode: code, errorSource: source, stage: actualStage)
+        let graphQLSource = wrapped?.diagnosticSource ?? (error as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
+        let source = graphQLSource ?? WatchEventErrorSource.classify(domain: domain, stage: actualStage)
+        record(action, .failed, trigger: trigger, errorCode: code, errorSource: source, stage: actualStage,
+               attemptID: attemptID, backendOperation: wrapped?.backendOperation ?? backendOperation,
+               durationSeconds: durationSeconds)
+    }
+
+    private func elapsed(since start: TimeInterval) -> Int {
+        max(0, Int((ProcessInfo.processInfo.systemUptime - start).rounded(.up)))
     }
 
     func clearEvents() {
@@ -245,33 +321,72 @@ final class WatchEnergyRuntime: ObservableObject {
         events = []
     }
 
-    private func requestComplicationReload() {
-        record(.complicationReload, .requested)
+    private func requestComplicationReload(attemptID: UUID? = nil) {
+        record(.complicationReload, .requested, attemptID: attemptID)
         WidgetCenter.shared.reloadTimelines(ofKind: WatchEnergySnapshotStore.widgetKind)
     }
 
     private func startObservers() {
-        health.startObserving { [weak self] in
-            await self?.refreshWhenEligible(trigger: .healthObserver)
-        } onFailure: { [weak self] action, stage, code, source in
+        health.startObserving { [weak self] metric, id in
+            await self?.handleObserver(metric: metric, id: id)
+        } onCompletion: { [weak self] metric, id, outcome, seconds in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.record(.healthObservation, outcome, trigger: .healthObserver,
+                            attemptID: id, metric: metric, runtimeState: self.runtimeState,
+                            durationSeconds: seconds)
+                if outcome == .timedOut {
+                    self.cancelObserverAttempt(id)
+                    self.scheduleRefresh(retry: true)
+                }
+            }
+        } onFailure: { [weak self] metric, action, stage, code, source in
             Task { @MainActor [weak self] in
                 self?.record(action, .failed, trigger: .healthObserver,
-                             errorCode: code, errorSource: source, stage: stage)
+                             errorCode: code, errorSource: source, stage: stage, metric: metric)
             }
         }
     }
 
-    private func scheduleRefresh() {
-        record(.backgroundScheduling, .requested)
+    private func handleObserver(metric: WatchEventMetric, id: UUID) async {
+        record(.healthObservation, .started, trigger: .healthObserver,
+               attemptID: id, metric: metric, runtimeState: runtimeState)
+        await refreshWhenEligible(trigger: .healthObserver, attemptID: id)
+    }
+
+    private var runtimeState: WatchEventRuntimeState {
+        switch WKApplication.shared().applicationState {
+        case .active: .active
+        case .inactive: .inactive
+        case .background: .background
+        @unknown default: .unknown
+        }
+    }
+
+    private func cancelObserverAttempt(_ id: UUID) {
+        if refreshingAttemptID == id { refreshTask?.cancel() }
+    }
+
+    private func scheduleRefresh(retry: Bool = false) {
+        if retry {
+            guard case .name = account.state else { return }
+        }
+        let now = Date()
+        let preferredDate = retry ? refreshSchedule.requestRetry(now: now) : refreshSchedule.requestHourly(now: now)
+        guard let preferredDate else { return }
+        let trigger: WatchEventTrigger? = retry ? .retry : nil
+        record(.backgroundScheduling, .requested, trigger: trigger)
         WKApplication.shared().scheduleBackgroundRefresh(
-            withPreferredDate: Date().addingTimeInterval(60 * 60), userInfo: nil
+            withPreferredDate: preferredDate, userInfo: nil
         ) { [weak self] error in
             let code = error.map { ($0 as NSError).code }
             let isNetworkError = error.map { ($0 as NSError).domain == NSURLErrorDomain } ?? false
             Task { @MainActor [weak self] in
-                self?.record(.backgroundScheduling, code == nil ? .accepted : .failed,
-                             errorCode: code, errorSource: code == nil ? nil : (isNetworkError ? .network : .other),
-                             stage: code == nil ? nil : .scheduling)
+                guard let self else { return }
+                if code != nil { self.refreshSchedule.didFailToSchedule(preferredDate) }
+                self.record(.backgroundScheduling, code == nil ? .accepted : .failed, trigger: trigger,
+                            errorCode: code, errorSource: code == nil ? nil : (isNetworkError ? .network : .other),
+                            stage: code == nil ? nil : .scheduling)
             }
         }
     }
@@ -298,10 +413,13 @@ final class WatchEnergyBackgroundDelegate: NSObject, WKApplicationDelegate {
                 backgroundTask.setTaskCompletedWithSnapshot(false)
                 continue
             }
-            runtime.record(.backgroundTask, .started)
+            let id = UUID()
+            let started = ProcessInfo.processInfo.systemUptime
+            runtime.record(.backgroundTask, .started, attemptID: id, runtimeState: .background)
             Task {
-                await runtime.backgroundRefresh()
-                runtime.record(.backgroundTask, .finished)
+                await runtime.backgroundRefresh(attemptID: id)
+                let seconds = max(0, Int((ProcessInfo.processInfo.systemUptime - started).rounded(.up)))
+                runtime.record(.backgroundTask, .finished, attemptID: id, durationSeconds: seconds)
                 task.setTaskCompletedWithSnapshot(false)
             }
         }

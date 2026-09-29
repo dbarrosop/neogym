@@ -144,20 +144,23 @@ cadence.
 ## Watch Energy and complication
 
 The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
-retain the last 100 timestamped, watch-app-only typed outcomes across launches:
+retain the last 300 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
-permission/reconciliation, observer-query and background-delivery registration
-failures, fresh backend reads, snapshot saves, and WidgetKit reload requests.
-Entries store only fixed labels, optional numeric codes, allowlisted error
-sources, and failing stages (including active/resting HealthKit statistics,
-observer queries and delivery registration versus backend read/write);
-previously saved entries with only a numeric code still display. A code of 3
-is identified as invalid HealthKit argument **only** when its source domain is
-`HKErrorDomain`. The
+observer arrival/acknowledgement/timeout, permission/reconciliation,
+observer-query and background-delivery registration failures, fresh backend
+reads, snapshot saves, and WidgetKit reload requests. Random per-attempt IDs,
+active/resting metric, app state when handled, elapsed seconds, backend operation and
+account-gate skip reason make related records identifiable without storing
+Health values or account data. Failures carry fixed stages and safe categories:
+HealthKit, network, backend, GraphQL transport, other. GraphQL transport
+includes network/HTTP/service failures but doesn't identify which one; its
+numeric code is not a HealthKit code. Previously saved numeric-only entries
+still display. Code 3 means invalid HealthKit argument **only** when the
+original domain is `HKErrorDomain`. The
 Events page offers **Share logs** via the watchOS system share sheet; it builds
 a temporary `.txt` export of these same typed entries on user request, with no
 automatic email/upload. Neither stored entries nor exports include credentials,
-account IDs, names, URLs, or raw localized/server errors. An accepted
+account IDs, names, URLs, Health values, or raw localized/server errors. An accepted
 hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
 reload request confirm a new watch-face rendering. A local snapshot
 save failure also appears on the Energy page and skips the reload request. On launch it
@@ -212,19 +215,37 @@ post-sync values, including food logs recorded on another device.
 
 The **watch app**, not the complication, owns authorization, HealthKit queries,
 GraphQL writes, and network refreshes. After the explicit permission flow it
-registers HealthKit observer/background delivery for both energy types; it also
-asks watchOS for an hourly preferred background refresh. These are best-effort
-OS wakeups, **not** a guaranteed hourly schedule. HealthKit observer deliveries
-wait for local activation and account validation before syncing or acknowledging
-the delivery; if ineligible, they record a skipped Energy refresh · Health event
-before completion. Background work first reconciles the local watch session and
+registers HealthKit observer/background delivery for both energy types (not
+for Workout records); it also asks watchOS for an hourly preferred background
+refresh. A workout recorded in Fitness doesn't itself trigger a NeoGym wake.
+These are best-effort
+OS wakeups, **not** a guaranteed hourly schedule. `WatchRefreshSchedule`
+coalesces duplicate preferred dates, re-arms after account bootstrap but
+before energy reconciliation, and requests best-effort 15/30/60-minute retries after an
+observer timeout, backend sync failure, or transient `/user` validation failure.
+Repeated failures before a pending retry wakes do not advance backoff, and
+acceptance is not evidence of a delivered wake. Background-to-active waits
+for the fresh uncached `/user` read then explicitly refreshes Energy even if
+the profile name was unchanged. HealthKit observer deliveries
+wait for local activation and account validation before syncing. They call
+the HealthKit completion exactly once after work or after a 25-second watchdog
+which cancels only the matching active energy refresh and records a timed-out
+acknowledgement (not a successful sync). When account validation is ineligible,
+Events record a skipped Energy refresh with a safe reason before acknowledging.
+Suspension or termination may prevent a terminal log, and a scheduled watchOS
+wake is separate from HealthKit observer delivery. Background work first reconciles the local watch session and
 phone account hint and does nothing if blocked/signed out. The watch widget
 extension has no Keychain or HealthKit entitlement: it reads only the token-free
-today's aggregate snapshot written by
-the watch app into their shared App Group. The app verifies a local read-back
-after writing, records a failed write instead of requesting a reload, and asks
-WidgetKit to reload after a successful local write; local read-back still does
-not prove the extension read it or rendered a new timeline. The rectangular watch-face complication presents consumed,
+today's aggregate snapshot written by the watch app into their shared App Group.
+The app verifies a local read-back after writing and records a failed write.
+It asks WidgetKit to reload only when the displayed same-day values/owner
+change or a snapshot is cleared; unchanged-value fresh reads still save a new
+`updatedAt` but don't spend a requested reload. The widget shows a clock and
+the relative age of its currently rendered snapshot, which can lag a fresh
+unchanged-value read until WidgetKit requests a new timeline. `getTimeline`
+reads the shared snapshot but never syncs HealthKit or calls the backend;
+scrolling the widget into view does not guarantee an app wake or widget reload.
+A local read-back still does not prove the extension read it or rendered a new timeline. The rectangular watch-face complication presents consumed,
 total burned, active/resting, and Net kcal; it never uploads data itself. Today's
 last-good snapshot survives session validation while the SDK restores the
 session; after a non-auth `/user` failure the watch remains in the signed-in

@@ -13,6 +13,14 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     /// Calories in minus calories out. A missing energy row is unknown, not zero.
     public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
 
+    /// Ignore the fetch timestamp when deciding whether the widget's values
+    /// changed; an unchanged read does not need another WidgetKit reload.
+    public func hasSameDisplayValues(as other: Self) -> Bool {
+        userID == other.userID && localDate == other.localDate
+            && consumedKcal == other.consumedKcal && burnedKcal == other.burnedKcal
+            && activeKcal == other.activeKcal && restingKcal == other.restingKcal
+    }
+
     public init(
         userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?,
         activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date
@@ -24,6 +32,16 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
         self.activeKcal = activeKcal
         self.restingKcal = restingKcal
         self.updatedAt = updatedAt
+    }
+}
+
+public struct WatchEnergySnapshotSaveResult: Equatable, Sendable {
+    public let saved: Bool
+    public let displayValuesChanged: Bool
+
+    public init(saved: Bool, displayValuesChanged: Bool) {
+        self.saved = saved
+        self.displayValuesChanged = displayValuesChanged
     }
 }
 
@@ -61,12 +79,21 @@ public struct WatchEnergySnapshotStore: Sendable {
 
     @discardableResult
     public func save(_ snapshot: WatchEnergySnapshot) -> Bool {
+        saveReportingDisplayChange(snapshot).saved
+    }
+
+    public func saveReportingDisplayChange(_ snapshot: WatchEnergySnapshot) -> WatchEnergySnapshotSaveResult {
+        let previous = load(for: snapshot.localDate)
         guard let defaults = UserDefaults(suiteName: suite),
-              let data = try? JSONEncoder().encode(snapshot) else { return false }
+              let data = try? JSONEncoder().encode(snapshot) else {
+            return .init(saved: false, displayValuesChanged: false)
+        }
         defaults.set(data, forKey: key)
         // Only confirm a local suite read-back. WidgetKit may still defer a
         // timeline reload or be unable to read the shared container.
-        return defaults.data(forKey: key) == data
+        let saved = defaults.data(forKey: key) == data
+        return .init(saved: saved,
+                     displayValuesChanged: saved && previous?.hasSameDisplayValues(as: snapshot) != true)
     }
 
     public func clear() { UserDefaults(suiteName: suite)?.removeObject(forKey: key) }
@@ -131,7 +158,8 @@ public struct WatchEnergyService: Sendable {
             backendRows = try await rows
         } catch {
             if error is CancellationError { throw error }
-            throw WatchHealthSyncFailure(stage: .backendRead, cause: error)
+            throw WatchHealthSyncFailure(stage: .backendRead, cause: error,
+                                         backendOperation: .healthReconciliationRead)
         }
         let existing = Dictionary(uniqueKeysWithValues: backendRows.map { ($0.energyOn, $0) })
         let todayString = DateOnly.formatLocalISO(today, calendar: calendar)
@@ -148,7 +176,8 @@ public struct WatchEnergyService: Sendable {
                     try await energy.updateEntry(id: row.id, values: values)
                 } catch {
                     if error is CancellationError { throw error }
-                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error)
+                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error,
+                                                 backendOperation: .updateEnergy)
                 }
             } else {
                 do {
@@ -157,7 +186,8 @@ public struct WatchEnergyService: Sendable {
                     // Another writer (including the phone) won the unique date race.
                 } catch {
                     if error is CancellationError { throw error }
-                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error)
+                    throw WatchHealthSyncFailure(stage: .backendWrite, cause: error,
+                                                 backendOperation: .createEnergy)
                 }
             }
         }

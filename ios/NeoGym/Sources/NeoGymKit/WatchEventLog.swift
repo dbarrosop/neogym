@@ -35,6 +35,9 @@ public enum WatchEventOutcome: String, Codable, Sendable {
     case failed
     case requested
     case finished
+    case acknowledged
+    case timedOut
+    case joined
     case skipped
 
     public var title: String {
@@ -45,6 +48,9 @@ public enum WatchEventOutcome: String, Codable, Sendable {
         case .failed: "Failed"
         case .requested: "Requested"
         case .finished: "Finished"
+        case .acknowledged: "HealthKit acknowledged"
+        case .timedOut: "Timed out; HealthKit acknowledged"
+        case .joined: "Joined ongoing refresh"
         case .skipped: "Skipped"
         }
     }
@@ -54,6 +60,7 @@ public enum WatchEventTrigger: String, Codable, Sendable {
     case automatic
     case manual
     case background
+    case retry
     case healthObserver
     case healthAuthorization
 
@@ -62,6 +69,7 @@ public enum WatchEventTrigger: String, Codable, Sendable {
         case .automatic: "on open"
         case .manual: "manual"
         case .background: "background"
+        case .retry: "retry after failure"
         case .healthObserver: "Health event"
         case .healthAuthorization: "Health permission"
         }
@@ -98,6 +106,7 @@ public enum WatchEventErrorSource: String, Codable, Sendable {
     case healthKit
     case network
     case backend
+    case transport
     case other
 
     public var title: String {
@@ -105,7 +114,68 @@ public enum WatchEventErrorSource: String, Codable, Sendable {
         case .healthKit: "HealthKit"
         case .network: "Network"
         case .backend: "Backend"
+        case .transport: "GraphQL transport"
         case .other: "Other"
+        }
+    }
+
+    /// A GraphQL transport failure can represent an HTTP, network, or service
+    /// problem. Do not mistake its Swift NSError code for a HealthKit code.
+    public static func graphQL(_ error: GraphQLDomainError) -> Self {
+        if case .transport = error { return .transport }
+        return .backend
+    }
+}
+
+public enum WatchEventMetric: String, Codable, Sendable {
+    case activeEnergy
+    case restingEnergy
+
+    public var title: String {
+        switch self {
+        case .activeEnergy: "active energy"
+        case .restingEnergy: "resting energy"
+        }
+    }
+}
+
+public enum WatchEventRuntimeState: String, Codable, Sendable {
+    case active
+    case inactive
+    case background
+    case unknown
+}
+
+public enum WatchEventBackendOperation: String, Codable, Sendable {
+    case healthReconciliationRead
+    case todayEnergyRead
+    case createEnergy
+    case updateEnergy
+
+    public var title: String {
+        switch self {
+        case .healthReconciliationRead: "Health reconciliation read"
+        case .todayEnergyRead: "Today energy read"
+        case .createEnergy: "Create energy row"
+        case .updateEnergy: "Update energy row"
+        }
+    }
+}
+
+public enum WatchEventSkipReason: String, Codable, Sendable {
+    case accountUnavailable
+    case contextUnavailable
+    case accountValidationFailed
+    case accountChanged
+    case cancelled
+
+    public var title: String {
+        switch self {
+        case .accountUnavailable: "account unavailable"
+        case .contextUnavailable: "local context unavailable"
+        case .accountValidationFailed: "account validation failed"
+        case .accountChanged: "account changed"
+        case .cancelled: "cancelled"
         }
     }
 }
@@ -121,6 +191,25 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     public let errorCode: Int?
     public let errorSource: WatchEventErrorSource?
     public let stage: WatchEventStage?
+    /// Random per-attempt ID, never a user/session/HealthKit identifier.
+    public let attemptID: UUID?
+    public let metric: WatchEventMetric?
+    public let runtimeState: WatchEventRuntimeState?
+    public let backendOperation: WatchEventBackendOperation?
+    public let skipReason: WatchEventSkipReason?
+    public let durationSeconds: Int?
+
+    public var diagnosticDetails: String? {
+        var parts: [String] = []
+        if let attemptID { parts.append("attempt \(attemptID.uuidString.prefix(8))") }
+        if let metric { parts.append(metric.title) }
+        if let runtimeState { parts.append("app \(runtimeState.rawValue)") }
+        if let backendOperation { parts.append(backendOperation.title) }
+        if let skipReason { parts.append(skipReason.title) }
+        if let failureDetails { parts.append(failureDetails) }
+        if let durationSeconds { parts.append("\(durationSeconds)s") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 
     public var failureDetails: String? {
         guard outcome == .failed else { return nil }
@@ -135,6 +224,9 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         action: WatchEventAction, outcome: WatchEventOutcome,
         trigger: WatchEventTrigger? = nil, errorCode: Int? = nil,
         errorSource: WatchEventErrorSource? = nil, stage: WatchEventStage? = nil,
+        attemptID: UUID? = nil, metric: WatchEventMetric? = nil,
+        runtimeState: WatchEventRuntimeState? = nil, backendOperation: WatchEventBackendOperation? = nil,
+        skipReason: WatchEventSkipReason? = nil, durationSeconds: Int? = nil,
         occurredAt: Date = Date(), id: UUID = UUID()
     ) {
         self.id = id
@@ -145,6 +237,12 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
         self.errorCode = errorCode
         self.errorSource = errorSource
         self.stage = stage
+        self.attemptID = attemptID
+        self.metric = metric
+        self.runtimeState = runtimeState
+        self.backendOperation = backendOperation
+        self.skipReason = skipReason
+        self.durationSeconds = durationSeconds
     }
 }
 
@@ -155,13 +253,18 @@ public struct WatchHealthSyncFailure: LocalizedError, Sendable {
     public let stage: WatchEventStage
     public let underlyingDomain: String
     public let underlyingCode: Int
+    public let diagnosticSource: WatchEventErrorSource?
+    public let backendOperation: WatchEventBackendOperation?
     private let reason: String
 
-    public init(stage: WatchEventStage, cause: any Error) {
+    public init(stage: WatchEventStage, cause: any Error,
+                backendOperation: WatchEventBackendOperation? = nil) {
         let error = cause as NSError
         self.stage = stage
         underlyingDomain = error.domain
         underlyingCode = error.code
+        diagnosticSource = (cause as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
+        self.backendOperation = backendOperation
         reason = error.localizedDescription
     }
 
@@ -174,9 +277,9 @@ public struct WatchEventStore: Sendable {
     private let maximumCount: Int
     private let key = "watchEvents.v1"
 
-    public init(suite: String? = nil, maximumCount: Int = 100) {
+    public init(suite: String? = nil, maximumCount: Int = 300) {
         self.suite = suite
-        self.maximumCount = max(1, min(maximumCount, 100))
+        self.maximumCount = max(1, min(maximumCount, 300))
     }
 
     public func load() -> [WatchEvent] {

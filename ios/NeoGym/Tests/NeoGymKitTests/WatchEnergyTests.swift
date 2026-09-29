@@ -93,6 +93,7 @@ final class WatchEnergyTests: XCTestCase {
             XCTFail("Expected backend-read failure")
         } catch let failure as WatchHealthSyncFailure {
             XCTAssertEqual(failure.stage, .backendRead)
+            XCTAssertEqual(failure.backendOperation, .healthReconciliationRead)
         } catch { XCTFail("Unexpected error: \(error)") }
 
         let writeGraphQL = FakeGraphQLService(replies: [
@@ -110,6 +111,7 @@ final class WatchEnergyTests: XCTestCase {
             XCTFail("Expected backend-write failure")
         } catch let failure as WatchHealthSyncFailure {
             XCTAssertEqual(failure.stage, .backendWrite)
+            XCTAssertEqual(failure.backendOperation, .createEnergy)
         } catch { XCTFail("Unexpected error: \(error)") }
     }
 
@@ -268,6 +270,44 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertFalse(store.save(invalid))
         XCTAssertEqual(store.load(for: "2026-06-25"), good)
         store.clear()
+    }
+
+    func testSnapshotOnlyRequestsWidgetReloadWhenDisplayValuesChange() {
+        let store = WatchEnergySnapshotStore(suite: "WatchEnergyTests.\(UUID().uuidString)")
+        defer { store.clear() }
+        let initial = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                          consumedKcal: 350, burnedKcal: 120,
+                                          activeKcal: 20, restingKcal: 100, updatedAt: now)
+        XCTAssertEqual(store.saveReportingDisplayChange(initial),
+                       .init(saved: true, displayValuesChanged: true))
+        let sameValues = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                             consumedKcal: 350, burnedKcal: 120,
+                                             activeKcal: 20, restingKcal: 100,
+                                             updatedAt: now.addingTimeInterval(1800))
+        XCTAssertEqual(store.saveReportingDisplayChange(sameValues),
+                       .init(saved: true, displayValuesChanged: false))
+        XCTAssertEqual(store.load(for: "2026-06-25")?.updatedAt, sameValues.updatedAt)
+        let breakdownChanged = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                                   consumedKcal: 350, burnedKcal: 120,
+                                                   activeKcal: 30, restingKcal: 90,
+                                                   updatedAt: now.addingTimeInterval(2400))
+        XCTAssertEqual(store.saveReportingDisplayChange(breakdownChanged),
+                       .init(saved: true, displayValuesChanged: true))
+        let otherOwner = WatchEnergySnapshot(userID: "person-2", localDate: "2026-06-25",
+                                             consumedKcal: 350, burnedKcal: 120,
+                                             activeKcal: 30, restingKcal: 90, updatedAt: now)
+        XCTAssertFalse(breakdownChanged.hasSameDisplayValues(as: otherOwner))
+        let changed = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                          consumedKcal: 350, burnedKcal: 135,
+                                          activeKcal: 35, restingKcal: 100,
+                                          updatedAt: now.addingTimeInterval(3600))
+        XCTAssertEqual(store.saveReportingDisplayChange(changed),
+                       .init(saved: true, displayValuesChanged: true))
+        let invalid = WatchEnergySnapshot(userID: "person-1", localDate: "2026-06-25",
+                                          consumedKcal: .nan, burnedKcal: 135, updatedAt: now)
+        XCTAssertEqual(store.saveReportingDisplayChange(invalid),
+                       .init(saved: false, displayValuesChanged: false))
+        XCTAssertEqual(store.load(for: "2026-06-25"), changed)
     }
 
     func testOldSnapshotWithoutBreakdownStillDecodes() throws {

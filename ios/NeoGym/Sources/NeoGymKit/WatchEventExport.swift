@@ -12,13 +12,15 @@ public enum WatchEventExport {
             "Generated: \(formatter.string(from: generatedAt)) (UTC)",
             "Events: \(events.count) (newest first)",
             "Accepted scheduling does not guarantee a wake; a WidgetKit reload request does not confirm a new display.",
-            "No account identifiers, credentials, URLs, or raw error descriptions are included.",
+            "A random attempt ID links Health observer, energy refresh, and snapshot events.",
+            "HealthKit acknowledged means its callback finished, not necessarily that a sync succeeded. Timed out means it was acknowledged at the 25s deadline.",
+            "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
             ""
         ]
         if events.isEmpty { lines.append("No events recorded.") }
         for event in events {
             let trigger = event.trigger.map { " · \($0.title)" } ?? ""
-            let details = event.failureDetails.map { " · \($0)" } ?? ""
+            let details = event.diagnosticDetails.map { " · \($0)" } ?? ""
             lines.append(
                 "\(formatter.string(from: event.occurredAt)) | \(event.action.title) | "
                     + "\(event.outcome.title)\(trigger)\(details)"

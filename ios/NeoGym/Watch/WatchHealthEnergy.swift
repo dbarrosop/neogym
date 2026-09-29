@@ -23,22 +23,41 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
     }
 
     func startObserving(
-        onChange: @escaping @Sendable () async -> Void,
-        onFailure: @escaping @Sendable (WatchEventAction, WatchEventStage, Int?, WatchEventErrorSource) -> Void
+        onChange: @escaping @Sendable (WatchEventMetric, UUID) async -> Void,
+        onCompletion: @escaping @Sendable (WatchEventMetric, UUID, WatchEventOutcome, Int) -> Void,
+        onFailure: @escaping @Sendable (WatchEventMetric, WatchEventAction, WatchEventStage,
+                                       Int?, WatchEventErrorSource) -> Void
     ) {
         guard observers.isEmpty, HKHealthStore.isHealthDataAvailable() else { return }
-        for type in [active, resting] {
+        for (type, metric) in [(active, WatchEventMetric.activeEnergy), (resting, .restingEnergy)] {
             let query = HKObserverQuery(sampleType: type, predicate: nil) { _, completion, error in
                 if let error {
                     let (code, source) = Self.failureDetails(error, stage: .observerQuery)
-                    onFailure(.healthObservation, .observerQuery, code, source)
+                    onFailure(metric, .healthObservation, .observerQuery, code, source)
                     completion()
                     return
                 }
-                let finished = HealthObserverCompletion(completion)
+                let id = UUID()
+                let started = ProcessInfo.processInfo.systemUptime
+                let finished = WatchObserverCompletionGate(completion)
+                let elapsed: @Sendable () -> Int = {
+                    max(0, Int((ProcessInfo.processInfo.systemUptime - started).rounded(.up)))
+                }
+                let work = Task { await onChange(metric, id) }
+                let watchdog = Task {
+                    do { try await Task.sleep(for: .seconds(25)) }
+                    catch { return }
+                    if finished.complete() {
+                        onCompletion(metric, id, .timedOut, elapsed())
+                        work.cancel()
+                    }
+                }
                 Task {
-                    await onChange()
-                    finished.call() // HealthKit must be told when backend/snapshot work finishes.
+                    await work.value
+                    watchdog.cancel()
+                    if finished.complete() {
+                        onCompletion(metric, id, .acknowledged, elapsed())
+                    }
                 }
             }
             observers.append(query)
@@ -46,7 +65,7 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
             store.enableBackgroundDelivery(for: type, frequency: .hourly) { success, error in
                 guard !success || error != nil else { return }
                 let (code, source) = Self.failureDetails(error, stage: .backgroundDelivery)
-                onFailure(.healthBackgroundDelivery, .backgroundDelivery, code, source)
+                onFailure(metric, .healthBackgroundDelivery, .backgroundDelivery, code, source)
             }
         }
     }
@@ -102,14 +121,6 @@ final class WatchHealthEnergy: DailyEnergyHealthImporting, @unchecked Sendable {
             store.execute(query)
         }
     }
-}
-
-// HealthKit's completion is not annotated Sendable, but its one-shot callback may
-// be invoked from the async task which processes the observer event.
-private final class HealthObserverCompletion: @unchecked Sendable {
-    private let callback: () -> Void
-    init(_ callback: @escaping () -> Void) { self.callback = callback }
-    func call() { callback() }
 }
 
 private enum WatchHealthError: LocalizedError {

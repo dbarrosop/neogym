@@ -108,16 +108,21 @@ revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
 background scheduling, wake, Health sync, observer-query and background-delivery
 registration failures, backend read, snapshot save, and complication
-reload-request outcomes). The last 100 events stay on the watch, not in its
-widget or on a server; only fixed event kinds, timestamps, optional numeric
-error codes, allowlisted error sources, and failure stages are stored. Failures
-distinguish active/resting HealthKit queries, observer queries, and
-background-delivery registration from backend reads/writes. Older events
-retain their numeric-only detail. In Events, tap **Share logs** to choose an
+reload-request outcomes). The last 300 events stay on the watch, not in its
+widget or on a server. A random attempt ID ties together observer arrival,
+energy reconciliation, snapshot save, and HealthKit acknowledgement. Entries
+include the observed active/resting metric, app state when handled, elapsed
+seconds, backend operation or account-gate skip reason. Observer processing is
+acknowledged when it finishes or at a 25-second deadline that cancels only that
+attempt's active refresh; watchOS suspension can prevent a terminal event from
+being logged. Error categories distinguish HealthKit queries, background
+registration, backend reads/writes and GraphQL transport (which still combines
+network, HTTP and service failures). Older events retain numeric-only detail. In Events, tap **Share logs** to choose an
 app/destination in the watchOS share sheet for a plain-text `.txt` attachment.
 Available destinations depend on the watchOS
-share sheet and installed apps; nothing is sent automatically. Exports contain no account details,
-tokens, URLs, or raw error messages; they contain only these diagnostic events.
+share sheet and installed apps; nothing is sent automatically. Exports contain
+no account details, tokens, URLs, Health values or raw error messages; they
+contain only these diagnostic events.
 “Accepted” means watchOS accepted a background request, not that it woke the
 app; “Requested” means WidgetKit was asked to reload, not that the watch face
 rendered new data. Snapshot-save failure is shown on the Energy page and logged
@@ -132,16 +137,30 @@ The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
 taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
-best-effort, not a guaranteed hourly schedule. Observer deliveries wait for local
+best-effort, not a guaranteed hourly schedule. NeoGym observes active/basal
+energy samples, not Workout records; a Fitness workout is not itself a NeoGym
+background wake. Observer deliveries wait for local
 activation and account validation before syncing or calling HealthKit's
 completion; ineligible deliveries record a skipped Energy refresh · Health event
-before completion. The rectangular watch complication shows intake, total burn,
-active/resting, and Net from the watch app's token-free,
+before completion. After a failed backend sync, transient account-validation
+failure, or timed-out Health observer, the app requests another background wake
+with 15/30/60-minute backoff. It coalesces duplicate hourly requests and
+re-arms after account bootstrap but before energy reconciliation so an
+interrupted sync is less likely to omit the next request. watchOS may still defer or skip that wake. Returning from
+the background explicitly awaits the fresh `/user` read then refreshes Energy,
+including when the account name did not change; tapping the widget opens the
+app, not an on-visible widget sync. The rectangular watch complication shows
+intake, total burn, active/resting, and Net from the watch app's token-free,
 today-only App Group snapshot after a fresh backend fetch. Only its cutlery,
 flame, and custom two-pan balance icons are colored green, red, and teal;
 consumed and burned use equal bold type with no visible “in/out” words.
-VoiceOver still identifies each metric. Neither Keychain nor HealthKit is available to the watch
-widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
+VoiceOver still identifies each metric. A small clock/relative age indicates
+when the currently rendered widget snapshot was fetched. The app saves the
+latest successful fetch timestamp even if values are unchanged, but requests
+a WidgetKit reload only for changed displayed values or cleared snapshots;
+the age may lag until WidgetKit's next timeline request. Scrolling into view
+does not force an app sync. Neither Keychain nor HealthKit is available to the
+watch widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
 hardware rather than inferring behavior from simulator builds. The watch first restores the local session and shows the same-user cached
 profile and today's energy snapshot without waiting for a phone connection,
@@ -166,8 +185,20 @@ phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
 background wakes and for snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
-attachment for failure stage, source, and code; simulator builds only prove the
-share API compiles, not which services appear on real hardware. Only a
+attachment for matching observer/refresh attempt IDs, metric, active/background
+state, acknowledgement or timeout, duration, and backend stage/source/code.
+Compare local workout time to export UTC (e.g. 06:19 UTC+2 = 04:19Z). No
+`Background wake` event is required for a HealthKit delivery. A missing
+acknowledgement can mean watchOS suspended or terminated the app; a timed-out
+acknowledgement means no completed sync is assured. Verify that scrolling into
+the widget shows an advancing snapshot age but does not claim a new sync. Tap
+the widget to open NeoGym, and check that account revalidation is followed by a
+fresh Energy read. With unchanged energy/intake values, expect a successful
+snapshot save but **no** WidgetKit reload request; after a real value change,
+expect a reload request and verify the widget's actual display separately.
+After a timeout or transient backend failure, look for a preferred retry request
+(15/30/60-minute backoff); acceptance still does not prove an OS wake. Simulator
+builds only prove the share API compiles, not which services appear on real hardware. Only a
 paired-device test can confirm that WidgetKit ultimately updated the watch face. No production `GET /user` contract or signed hardware
 acceptance is established merely by a simulator build.
 

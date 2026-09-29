@@ -56,6 +56,7 @@ private struct WatchHomeView: View {
                 // A read started in the background must not stand in for a fresh open.
                 account.cancelPendingRead()
                 account.refresh()
+                Task { await runtime.foregroundRefresh() }
             }
         }
         .onChange(of: account.isReadingProfile, initial: true) { _, reading in
@@ -258,7 +259,7 @@ private struct WatchHomeView: View {
 
     private var eventsPage: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 9) {
+            LazyVStack(alignment: .leading, spacing: 9) {
                 Text("Events").font(.headline)
                 Text("Saved on this watch. Requested or accepted does not mean WidgetKit displayed new data.")
                     .font(.caption2).foregroundStyle(.secondary)
@@ -279,7 +280,7 @@ private struct WatchHomeView: View {
                         }
                         Text(event.outcome.title + (event.trigger.map { " · \($0.title)" } ?? ""))
                             .font(.caption2)
-                        if let details = event.failureDetails {
+                        if let details = event.diagnosticDetails {
                             Text(details).font(.caption2).foregroundStyle(.secondary)
                         }
                         Text(event.occurredAt.formatted(date: .abbreviated, time: .shortened))
@@ -298,18 +299,18 @@ private struct WatchHomeView: View {
 
     private func eventSymbol(_ outcome: WatchEventOutcome) -> String {
         switch outcome {
-        case .failed: "xmark.circle.fill"
+        case .failed, .timedOut: "xmark.circle.fill"
         case .succeeded: "checkmark.circle.fill"
-        case .accepted, .finished: "checkmark.circle"
-        case .started, .requested, .skipped: "clock"
+        case .accepted, .finished, .acknowledged: "checkmark.circle"
+        case .started, .requested, .joined, .skipped: "clock"
         }
     }
 
     private func eventColor(_ outcome: WatchEventOutcome) -> Color {
         switch outcome {
-        case .failed: .red
+        case .failed, .timedOut: .red
         case .succeeded: .green
-        case .started, .accepted, .requested, .finished, .skipped: .secondary
+        case .started, .accepted, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
         }
     }
 

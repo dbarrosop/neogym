@@ -69,11 +69,16 @@ private struct WatchEnergyComplication: Widget {
                             .stroke(.teal, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                             .frame(width: 16, height: 16)
                         Text(signedKcal(snapshot.netKcal)).monospacedDigit()
+                        Spacer(minLength: 1)
+                        Image(systemName: "clock").font(.system(size: 9))
+                            .foregroundStyle(.secondary)
+                        Text(snapshot.updatedAt, style: .relative)
+                            .font(.system(size: 9))
+                            .foregroundStyle(.secondary)
                     }
                     .font(.caption2.bold())
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(snapshot.netKcal == nil
-                        ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories")
+                    .accessibilityLabel(netAccessibility(snapshot))
                 } else {
                     Text("Open NeoGym to sync").font(.caption2)
                 }
@@ -101,6 +106,13 @@ private struct WatchEnergyComplication: Widget {
     private func metricAccessibility(_ name: String, _ value: Double?) -> String {
         guard let value else { return "\(name) energy unavailable" }
         return "\(name) \(kcal(value)) kilocalories"
+    }
+
+    private func netAccessibility(_ snapshot: WatchEnergySnapshot) -> String {
+        let net = snapshot.netKcal == nil
+            ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories"
+        let time = snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
+        return "\(net). Widget snapshot from \(time)"
     }
 }
 
