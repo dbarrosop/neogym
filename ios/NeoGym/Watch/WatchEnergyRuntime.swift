@@ -2,6 +2,7 @@ import Combine
 import Foundation
 import HealthKit
 import NeoGymKit
+import Nhost
 import SwiftUI
 import WatchKit
 import WidgetKit
@@ -19,6 +20,8 @@ final class WatchEnergyRuntime: ObservableObject {
     let connectivity = WatchAccountConnectivity()
     let health = WatchHealthEnergy()
     private let service: WatchEnergyService
+    private let uploadClient: NhostClient
+    let backgroundUploader = WatchEnergyBackgroundUploader()
     private let store = WatchEnergySnapshotStore.shared
     private let eventStore = WatchEventStore()
     private let pendingHealth = WatchPendingHealthSyncStore()
@@ -43,10 +46,24 @@ final class WatchEnergyRuntime: ObservableObject {
             currentUser: NhostCurrentUserService(client: client),
             currentUserStore: WatchCurrentUserStore()
         )
+        uploadClient = client
         let graphQL = NhostGraphQLService(client: client)
         service = WatchEnergyService(graphQL: graphQL, energy: DailyEnergyRepository(graphQL: graphQL),
                                      importer: health)
         events = eventStore.load()
+        backgroundUploader.onResult = { [weak self] ownerID, success, status in
+            guard let self, case .name = self.account.state,
+                  self.account.currentUser?.id == ownerID else { return }
+            self.record(.healthSync, success ? .succeeded : .failed,
+                        trigger: .background, errorCode: success ? nil : status,
+                        errorSource: success ? nil : .backend, stage: .backendWrite,
+                        backendOperation: .updateEnergy)
+            if success {
+                Task { await self.refreshWhenEligible(trigger: .background, attemptID: UUID()) }
+            } else {
+                self.scheduleRefresh(retry: true)
+            }
+        }
         account.onReadFailure = { [weak self] diagnostic in
             guard let self else { return }
             let source: WatchEventErrorSource = switch diagnostic.kind {
@@ -101,6 +118,7 @@ final class WatchEnergyRuntime: ObservableObject {
                 in: state, snapshotUserID: savedUserID, sessionUserID: sessionUserID
             ) {
                 health.stopObserving()
+                backgroundUploader.cancel(ownerID: observedUserID)
                 observedUserID = nil
                 pendingHealth.clear()
                 store.clear()
@@ -110,6 +128,7 @@ final class WatchEnergyRuntime: ObservableObject {
         }
         if observedUserID != nil, observedUserID != user.id {
             health.stopObserving()
+            backgroundUploader.cancel(ownerID: observedUserID)
             observedUserID = nil
         }
         pendingHealth.clearIfDifferentOwner(user.id)
@@ -247,11 +266,28 @@ final class WatchEnergyRuntime: ObservableObject {
         await task.value
     }
 
+}
+
+extension WatchEnergyRuntime {
     private func finishRefresh(_ result: WatchEnergySnapshot, userID: String,
                                pending: WatchPendingHealthSync?, syncError: String?,
                                trigger: WatchEventTrigger, attemptID: UUID, started: TimeInterval) {
-        snapshot = result
-        let save = store.saveReportingDisplayChange(result)
+        let displayed: WatchEnergySnapshot
+        if let local = snapshot, local.pendingBackend == true,
+           local.userID == userID, local.localDate == result.localDate,
+           result.rowSource != .manual,
+           syncError != nil || local.updatedAt > result.updatedAt {
+            displayed = WatchEnergySnapshot(
+                userID: userID, localDate: result.localDate, consumedKcal: result.consumedKcal,
+                burnedKcal: local.burnedKcal, activeKcal: local.activeKcal,
+                restingKcal: local.restingKcal, updatedAt: local.updatedAt,
+                rowSource: result.rowSource, pendingBackend: true
+            )
+        } else {
+            displayed = result
+        }
+        snapshot = displayed
+        let save = store.saveReportingDisplayChange(displayed)
         record(.snapshotSave, save.saved ? .succeeded : .failed, trigger: trigger, attemptID: attemptID)
         if save.displayValuesChanged { requestComplicationReload(attemptID: attemptID) }
         if save.saved, syncError == nil {
@@ -310,6 +346,7 @@ final class WatchEnergyRuntime: ObservableObject {
 
     func signOut() async {
         health.stopObserving()
+        backgroundUploader.cancel(ownerID: observedUserID)
         observedUserID = nil
         pendingHealth.clear()
         store.clear()
@@ -334,6 +371,11 @@ final class WatchEnergyRuntime: ObservableObject {
         // preferred wake has still been requested. Signed-out watches stop.
         if case .name = account.state, let id = account.currentUser?.id {
             scheduleRefresh(pending: healthEnabled && pendingHealth.pending(for: id) != nil)
+        }
+        if healthEnabled, let ownerID = account.currentUser?.id,
+           let imported = await saveLocalHealthEstimate(ownerID: ownerID, attemptID: attemptID),
+           await enqueueBackgroundUpload(imported, ownerID: ownerID, attemptID: attemptID) {
+            return
         }
         await refreshWhenEligible(trigger: .background, attemptID: attemptID)
     }
@@ -478,8 +520,75 @@ extension WatchEnergyRuntime {
                    skipReason: .accountChanged)
             return
         }
+        // No account-validation or backend request on this display path. An
+        // imported/missing row can show the new HealthKit total immediately;
+        // manual or unknown-provenance rows stay authoritative on the server.
+        let imported = await saveLocalHealthEstimate(ownerID: ownerID, attemptID: id)
         scheduleRefresh(pending: true)
+        if runtimeState != .active, let imported,
+           await enqueueBackgroundUpload(imported, ownerID: ownerID, attemptID: id) {
+            return
+        }
         await refreshWhenEligible(trigger: .healthObserver, attemptID: id)
+    }
+
+    private func saveLocalHealthEstimate(ownerID: String, attemptID: UUID) async -> [HealthDailyEnergy]? {
+        let today = DateOnly.todayLocalISO()
+        do {
+            let imported = try await health.dailyEnergyEntries(report: makeStageReporter(
+                trigger: .healthObserver, attemptID: attemptID
+            ))
+            guard case .name = account.state, account.currentUser?.id == ownerID else { return nil }
+            if let local = WatchLocalEnergyPolicy.estimate(
+                from: store.load(for: today), imported: imported, ownerID: ownerID,
+                today: today, now: Date()
+            ) {
+                let save = store.saveReportingDisplayChange(local)
+                record(.snapshotSave, save.saved ? .succeeded : .failed,
+                       trigger: .healthObserver, attemptID: attemptID)
+                if save.saved {
+                    snapshot = local
+                    if save.displayValuesChanged { requestComplicationReload(attemptID: attemptID) }
+                } else {
+                    errorMessage = "Complication snapshot could not be saved."
+                }
+            }
+            return imported
+        } catch {
+            recordFailure(.healthSync, trigger: .healthObserver, error: error,
+                          stage: .healthRead, attemptID: attemptID)
+            return nil
+        }
+    }
+
+    private func enqueueBackgroundUpload(_ imported: [HealthDailyEnergy], ownerID: String,
+                                         attemptID: UUID) async -> Bool {
+        do {
+            let queued = try await backgroundUploader.enqueue(
+                entries: imported, ownerID: ownerID, client: uploadClient,
+                isCurrentOwner: { [weak self] in
+                    guard let self, case .name = self.account.state else { return false }
+                    return self.account.currentUser?.id == ownerID
+                }
+            )
+            guard case .name = account.state, account.currentUser?.id == ownerID else {
+                backgroundUploader.cancel(ownerID: ownerID)
+                return false
+            }
+            if queued {
+                record(.healthSync, .started, trigger: .background,
+                       stage: .backendWrite, attemptID: attemptID,
+                       backendOperation: .updateEnergy)
+            }
+            return queued
+        } catch {
+            if !(error is CancellationError) {
+                recordFailure(.healthSync, trigger: .background, error: error,
+                              stage: .backendWrite, attemptID: attemptID)
+            }
+            scheduleRefresh(retry: true)
+            return false
+        }
     }
 
     private var runtimeState: WatchEventRuntimeState {
@@ -534,6 +643,10 @@ final class WatchEnergyBackgroundDelegate: NSObject, WKApplicationDelegate {
 
     func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
         for backgroundTask in backgroundTasks {
+            if let urlTask = backgroundTask as? WKURLSessionRefreshBackgroundTask {
+                runtime.backgroundUploader.handle(urlTask)
+                continue
+            }
             guard let task = backgroundTask as? WKApplicationRefreshBackgroundTask else {
                 backgroundTask.setTaskCompletedWithSnapshot(false)
                 continue

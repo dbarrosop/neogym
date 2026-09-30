@@ -1,6 +1,10 @@
 import Foundation
 
 /// Only the watch app writes these token-free values. The complication never opens an auth session.
+public enum WatchEnergyRowSource: String, Codable, Sendable {
+    case missing, imported, manual
+}
+
 public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public let userID: String
     public let localDate: String
@@ -9,6 +13,10 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public let activeKcal: Double?
     public let restingKcal: Double?
     public let updatedAt: Date
+    /// Nil for older snapshots: never overlay HealthKit without a known server row policy.
+    public let rowSource: WatchEnergyRowSource?
+    /// A locally read estimate awaiting authoritative backend reconciliation.
+    public let pendingBackend: Bool?
 
     /// Calories in minus calories out. A missing energy row is unknown, not zero.
     public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
@@ -19,11 +27,13 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
         userID == other.userID && localDate == other.localDate
             && consumedKcal == other.consumedKcal && burnedKcal == other.burnedKcal
             && activeKcal == other.activeKcal && restingKcal == other.restingKcal
+            && pendingBackend == other.pendingBackend
     }
 
     public init(
         userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?,
-        activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date
+        activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date,
+        rowSource: WatchEnergyRowSource? = nil, pendingBackend: Bool? = nil
     ) {
         self.userID = userID
         self.localDate = localDate
@@ -32,6 +42,30 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
         self.activeKcal = activeKcal
         self.restingKcal = restingKcal
         self.updatedAt = updatedAt
+        self.rowSource = rowSource
+        self.pendingBackend = pendingBackend
+    }
+}
+
+/// Optimistic display only for a known imported/missing server row. A manual
+/// row (or old snapshot with unknown provenance) always keeps server values.
+public enum WatchLocalEnergyPolicy {
+    public static func estimate(
+        from snapshot: WatchEnergySnapshot?, imported: [HealthDailyEnergy],
+        ownerID: String, today: String, now: Date
+    ) -> WatchEnergySnapshot? {
+        guard let snapshot, snapshot.userID == ownerID, snapshot.localDate == today,
+              snapshot.rowSource == .missing || snapshot.rowSource == .imported,
+              let day = imported.first(where: { $0.energyOn == today }),
+              let form = day.formValues() else { return nil }
+        let active = Double(form.activeKcal)
+        let resting = Double(form.restingKcal)
+        return WatchEnergySnapshot(
+            userID: ownerID, localDate: today, consumedKcal: snapshot.consumedKcal,
+            burnedKcal: (active ?? 0) + (resting ?? 0), activeKcal: active,
+            restingKcal: resting, updatedAt: now, rowSource: snapshot.rowSource,
+            pendingBackend: true
+        )
     }
 }
 
@@ -141,7 +175,9 @@ public struct WatchEnergyService: Sendable {
         let burned = energyEntry.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
         return WatchEnergySnapshot(
             userID: userID, localDate: today, consumedKcal: consumed, burnedKcal: burned,
-            activeKcal: energyEntry?.activeKcal, restingKcal: energyEntry?.restingKcal, updatedAt: now
+            activeKcal: energyEntry?.activeKcal, restingKcal: energyEntry?.restingKcal, updatedAt: now,
+            rowSource: energyEntry.map { $0.notes == "Imported from Apple Health" ? .imported : .manual }
+                ?? .missing, pendingBackend: false
         )
     }
 
@@ -229,6 +265,7 @@ public struct WatchEnergyService: Sendable {
         energyOn
         activeKcal
         restingKcal
+        notes
       }
     }
     """

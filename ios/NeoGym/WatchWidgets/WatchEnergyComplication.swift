@@ -70,8 +70,8 @@ private struct WatchEnergyComplication: Widget {
                             .frame(width: 16, height: 16)
                         Text(signedKcal(snapshot.netKcal)).monospacedDigit()
                         Spacer(minLength: 1)
-                        Image(systemName: "clock").font(.system(size: 9))
-                            .foregroundStyle(.secondary)
+                        Image(systemName: snapshot.pendingBackend == true ? "waveform.path.ecg" : "clock")
+                            .font(.system(size: 9)).foregroundStyle(.secondary)
                         Text(snapshot.updatedAt, style: .relative)
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
@@ -112,7 +112,7 @@ private struct WatchEnergyComplication: Widget {
         let net = snapshot.netKcal == nil
             ? "Net calories unavailable" : "Net \(signedKcal(snapshot.netKcal)) kilocalories"
         let time = snapshot.updatedAt.formatted(date: .abbreviated, time: .shortened)
-        return "\(net). Widget snapshot from \(time)"
+        return "\(net). \(snapshot.pendingBackend == true ? "Apple Health estimate awaiting server sync" : "Backend snapshot") from \(time)"
     }
 }
 

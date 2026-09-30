@@ -107,7 +107,18 @@ Import rules:
 - On each watch sync, existing rows in that window are refreshed from HealthKit
   **only** when they still carry the exact "Imported from Apple Health" note.
   Manual rows or edited imported rows with different notes are not overwritten.
-- A fresh backend read follows the watch's writes. Phone views query the backend
+- Foreground reconciliation uses the SDK GraphQL read/write flow. In the
+  background, the watch can instead enqueue one file-backed URLSession GraphQL
+  upsert after reading HealthKit: insert missing dates and update conflicts only
+  where `notes = 'Imported from Apple Health'`, using the unique user/date key.
+  Hasura's user-role insert/update permissions set and filter ownership; the
+  watch refreshes and verifies its SDK session before pinning a short-lived
+  bearer on the transfer. It never queues a second upload for the same owner
+  while one is in flight. A deferred transfer can outlive that bearer and fail;
+  the pending marker then remains for another eligible retry. The foreground
+  path and transfer both preserve manual/edited rows and unique-date races.
+- A fresh backend read follows a successful direct watch write or is requested
+  after background upload completion. Phone views query the backend
   independently and do not trigger or wait for watch HealthKit sync.
 
 ## Nutrition balance
@@ -206,8 +217,9 @@ read before fetching energy. Energy shows today's consumed kcal from nutrition
 log snapshots (including standalone entries and logged-meal children), total
 burned kcal from today's `daily_energy` active
 plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
-An absent energy row displays `—` for burned, its breakdown, and Net rather
-than treating burned as zero. A missing component on an existing energy row
+An absent backend energy row displays `—` for burned, its breakdown, and Net
+unless an eligible local Health estimate has been saved. A missing component on
+an existing energy row
 shows `—` in the breakdown but counts as zero toward total burned, matching
 the backend balance contract. The watch app uses icons instead of visible Consumed/Burned labels while
 retaining VoiceOver labels. Net uses the same prominent icon-and-value style
@@ -232,8 +244,15 @@ valid data and refreshes rows bearing the exact "Imported from Apple Health"
 note; it never overwrites manual/edited rows. Unique-date insert races are
 skipped. The iPhone no longer uploads HealthKit energy; previously imported
 phone rows with that exact note may be refreshed by the watch. A fresh
-backend read follows the watch write so the Energy page and complication use
-post-sync values, including food logs recorded on another device.
+backend read follows direct writes or a completed background upload so the
+Energy page and complication eventually use post-sync values, including food
+logs recorded on another device. An observer delivery first attempts a local
+seven-day Health read; for a same-owner snapshot whose last known server row was
+imported or absent, today's valid metric totals can be saved and displayed as
+an explicitly provisional estimate before any account or backend request. A
+manual/edited row or legacy snapshot without known provenance is never overlaid.
+The last-known server intake remains unchanged; a server-side manual edit
+since the last backend read can briefly differ until fresh reconciliation.
 
 The **watch app**, not the complication, owns authorization, HealthKit queries,
 GraphQL writes, and network refreshes. After the explicit permission flow it
@@ -276,9 +295,10 @@ phone account hint and does nothing if blocked/signed out. The watch widget
 extension has no Keychain or HealthKit entitlement: it reads only the token-free
 today's aggregate snapshot written by the watch app into their shared App Group.
 The app verifies a local read-back after writing and records a failed write.
-It asks WidgetKit to reload only when the displayed same-day values/owner
-change or a snapshot is cleared; unchanged-value fresh reads still save a new
-`updatedAt` but don't spend a requested reload. The widget shows a clock and
+It asks WidgetKit to reload only when the displayed same-day values/owner or
+provisional status change or a snapshot is cleared; unchanged-value fresh reads
+still save a new `updatedAt` but don't spend a requested reload. The widget
+shows a Health estimate icon while awaiting backend sync, otherwise a clock and
 the relative age of its currently rendered snapshot, which can lag a fresh
 unchanged-value read until WidgetKit requests a new timeline. `getTimeline`
 reads the shared snapshot but never syncs HealthKit or calls the backend;

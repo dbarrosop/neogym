@@ -153,9 +153,9 @@ rather than silently claiming a fresh complication.
 Consumed and Burned use icons rather than visible labels on the watch page; Net uses a
 balance-scale icon and equally prominent value. The Energy title carries a
 small `(kcal)` unit, while an icon-only refresh button sits beside the sync
-time. Missing backend energy leaves total burn and Net unavailable; absent
-active/resting components on an existing row are shown as `—` but count as zero
-in the total.
+time. Missing backend energy leaves total burn and Net unavailable until a local
+provisional Health estimate is available; absent active/resting components on
+an existing row are shown as `—` but count as zero in the total.
 The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
 taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
@@ -177,11 +177,28 @@ the background explicitly awaits the fresh `/user` read then refreshes Energy,
 including when the account name did not change; tapping the widget opens the
 app, not an on-visible widget sync. The rectangular watch complication shows
 intake, total burn, active/resting, and Net from the watch app's token-free,
-today-only App Group snapshot after a fresh backend fetch. Only its cutlery,
+today-only App Group snapshot after a fresh backend fetch or a labeled local
+Apple Health estimate. On observer delivery, the watch reads local HealthKit
+before its network reconciliation and saves an estimate only when its same-owner,
+same-day backend snapshot says today's row is imported or absent. Manually
+edited rows and older snapshots with unknown provenance are not overlaid;
+intake remains the last known server value. This is provisional until a fresh
+backend read, and phone-side manual edits made since the last server read may
+briefly supersede it. A file-backed watchOS background URLSession upload sends
+one idempotent GraphQL upsert for the last seven dates instead of holding a
+chain of GraphQL calls through suspension. Hasura inserts missing dates and
+updates only conflicts still marked "Imported from Apple Health"; owner
+permissions come from a freshly checked SDK bearer token, never the widget.
+The system may defer transfers or deliver them after the short-lived bearer
+expires; failures keep the private pending marker for a later retry. A delivered
+transfer requests a fresh backend read; only successful reconciliation, read
+and snapshot save clear the pending marker. URLSession transfer completion
+cannot prove a WidgetKit render. Only its cutlery,
 flame, and custom two-pan balance icons are colored green, red, and teal;
 consumed and burned use equal bold type with no visible “in/out” words.
 VoiceOver still identifies each metric. A small clock/relative age indicates
-when the currently rendered widget snapshot was fetched. The app saves the
+when the currently rendered widget snapshot was fetched, or a Health icon
+indicates a provisional estimate awaiting server sync. The app saves the
 latest successful fetch timestamp even if values are unchanged, but requests
 a WidgetKit reload only for changed displayed values or cleared snapshots;
 the age may lag until WidgetKit's next timeline request. Scrolling into view
@@ -221,9 +238,14 @@ acknowledgement log can mean watchOS suspended or terminated the app before it
 could record the callback; older timed-out events do not prove a sync completed. Verify that scrolling into
 the widget shows an advancing snapshot age but does not claim a new sync. Tap
 the widget to open NeoGym, and check that account revalidation is followed by a
-fresh Energy read. With unchanged energy/intake values, expect a successful
-snapshot save but **no** WidgetKit reload request; after a real value change,
-expect a reload request and verify the widget's actual display separately.
+fresh Energy read. With unchanged energy/intake values and the same provisional status, expect a
+successful snapshot save but **no** WidgetKit reload request; after a value or
+provisional-status change, expect a reload request and verify the widget's
+actual display separately. On paired hardware verify a background observer's
+local Health estimate is saved before its URLSession upload completes, that
+manual rows are not replaced, and that a deferred/expired-token upload remains
+pending for the next eligible retry. A successful upload alone is not a
+confirmed watch-face update.
 After a transient backend failure, look for a preferred retry request
 (15/30/60-minute backoff); acceptance still does not prove an OS wake. Simulator
 builds only prove the share API compiles, not which services appear on real hardware. Only a

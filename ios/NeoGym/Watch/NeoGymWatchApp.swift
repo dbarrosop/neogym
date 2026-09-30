@@ -186,7 +186,9 @@ private struct WatchHomeView: View {
                     .disabled(runtime.isRefreshing || !runtime.contextReady || account.isReadingProfile)
                     .accessibilityLabel("Refresh energy")
                     if let snapshot = runtime.snapshot {
-                        Text("Synced \(snapshot.updatedAt, style: .time)")
+                        Text(snapshot.pendingBackend == true
+                            ? "Health estimate \(snapshot.updatedAt, style: .time)"
+                            : "Synced \(snapshot.updatedAt, style: .time)")
                             .font(.caption2).foregroundStyle(.secondary)
                     }
                 }

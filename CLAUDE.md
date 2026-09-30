@@ -160,8 +160,9 @@ without visible labels on the watch page; Net uses a balance-scale icon and the
 same prominent number style. VoiceOver labels still name all metrics. The
 Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
 circular-arrow Refresh control sits before the last-synced time. A
-missing energy row leaves burned and Net unavailable; a missing component on an
-existing row shows `—` but contributes zero to total. The compact rectangular
+missing backend energy row leaves burned and Net unavailable until an eligible
+local Apple Health estimate is available; a missing component on an existing
+row shows `—` but contributes zero to total. The compact rectangular
 complication displays all values from a token-free snapshot; Net is computed,
 not persisted. Its cutlery, fire, and custom two-pan balance icons alone are
 green, red, and turquoise/teal; consumed and burned values use identical bold
@@ -179,10 +180,22 @@ task requests its next preferred wake after account bootstrap but before energy 
 background-to-active, the watch explicitly waits for the uncached account read
 and refreshes Energy even if the account name is unchanged. The watch saves a
 fresh token-free, today-only App Group snapshot after each successful backend
-read, but asks WidgetKit to reload only if its visible energy values change
-(or the snapshot is cleared). The rectangular widget shows relative snapshot
-age; an unchanged-value backend read may not update that age until WidgetKit
-requests another timeline. The widget has no Keychain or HealthKit access;
+read. On an eligible HealthKit delivery it first reads local daily totals and,
+only for a same-owner snapshot known to represent an imported or absent backend
+row, saves a labeled provisional Health estimate and requests WidgetKit reload
+when visible values change. Manual/edited or legacy unknown-provenance rows are
+never locally overlaid. In the background it enqueues one seven-day, idempotent
+GraphQL upsert via a file-backed watchOS background URLSession upload; Hasura's
+conflict predicate updates only rows still labeled "Imported from Apple Health"
+and skips manual conflicts. The SDK refreshes and owner-checks the short-lived
+bearer before enqueuing; expiry, OS deferral and upload failures retain pending
+work for retries. A completed upload still needs a fresh backend read/snapshot
+before the pending marker clears; it is not proof of a rendered complication.
+WidgetKit reloads are requested only when display values or provisional status
+change (or the snapshot is cleared). The rectangular widget shows relative
+snapshot age and distinguishes a provisional estimate; an unchanged-value
+backend read may not update that age until WidgetKit requests another timeline.
+The widget has no Keychain or HealthKit access;
 blocking auth changes/sign-out clear its snapshot. Watch App Group and HealthKit background-delivery signing
 capabilities must be provisioned for physical-device validation. The watch
 Info.plist must include **both** `NSHealthShareUsageDescription` and

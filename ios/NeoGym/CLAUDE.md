@@ -124,15 +124,23 @@ Keychain/App Group session lock or GraphQL cache. The watch target does have an
 App Group entitlement for the token-free complication snapshot, not its session.
 The watch app caches only the most recently fetched name/email in its own
 UserDefaults, keyed by session user ID; the SDK's persisted session name is the
-fallback. Neither cache is available to the watch widget.
+fallback. Neither cache is available to the watch widget. Background energy
+writes use a separate file-backed `URLSessionConfiguration.background` transfer
+(not widget credentials): the same SDK client refreshes its session, checks the
+owner, then pins its short-lived access token only on the system upload request.
+`WatchEnergyBackgroundUpload` builds one Hasura mutation with insert on
+conflict updating only imported-note rows. Manual/edited conflicts remain
+untouched; no new server endpoint or user-visible GraphQL roots are needed.
 Foreground startup restores the local Keychain session and checks any already
 received account hint without waiting for WCSession activation (not phone
 reachability) or the network name read. It renders a cached profile and today's
 same-owner energy snapshot, then activates WCSession and revalidates the profile
 in the background. A delayed blocking hint clears both caches and the local
 session; on a phone sign-out there can be a short stale display before delivery.
-Background refresh and HealthKit observer **sync work** waits for activation
-and the managed account read before private energy access. Each observer callback
+Foreground backend reconciliation waits for activation and the managed account
+read before private energy access. An observer may first read local HealthKit
+and save a provisional same-owner, same-day snapshot without that network gate;
+a background URLSession write validates the SDK session and owner before queueing. Each observer callback
 synchronously attempts a read-back-verified private pending marker for the
 authorized watch owner and acknowledges HealthKit promptly, without waiting
 for HealthKit queries or backend work. A failed handoff is logged, but cannot
@@ -202,9 +210,16 @@ background task re-arms before energy reconciliation; a pending earlier
 request beats an hourly request. Repeated failures before that retry wakes
 do not accelerate backoff. Neither accepted
 scheduling nor WidgetKit reload guarantees a wake or fresh display. After a
-successful fresh backend read the watch saves the new snapshot timestamp; it
-requests `reloadTimelines` only when displayed values or owner change, or after
-clearing on sign-out. The widget shows the age of the
+successful fresh backend read the watch saves the new snapshot timestamp.
+Only a previously server-confirmed imported or absent row can receive a local
+Health estimate; manual and legacy unknown-provenance rows remain server-only.
+The estimate retains server intake and is labeled pending on the watch and in
+the widget until a fresh backend reconciliation. It requests `reloadTimelines`
+only when displayed values, owner or pending status change, or after clearing
+on sign-out. A background upload may be deferred until its bearer expires; the
+pending marker and preferred retry remain best-effort fallbacks. URLSession
+completion requests a fresh backend read, not proof of a WidgetKit render.
+The widget shows the age of the
 last timeline snapshot; unchanged-value reads may not update that age until
 WidgetKit asks for another timeline. Foreground return explicitly awaits the
 uncached `/user` revalidation and calls Energy refresh even when the account

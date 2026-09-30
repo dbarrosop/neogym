@@ -89,6 +89,9 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertNil(snapshot.restingKcal)
         XCTAssertEqual(snapshot.netKcal, 230)
         XCTAssertEqual(snapshot.userID, "person-1")
+        XCTAssertEqual(snapshot.rowSource, .imported)
+        XCTAssertEqual(snapshot.pendingBackend, false)
+        XCTAssertTrue(WatchEnergyService.todayQuery.contains("notes"))
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.map(\.operationName), ["DailyEnergyHealthRefreshEntries", "UpdateDailyEnergy", "WatchTodayEnergy"])
         XCTAssertEqual(requests[0].variables?["since"], .string("2026-06-19"))
@@ -345,12 +348,49 @@ final class WatchEnergyTests: XCTestCase {
         XCTAssertEqual(store.load(for: "2026-06-25"), changed)
     }
 
+    func testLocalHealthEstimateRespectsServerRowAndOwner() {
+        let day = "2026-06-25"
+        let imported = [HealthDailyEnergy(energyOn: day, activeKcal: 200, restingKcal: 1400)]
+        let base = WatchEnergySnapshot(userID: "person-1", localDate: day,
+                                       consumedKcal: 350, burnedKcal: 120,
+                                       updatedAt: now, rowSource: .imported, pendingBackend: false)
+        let estimate = WatchLocalEnergyPolicy.estimate(from: base, imported: imported,
+                                                        ownerID: "person-1", today: day, now: now)
+        XCTAssertEqual(estimate?.consumedKcal, 350)
+        XCTAssertEqual(estimate?.activeKcal, 200)
+        XCTAssertEqual(estimate?.restingKcal, 1400)
+        XCTAssertEqual(estimate?.netKcal, -1250)
+        XCTAssertEqual(estimate?.pendingBackend, true)
+        XCTAssertNotNil(WatchLocalEnergyPolicy.estimate(
+            from: WatchEnergySnapshot(userID: "person-1", localDate: day,
+                                      consumedKcal: 350, burnedKcal: nil,
+                                      updatedAt: now, rowSource: .missing),
+            imported: imported, ownerID: "person-1", today: day, now: now
+        ))
+        for source: WatchEnergyRowSource? in [.manual, nil] {
+            let server = WatchEnergySnapshot(userID: "person-1", localDate: day,
+                                             consumedKcal: 350, burnedKcal: 120,
+                                             updatedAt: now, rowSource: source)
+            XCTAssertNil(WatchLocalEnergyPolicy.estimate(
+                from: server, imported: imported, ownerID: "person-1", today: day, now: now
+            ))
+        }
+        XCTAssertNil(WatchLocalEnergyPolicy.estimate(from: base, imported: imported,
+                                                      ownerID: "person-2", today: day, now: now))
+        XCTAssertNil(WatchLocalEnergyPolicy.estimate(from: base, imported: imported,
+                                                      ownerID: "person-1", today: "2026-06-26", now: now))
+        XCTAssertNil(WatchLocalEnergyPolicy.estimate(from: base, imported: [],
+                                                      ownerID: "person-1", today: day, now: now))
+    }
+
     func testOldSnapshotWithoutBreakdownStillDecodes() throws {
         let old = Data(#"{"userID":"person-1","localDate":"2026-06-25","consumedKcal":350,"burnedKcal":120,"updatedAt":0}"#.utf8)
         let snapshot = try JSONDecoder().decode(WatchEnergySnapshot.self, from: old)
         XCTAssertEqual(snapshot.netKcal, 230)
         XCTAssertNil(snapshot.activeKcal)
         XCTAssertNil(snapshot.restingKcal)
+        XCTAssertNil(snapshot.rowSource)
+        XCTAssertNil(snapshot.pendingBackend)
     }
 
     private func row(date: String, notes: String, active: Int, resting: Int? = nil) -> JSONValue {
