@@ -152,10 +152,15 @@ transition event distinguishes active/inactive/background (but does not prove
 continuous execution), and an uncached Auth `/user` read failure records the
 same safe cause separately. HealthKit code 3 means invalid argument only for
 `HKErrorDomain`; legacy entries
-remain numeric-only. **Share logs** opens the watchOS system share sheet with a
-temporary plain-text file on request; it never sends automatically. Events and
-exports exclude credentials, account IDs, names, URLs, Health values and raw
-error/server descriptions. Consumed/Burned use icons
+remain numeric-only. The widget extension writes a bounded, timestamp-only
+App Group file when `getTimeline` or `getSnapshot` reads the snapshot; the
+watch Events page can read these provider receipts, and the export appends
+them. A provider receipt proves a timeline/snapshot request, not a new face
+rendering; absent receipts can also reflect a failed diagnostic write.
+**Share logs** opens the watchOS system share sheet with a temporary `.txt`
+attachment on request; it cannot pre-address Mail and never sends automatically.
+Events and exports exclude credentials, account IDs, names, URLs, Health values
+and raw error/server descriptions. Consumed/Burned use icons
 without visible labels on the watch page; Net uses a balance-scale icon and the
 same prominent number style. VoiceOver labels still name all metrics. The
 Energy heading has a small `(kcal)` unit but no Today subtitle, and an icon-only
@@ -192,7 +197,11 @@ bearer before enqueuing; expiry, OS deferral and upload failures retain pending
 work for retries. A completed upload still needs a fresh backend read/snapshot
 before the pending marker clears; it is not proof of a rendered complication.
 WidgetKit reloads are requested only when display values or provisional status
-change (or the snapshot is cleared). The rectangular widget shows relative
+change (or the snapshot is cleared). Background requests are coalesced to at
+most one per 15 minutes in the watch app, while a suppressed latest-value
+request is retained for another eligible wake/foreground return; foreground
+changes and snapshot clearing bypass the gate. Neither requests nor provider
+receipts prove the watch face updated. The rectangular widget shows relative
 snapshot age and distinguishes a provisional estimate; an unchanged-value
 backend read may not update that age until WidgetKit requests another timeline.
 The widget has no Keychain or HealthKit access;

@@ -178,10 +178,16 @@ never the raw description. The earlier GraphQL transport `code 3` was an
 NSError bridge of a Swift enum case, not a HealthKit or HTTP code. Previously
 saved numeric-only entries still display. Code 3 means invalid HealthKit argument **only** when the
 original domain is `HKErrorDomain`. The
-Events page offers **Share logs** via the watchOS system share sheet; it builds
-a temporary `.txt` export of these same typed entries on user request, with no
-automatic email/upload. Neither stored entries nor exports include credentials,
-account IDs, names, URLs, Health values, or raw localized/server errors. Stage
+The widget extension separately records up to 64 timestamp-only receipts in
+an atomic App Group file when `getTimeline`/`getSnapshot` reads its shared
+snapshot. Each receipt has the request time, local date and snapshot update
+time (or absence), never the values or owner; a receipt does not prove the face
+rendered it. The watch Events page can load these receipts on demand.
+**Share logs** uses the watchOS system share sheet and attaches a temporary
+plain-text `.txt` file with typed events plus widget receipts. `ShareLink`
+cannot pre-address Mail; nothing is emailed/uploaded automatically. Neither
+stored diagnostics nor exports include credentials, account IDs, names, URLs,
+Health values, or raw localized/server errors. Stage
 starts and terminal outcomes are timestamped at their operation boundaries;
 wall elapsed time includes watch sleep. A missing terminal stage cannot on its
 own distinguish suspension from a stalled query. HealthKit acknowledgement is
@@ -295,15 +301,21 @@ phone account hint and does nothing if blocked/signed out. The watch widget
 extension has no Keychain or HealthKit entitlement: it reads only the token-free
 today's aggregate snapshot written by the watch app into their shared App Group.
 The app verifies a local read-back after writing and records a failed write.
-It asks WidgetKit to reload only when the displayed same-day values/owner or
+It asks WidgetKit to reload only when displayed same-day values/owner or
 provisional status change or a snapshot is cleared; unchanged-value fresh reads
-still save a new `updatedAt` but don't spend a requested reload. The widget
+still save a new `updatedAt` but don't spend a requested reload. Bursty
+background requests are coalesced to at most one per 15 minutes by a
+watch-app-persisted gate; a suppressed latest-value request is retried on a
+later eligible wake/foreground return. Foreground changes and session clearing
+bypass that gate. Coalescing reduces app requests, not WidgetKit's power to
+defer/skip a refresh. The widget
 shows a Health estimate icon while awaiting backend sync, otherwise a clock and
 the relative age of its currently rendered snapshot, which can lag a fresh
 unchanged-value read until WidgetKit requests a new timeline. `getTimeline`
 reads the shared snapshot but never syncs HealthKit or calls the backend;
 scrolling the widget into view does not guarantee an app wake or widget reload.
-A local read-back still does not prove the extension read it or rendered a new timeline. The rectangular watch-face complication presents consumed,
+A local read-back still does not prove the extension read it; a provider
+receipt proves a timeline read but not a new watch-face render. The rectangular watch-face complication presents consumed,
 total burned, active/resting, and Net kcal; it never uploads data itself. Today's
 last-good snapshot survives session validation while the SDK restores the
 session; after a non-auth `/user` failure the watch remains in the signed-in

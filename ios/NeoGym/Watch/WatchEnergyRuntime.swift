@@ -26,6 +26,11 @@ final class WatchEnergyRuntime: ObservableObject {
     private let eventStore = WatchEventStore()
     private let pendingHealth = WatchPendingHealthSyncStore()
     private var refreshSchedule = WatchRefreshSchedule()
+    private let widgetReloadLastKey = "watchWidgetReloadLast.v1"
+    private let widgetReloadDeferredKey = "watchWidgetReloadDeferred.v1"
+    private var widgetReloadGate = WatchWidgetReloadGate(
+        lastRequestedAt: UserDefaults.standard.object(forKey: "watchWidgetReloadLast.v1") as? Date
+    )
     private var refreshTask: Task<Void, Never>?
     private var activeRefreshID: UUID?
     private var refreshStartedAt: Date?
@@ -59,7 +64,10 @@ final class WatchEnergyRuntime: ObservableObject {
                         errorSource: success ? nil : .backend, stage: .backendWrite,
                         backendOperation: .updateEnergy)
             if success {
-                Task { await self.refreshWhenEligible(trigger: .background, attemptID: UUID()) }
+                Task {
+                    await self.refreshWhenEligible(trigger: .background, attemptID: UUID())
+                    self.flushDeferredWidgetReload()
+                }
             } else {
                 self.scheduleRefresh(retry: true)
             }
@@ -122,7 +130,7 @@ final class WatchEnergyRuntime: ObservableObject {
                 observedUserID = nil
                 pendingHealth.clear()
                 store.clear()
-                requestComplicationReload()
+                requestComplicationReload(urgent: true)
             }
             return
         }
@@ -136,9 +144,10 @@ final class WatchEnergyRuntime: ObservableObject {
         let saved = store.load(for: date)
         if let saved, saved.userID != user.id {
             store.clear()
-            requestComplicationReload()
+            requestComplicationReload(urgent: true)
         }
         snapshot = saved.flatMap { $0.userID == user.id ? $0 : nil }
+        if snapshot != nil, runtimeState == .active { flushDeferredWidgetReload() }
         healthEnabled = UserDefaults.standard.string(forKey: authorizationKey) == user.id
         if healthEnabled { startObservers(for: user.id) }
         scheduleRefresh(pending: healthEnabled && pendingHealth.pending(for: user.id) != nil)
@@ -342,6 +351,9 @@ extension WatchEnergyRuntime {
         guard state != lastSceneState else { return }
         lastSceneState = state
         record(.appLifecycle, .entered, attemptID: activeRefreshID, runtimeState: state)
+        if state == .active, case .name = account.state, snapshot != nil {
+            flushDeferredWidgetReload()
+        }
     }
 
     func signOut() async {
@@ -351,7 +363,7 @@ extension WatchEnergyRuntime {
         pendingHealth.clear()
         store.clear()
         snapshot = nil
-        requestComplicationReload()
+        requestComplicationReload(urgent: true)
         await account.signOut()
         accountChanged(account.state)
     }
@@ -375,9 +387,11 @@ extension WatchEnergyRuntime {
         if healthEnabled, let ownerID = account.currentUser?.id,
            let imported = await saveLocalHealthEstimate(ownerID: ownerID, attemptID: attemptID),
            await enqueueBackgroundUpload(imported, ownerID: ownerID, attemptID: attemptID) {
+            flushDeferredWidgetReload()
             return
         }
         await refreshWhenEligible(trigger: .background, attemptID: attemptID)
+        flushDeferredWidgetReload()
     }
 
     private func refreshWhenEligible(trigger: WatchEventTrigger, attemptID: UUID) async {
@@ -478,9 +492,22 @@ extension WatchEnergyRuntime {
         events = []
     }
 
-    private func requestComplicationReload(attemptID: UUID? = nil) {
+    private func requestComplicationReload(attemptID: UUID? = nil, urgent: Bool = false) {
+        let now = Date()
+        guard widgetReloadGate.shouldRequest(at: now, foregroundOrUrgent: urgent || runtimeState == .active) else {
+            UserDefaults.standard.set(true, forKey: widgetReloadDeferredKey)
+            record(.complicationReload, .skipped, attemptID: attemptID, skipReason: .coalesced)
+            return
+        }
+        UserDefaults.standard.set(now, forKey: widgetReloadLastKey)
+        UserDefaults.standard.set(false, forKey: widgetReloadDeferredKey)
         record(.complicationReload, .requested, attemptID: attemptID)
         WidgetCenter.shared.reloadTimelines(ofKind: WatchEnergySnapshotStore.widgetKind)
+    }
+
+    private func flushDeferredWidgetReload() {
+        guard UserDefaults.standard.bool(forKey: widgetReloadDeferredKey) else { return }
+        requestComplicationReload()
     }
 
     private func startObservers(for ownerID: String) {

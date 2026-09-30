@@ -140,12 +140,17 @@ number or HTTP status when available); older `GraphQL transport · code 3`
 records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
 failures record their own safe cause; scene transitions record
 active/inactive/background but cannot prove uninterrupted background work.
-Older events retain numeric-only detail. In Events, tap **Share logs** to choose an
-app/destination in the watchOS share sheet for a plain-text `.txt` attachment.
-Available destinations depend on the watchOS
-share sheet and installed apps; nothing is sent automatically. Exports contain
-no account details, tokens, URLs, Health values or raw error messages; they
-contain only these diagnostic events.
+Older events retain numeric-only detail. Separately, the watch widget writes
+up to 64 timestamp-only provider receipts to an atomic App Group file when
+`getTimeline` or `getSnapshot` reads the shared snapshot. In Events, tap
+**Read widget receipts** to inspect the latest six; the `.txt` export includes
+all retained receipts and watch-app events. A receipt gives the widget request
+time and the snapshot's last-updated time (or absence), not confirmation that
+the watch face rendered it. In Events, **Share logs** exports the plain-text
+`NeoGym-Watch-Events.txt` attachment through the watchOS share sheet. Mail is
+a destination only if available; the recipient cannot be prefilled by
+`ShareLink` and nothing is sent automatically. Neither events nor receipts
+contain account details, tokens, URLs, Health values or raw error messages.
 “Accepted” means watchOS accepted a background request, not that it woke the
 app; “Requested” means WidgetKit was asked to reload, not that the watch face
 rendered new data. Snapshot-save failure is shown on the Energy page and logged
@@ -200,8 +205,13 @@ VoiceOver still identifies each metric. A small clock/relative age indicates
 when the currently rendered widget snapshot was fetched, or a Health icon
 indicates a provisional estimate awaiting server sync. The app saves the
 latest successful fetch timestamp even if values are unchanged, but requests
-a WidgetKit reload only for changed displayed values or cleared snapshots;
-the age may lag until WidgetKit's next timeline request. Scrolling into view
+a WidgetKit reload only for changed displayed values/provisional status or
+cleared snapshots. To avoid exhausting background reload opportunities during
+HealthKit callback bursts, background requests are limited to one per 15 minutes;
+a suppressed request is recorded as coalesced and retained for the next eligible
+wake or foreground return. Foreground updates and session clearing bypass the
+limit. Provider receipts prove a timeline was generated, not that WidgetKit
+rendered it. The age may lag until WidgetKit's next timeline request. Scrolling into view
 does not force an app sync. Neither Keychain nor HealthKit is available to the
 watch widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
@@ -230,8 +240,8 @@ background wakes and for snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
 attachment for matching same-run observer/refresh attempt IDs, callback-time
 acknowledgement, active/background state when the handler ran, typed stage
-starts/ends and wall durations, background-task expiry (if delivered), and
-backend stage/source/code.
+starts/ends and wall durations, background-task expiry (if delivered), backend
+stage/source/code, coalesced WidgetKit reloads, and widget provider receipts.
 Compare local workout time to export UTC (e.g. 06:19 UTC+2 = 04:19Z). No
 `Background wake` event is required for a HealthKit delivery. A missing
 acknowledgement log can mean watchOS suspended or terminated the app before it
@@ -240,8 +250,14 @@ the widget shows an advancing snapshot age but does not claim a new sync. Tap
 the widget to open NeoGym, and check that account revalidation is followed by a
 fresh Energy read. With unchanged energy/intake values and the same provisional status, expect a
 successful snapshot save but **no** WidgetKit reload request; after a value or
-provisional-status change, expect a reload request and verify the widget's
-actual display separately. On paired hardware verify a background observer's
+provisional-status change, expect a reload request or a coalesced background
+request and verify the widget's actual display separately. Leave NeoGym closed
+while the watch face stays stale, then open Events and export the receipts: a
+missing pre-open timeline points to deferred WidgetKit scheduling, a pre-open
+read of an old/missing snapshot points to shared-store visibility/date issues,
+and a pre-open read of the latest snapshot without a new face display points
+to rendering/timeline delivery. Even a receipt for the latest snapshot does not
+prove a new face render. On paired hardware verify a background observer's
 local Health estimate is saved before its URLSession upload completes, that
 manual rows are not replaced, and that a deferred/expired-token upload remains
 pending for the next eligible retry. A successful upload alone is not a

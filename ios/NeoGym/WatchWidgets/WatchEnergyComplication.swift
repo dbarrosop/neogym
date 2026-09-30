@@ -18,15 +18,28 @@ private struct EnergyProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (EnergyEntry) -> Void) {
-        completion(entry(at: .now))
+        let date = Date()
+        let current = entry(at: date)
+        recordProviderRead(.snapshot, entry: current)
+        completion(current)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyEntry>) -> Void) {
         let date = Date()
+        let current = entry(at: date)
+        recordProviderRead(.timeline, entry: current)
         let midnight = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: date))!
         // WidgetKit can defer reloads, so expire today's values with an empty entry at local midnight.
-        completion(Timeline(entries: [entry(at: date), EnergyEntry(date: midnight, snapshot: nil)],
+        completion(Timeline(entries: [current, EnergyEntry(date: midnight, snapshot: nil)],
                             policy: .after(date.addingTimeInterval(30 * 60))))
+    }
+
+    private func recordProviderRead(_ request: WatchWidgetProviderReceipt.Request, entry: EnergyEntry) {
+        _ = WatchWidgetProviderReceiptStore.shared.append(.init(
+            requestedAt: entry.date, request: request,
+            localDate: DateOnly.formatLocalISO(entry.date),
+            snapshotUpdatedAt: entry.snapshot?.updatedAt
+        ))
     }
 
     private func entry(at date: Date) -> EnergyEntry {

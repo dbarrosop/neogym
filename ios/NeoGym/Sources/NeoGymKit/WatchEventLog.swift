@@ -187,6 +187,7 @@ public enum WatchEventSkipReason: String, Codable, Sendable {
     case accountChanged
     case cancelled
     case staleRefresh
+    case coalesced
 
     public var title: String {
         switch self {
@@ -196,6 +197,7 @@ public enum WatchEventSkipReason: String, Codable, Sendable {
         case .accountChanged: "account changed"
         case .cancelled: "cancelled"
         case .staleRefresh: "stale in-flight refresh replaced"
+        case .coalesced: "background widget reload coalesced"
         }
     }
 }

@@ -196,11 +196,18 @@ attempt ID, but a transition does not prove continuous background execution.
 Older records still have only numeric codes. HealthKit code 3 is only
 labeled "invalid argument" when the original domain matches `HKErrorDomain`.
 An accepted schedule does not guarantee a wake; a reload request does not prove
-the complication updated.
-The Events-page `ShareLink` exports a temporary `.txt` attachment through the
-watchOS system share sheet only on user action (no automatic send). The
-host-tested exporter uses typed events only. Never log or export tokens, user
-identifiers, email/name, URLs, Health values, or raw localized/server error text.
+the complication updated. `WatchWidgetProviderReceiptStore` is a separate,
+widget-written, 64-item bounded atomic file in the watch App Group; it records
+only `getTimeline`/`getSnapshot` time, local date and the snapshot update time
+(or absence). The Events page reads it on demand. A provider receipt shows a
+request and App Group read, **not** an actual watch-face render; a missing
+receipt can also mean a diagnostic-file write failure. The Events-page
+`ShareLink` exports a temporary `.txt` attachment with events and these
+receipts through the watchOS system share sheet only on user action (no
+automatic send). `ShareLink` cannot prefill Mail's recipient; retain the .txt
+file attachment rather than switching to a `mailto:` body on watchOS. Never
+log or export tokens, user identifiers, email/name, URLs, Health values, or raw
+localized/server error text.
 A snapshot-save failure remains visible in the watch Energy page and does not
 request a reload. `WatchRefreshSchedule` coalesces duplicate hourly requests, prefers a
 best-effort 15-minute fallback for pending Health events without advancing
@@ -216,7 +223,11 @@ Health estimate; manual and legacy unknown-provenance rows remain server-only.
 The estimate retains server intake and is labeled pending on the watch and in
 the widget until a fresh backend reconciliation. It requests `reloadTimelines`
 only when displayed values, owner or pending status change, or after clearing
-on sign-out. A background upload may be deferred until its bearer expires; the
+on sign-out. `WatchWidgetReloadGate` allows at most one background app request
+per 15 minutes, persisting the time and deferred flag in watch-only defaults;
+a later eligible wake or foreground return retries a suppressed latest-value
+reload. Foreground value changes and clear/sign-out bypass the gate. This
+coalesces app requests, not WidgetKit scheduling itself. A background upload may be deferred until its bearer expires; the
 pending marker and preferred retry remain best-effort fallbacks. URLSession
 completion requests a fresh backend read, not proof of a WidgetKit render.
 The widget shows the age of the

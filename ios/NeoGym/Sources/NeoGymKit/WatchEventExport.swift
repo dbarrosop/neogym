@@ -1,9 +1,10 @@
 import Foundation
 
-/// Plain-text, bounded diagnostics for an explicit system share action. The
-/// source events contain only fixed categories, timestamps, and numeric codes.
+/// Plain-text, bounded diagnostics for an explicit system share action. Events
+/// and widget receipts contain no Health values, credentials or account IDs.
 public enum WatchEventExport {
-    public static func text(events: [WatchEvent], generatedAt: Date = Date()) -> String {
+    public static func text(events: [WatchEvent], widgetReceipts: [WatchWidgetProviderReceipt] = [],
+                            generatedAt: Date = Date()) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         formatter.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -22,6 +23,8 @@ public enum WatchEventExport {
                 + "so the two can appear in either order after suspension.",
             "A missing background expiry event does not prove work finished. "
                 + "App state is recorded only when the scene reports a transition.",
+            "Widget provider receipts show timeline generation, not a confirmed watch-face display; "
+                + "a coalesced reload may be retried on another eligible wake.",
             "Transport diagnostics contain only a fixed cause and URLSession code or HTTP status; "
                 + "legacy code 3 was a Swift enum index.",
             "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
@@ -36,18 +39,29 @@ public enum WatchEventExport {
                     + "\(event.outcome.title)\(trigger)\(details)"
             )
         }
+        lines.append("")
+        lines.append("Widget provider receipts: \(widgetReceipts.count) (newest first)")
+        if widgetReceipts.isEmpty { lines.append("No widget provider receipts recorded.") }
+        for receipt in widgetReceipts.sorted(by: { $0.requestedAt > $1.requestedAt }) {
+            let snapshot = receipt.snapshotUpdatedAt.map { formatter.string(from: $0) } ?? "none"
+            lines.append(
+                "\(formatter.string(from: receipt.requestedAt)) | Widget \(receipt.request.rawValue) "
+                    + "| local date \(receipt.localDate) | snapshot \(snapshot)"
+            )
+        }
         return lines.joined(separator: "\n") + "\n"
     }
 
     /// Overwrite a single temporary text file rather than accumulating exports.
     /// The system can copy it when preparing the chosen share destination.
     public static func write(
-        events: [WatchEvent],
+        events: [WatchEvent], widgetReceipts: [WatchWidgetProviderReceipt] = [],
         to directory: URL = FileManager.default.temporaryDirectory,
         generatedAt: Date = Date()
     ) throws -> URL {
         let url = directory.appendingPathComponent("NeoGym-Watch-Events.txt", isDirectory: false)
-        try text(events: events, generatedAt: generatedAt).write(to: url, atomically: true, encoding: .utf8)
+        try text(events: events, widgetReceipts: widgetReceipts, generatedAt: generatedAt)
+            .write(to: url, atomically: true, encoding: .utf8)
         return url
     }
 }

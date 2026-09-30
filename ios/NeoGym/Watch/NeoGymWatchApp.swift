@@ -19,6 +19,7 @@ private struct WatchHomeView: View {
     @StateObject private var signIn: SignInModel
     @State private var activity = WatchActivity()
     @State private var wasBackground = false
+    @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
 
     init(runtime: WatchEnergyRuntime) {
         self.runtime = runtime
@@ -270,7 +271,29 @@ private struct WatchHomeView: View {
                           preview: SharePreview("NeoGym Watch events")) {
                     Label("Share logs", systemImage: "square.and.arrow.up")
                 }
-                .accessibilityHint("Choose a destination in the system share sheet; nothing is sent automatically.")
+                .accessibilityHint(
+                    "Choose a destination in the system share sheet; nothing is sent automatically. "
+                        + "The logs are attached as a text file."
+                )
+                Button("Read widget receipts") {
+                    widgetReceipts = WatchWidgetProviderReceiptStore.shared.load()
+                }
+                .font(.caption2)
+                if !WatchWidgetProviderReceiptStore.shared.isAvailable {
+                    Text("Widget diagnostics container unavailable.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                } else if widgetReceipts.isEmpty {
+                    Text("No widget provider receipts recorded yet.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+                ForEach(Array(widgetReceipts.suffix(6).reversed())) { receipt in
+                    let source = receipt.snapshotUpdatedAt.map {
+                        "snapshot \($0.formatted(date: .omitted, time: .shortened))"
+                    } ?? "no snapshot"
+                    Text("Widget \(receipt.request.rawValue) · \(source) · "
+                         + receipt.requestedAt.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
                 if runtime.events.isEmpty {
                     Text("No events yet.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -298,6 +321,7 @@ private struct WatchHomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
         }
+        .onAppear { widgetReceipts = WatchWidgetProviderReceiptStore.shared.load() }
     }
 
     private func eventSymbol(_ outcome: WatchEventOutcome) -> String {
@@ -335,7 +359,9 @@ private struct WatchEventsFile: Transferable {
 
     static var transferRepresentation: some TransferRepresentation {
         FileRepresentation(exportedContentType: .plainText) { item in
-            SentTransferredFile(try WatchEventExport.write(events: item.events))
+            SentTransferredFile(try WatchEventExport.write(
+                events: item.events, widgetReceipts: WatchWidgetProviderReceiptStore.shared.load()
+            ))
         }
     }
 }
