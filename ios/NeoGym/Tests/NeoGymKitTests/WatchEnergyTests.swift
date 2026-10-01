@@ -10,7 +10,7 @@ private struct WatchEnergyFakeImporter: DailyEnergyHealthImporting {
 
 private struct FailingWatchEnergyImporter: DailyEnergyHealthImporting {
     func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {
-        throw NSError(domain: "HKErrorDomain", code: 3)
+        throw NSError(domain: "com.apple.healthkit", code: 3)
     }
 }
 
@@ -114,8 +114,10 @@ final class WatchEnergyTests: XCTestCase {
             XCTFail("Expected HealthKit failure")
         } catch let failure as WatchHealthSyncFailure {
             XCTAssertEqual(failure.stage, .healthRead)
-            XCTAssertEqual(failure.underlyingDomain, "HKErrorDomain")
+            XCTAssertEqual(failure.underlyingDomain, "com.apple.healthkit")
             XCTAssertEqual(failure.underlyingCode, 3)
+            XCTAssertEqual(failure.classification.source, .healthKit)
+            XCTAssertEqual(failure.classification.code, 3)
         } catch { XCTFail("Unexpected error: \(error)") }
 
         let readGraphQL = FakeGraphQLService(replies: [.failure(URLError(.notConnectedToInternet))])

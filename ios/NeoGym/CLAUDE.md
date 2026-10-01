@@ -188,13 +188,22 @@ source (HealthKit, network, backend, GraphQL transport, other). New GraphQL
 transport events carry only an allowlisted URLSession numeric error, HTTP
 status, fixed service/response category or unknown; the pinned SDK's
 `FetchError.transport` includes a trusted `URLError <code>:` prefix, never
-persist its description. A Swift NSError enum case index such as legacy
-GraphQL transport `code 3` is not a HealthKit code, URL error, or HTTP status.
-Auth `/user` failures likewise emit only safe fixed cause/status events. The
+persist its description. SDK session-refresh/Fetch failures outside GraphQL
+are labeled Network with safe transport provenance, while GraphQL backend
+rejections and unknown failures have no numeric code. Swift NSError enum case
+indexes (including legacy GraphQL transport `code 3`) are not HealthKit codes,
+URL errors, or HTTP statuses. Both `WatchEnergyRuntime.recordFailure` and
+`WatchHealthEnergy` observer-registration failures use the package's safe
+classification; host package tests do not compile the latter watch caller, so
+also build `NeoGymWatch` after changing this boundary. Auth `/user` failures
+likewise emit only safe fixed cause/status events. The
 watch scene logs active/inactive/background transitions with an in-flight
 attempt ID, but a transition does not prove continuous background execution.
 Older records still have only numeric codes. HealthKit code 3 is only
 labeled "invalid argument" when the original domain matches `HKErrorDomain`.
+HealthKit's `HKErrorDomain` value is `com.apple.healthkit`, not the literal
+`HKErrorDomain`. NeoGymKit cannot import HealthKit; compare against that value
+and use it in host-test fixtures so tests match device errors.
 An accepted schedule does not guarantee a wake; a reload request does not prove
 the complication updated. `WatchWidgetProviderReceiptStore` is a separate,
 widget-written, 64-item bounded atomic file in the watch App Group; it records

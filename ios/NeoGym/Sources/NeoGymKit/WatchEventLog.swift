@@ -285,10 +285,52 @@ public struct WatchEvent: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+/// Only trusted OS codes and allowlisted SDK transport diagnostics may reach events.
+/// Swift Error-to-NSError bridging otherwise exposes enum case indexes, not codes.
+public struct WatchEventFailureClassification: Equatable, Sendable {
+    // HealthKit is unavailable to the host-testable package. This is the value
+    // of HealthKit's HKErrorDomain constant, not its Swift symbol name.
+    private static let healthKitErrorDomain = "com.apple.healthkit"
+
+    public let source: WatchEventErrorSource
+    public let code: Int?
+    public let transportKind: WatchTransportKind?
+
+    public init(error: any Error, stage: WatchEventStage) {
+        if let wrapped = error as? WatchHealthSyncFailure {
+            self = wrapped.classification
+            return
+        }
+        let nsError = error as NSError
+        if nsError.domain == Self.healthKitErrorDomain {
+            self.init(source: .healthKit, code: nsError.code)
+        } else if nsError.domain == NSURLErrorDomain {
+            self.init(source: .network, code: nsError.code)
+        } else if let graphQL = error as? GraphQLDomainError {
+            let diagnostic = graphQL.transportDiagnostic
+            self.init(source: .graphQL(graphQL), code: diagnostic?.code, transportKind: diagnostic?.kind)
+        } else {
+            let diagnostic = WatchTransportDiagnostic.classify(error)
+            if diagnostic.kind != .unknown {
+                self.init(source: .network, code: diagnostic.code, transportKind: diagnostic.kind)
+            } else {
+                self.init(source: stage == .backendRead || stage == .backendWrite ? .backend : .other)
+            }
+        }
+    }
+
+    private init(source: WatchEventErrorSource, code: Int? = nil, transportKind: WatchTransportKind? = nil) {
+        self.source = source
+        self.code = code
+        self.transportKind = transportKind
+    }
+}
+
 /// Carries a sync failure's precise phase across the host-testable repository
 /// boundary. The original description is only used for the ephemeral watch UI,
 /// not stored in WatchEventStore or included in a shared log.
 public struct WatchHealthSyncFailure: LocalizedError, Sendable {
+    public let classification: WatchEventFailureClassification
     public let stage: WatchEventStage
     public let underlyingDomain: String
     public let underlyingCode: Int
@@ -303,8 +345,12 @@ public struct WatchHealthSyncFailure: LocalizedError, Sendable {
         self.stage = stage
         underlyingDomain = error.domain
         underlyingCode = error.code
-        diagnosticSource = (cause as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
-        transportDiagnostic = (cause as? GraphQLDomainError)?.transportDiagnostic
+        let classified = WatchEventFailureClassification(error: cause, stage: stage)
+        classification = classified
+        diagnosticSource = classified.source
+        transportDiagnostic = classified.transportKind.map {
+            WatchTransportDiagnostic(kind: $0, code: classified.code)
+        }
         self.backendOperation = backendOperation
         reason = error.localizedDescription
     }

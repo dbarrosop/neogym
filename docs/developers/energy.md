@@ -179,10 +179,12 @@ HealthKit, network, backend, GraphQL transport, other. New transport events
 preserve only a safe provenance: URLSession numeric error, HTTP status, fixed
 service/response category, or unknown. `FetchError.transport` can expose an
 SDK-generated `URLError <code>:` prefix; only the numeric prefix is retained,
-never the raw description. The earlier GraphQL transport `code 3` was an
-NSError bridge of a Swift enum case, not a HealthKit or HTTP code. Previously
-saved numeric-only entries still display. Code 3 means invalid HealthKit argument **only** when the
-original domain is `HKErrorDomain`. The
+never the raw description. SDK session-refresh/Fetch failures outside GraphQL
+show Network with safe transport provenance; GraphQL backend rejections and
+unknown failures do not carry numeric codes. The earlier GraphQL transport
+`code 3` was an NSError bridge of a Swift enum case, not a HealthKit or HTTP
+code. Previously saved numeric-only entries still display. Code 3 means
+invalid HealthKit argument **only** when the original domain is `HKErrorDomain`.
 The widget extension separately records up to 64 timestamp-only receipts in
 an atomic App Group file when `getTimeline`/`getSnapshot` reads its shared
 snapshot. Each receipt has the request time, local date and snapshot update

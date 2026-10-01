@@ -73,8 +73,9 @@ final class WatchHealthEnergy: WatchEnergyHealthStageReporting, @unchecked Senda
     }
 
     private static func failureDetails(_ error: (any Error)?, stage: WatchEventStage) -> (Int?, WatchEventErrorSource) {
-        guard let error = error as NSError? else { return (nil, .other) }
-        return (error.code, .classify(domain: error.domain, stage: stage))
+        guard let error else { return (nil, .other) }
+        let classification = WatchEventFailureClassification(error: error, stage: stage)
+        return (classification.code, classification.source)
     }
 
     func dailyEnergyEntries() async throws -> [HealthDailyEnergy] {

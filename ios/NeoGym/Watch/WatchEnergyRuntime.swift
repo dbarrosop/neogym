@@ -476,17 +476,10 @@ extension WatchEnergyRuntime {
                                durationSeconds: Int? = nil) {
         let wrapped = error as? WatchHealthSyncFailure
         let actualStage = wrapped?.stage ?? fallback
-        let domain = wrapped?.underlyingDomain ?? (error as NSError).domain
-        let code = wrapped?.underlyingCode ?? (error as NSError).code
-        let graphQLSource = wrapped?.diagnosticSource
-            ?? (error as? GraphQLDomainError).map(WatchEventErrorSource.graphQL)
-        let source = graphQLSource ?? WatchEventErrorSource.classify(domain: domain, stage: actualStage)
-        let transport = wrapped?.transportDiagnostic ?? (error as? GraphQLDomainError)?.transportDiagnostic
-        // GraphQLDomainError's NSError code is its Swift enum case index, not a
-        // network error or HTTP status. Unknown transports have no safe code.
-        let safeCode = source == .transport ? transport?.code : code
-        record(action, .failed, trigger: trigger, errorCode: safeCode, errorSource: source,
-               transportKind: transport?.kind, stage: actualStage,
+        let classification = WatchEventFailureClassification(error: error, stage: actualStage)
+        record(action, .failed, trigger: trigger, errorCode: classification.code,
+               errorSource: classification.source, transportKind: classification.transportKind,
+               stage: actualStage,
                attemptID: attemptID, runtimeState: runtimeState,
                backendOperation: wrapped?.backendOperation ?? backendOperation,
                durationSeconds: durationSeconds)
@@ -659,17 +652,6 @@ extension WatchEnergyRuntime {
                             stage: code == nil ? nil : .scheduling)
             }
         }
-    }
-}
-
-// Keep HealthKit and network classification consistent for asynchronous observer
-// callbacks and regular refresh failures without carrying raw errors into events.
-extension WatchEventErrorSource {
-    static func classify(domain: String, stage: WatchEventStage) -> Self {
-        if domain == HKErrorDomain { return .healthKit }
-        if domain == NSURLErrorDomain { return .network }
-        if stage == .backendRead || stage == .backendWrite { return .backend }
-        return .other
     }
 }
 

@@ -24,15 +24,18 @@ final class WatchEventLogTests: XCTestCase {
     }
 
     func testDetailedHealthKitFailureExportsAsAFileWithoutRawErrorText() throws {
-        let raw = NSError(domain: "HKErrorDomain", code: 3, userInfo: [
+        let raw = NSError(domain: "com.apple.healthkit", code: 3, userInfo: [
             NSLocalizedDescriptionKey: "token=secret user@example.test URL=https://private.example.test"
         ])
         let failure = WatchHealthSyncFailure(stage: .activeHealthQuery, cause: raw)
         XCTAssertEqual(failure.underlyingCode, 3)
-        XCTAssertEqual(failure.underlyingDomain, "HKErrorDomain")
+        XCTAssertEqual(failure.underlyingDomain, "com.apple.healthkit")
+        let classified = WatchEventFailureClassification(error: failure, stage: failure.stage)
+        XCTAssertEqual(classified.source, .healthKit)
+        XCTAssertEqual(classified.code, 3)
         let event = WatchEvent(action: .healthSync, outcome: .failed,
-                               trigger: .healthObserver, errorCode: failure.underlyingCode,
-                               errorSource: .healthKit, stage: failure.stage,
+                               trigger: .healthObserver, errorCode: classified.code,
+                               errorSource: classified.source, stage: failure.stage,
                                occurredAt: Date(timeIntervalSince1970: 0))
         let suite = "WatchEventLogTests.\(UUID().uuidString)"
         let store = WatchEventStore(suite: suite)
@@ -56,6 +59,66 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertFalse(contents.contains("secret"))
         XCTAssertFalse(contents.contains("user@example.test"))
         XCTAssertFalse(contents.contains("https://private.example.test"))
+    }
+
+    func testFailureClassificationPreservesOnlyTrustedCodesAndProvenance() {
+        let graphQL = GraphQLDomainError.graphQLErrors([
+            GraphQLErrorDetail(message: "private server detail")
+        ])
+        for error: any Error in [graphQL, GraphQLDomainError.missingData(operationName: "private"),
+                                 GraphQLDomainError.decoding("private")] {
+            for candidate in [error, WatchHealthSyncFailure(stage: .backendRead, cause: error)] {
+                let result = WatchEventFailureClassification(error: candidate, stage: .backendRead)
+                XCTAssertEqual(result.source, .backend)
+                XCTAssertNil(result.code)
+                XCTAssertNil(result.transportKind)
+            }
+        }
+
+        let offline = FetchError.transport("URLError -1009: private details")
+        let response = NhostHTTPError(status: 503, headers: [:], body: nil,
+                                      rawBody: Data(), messages: ["private details"])
+        for (error, kind, code): (any Error, WatchTransportKind, Int?) in [
+            (offline, .urlSession, -1009),
+            (FetchError.http(response), .http, 503),
+            (SessionRefreshError.persistenceAfterRotation, .sessionRefresh, nil)
+        ] {
+            for candidate in [error, WatchHealthSyncFailure(stage: .backendWrite, cause: error)] {
+                let result = WatchEventFailureClassification(error: candidate, stage: .backendWrite)
+                XCTAssertEqual(result.source, .network)
+                XCTAssertEqual(result.code, code)
+                XCTAssertEqual(result.transportKind, kind)
+                let event = WatchEvent(action: .healthSync, outcome: .failed, errorCode: result.code,
+                                       errorSource: result.source, transportKind: result.transportKind,
+                                       stage: .backendWrite)
+                XCTAssertEqual(event.failureDetails,
+                               "Backend write · Network · \(kind.title)"
+                                   + (code.map { " · code \($0)" } ?? ""))
+            }
+        }
+        let unknown = WatchEventFailureClassification(
+            error: FetchError.transport("private details"), stage: .backendWrite
+        )
+        XCTAssertEqual(unknown.source, .backend)
+        XCTAssertNil(unknown.code)
+
+        let mapped = GraphQLDomainError.map(offline)
+        let graphQLTransport = WatchEventFailureClassification(error: mapped, stage: .backendRead)
+        XCTAssertEqual(graphQLTransport.source, .transport)
+        XCTAssertEqual(graphQLTransport.transportKind, .urlSession)
+        XCTAssertEqual(graphQLTransport.code, -1009)
+        let health = WatchEventFailureClassification(
+            error: NSError(domain: "com.apple.healthkit", code: 3), stage: .healthRead
+        )
+        XCTAssertEqual(health.source, .healthKit)
+        XCTAssertEqual(health.code, 3)
+        let event = WatchEvent(action: .healthSync, outcome: .failed, errorCode: health.code,
+                               errorSource: health.source, stage: .healthRead)
+        XCTAssertTrue(event.failureDetails?.contains("Invalid HealthKit argument") == true)
+        let url = WatchEventFailureClassification(error: URLError(.notConnectedToInternet),
+                                                   stage: .backendRead)
+        XCTAssertEqual(url.source, .network)
+        XCTAssertEqual(url.code, -1009)
     }
 
     func testHealthObserverAndDeliveryFailuresExportOnlyTypedDetails() {
