@@ -51,6 +51,54 @@ describe("server-calculated muscle sets", () => {
     expect(result.data?.mixed[0].primaryMuscleGroup).toBe("shoulders");
   });
 
+  test("matching public movement variants credit the same delt head", async () => {
+    if (!reachable) return;
+    const primary = [
+      ["Upright_Barbell_Row", "side_delts"],
+      ["Dumbbell_Raise", "side_delts"],
+      ["Standing_Low-Pulley_Deltoid_Raise", "side_delts"],
+      ["Machine_Shoulder_Military_Press", "front_delts"],
+      ["Kettlebell_Seated_Press", "front_delts"],
+      ["Cable_Rope_Rear-Delt_Rows", "rear_delts"],
+    ] as const;
+    const secondary = [
+      ["Incline_Dumbbell_Press", "front_delts"],
+      ["Incline_Dumbbell_Bench_With_Palms_Facing_In", "front_delts"],
+      ["Close-Grip_Dumbbell_Press", "front_delts"],
+      ["Close-Grip_EZ-Bar_Press", "front_delts"],
+      ["Decline_Smith_Press", "front_delts"],
+      ["Smith_Machine_Decline_Press", "front_delts"],
+      ["Bent_Over_Barbell_Row", "rear_delts"],
+      ["Bent_Over_Two-Dumbbell_Row", "rear_delts"],
+      ["One-Arm_Dumbbell_Row", "rear_delts"],
+      ["Dumbbell_Incline_Row", "rear_delts"],
+    ] as const;
+    const slugs = [...primary, ...secondary].map(([slug]) => slug);
+    const result = await gql(`query($slugs: [String!]!) {
+      exercises(where: {slug: {_in: $slugs}}) {
+        slug primaryMuscleGroup secondaryMuscleGroups { muscleGroup }
+      }
+    }`, { slugs }, USER);
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.exercises).toHaveLength(slugs.length);
+    type MappedExercise = {
+      slug: string;
+      primaryMuscleGroup: string;
+      secondaryMuscleGroups: Array<{ muscleGroup: string }>;
+    };
+    const exercises = new Map<string, MappedExercise>(result.data!.exercises.map(
+      (exercise: MappedExercise) => [exercise.slug, exercise],
+    ));
+    for (const [slug, target] of primary) {
+      expect(exercises.get(slug)?.primaryMuscleGroup).toBe(target);
+    }
+    for (const [slug, target] of secondary) {
+      const muscles = exercises.get(slug)?.secondaryMuscleGroups.map((row: { muscleGroup: string }) => row.muscleGroup);
+      expect(muscles).toContain(target);
+      expect(muscles).not.toContain("shoulders");
+    }
+  });
+
   test("counts direct once and secondary half, with a seven-local-day window and user isolation", async () => {
     if (!reachable) return;
     const found = await gql(`query {
