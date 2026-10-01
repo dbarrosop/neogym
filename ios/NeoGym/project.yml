@@ -60,13 +60,11 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: >-
-          NeoGym reads workouts, weight, body-fat percentage, active energy,
-          and resting energy from Apple Health to keep private workout imports
-          and body and energy logs up to date.
+          NeoGym reads workouts, weight, and body-fat percentage from Apple
+          Health to keep private workout imports and body logs up to date.
         NSHealthUpdateUsageDescription: >-
           NeoGym does not write to Apple Health. It only reads your workouts,
-          weight, body-fat percentage, active energy, and resting energy to
-          update your NeoGym records.
+          weight, and body-fat percentage to update your NeoGym records.
         NeoGymSharedKeychainAccessGroup: >-
           $(AppIdentifierPrefix)io.nhost.neogym.shared
     entitlements:
@@ -106,6 +104,15 @@ targets:
     dependencies:
       - package: NeoGymKit
         product: NeoGymKit
+      - target: NeoGymWatchWidgets
+        embed: true
+    entitlements:
+      path: Watch/NeoGymWatch.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+        com.apple.developer.healthkit.background-delivery: true
+        com.apple.security.application-groups:
+          - group.io.nhost.dbarroso.neogym
     info:
       path: Watch/Info.plist
       properties:
@@ -115,12 +122,47 @@ targets:
         WKApplication: true
         WKCompanionAppBundleIdentifier: io.nhost.dbarroso.neogym
         WKRunsIndependentlyOfCompanionApp: false
+        NSHealthShareUsageDescription: >-
+          NeoGym reads active and resting energy from Apple Health on your watch
+          to sync your daily calories burned to your private NeoGym account.
+        NSHealthUpdateUsageDescription: >-
+          NeoGym does not write to Apple Health. It only reads active and
+          resting energy on your watch to update your private NeoGym energy log.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp
         PRODUCT_NAME: NeoGymWatch
         INFOPLIST_FILE: Watch/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+  NeoGymWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: WatchWidgets
+    dependencies:
+      - package: NeoGymKit
+        product: NeoGymKit
+    info:
+      path: WatchWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: NeoGym Energy
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: WatchWidgets/NeoGymWatchWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.io.nhost.dbarroso.neogym
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp.widgets
+        PRODUCT_NAME: NeoGymWatchWidgets
+        INFOPLIST_FILE: WatchWidgets/Info.plist
+        APPLICATION_EXTENSION_API_ONLY: true
         CODE_SIGN_STYLE: Automatic
   NeoGymWidgets:
     type: app-extension

@@ -168,6 +168,58 @@ async function createDailyEnergy(
 }
 
 describe("daily energy table", () => {
+	test("watch batch import inserts missing dates, refreshes imported rows, never edits manual rows", async () => {
+		if (!hasuraReachable) return;
+		const importedDate = runDate(300);
+		const manualDate = runDate(301);
+		const newDate = runDate(302);
+		const imported = await createDailyEnergy(TEST_USER_ID, importedDate, {
+			activeKcal: "20", notes: "Imported from Apple Health",
+		});
+		const manual = await createDailyEnergy(TEST_USER_ID, manualDate, {
+			activeKcal: "50", notes: "Manual entry",
+		});
+		const mutation = `mutation ImportWatchEnergy($objects: [dailyEnergy_insert_input!]!) {
+			insertDailyEnergyEntries(objects: $objects, on_conflict: {
+				constraint: daily_energy_user_date_key,
+				update_columns: [activeKcal, restingKcal],
+				where: { notes: { _eq: "Imported from Apple Health" } }
+			}) { affectedRows: affected_rows }
+		}`;
+		const objects = [
+			{ energyOn: importedDate, activeKcal: "110", restingKcal: null, notes: "Imported from Apple Health" },
+			{ energyOn: manualDate, activeKcal: "999", restingKcal: null, notes: "Imported from Apple Health" },
+			{ energyOn: newDate, activeKcal: null, restingKcal: "1300", notes: "Imported from Apple Health" },
+		];
+		const upsert = await gqlAsUser<{
+			insertDailyEnergyEntries: { affectedRows: number };
+		}>(mutation, { objects }, TEST_USER_ID);
+		expect(upsert.errors).toBeUndefined();
+		expect(upsert.data?.insertDailyEnergyEntries.affectedRows).toBe(2);
+		const read = await gqlAsUser<{
+			dailyEnergyEntries: Array<{
+				id: string; energyOn: string; activeKcal: string | null;
+				restingKcal: string | null; notes: string | null;
+			}>;
+		}>(`query ReadWatchImport($dates: [date!]!) {
+			dailyEnergyEntries(where: { energyOn: { _in: $dates } }) {
+				id energyOn activeKcal restingKcal notes
+			}
+		}`, { dates: [importedDate, manualDate, newDate] }, TEST_USER_ID);
+		expect(read.errors).toBeUndefined();
+		const rows = new Map(read.data?.dailyEnergyEntries.map((row) => [row.energyOn, row]));
+		expect(Number(rows.get(importedDate)?.activeKcal)).toBe(110);
+		expect(rows.get(importedDate)?.id).toBe(imported.id);
+		expect(Number(rows.get(manualDate)?.activeKcal)).toBe(50);
+		expect(rows.get(manualDate)?.id).toBe(manual.id);
+		expect(Number(rows.get(newDate)?.restingKcal)).toBe(1300);
+		createdDailyEnergyIds.add(rows.get(newDate)!.id);
+		const repeat = await gqlAsUser<{ insertDailyEnergyEntries: { affectedRows: number } }>(
+			mutation, { objects }, TEST_USER_ID,
+		);
+		expect(repeat.errors).toBeUndefined();
+		expect(repeat.data?.insertDailyEnergyEntries.affectedRows).toBe(2);
+	});
 	test("Hasura reachable (skips suite otherwise)", () => {
 		if (!hasuraReachable)
 			console.warn("local Hasura not reachable — skipping daily energy tests");

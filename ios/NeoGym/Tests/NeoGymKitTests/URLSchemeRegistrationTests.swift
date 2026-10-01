@@ -70,6 +70,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
         XCTAssertEqual(widgetInfo["CFBundleDisplayName"] as? String, "NeoGym Widgets")
         XCTAssertFalse((appInfo["NSHealthShareUsageDescription"] as? String ?? "").isEmpty)
         XCTAssertTrue((appInfo["NSHealthUpdateUsageDescription"] as? String ?? "").contains("does not write"))
+        XCTAssertTrue((watchInfo["NSHealthShareUsageDescription"] as? String ?? "").contains("active and resting"))
+        XCTAssertTrue((watchInfo["NSHealthUpdateUsageDescription"] as? String ?? "").contains("does not write"))
         XCTAssertEqual(appInfo["ITSAppUsesNonExemptEncryption"] as? Bool, false)
 
         let spec = try String(
@@ -85,7 +87,8 @@ final class URLSchemeRegistrationTests: XCTestCase {
         let appInfo = try plist(at: "App/Info.plist")
         let widgetInfo = try plist(at: "Widgets/Info.plist")
         let watchInfo = try plist(at: "Watch/Info.plist")
-        for info in [appInfo, widgetInfo, watchInfo] {
+        let watchWidgetInfo = try plist(at: "WatchWidgets/Info.plist")
+        for info in [appInfo, widgetInfo, watchInfo, watchWidgetInfo] {
             XCTAssertEqual(info["CFBundleVersion"] as? String, "$(CURRENT_PROJECT_VERSION)")
             XCTAssertEqual(info["CFBundleShortVersionString"] as? String, "$(MARKETING_VERSION)")
         }
@@ -96,11 +99,11 @@ final class URLSchemeRegistrationTests: XCTestCase {
         )
         XCTAssertEqual(
             spec.components(separatedBy: "CFBundleVersion: \"$(CURRENT_PROJECT_VERSION)\"").count - 1,
-            3
+            4
         )
         XCTAssertEqual(
             spec.components(separatedBy: "CFBundleShortVersionString: \"$(MARKETING_VERSION)\"").count - 1,
-            3
+            4
         )
     }
 
@@ -147,34 +150,47 @@ final class URLSchemeRegistrationTests: XCTestCase {
         )
         XCTAssertEqual(
             projectSpec.components(separatedBy: "group.io.nhost.dbarroso.neogym").count - 1,
-            2
+            4
         )
     }
 
-    func testWatchIsPrivateCompanionWithNoPhoneCapabilitiesOrSources() throws {
+    func testWatchHasOnlyOwnHealthAndSnapshotCapabilities() throws {
         let watch = try plist(at: "Watch/Info.plist")
         XCTAssertEqual(watch["WKApplication"] as? Bool, true)
         XCTAssertEqual(watch["WKCompanionAppBundleIdentifier"] as? String, "io.nhost.dbarroso.neogym")
         XCTAssertEqual(watch["WKRunsIndependentlyOfCompanionApp"] as? Bool, false)
         XCTAssertNil(watch["NeoGymSharedKeychainAccessGroup"])
-        XCTAssertNil(watch["NSHealthShareUsageDescription"])
-        XCTAssertFalse(FileManager.default.fileExists(atPath:
-            packageRoot.appendingPathComponent("Watch/NeoGymWatch.entitlements").path))
+        XCTAssertNotNil(watch["NSHealthShareUsageDescription"])
+        XCTAssertNotNil(watch["NSHealthUpdateUsageDescription"])
+        let entitlements = try plist(at: "Watch/NeoGymWatch.entitlements")
+        XCTAssertEqual(entitlements["com.apple.developer.healthkit"] as? Bool, true)
+        XCTAssertEqual(entitlements["com.apple.developer.healthkit.background-delivery"] as? Bool, true)
+        XCTAssertEqual(entitlements["com.apple.security.application-groups"] as? [String],
+                       [NhostSessionConfig.appGroupIdentifier])
+        XCTAssertNil(entitlements["keychain-access-groups"])
 
         let spec = try String(contentsOf: packageRoot.appendingPathComponent("project.yml"), encoding: .utf8)
-        let watchTarget = try XCTUnwrap(spec.components(separatedBy: "  NeoGymWatch:\n    type: application").dropFirst().first?.components(separatedBy: "  NeoGymWidgets:\n").first)
+        let watchTarget = try XCTUnwrap(spec.components(separatedBy: "  NeoGymWatch:\n    type: application").dropFirst().first?.components(separatedBy: "  NeoGymWatchWidgets:\n").first)
         XCTAssertTrue(watchTarget.contains("platform: watchOS\n    deploymentTarget: \"27.0\""))
         XCTAssertTrue(watchTarget.contains("PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.watchkitapp"))
         XCTAssertTrue(watchTarget.contains("ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon"))
+        XCTAssertTrue(watchTarget.contains("NSHealthShareUsageDescription: >-"))
+        XCTAssertTrue(watchTarget.contains("NSHealthUpdateUsageDescription: >-"))
         XCTAssertTrue(watchTarget.contains("- path: Watch\n        excludes:\n          - Info.plist"))
         XCTAssertFalse(watchTarget.contains("- Assets.xcassets"), "The watch asset catalog must be included in sources")
         XCTAssertFalse(watchTarget.contains("    resources:"), "XcodeGen ignores target-level resources")
         let icon = packageRoot.appendingPathComponent("Watch/Assets.xcassets/AppIcon.appiconset/Contents.json")
         XCTAssertTrue(FileManager.default.fileExists(atPath: icon.path))
-        for forbidden in ["path: App", "path: Shared", "entitlements:", "NeoGymSharedKeychainAccessGroup", "com.apple.developer.healthkit", "application-groups", "keychain-access-groups"] {
+        for forbidden in ["path: App", "path: Shared", "NeoGymSharedKeychainAccessGroup", "keychain-access-groups"] {
             XCTAssertFalse(watchTarget.contains(forbidden), "Watch target contains \(forbidden)")
         }
         XCTAssertTrue(spec.contains("- target: NeoGymWatch\n        embed: true"))
+        XCTAssertTrue(watchTarget.contains("- target: NeoGymWatchWidgets\n        embed: true"))
+        let watchWidgets = try plist(at: "WatchWidgets/NeoGymWatchWidgets.entitlements")
+        XCTAssertEqual(watchWidgets["com.apple.security.application-groups"] as? [String],
+                       [NhostSessionConfig.appGroupIdentifier])
+        XCTAssertNil(watchWidgets["com.apple.developer.healthkit"])
+        XCTAssertNil(watchWidgets["keychain-access-groups"])
         XCTAssertTrue(spec.contains("DEVELOPMENT_TEAM: C7HCKFA2LG"))
         let uploadScript = try String(contentsOf: packageRoot.appendingPathComponent("Scripts/deploy-testflight.sh"), encoding: .utf8)
         let archiveScript = try String(contentsOf: packageRoot.appendingPathComponent("Scripts/archive-release.sh"), encoding: .utf8)

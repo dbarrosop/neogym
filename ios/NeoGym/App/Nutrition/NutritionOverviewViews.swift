@@ -6,16 +6,15 @@ struct NutritionOverviewView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let bodyRepository: any BodyMeasurementsRepositoryProtocol
     let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
-    let energyRepository: any DailyEnergyRepositoryProtocol
-    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
 
     @StateObject private var viewModel: NutritionDaysListViewModel
     @StateObject private var bodyViewModel: BodyMeasurementsListViewModel
     @StateObject private var bodyChartViewModel: BodyMeasurementsChartViewModel
     @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
-    @StateObject private var energySyncViewModel: DailyEnergyListViewModel
     @State private var isRefreshingOverview = false
+    @State private var isLoadingPipeline = false
+    @State private var needsRevalidationAfterBodySync = false
     @State private var hasLoadedOverview = false
     @State private var hasRequestedCharts = false
     @State private var caloriesSeries: [TimeSeriesChartSeries] = []
@@ -28,27 +27,20 @@ struct NutritionOverviewView: View {
         repository: any NutritionFoodMealRepositoryProtocol,
         bodyRepository: any BodyMeasurementsRepositoryProtocol,
         bodyHealthImporter: (any BodyMeasurementsHealthImporting)?,
-        energyRepository: any DailyEnergyRepositoryProtocol,
-        energyHealthImporter: (any DailyEnergyHealthImporting)?,
         currentUserId: String?
     ) {
         self.repository = repository
         self.bodyRepository = bodyRepository
         self.bodyHealthImporter = bodyHealthImporter
-        self.energyRepository = energyRepository
-        self.energyHealthImporter = energyHealthImporter
         self.currentUserId = currentUserId
         _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
         _calorieViewModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
         _bodyViewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: bodyRepository,
-            healthImporter: bodyHealthImporter
+            healthImporter: bodyHealthImporter,
+            userId: currentUserId
         ))
         _bodyChartViewModel = StateObject(wrappedValue: BodyMeasurementsChartViewModel(repository: bodyRepository))
-        _energySyncViewModel = StateObject(wrappedValue: DailyEnergyListViewModel(
-            repository: energyRepository,
-            healthImporter: energyHealthImporter
-        ))
     }
 
     var body: some View {
@@ -178,9 +170,21 @@ struct NutritionOverviewView: View {
     }
 
     private func loadOverview() async {
-        guard !isRefreshingOverview else { return }
+        guard !isLoadingPipeline else {
+            // Initial reads are already in flight; a request after they finish
+            // must wait for the Body sync and then fetch fresh backend data.
+            if !isRefreshingOverview {
+                needsRevalidationAfterBodySync = true
+                isRefreshingOverview = true
+            }
+            return
+        }
+        isLoadingPipeline = true
         isRefreshingOverview = true
-        defer { isRefreshingOverview = false }
+        defer {
+            isRefreshingOverview = false
+            isLoadingPipeline = false
+        }
 
         async let initialOverviewLoad: Void = viewModel.load()
         async let initialCalorieLoad: Void = calorieViewModel.load(
@@ -191,21 +195,27 @@ struct NutritionOverviewView: View {
             range: bodyRange,
             cacheCandidates: ChartHistoryRange.recentCacheCandidates(14)
         )
-        async let bodySync: Void = bodyViewModel.syncHealthMeasurementsOnly()
-        async let energyLoad: Void = energySyncViewModel.load(shouldSyncHealthEnergy: true)
+        async let bodySync: Bool = bodyViewModel.syncHealthMeasurementsOnly()
         await initialOverviewLoad
         await initialCalorieLoad
         await initialBodyChartLoad
-        await bodySync
-        await energyLoad
-        // The charts are interactive now; allow range changes during post-sync revalidation.
+        // Keep the dashboard usable while a first-time historical HealthKit
+        // scan finishes; range changes can load as soon as the first charts do.
         hasRequestedCharts = true
-        async let finalOverviewLoad: Void = viewModel.load()
-        async let calorieLoad: Void = calorieViewModel.load(range: calorieRange)
-        async let bodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
-        await finalOverviewLoad
-        await calorieLoad
-        await bodyChartLoad
+        isRefreshingOverview = false
+        let bodyChanged = await bodySync
+        let shouldRevalidate = bodyChanged || needsRevalidationAfterBodySync
+        needsRevalidationAfterBodySync = false
+        // Also honor refresh/Retry requests made while the Body sync was running.
+        if shouldRevalidate {
+            isRefreshingOverview = true
+            async let finalOverviewLoad: Void = viewModel.load()
+            async let calorieLoad: Void = calorieViewModel.load(range: calorieRange)
+            async let bodyChartLoad: Void = bodyChartViewModel.load(range: bodyRange)
+            await finalOverviewLoad
+            await calorieLoad
+            await bodyChartLoad
+        }
 
         if case .loaded = viewModel.state {
             hasLoadedOverview = true

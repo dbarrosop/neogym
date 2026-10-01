@@ -16,8 +16,9 @@ TEAM = "C7HCKFA2LG"
 PHONE = "io.nhost.dbarroso.neogym"
 WATCH = PHONE + ".watchkitapp"
 WIDGET = PHONE + ".widgets"
+WATCH_WIDGET = WATCH + ".widgets"
 SHARED_GROUP = "group.io.nhost.dbarroso.neogym"
-FORBIDDEN_FRAMEWORKS = ("HealthKit", "WidgetKit", "ActivityKit")
+FORBIDDEN_FRAMEWORKS = ("ActivityKit",)
 
 
 class InvalidArtifact(Exception):
@@ -56,24 +57,26 @@ def only_child(directory, suffix):
 def bundles(root, app):
     watch = only_child(app / "Watch", ".app")
     widget = only_child(app / "PlugIns", ".appex")
+    watch_widget = only_child(watch / "PlugIns", ".appex")
     actual = {app.resolve()} | {p.resolve() for p in root.rglob("*")
                                 if p.suffix in (".app", ".appex") and p.is_dir()}
-    require(actual == {app.resolve(), watch.resolve(), widget.resolve()},
+    require(actual == {app.resolve(), watch.resolve(), widget.resolve(), watch_widget.resolve()},
             "Unexpected or missing app/extension bundles")
-    return app, watch, widget
+    return app, watch, widget, watch_widget
 
 
 def verify_structure(root, app, platform):
-    phone, watch, widget = bundles(root, app)
-    infos = [plist(bundle / "Info.plist") for bundle in (phone, watch, widget)]
-    ids = (PHONE, WATCH, WIDGET)
-    for index, bundle in enumerate((phone, watch, widget)):
+    phone, watch, widget, watch_widget = bundles(root, app)
+    roles = (phone, watch, widget, watch_widget)
+    infos = [plist(bundle / "Info.plist") for bundle in roles]
+    ids = (PHONE, WATCH, WIDGET, WATCH_WIDGET)
+    for index, bundle in enumerate(roles):
         info = infos[index]
         identifier = ids[index]
-        os_name = platform[1] if index == 1 else platform[0]
-        family = [4] if index == 1 else [1]
+        os_name = platform[1] if index in (1, 3) else platform[0]
+        family = [4] if index in (1, 3) else [1]
         require(info.get("CFBundleIdentifier") == identifier, f"Wrong bundle ID: {bundle}")
-        require(info.get("CFBundlePackageType") == ("XPC!" if bundle == widget else "APPL"),
+        require(info.get("CFBundlePackageType") == ("XPC!" if index in (2, 3) else "APPL"),
                 f"Wrong bundle type: {bundle}")
         require(info.get("DTPlatformName", "").lower() == os_name, f"Wrong OS platform: {bundle}")
         require(info.get("MinimumOSVersion") == "27.0", f"Wrong minimum OS: {bundle}")
@@ -92,11 +95,14 @@ def verify_structure(root, app, platform):
             isinstance(infos[1].get("WKRunsIndependentlyOfCompanionApp"), bool) and
             not infos[1]["WKRunsIndependentlyOfCompanionApp"],
             "Watch companion metadata mismatch")
+    for key in ("NSHealthShareUsageDescription", "NSHealthUpdateUsageDescription"):
+        require(isinstance(infos[1].get(key), str) and infos[1][key].strip(),
+                f"Watch HealthKit purpose string missing: {key}")
     icon = infos[1].get("CFBundleIcons", {}).get("CFBundlePrimaryIcon", {})
     require(icon.get("CFBundleIconName") == "AppIcon" and (watch / "Assets.car").is_file(),
             "Watch AppIcon or compiled asset catalog missing")
-    require(infos[2].get("NSExtension", {}).get("NSExtensionPointIdentifier") ==
-            "com.apple.widgetkit-extension", "Wrong widget extension point")
+    require(all(infos[i].get("NSExtension", {}).get("NSExtensionPointIdentifier") ==
+                "com.apple.widgetkit-extension" for i in (2, 3)), "Wrong widget extension point")
     binaries = [watch / infos[1]["CFBundleExecutable"]]
     # Xcode Debug builds can put the app's links in a dylib while the
     # CFBundleExecutable is only a stub. Inspect both when the dylib exists.
@@ -110,7 +116,7 @@ def verify_structure(root, app, platform):
         for framework in FORBIDDEN_FRAMEWORKS:
             require(not re.search(rb"/" + framework.encode() + rb"\.framework/", deps),
                     f"Watch links forbidden framework in {binary}: {framework}")
-    return (phone, watch, widget), infos
+    return roles, infos
 
 
 def signed_entitlements(bundle, identifier, distribution):
@@ -166,18 +172,20 @@ def signed_entitlements(bundle, identifier, distribution):
     require(all(group in allowed.get("com.apple.security.application-groups", [])
                 for group in ent.get("com.apple.security.application-groups", [])),
             f"Provisioning profile does not permit App Groups: {bundle}")
-    if ent.get("com.apple.developer.healthkit"):
-        require(allowed.get("com.apple.developer.healthkit") == ent["com.apple.developer.healthkit"],
-                f"Provisioning profile does not permit HealthKit: {bundle}")
+    for capability in ("com.apple.developer.healthkit", "com.apple.developer.healthkit.background-delivery"):
+        if ent.get(capability):
+            require(allowed.get(capability) == ent[capability],
+                    f"Provisioning profile does not permit {capability}: {bundle}")
     return ent, prefix
 
 
 def verify_signatures(bundles_by_role, distribution):
-    app, watch, widget = bundles_by_role
+    app, watch, widget, watch_widget = bundles_by_role
     phone_ent, prefix = signed_entitlements(app, PHONE, distribution)
     watch_ent, watch_prefix = signed_entitlements(watch, WATCH, distribution)
     widget_ent, widget_prefix = signed_entitlements(widget, WIDGET, distribution)
-    require(prefix == watch_prefix == widget_prefix, "App ID prefixes disagree")
+    watch_widget_ent, watch_widget_prefix = signed_entitlements(watch_widget, WATCH_WIDGET, distribution)
+    require(prefix == watch_prefix == widget_prefix == watch_widget_prefix, "App ID prefixes disagree")
     shared = prefix + ".io.nhost.neogym.shared"
     for role, ent in (("phone", phone_ent), ("widget", widget_ent)):
         require(ent.get("keychain-access-groups") == [shared], f"{role} shared Keychain group changed")
@@ -189,9 +197,15 @@ def verify_signatures(bundles_by_role, distribution):
     require("com.apple.developer.healthkit" not in widget_ent,
             "Widget has HealthKit entitlement")
     require(watch_ent.get("keychain-access-groups", []) in ([], [prefix + "." + WATCH]) and
-            "com.apple.security.application-groups" not in watch_ent and
-            "com.apple.developer.healthkit" not in watch_ent,
-            "Watch has a shared or forbidden entitlement")
+            watch_ent.get("com.apple.security.application-groups") == [SHARED_GROUP] and
+            watch_ent.get("com.apple.developer.healthkit") and
+            watch_ent.get("com.apple.developer.healthkit.background-delivery"),
+            "Watch has a shared or missing HealthKit/App Group entitlement")
+    require(watch_widget_ent.get("com.apple.security.application-groups") == [SHARED_GROUP] and
+            not watch_widget_ent.get("keychain-access-groups") and
+            "com.apple.developer.healthkit" not in watch_widget_ent and
+            "com.apple.developer.healthkit.background-delivery" not in watch_widget_ent,
+            "Watch widget has a forbidden or missing entitlement")
 
 
 def extract_ipa(ipa, output):

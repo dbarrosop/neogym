@@ -20,6 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>NeoGym reads active and resting energy from Apple Health on your watch to sync your daily calories burned to your private NeoGym account.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>NeoGym does not write to Apple Health. It only reads active and resting energy on your watch to update your private NeoGym energy log.</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

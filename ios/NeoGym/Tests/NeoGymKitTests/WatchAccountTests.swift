@@ -66,8 +66,11 @@ private actor WatchTransport: HTTPTransport {
         if status == 401 {
             return NhostRawResponse(status: 401, body: Data(#"{"status":401,"message":"Unauthorized"}"#.utf8))
         }
+        if status != 200 {
+            return NhostRawResponse(status: status, body: Data(#"{"status":500,"message":"Server error"}"#.utf8))
+        }
         return NhostRawResponse(status: 200, body: Data("""
-        {"id":"watch-user","displayName":"\(displayName)","avatarUrl":"",
+        {"id":"watch-user","displayName":"\(displayName)","email":"watch@example.test","avatarUrl":"",
         "createdAt":"2024-01-01T00:00:00Z", "defaultRole":"user", "emailVerified":true,
         "isAnonymous":false, "locale":"en", "metadata":{},
         "phoneNumberVerified":false, "roles":["user"]}
@@ -100,6 +103,7 @@ final class WatchAccountTests: XCTestCase {
         let originalToken = try XCTUnwrap(model.authStore.state.session?.accessToken)
         model.localContextReady(nil)
         await waitFor(model, .name("Server Name"))
+        XCTAssertEqual(model.currentUser?.email, "watch@example.test")
         let requests = await transport.requests
         XCTAssertEqual(requests.map(\.url.path), ["/v1/user"]) // Unexpired session does not consume its refresh token.
         XCTAssertEqual(requests.last?.headers.first { $0.key.lowercased() == "authorization" }?.value,
@@ -108,7 +112,8 @@ final class WatchAccountTests: XCTestCase {
         model.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
         XCTAssertEqual(model.state, .name("Server Name")) // A hint is not a refresh trigger.
         model.refresh()
-        XCTAssertEqual(model.state, .loading) // Never retains stale name on refresh.
+        XCTAssertEqual(model.state, .name("Server Name")) // Keep the last profile while revalidating.
+        XCTAssertEqual(model.currentUser?.email, "watch@example.test")
         await waitFor(model, .name("Renamed on server"))
         model.receiveContext(["version": "2", "state": "signedOut"])
         XCTAssertEqual(model.state, .name("Renamed on server"))
@@ -126,20 +131,29 @@ final class WatchAccountTests: XCTestCase {
         XCTAssertEqual(stored?.refreshToken, "new-refresh")
     }
 
-    func testErrorsHideNameAndAllowRetry() async throws {
+    func testAuthErrorsHideNameButOfflineKeepsLastProfileAndAllowsRetry() async throws {
         let (model, _, transport) = try await setup()
+        var diagnostics: [WatchTransportDiagnostic] = []
+        model.onReadFailure = { diagnostics.append($0) }
         model.localContextReady(nil)
         await waitFor(model, .name("Server Name"))
         await transport.set(status: 401)
         model.refresh()
-        XCTAssertEqual(model.state, .loading)
         await waitFor(model, .authError)
+        XCTAssertNil(model.currentUser)
+        XCTAssertEqual(diagnostics.last, .init(kind: .http, code: 401))
         await transport.set(status: 200, refresh: true)
         model.refresh()
-        await waitFor(model, .networkError)
+        await waitForProfileError(model)
+        XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
+        XCTAssertEqual(diagnostics.last, .init(kind: .urlSession, code: -1009))
         await transport.set(status: 200, transportFailure: true)
         model.refresh()
-        await waitFor(model, .networkError) // Production transport wraps offline errors in FetchError.transport.
+        await waitForProfileError(model) // Production transport wraps offline errors in FetchError.transport.
+        XCTAssertEqual(diagnostics.last, .init(kind: .unknown))
+        XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.profileError, "Profile may be out of date. Retry when connected.")
         await transport.set(status: 200, name: "Recovered")
         model.refresh()
         await waitFor(model, .name("Recovered"))
@@ -354,6 +368,87 @@ final class WatchAccountTests: XCTestCase {
         XCTAssertNil(PhoneAccountHint.decode(["version": "1", "state": "signedIn", "userId": " "]))
         XCTAssertEqual(CurrentWatchUser(id: "x", displayName: "  ").displayName, "Athlete")
     }
+}
+
+extension WatchAccountTests {
+    func testWatchProfileCacheRequiresMatchingRestoredUserAndClearsOnSignOut() async throws {
+        let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
+        cache.save(CurrentWatchUser(id: "watch-user", displayName: "Recently fetched", email: "cached@example.test"))
+        XCTAssertNil(cache.load(for: "other-user"))
+        let client = createClient(NhostClientOptions(
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session())),
+            transport: WatchTransport()
+        ))
+        let controlled = ControlledUser()
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: controlled, currentUserStore: cache
+        )
+        await model.bootstrap()
+        XCTAssertEqual(model.state, .awaitingLocalContext)
+        XCTAssertNil(model.currentUser) // No profile without restored session and local context.
+        model.localContextReady(nil)
+        XCTAssertEqual(model.state, .name("Recently fetched"))
+        XCTAssertEqual(model.currentUser?.email, "cached@example.test")
+        try await controlled.waitForRequest()
+        model.receiveContext(PhoneAccountHint.signedOut.context)
+        XCTAssertNil(model.currentUser)
+        XCTAssertNil(cache.load(for: "watch-user"))
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Late response"))
+        await waitFor(model, .phoneSignedOut)
+        XCTAssertNil(model.currentUser)
+        let remaining = try await client.getUserSession()
+        XCTAssertNil(remaining)
+    }
+
+    func testRestoringDifferentAccountDiscardsSavedProfile() {
+        let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
+        cache.save(CurrentWatchUser(id: "old-user", displayName: "Old profile"))
+        cache.retainOnly(userID: "new-user")
+        XCTAssertNil(cache.load(for: "old-user"))
+    }
+
+    func testAlreadyDeliveredDifferentAccountHintNeverShowsCachedProfile() async throws {
+        let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
+        cache.save(CurrentWatchUser(id: "watch-user", displayName: "Private name"))
+        let client = createClient(NhostClientOptions(
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session())),
+            transport: WatchTransport()
+        ))
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: ControlledUser(), currentUserStore: cache
+        )
+        model.localContextReady(PhoneAccountHint.signedIn(userID: "other-user").context)
+        await model.bootstrap()
+        await waitFor(model, .matchPhone)
+        XCTAssertNil(model.currentUser)
+        XCTAssertNil(cache.load(for: "watch-user"))
+    }
+
+    func testCachedProfileRevalidatesWithoutBlockingAndPersistsFreshResult() async throws {
+        let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
+        cache.save(CurrentWatchUser(id: "watch-user", displayName: "Cached", email: "saved@example.test"))
+        let client = createClient(NhostClientOptions(
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session())),
+            transport: WatchTransport()
+        ))
+        let controlled = ControlledUser()
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: controlled, currentUserStore: cache
+        )
+        model.localContextReady(nil)
+        await model.bootstrap()
+        XCTAssertEqual(model.state, .name("Cached"))
+        XCTAssertEqual(model.currentUser?.email, "saved@example.test")
+        XCTAssertTrue(model.isReadingProfile)
+        try await controlled.waitForRequest()
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Updated", email: "new@example.test"))
+        await waitFor(model, .name("Updated"))
+        XCTAssertEqual(cache.load(for: "watch-user")?.email, "new@example.test")
+        XCTAssertFalse(model.isReadingProfile)
+    }
 
     func testControlledUserMissingRequestFailsWithinDeadline() async {
         let controlled = ControlledUser()
@@ -373,7 +468,7 @@ final class WatchAccountTests: XCTestCase {
         model.localContextReady(nil)
         try await controlled.waitForRequest()
         model.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Old Session"))
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
         await waitFor(model, .name("Fresh"))
         let count = await controlled.requestCount
@@ -402,7 +497,7 @@ final class WatchAccountTests: XCTestCase {
         model.refresh()
         model.localContextReady(hint)
         try await controlled.waitForRequest(2)
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Old"))
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "New"))
         await waitFor(model, .name("New"))
         let count = await controlled.requestCount
@@ -467,9 +562,49 @@ final class WatchAccountTests: XCTestCase {
         model.localContextReady(nil)
         await waitFor(model, .authError)
     }
-}
 
-extension WatchAccountTests {
+    func testServerErrorRetainsSessionFallbackWithoutConnectivityWarning() async throws {
+        let (model, _, transport) = try await setup()
+        await transport.set(status: 500)
+        model.localContextReady(nil)
+        await waitForProfileError(model)
+        XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertEqual(model.currentUser?.displayName, "Old Session")
+        XCTAssertEqual(model.profileError, "Profile could not be refreshed. Retry.")
+        await transport.set(status: 200, name: "Recovered")
+        model.refresh()
+        await waitFor(model, .name("Recovered"))
+        XCTAssertNil(model.profileError)
+    }
+
+    func testPublishedNameCarriesCurrentUserBeforeStoredStateChanges() async throws {
+        let (model, _, controlled) = try await controlledSetup()
+        struct Emission {
+            let published: WatchAccountState
+            let stored: WatchAccountState
+            let userID: String?
+        }
+        var emissions: [Emission] = []
+        let observation = model.$state.sink { state in
+            emissions.append(Emission(published: state, stored: model.state, userID: model.currentUser?.id))
+        }
+        model.localContextReady(nil)
+        try await controlled.waitForRequest()
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh"))
+        await waitFor(model, .name("Fresh"))
+        model.refresh()
+        withExtendedLifetime(observation) {
+            let name = emissions.first { $0.published == .name("Fresh") }
+            XCTAssertEqual(name?.stored, .name("Old Session")) // @Published sends in willSet.
+            XCTAssertEqual(name?.userID, "watch-user") // Runtime may use the emitted state and this user.
+            let staleAfterName = emissions.last { $0.published == .name("Fresh") }
+            XCTAssertEqual(staleAfterName?.userID, "watch-user")
+        }
+        try await controlled.waitForRequest(2)
+        await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Updated"))
+        await waitFor(model, .name("Updated"))
+    }
+
     func testForegroundAfterBackgroundReadStartsFreshRequestAndIgnoresLateResponse() async throws {
         let (model, _, controlled) = try await controlledSetup()
         model.localContextReady(nil)
@@ -478,11 +613,11 @@ extension WatchAccountTests {
 
         model.cancelPendingRead()
         model.refresh()
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Old Session"))
         try await controlled.waitForRequest(2)
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Background"))
         await backgroundRead.value
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Old Session"))
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Opened"))
         await waitFor(model, .name("Opened"))
         let count = await controlled.requestCount
@@ -497,10 +632,11 @@ extension WatchAccountTests {
         var emitted: [WatchAccountState] = []
         let observation = model.$state.sink { emitted.append($0) }
         model.cancelPendingRead()
-        XCTAssertEqual(model.state, .networkError)
+        XCTAssertEqual(model.state, .name("Old Session"))
+        XCTAssertNotNil(model.profileError)
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Too late"))
         await staleRead.value // The cancelled service ignores cancellation; wait for the model to handle it.
-        XCTAssertEqual(model.state, .networkError)
+        XCTAssertEqual(model.state, .name("Old Session"))
 
         model.refresh()
         try await controlled.waitForRequest(2)
@@ -511,7 +647,7 @@ extension WatchAccountTests {
         }
     }
 
-    func testSameIDOTPAlwaysTriggersFreshReadWithoutDisplayingSessionOrEarlierName() async throws {
+    func testSameIDOTPAlwaysTriggersFreshReadWhileRetainingEarlierName() async throws {
         let (model, client, controlled) = try await controlledSetup()
         model.localContextReady(nil)
         try await controlled.waitForRequest()
@@ -522,9 +658,9 @@ extension WatchAccountTests {
         let persisted = try session()
         try await client.sessionStore.set(persisted)
         model.acceptVerifiedSession(persisted)
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Before OTP"))
         try await controlled.waitForRequest(2)
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Before OTP"))
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "After OTP"))
         await waitFor(model, .name("After OTP"))
         let count = await controlled.requestCount
@@ -544,7 +680,7 @@ extension WatchAccountTests {
         try await controlled.waitForRequest(2)
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Old response"))
         await staleRead.value
-        XCTAssertEqual(model.state, .loading)
+        XCTAssertEqual(model.state, .name("Old Session"))
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Fresh response"))
         await waitFor(model, .name("Fresh response"))
         withExtendedLifetime(observation) {
@@ -602,6 +738,14 @@ private extension WatchAccountTests {
             await Task.yield()
         }
         XCTFail("Expected \(desired), got \(model.state)")
+    }
+
+    func waitForProfileError(_ model: WatchAccountModel) async {
+        for _ in 0..<1000 {
+            if model.profileError != nil { return }
+            await Task.yield()
+        }
+        XCTFail("Expected profile revalidation error, got \(model.state)")
     }
 
     func waitForError(_ model: WatchAccountModel) async {

@@ -43,7 +43,6 @@ struct NutritionNavigationView: View {
     let bodyRepository: any BodyMeasurementsRepositoryProtocol
     let bodyHealthImporter: (any BodyMeasurementsHealthImporting)?
     let energyRepository: any DailyEnergyRepositoryProtocol
-    let energyHealthImporter: (any DailyEnergyHealthImporting)?
     let currentUserId: String?
     @Binding var areaSelection: AppDestination
 
@@ -197,8 +196,6 @@ struct NutritionNavigationView: View {
                 repository: repository,
                 bodyRepository: bodyRepository,
                 bodyHealthImporter: bodyHealthImporter,
-                energyRepository: energyRepository,
-                energyHealthImporter: energyHealthImporter,
                 currentUserId: currentUserId
             )
             .navigationTitle("Overview")
@@ -253,6 +250,7 @@ struct NutritionNavigationView: View {
             BodyMeasurementsListView(
                 repository: bodyRepository,
                 healthImporter: bodyHealthImporter,
+                userId: currentUserId,
                 reloadToken: reloadToken
             )
             .navigationTitle("Body")
@@ -299,7 +297,6 @@ struct NutritionNavigationView: View {
     private func dailyEnergyListDestination() -> some View {
         DailyEnergyListView(
             repository: energyRepository,
-            healthImporter: energyHealthImporter,
             reloadToken: reloadToken
         )
         .navigationTitle("Energy")
@@ -397,7 +394,6 @@ private struct NutritionHubRow: View {
         bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
         bodyHealthImporter: nil,
         energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
-        energyHealthImporter: nil,
         currentUserId: "user-1",
         areaSelection: .constant(.nutrition)
     )

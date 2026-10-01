@@ -70,10 +70,12 @@ struct AppShellView: View {
                     bodyRepository: BodyMeasurementsRepository(graphQL: environment.graphQLService),
                     bodyHealthImporter: Self.makeBodyHealthImporter(),
                     energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
-                    energyHealthImporter: Self.makeEnergyHealthImporter(),
                     currentUserId: session.user?.id,
                     areaSelection: $selection
                 )
+                // Recreate Body sync models when the signed-in account changes;
+                // HealthKit cursors are scoped to the backend owner.
+                .id(session.user?.id)
             }
 
             areaView(.me) {
@@ -115,13 +117,6 @@ struct AppShellView: View {
         #endif
     }
 
-    private static func makeEnergyHealthImporter() -> (any DailyEnergyHealthImporting)? {
-        #if canImport(HealthKit) && !os(macOS)
-        HealthKitDailyEnergyImporter()
-        #else
-        nil
-        #endif
-    }
 }
 
 #Preview {

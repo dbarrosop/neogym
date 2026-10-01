@@ -4,21 +4,10 @@ import WidgetKit
 
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
-    let repository: any DailyEnergyRepositoryProtocol
-    let healthImporter: (any DailyEnergyHealthImporting)?
     let reloadToken: Int
 
-    init(
-        repository: any DailyEnergyRepositoryProtocol,
-        healthImporter: (any DailyEnergyHealthImporting)? = nil,
-        reloadToken: Int
-    ) {
-        _viewModel = StateObject(wrappedValue: DailyEnergyListViewModel(
-            repository: repository,
-            healthImporter: healthImporter
-        ))
-        self.repository = repository
-        self.healthImporter = healthImporter
+    init(repository: any DailyEnergyRepositoryProtocol, reloadToken: Int) {
+        _viewModel = StateObject(wrappedValue: DailyEnergyListViewModel(repository: repository))
         self.reloadToken = reloadToken
     }
 
@@ -35,15 +24,15 @@ struct DailyEnergyListView: View {
         }
         .task {
             if case .idle = viewModel.state {
-                await loadAndRefreshWidget(shouldSyncHealthEnergy: true)
+                await loadAndRefreshWidget()
             }
         }
-        .onChange(of: reloadToken) { Task { await loadAndRefreshWidget(shouldSyncHealthEnergy: false) } }
-        .refreshable { await loadAndRefreshWidget(shouldSyncHealthEnergy: true) }
+        .onChange(of: reloadToken) { Task { await loadAndRefreshWidget() } }
+        .refreshable { await loadAndRefreshWidget() }
     }
 
-    private func loadAndRefreshWidget(shouldSyncHealthEnergy: Bool) async {
-        await viewModel.load(shouldSyncHealthEnergy: shouldSyncHealthEnergy)
+    private func loadAndRefreshWidget() async {
+        await viewModel.load()
         WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
     }
 
@@ -73,30 +62,26 @@ struct DailyEnergyListView: View {
         case let .failed(message, _) where viewModel.entries.isEmpty:
             SectionShell(title: "Energy") {
                 AppErrorStateView(title: "Failed to load energy entries", message: message) {
-                    Task { await loadAndRefreshWidget(shouldSyncHealthEnergy: true) }
+                    Task { await loadAndRefreshWidget() }
                 }
             }
         default:
             if viewModel.entries.isEmpty {
-                VStack(spacing: 14) {
-                    healthSyncStatus
-                    SectionShell(title: "No energy entries") {
-                        VStack(spacing: 16) {
-                            AppEmptyStateView(
-                                title: "No energy entries yet",
-                                message: "Log active or resting energy to start seeing trends.",
-                                systemImage: "flame"
-                            )
-                            NavigationLink(value: NutritionRoute.energyCreate) {
-                                Label("Log your first energy entry", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
+                SectionShell(title: "No energy entries") {
+                    VStack(spacing: 16) {
+                        AppEmptyStateView(
+                            title: "No energy entries yet",
+                            message: "Log active or resting energy to start seeing trends.",
+                            systemImage: "flame"
+                        )
+                        NavigationLink(value: NutritionRoute.energyCreate) {
+                            Label("Log your first energy entry", systemImage: "plus")
                         }
+                        .buttonStyle(NeoGymPrimaryButtonStyle())
                     }
                 }
             } else {
                 VStack(spacing: 14) {
-                    healthSyncStatus
                     if viewModel.trendData.shouldShowChart {
                         SectionShell(title: "Energy over time", subtitle: "Trend") {
                             DailyEnergyTrendChartView(trendData: viewModel.trendData)
@@ -136,27 +121,6 @@ struct DailyEnergyListView: View {
                     }
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private var healthSyncStatus: some View {
-        switch viewModel.healthSyncState {
-        case .loading:
-            FeedbackBanner(message: "Syncing Apple Health energy…", tone: .info)
-        case let .loaded(summary):
-            if summary.importedCount > 0 || summary.updatedCount > 0 {
-                FeedbackBanner(
-                    message: "Apple Health synced: imported \(summary.importedCount), updated \(summary.updatedCount).",
-                    tone: .info
-                )
-            } else {
-                FeedbackBanner(message: "Apple Health checked; no new energy data to import.", tone: .info)
-            }
-        case let .failed(message, _):
-            FeedbackBanner(message: message)
-        case .idle:
-            EmptyView()
         }
     }
 }

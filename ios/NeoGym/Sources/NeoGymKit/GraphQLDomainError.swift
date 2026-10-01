@@ -66,6 +66,14 @@ public enum GraphQLDomainError: Error, Equatable, Sendable {
     case missingData(operationName: String?)
     case decoding(String)
     case transport(String)
+    /// Retains safe provenance before the SDK's FetchError is flattened to a
+    /// user-facing message. Legacy .transport values have no such provenance.
+    case transportDetailed(String, diagnostic: WatchTransportDiagnostic)
+
+    public var transportDiagnostic: WatchTransportDiagnostic? {
+        if case let .transportDetailed(_, diagnostic) = self { return diagnostic }
+        return nil
+    }
 
     public static func map(_ error: Error) -> GraphQLDomainError {
         if let domainError = error as? GraphQLDomainError {
@@ -81,17 +89,19 @@ public enum GraphQLDomainError: Error, Equatable, Sendable {
             case let .decoding(message):
                 return .decoding(message)
             case let .encoding(message), let .invalidResponse(message), let .transport(message):
-                return .transport(message)
+                return .transportDetailed(message, diagnostic: .classify(fetchError))
             case let .http(error):
-                return .transport(error.messages.joined(separator: ", "))
+                return .transportDetailed(error.messages.joined(separator: ", "),
+                                          diagnostic: .classify(fetchError))
             }
         }
 
         if let serviceError = error as? NhostServiceError, !serviceError.messages.isEmpty {
-            return .transport(serviceError.messages.joined(separator: ", "))
+            return .transportDetailed(serviceError.messages.joined(separator: ", "),
+                                      diagnostic: .classify(error))
         }
 
-        return .transport(error.localizedDescription)
+        return .transportDetailed(error.localizedDescription, diagnostic: .classify(error))
     }
 
     public static func isCancellation(_ error: Error) -> Bool {
@@ -102,7 +112,7 @@ public enum GraphQLDomainError: Error, Equatable, Sendable {
 
     public var isCancellation: Bool {
         switch self {
-        case let .transport(message):
+        case let .transport(message), let .transportDetailed(message, _):
             message.localizedCaseInsensitiveContains("CancellationError")
         case .graphQLErrors, .missingData, .decoding:
             false
@@ -123,7 +133,7 @@ extension GraphQLDomainError: LocalizedError {
             return "GraphQL operation did not return data."
         case let .decoding(message):
             return "GraphQL response could not be decoded: \(message)"
-        case let .transport(message):
+        case let .transport(message), let .transportDetailed(message, _):
             return message
         }
     }

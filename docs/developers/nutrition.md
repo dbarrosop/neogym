@@ -54,9 +54,14 @@ for "out". If no `daily_energy` row exists, clients show intake-only rather than
 output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
 values may arrive in clients as strings, so frontend helpers should normalize before doing
 macro math. The native Nutrition overview is a dashboard, not a shortcut list:
-on initial load and pull-to-refresh it starts chart reads alongside the same
-read-only Apple Health syncs used by the Body and Energy subsections, so cached
-charts can render promptly; it refreshes the charts and Energy balance after sync.
+on initial load and pull-to-refresh it reads energy from the backend and
+starts chart reads alongside the read-only Body Apple Health sync. The initial
+dashboard stops showing section spinners once those reads finish even if a
+first-time HealthKit scan continues. A refresh or balance Retry during that scan
+keeps the section loading indicator visible and queues another backend read;
+after Body sync the overview and charts revalidate if backend Body rows changed
+or a request was queued. The iPhone does not import HealthKit energy;
+only the watch app does.
 On a cold launch after the default range has moved to a new local day, each chart
 checks the SDK's protected cache for today's exact range and up to seven earlier
 daily ranges without network calls, shows the newest eligible result marked as
@@ -77,11 +82,27 @@ query remains limited to 14 recent rows with full plan and meal details; the
 Calories consumed chart uses a separate, date-bounded user-scoped snapshot
 kcal/grams + daily-energy query, and Body composition has its own date-bounded
 measurements query. Longer chart periods load on demand without fetching plans.
-Body and Energy HealthKit reconciliation still inspect historical data separately
-and are not limited by the chart period.
-The 7-day rolling net average is computed from calendar days in the window that have both a nutrition
-log day and a `daily_energy` row, so
-missing energy/intake data is not silently treated as a zero-output day. The
+Body HealthKit reconciliation scans historical samples once per app user and
+local timezone, then saves per-type HealthKit anchors only after backend writes
+succeed. A metric whose first read is empty keeps a nil anchor and retries its
+history on later visits, even when the other metric was imported; HealthKit
+cannot distinguish read denial from no samples. Cursors live under
+`body-health.anchor.v2.<userId>`; the previous `body-health.anchor.v1.*` paired
+key is ignored if present so a previously unreadable type starts from history.
+Later visits inspect added samples and re-query affected local dates (both
+weight and fat to retain the latest value per metric). Reported deletions also
+re-read the last seven local dates, correcting recent imported-note rows when
+another sample remains; older dates are not reconciled, and a day with no
+remaining samples keeps its row. On any sync with one type unanchored and
+affected dates, one bounded range query per metric re-reads both values for
+those dates; an anchored type with no events keeps its previous cursor, since
+an empty read can also mean revoked permission. This is independent of the
+selected chart period. No-change reads skip the backend measurement list and
+the duplicate dashboard revalidation. Watch energy sync covers seven local
+dates and is independent of the iPhone chart period.
+The 7-day rolling net average is computed from calendar days in the window
+that have both a nutrition log day and a `daily_energy` row, so missing
+energy/intake data is not silently treated as a zero-output day. The
 body composition chart overlays weight, body-fat percentage, and independent
 7-day rolling averages for both metrics; each rolling body point uses available
 measurements from that point's date plus the previous 6 local calendar days.

@@ -71,43 +71,67 @@ and delete flows. The primary navbar includes Energy as its own top-level item;
 the mobile tab bar is horizontally scrollable to accommodate all eight top-level
 items.
 
-The native app exposes Energy as a Nutrition subsection alongside Overview,
-Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
+The native iPhone app exposes Energy as a Nutrition subsection alongside
+Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
-pure HealthKit grouping helpers; SwiftUI views under `ios/NeoGym/App/` own
-presentation and navigation.
+pure HealthKit grouping helpers shared with the watch; SwiftUI views under
+`ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
+active or resting HealthKit energy** or upload imported energy. Opening and
+pull-refreshing Energy loads the backend list; opening and refreshing Nutrition
+Overview reads backend energy for the balance and calorie chart. Manual energy
+CRUD remains available on iPhone. The watch app is the only automatic HealthKit
+energy uploader for now, so users without a synced watch need manual entries.
 
-## One-way HealthKit import
+## One-way watch HealthKit import
 
-The iOS HealthKit import is read-only (`toShare: []`) and never writes energy
-back to Apple Health. It reads `.activeEnergyBurned` and `.basalEnergyBurned` in
-kilocalories and groups cumulative samples into local-calendar-day buckets.
+The watch app's HealthKit import is read-only (`toShare: []`) and never writes
+energy back to Apple Health. It reads `.activeEnergyBurned` and
+`.basalEnergyBurned` in kilocalories and groups cumulative samples into
+local-calendar-day buckets.
 
 Import rules:
 
 - Daily totals are summed per metric per local day.
-- The concrete HealthKit importer uses `HKStatisticsCollectionQuery` with
+- The watch HealthKit importer uses `HKStatisticsCollectionQuery` with
   `.cumulativeSum`, an anchor at local midnight, `DateComponents(day: 1)`, and
-  an explicitly bounded enumeration window. Do not replace this with raw
+  a seven-day enumeration window. Do not replace this with raw
   `86400`-second windows; that is not DST-safe.
 - Each metric drops non-finite values and values `<= 0` independently. For
   example, `active = 0` with `resting = 1500` imports as a resting-only row;
   a day where both metrics are absent/zero/non-finite/negative is skipped.
 - Missing `energy_on` dates are created through the normal GraphQL create path
   and carry an "Imported from Apple Health" note.
-- Existing dates older than the recent refresh window are skipped before insert
-  so historical import remains one-way fill-missing behavior. If a stale list
-  races another writer and hits `daily_energy_user_date_key`, the sync treats
-  that conflict as a skipped existing row rather than a fatal import error.
-- iOS sync runs when the Energy subsection loads, when that subsection is
-  pull-refreshed, and when the Nutrition overview loads or is pull-refreshed.
-  HealthKit import is attempted before the final backend list/overview fetch, so
-  the visible charts and balance summaries are built from post-sync backend
-  data.
-- On each iOS sync, the last 7 local calendar days (today plus the previous 6
-  days) are refreshed from HealthKit **only** when the existing row still carries
-  the exact "Imported from Apple Health" note. Manual rows or edited imported
-  rows with different notes are skipped instead of overwritten.
+- Sync covers only the last 7 local calendar days (today plus the previous 6).
+  If an insert races another writer and hits `daily_energy_user_date_key`, the
+  sync treats that conflict as a skipped existing row.
+- On each watch sync, existing rows in that window are refreshed from HealthKit
+  **only** when they still carry the exact "Imported from Apple Health" note.
+  Manual rows or edited imported rows with different notes are not overwritten.
+- Foreground reconciliation uses the SDK GraphQL read/write flow. In the
+  background, the watch can instead enqueue one file-backed URLSession GraphQL
+  upsert after reading HealthKit: insert missing dates and update conflicts only
+  where `notes = 'Imported from Apple Health'`, using the unique user/date key.
+  Hasura's user-role insert/update permissions set and filter ownership; the
+  watch forces an SDK session refresh and verifies the owner before pinning
+  a bearer with at least ten minutes remaining on the transfer. A transient
+  refresh failure can return a shorter-lived bearer; in that case the watch
+  uses the in-process path instead. It deduplicates a same-owner upload only
+  while its recorded bearer expiry is more than two minutes away; an older
+  expiry-less or near-expiry task is replaced once a new upload is ready.
+  A deduplicated task does not suppress in-process reconciliation on an
+  eligible wake. Replaced task cancellations do not count as failures. All
+  background transfers and wakeups remain best-effort: watchOS may defer a
+  transfer beyond token expiry, leaving the pending marker for another wake.
+  The foreground path and transfer both preserve manual/edited rows and
+  unique-date races.
+- A fresh backend read follows a successful direct watch write or background
+  upload. On a URLSession wake, the watch restores its account before checking
+  the upload owner, then keeps the wake open through the follow-up Health
+  reconciliation and fresh read (or failure retry scheduling and deferred widget
+  reload). watchOS expiration can cancel that follow-up and release the wake
+  early; the pending marker retains work for another eligible attempt. Results
+  for another or blocked owner are logged as skipped, never applied. Phone views
+  query the backend independently and do not wait for watch HealthKit sync.
 
 ## Nutrition balance
 
@@ -130,11 +154,201 @@ tokens. The app writes snapshots after successful Nutrition Overview loads,
 clears them on sign-out/signed-out bootstrap/auth errors/user switches, and asks
 WidgetKit to reload timelines. Nutrition mutations and Energy-list loads also ask
 WidgetKit to reload timelines so the widget can try a live server refresh after
-app-owned HealthKit or backend changes. The app and widget use one SDK-managed,
+backend changes. The app and widget use one SDK-managed,
 App-Group-coordinated shared Keychain session. The widget falls back to the
 cached snapshot or signed-out/empty state without a live write on coordination
 timeout, cancellation, no session, Auth, network, or provisioning failure.
-The widget does not import HealthKit data; HealthKit energy import remains
-app-owned. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
+The **iPhone** widget does not import HealthKit data; only the watch app
+imports HealthKit energy. The iPhone app continues its separate Body and raw
+workout HealthKit imports. WidgetKit timeline reloads and the iOS 17+ in-widget Refresh button
 are best-effort triggers, not guaranteed fresh server data or an exact refresh
 cadence.
+
+## Watch Energy and complication
+
+The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
+retain the last 300 timestamped, watch-app-only typed outcomes across launches:
+background scheduling requests/acceptances/failures, actual wakes, Health
+observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
+observer-query and background-delivery registration failures, stage-level
+HealthKit active/resting queries, Health import, backend reconciliation
+read/write and final today read, fresh backend results, snapshot saves, and
+WidgetKit reload requests. Actual scheduled background wakes have separate
+started/finished/expired-by-watchOS events; expiry may not be recorded if the
+process is suspended or killed first. Random IDs correlate
+same-run observer/refresh/snapshot events; resumed pending work uses a new
+attempt ID. Active/resting metric, app state when handled, active elapsed
+seconds, wall-clock age of a pending delivery at refresh start, backend
+operation and account-gate skip reason make related records identifiable
+without storing
+Health values or account data. Failures carry fixed stages and safe categories:
+HealthKit, network, backend, GraphQL transport, other. New transport events
+preserve only a safe provenance: URLSession numeric error, HTTP status, fixed
+service/response category, or unknown. `FetchError.transport` can expose an
+SDK-generated `URLError <code>:` prefix; only the numeric prefix is retained,
+never the raw description. SDK session-refresh/Fetch failures outside GraphQL
+show Network with safe transport provenance; GraphQL backend rejections and
+unknown failures do not carry numeric codes. The earlier GraphQL transport
+`code 3` was an NSError bridge of a Swift enum case, not a HealthKit or HTTP
+code. Previously saved numeric-only entries still display. Code 3 means
+invalid HealthKit argument **only** when the original domain is `HKErrorDomain`.
+The widget extension separately records up to 64 timestamp-only receipts in
+an atomic App Group file when `getTimeline`/`getSnapshot` reads its shared
+snapshot. Each receipt has the request time, local date and snapshot update
+time (or absence), never the values or owner; a receipt does not prove the face
+rendered it. The watch Events page can load these receipts on demand.
+**Share logs** uses the watchOS system share sheet and attaches a temporary
+plain-text `.txt` file with typed events plus widget receipts. `ShareLink`
+cannot pre-address Mail; nothing is emailed/uploaded automatically. Neither
+stored diagnostics nor exports include credentials, account IDs, names, URLs,
+Health values, or raw localized/server errors. Stage
+starts and terminal outcomes are timestamped at their operation boundaries;
+wall elapsed time includes watch sleep. A missing terminal stage cannot on its
+own distinguish suspension from a stalled query. HealthKit acknowledgement is
+timestamped at the callback, not the later MainActor log write, and the bounded
+store/exports sort late-written events by occurrence. The watch scene logs
+active/inactive/background transitions, optionally linking the refresh attempt
+open when the transition was handled; no transition proves a continuous OS
+execution lease. The uncached Auth `/user` read separately records a safe
+typed failure cause without leaking account details or server messages.
+Observer `Started`
+marks main-actor handling, not raw callback receipt, so `acknowledged` can
+precede it after suspension. The app-state field is omitted for acknowledgement
+because recording-time state could be different from callback-time state. An accepted hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
+reload request confirm a new watch-face rendering. A local snapshot
+save failure also appears on the Energy page and skips the reload request. On launch it
+restores the local SDK session, shows the last fetched name/email from a
+watch-app-only, session-user-ID-checked cache (falling back to the SDK session
+name) and today's same-owner energy snapshot, then revalidates name/email from
+uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
+non-auth `/user` errors retain the same-owner cached or session-fallback
+profile with Retry; connectivity failures say to retry when connected, while
+other failures use a neutral refresh warning. Auth errors clear the profile.
+Local WCSession activation also runs without delaying this foreground display.
+An already delivered signed-out/different-account hint blocks immediately; one
+delivered later may leave stale values visible briefly before the watch clears
+the local session, profile cache, and energy snapshot. Background tasks wait for
+activation and account validation before accessing the private backend. If a
+transient `/user` failure leaves a same-owner cached profile visible, later
+background wakes and HealthKit observer deliveries retry validation before
+private energy access; a still-failing or rejected account skips sync. The
+Energy page shows the validation warning and its Refresh control retries the
+read before fetching energy. Energy shows today's consumed kcal from nutrition
+log snapshots (including standalone entries and logged-meal children), total
+burned kcal from today's `daily_energy` active
+plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
+An absent backend energy row displays `—` for burned, its breakdown, and Net
+unless an eligible local Health estimate has been saved. A missing component on
+an existing energy row
+shows `—` in the breakdown but counts as zero toward total burned, matching
+the backend balance contract. The watch app uses icons instead of visible Consumed/Burned labels while
+retaining VoiceOver labels. Net uses the same prominent icon-and-value style
+with a balance-scale symbol in the app and a custom two-pan balance icon in
+the complication. Only the complication's icons are tinted: cutlery green,
+flame red, balance teal/turquoise. Its consumed and burned values have the
+same bold type and no visible “in/out” words; VoiceOver still names them.
+The Energy heading includes a smaller `(kcal)` unit, with no redundant Today subheading.
+An icon-only circular-arrow refresh control sits before the last-synced time;
+there is no separate Refresh text button. Its rectangular complication shows
+intake and total burn, active/resting, and icon-labeled Net in three compact
+rows. Net is derived from the token-free snapshot, not stored as a
+separate value; older snapshots lacking the optional breakdown still decode
+until the next refresh. The app reads a small date-bounded GraphQL query from
+the watch's own managed session.
+
+After the user taps **Sync Apple Health**, the watch requests read-only
+`.activeEnergyBurned` and `.basalEnergyBurned` access (never writes HealthKit),
+sums statistics across local calendar days, and syncs the last seven dates to
+the private backend `daily_energy` table. It only creates dates with positive
+valid data and refreshes rows bearing the exact "Imported from Apple Health"
+note; it never overwrites manual/edited rows. Unique-date insert races are
+skipped. The iPhone no longer uploads HealthKit energy; previously imported
+phone rows with that exact note may be refreshed by the watch. A fresh
+backend read follows direct writes or a completed background upload so the
+Energy page and complication eventually use post-sync values, including food
+logs recorded on another device. An observer delivery first attempts a local
+seven-day Health read; for a same-owner snapshot whose last known server row was
+imported or absent, today's valid metric totals can be saved and displayed as
+an explicitly provisional estimate before any account or backend request. A
+manual/edited row or legacy snapshot without known provenance is never overlaid.
+The last-known server intake remains unchanged; a server-side manual edit
+since the last backend read can briefly differ until fresh reconciliation.
+
+The **watch app**, not the complication, owns authorization, HealthKit queries,
+GraphQL writes, and network refreshes. Each watch process launch starts
+account bootstrap in the application delegate, independent of the SwiftUI
+view. After the explicit permission flow, once the local session restores the
+authorized, non-blocked owner, the watch registers HealthKit observers and
+background delivery for both energy types (not for Workout records), without
+waiting for WCSession activation or the network profile read; it also asks
+watchOS for an hourly preferred background refresh. A workout recorded in
+Fitness doesn't itself trigger a NeoGym wake. These are best-effort OS wakeups,
+**not** a guaranteed hourly schedule. `WatchRefreshSchedule`
+coalesces duplicate preferred dates, re-arms after account bootstrap but
+before energy reconciliation, and requests best-effort 15/30/60-minute retries after an
+backend sync failure or transient `/user` validation failure. A pending Health
+delivery separately requests a coalesced 15-minute preferred fallback without
+incrementing the failure backoff. Repeated failures before a pending retry wakes
+do not advance backoff, and acceptance is not evidence of a delivered wake.
+The first active scene after a background-only launch, as well as a return
+from a background scene, replaces any in-flight background profile read,
+waits for a fresh uncached `/user` read, and explicitly refreshes Energy even
+if the profile name was unchanged. An inactive wrist raise alone does not
+trigger this extra refresh. Each HealthKit observer callback synchronously attempts a read-back-verified private,
+user-scoped pending marker, then calls completion exactly once, without
+holding HealthKit acknowledgement
+through account validation or backend work. An eligible run attempts the sync;
+a fresh backend read and saved complication snapshot following a successful
+Health import clear only the generation present when that run began. A later
+callback remains pending, and a signed-out/blocked or different account cannot
+inherit the old owner's pending import. Stopping observers invalidates their
+registration before clearing the old marker, so a late callback cannot replace
+a new owner's marker. On the next eligible app or background
+wake, pending work retries; the pending wall-clock age includes watch sleep.
+A failed local handoff is logged before still acknowledging HealthKit; that
+exception cannot guarantee an eventual retry if the app is suspended.
+Ineligible runs log a skipped Energy refresh but do not clear a same-owner
+pending marker after a transient validation failure. If a new eligible trigger
+arrives after an in-flight refresh has been open for 30 wall-clock seconds, it
+cancels and replaces that stale task instead of joining it indefinitely; the
+cancelled task cannot clear the replacement's state or save its result. Legacy
+25-second timeout
+events may have been acknowledged much later if watchOS suspended the app.
+Suspension or termination may prevent a terminal log, and a scheduled watchOS
+wake is separate from HealthKit observer delivery. Background work first reconciles the local watch session and
+phone account hint and does nothing if blocked/signed out. The watch widget
+extension has no Keychain or HealthKit entitlement: it reads only the token-free
+today's aggregate snapshot written by the watch app into their shared App Group.
+The app verifies a local read-back after writing and records a failed write.
+It asks WidgetKit to reload only when displayed same-day values/owner or
+provisional status change or a snapshot is cleared; unchanged-value fresh reads
+still save a new `updatedAt` but don't spend a requested reload. Bursty
+background requests are coalesced to at most one per 15 minutes by a
+watch-app-persisted gate; a suppressed latest-value request is retried on a
+later eligible wake/foreground return. Foreground changes and session clearing
+bypass that gate. Coalescing reduces app requests, not WidgetKit's power to
+defer/skip a refresh. The widget
+shows a Health estimate icon while awaiting backend sync, otherwise a clock and
+the relative age of its currently rendered snapshot, which can lag a fresh
+unchanged-value read until WidgetKit requests a new timeline. `getTimeline`
+reads the shared snapshot but never syncs HealthKit or calls the backend;
+scrolling the widget into view does not guarantee an app wake or widget reload.
+A local read-back still does not prove the extension read it; a provider
+receipt proves a timeline read but not a new watch-face render. The rectangular watch-face complication presents consumed,
+total burned, active/resting, and Net kcal; it never uploads data itself. Today's
+last-good snapshot survives session validation while the SDK restores the
+session; after a non-auth `/user` failure the watch remains in the signed-in
+name state and keeps the snapshot only for the same session owner. Definitive
+sign-out, blocking phone hints, auth errors,
+and account switches clear it; snapshots are
+never carried into the next local date. The
+phone and watch share an App Group **identifier**, not files across devices.
+Signing the watch app and watch widget requires App Group provisioning and
+HealthKit background-delivery capability on the watch app ID. Even though the
+watch requests **read-only** HealthKit authorization, its own Info.plist must
+contain both `NSHealthShareUsageDescription` and `NSHealthUpdateUsageDescription`
+with truthful purpose strings: App Store Connect rejects uploads without the
+update key when the watch bundle has a HealthKit entitlement. Declaring that
+string does **not** request write permission. The release verifier checks both
+keys in the archived/exported watch bundle. Simulator builds cannot validate
+background timing, permission behavior, or physical complication refresh cadence.

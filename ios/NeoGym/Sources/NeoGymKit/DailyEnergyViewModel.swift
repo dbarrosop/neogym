@@ -4,35 +4,23 @@ import Foundation
 @MainActor
 public final class DailyEnergyListViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<[DailyEnergy]> = .idle
-    @Published public private(set) var healthSyncState: Loadable<DailyEnergyHealthSyncSummary> = .idle
     @Published public private(set) var hasMore = false
     @Published public private(set) var isLoadingMore = false
     @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
 
     private let repository: any DailyEnergyRepositoryProtocol
-    private let healthImporter: (any DailyEnergyHealthImporting)?
     private let calendar: Calendar
     private let pageSize: Int
-    private let healthRefreshLookbackDays: Int
-    private let now: @Sendable () -> Date
-
-    private static let healthImportNote = "Imported from Apple Health"
 
     public init(
         repository: any DailyEnergyRepositoryProtocol,
-        healthImporter: (any DailyEnergyHealthImporting)? = nil,
         calendar: Calendar = .current,
-        pageSize: Int = DailyEnergyRepository.pageSize,
-        healthRefreshLookbackDays: Int = 7,
-        now: @escaping @Sendable () -> Date = Date.init
+        pageSize: Int = DailyEnergyRepository.pageSize
     ) {
         self.repository = repository
-        self.healthImporter = healthImporter
         self.calendar = calendar
         self.pageSize = pageSize
-        self.healthRefreshLookbackDays = healthRefreshLookbackDays
-        self.now = now
     }
 
     public var entries: [DailyEnergy] { state.value ?? [] }
@@ -40,21 +28,14 @@ public final class DailyEnergyListViewModel: ObservableObject {
         DailyEnergyTrendBuilder.make(from: entries, calendar: calendar)
     }
 
-    public func load(shouldSyncHealthEnergy: Bool = false) async {
+    public func load() async {
         guard !isRefreshing, !isLoadingMore else { return }
         isRefreshing = true
         defer { isRefreshing = false }
         state = .loading(previous: state.value)
         loadMoreErrorMessage = nil
         do {
-            if shouldSyncHealthEnergy {
-                async let initialLoad: Void = loadEnergyUpdates()
-                await syncHealthEnergy()
-                try await initialLoad
-                try await loadEnergyUpdates()
-            } else {
-                try await loadEnergyUpdates()
-            }
+            try await loadEnergyUpdates()
         } catch where GraphQLDomainError.isCancellation(error) {
             state = state.cancellationFallback
         } catch {
@@ -93,97 +74,6 @@ public final class DailyEnergyListViewModel: ObservableObject {
     private static func merging(_ existing: [DailyEnergy], with page: [DailyEnergy]) -> [DailyEnergy] {
         var seen = Set(existing.map(\.id))
         return existing + page.filter { seen.insert($0.id).inserted }
-    }
-
-    private func syncHealthEnergy() async {
-        guard let healthImporter else { return }
-        let refreshStart = healthRefreshStartDate()
-        healthSyncState = .loading(previous: healthSyncState.value)
-        do {
-            async let importedEntriesTask = healthImporter.dailyEnergyEntries()
-            async let knownDatesTask = repository.listEntryDates()
-            async let refreshableEntriesTask = repository.listEntriesForHealthRefresh(since: refreshStart)
-
-            let importedEntries = try await importedEntriesTask
-            var knownDates = Set((try? await knownDatesTask) ?? [])
-            let refreshableEntries = (try? await refreshableEntriesTask) ?? []
-            knownDates.formUnion(refreshableEntries.map(\.energyOn))
-            let refreshableEntriesByDate = Dictionary(
-                uniqueKeysWithValues: refreshableEntries.map { ($0.energyOn, $0) }
-            )
-            var importedCount = 0
-            var updatedCount = 0
-            var skippedExistingCount = 0
-
-            for entry in importedEntries {
-                guard let values = entry.formValues(notes: Self.healthImportNote) else { continue }
-
-                if let existingEntry = refreshableEntriesByDate[entry.energyOn] {
-                    guard existingEntry.notes == Self.healthImportNote else {
-                        skippedExistingCount += 1
-                        continue
-                    }
-                    guard shouldUpdateHealthImportedEntry(existingEntry, with: values) else {
-                        skippedExistingCount += 1
-                        continue
-                    }
-                    try await repository.updateEntry(id: existingEntry.id, values: values)
-                    knownDates.insert(values.energyOn)
-                    updatedCount += 1
-                    continue
-                }
-
-                guard !knownDates.contains(entry.energyOn) else {
-                    skippedExistingCount += 1
-                    continue
-                }
-
-                do {
-                    _ = try await repository.createEntry(values)
-                    knownDates.insert(values.energyOn)
-                    importedCount += 1
-                } catch where DailyEnergyErrorMapper.isDuplicateEnergyOnError(error) {
-                    knownDates.insert(values.energyOn)
-                    skippedExistingCount += 1
-                }
-            }
-            healthSyncState = .loaded(DailyEnergyHealthSyncSummary(
-                importedCount: importedCount,
-                updatedCount: updatedCount,
-                skippedExistingCount: skippedExistingCount
-            ))
-        } catch where GraphQLDomainError.isCancellation(error) {
-            healthSyncState = healthSyncState.cancellationFallback
-        } catch {
-            healthSyncState = .failed(
-                message: DailyEnergyErrorMapper.message(for: error),
-                previous: healthSyncState.value
-            )
-        }
-    }
-
-    private func healthRefreshStartDate() -> String {
-        let todayStart = calendar.startOfDay(for: now())
-        let lookbackDays = max(healthRefreshLookbackDays, 1) - 1
-        let startDate = calendar.date(byAdding: .day, value: -lookbackDays, to: todayStart) ?? todayStart
-        return DateOnly.formatLocalISO(startDate, calendar: calendar)
-    }
-
-    private func shouldUpdateHealthImportedEntry(_ entry: DailyEnergy, with values: DailyEnergyFormValues) -> Bool {
-        !approximatelyEqual(entry.activeKcal, Double(values.activeKcal))
-            || !approximatelyEqual(entry.restingKcal, Double(values.restingKcal))
-            || entry.notes != values.notes
-    }
-
-    private func approximatelyEqual(_ lhs: Double?, _ rhs: Double?) -> Bool {
-        switch (lhs, rhs) {
-        case (.none, .none):
-            true
-        case let (.some(lhs), .some(rhs)):
-            abs(lhs - rhs) < 0.005
-        case (.some, .none), (.none, .some):
-            false
-        }
     }
 }
 

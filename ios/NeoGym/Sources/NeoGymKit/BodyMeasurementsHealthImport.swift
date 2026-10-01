@@ -72,8 +72,65 @@ public struct BodyMeasurementsHealthSyncSummary: Sendable, Equatable {
     }
 }
 
+/// Opaque HealthKit cursors are committed only after the corresponding backend writes succeed.
+/// A nil metric cursor keeps retrying its full history until HealthKit delivers an event for that type.
+public struct BodyHealthAnchors: Codable, Sendable {
+    public let weight: Data?
+    public let bodyFat: Data?
+    public let timeZone: String
+
+    public init(weight: Data?, bodyFat: Data?, timeZone: String) {
+        self.weight = weight
+        self.bodyFat = bodyFat
+        self.timeZone = timeZone
+    }
+
+    static func checkpointedAnchor(_ next: Data, previous: Data?, hasEvents: Bool) -> Data? {
+        // An empty read can mean revoked permission; keep the last known cursor.
+        hasEvents ? next : previous
+    }
+}
+
+/// Deletion records have no date; re-read the refreshable local-day window as well as added-sample days.
+enum BodyHealthRecheckDates {
+    static func make(
+        addedDates: Set<String>, hasDeletions: Bool, hasExistingAnchor: Bool,
+        recentDays: Int, now: Date, calendar: Calendar
+    ) -> Set<String> {
+        guard hasDeletions, hasExistingAnchor else { return addedDates }
+        let today = calendar.startOfDay(for: now)
+        var dates = addedDates
+        for offset in 0..<max(recentDays, 1) {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            dates.insert(DateOnly.formatLocalISO(day, calendar: calendar))
+        }
+        return dates
+    }
+}
+
+public struct BodyHealthChangeBatch: Sendable {
+    public let measurements: [HealthBodyMeasurement]
+    public let nextAnchors: BodyHealthAnchors?
+    public let hasEvents: Bool
+
+    public init(measurements: [HealthBodyMeasurement], nextAnchors: BodyHealthAnchors?, hasEvents: Bool) {
+        self.measurements = measurements
+        self.nextAnchors = nextAnchors
+        self.hasEvents = hasEvents
+    }
+}
+
 public protocol BodyMeasurementsHealthImporting: Sendable {
     func dailyMeasurements() async throws -> [HealthBodyMeasurement]
+    func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws -> BodyHealthChangeBatch
+}
+
+public extension BodyMeasurementsHealthImporting {
+    /// Host fakes can continue supplying a complete set of daily measurements.
+    func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws -> BodyHealthChangeBatch {
+        let measurements = try await dailyMeasurements()
+        return BodyHealthChangeBatch(measurements: measurements, nextAnchors: nil, hasEvents: !measurements.isEmpty)
+    }
 }
 
 fileprivate struct DatedHealthMetricSample: Sendable, Equatable {
@@ -136,6 +193,7 @@ public enum HealthKitBodyMeasurementImportError: LocalizedError, Sendable, Equat
     case authorizationDenied
     case unavailable
     case missingQuantityType(String)
+    case invalidAnchor
 
     public var errorDescription: String? {
         switch self {
@@ -145,11 +203,13 @@ public enum HealthKitBodyMeasurementImportError: LocalizedError, Sendable, Equat
             "Apple Health data is not available on this device."
         case let .missingQuantityType(identifier):
             "Apple Health does not expose \(identifier) on this device."
+        case .invalidAnchor:
+            "The saved Apple Health body cursor could not be read."
         }
     }
 }
 
-@available(iOS 15.0, *)
+@available(iOS 15.4, *)
 public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImporting, @unchecked Sendable {
     private let store: HKHealthStore
     private let calendar: Calendar
@@ -160,20 +220,129 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
     }
 
     public func dailyMeasurements() async throws -> [HealthBodyMeasurement] {
-        guard HKHealthStore.isHealthDataAvailable() else { return [] }
+        try await changes(since: nil, recheckRecentDays: 0, now: Date()).measurements
+    }
+
+    public func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws
+        -> BodyHealthChangeBatch {
+        guard HKHealthStore.isHealthDataAvailable() else {
+            throw HealthKitBodyMeasurementImportError.unavailable
+        }
         guard let bodyMassType = HKQuantityType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthKitBodyMeasurementImportError.missingQuantityType("bodyMass")
         }
         guard let bodyFatType = HKQuantityType.quantityType(forIdentifier: .bodyFatPercentage) else {
             throw HealthKitBodyMeasurementImportError.missingQuantityType("bodyFatPercentage")
         }
-
         try await requestReadAuthorization(for: [bodyMassType, bodyFatType])
 
-        async let weights = queryQuantitySamples(type: bodyMassType, unit: .gramUnit(with: .kilo), multiplier: 1)
-        async let bodyFats = queryQuantitySamples(type: bodyFatType, unit: .percent(), multiplier: 100)
+        async let weightChanges = anchoredSamples(type: bodyMassType, since: anchors?.weight)
+        async let fatChanges = anchoredSamples(type: bodyFatType, since: anchors?.bodyFat)
+        let weights = try await weightChanges
+        let fats = try await fatChanges
+        let hasEvents = !weights.samples.isEmpty || !fats.samples.isEmpty
+            || weights.deletedCount > 0 || fats.deletedCount > 0
 
-        return try await HealthBodyMeasurementGrouper.merge(weightSamples: weights, bodyFatSamples: bodyFats)
+        // When neither metric is checkpointed, the anchored queries already include
+        // full history. Otherwise re-read affected days so older added samples cannot
+        // replace a day's latest current measurement (including the other metric).
+        let measurements: [HealthBodyMeasurement]
+        if anchors?.weight == nil && anchors?.bodyFat == nil {
+            measurements = HealthBodyMeasurementGrouper.merge(
+                weightSamples: mapped(weights.samples, unit: .gramUnit(with: .kilo), multiplier: 1),
+                bodyFatSamples: mapped(fats.samples, unit: .percent(), multiplier: 100)
+            )
+        } else {
+            let dates = BodyHealthRecheckDates.make(
+                addedDates: Set((weights.samples + fats.samples).map {
+                    DateOnly.formatLocalISO($0.endDate, calendar: calendar)
+                }),
+                hasDeletions: weights.deletedCount > 0 || fats.deletedCount > 0,
+                hasExistingAnchor: anchors?.weight != nil || anchors?.bodyFat != nil,
+                recentDays: recheckRecentDays, now: now, calendar: calendar
+            )
+            var currentWeights: [DatedHealthMetricSample] = []
+            var currentFats: [DatedHealthMetricSample] = []
+            if anchors?.weight == nil || anchors?.bodyFat == nil,
+               let first = dates.min(), let last = dates.max(),
+               let start = DateOnly.parse(first, calendar: calendar),
+               let lastStart = DateOnly.parse(last, calendar: calendar),
+               let end = calendar.date(byAdding: .day, value: 1, to: lastStart) {
+                // With one type unanchored, affected dates may span years. Query each
+                // type once across those dates rather than issuing two queries per day.
+                async let rangeWeights = queryQuantitySamples(
+                    type: bodyMassType, unit: .gramUnit(with: .kilo), multiplier: 1, start: start, end: end
+                )
+                async let rangeFats = queryQuantitySamples(
+                    type: bodyFatType, unit: .percent(), multiplier: 100, start: start, end: end
+                )
+                currentWeights = try await rangeWeights.filter { dates.contains($0.measuredOn) }
+                currentFats = try await rangeFats.filter { dates.contains($0.measuredOn) }
+            } else {
+                for date in dates.sorted() {
+                    guard let start = DateOnly.parse(date, calendar: calendar),
+                          let end = calendar.date(byAdding: .day, value: 1, to: start) else { continue }
+                    async let dayWeights = queryQuantitySamples(
+                        type: bodyMassType, unit: .gramUnit(with: .kilo), multiplier: 1, start: start, end: end
+                    )
+                    async let dayFats = queryQuantitySamples(
+                        type: bodyFatType, unit: .percent(), multiplier: 100, start: start, end: end
+                    )
+                    currentWeights += try await dayWeights
+                    currentFats += try await dayFats
+                }
+            }
+            measurements = HealthBodyMeasurementGrouper.merge(
+                weightSamples: currentWeights, bodyFatSamples: currentFats
+            )
+        }
+        return BodyHealthChangeBatch(
+            measurements: measurements,
+            nextAnchors: BodyHealthAnchors(
+                weight: BodyHealthAnchors.checkpointedAnchor(
+                    weights.nextAnchor, previous: anchors?.weight,
+                    hasEvents: !weights.samples.isEmpty || weights.deletedCount > 0
+                ),
+                bodyFat: BodyHealthAnchors.checkpointedAnchor(
+                    fats.nextAnchor, previous: anchors?.bodyFat,
+                    hasEvents: !fats.samples.isEmpty || fats.deletedCount > 0
+                ),
+                timeZone: calendar.timeZone.identifier
+            ),
+            hasEvents: hasEvents
+        )
+    }
+
+    private func anchoredSamples(type: HKQuantityType, since data: Data?) async throws
+        -> (samples: [HKQuantitySample], deletedCount: Int, nextAnchor: Data) {
+        let anchor: HKQueryAnchor?
+        if let data {
+            guard let decoded = try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data) else {
+                throw HealthKitBodyMeasurementImportError.invalidAnchor
+            }
+            anchor = decoded
+        } else {
+            anchor = nil
+        }
+        let query = HKAnchoredObjectQueryDescriptor<HKQuantitySample>(
+            predicates: [.quantitySample(type: type)], anchor: anchor, limit: HKObjectQueryNoLimit
+        )
+        let result = try await query.result(for: store)
+        let nextAnchor = try NSKeyedArchiver.archivedData(
+            withRootObject: result.newAnchor, requiringSecureCoding: true
+        )
+        return (result.addedSamples, result.deletedObjects.count, nextAnchor)
+    }
+
+    private func mapped(_ samples: [HKQuantitySample], unit: HKUnit, multiplier: Double)
+        -> [DatedHealthMetricSample] {
+        samples.map { sample in
+            DatedHealthMetricSample(
+                measuredOn: DateOnly.formatLocalISO(sample.endDate, calendar: calendar),
+                endDate: sample.endDate,
+                value: sample.quantity.doubleValue(for: unit) * multiplier
+            )
+        }
     }
 
     private func requestReadAuthorization(for types: Set<HKObjectType>) async throws {
@@ -193,16 +362,20 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
     private func queryQuantitySamples(
         type: HKQuantityType,
         unit: HKUnit,
-        multiplier: Double
+        multiplier: Double,
+        start: Date,
+        end: Date
     ) async throws -> [DatedHealthMetricSample] {
         let calendar = self.calendar
         return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[DatedHealthMetricSample], any Error>) in
-            let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let predicate = HKQuery.predicateForSamples(
+                withStart: start, end: end, options: [.strictEndDate]
+            )
             let query = HKSampleQuery(
                 sampleType: type,
-                predicate: nil,
+                predicate: predicate,
                 limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sortDescriptor]
+                sortDescriptors: nil
             ) { _, samples, error in
                 if let error {
                     continuation.resume(throwing: error)

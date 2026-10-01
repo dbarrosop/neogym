@@ -4,7 +4,6 @@ public protocol DailyEnergyRepositoryProtocol: Sendable {
     func listEntries() async throws -> [DailyEnergy]
     func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy]
     func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error>
-    func listEntryDates() async throws -> [String]
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy]
     func entryUpdates(id: String) -> AsyncThrowingStream<DailyEnergy?, Error>
     func entry(id: String) async throws -> DailyEnergy?
@@ -23,10 +22,6 @@ public extension DailyEnergyRepositoryProtocol {
 
     func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error> {
         singleValueUpdates { try await listEntries(limit: limit, offset: offset) }
-    }
-
-    func listEntryDates() async throws -> [String] {
-        try await listEntries().map(\.energyOn)
     }
 
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
@@ -78,14 +73,6 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
             ("limit", .number(Double(limit))),
             ("offset", .number(Double(offset)))
         )
-    }
-
-    public func listEntryDates() async throws -> [String] {
-        let data: DailyEnergyEntryDatesData = try await graphQL.execute(
-            query: Self.dailyEnergyEntryDatesQuery,
-            operationName: "DailyEnergyEntryDates"
-        )
-        return data.dailyEnergyEntries.map(\.energyOn)
     }
 
     public func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
@@ -172,14 +159,6 @@ private struct DailyEnergyEntriesData: Decodable, Sendable {
     let dailyEnergyEntries: [DailyEnergy]
 }
 
-private struct DailyEnergyEntryDatesData: Decodable, Sendable {
-    let dailyEnergyEntries: [DailyEnergyDate]
-}
-
-private struct DailyEnergyDate: Decodable, Sendable {
-    let energyOn: String
-}
-
 private struct DailyEnergyEntryByIdData: Decodable, Sendable {
     let dailyEnergyEntry: DailyEnergy?
 }
@@ -215,14 +194,6 @@ public extension DailyEnergyRepository {
         activeKcal
         restingKcal
         notes
-      }
-    }
-    """
-
-    static let dailyEnergyEntryDatesQuery = """
-    query DailyEnergyEntryDates {
-      dailyEnergyEntries(order_by: { energyOn: desc }) {
-        energyOn
       }
     }
     """

@@ -32,9 +32,9 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>NeoGym reads workouts, weight, body-fat percentage, active energy, and resting energy from Apple Health to keep private workout imports and body and energy logs up to date.</string>
+	<string>NeoGym reads workouts, weight, and body-fat percentage from Apple Health to keep private workout imports and body logs up to date.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>NeoGym does not write to Apple Health. It only reads your workouts, weight, body-fat percentage, active energy, and resting energy to update your NeoGym records.</string>
+	<string>NeoGym does not write to Apple Health. It only reads your workouts, weight, and body-fat percentage to update your NeoGym records.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NeoGymSharedKeychainAccessGroup</key>
