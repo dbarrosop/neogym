@@ -268,21 +268,26 @@ The last-known server intake remains unchanged; a server-side manual edit
 since the last backend read can briefly differ until fresh reconciliation.
 
 The **watch app**, not the complication, owns authorization, HealthKit queries,
-GraphQL writes, and network refreshes. After the explicit permission flow it
-registers HealthKit observer/background delivery for both energy types (not
-for Workout records); it also asks watchOS for an hourly preferred background
-refresh. A workout recorded in Fitness doesn't itself trigger a NeoGym wake.
-These are best-effort
-OS wakeups, **not** a guaranteed hourly schedule. `WatchRefreshSchedule`
+GraphQL writes, and network refreshes. Each watch process launch starts
+account bootstrap in the application delegate, independent of the SwiftUI
+view. After the explicit permission flow, once the local session restores the
+authorized, non-blocked owner, the watch registers HealthKit observers and
+background delivery for both energy types (not for Workout records), without
+waiting for WCSession activation or the network profile read; it also asks
+watchOS for an hourly preferred background refresh. A workout recorded in
+Fitness doesn't itself trigger a NeoGym wake. These are best-effort OS wakeups,
+**not** a guaranteed hourly schedule. `WatchRefreshSchedule`
 coalesces duplicate preferred dates, re-arms after account bootstrap but
 before energy reconciliation, and requests best-effort 15/30/60-minute retries after an
 backend sync failure or transient `/user` validation failure. A pending Health
 delivery separately requests a coalesced 15-minute preferred fallback without
 incrementing the failure backoff. Repeated failures before a pending retry wakes
 do not advance backoff, and acceptance is not evidence of a delivered wake.
-Background-to-active waits for the fresh uncached `/user` read then explicitly
-refreshes Energy even if the profile name was unchanged. Each HealthKit
-observer callback synchronously attempts a read-back-verified private,
+The first active scene after a background-only launch, as well as a return
+from a background scene, replaces any in-flight background profile read,
+waits for a fresh uncached `/user` read, and explicitly refreshes Energy even
+if the profile name was unchanged. An inactive wrist raise alone does not
+trigger this extra refresh. Each HealthKit observer callback synchronously attempts a read-back-verified private,
 user-scoped pending marker, then calls completion exactly once, without
 holding HealthKit acknowledgement
 through account validation or backend work. An eligible run attempts the sync;

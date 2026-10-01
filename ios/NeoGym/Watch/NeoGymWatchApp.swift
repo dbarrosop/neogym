@@ -18,7 +18,6 @@ private struct WatchHomeView: View {
     @ObservedObject private var account: WatchAccountModel
     @StateObject private var signIn: SignInModel
     @State private var activity = WatchActivity()
-    @State private var wasBackground = false
     @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
 
     init(runtime: WatchEnergyRuntime) {
@@ -49,15 +48,8 @@ private struct WatchHomeView: View {
         }
         .task { await runtime.bootstrap() }
         .onChange(of: scenePhase, initial: true) { _, phase in
-            runtime.scenePhaseChanged(phase)
-            // A context delivery can launch the view already in the background.
-            if phase == .background { wasBackground = true }
-            if phase == .active, wasBackground {
-                wasBackground = false
+            if runtime.scenePhaseChanged(phase) {
                 if let context = runtime.connectivity.currentContext() { account.receiveContext(context) }
-                // A read started in the background must not stand in for a fresh open.
-                account.cancelPendingRead()
-                account.refresh()
                 Task { await runtime.foregroundRefresh() }
             }
         }

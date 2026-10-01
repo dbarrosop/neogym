@@ -131,12 +131,15 @@ owner, then pins its short-lived access token only on the system upload request.
 `WatchEnergyBackgroundUpload` builds one Hasura mutation with insert on
 conflict updating only imported-note rows. Manual/edited conflicts remain
 untouched; no new server endpoint or user-visible GraphQL roots are needed.
-Foreground startup restores the local Keychain session and checks any already
-received account hint without waiting for WCSession activation (not phone
-reachability) or the network name read. It renders a cached profile and today's
-same-owner energy snapshot, then activates WCSession and revalidates the profile
-in the background. A delayed blocking hint clears both caches and the local
-session; on a phone sign-out there can be a short stale display before delivery.
+Every watch process launch starts account bootstrap from the application
+delegate, independently of the SwiftUI view's task; repeated bootstrap calls
+coalesce. Once local Keychain restoration publishes an eligible same-owner
+account, the watch registers authorized HealthKit energy observers/background
+delivery without waiting for WCSession activation or the network name read.
+Foreground startup also renders a cached profile and today's same-owner energy
+snapshot, then revalidates the profile in the background. A delayed blocking
+hint clears both caches and the local session; on a phone sign-out there can be
+a short stale display before delivery.
 Foreground backend reconciliation waits for activation and the managed account
 read before private energy access. An observer may first read local HealthKit
 and save a provisional same-owner, same-day snapshot without that network gate;
@@ -253,9 +256,11 @@ name is unchanged, coalescing with the existing account-state-driven refresh.
 The phone publishes definitive `AuthStore` states through
 `PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
 activation/foreground. Transient bootstrap states do not overwrite hints.
-The watch reads on cold start. On background-to-active (including a view first
-created in the background), it cancels any in-flight name read before refreshing,
-so an eligible session starts a fresh `/user` request on open. Direct
+The watch reads on cold start. On background-to-active, including the first
+active scene after a background-only launch that never created a view, it
+cancels any in-flight background name read before refreshing, so an eligible
+session starts a fresh `/user` request on open. The first active scene of a
+normal foreground launch does not repeat bootstrap's read/refresh. Direct
 `WatchAccountModel.refresh()` calls still coalesce with an in-flight read;
 inactive wrist raises do not refresh.
 A bounded `performExpiringActivity` assertion protects OTP, live reads,

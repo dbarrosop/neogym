@@ -26,6 +26,7 @@ final class WatchEnergyRuntime: ObservableObject {
     private let eventStore = WatchEventStore()
     private let pendingHealth = WatchPendingHealthSyncStore()
     private var refreshSchedule = WatchRefreshSchedule()
+    private var foregroundGate = WatchForegroundRefreshGate()
     private let widgetReloadLastKey = "watchWidgetReloadLast.v1"
     private let widgetReloadDeferredKey = "watchWidgetReloadDeferred.v1"
     private var widgetReloadGate = WatchWidgetReloadGate(
@@ -101,6 +102,8 @@ final class WatchEnergyRuntime: ObservableObject {
     func bootstrap() async {
         if bootstrapped { return }
         if let bootstrapTask { await bootstrapTask.value; return }
+        // HealthKit can launch us in the background without constructing a view.
+        if runtimeState == .background { foregroundGate.enteredBackground() }
         let task = Task { [self] in
             connectivity.onContext = { [weak self] in self?.account.receiveContext($0) }
             // Restore the local Keychain session and render its cached profile/energy
@@ -349,7 +352,9 @@ extension WatchEnergyRuntime {
         }
     }
 
-    func scenePhaseChanged(_ phase: ScenePhase) {
+    /// Returns whether this active transition needs foreground revalidation.
+    /// The delegate can record background work even when there is no view yet.
+    func scenePhaseChanged(_ phase: ScenePhase) -> Bool {
         let state: WatchEventRuntimeState
         switch phase {
         case .active: state = .active
@@ -357,12 +362,19 @@ extension WatchEnergyRuntime {
         case .background: state = .background
         @unknown default: state = .unknown
         }
-        guard state != lastSceneState else { return }
+        if state == .background { foregroundGate.enteredBackground() }
+        let shouldRefresh = state == .active && foregroundGate.enteredActive()
+        guard state != lastSceneState else { return shouldRefresh }
         lastSceneState = state
         record(.appLifecycle, .entered, attemptID: activeRefreshID, runtimeState: state)
         if state == .active, case .name = account.state, snapshot != nil {
             flushDeferredWidgetReload()
         }
+        return shouldRefresh
+    }
+
+    func enteredBackground() {
+        foregroundGate.enteredBackground()
     }
 
     func signOut() async {
@@ -380,6 +392,11 @@ extension WatchEnergyRuntime {
     /// Explicitly refresh energy after a foreground account revalidation, even
     /// when the account model republishes an unchanged name/state.
     func foregroundRefresh() async {
+        // Replace a background-started read before awaiting bootstrap, which
+        // itself waits for the current read. Also retry /user from .authError;
+        // refresh() is a no-op for other ineligible account states.
+        account.cancelPendingRead()
+        account.refresh()
         await bootstrap()
         await account.waitForCurrentRead()
         if !Task.isCancelled { await refresh() }
@@ -659,7 +676,19 @@ extension WatchEnergyRuntime {
 final class WatchEnergyBackgroundDelegate: NSObject, WKApplicationDelegate {
     let runtime = WatchEnergyRuntime()
 
+    func applicationDidFinishLaunching() {
+        // Record a background-only launch before the scene can become active;
+        // the asynchronous bootstrap may not have started yet.
+        if WKApplication.shared().applicationState == .background { runtime.enteredBackground() }
+        Task { await runtime.bootstrap() }
+    }
+
+    func applicationDidEnterBackground() {
+        runtime.enteredBackground()
+    }
+
     func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
+        if !backgroundTasks.isEmpty { runtime.enteredBackground() }
         for backgroundTask in backgroundTasks {
             if let urlTask = backgroundTask as? WKURLSessionRefreshBackgroundTask {
                 runtime.backgroundUploader.handle(urlTask)
