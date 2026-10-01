@@ -194,8 +194,13 @@ GraphQL upsert via a file-backed watchOS background URLSession upload; Hasura's
 conflict predicate updates only rows still labeled "Imported from Apple Health"
 and skips manual conflicts. The SDK refreshes and owner-checks the short-lived
 bearer before enqueuing; expiry, OS deferral and upload failures retain pending
-work for retries. A completed upload still needs a fresh backend read/snapshot
-before the pending marker clears; it is not proof of a rendered complication.
+work for retries. On a URLSession wake, upload result handling restores the watch
+account before checking ownership and holds the watchOS task through follow-up
+Health reconciliation, fresh backend read/snapshot (or retry scheduling), and
+deferred reload; expiration releases the wake early. A different or blocked
+owner's result is skipped, never applied. A completed upload still needs a fresh
+backend read/snapshot before the pending marker clears; it is not proof of a
+rendered complication.
 WidgetKit reloads are requested only when display values or provisional status
 change (or the snapshot is cleared). Background requests are coalesced to at
 most one per 15 minutes in the watch app, while a suppressed latest-value

@@ -57,20 +57,29 @@ final class WatchEnergyRuntime: ObservableObject {
                                      importer: health)
         events = eventStore.load()
         backgroundUploader.onResult = { [weak self] ownerID, success, status in
-            guard let self, case .name = self.account.state,
-                  self.account.currentUser?.id == ownerID else { return }
+            guard let self else { return }
+            // Background URLSession can relaunch the watch before its Keychain
+            // account has been restored. Never attribute a result to that
+            // account (or discard it as unknown) before bootstrap finishes.
+            await self.bootstrap()
+            guard !Task.isCancelled else { return }
+            guard case .name = self.account.state, let ownerID,
+                  self.account.currentUser?.id == ownerID else {
+                self.record(.healthSync, .skipped, trigger: .background,
+                            stage: .backendWrite, backendOperation: .updateEnergy,
+                            skipReason: .accountChanged)
+                return
+            }
             self.record(.healthSync, success ? .succeeded : .failed,
                         trigger: .background, errorCode: success ? nil : status,
                         errorSource: success ? nil : .backend, stage: .backendWrite,
                         backendOperation: .updateEnergy)
             if success {
-                Task {
-                    await self.refreshWhenEligible(trigger: .background, attemptID: UUID())
-                    self.flushDeferredWidgetReload()
-                }
+                await self.refreshWhenEligible(trigger: .background, attemptID: UUID())
             } else {
                 self.scheduleRefresh(retry: true)
             }
+            self.flushDeferredWidgetReload()
         }
         account.onReadFailure = { [weak self] diagnostic in
             guard let self else { return }

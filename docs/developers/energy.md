@@ -117,9 +117,14 @@ Import rules:
   while one is in flight. A deferred transfer can outlive that bearer and fail;
   the pending marker then remains for another eligible retry. The foreground
   path and transfer both preserve manual/edited rows and unique-date races.
-- A fresh backend read follows a successful direct watch write or is requested
-  after background upload completion. Phone views query the backend
-  independently and do not trigger or wait for watch HealthKit sync.
+- A fresh backend read follows a successful direct watch write or background
+  upload. On a URLSession wake, the watch restores its account before checking
+  the upload owner, then keeps the wake open through the follow-up Health
+  reconciliation and fresh read (or failure retry scheduling and deferred widget
+  reload). watchOS expiration can cancel that follow-up and release the wake
+  early; the pending marker retains work for another eligible attempt. Results
+  for another or blocked owner are logged as skipped, never applied. Phone views
+  query the backend independently and do not wait for watch HealthKit sync.
 
 ## Nutrition balance
 

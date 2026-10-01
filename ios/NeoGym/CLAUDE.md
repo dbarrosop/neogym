@@ -228,8 +228,14 @@ per 15 minutes, persisting the time and deferred flag in watch-only defaults;
 a later eligible wake or foreground return retries a suppressed latest-value
 reload. Foreground value changes and clear/sign-out bypass the gate. This
 coalesces app requests, not WidgetKit scheduling itself. A background upload may be deferred until its bearer expires; the
-pending marker and preferred retry remain best-effort fallbacks. URLSession
-completion requests a fresh backend read, not proof of a WidgetKit render.
+pending marker and preferred retry remain best-effort fallbacks. On a
+URLSession wake, result handling awaits account bootstrap before checking the
+upload owner; a mismatched/blocked owner is logged as skipped. The watchOS task
+stays open through the successful upload's Health reconciliation and fresh
+backend read (or the failure retry scheduling and deferred widget reload),
+unless watchOS expires it first. Expiration cancels follow-up work and releases
+the task exactly once; neither a completed upload nor a reload request proves
+a WidgetKit render.
 The widget shows the age of the
 last timeline snapshot; unchanged-value reads may not update that age until
 WidgetKit asks for another timeline. Foreground return explicitly awaits the

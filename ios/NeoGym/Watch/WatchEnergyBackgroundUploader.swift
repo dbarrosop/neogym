@@ -9,10 +9,13 @@ import WatchKit
 @MainActor
 final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
     static let identifier = "io.nhost.dbarroso.neogym.watch-energy-upload.v1"
-    var onResult: ((String?, Bool, Int?) -> Void)?
+    var onResult: ((String?, Bool, Int?) async -> Void)?
     private var responses: [Int: Data] = [:]
     private var enqueuingOwners = Set<String>()
+    private let followUps = WatchBackgroundUploadFollowUps()
     private var wakeTask: WKURLSessionRefreshBackgroundTask?
+    private var wakeGate: WatchCompletionGate?
+    private var finishTask: Task<Void, Never>?
     private lazy var session: URLSession = {
         let configuration = URLSessionConfiguration.background(withIdentifier: Self.identifier)
         configuration.sessionSendsLaunchEvents = true
@@ -59,10 +62,26 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
         }
         // Reattach the same identifier after a watchOS background launch.
         _ = session
+        // A replacement wake must not strand the previous system task.
+        wakeTask?.expirationHandler = nil
+        wakeGate?.complete()
+        finishTask?.cancel()
+        let gate = WatchCompletionGate { task.setTaskCompletedWithSnapshot(false) }
         wakeTask = task
+        wakeGate = gate
         task.expirationHandler = { [weak self] in
-            Task { @MainActor [weak self] in self?.wakeTask = nil }
-            task.setTaskCompletedWithSnapshot(false)
+            // watchOS can invoke this outside the main actor; release the wake
+            // promptly, then cancel the work on its owning actor.
+            gate.complete()
+            Task { @MainActor [weak self] in
+                guard let self, self.wakeGate === gate else { return }
+                self.finishTask?.cancel()
+                self.followUps.cancelPending()
+                self.wakeTask?.expirationHandler = nil
+                self.wakeTask = nil
+                self.wakeGate = nil
+                self.finishTask = nil
+            }
         }
     }
 
@@ -89,15 +108,25 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
             let success = error == nil && WatchEnergyBackgroundUpload.succeeded(
                 status: status, data: response
             )
-            onResult?(task.taskDescription, success, status)
+            let ownerID = task.taskDescription
+            followUps.submit { [weak self] in
+                await self?.onResult?(ownerID, success, status)
+            }
         }
     }
 
     nonisolated func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         MainActor.assumeIsolated {
-            wakeTask?.expirationHandler = nil
-            wakeTask?.setTaskCompletedWithSnapshot(false)
-            wakeTask = nil
+            guard let gate = wakeGate else { return }
+            finishTask = Task { [weak self] in
+                guard let self else { gate.complete(); return }
+                await self.followUps.finishEvents(completion: gate)
+                guard self.wakeGate === gate else { return }
+                self.wakeTask?.expirationHandler = nil
+                self.wakeTask = nil
+                self.wakeGate = nil
+                self.finishTask = nil
+            }
         }
     }
 }
