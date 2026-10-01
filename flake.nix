@@ -83,7 +83,7 @@
               [
                 gnumake
                 nixpkgs-fmt
-                nhost-cli
+                nhost.nhost-cli
               ]
               ++ checkDeps
               ++ buildInputs
