@@ -421,6 +421,55 @@ final class BodyMeasurementsHealthSyncViewModelTests: XCTestCase {
         XCTAssertEqual(listCalls, 1)
         XCTAssertEqual(created.count, 1)
     }
+}
+
+extension BodyMeasurementsHealthSyncViewModelTests {
+    func testDeletedLatestSampleCorrectsImportedRowAndCommitsCursor() async throws {
+        let suite = UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let today = try XCTUnwrap(DateOnly.parse("2026-07-09", calendar: calendar))
+        let previous = BodyHealthAnchors(
+            weight: Data("previous-weight".utf8), bodyFat: Data("previous-fat".utf8),
+            timeZone: calendar.timeZone.identifier
+        )
+        let next = BodyHealthAnchors(
+            weight: Data("next-weight".utf8), bodyFat: previous.bodyFat,
+            timeZone: calendar.timeZone.identifier
+        )
+        let key = "body-health.anchor.v2.user-one"
+        defaults.set(try JSONEncoder().encode(previous), forKey: key)
+        let importer = FakeIncrementalBodyHealthImporter(batches: [BodyHealthChangeBatch(
+            measurements: [HealthBodyMeasurement(measuredOn: "2026-07-09", weightKg: 80, bodyFatPct: 18)],
+            nextAnchors: next, hasEvents: true
+        )])
+        let repository = FakeBodyMeasurementsRepository(measurements: [BodyMeasurement(
+            id: "today", measuredOn: "2026-07-09", weightKg: 81, bodyFatPct: 18,
+            notes: "Imported from Apple Health"
+        )])
+        let model = BodyMeasurementsListViewModel(
+            repository: repository, healthImporter: importer, calendar: calendar,
+            now: { today }, userId: "user-one", defaults: defaults
+        )
+
+        let didWrite = await model.syncHealthMeasurementsOnly()
+        let received = await importer.receivedAnchors()
+        let recentDays = await importer.receivedRecentDays()
+        let updated = await repository.updatedValuesSnapshot()
+        XCTAssertTrue(didWrite)
+        let passedAnchor = try XCTUnwrap(received.first ?? nil)
+        XCTAssertEqual(passedAnchor.weight, previous.weight)
+        XCTAssertEqual(recentDays, [7])
+        XCTAssertEqual(updated["today"], BodyMeasurementFormValues(
+            measuredOn: "2026-07-09", weightKg: "80", bodyFatPct: "18",
+            notes: "Imported from Apple Health"
+        ))
+        let saved = try JSONDecoder().decode(BodyHealthAnchors.self, from: XCTUnwrap(defaults.data(forKey: key)))
+        XCTAssertEqual(saved.weight, next.weight)
+        XCTAssertEqual(model.healthSyncState.value?.updatedCount, 1)
+    }
 
     func testOneEmptyMetricRetainsNilCursorUntilItsSamplesArrive() async throws {
         let suite = UUID().uuidString
@@ -872,17 +921,21 @@ private actor BlockingBodyMeasurementsHealthImporter: BodyMeasurementsHealthImpo
 private actor FakeIncrementalBodyHealthImporter: BodyMeasurementsHealthImporting {
     private var batches: [BodyHealthChangeBatch]
     private var received: [BodyHealthAnchors?] = []
+    private var recentDays: [Int] = []
 
     init(batches: [BodyHealthChangeBatch]) { self.batches = batches }
 
     func dailyMeasurements() async throws -> [HealthBodyMeasurement] { [] }
 
-    func changes(since anchors: BodyHealthAnchors?) async throws -> BodyHealthChangeBatch {
+    func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws
+        -> BodyHealthChangeBatch {
         received.append(anchors)
+        recentDays.append(recheckRecentDays)
         return batches.removeFirst()
     }
 
     func receivedAnchors() -> [BodyHealthAnchors?] { received }
+    func receivedRecentDays() -> [Int] { recentDays }
 }
 
 private struct FakeBodyMeasurementsHealthImporter: BodyMeasurementsHealthImporting {

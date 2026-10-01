@@ -91,6 +91,23 @@ public struct BodyHealthAnchors: Codable, Sendable {
     }
 }
 
+/// Deletion records have no date; re-read the refreshable local-day window as well as added-sample days.
+enum BodyHealthRecheckDates {
+    static func make(
+        addedDates: Set<String>, hasDeletions: Bool, hasExistingAnchor: Bool,
+        recentDays: Int, now: Date, calendar: Calendar
+    ) -> Set<String> {
+        guard hasDeletions, hasExistingAnchor else { return addedDates }
+        let today = calendar.startOfDay(for: now)
+        var dates = addedDates
+        for offset in 0..<max(recentDays, 1) {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { continue }
+            dates.insert(DateOnly.formatLocalISO(day, calendar: calendar))
+        }
+        return dates
+    }
+}
+
 public struct BodyHealthChangeBatch: Sendable {
     public let measurements: [HealthBodyMeasurement]
     public let nextAnchors: BodyHealthAnchors?
@@ -105,12 +122,12 @@ public struct BodyHealthChangeBatch: Sendable {
 
 public protocol BodyMeasurementsHealthImporting: Sendable {
     func dailyMeasurements() async throws -> [HealthBodyMeasurement]
-    func changes(since anchors: BodyHealthAnchors?) async throws -> BodyHealthChangeBatch
+    func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws -> BodyHealthChangeBatch
 }
 
 public extension BodyMeasurementsHealthImporting {
     /// Host fakes can continue supplying a complete set of daily measurements.
-    func changes(since anchors: BodyHealthAnchors?) async throws -> BodyHealthChangeBatch {
+    func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws -> BodyHealthChangeBatch {
         let measurements = try await dailyMeasurements()
         return BodyHealthChangeBatch(measurements: measurements, nextAnchors: nil, hasEvents: !measurements.isEmpty)
     }
@@ -203,10 +220,11 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
     }
 
     public func dailyMeasurements() async throws -> [HealthBodyMeasurement] {
-        try await changes(since: nil).measurements
+        try await changes(since: nil, recheckRecentDays: 0, now: Date()).measurements
     }
 
-    public func changes(since anchors: BodyHealthAnchors?) async throws -> BodyHealthChangeBatch {
+    public func changes(since anchors: BodyHealthAnchors?, recheckRecentDays: Int, now: Date) async throws
+        -> BodyHealthChangeBatch {
         guard HKHealthStore.isHealthDataAvailable() else {
             throw HealthKitBodyMeasurementImportError.unavailable
         }
@@ -235,9 +253,14 @@ public final class HealthKitBodyMeasurementImporter: BodyMeasurementsHealthImpor
                 bodyFatSamples: mapped(fats.samples, unit: .percent(), multiplier: 100)
             )
         } else {
-            let dates = Set((weights.samples + fats.samples).map {
-                DateOnly.formatLocalISO($0.endDate, calendar: calendar)
-            })
+            let dates = BodyHealthRecheckDates.make(
+                addedDates: Set((weights.samples + fats.samples).map {
+                    DateOnly.formatLocalISO($0.endDate, calendar: calendar)
+                }),
+                hasDeletions: weights.deletedCount > 0 || fats.deletedCount > 0,
+                hasExistingAnchor: anchors?.weight != nil || anchors?.bodyFat != nil,
+                recentDays: recheckRecentDays, now: now, calendar: calendar
+            )
             var currentWeights: [DatedHealthMetricSample] = []
             var currentFats: [DatedHealthMetricSample] = []
             if anchors?.weight == nil || anchors?.bodyFat == nil,

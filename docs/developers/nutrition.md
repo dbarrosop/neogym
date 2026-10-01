@@ -90,16 +90,16 @@ cannot distinguish read denial from no samples. Cursors live under
 `body-health.anchor.v2.<userId>`; the previous `body-health.anchor.v1.*` paired
 key is ignored if present so a previously unreadable type starts from history.
 Later visits inspect added samples and re-query affected local dates (both
-weight and fat to retain the latest value per metric). On any sync with one type
-unanchored and affected dates, one bounded range query per metric re-reads both
-values for those dates; an anchored type with no events keeps its previous
-cursor, since an empty read can also mean revoked permission. This is
-independent of the selected chart period. No-change reads skip the backend
-measurement list and the duplicate dashboard revalidation. HealthKit deletions
-are intentionally ignored for now: removing a Health sample does not remove or
-recompute an already-imported Body row until another addition affects that
-date. Watch energy sync covers seven local dates and is independent of the
-iPhone chart period.
+weight and fat to retain the latest value per metric). Reported deletions also
+re-read the last seven local dates, correcting recent imported-note rows when
+another sample remains; older dates are not reconciled, and a day with no
+remaining samples keeps its row. On any sync with one type unanchored and
+affected dates, one bounded range query per metric re-reads both values for
+those dates; an anchored type with no events keeps its previous cursor, since
+an empty read can also mean revoked permission. This is independent of the
+selected chart period. No-change reads skip the backend measurement list and
+the duplicate dashboard revalidation. Watch energy sync covers seven local
+dates and is independent of the iPhone chart period.
 The 7-day rolling net average is computed from calendar days in the window
 that have both a nutrition log day and a `daily_energy` row, so missing
 energy/intake data is not silently treated as a zero-output day. The

@@ -28,7 +28,9 @@ package at its lower deployment floor unless its own code needs newer APIs.
   tests. In XCTest, await actor snapshots into a local before passing them to
   `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
   `WatchAccountTests` methods in its existing extension: the main class is near
-  the Swift lint 350-line type-body limit.
+  the Swift lint 350-line type-body limit. `BodyMeasurementsTests.swift` is near
+  the 1000-line file limit; keep standalone Body date-planning tests in
+  `BodyHealthRecheckDatesTests.swift` and new sync tests in its existing extension.
 - `nix develop ../.. --command xcodegen generate` — regenerate
   `NeoGym.xcodeproj` from `project.yml` after adding/removing Swift app files.
   Keep `project.yml` as the source of truth and do not commit generated
@@ -408,18 +410,20 @@ changes.
   overview. Body measurement HealthKit sync still runs from both the Body
   subsection and the Nutrition overview on initial load and pull-to-refresh.
   It scans history once per app user/timezone, then uses per-type anchored
-  additions to re-query affected local dates; cursors commit only after
-  successful backend reconciliation. A type whose first read is empty stays
-  unanchored even if the other type has samples, so later permission grants
+  changes to re-query added-sample dates or the recent deletion window; cursors
+  commit only after successful backend reconciliation. A type whose first read
+  is empty stays unanchored even if the other type has samples, so later permission grants
   retry that type's history. On any sync with one type unanchored and affected
   dates, one bounded query per metric re-reads the affected values. An anchored
   type with no events retains its prior cursor in case access was revoked.
   Cursors live under `body-health.anchor.v2.<userId>`; the previous
   `body-health.anchor.v1.*` paired key is ignored if present so a previously
   unreadable type starts from history. It creates missing dates and refreshes
-  the last 7 local days only for rows still carrying that note. Deletions are
-  not yet reconciled. Overview revalidates its backend queries after sync when
-  Body rows changed or when refresh/Retry was requested while sync was pending;
+  the last 7 local days only for rows still carrying that note. Reported
+  deletions re-read those dates to correct imported rows when a sample remains;
+  older dates and fully emptied days are not cleared. Overview revalidates its
+  backend queries after sync when Body rows changed or when refresh/Retry was
+  requested while sync was pending;
   queued requests keep the dashboard's loading indicator visible.
 
 ## Native iOS design guide

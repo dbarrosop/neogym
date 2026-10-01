@@ -88,7 +88,10 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                 .flatMap { try? JSONDecoder().decode(BodyHealthAnchors.self, from: $0) }
             // A timezone change moves local-day boundaries; rebuild once from history.
             let anchors = saved?.timeZone == calendar.timeZone.identifier ? saved : nil
-            let batch = try await healthImporter.changes(since: anchors)
+            let syncDate = now()
+            let batch = try await healthImporter.changes(
+                since: anchors, recheckRecentDays: healthRefreshLookbackDays, now: syncDate
+            )
             try Task.checkCancellation()
             if batch.measurements.isEmpty {
                 // HealthKit hides read denial. The importer leaves an empty type's
@@ -100,7 +103,7 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
                 return false
             }
             let existingMeasurements = try await repository.listMeasurements()
-            let refreshStart = healthRefreshStartDate()
+            let refreshStart = healthRefreshStartDate(now: syncDate)
             var knownDates = Set(existingMeasurements.map(\.measuredOn))
             let existingMeasurementsByDate = Dictionary(
                 uniqueKeysWithValues: existingMeasurements.map { ($0.measuredOn, $0) }
@@ -166,8 +169,8 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
         return didWrite
     }
 
-    private func healthRefreshStartDate() -> String {
-        let todayStart = calendar.startOfDay(for: now())
+    private func healthRefreshStartDate(now: Date) -> String {
+        let todayStart = calendar.startOfDay(for: now)
         let lookbackDays = max(healthRefreshLookbackDays, 1) - 1
         let startDate = calendar.date(byAdding: .day, value: -lookbackDays, to: todayStart) ?? todayStart
         return DateOnly.formatLocalISO(startDate, calendar: calendar)
