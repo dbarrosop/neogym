@@ -192,10 +192,15 @@ when visible values change. Manual/edited or legacy unknown-provenance rows are
 never locally overlaid. In the background it enqueues one seven-day, idempotent
 GraphQL upsert via a file-backed watchOS background URLSession upload; Hasura's
 conflict predicate updates only rows still labeled "Imported from Apple Health"
-and skips manual conflicts. The SDK refreshes and owner-checks the short-lived
-bearer before enqueuing; expiry, OS deferral and upload failures retain pending
-work for retries. On a URLSession wake, upload result handling restores the watch
-account before checking ownership and holds the watchOS task through follow-up
+and skips manual conflicts. The SDK forces a refresh and owner-checks the
+bearer before enqueuing; transient refresh fallback tokens with under ten
+minutes left use the direct
+path instead. Same-owner transfers deduplicate only while their recorded bearer
+has over two minutes left; an expiry-less or near-expiry transfer is replaced
+once a valid upload is ready. A deduplicated transfer still allows direct
+reconciliation during that wake. Expiry, OS deferral and upload failures retain
+pending work for best-effort retries. On a URLSession wake, upload result
+handling restores the watch account before checking ownership and holds the watchOS task through follow-up
 Health reconciliation, fresh backend read/snapshot (or retry scheduling), and
 deferred reload; expiration releases the wake early. A different or blocked
 owner's result is skipped, never applied. A completed upload still needs a fresh

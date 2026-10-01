@@ -610,7 +610,7 @@ extension WatchEnergyRuntime {
     private func enqueueBackgroundUpload(_ imported: [HealthDailyEnergy], ownerID: String,
                                          attemptID: UUID) async -> Bool {
         do {
-            let queued = try await backgroundUploader.enqueue(
+            let result = try await backgroundUploader.enqueue(
                 entries: imported, ownerID: ownerID, client: uploadClient,
                 isCurrentOwner: { [weak self] in
                     guard let self, case .name = self.account.state else { return false }
@@ -621,12 +621,15 @@ extension WatchEnergyRuntime {
                 backgroundUploader.cancel(ownerID: ownerID)
                 return false
             }
-            if queued {
+            if case .queued = result {
                 record(.healthSync, .started, trigger: .background,
                        stage: .backendWrite, attemptID: attemptID,
                        backendOperation: .updateEnergy)
+                return true
             }
-            return queued
+            // A deduplicated transfer may never start before its bearer expires.
+            // Use this eligible wake to try the managed in-process path instead.
+            return false
         } catch {
             if !(error is CancellationError) {
                 recordFailure(.healthSync, trigger: .background, error: error,

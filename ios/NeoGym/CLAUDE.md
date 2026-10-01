@@ -133,6 +133,13 @@ owner, then pins its short-lived access token only on the system upload request.
 `WatchEnergyBackgroundUpload` builds one Hasura mutation with insert on
 conflict updating only imported-note rows. Manual/edited conflicts remain
 untouched; no new server endpoint or user-visible GraphQL roots are needed.
+The watch forces SDK refresh before pinning an upload bearer with at least ten
+minutes remaining; a transient refresh fallback with less time uses in-process
+reconciliation instead. The task description retains only owner ID and bearer
+expiry. A same-owner task deduplicates while more than two minutes remain;
+older expiry-less or near-expiry tasks are replaced once a valid upload is
+ready. A deduplicated task still allows direct reconciliation on the wake;
+replaced-task cancellations do not advance retry backoff.
 Every watch process launch starts account bootstrap from the application
 delegate, independently of the SwiftUI view's task; repeated bootstrap calls
 coalesce. Once local Keychain restoration publishes an eligible same-owner
@@ -241,8 +248,10 @@ on sign-out. `WatchWidgetReloadGate` allows at most one background app request
 per 15 minutes, persisting the time and deferred flag in watch-only defaults;
 a later eligible wake or foreground return retries a suppressed latest-value
 reload. Foreground value changes and clear/sign-out bypass the gate. This
-coalesces app requests, not WidgetKit scheduling itself. A background upload may be deferred until its bearer expires; the
-pending marker and preferred retry remain best-effort fallbacks. On a
+coalesces app requests, not WidgetKit scheduling itself. A background upload
+may be deferred until its bearer expires; subsequent eligible wakes can
+reconcile in-process or replace stale transfers.
+The pending marker and preferred retry remain best-effort fallbacks. On a
 URLSession wake, result handling awaits account bootstrap before checking the
 upload owner; a mismatched/blocked owner is logged as skipped. The watchOS task
 stays open through the successful upload's Health reconciliation and fresh

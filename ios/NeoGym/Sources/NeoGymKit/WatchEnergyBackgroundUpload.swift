@@ -1,5 +1,34 @@
 import Foundation
 
+/// Only owner and bearer expiration (never the bearer) are persisted with a
+/// background task. Legacy tasks without expiration cannot safely suppress a
+/// later wake's reconciliation.
+public enum WatchEnergyUploadTaskPolicy {
+    public static let minimumRemaining: TimeInterval = 120
+    public static let minimumNewBearerLifetime: TimeInterval = 600
+
+    public static func description(ownerID: String, expiresAt: Date) -> String {
+        "\(ownerID)|\(Int(expiresAt.timeIntervalSince1970))"
+    }
+
+    public static func ownerID(in description: String?) -> String? {
+        description?.split(separator: "|", maxSplits: 1).first.map(String.init)
+    }
+
+    public static func canPinBearer(expiresAt: Date?, now: Date) -> Bool {
+        guard let expiresAt else { return false }
+        return expiresAt.timeIntervalSince(now) > minimumNewBearerLifetime
+    }
+
+    public static func canDedupe(_ description: String?, ownerID: String, now: Date) -> Bool {
+        guard let description, Self.ownerID(in: description) == ownerID,
+              let separator = description.firstIndex(of: "|"),
+              let expiry = TimeInterval(description[description.index(after: separator)...]),
+              expiry.isFinite else { return false }
+        return expiry > now.timeIntervalSince1970 + minimumRemaining
+    }
+}
+
 /// One idempotent, owner-scoped GraphQL mutation instead of seven foreground
 /// read/update/create round trips. Hasura insert permissions set userId from the
 /// bearer token; the conflict predicate protects manual and edited entries.

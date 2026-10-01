@@ -112,11 +112,18 @@ Import rules:
   upsert after reading HealthKit: insert missing dates and update conflicts only
   where `notes = 'Imported from Apple Health'`, using the unique user/date key.
   Hasura's user-role insert/update permissions set and filter ownership; the
-  watch refreshes and verifies its SDK session before pinning a short-lived
-  bearer on the transfer. It never queues a second upload for the same owner
-  while one is in flight. A deferred transfer can outlive that bearer and fail;
-  the pending marker then remains for another eligible retry. The foreground
-  path and transfer both preserve manual/edited rows and unique-date races.
+  watch forces an SDK session refresh and verifies the owner before pinning
+  a bearer with at least ten minutes remaining on the transfer. A transient
+  refresh failure can return a shorter-lived bearer; in that case the watch
+  uses the in-process path instead. It deduplicates a same-owner upload only
+  while its recorded bearer expiry is more than two minutes away; an older
+  expiry-less or near-expiry task is replaced once a new upload is ready.
+  A deduplicated task does not suppress in-process reconciliation on an
+  eligible wake. Replaced task cancellations do not count as failures. All
+  background transfers and wakeups remain best-effort: watchOS may defer a
+  transfer beyond token expiry, leaving the pending marker for another wake.
+  The foreground path and transfer both preserve manual/edited rows and
+  unique-date races.
 - A fresh backend read follows a successful direct watch write or background
   upload. On a URLSession wake, the watch restores its account before checking
   the upload owner, then keeps the wake open through the follow-up Health

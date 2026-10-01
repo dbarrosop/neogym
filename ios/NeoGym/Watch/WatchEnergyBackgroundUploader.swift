@@ -4,13 +4,21 @@ import Nhost
 import WatchKit
 
 /// watchOS transfers file uploads in a system process, so the GraphQL write
-/// can finish after this app is suspended. Only one owner-scoped upload is
-/// outstanding; the pending Health marker survives a failed/expired token.
+/// can finish after this app is suspended. Viable same-owner uploads are
+/// deduplicated, and stale ones are cancelled when a replacement is ready.
+/// A deferred transfer never prevents a later in-process reconciliation.
 @MainActor
 final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
     static let identifier = "io.nhost.dbarroso.neogym.watch-energy-upload.v1"
     var onResult: ((String?, Bool, Int?) async -> Void)?
+    enum EnqueueResult {
+        case queued
+        case deduplicated
+        case unavailable
+    }
+
     private var responses: [Int: Data] = [:]
+    private var replacedTaskIDs = Set<Int>()
     private var enqueuingOwners = Set<String>()
     private let followUps = WatchBackgroundUploadFollowUps()
     private var wakeTask: WKURLSessionRefreshBackgroundTask?
@@ -25,21 +33,36 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
     }()
 
     func enqueue(entries: [HealthDailyEnergy], ownerID: String, client: NhostClient,
-                 isCurrentOwner: () -> Bool) async throws -> Bool {
+                 isCurrentOwner: () -> Bool) async throws -> EnqueueResult {
         guard let body = try WatchEnergyBackgroundUpload.body(entries: entries, now: Date(), calendar: .current)
-        else { return false }
-        guard !enqueuingOwners.contains(ownerID) else { return true }
+        else { return .unavailable }
+        guard !enqueuingOwners.contains(ownerID) else { return .deduplicated }
         enqueuingOwners.insert(ownerID)
         defer { enqueuingOwners.remove(ownerID) }
-        let existing = await session.allTasks
-        guard !existing.contains(where: { $0.taskDescription == ownerID }) else { return true }
-        guard let auth = try await client.refreshSession(marginSeconds: 120), auth.user?.id == ownerID else {
-            throw CancellationError()
+        let existing = await session.allTasks.filter {
+            WatchEnergyUploadTaskPolicy.ownerID(in: $0.taskDescription) == ownerID
         }
-        // A session replacement while refreshing must never enqueue another
-        // user's Health data. Caller rechecks its current account after await.
         try Task.checkCancellation()
         guard isCurrentOwner() else { throw CancellationError() }
+        let now = Date()
+        let fresh = existing.filter {
+            WatchEnergyUploadTaskPolicy.canDedupe($0.taskDescription, ownerID: ownerID, now: now)
+        }
+        if !fresh.isEmpty {
+            replace(existing.filter { old in !fresh.contains { $0.taskIdentifier == old.taskIdentifier } })
+            return .deduplicated
+        }
+        // Force a new bearer for a discretionary transfer. The SDK may still
+        // return an old unexpired token after transient Auth failures; do not
+        // pin one with too little lifetime for a deferred upload.
+        guard let auth = try await client.refreshSession(marginSeconds: 0), auth.user?.id == ownerID else {
+            throw CancellationError()
+        }
+        try Task.checkCancellation()
+        guard isCurrentOwner() else { throw CancellationError() }
+        let expiry = auth.decodedToken.exp
+        guard WatchEnergyUploadTaskPolicy.canPinBearer(expiresAt: expiry, now: Date()),
+              let expiry else { return .unavailable }
         var request = URLRequest(url: client.serviceURLs.graphql)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -49,10 +72,20 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
         try body.write(to: file, options: .atomic)
         defer { try? FileManager.default.removeItem(at: file) }
         let task = session.uploadTask(with: request, fromFile: file)
-        task.taskDescription = ownerID
-        guard isCurrentOwner() else { task.cancel(); throw CancellationError() }
+        task.taskDescription = WatchEnergyUploadTaskPolicy.description(ownerID: ownerID, expiresAt: expiry)
+        guard isCurrentOwner(), !Task.isCancelled else { task.cancel(); throw CancellationError() }
+        // A stale task can later overwrite newer imported totals. Replace it
+        // only once a valid new upload exists, and suppress its expected cancel.
+        replace(existing)
         task.resume()
-        return true
+        return .queued
+    }
+
+    private func replace(_ tasks: [URLSessionTask]) {
+        for task in tasks {
+            replacedTaskIDs.insert(task.taskIdentifier)
+            task.cancel()
+        }
     }
 
     func handle(_ task: WKURLSessionRefreshBackgroundTask) {
@@ -87,7 +120,8 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
 
     func cancel(ownerID: String?) {
         session.getAllTasks { tasks in
-            for task in tasks where ownerID == nil || task.taskDescription == ownerID {
+            for task in tasks where ownerID == nil ||
+                WatchEnergyUploadTaskPolicy.ownerID(in: task.taskDescription) == ownerID {
                 task.cancel()
             }
         }
@@ -105,10 +139,13 @@ final class WatchEnergyBackgroundUploader: NSObject, URLSessionDataDelegate {
         MainActor.assumeIsolated {
             let status = (task.response as? HTTPURLResponse)?.statusCode
             let response = responses.removeValue(forKey: task.taskIdentifier)
+            let replaced = replacedTaskIDs.remove(task.taskIdentifier) != nil
+            if replaced, let error = error as NSError?, error.domain == NSURLErrorDomain,
+               error.code == NSURLErrorCancelled { return }
             let success = error == nil && WatchEnergyBackgroundUpload.succeeded(
                 status: status, data: response
             )
-            let ownerID = task.taskDescription
+            let ownerID = WatchEnergyUploadTaskPolicy.ownerID(in: task.taskDescription)
             followUps.submit { [weak self] in
                 await self?.onResult?(ownerID, success, status)
             }
