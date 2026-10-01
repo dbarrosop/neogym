@@ -46,7 +46,7 @@ public enum WorkoutProgressBuilder {
             weeks[weekStart, default: 0] += volume
             if date >= recentStart { recentIds.insert(entry.exercise.id) }
             let oneRepMax = sets.filter { $0.reps > 0 }.map { set in
-                set.weight * (1 + Double(set.reps) / 30)
+                StrengthOneRepMax.estimate(weight: set.weight, reps: set.reps)
             }.max() ?? 0
             trends[entry.exercise.id, default: []].append(
                 StrengthProgressPoint(date: date, volume: volume, oneRepMax: oneRepMax)

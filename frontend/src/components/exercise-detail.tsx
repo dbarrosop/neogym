@@ -31,6 +31,7 @@ import {
 } from "@/lib/cardio-schema";
 import { gqlRequest } from "@/lib/graphql";
 import { useStartSession } from "@/lib/hooks/use-start-session";
+import { estimateOneRepMax } from "@/lib/strength-metrics";
 import { cn } from "@/lib/utils";
 
 const ExerciseDetailQuery = graphql(`
@@ -427,8 +428,8 @@ function buildProgressPoints(
       }
       const w = Number(set.weight);
       volume += w * set.reps;
-      // Epley: 1RM ≈ w × (1 + reps / 30); collapses to w when reps = 1.
-      const est = w * (1 + set.reps / 30);
+      // A one-rep set is measured; Epley estimates sets with two or more reps.
+      const est = estimateOneRepMax(w, set.reps);
       if (est > oneRm) {
         oneRm = est;
       }

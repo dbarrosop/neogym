@@ -66,6 +66,7 @@ public final class MuscleSetProgressViewModel: ObservableObject {
     @Published public private(set) var isShowingPartialHistory = false
     private var displayedFromDay: String?
     private var displayedThroughDay: String?
+    private var lastRequestedThroughDay: String?
     private var hasExtendedHistory = false
     private let repository: any SessionsRepositoryProtocol
     private let calendar: Calendar
@@ -86,6 +87,14 @@ public final class MuscleSetProgressViewModel: ObservableObject {
     }
 
     public var rows: [MuscleSetProgressRow]? { state.value }
+
+    /// A keep-warm Progress screen does not rerun its initial task on foreground return.
+    public func refreshIfNewLocalDay() async {
+        guard rows != nil,
+              case let .string(today) = GraphQLScalars.date(calendar.startOfDay(for: clock()), calendar: calendar),
+              lastRequestedThroughDay != today else { return }
+        await load()
+    }
 
     public func extendHistory(to visibleStart: Date) async {
         let today = calendar.startOfDay(for: clock())
@@ -112,6 +121,8 @@ public final class MuscleSetProgressViewModel: ObservableObject {
         let from = GraphQLScalars.date(historyStart, calendar: calendar)
         let through = GraphQLScalars.date(today, calendar: calendar)
         guard case let .string(from) = from, case let .string(through) = through else { return }
+        // A failed refresh still counts as today's foreground attempt; pull-to-refresh can retry.
+        lastRequestedThroughDay = through
         state = .loading(previous: state.value)
         isShowingPartialHistory = displayedFromDay.map { $0 > from } ?? false
         // A keep-warm Progress model may still display yesterday's live value.
@@ -119,33 +130,9 @@ public final class MuscleSetProgressViewModel: ObservableObject {
         if let displayedThroughDay, displayedThroughDay < through, state.value != nil {
             cachedThrough = displayedThroughDay
         }
+        // The SDK stream emits only this query's exact cached key, then revalidates.
+        // There is no older-day fallback for a cold key after local midnight.
         let timeZone = calendar.timeZone.identifier
-        if state.value == nil || displayedThroughDay != through {
-            // Custom/extended windows only probe their exact key. A default 180-day
-            // snapshot cannot stand in for the requested wider history.
-            let candidates = hasExtendedHistory || state.value != nil ? [today] : (0...7).compactMap {
-                calendar.date(byAdding: .day, value: -$0, to: today)
-            }
-            for day in candidates {
-                guard version == loadVersion, !Task.isCancelled else { return }
-                let candidateFromDate = hasExtendedHistory ? historyStart :
-                    (calendar.date(byAdding: .day, value: -179, to: day) ?? day)
-                guard case let .string(candidateFrom) = GraphQLScalars.date(candidateFromDate, calendar: calendar),
-                      case let .string(candidateThrough) = GraphQLScalars.date(day, calendar: calendar) else { continue }
-                let cached = try? await repository.cachedMuscleSetProgress(
-                    fromDay: candidateFrom, throughDay: candidateThrough, timeZone: timeZone
-                )
-                guard version == loadVersion, !Task.isCancelled else { return }
-                if let cached {
-                    cachedThrough = candidateThrough == through ? nil : candidateThrough
-                    displayedFromDay = candidateFrom
-                    displayedThroughDay = candidateThrough
-                    isShowingPartialHistory = candidateFrom > from
-                    state = .loaded(cached)
-                    break
-                }
-            }
-        }
         guard version == loadVersion, !Task.isCancelled else { return }
         do {
             for try await rows in repository.muscleSetProgressUpdates(

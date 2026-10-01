@@ -292,13 +292,14 @@ live-fetch queries stay network-only. The cache uses a 5-minute freshness window
 and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
 remain available for responsive rendering and offline fallback. Workout Progress
-uses the sessions cache for server-calculated muscle-set summaries. For a cold
-180-local-day key it probes today's exact SDK entry and up to seven prior daily
-keys cache-only, then refreshes today; earlier snapshots are labeled through
-that day and kept if the network fails. Wider/custom ranges probe only their
-exact key, with previously displayed shorter history labeled partial until
-refreshed. The SDK enforces managed-user scope and cache age; no app-owned
-snapshot is saved. The SDK purges prior managed-user scopes on sign-out/session replacement. The
+uses the sessions cache for server-calculated muscle-set summaries. Its SDK
+stream reads only the exact query key (180 local days by default, up to 366 for
+extended history) and revalidates it; a cold key after local midnight has no
+prior-day offline fallback. An already open view retains and labels yesterday's
+rows through their date while refreshing on foreground return, and labels
+previously displayed shorter history partial until a wider request succeeds.
+The SDK enforces managed-user scope and cache age; no app-owned snapshot is
+saved. The SDK purges prior managed-user scopes on sign-out/session replacement. The
 file cache is app-process-only; the widget client deliberately has no GraphQL
 cache because the SDK requires each process to own a distinct cache directory.
 Keep cache identity and authorization isolation in the SDK rather than adding
@@ -361,9 +362,9 @@ default, extending up to one year for older custom chart periods. The iOS
 screen does not infer targets, RIR, or warm-up status. The database's tracked
 `muscle_set_progress_rows` return-shape table is empty (not a cached summary),
 and the function enforces the injected Hasura session's user ID before joining
-private sessions. Public catalog shoulder corrections are made in migration
+private sessions. The local-only `1790000570001_progress_recent.sql` seed supplies 91 moving-window sessions (1,911 sets including 91 zero-rep entries) for the dev user; it advances only on fresh local reset/reseed, and the backend suite verifies its Progress totals. Public catalog shoulder corrections are made in migration
 `1790000570000` for existing databases and the exercise seed for new ones;
-uncertain exercises keep the `shoulders` value. On a session detail with strength
+uncertain exercises keep the `shoulders` value. The read-time `strength_set_report_facts` view centralizes reps, volume (per-side `double_weight` multiplier) and per-set Epley; the tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions expose owner-filtered session points through Hasura **and Constellation** via empty return-shape tables (migrations `1790000580000`/`1790000590000`, details in `docs/developers/sessions.md`). Nested `workouts.strengthHistory` and `exercises.strengthHistory` computed fields share the SQL but are Hasura-direct only; Constellation 0.7.0 omits them, so app documents must use the roots. The workout grouping follows the session's current nullable `workout_id`; exercise points expose best per-session e1RM, using recorded weight for single reps and Epley for 2+ reps, never doubling e1RM. Existing web/iOS charts mirror that formula locally until switched to server report fields. On a session detail with strength
 entries, the totals are followed by the three most
 recent earlier sessions still linked to the same workout template (ad-hoc
 sessions have no same-workout comparison). No area uses
@@ -472,7 +473,7 @@ Nhost stack after redirect config edits because the CLI does not hot-reload
 
 **Always run `make test` after a backend change**, the same way `bun run check` is the gate for frontend changes. "Backend change" means anything under `backend/nhost/migrations/`, `backend/nhost/metadata/`, `backend/nhost/seeds/`, or `backend/nhost.toml`. Don't report the task done until the tests pass.
 
-**Add new tests when you change the backend in a way that's already covered by the suite, or when you introduce a new invariant.** The backend suite includes `backend/tests/kind-enforcement.test.ts` for workout/exercise invariants, `backend/tests/nutrition.test.ts` for nutrition permissions, snapshots, provenance, and cascade behavior, and `backend/tests/daily-energy.test.ts` for `daily_energy` ownership, CHECK, range, UNIQUE, and root-field invariants. `backend/tests/muscle-set-progress.test.ts` checks shoulder mapping, fractional counts, local-day windows, and cross-user isolation. The kind-enforcement file is organized into describes by concern:
+**Add new tests when you change the backend in a way that's already covered by the suite, or when you introduce a new invariant.** The backend suite includes `backend/tests/kind-enforcement.test.ts` for workout/exercise invariants, `backend/tests/nutrition.test.ts` for nutrition permissions, snapshots, provenance, and cascade behavior, and `backend/tests/daily-energy.test.ts` for `daily_energy` ownership, CHECK, range, UNIQUE, and root-field invariants. `backend/tests/muscle-set-progress.test.ts` checks shoulder mapping, fractional counts, local-day windows, seeded recent-session totals, and cross-user isolation. The kind-enforcement file is organized into describes by concern:
 
 - **kind discriminator** — that `exercises.kind` is generated correctly from `category`, the sidecar relationships resolve, and the sync trigger on `workout_session_exercises` populates `kind` from the parent exercise.
 - **composite-FK enforcement** — that strength sets can't attach to cardio session-exercises (and vice versa), and that the sync trigger can't be bypassed by a client passing a wrong `kind`.

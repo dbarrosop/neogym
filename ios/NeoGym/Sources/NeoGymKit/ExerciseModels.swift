@@ -284,6 +284,15 @@ public enum ExerciseFormatters {
     }
 }
 
+// Mirrors the database reporting contract until history charts consume its computed fields.
+// A completed single rep measures 1RM directly; Epley estimates 2+ rep sets.
+enum StrengthOneRepMax {
+    static func estimate(weight: Double, reps: Int) -> Double {
+        guard reps > 0, weight > 0 else { return 0 }
+        return reps == 1 ? weight : weight * (1 + Double(reps) / 30)
+    }
+}
+
 public enum ExerciseProgressBuilder {
     public static func sortedHistory(_ entries: [ExerciseHistoryEntry]) -> [ExerciseHistoryEntry] {
         entries.sorted { left, right in
@@ -304,7 +313,7 @@ public enum ExerciseProgressBuilder {
             var oneRepMax = 0.0
             for set in entry.workoutSessionStrengthSets where set.reps > 0 {
                 volume += set.weight * Double(set.reps)
-                oneRepMax = max(oneRepMax, set.weight * (1 + Double(set.reps) / 30))
+                oneRepMax = max(oneRepMax, StrengthOneRepMax.estimate(weight: set.weight, reps: set.reps))
             }
             if doubleWeight {
                 volume *= 2

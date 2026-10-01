@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 import XCTest
 @testable import NeoGymKit
@@ -36,80 +35,41 @@ final class MuscleSetProgressTests: XCTestCase {
     }
 
     @MainActor
-    func testPreviousDayCacheSurvivesFailedCurrentKeyRefresh() async throws {
+    func testExactCurrentKeyCachedEmissionSurvivesFailedRevalidation() async throws {
         let fake = FakeGraphQLService(
             replies: [.failure(GraphQLDomainError.transport("offline"))],
-            cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-06", sets: 3.5))]
+            cachedOnlyReplies: [.json(Self.progressReply(day: "2026-07-07", sets: 3.5))]
         )
-        let model = try makeModel(fake: fake)
+        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
         await model.load()
 
         XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 3.5)
-        XCTAssertEqual(model.cachedThrough, "2026-07-06")
+        XCTAssertNil(model.cachedThrough)
         XCTAssertNotNil(model.state.errorMessage)
         let reads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(reads.count, 2)
-        XCTAssertEqual(reads.map { $0.request.variables?["from"] }, [.string("2026-01-09"), .string("2026-01-08")])
-        XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [.string("2026-07-07"), .string("2026-07-06")])
-        XCTAssertTrue(reads.allSatisfy {
-            $0.request.query == SessionsRepository.muscleSetProgressQuery &&
-            $0.request.operationName == "MuscleSetProgress" &&
-            $0.request.variables?["timeZone"] == .string("America/New_York") &&
-            $0.namespace == "sessions" && $0.tags == ["sessions"]
-        })
+        XCTAssertEqual(reads.count, 1)
+        XCTAssertEqual(reads.first?.request.variables?["from"], .string("2026-01-09"))
+        XCTAssertEqual(reads.first?.request.variables?["through"], .string("2026-07-07"))
+        XCTAssertEqual(reads.first?.request.variables?["timeZone"], .string("America/New_York"))
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.count, 1)
         XCTAssertEqual(requests.first?.variables?["through"], .string("2026-07-07"))
     }
 
     @MainActor
-    func testFreshCurrentKeyEmissionClearsPreviousDayNotice() async throws {
-        let fake = FakeGraphQLService(
-            replies: [.json(Self.progressReply(day: "2026-07-07", sets: 5))],
-            cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-06", sets: 3.5))]
-        )
-        let model = try makeModel(fake: fake)
-        var observedDates: [String] = []
-        let observation = model.$cachedThrough.compactMap { $0 }.sink { observedDates.append($0) }
-        defer { observation.cancel() }
-        await model.load()
-
-        XCTAssertEqual(observedDates, ["2026-07-06"])
-        XCTAssertNil(model.cachedThrough)
-        XCTAssertEqual(model.rows?.first?.day, "2026-07-07")
-        XCTAssertNil(model.state.errorMessage)
-    }
-
-    @MainActor
-    func testWarmCurrentKeyDoesNotProbeOlderKeys() async throws {
+    func testColdNewDayKeyDoesNotSearchYesterdayOnFailure() async throws {
         let fake = FakeGraphQLService(
             replies: [.failure(GraphQLDomainError.transport("offline"))],
-            cachedOnlyReplies: [.json(Self.progressReply(day: "2026-07-07", sets: 2))]
+            cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-06", sets: 3.5))]
         )
-        let model = try makeModel(fake: fake)
-        await model.load()
-
-        XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 2)
-        XCTAssertNil(model.cachedThrough)
-        XCTAssertNotNil(model.state.errorMessage)
-        let reads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(reads.count, 1)
-        XCTAssertEqual(reads.first?.request.variables?["through"], .string("2026-07-07"))
-    }
-
-    @MainActor
-    func testExpiredOrMissingEntriesDoNotBecomeFallbackAndSearchStopsAtSevenDays() async throws {
-        // Fake cache misses represent entries rejected by the SDK's age/scope policy.
-        let fake = FakeGraphQLService(replies: [.failure(GraphQLDomainError.transport("offline"))])
-        let model = try makeModel(fake: fake)
+        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
         await model.load()
 
         XCTAssertNil(model.rows)
         XCTAssertNil(model.cachedThrough)
         XCTAssertNotNil(model.state.errorMessage)
         let reads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(reads.count, 8)
-        XCTAssertEqual(reads.last?.request.variables?["through"], .string("2026-06-30"))
+        XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [.string("2026-07-07")])
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.count, 1)
     }
@@ -120,7 +80,7 @@ final class MuscleSetProgressTests: XCTestCase {
             .json(Self.progressReply(day: "2026-07-07", sets: 2)),
             .failure(GraphQLDomainError.transport("offline"))
         ])
-        let model = try makeModel(fake: fake)
+        let model = try makeModel(graphQL: fake)
         await model.load()
         let extendedStart = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2025-12-01T12:00:00Z"))
         await model.extendHistory(to: extendedStart)
@@ -128,12 +88,43 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 2)
         XCTAssertTrue(model.isShowingPartialHistory)
         XCTAssertNotNil(model.state.errorMessage)
-        let reads = await fake.cachedOnlyRequestsSnapshot()
-        // The original cold default tries eight keys; extending already visible
-        // rows retains them and does not substitute another default-range key.
-        XCTAssertEqual(reads.count, 8)
+        // No second cache-only API is called; the SDK stream owns exact-key caching.
+        let cacheReads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertTrue(cacheReads.isEmpty)
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.last?.variables?["from"], .string("2025-12-01"))
+    }
+
+    @MainActor
+    func testTodayCacheEmissionReplacesYesterdayAfterForegroundRollover() async throws {
+        let yesterday = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-06T16:00:00Z"))
+        let today = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-07T16:00:00Z"))
+        let clock = ProgressTestClock(yesterday)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
+        let fake = FakeGraphQLService(
+            replies: [
+                .json(Self.progressReply(day: "2026-07-06", sets: 2)),
+                .failure(GraphQLDomainError.transport("offline"))
+            ],
+            cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-07", sets: 4))]
+        )
+        let model = MuscleSetProgressViewModel(
+            repository: SessionsRepository(graphQL: ProgressStreamGraphQL(fake: fake)),
+            calendar: calendar, clock: { clock.now() }
+        )
+        await model.load()
+        clock.set(today)
+        await model.refreshIfNewLocalDay()
+
+        XCTAssertEqual(model.rows?.first?.day, "2026-07-07")
+        XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 4)
+        XCTAssertNil(model.cachedThrough)
+        XCTAssertNotNil(model.state.errorMessage)
+        let reads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [
+            .string("2026-07-06"), .string("2026-07-07")
+        ])
     }
 
     @MainActor
@@ -151,8 +142,12 @@ final class MuscleSetProgressTests: XCTestCase {
             repository: SessionsRepository(graphQL: fake), calendar: calendar, clock: { clock.now() }
         )
         await model.load()
+        await model.refreshIfNewLocalDay()
+        let sameDayRequests = await fake.requestsSnapshot()
+        XCTAssertEqual(sameDayRequests.count, 1)
         clock.set(today)
-        await model.load()
+        await model.refreshIfNewLocalDay()
+        await model.refreshIfNewLocalDay()
 
         XCTAssertEqual(model.cachedThrough, "2026-07-06")
         XCTAssertEqual(model.rows?.first?.day, "2026-07-06")
@@ -161,7 +156,7 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertEqual(requests.map { $0.variables?["from"] }, [.string("2026-01-08"), .string("2026-01-09")])
         XCTAssertEqual(requests.map { $0.variables?["through"] }, [.string("2026-07-06"), .string("2026-07-07")])
         let cacheReads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(cacheReads.last?.request.variables?["through"], .string("2026-07-07"))
+        XCTAssertTrue(cacheReads.isEmpty)
     }
 
     @MainActor
@@ -202,20 +197,20 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertNil(model.cachedThrough)
         XCTAssertFalse(model.isShowingPartialHistory)
         let cacheReads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(cacheReads.map { $0.request.variables?["from"] }, [
-            .string("2025-07-07"), .string("2025-07-08")
-        ])
+        XCTAssertTrue(cacheReads.isEmpty)
     }
 
     @MainActor
-    func testColdExtendedHistoryProbesOnlyExactCustomKey() async throws {
+    func testColdExtendedHistoryUsesOnlyTheExactCustomKey() async throws {
         let fake = FakeGraphQLService(
             replies: [.failure(GraphQLDomainError.transport("offline"))],
             cachedOnlyReplies: [.json(Self.progressReply(day: "2026-07-07", sets: 1))]
         )
-        let model = try makeModel(fake: fake)
+        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
         let extendedStart = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2025-12-01T12:00:00Z"))
         await model.extendHistory(to: extendedStart)
+
+        XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 1)
         let reads = await fake.cachedOnlyRequestsSnapshot()
         XCTAssertEqual(reads.count, 1)
         XCTAssertEqual(reads.first?.request.variables?["from"], .string("2025-12-01"))
@@ -233,29 +228,18 @@ final class MuscleSetProgressTests: XCTestCase {
     }
 
     @MainActor
-    private func makeModel(fake: FakeGraphQLService) throws -> MuscleSetProgressViewModel {
+    private func makeModel(graphQL: any GraphQLServicing) throws -> MuscleSetProgressViewModel {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/New_York"))
         let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-07T16:00:00Z"))
-        return MuscleSetProgressViewModel(repository: SessionsRepository(graphQL: fake), calendar: calendar, clock: { now })
+        return MuscleSetProgressViewModel(repository: SessionsRepository(graphQL: graphQL), calendar: calendar, clock: { now })
     }
 
     @MainActor
-    func testSupersededCacheReadCannotReplaceNewerEmissionOrStartOldNetworkStream() async throws {
-        let fake = FakeGraphQLService(
-            replies: [.json(Self.progressReply(day: "2026-07-07", sets: 5))],
-            cachedOnlyReplies: [
-                .json(Self.progressReply(day: "2026-07-07", sets: 4)),
-                .json(Self.progressReply(day: "2026-07-06", sets: 2))
-            ]
-        )
-        let gate = DelayedProgressCacheGraphQL(fake: fake)
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-07T12:00:00Z"))
-        let model = MuscleSetProgressViewModel(
-            repository: SessionsRepository(graphQL: gate), calendar: calendar, clock: { now }
-        )
+    func testSupersededStreamCannotReplaceNewerEmission() async throws {
+        let fake = FakeGraphQLService(replies: [.json(Self.progressReply(day: "2026-07-07", sets: 5))])
+        let gate = ProgressStreamGraphQL(fake: fake, delayFirstStream: true)
+        let model = try makeModel(graphQL: gate)
         let first = Task { await model.load() }
         await gate.waitUntilBlocked()
         await model.load()
@@ -264,28 +248,24 @@ final class MuscleSetProgressTests: XCTestCase {
         await first.value
         XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 5)
         XCTAssertNil(model.cachedThrough)
-        let network = await fake.requestsSnapshot()
-        XCTAssertEqual(network.count, 1)
+        // A superseded stream can still start a redundant request; its late result cannot replace newer rows.
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.count, 2)
     }
 
     @MainActor
-    func testCancelledCacheReadDoesNotStartNetworkOrPublishRows() async throws {
-        let fake = FakeGraphQLService(cachedOnlyReplies: [.json(Self.progressReply(day: "2026-07-07", sets: 2))])
-        let gate = DelayedProgressCacheGraphQL(fake: fake)
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-07-07T12:00:00Z"))
-        let model = MuscleSetProgressViewModel(
-            repository: SessionsRepository(graphQL: gate), calendar: calendar, clock: { now }
-        )
+    func testCancelledStreamDoesNotStartNetworkOrPublishRows() async throws {
+        let fake = FakeGraphQLService(replies: [.json(Self.progressReply(day: "2026-07-07", sets: 2))])
+        let gate = ProgressStreamGraphQL(fake: fake, delayFirstStream: true)
+        let model = try makeModel(graphQL: gate)
         let load = Task { await model.load() }
         await gate.waitUntilBlocked()
         load.cancel()
         await gate.releaseBlocked()
         await load.value
         XCTAssertNil(model.rows)
-        let network = await fake.requestsSnapshot()
-        XCTAssertTrue(network.isEmpty)
+        let requests = await fake.requestsSnapshot()
+        XCTAssertTrue(requests.isEmpty)
     }
 
     func testUnspecifiedShouldersAndMidnightDSTAreDisplayedSafely() throws {
@@ -321,14 +301,19 @@ private final class ProgressTestClock: @unchecked Sendable {
     }
 }
 
-/// Holds only the first cache-only read, so a newer load can finish first.
-private actor DelayedProgressCacheGraphQL: GraphQLServicing {
+/// Simulates the SDK's exact-key cached/fresh stream; can hold the first stream
+/// to verify that a superseded or cancelled load never starts its network read.
+private actor ProgressStreamGraphQL: GraphQLServicing {
     private let fake: FakeGraphQLService
+    private let delayFirstStream: Bool
     private var hasBlocked = false
     private var blockWaiters: [CheckedContinuation<Void, Never>] = []
     private var release: CheckedContinuation<Void, Never>?
 
-    init(fake: FakeGraphQLService) { self.fake = fake }
+    init(fake: FakeGraphQLService, delayFirstStream: Bool = false) {
+        self.fake = fake
+        self.delayFirstStream = delayFirstStream
+    }
 
     func waitUntilBlocked() async {
         if hasBlocked { return }
@@ -340,17 +325,19 @@ private actor DelayedProgressCacheGraphQL: GraphQLServicing {
         release = nil
     }
 
+    private func beforeStream() async {
+        guard delayFirstStream, !hasBlocked else { return }
+        hasBlocked = true
+        blockWaiters.forEach { $0.resume() }
+        blockWaiters.removeAll()
+        await withCheckedContinuation { release = $0 }
+    }
+
     func cachedSnapshot<ResponseData: Decodable & Sendable>(
         _ responseType: ResponseData.Type, query: String, variables: [String: JSONValue]?,
         operationName: String?, namespace: String, tags: Set<String>
     ) async throws -> ResponseData? {
-        if !hasBlocked {
-            hasBlocked = true
-            blockWaiters.forEach { $0.resume() }
-            blockWaiters.removeAll()
-            await withCheckedContinuation { release = $0 }
-        }
-        return try await fake.cachedSnapshot(
+        try await fake.cachedSnapshot(
             responseType, query: query, variables: variables, operationName: operationName,
             namespace: namespace, tags: tags
         )
@@ -360,8 +347,31 @@ private actor DelayedProgressCacheGraphQL: GraphQLServicing {
         _ responseType: ResponseData.Type, query: String, variables: [String: JSONValue]?,
         operationName: String?, namespace: String, tags: Set<String>
     ) -> AsyncThrowingStream<GraphQLQueryEmission<ResponseData>, Error> {
-        fake.cachedQuery(responseType, query: query, variables: variables,
-                         operationName: operationName, namespace: namespace, tags: tags)
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                await beforeStream()
+                guard !Task.isCancelled else { continuation.finish(); return }
+                do {
+                    if let cached = try await fake.cachedSnapshot(
+                        responseType, query: query, variables: variables, operationName: operationName,
+                        namespace: namespace, tags: tags
+                    ) {
+                        continuation.yield(.cached(cached))
+                    }
+                    for try await update in fake.cachedQuery(
+                        responseType, query: query, variables: variables, operationName: operationName,
+                        namespace: namespace, tags: tags
+                    ) {
+                        guard !Task.isCancelled else { break }
+                        continuation.yield(update)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
     }
 
     func execute<ResponseData: Decodable & Sendable>(

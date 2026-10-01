@@ -34,6 +34,70 @@ beforeAll(async () => {
 describe("server-calculated muscle sets", () => {
   test("local Hasura must be reachable", () => expect(reachable).toBe(true));
 
+  test("recent local seed supplies 180 days of strength work with zero-rep sets", async () => {
+    if (!reachable) return;
+    const fixture = "c1d50000-0000-4000-8000-000000000001";
+    const result = await gql(`query($fixture: uuid!) {
+      sessions: workoutSessionsAggregate(where: {workoutId: {_eq: $fixture}}) {
+        aggregate { count min { startedAt } max { startedAt } }
+      }
+      exercises: workoutSessionExercisesAggregate(where: {workoutSession: {workoutId: {_eq: $fixture}}}) {
+        aggregate { count }
+      }
+      sets: workoutSessionStrengthSetsAggregate(where: {workoutSessionExercise: {workoutSession: {workoutId: {_eq: $fixture}}}}) {
+        aggregate { count }
+      }
+      zeroReps: workoutSessionStrengthSetsAggregate(where: {reps: {_eq: 0}, workoutSessionExercise: {workoutSession: {workoutId: {_eq: $fixture}}}}) {
+        aggregate { count }
+      }
+    }`, { fixture }, USER);
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.sessions.aggregate.count).toBe(91);
+    expect(result.data?.exercises.aggregate.count).toBe(91 * 5);
+    expect(result.data?.sets.aggregate.count).toBe(91 * 21);
+    expect(result.data?.zeroReps.aggregate.count).toBe(91);
+    const first = Date.parse(result.data!.sessions.aggregate.min.startedAt);
+    const last = Date.parse(result.data!.sessions.aggregate.max.startedAt);
+    expect((last - first) / 86_400_000).toBe(180);
+    expect(new Date(last).toISOString().slice(11)).toBe("12:00:00.000Z");
+  });
+
+  test("recent seed credits, zero days, warm-up window and user isolation", async () => {
+    if (!reachable) return;
+    const fixture = "c1d50000-0000-4000-8000-000000000001";
+    const latest = await gql(`query($fixture: uuid!) {
+      workoutSessionsAggregate(where: {workoutId: {_eq: $fixture}}) {
+        aggregate { max { startedAt } }
+      }
+    }`, { fixture });
+    expect(latest.errors).toBeUndefined();
+    const today = latest.data!.workoutSessionsAggregate.aggregate.max.startedAt.slice(0, 10);
+    const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+    const vars = { from: yesterday, through: today, zone: "UTC" };
+    const query = `query($from: date!, $through: date!, $zone: String!) {
+      muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $zone}) {
+        day muscleGroup directSets indirectSets weightedSets
+        rollingDirectSets rollingIndirectSets rollingWeightedSets
+      }
+    }`;
+    const own = await gql(query, vars, USER);
+    expect(own.errors).toBeUndefined();
+    const rows = own.data!.muscleSetProgress as Array<Record<string, string | number>>;
+    const row = (day: string, muscle: string) => rows.find(
+      (entry) => entry.day === day && entry.muscleGroup === muscle,
+    );
+    expect(row(today, "side_delts")).toMatchObject({ directSets: 4, indirectSets: 0, rollingDirectSets: 16 });
+    expect(row(today, "chest")).toMatchObject({ directSets: 4, indirectSets: 0, rollingDirectSets: 16 });
+    expect(row(today, "front_delts")).toMatchObject({ directSets: 4, indirectSets: 4, rollingDirectSets: 16, rollingIndirectSets: 16 });
+    expect(Number(row(today, "front_delts")?.weightedSets)).toBe(6);
+    expect(Number(row(today, "front_delts")?.rollingWeightedSets)).toBe(24);
+    expect(row(today, "rear_delts")).toMatchObject({ directSets: 0, indirectSets: 4 });
+    expect(Number(row(today, "rear_delts")?.weightedSets)).toBe(2);
+    // Yesterday's seven-day window contains three sessions (-2, -4, -6).
+    expect(row(yesterday, "side_delts")).toMatchObject({ directSets: 0, indirectSets: 0, rollingDirectSets: 12 });
+    expect((await gql(query, vars, OTHER)).data?.muscleSetProgress).toEqual([]);
+  });
+
   test("public shoulder mappings retain ambiguous shoulders", async () => {
     if (!reachable) return;
     const result = await gql(`query {
@@ -108,13 +172,23 @@ describe("server-calculated muscle sets", () => {
     }`);
     expect(found.errors).toBeUndefined();
     const ids = Object.fromEntries(found.data!.exercises.map((e: {id: string; slug: string}) => [e.slug, e.id]));
+    const query = `query($from: date!, $through: date!, $zone: String!) {
+      muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $zone}) {
+        day muscleGroup directSets indirectSets weightedSets rollingDirectSets
+        rollingIndirectSets rollingWeightedSets
+      }
+    }`;
+    // 03:30Z is still July 7 in New York. The next local day has zero new sets.
+    const vars = { from: "2026-07-07", through: "2026-07-14", zone: "America/New_York" };
+    const foreignBefore = await gql(query, vars, USER);
+    expect(foreignBefore.errors).toBeUndefined();
     const created = await gql(`mutation($user: uuid!, $side: uuid!, $press: uuid!, $mixed: uuid!) {
       insertWorkoutSession(object: {userId: $user, startedAt: "2026-07-08T03:30:00Z",
         workoutSessionExercises: {data: [
           {exerciseId: $side, position: 0}, {exerciseId: $press, position: 1},
           {exerciseId: $mixed, position: 2}
         ]}}) { id workoutSessionExercises { id exerciseId } }
-    }`, { user: USER, side: ids.Side_Lateral_Raise, press: ids["Barbell_Bench_Press_-_Medium_Grip"], mixed: ids.Clean_and_Press });
+    }`, { user: OTHER, side: ids.Side_Lateral_Raise, press: ids["Barbell_Bench_Press_-_Medium_Grip"], mixed: ids.Clean_and_Press });
     expect(created.errors).toBeUndefined();
     const sessionId = created.data!.insertWorkoutSession.id;
     try {
@@ -134,15 +208,7 @@ describe("server-calculated muscle sets", () => {
         ]) { affected_rows }
       }`, { side: childIds[ids.Side_Lateral_Raise], press: childIds[ids["Barbell_Bench_Press_-_Medium_Grip"]], mixed: childIds[ids.Clean_and_Press] });
       expect(sets.errors).toBeUndefined();
-      const query = `query($from: date!, $through: date!, $zone: String!) {
-        muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $zone}) {
-          day muscleGroup directSets indirectSets weightedSets rollingDirectSets
-          rollingIndirectSets rollingWeightedSets
-        }
-      }`;
-      // 03:30Z is still July 7 in New York. The next local day has zero new sets.
-      const vars = { from: "2026-07-07", through: "2026-07-14", zone: "America/New_York" };
-      const own = await gql(query, vars, USER);
+      const own = await gql(query, vars, OTHER);
       expect(own.errors).toBeUndefined();
       const side = own.data!.muscleSetProgress.filter((r: {muscleGroup: string}) => r.muscleGroup === "side_delts");
       expect(side[0]).toMatchObject({ day: "2026-07-07", directSets: 1, indirectSets: 0, rollingDirectSets: 1 });
@@ -155,9 +221,9 @@ describe("server-calculated muscle sets", () => {
       const unspecified = own.data!.muscleSetProgress.find((r: {muscleGroup: string}) => r.muscleGroup === "shoulders");
       // The original catalog lists Clean and Press as both primary and secondary shoulders.
       expect(unspecified).toMatchObject({ day: "2026-07-07", directSets: 1, indirectSets: 0 });
-      const foreign = await gql(query, vars, OTHER);
+      const foreign = await gql(query, vars, USER);
       expect(foreign.errors).toBeUndefined();
-      expect(foreign.data!.muscleSetProgress).toEqual([]);
+      expect(foreign.data!.muscleSetProgress).toEqual(foreignBefore.data!.muscleSetProgress);
     } finally {
       const removed = await gql(`mutation($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, { id: sessionId });
       expect(removed.errors).toBeUndefined();

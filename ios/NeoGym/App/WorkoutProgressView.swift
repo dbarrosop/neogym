@@ -2,6 +2,7 @@ import NeoGymKit
 import SwiftUI
 
 struct WorkoutProgressView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var viewModel: MuscleSetProgressViewModel
     @State private var selectedMuscle: String?
     let reloadToken: Int
@@ -30,6 +31,10 @@ struct WorkoutProgressView: View {
             if case .idle = viewModel.state { await viewModel.load() }
         }
         .onChange(of: reloadToken) { Task { await viewModel.load() } }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task { await viewModel.refreshIfNewLocalDay() }
+        }
         .refreshable { await viewModel.load() }
     }
 

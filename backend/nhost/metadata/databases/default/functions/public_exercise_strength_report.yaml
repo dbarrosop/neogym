@@ -1,0 +1,9 @@
+function:
+  name: exercise_strength_report
+  schema: public
+configuration:
+  custom_name: exerciseStrengthReport
+  custom_root_fields: {}
+  session_argument: hasura_session
+permissions:
+  - role: user

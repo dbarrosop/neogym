@@ -1,0 +1,64 @@
+table:
+  name: exercise_strength_history_rows
+  schema: public
+configuration:
+  column_config:
+    completed_sets:
+      custom_name: completedSets
+    estimated_one_rep_max:
+      custom_name: estimatedOneRepMax
+    exercise_id:
+      custom_name: exerciseId
+    logged_sets:
+      custom_name: loggedSets
+    reps:
+      custom_name: reps
+    session_id:
+      custom_name: sessionId
+    started_at:
+      custom_name: startedAt
+    user_id:
+      custom_name: userId
+    volume:
+      custom_name: volume
+    workout_id:
+      custom_name: workoutId
+  custom_column_names:
+    completed_sets: completedSets
+    estimated_one_rep_max: estimatedOneRepMax
+    exercise_id: exerciseId
+    logged_sets: loggedSets
+    reps: reps
+    session_id: sessionId
+    started_at: startedAt
+    user_id: userId
+    volume: volume
+    workout_id: workoutId
+  custom_name: exerciseStrengthHistoryRows
+  custom_root_fields: {}
+object_relationships:
+  - name: workoutSession
+    using:
+      manual_configuration:
+        column_mapping:
+          session_id: id
+        insertion_order: null
+        remote_table:
+          name: workout_sessions
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - exercise_id
+        - session_id
+        - workout_id
+        - started_at
+        - logged_sets
+        - completed_sets
+        - reps
+        - volume
+        - estimated_one_rep_max
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

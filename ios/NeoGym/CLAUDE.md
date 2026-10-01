@@ -529,14 +529,23 @@ intact instead of inventing one-off styles.
   direct, indirect, and weighted set totals. Tapping a muscle selects it for
   the single weighted-set history chart without navigating; `shoulders` is
   labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
-  cache namespace/tag. A cold default local-day key probes its exact SDK cache
-  entry, then up to seven preceding default daily keys without network requests,
-  before refreshing the current key; a prior-day hit is labeled through its
-  date and retained on refresh failure. Only the exact key is probed for
-  extended/custom history, so a shorter default snapshot is not shown as full
-  history. If visible shorter history is retained while extending, it is
-  labeled partial until refreshed. The SDK enforces user scope and cache age;
-  no app-owned snapshots are stored.
+  cache namespace/tag. The SDK stream emits only the exact range key's eligible
+  cached value, then revalidates it; a cold key after local midnight does not
+  search yesterday's cache and may fail offline. An already open Progress view
+  retains and labels yesterday's rows through their date, refreshing on the next
+  foreground return without reloading on same-day returns. Extended/custom
+  history also uses only its exact key, so a shorter default snapshot is not
+  shown as full history. If visible shorter history is retained while extending,
+  it is labeled partial until refreshed. The SDK enforces user scope and cache
+  age; no app-owned snapshots are stored. The backend also exposes
+  tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions
+  for per-session sets/reps/volume and exercise e1RM reports through the normal
+  Constellation endpoint. Nested `strengthHistory` computed fields exist only
+  on Hasura-direct GraphQL; do not use them in app queries. Existing native
+  exercise-history charts still build points locally; `StrengthOneRepMax` mirrors
+  the backend's measured-single-rep / Epley-for-2+-reps rule (per recorded side),
+  until these charts migrate to the server fields. `doubleWeight` doubles volume,
+  not estimated 1RM.
   The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
   root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
   pending session opens regardless of which subsection (if any) is showing;

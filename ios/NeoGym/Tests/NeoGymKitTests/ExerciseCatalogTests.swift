@@ -3,6 +3,13 @@ import XCTest
 @testable import NeoGymKit
 
 final class ExercisesRepositoryTests: XCTestCase {
+    func testEstimatedOneRepMaxUsesMeasuredSingleAndEpleyForMultipleReps() {
+        XCTAssertEqual(StrengthOneRepMax.estimate(weight: 60, reps: 1), 60)
+        XCTAssertEqual(StrengthOneRepMax.estimate(weight: 50, reps: 5), 50 * (1 + 5.0 / 30), accuracy: 0.001)
+        XCTAssertEqual(StrengthOneRepMax.estimate(weight: 100, reps: 0), 0)
+        XCTAssertEqual(StrengthOneRepMax.estimate(weight: 0, reps: 10), 0)
+    }
+
     func testDecodesExercisesIndexPayload() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "exercises": .array([

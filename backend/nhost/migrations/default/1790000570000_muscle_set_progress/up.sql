@@ -276,9 +276,10 @@ BEGIN
   END IF;
 
   RETURN QUERY
-  WITH set_credits AS (
+  -- Read eligible sets once; primary and secondary credits share the same owner/date filter.
+  WITH base_sets AS MATERIALIZED (
     SELECT (ws.started_at AT TIME ZONE time_zone)::date AS local_day,
-           e.primary_muscle_group AS muscle, 1 AS direct, 0 AS indirect
+           e.id AS exercise_id, e.primary_muscle_group
     FROM public.workout_sessions ws
     JOIN public.workout_session_exercises wse ON wse.workout_session_id = ws.id
     JOIN public.workout_session_strength_sets ss ON ss.workout_session_exercise_id = wse.id
@@ -286,17 +287,14 @@ BEGIN
     WHERE ws.user_id = owner_id AND ss.reps > 0
       AND ws.started_at >= ((from_day - 6)::timestamp AT TIME ZONE time_zone)
       AND ws.started_at < ((through_day + 1)::timestamp AT TIME ZONE time_zone)
+  ), set_credits AS (
+    SELECT local_day, primary_muscle_group AS muscle, 1 AS direct, 0 AS indirect
+    FROM base_sets
     UNION ALL
-    SELECT (ws.started_at AT TIME ZONE time_zone)::date, sm.muscle_group, 0, 1
-    FROM public.workout_sessions ws
-    JOIN public.workout_session_exercises wse ON wse.workout_session_id = ws.id
-    JOIN public.workout_session_strength_sets ss ON ss.workout_session_exercise_id = wse.id
-    JOIN public.exercises e ON e.id = wse.exercise_id
-    JOIN public.exercise_secondary_muscle_groups sm ON sm.exercise_id = e.id
-      AND sm.muscle_group <> e.primary_muscle_group
-    WHERE ws.user_id = owner_id AND ss.reps > 0
-      AND ws.started_at >= ((from_day - 6)::timestamp AT TIME ZONE time_zone)
-      AND ws.started_at < ((through_day + 1)::timestamp AT TIME ZONE time_zone)
+    SELECT base_sets.local_day, sm.muscle_group, 0, 1
+    FROM base_sets
+    JOIN public.exercise_secondary_muscle_groups sm ON sm.exercise_id = base_sets.exercise_id
+      AND sm.muscle_group <> base_sets.primary_muscle_group
   ), daily AS (
     SELECT local_day, muscle, sum(direct)::integer AS direct_count,
            sum(indirect)::integer AS indirect_count
