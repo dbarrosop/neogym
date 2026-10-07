@@ -116,13 +116,19 @@ visible “in/out”; preserve their full VoiceOver labels. This icon is specifi
 to the complication; the watch app Energy page still uses its SF Symbol.
 
 `WatchEnergyRuntime.init` is the watch composition point: it creates one
-`NhostClientFactory.makeProductionWatchClient()` client for `NhostAuthService`
-(in `AuthStore`), the uncached Auth `GET /user` via `NhostCurrentUserService`,
+`NhostClientFactory.makeProductionWatchClient()` client with a watch-only
+`WatchAuthRefreshTransport` for `NhostAuthService` (in `AuthStore`), the
+uncached Auth `GET /user` via `NhostCurrentUserService`,
 and `NhostGraphQLService` (used by `WatchEnergyService` and
 `DailyEnergyRepository` for private energy/nutrition reads and energy writes).
 That client selects production and the SDK's origin-scoped private, device-only
 Keychain session with legacy unscoped migration ignored; it has no shared
-Keychain/App Group session lock or GraphQL cache. The watch target does have an
+Keychain/App Group session lock or GraphQL cache. The transport emits only
+random attempt IDs, safe status/error categories and wall time for Auth refresh
+HTTP exchanges; a separate SDK session-store subscription records successful
+session writes, including OTP. Neither an HTTP 2xx nor absence of a write event
+proves whether a rotated token persisted after watchOS suspension. Never add
+token values, headers, response bodies, URLs or account IDs to Events. The watch target does have an
 App Group entitlement for the token-free complication snapshot, not its session.
 The watch app caches only the most recently fetched name/email in its own
 UserDefaults, keyed by session user ID; the SDK's persisted session name is the
@@ -284,8 +290,14 @@ for the queued main-actor callback. `acceptVerifiedSession` forces a fresh `/use
 already persisted a same-ID session, subject to the latest blocking phone hint. Watch SwiftUI `TextField` has no iOS-style
 `.keyboardType` modifier. For a simulator OTP/session smoke test use a
 signed-to-run-locally build; `CODE_SIGNING_ALLOWED=NO` can launch the app but
-its private Keychain read fails with missing entitlement (`-34018`). Its pure `PhoneAccountHint` payload carries only
-version/state/userId and optional opaque deliveryId, never credential or name material; unknown context allows
+its private Keychain read fails with missing entitlement (`-34018`). Its pure `PhoneAccountHint` application-context payload carries only
+version/state/userId and optional opaque deliveryId, never credential or name material.
+The separate live `WatchAssistedSignInMessage` channel carries a nonce-bound,
+short-lived OTP typed into the phone's Profile → Connect Apple Watch sheet;
+the watch verifies it directly, checks the definitive phone user ID, and keeps
+its own SDK Keychain session. Neither long-lived credential nor session crosses
+the connection. Phone-assisted sign-in requires both apps reachable; watch OTP
+remains available. Unknown context allows
 independent watch auth while a known signed-out/different-account hint blocks
 it. `.phoneSignedOut` distinguishes a blocking phone hint from the watch's
 ordinary `.signedOut` state, so watch UI must not offer OTP for that state.

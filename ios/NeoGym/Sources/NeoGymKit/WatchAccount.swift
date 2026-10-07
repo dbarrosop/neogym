@@ -219,6 +219,16 @@ public final class WatchAccountModel: ObservableObject {
         reconcile(forceFetch: true)
     }
 
+    /// Only a definitive, signed-in phone hint can authorize the assisted OTP
+    /// prompt. The watch still verifies its own independent Auth session.
+    public var assistedSignInUserID: String? {
+        guard case .known(.signedIn(let id)) = phone, observedAuthState.session == nil else { return nil }
+        switch state {
+        case .signedOut, .matchPhone, .reauthenticate: return id
+        default: return nil
+        }
+    }
+
     /// Expiring watchOS activity stops a managed name read; Retry starts a new one.
     /// Never cancel a session-clear task here: local removal must complete.
     public func cancelPendingRead() {

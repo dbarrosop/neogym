@@ -7,6 +7,8 @@ public enum WatchEventAction: String, Codable, Sendable {
     case backgroundTask
     case appLifecycle
     case accountValidation
+    case authRefresh
+    case authSession
     case energyRefresh
     case healthPermission
     case healthObservation
@@ -22,6 +24,8 @@ public enum WatchEventAction: String, Codable, Sendable {
         case .backgroundTask: "Background wake"
         case .appLifecycle: "App state"
         case .accountValidation: "Account validation"
+        case .authRefresh: "Auth token refresh"
+        case .authSession: "Auth session stored"
         case .energyRefresh: "Energy refresh"
         case .healthPermission: "Apple Health permission"
         case .healthObservation: "Health observer"
@@ -38,6 +42,7 @@ public enum WatchEventOutcome: String, Codable, Sendable {
     case started
     case entered
     case accepted
+    case received
     case succeeded
     case failed
     case requested
@@ -53,6 +58,7 @@ public enum WatchEventOutcome: String, Codable, Sendable {
         case .started: "Started"
         case .entered: "Entered"
         case .accepted: "Accepted by watchOS"
+        case .received: "Response received; storage unconfirmed"
         case .succeeded: "Succeeded"
         case .failed: "Failed"
         case .requested: "Requested"
@@ -99,6 +105,8 @@ public enum WatchEventStage: String, Codable, Sendable {
     case authorization
     case scheduling
     case profileRead
+    case refreshRequest
+    case sessionPersistence
     case localHandoff
 
     public var title: String {
@@ -113,6 +121,8 @@ public enum WatchEventStage: String, Codable, Sendable {
         case .authorization: "Health permission request"
         case .scheduling: "Background scheduling"
         case .profileRead: "Auth profile read"
+        case .refreshRequest: "Auth refresh request"
+        case .sessionPersistence: "SDK session persistence"
         case .localHandoff: "Local Health handoff"
         }
     }

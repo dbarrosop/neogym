@@ -110,8 +110,14 @@ The watch restores its local Keychain session first, displays a same-user
 watch-app-only cached profile (or the SDK session's name) and today's token-free
 energy snapshot immediately, and revalidates the profile in the background;
 WCSession activation does not hold up the foreground UI. The watch signs
-existing accounts in with email OTP; WatchConnectivity carries only latest-state
-account hints, never credentials. Signed-in watch users swipe between
+existing accounts in with email OTP, either directly or by tapping **Sign in
+using iPhone** while the signed-in phone app is open. On the phone, **Me →
+Profile → Connect Apple Watch** requests the email code and accepts its entry;
+a nonce-bound, 10-minute, live WatchConnectivity message carries that short-lived
+code to the watch, which verifies it with Auth and owns a separate session.
+Unreachable devices fall back to watch OTP. Application context still carries
+only latest-state account hints; no session/access/refresh token crosses devices.
+Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile
 (uncached Auth name/email and watch-only sign-out), and Events (the last 300
@@ -119,7 +125,8 @@ timestamped, watch-app-only diagnostic outcomes). Events distinguish background
 requests accepted by watchOS from actual wakes and delivered task expiry,
 Health observer delivery from sync, typed starts/ends for active/resting
 HealthKit queries and backend reconciliation/read/write stages, fresh energy
-reads, local snapshot-save success/failure, and WidgetKit reload requests;
+reads, local snapshot-save success/failure, Auth refresh HTTP start/response/
+failure and SDK session-write notifications, and WidgetKit reload requests;
 a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
 acknowledgement within one in-process attempt; a resumed pending import uses a
@@ -146,7 +153,10 @@ events could have been logged much later after suspension. Errors retain
 fixed stages, numeric codes and safe sources, including a distinct GraphQL
 transport category. New events retain only a typed URLSession error number,
 HTTP status, service/response category or unknown cause; no URLs, headers,
-response bodies or raw descriptions are exported. The old GraphQL transport
+response bodies or raw descriptions are exported. A refresh HTTP success is
+not evidence that the rotated token reached Keychain; a missing SDK write event
+is also not proof of failure if watchOS suspended delivery. Auth refresh attempt
+IDs are random and never derived from tokens or account IDs. The old GraphQL transport
 `code 3` was a Swift enum index, not an HTTP/HealthKit status. A watch scene
 transition event distinguishes active/inactive/background (but does not prove
 continuous execution), and an uncached Auth `/user` read failure records the

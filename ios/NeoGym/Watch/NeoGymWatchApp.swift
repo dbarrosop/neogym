@@ -19,6 +19,10 @@ private struct WatchHomeView: View {
     @StateObject private var signIn: SignInModel
     @State private var activity = WatchActivity()
     @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
+    @State private var assistedAttempt: WatchAssistedSignInAttempt?
+    @State private var assistedEmail: String?
+    @State private var assistedStatus: String?
+    @State private var assistedVerifying = false
 
     init(runtime: WatchEnergyRuntime) {
         self.runtime = runtime
@@ -46,7 +50,10 @@ private struct WatchHomeView: View {
                 }
             }
         }
-        .task { await runtime.bootstrap() }
+        .task {
+            runtime.connectivity.onAssistedMessage = { message in receiveAssisted(message) }
+            await runtime.bootstrap()
+        }
         .onChange(of: scenePhase, initial: true) { _, phase in
             if runtime.scenePhaseChanged(phase) {
                 if let context = runtime.connectivity.currentContext() { account.receiveContext(context) }
@@ -74,7 +81,12 @@ private struct WatchHomeView: View {
             if account.state == .matchPhone { Text("Sign in to match your iPhone account.") }
             else if account.state == .reauthenticate { Text("Session expired. Sign in again.") }
             else { Text("Sign in to your existing account.") }
-            otpForm
+            if account.assistedSignInUserID != nil {
+                Button("Sign in using iPhone") { startAssistedSignIn() }
+                    .disabled(assistedVerifying || signIn.isVerifying || signIn.isSending)
+                if let assistedStatus { Text(assistedStatus).font(.caption) }
+            }
+            otpForm.disabled(assistedVerifying)
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")
         case .authError:
@@ -87,6 +99,63 @@ private struct WatchHomeView: View {
             signOutButton
         }
     }
+
+    private func startAssistedSignIn() {
+        guard let id = account.assistedSignInUserID else { return }
+        let attempt = WatchAssistedSignInAttempt(id: UUID(), userID: id)
+        assistedAttempt = attempt
+        assistedEmail = nil
+        assistedStatus = "Open NeoGym on your iPhone, then open Me → Profile → Connect Apple Watch."
+        runtime.connectivity.send(.request(attempt.id)) {
+            if assistedAttempt == attempt {
+                assistedStatus = "iPhone unavailable. Keep NeoGym open on both devices and retry."
+            }
+        }
+    }
+
+    private func receiveAssisted(_ message: WatchAssistedSignInMessage) {
+        guard let attempt = assistedAttempt,
+              account.assistedSignInUserID == attempt.userID,
+              attempt.accepts(id: attempt.id, userID: attempt.userID) else { return }
+        switch message {
+        case .challenge(let id, let email, let userID):
+            guard attempt.accepts(id: id, userID: userID) else { return }
+            assistedEmail = email
+            assistedStatus = "Enter the emailed code on your iPhone."
+        case .code(let id, let otp):
+            guard id == attempt.id, let email = assistedEmail, !assistedVerifying else { return }
+            assistedVerifying = true
+            activity.perform("auth") { await verifyAssisted(otp: otp, email: email, attempt: attempt) }
+        case .request, .result: break
+        }
+    }
+
+    private func verifyAssisted(otp: String, email: String, attempt: WatchAssistedSignInAttempt) async {
+        defer { assistedVerifying = false }
+        guard assistedAttempt == attempt, account.assistedSignInUserID == attempt.userID,
+              attempt.accepts(id: attempt.id, userID: attempt.userID) else { return }
+        do {
+            guard let session = try await account.authStore.authService.verifySignInOTP(email: email, otp: otp)
+            else { throw AssistedSignInError.noSession }
+            guard session.user?.id == attempt.userID else {
+                // Verification already persisted a session. Never show or keep
+                // credentials for a different phone user on this watch.
+                try await account.authStore.authService.clearSession()
+                throw AssistedSignInError.accountMismatch
+            }
+            account.acceptVerifiedSession(session)
+            assistedAttempt = nil
+            assistedEmail = nil
+            assistedStatus = nil
+            signIn.reset()
+            runtime.connectivity.send(.result(attempt.id, succeeded: true), onFailure: {})
+        } catch {
+            assistedStatus = "Code could not be verified. Check it on your iPhone or try again."
+            runtime.connectivity.send(.result(attempt.id, succeeded: false), onFailure: {})
+        }
+    }
+
+    private enum AssistedSignInError: Error { case noSession, accountMismatch }
 
     private var otpForm: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -320,7 +389,7 @@ private struct WatchHomeView: View {
         switch outcome {
         case .failed, .timedOut, .expired: "xmark.circle.fill"
         case .succeeded: "checkmark.circle.fill"
-        case .accepted, .finished, .acknowledged: "checkmark.circle"
+        case .accepted, .received, .finished, .acknowledged: "checkmark.circle"
         case .started, .entered, .requested, .joined, .skipped: "clock"
         }
     }
@@ -329,7 +398,7 @@ private struct WatchHomeView: View {
         switch outcome {
         case .failed, .timedOut, .expired: .red
         case .succeeded: .green
-        case .started, .entered, .accepted, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
+        case .started, .entered, .accepted, .received, .requested, .finished, .acknowledged, .joined, .skipped: .secondary
         }
     }
 

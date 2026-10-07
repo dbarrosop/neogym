@@ -3,12 +3,15 @@ import Nhost
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject private var authStore: AuthStore
+    @EnvironmentObject private var phoneConnectivity: PhoneAccountConnectivity
     let session: StoredSession
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
 
     @State private var isShowingChangeEmail = false
+    @State private var isShowingWatchSignIn = false
 
     var body: some View {
         ScrollView {
@@ -31,6 +34,10 @@ struct ProfileView: View {
                     dismiss: { isShowingChangeEmail = false }
                 )
             }
+        }
+        .sheet(isPresented: $isShowingWatchSignIn) {
+            PhoneWatchSignInSheet(connectivity: phoneConnectivity,
+                                  authService: authStore.authService)
         }
     }
 
@@ -154,6 +161,14 @@ struct ProfileView: View {
                     .font(.headline)
                 GlassDivider()
                 Button {
+                    isShowingWatchSignIn = true
+                } label: {
+                    Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch sign-in",
+                          systemImage: "applewatch")
+                }
+                .buttonStyle(NeoGymSecondaryButtonStyle())
+                .disabled(isSigningOut)
+                Button {
                     signOut()
                 } label: {
                     if isSigningOut {
@@ -207,6 +222,67 @@ private struct DetailRow<Content: View>: View {
     }
 }
 
+private struct PhoneWatchSignInSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var connectivity: PhoneAccountConnectivity
+    let authService: any AuthServicing
+    @State private var otp = ""
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Connect your watch") {
+                    Text("On your Apple Watch, tap Sign in using iPhone. Keep NeoGym open on both devices.")
+                    if connectivity.pending != nil {
+                        Text("Watch request received. An email code will create a separate watch session; your iPhone stays signed in.")
+                            .foregroundStyle(.secondary)
+                        Button(connectivity.codeRequested ? "Resend to watch" : "Email sign-in code") {
+                            Task { await connectivity.requestCode(using: authService) }
+                        }
+                        .disabled(connectivity.isSendingCode || connectivity.verificationSucceeded)
+                    } else {
+                        Text("Waiting for a request from your watch…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if connectivity.codeRequested, !connectivity.verificationSucceeded {
+                    Section("Email code") {
+                        TextField("6-digit code", text: $otp)
+                            .textContentType(.oneTimeCode)
+                            .keyboardType(.numberPad)
+                            .onChange(of: otp) { _, value in
+                                otp = String(value.filter(\.isNumber).prefix(6))
+                            }
+                        Button(connectivity.codeSent ? "Send code again" : "Verify on watch") {
+                            connectivity.sendCode(otp)
+                        }
+                        .disabled(otp.count != 6)
+                        Text("The watch verifies this code directly. No iPhone session or refresh token is copied.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if connectivity.verificationSucceeded {
+                    Section { Text("Apple Watch signed in successfully.") }
+                }
+                if let error = connectivity.errorMessage {
+                    Section { Text(error).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Connect Apple Watch")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onChange(of: connectivity.pending?.id) { _, _ in otp = "" }
+            .onChange(of: connectivity.verificationSucceeded) { _, succeeded in
+                if succeeded { otp = "" }
+            }
+        }
+    }
+}
+
 #Preview("Profile") {
     ScreenScaffold {
         ProfileView(
@@ -216,6 +292,8 @@ private struct DetailRow<Content: View>: View {
             signOut: {}
         )
     }
+    .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
+    .environmentObject(PhoneAccountConnectivity())
 }
 
 #Preview("Profile · Dark") {
@@ -228,4 +306,6 @@ private struct DetailRow<Content: View>: View {
         )
     }
     .preferredColorScheme(.dark)
+    .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
+    .environmentObject(PhoneAccountConnectivity())
 }

@@ -127,4 +127,6 @@ struct AppShellView: View {
         changeEmailModel: nil,
         signOut: {}
     )
+    .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
+    .environmentObject(PhoneAccountConnectivity())
 }

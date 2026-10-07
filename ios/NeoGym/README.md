@@ -101,14 +101,23 @@ and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs into an **existing** account with email OTP. Signed-in users
+The watch signs into an **existing** account with email OTP. To avoid typing on
+the watch, tap **Sign in using iPhone** there, then open **Me → Profile → Connect
+Apple Watch** on the signed-in iPhone, request the code, and type the emailed
+six digits on the phone. Both apps must be open and reachable for the live
+WatchConnectivity messages. The request ID expires after ten minutes, the
+watch verifies the OTP directly with Auth, and its new Keychain session is
+separate from the iPhone's. A phone account hint alone cannot sign in; watch
+OTP entry remains the fallback. The persistent WatchConnectivity application
+context still carries only account state/user ID, while a live, ephemeral
+message carries the one-time OTP and never a session or refresh token. Signed-in users
 swipe between Energy (today's consumed, total burned, active/resting, and
 Net = consumed minus burned kcal) and Profile (a locally cached name/email,
 revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
 background scheduling, wake, Health sync, observer-query and background-delivery
-registration failures, backend read, snapshot save, and complication
-reload-request outcomes). The last 300 events stay on the watch, not in its
+registration failures, backend read, snapshot save, Auth refresh exchanges
+and SDK session-write notifications, and complication reload-request outcomes). The last 300 events stay on the watch, not in its
 widget or on a server. A random attempt ID ties together observer arrival,
 energy reconciliation, snapshot save, and HealthKit acknowledgement within
 one in-process attempt; a resumed pending import has a new ID. Entries
@@ -140,7 +149,12 @@ number or HTTP status when available); older `GraphQL transport · code 3`
 records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
 failures record their own safe cause; scene transitions record
 active/inactive/background but cannot prove uninterrupted background work.
-Older events retain numeric-only detail. Separately, the watch widget writes
+Auth refresh events use a random attempt ID and record request start, safe
+HTTP/transport outcome, and wall time. A 2xx response means only that the
+transport received it; a separate SDK session-write event indicates a stored
+session (including OTP sign-in), not necessarily that a preceding refresh
+belongs to it. Missing terminal/write events cannot prove persistence failed
+if watchOS suspended the app. Older events retain numeric-only detail. Separately, the watch widget writes
 up to 64 timestamp-only provider receipts to an atomic App Group file when
 `getTimeline` or `getSnapshot` reads the shared snapshot. In Events, tap
 **Read widget receipts** to inspect the latest six; the `.txt` export includes
@@ -232,11 +246,12 @@ promise: its 20-second local deadline releases the assertion without cancelling
 the request; system-reported expiry can cancel OTP or a name read, while local
 session clearing must complete. A verified OTP forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
-sign in via OTP, edit the server-side name,
+sign in via watch OTP and repeat with phone-assisted OTP, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
-background wakes and for snapshot-save failures. Tap **Share logs** on the
+background wakes, Auth refresh request/response versus session-write events,
+and snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
 attachment for matching same-run observer/refresh attempt IDs, callback-time
 acknowledgement, active/background state when the handler ran, typed stage

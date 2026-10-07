@@ -49,11 +49,16 @@ public enum NhostClientFactory {
 
     /// A separate, origin-scoped device-only Keychain chain. Never use the phone/widget
     /// shared Keychain or migrate the older unscoped default item on watch.
-    public static func makeProductionWatchClient() -> NhostClient {
-        makeClient(
-            config: .production,
-            sessionManagement: SessionManagementConfiguration(legacyDefaultSessionMigration: .ignore)
-        )
+    public static func makeProductionWatchClient(
+        transport: any HTTPTransport = URLSessionTransport()
+    ) -> NhostClient {
+        let config = NhostConfig.production
+        return createClient(NhostClientOptions(
+            subdomain: config.subdomain,
+            region: config.region,
+            sessionManagement: SessionManagementConfiguration(legacyDefaultSessionMigration: .ignore),
+            transport: transport
+        ))
     }
 
     public static func makeProductionWidgetClient() throws -> NhostClient {

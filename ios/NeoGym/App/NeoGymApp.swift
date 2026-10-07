@@ -34,6 +34,7 @@ struct NeoGymApp: App {
             RootView(appEnvironment: appEnvironment)
                 .environmentObject(authStore)
                 .environmentObject(authCallbackURLRouter)
+                .environmentObject(phoneConnectivity)
                 .onOpenURL { url in
                     authCallbackURLRouter.open(url)
                 }

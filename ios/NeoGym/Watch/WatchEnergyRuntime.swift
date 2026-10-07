@@ -43,10 +43,16 @@ final class WatchEnergyRuntime: ObservableObject {
     private var bootstrapTask: Task<Void, Never>?
     private var bootstrapped = false
     private var accountSubscription: AnyCancellable?
+    private var sessionSubscription: SessionStoreSubscription?
     private let authorizationKey = "watchHealthEnergyAuthorizedUser.v1"
 
     init() {
-        let client = NhostClientFactory.makeProductionWatchClient()
+        let authObserver = WatchAuthRefreshObserver()
+        let authURL = generateServiceURL(.auth, subdomain: NhostConfig.production.subdomain,
+                                         region: NhostConfig.production.region)
+        let client = NhostClientFactory.makeProductionWatchClient(
+            transport: WatchAuthRefreshTransport(authBaseURL: authURL, observer: authObserver)
+        )
         account = WatchAccountModel(
             authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
             currentUser: NhostCurrentUserService(client: client),
@@ -57,6 +63,18 @@ final class WatchEnergyRuntime: ObservableObject {
         service = WatchEnergyService(graphQL: graphQL, energy: DailyEnergyRepository(graphQL: graphQL),
                                      importer: health)
         events = eventStore.load()
+        Task { [weak self] in
+            await authObserver.setHandler { [weak self] event in
+                Task { @MainActor [weak self] in self?.recordAuthRefresh(event) }
+            }
+        }
+        sessionSubscription = client.sessionStore.subscribe { [weak self] session in
+            guard session != nil else { return }
+            await MainActor.run { [weak self] in
+                self?.record(.authSession, .succeeded, stage: .sessionPersistence,
+                             runtimeState: self?.runtimeState)
+            }
+        }
         backgroundUploader.onResult = { [weak self] ownerID, success, status in
             guard let self else { return }
             // Background URLSession can relaunch the watch before its Keychain
@@ -464,6 +482,26 @@ extension WatchEnergyRuntime {
                              wallSeconds: stage.wallSeconds, occurredAt: stage.occurredAt)
             }
         }
+    }
+
+    private func recordAuthRefresh(_ event: WatchAuthRefreshObservation) {
+        let outcome: WatchEventOutcome
+        var diagnostic: WatchTransportDiagnostic?
+        switch event.outcome {
+        case .started: outcome = .started
+        case .responseReceived: outcome = .received // HTTP 2xx; persistence is logged separately.
+        case .rejected(let status):
+            outcome = .failed
+            diagnostic = .init(kind: .http, code: status)
+        case .failed(let cause):
+            outcome = .failed
+            diagnostic = cause
+        }
+        record(.authRefresh, outcome, errorCode: diagnostic?.code,
+               errorSource: diagnostic == nil ? nil : .network,
+               transportKind: diagnostic?.kind, stage: .refreshRequest,
+               attemptID: event.id, runtimeState: runtimeState,
+               wallSeconds: event.wallSeconds, occurredAt: event.occurredAt)
     }
 
     func record(_ action: WatchEventAction, _ outcome: WatchEventOutcome,
