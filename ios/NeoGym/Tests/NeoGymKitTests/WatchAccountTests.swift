@@ -97,20 +97,6 @@ private actor WatchTransport: HTTPTransport {
 
 @MainActor
 final class WatchAccountTests: XCTestCase {
-    func testAssistedSignInRequiresSignedInPhoneHintAndNoWatchSession() async throws {
-        let (signedOut, _, _) = await setup(storage: MemorySessionStorageBackend())
-        signedOut.localContextReady(nil)
-        XCTAssertNil(signedOut.assistedSignInUserID)
-        signedOut.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
-        XCTAssertEqual(signedOut.assistedSignInUserID, "watch-user")
-        signedOut.receiveContext(PhoneAccountHint.signedOut.context)
-        XCTAssertNil(signedOut.assistedSignInUserID)
-
-        let (signedIn, _, _) = try await setup()
-        signedIn.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
-        XCTAssertNil(signedIn.assistedSignInUserID)
-    }
-
     func testPendingUnknownAndKnownPhoneAllowOnlyFreshMatchingRead() async throws {
         let (model, _, transport) = try await setup()
         XCTAssertEqual(model.state, .awaitingLocalContext)
@@ -385,6 +371,20 @@ final class WatchAccountTests: XCTestCase {
 }
 
 extension WatchAccountTests {
+    func testAssistedSignInRequiresSignedInPhoneHintAndNoWatchSession() async throws {
+        let (signedOut, _, _) = await setup(storage: MemorySessionStorageBackend())
+        signedOut.localContextReady(nil)
+        XCTAssertNil(signedOut.assistedSignInUserID)
+        signedOut.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        XCTAssertEqual(signedOut.assistedSignInUserID, "watch-user")
+        signedOut.receiveContext(PhoneAccountHint.signedOut.context)
+        XCTAssertNil(signedOut.assistedSignInUserID)
+
+        let (signedIn, _, _) = try await setup()
+        signedIn.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        XCTAssertNil(signedIn.assistedSignInUserID)
+    }
+
     func testWatchProfileCacheRequiresMatchingRestoredUserAndClearsOnSignOut() async throws {
         let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
         cache.save(CurrentWatchUser(id: "watch-user", displayName: "Recently fetched", email: "cached@example.test"))
