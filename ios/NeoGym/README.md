@@ -150,8 +150,10 @@ records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
 failures record their own safe cause; scene transitions record
 active/inactive/background but cannot prove uninterrupted background work.
 Auth refresh events use a random attempt ID and record request start, safe
-HTTP/transport outcome, and wall time. A 2xx response means only that the
-transport received it; a separate SDK session-write event indicates a stored
+HTTP/transport outcome, and wall time. A cancelled exchange is logged as
+Skipped · cancelled, not a Network failure; its server outcome is unknown, so
+a later 401 or session removal may mean the token already rotated. A 2xx
+response means only that the transport received it; a separate SDK session-write event indicates a stored
 session (including OTP sign-in), not necessarily that a preceding refresh
 belongs to it. Missing terminal/write events cannot prove persistence failed
 if watchOS suspended the app. Older events retain numeric-only detail. Separately, the watch widget writes

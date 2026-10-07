@@ -204,6 +204,21 @@ final class WatchEventLogTests: XCTestCase {
         XCTAssertTrue(export.contains("Legacy timeout events may have been acknowledged long after 25s"))
     }
 
+    func testCancelledRefreshExportDoesNotClaimNetworkFailure() {
+        let id = UUID()
+        let cancelled = WatchEvent(action: .authRefresh, outcome: .skipped,
+                                   stage: .refreshRequest, attemptID: id,
+                                   skipReason: .cancelled, wallSeconds: 2)
+        let export = WatchEventExport.text(events: [cancelled])
+        XCTAssertTrue(export.contains("Auth token refresh | Skipped"))
+        XCTAssertTrue(export.contains("Auth refresh request · cancelled · elapsed 2s wall"))
+        XCTAssertTrue(export.contains("A cancelled Auth refresh may have rotated on the server"))
+        XCTAssertFalse(export.contains("Auth token refresh | Failed"))
+        XCTAssertFalse(export.contains("Network · Unknown transport"))
+        XCTAssertNil(cancelled.errorSource)
+        XCTAssertNil(cancelled.transportKind)
+    }
+
     func testHTTPAndUnknownTransportExportsNeverIncludeRawResponses() {
         let response = NhostHTTPError(
             status: 503, headers: ["x-secret": "token"], body: nil,

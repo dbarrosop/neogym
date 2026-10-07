@@ -126,7 +126,7 @@ requests accepted by watchOS from actual wakes and delivered task expiry,
 Health observer delivery from sync, typed starts/ends for active/resting
 HealthKit queries and backend reconciliation/read/write stages, fresh energy
 reads, local snapshot-save success/failure, Auth refresh HTTP start/response/
-failure and SDK session-write notifications, and WidgetKit reload requests;
+cancellation/failure and SDK session-write notifications, and WidgetKit reload requests;
 a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
 acknowledgement within one in-process attempt; a resumed pending import uses a
@@ -153,8 +153,10 @@ events could have been logged much later after suspension. Errors retain
 fixed stages, numeric codes and safe sources, including a distinct GraphQL
 transport category. New events retain only a typed URLSession error number,
 HTTP status, service/response category or unknown cause; no URLs, headers,
-response bodies or raw descriptions are exported. A refresh HTTP success is
-not evidence that the rotated token reached Keychain; a missing SDK write event
+response bodies or raw descriptions are exported. A cancelled Auth refresh
+is logged as skipped/cancelled, not a network failure; its server outcome is
+unknown and a later 401 or session removal can follow if the token rotated.
+A refresh HTTP success is not evidence that the rotated token reached Keychain; a missing SDK write event
 is also not proof of failure if watchOS suspended delivery. Auth refresh attempt
 IDs are random and never derived from tokens or account IDs. The old GraphQL transport
 `code 3` was a Swift enum index, not an HTTP/HealthKit status. A watch scene

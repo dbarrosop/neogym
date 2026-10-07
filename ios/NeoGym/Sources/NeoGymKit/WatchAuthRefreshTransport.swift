@@ -8,6 +8,7 @@ public struct WatchAuthRefreshObservation: Sendable, Equatable {
         case started
         case responseReceived
         case rejected(Int)
+        case cancelled
         case failed(WatchTransportDiagnostic)
     }
 
@@ -71,6 +72,11 @@ public struct WatchAuthRefreshTransport: HTTPTransport {
             await observer.observe(.init(id: id, outcome: outcome, occurredAt: Date(),
                                          wallSeconds: max(0, Int(Date().timeIntervalSince(started).rounded(.up)))))
             return response
+        } catch where error is CancellationError || (error as? URLError)?.code == .cancelled {
+            // The server may already have rotated the token; preserve the SDK's original error.
+            await observer.observe(.init(id: id, outcome: .cancelled, occurredAt: Date(),
+                                         wallSeconds: max(0, Int(Date().timeIntervalSince(started).rounded(.up)))))
+            throw error
         } catch {
             await observer.observe(.init(id: id, outcome: .failed(WatchTransportDiagnostic.classify(error)),
                                          occurredAt: Date(),

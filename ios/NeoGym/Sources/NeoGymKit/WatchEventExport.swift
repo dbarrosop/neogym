@@ -27,6 +27,7 @@ public enum WatchEventExport {
                 + "a coalesced reload may be retried on another eligible wake.",
             "Transport diagnostics contain only a fixed cause and URLSession code or HTTP status; "
                 + "legacy code 3 was a Swift enum index.",
+            "A cancelled Auth refresh may have rotated on the server; a later 401 or session removal can follow.",
             "No account identifiers, credentials, URLs, health values, or raw error descriptions are included.",
             ""
         ]

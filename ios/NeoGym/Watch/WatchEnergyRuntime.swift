@@ -487,9 +487,13 @@ extension WatchEnergyRuntime {
     private func recordAuthRefresh(_ event: WatchAuthRefreshObservation) {
         let outcome: WatchEventOutcome
         var diagnostic: WatchTransportDiagnostic?
+        var skipReason: WatchEventSkipReason?
         switch event.outcome {
         case .started: outcome = .started
         case .responseReceived: outcome = .received // HTTP 2xx; persistence is logged separately.
+        case .cancelled:
+            outcome = .skipped // The request stopped locally; server rotation remains unknown.
+            skipReason = .cancelled
         case .rejected(let status):
             outcome = .failed
             diagnostic = .init(kind: .http, code: status)
@@ -500,7 +504,7 @@ extension WatchEnergyRuntime {
         record(.authRefresh, outcome, errorCode: diagnostic?.code,
                errorSource: diagnostic == nil ? nil : .network,
                transportKind: diagnostic?.kind, stage: .refreshRequest,
-               attemptID: event.id, runtimeState: runtimeState,
+               attemptID: event.id, runtimeState: runtimeState, skipReason: skipReason,
                wallSeconds: event.wallSeconds, occurredAt: event.occurredAt)
     }
 

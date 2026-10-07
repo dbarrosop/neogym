@@ -28,7 +28,9 @@ package at its lower deployment floor unless its own code needs newer APIs.
   tests. In XCTest, await actor snapshots into a local before passing them to
   `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
   `WatchAccountTests` methods in its existing extension: the main class is near
-  the Swift lint 350-line type-body limit. `BodyMeasurementsTests.swift` is near
+  the Swift lint 350-line type-body limit. For ordered refresh-observer test
+  assertions, yield events directly into an `AsyncStream` in the callback;
+  spawning separate tasks to append events can reorder them. `BodyMeasurementsTests.swift` is near
   the 1000-line file limit; keep standalone Body date-planning tests in
   `BodyHealthRecheckDatesTests.swift` and new sync tests in its existing extension.
 - `nix develop ../.. --command xcodegen generate` — regenerate
@@ -125,9 +127,12 @@ That client selects production and the SDK's origin-scoped private, device-only
 Keychain session with legacy unscoped migration ignored; it has no shared
 Keychain/App Group session lock or GraphQL cache. The transport emits only
 random attempt IDs, safe status/error categories and wall time for Auth refresh
-HTTP exchanges; a separate SDK session-store subscription records successful
-session writes, including OTP. Neither an HTTP 2xx nor absence of a write event
-proves whether a rotated token persisted after watchOS suspension. Never add
+HTTP exchanges; cancelled exchanges are recorded as skipped/cancelled, not
+network failures. A cancelled request may already have rotated its token on
+the server, so a later 401 or session removal can follow. A separate SDK
+session-store subscription records successful session writes, including OTP.
+Neither an HTTP 2xx nor absence of a write event proves whether a rotated
+token persisted after watchOS suspension. Never add
 token values, headers, response bodies, URLs or account IDs to Events. The watch target does have an
 App Group entitlement for the token-free complication snapshot, not its session.
 The watch app caches only the most recently fetched name/email in its own
