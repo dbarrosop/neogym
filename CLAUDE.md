@@ -115,8 +115,13 @@ using iPhone** while the signed-in phone app is open. On the phone, **Me →
 Profile → Connect Apple Watch** requests the email code and accepts its entry;
 a nonce-bound, 10-minute, live WatchConnectivity message carries that short-lived
 code to the watch, which verifies it with Auth and owns a separate session.
-Unreachable devices fall back to watch OTP. Application context still carries
-only latest-state account hints; no session/access/refresh token crosses devices.
+A reachable watch rejects unverifiable codes (lost/expired request, missing
+challenge or mismatched account) with a failure instead of silently discarding
+them; after a failed challenge send, raise the wrist and tap **Resend to watch**
+before retrying. Failure delivery is still best-effort; once the phone receives
+success for a request, a delayed failure for that request cannot undo it. Unreachable devices fall
+back to watch OTP. Application context still carries only latest-state account
+hints; no session/access/refresh token crosses devices.
 Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile

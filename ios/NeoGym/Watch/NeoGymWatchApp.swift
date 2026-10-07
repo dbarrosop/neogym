@@ -99,8 +99,10 @@ private struct WatchHomeView: View {
             signOutButton
         }
     }
+}
 
-    private func startAssistedSignIn() {
+private extension WatchHomeView {
+    func startAssistedSignIn() {
         guard let id = account.assistedSignInUserID else { return }
         let attempt = WatchAssistedSignInAttempt(id: UUID(), userID: id)
         assistedAttempt = attempt
@@ -113,27 +115,42 @@ private struct WatchHomeView: View {
         }
     }
 
-    private func receiveAssisted(_ message: WatchAssistedSignInMessage) {
-        guard let attempt = assistedAttempt,
-              account.assistedSignInUserID == attempt.userID,
-              attempt.accepts(id: attempt.id, userID: attempt.userID) else { return }
+    func receiveAssisted(_ message: WatchAssistedSignInMessage) {
         switch message {
         case .challenge(let id, let email, let userID):
-            guard attempt.accepts(id: id, userID: userID) else { return }
+            guard let attempt = assistedAttempt,
+                  account.assistedSignInUserID == attempt.userID,
+                  attempt.accepts(id: id, userID: userID) else { return }
             assistedEmail = email
             assistedStatus = "Enter the emailed code on your iPhone."
         case .code(let id, let otp):
-            guard id == attempt.id, let email = assistedEmail, !assistedVerifying else { return }
+            // Ignore retransmissions of the in-flight code, but answer every
+            // other code even when this process has lost its watch attempt.
+            if assistedVerifying, assistedAttempt?.id == id { return }
+            guard let attempt = assistedAttempt, let email = assistedEmail,
+                  WatchAssistedSignInAttempt.canVerifyCode(
+                    id: id, attempt: attempt, currentUserID: account.assistedSignInUserID,
+                    challengeEmail: email
+                  ) else {
+                runtime.connectivity.send(.result(id, succeeded: false), onFailure: {})
+                return
+            }
             assistedVerifying = true
             activity.perform("auth") { await verifyAssisted(otp: otp, email: email, attempt: attempt) }
         case .request, .result: break
         }
     }
 
-    private func verifyAssisted(otp: String, email: String, attempt: WatchAssistedSignInAttempt) async {
+    func verifyAssisted(otp: String, email: String, attempt: WatchAssistedSignInAttempt) async {
         defer { assistedVerifying = false }
-        guard assistedAttempt == attempt, account.assistedSignInUserID == attempt.userID,
-              attempt.accepts(id: attempt.id, userID: attempt.userID) else { return }
+        guard assistedAttempt == attempt,
+              WatchAssistedSignInAttempt.canVerifyCode(
+                id: attempt.id, attempt: assistedAttempt, currentUserID: account.assistedSignInUserID,
+                challengeEmail: assistedEmail
+              ) else {
+            runtime.connectivity.send(.result(attempt.id, succeeded: false), onFailure: {})
+            return
+        }
         do {
             guard let session = try await account.authStore.authService.verifySignInOTP(email: email, otp: otp)
             else { throw AssistedSignInError.noSession }
@@ -155,8 +172,10 @@ private struct WatchHomeView: View {
         }
     }
 
-    private enum AssistedSignInError: Error { case noSession, accountMismatch }
+    enum AssistedSignInError: Error { case noSession, accountMismatch }
+}
 
+private extension WatchHomeView {
     private var otpForm: some View {
         VStack(alignment: .leading, spacing: 10) {
             if signIn.sentTo == nil {

@@ -111,6 +111,8 @@ watch assets must remain included in `sources` (do not exclude
 Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 'generic/platform=watchOS Simulator' build` after generation.
 `Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
+`WatchHomeView` keeps assisted sign-in handlers in a same-file private extension
+so the Swift lint 350-line type-body limit remains satisfied.
 The `WatchWidgets/WatchEnergyComplication.swift` rectangular view tints only
 its icons (green cutlery, red flame, teal hand-drawn two-pan balance), not the
 calorie text. Consumed/burned values share the same bold typography without
@@ -300,9 +302,16 @@ version/state/userId and optional opaque deliveryId, never credential or name ma
 The separate live `WatchAssistedSignInMessage` channel carries a nonce-bound,
 short-lived OTP typed into the phone's Profile → Connect Apple Watch sheet;
 the watch verifies it directly, checks the definitive phone user ID, and keeps
-its own SDK Keychain session. Neither long-lived credential nor session crosses
-the connection. Phone-assisted sign-in requires both apps reachable; watch OTP
-remains available. Unknown context allows
+its own SDK Keychain session. A reachable watch answers a code that cannot start
+verification (missing/expired attempt, missing email challenge, wrong nonce or
+phone account) with a failed result instead of silently dropping it; the phone
+suggests checking the code, resending the challenge, or restarting on the watch.
+A confirmed success is final for the phone's current request; a delayed failure
+from a duplicate code cannot replace it. If the challenge send fails while the watch is unreachable, raise the wrist and
+tap **Resend to watch** before retrying the code. Failure delivery itself is
+best-effort and requires both apps reachable. Neither long-lived credential nor
+session crosses the connection. Phone-assisted sign-in requires both apps
+reachable; watch OTP remains available. Unknown context allows
 independent watch auth while a known signed-out/different-account hint blocks
 it. `.phoneSignedOut` distinguishes a blocking phone hint from the watch's
 ordinary `.signedOut` state, so watch UI must not offer OTP for that state.

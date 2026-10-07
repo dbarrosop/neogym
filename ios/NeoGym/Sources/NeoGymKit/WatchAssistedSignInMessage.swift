@@ -69,4 +69,17 @@ public struct WatchAssistedSignInAttempt: Equatable, Sendable {
         self.id == id && self.userID == userID && now >= startedAt
             && now.timeIntervalSince(startedAt) < 10 * 60
     }
+
+    /// A successful result is final for this request, even if a delayed rejection follows.
+    public func acceptsResult(id: UUID, verificationSucceeded: Bool) -> Bool {
+        self.id == id && !verificationSucceeded
+    }
+
+    /// A code needs the matching, live watch request and an accepted email challenge.
+    public static func canVerifyCode(
+        id: UUID, attempt: Self?, currentUserID: String?, challengeEmail: String?, now: Date = Date()
+    ) -> Bool {
+        guard let attempt, let currentUserID, challengeEmail != nil else { return false }
+        return attempt.accepts(id: id, userID: currentUserID, now: now)
+    }
 }

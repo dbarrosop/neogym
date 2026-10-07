@@ -107,9 +107,16 @@ Apple Watch** on the signed-in iPhone, request the code, and type the emailed
 six digits on the phone. Both apps must be open and reachable for the live
 WatchConnectivity messages. The request ID expires after ten minutes, the
 watch verifies the OTP directly with Auth, and its new Keychain session is
-separate from the iPhone's. A phone account hint alone cannot sign in; watch
-OTP entry remains the fallback. The persistent WatchConnectivity application
-context still carries only account state/user ID, while a live, ephemeral
+separate from the iPhone's. If the watch was not reachable when the challenge
+was sent, raise your wrist and tap **Resend to watch** before retrying the code.
+A reachable watch that lost or expired its request, has no challenge, or no
+longer matches the phone account sends a failure instead of silently discarding
+the code; the phone offers a retry or a new watch request. After the phone receives
+success for a request, a delayed failure for that same request cannot replace it.
+Live delivery of the failure is best-effort and still requires both apps reachable. A phone account
+hint alone cannot sign in; watch OTP entry remains the fallback. The persistent
+WatchConnectivity application context still carries only account state/user ID,
+while a live, ephemeral
 message carries the one-time OTP and never a session or refresh token. Signed-in users
 swipe between Energy (today's consumed, total burned, active/resting, and
 Net = consumed minus burned kcal) and Profile (a locally cached name/email,

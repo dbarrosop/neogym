@@ -109,7 +109,7 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
         }
         WCSession.default.sendMessage(message.context, replyHandler: nil) { [weak self] _ in
             Task { @MainActor [weak self] in
-                if self?.pending == attempt {
+                if self?.pending == attempt, self?.verificationSucceeded == false {
                     self?.codeSent = false
                     self?.errorMessage = "Watch is not reachable. Keep NeoGym open on both devices and retry."
                 }
@@ -151,9 +151,13 @@ extension PhoneAccountConnectivity: WCSessionDelegate {
                 verificationSucceeded = false
                 errorMessage = nil
             case .result(let id, let succeeded):
-                guard liveAttempt()?.id == id else { return }
+                guard let attempt = liveAttempt(),
+                      attempt.acceptsResult(id: id, verificationSucceeded: verificationSucceeded) else { return }
                 verificationSucceeded = succeeded
-                if !succeeded { codeSent = false; errorMessage = "Watch could not verify that code. Try again or request a new sign-in." }
+                if !succeeded {
+                    codeSent = false
+                    errorMessage = "Watch could not verify the code. Check it, tap Resend to watch, or start again from the watch."
+                }
             case .challenge, .code: break
             }
         }
