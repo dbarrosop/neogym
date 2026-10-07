@@ -253,12 +253,7 @@ private struct PhoneWatchSignInSheet: View {
                 }
                 if connectivity.codeRequested, !connectivity.verificationSucceeded {
                     Section("Email code") {
-                        TextField("6-digit code", text: $otp)
-                            .textContentType(.oneTimeCode)
-                            .keyboardType(.numberPad)
-                            .onChange(of: otp) { _, value in
-                                otp = String(value.filter(\.isNumber).prefix(6))
-                            }
+                        OTPCodeField(code: $otp, isDisabled: connectivity.verificationSucceeded) { _ in }
                         Button(connectivity.codeSent ? "Send code again" : "Verify on watch") {
                             connectivity.sendCode(otp)
                         }
