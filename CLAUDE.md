@@ -136,9 +136,11 @@ a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
 acknowledgement within one in-process attempt; a resumed pending import uses a
 new attempt ID and records the pending wall-clock age instead. Entries include
-active/resting metric, app state, elapsed time,
-backend operation or skip reason when relevant. Stage elapsed times and
-pending age use wall clock (including watch sleep); a missing stage end or
+active/resting metric, app state when captured during handling, elapsed time,
+backend operation or skip reason when relevant. Auth refresh events use HTTP
+boundary timestamps, and SDK session-write events use the notification callback
+time; both omit app state because their MainActor log writes can be delayed.
+Stage elapsed times and pending age use wall clock (including watch sleep); a missing stage end or
 expiry event cannot prove a hung query or a successful wake. Observer
 acknowledgement is timestamped in the HealthKit callback rather than at a
 delayed MainActor log write, and exports remain occurrence-sorted.

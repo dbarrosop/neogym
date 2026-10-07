@@ -128,8 +128,8 @@ and SDK session-write notifications, and complication reload-request outcomes). 
 widget or on a server. A random attempt ID ties together observer arrival,
 energy reconciliation, snapshot save, and HealthKit acknowledgement within
 one in-process attempt; a resumed pending import has a new ID. Entries
-include the observed active/resting metric, app state when handled, elapsed
-seconds, backend operation or account-gate skip reason. A refresh now emits
+include the observed active/resting metric, optional app state captured at
+handling time, elapsed seconds, backend operation or account-gate skip reason. A refresh now emits
 start and terminal events for the active/resting HealthKit statistics queries,
 Health import, reconciliation read/write, and today's final backend read.
 These stage durations use wall time (including suspension), not the older
@@ -157,7 +157,10 @@ records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
 failures record their own safe cause; scene transitions record
 active/inactive/background but cannot prove uninterrupted background work.
 Auth refresh events use a random attempt ID and record request start, safe
-HTTP/transport outcome, and wall time. A cancelled exchange is logged as
+HTTP/transport outcome, and wall time at the HTTP boundary. Session-write
+events use the session-store notification callback time (after any SDK queueing),
+not the later MainActor log time. Both omit app state because it could change
+before deferred logging runs. A cancelled exchange is logged as
 Skipped · cancelled, not a Network failure; its server outcome is unknown, so
 a later 401 or session removal may mean the token already rotated. A 2xx
 response means only that the transport received it; a separate SDK session-write event indicates a stored

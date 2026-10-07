@@ -133,6 +133,9 @@ HTTP exchanges; cancelled exchanges are recorded as skipped/cancelled, not
 network failures. A cancelled request may already have rotated its token on
 the server, so a later 401 or session removal can follow. A separate SDK
 session-store subscription records successful session writes, including OTP.
+Auth refresh events carry the HTTP boundary timestamp; session-write events
+carry the session-store notification callback timestamp (after any SDK queueing).
+Both omit app state because MainActor logging can be delayed across suspension.
 Neither an HTTP 2xx nor absence of a write event proves whether a rotated
 token persisted after watchOS suspension. Never add
 token values, headers, response bodies, URLs or account IDs to Events. The watch target does have an
@@ -201,9 +204,10 @@ skip reason are typed optional fields. Stage events capture start/end timestamps
 at the operation boundary, then MainActor stores them in occurrence order.
 Observer `Started` marks main-actor handling, not raw callback receipt;
 acknowledgement uses its actual HealthKit callback timestamp and omits app
-state (which might change before the log is written). The two can appear in
-either order. Background task
-expiry cancels work and completes the watchOS task exactly once if the system
+state (which might change before the log is written). The observer Started and
+acknowledgement events can appear in either order. Auth refresh and SDK
+session-write notifications follow the same no-deferred-app-state rule.
+Background task expiry cancels work and completes the watchOS task exactly once if the system
 calls its handler; a missing expiry or terminal event may mean
 suspension/termination and cannot by itself prove a network hang;
 legacy 25s watchdog callbacks could run much later after suspension. Failures

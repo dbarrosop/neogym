@@ -70,9 +70,10 @@ final class WatchEnergyRuntime: ObservableObject {
         }
         sessionSubscription = client.sessionStore.subscribe { [weak self] session in
             guard session != nil else { return }
+            let storedAt = Date()
             await MainActor.run { [weak self] in
                 self?.record(.authSession, .succeeded, stage: .sessionPersistence,
-                             runtimeState: self?.runtimeState)
+                             occurredAt: storedAt)
             }
         }
         backgroundUploader.onResult = { [weak self] ownerID, success, status in
@@ -504,7 +505,7 @@ extension WatchEnergyRuntime {
         record(.authRefresh, outcome, errorCode: diagnostic?.code,
                errorSource: diagnostic == nil ? nil : .network,
                transportKind: diagnostic?.kind, stage: .refreshRequest,
-               attemptID: event.id, runtimeState: runtimeState, skipReason: skipReason,
+               attemptID: event.id, skipReason: skipReason,
                wallSeconds: event.wallSeconds, occurredAt: event.occurredAt)
     }
 
