@@ -35,10 +35,13 @@ struct ProfileView: View {
                 )
             }
         }
-        .sheet(isPresented: $isShowingWatchSignIn) {
+        .sheet(isPresented: $isShowingWatchSignIn, onDismiss: {
+            phoneConnectivity.clearPresentedSuccess()
+        }) {
             PhoneWatchSignInSheet(connectivity: phoneConnectivity,
                                   authService: authStore.authService)
         }
+        .onAppear { phoneConnectivity.expireAttempt() }
     }
 
     private var accountHeader: some View {
@@ -161,6 +164,7 @@ struct ProfileView: View {
                     .font(.headline)
                 GlassDivider()
                 Button {
+                    phoneConnectivity.clearPresentedSuccess()
                     isShowingWatchSignIn = true
                 } label: {
                     Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch sign-in",
@@ -233,13 +237,15 @@ private struct PhoneWatchSignInSheet: View {
             Form {
                 Section("Connect your watch") {
                     Text("On your Apple Watch, tap Sign in using iPhone. Keep NeoGym open on both devices.")
-                    if connectivity.pending != nil {
+                    if connectivity.verificationSucceeded {
+                        Text("Apple Watch signed in successfully.")
+                    } else if connectivity.pending != nil {
                         Text("Watch request received. An email code will create a separate watch session; your iPhone stays signed in.")
                             .foregroundStyle(.secondary)
                         Button(connectivity.codeRequested ? "Resend to watch" : "Email sign-in code") {
                             Task { await connectivity.requestCode(using: authService) }
                         }
-                        .disabled(connectivity.isSendingCode || connectivity.verificationSucceeded)
+                        .disabled(connectivity.isSendingCode)
                     } else {
                         Text("Waiting for a request from your watch…")
                             .foregroundStyle(.secondary)
@@ -262,9 +268,6 @@ private struct PhoneWatchSignInSheet: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                if connectivity.verificationSucceeded {
-                    Section { Text("Apple Watch signed in successfully.") }
-                }
                 if let error = connectivity.errorMessage {
                     Section { Text(error).foregroundStyle(.red) }
                 }
@@ -275,6 +278,7 @@ private struct PhoneWatchSignInSheet: View {
                     Button("Done") { dismiss() }
                 }
             }
+            .onAppear { connectivity.expireAttempt() }
             .onChange(of: connectivity.pending?.id) { _, _ in otp = "" }
             .onChange(of: connectivity.verificationSucceeded) { _, succeeded in
                 if succeeded { otp = "" }

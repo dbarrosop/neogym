@@ -307,7 +307,12 @@ verification (missing/expired attempt, missing email challenge, wrong nonce or
 phone account) with a failed result instead of silently dropping it; the phone
 suggests checking the code, resending the challenge, or restarting on the watch.
 A confirmed success is final for the phone's current request; a delayed failure
-from a duplicate code cannot replace it. If the challenge send fails while the watch is unreachable, raise the wrist and
+from a duplicate code cannot replace it. The phone clears its actionable request
+on success or after ten minutes (also rechecking on foreground/sheet open).
+The sheet shows confirmation while open, then clears it on dismissal when no request
+is pending; reopening also clears a success delivered after dismissal, without
+clearing an active request. A new request or account change clears it too.
+If the challenge send fails while the watch is unreachable, raise the wrist and
 tap **Resend to watch** before retrying the code. Failure delivery itself is
 best-effort and requires both apps reachable. Neither long-lived credential nor
 session crosses the connection. Phone-assisted sign-in requires both apps

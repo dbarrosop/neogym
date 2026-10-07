@@ -16,6 +16,7 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     private lazy var publisher = PhoneHintPublisher(transport: self)
     private var currentUserID: String?
     private var currentEmail: String?
+    private var expirationTask: Task<Void, Never>?
 
     func start() {
         guard WCSession.isSupported() else { return }
@@ -33,6 +34,7 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     }
 
     func foreground() {
+        expireAttempt()
         guard WCSession.isSupported() else { return }
         if WCSession.default.activationState != .activated { WCSession.default.activate() }
         else { publisher.resend() }
@@ -65,7 +67,9 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
             codeRequested = true
             sendChallenge(for: attempt, email: email)
         } catch {
-            errorMessage = "Could not send an email code. Try again."
+            if pending == attempt {
+                errorMessage = "Could not send an email code. Try again."
+            }
         }
     }
 
@@ -81,16 +85,32 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     }
 
     func clearAttempt() {
-        pending = nil
-        codeRequested = false
-        codeSent = false
+        endAttempt()
         verificationSucceeded = false
         errorMessage = nil
     }
 
+    func clearPresentedSuccess() {
+        guard pending == nil else { return }
+        verificationSucceeded = false
+    }
+
+    func expireAttempt() {
+        guard pending != nil else { return }
+        _ = liveAttempt()
+    }
+
+    private func endAttempt() {
+        expirationTask?.cancel()
+        expirationTask = nil
+        pending = nil
+        codeRequested = false
+        codeSent = false
+    }
+
     private func liveAttempt() -> WatchAssistedSignInAttempt? {
-        guard let pending, let id = currentUserID,
-              pending.accepts(id: pending.id, userID: id) else {
+        guard let pending else { return nil }
+        guard let id = currentUserID, pending.accepts(id: pending.id, userID: id) else {
             clearAttempt()
             return nil
         }
@@ -141,20 +161,26 @@ extension PhoneAccountConnectivity: WCSessionDelegate {
         let strings = message.compactMapValues { $0 as? String }
         guard strings.count == message.count,
               let payload = WatchAssistedSignInMessage.decode(strings) else { return }
-        Task { @MainActor in
+        Task { @MainActor [self] in
             switch payload {
             case .request(let id):
                 guard let userID = currentUserID, currentEmail != nil else { return }
-                pending = WatchAssistedSignInAttempt(id: id, userID: userID)
-                codeRequested = false
-                codeSent = false
-                verificationSucceeded = false
-                errorMessage = nil
+                clearAttempt()
+                let attempt = WatchAssistedSignInAttempt(id: id, userID: userID)
+                pending = attempt
+                expirationTask = Task { [weak self] in
+                    try? await Task.sleep(for: .seconds(600))
+                    guard !Task.isCancelled, let self, self.pending == attempt else { return }
+                    self.expireAttempt()
+                }
             case .result(let id, let succeeded):
-                guard let attempt = liveAttempt(),
+                guard pending != nil, let attempt = liveAttempt(),
                       attempt.acceptsResult(id: id, verificationSucceeded: verificationSucceeded) else { return }
-                verificationSucceeded = succeeded
-                if !succeeded {
+                if succeeded {
+                    endAttempt()
+                    verificationSucceeded = true
+                    errorMessage = nil
+                } else {
                     codeSent = false
                     errorMessage = "Watch could not verify the code. Check it, tap Resend to watch, or start again from the watch."
                 }
