@@ -310,7 +310,8 @@ availability gates; existing guards are vestigial, not a pattern for new code.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
-`UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
+`PhoneAssistedSignInModel`, `WatchAssistedSignInModel`, `UserProfile`,
+`ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
 those models and route signed-in sessions into the full-screen `AppShellView`.
 Watch SwiftUI views live under `ios/NeoGym/Watch/`; the rectangular watch

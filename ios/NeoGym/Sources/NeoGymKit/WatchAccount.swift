@@ -229,6 +229,13 @@ public final class WatchAccountModel: ObservableObject {
         }
     }
 
+    /// Verification may persist the watch session before returning. Check the
+    /// definitive phone hint independently of the now-ineligible OTP prompt.
+    public func allowsAssistedVerifiedSession(userID: String) -> Bool {
+        guard case .known(.signedIn(let id)) = phone else { return false }
+        return id == userID
+    }
+
     /// Expiring watchOS activity stops a managed name read; Retry starts a new one.
     /// Never cancel a session-clear task here: local removal must complete.
     public func cancelPendingRead() {

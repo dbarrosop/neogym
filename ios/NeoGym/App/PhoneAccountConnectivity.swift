@@ -6,20 +6,25 @@ import WatchConnectivity
 /// live messages, is never persisted, and is verified by Auth on the watch.
 @MainActor
 final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTransport {
-    @Published private(set) var pending: WatchAssistedSignInAttempt?
-    @Published private(set) var isSendingCode = false
-    @Published private(set) var codeRequested = false
-    @Published private(set) var codeSent = false
-    @Published private(set) var verificationSucceeded = false
-    @Published private(set) var errorMessage: String?
-
     private lazy var publisher = PhoneHintPublisher(transport: self)
-    private var currentUserID: String?
-    private var currentEmail: String?
-    private var expirationTask: Task<Void, Never>?
+    private lazy var assisted: PhoneAssistedSignInModel = {
+        let model = PhoneAssistedSignInModel { [weak self] message, attempt in
+            self?.send(message, for: attempt)
+        }
+        assistedSubscription = model.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }
+        return model
+    }()
+    private var assistedSubscription: AnyCancellable?
     private var authSubscription: AnyCancellable?
-    private var isRestoringAuth = true
-    private var earlyRequest: (id: UUID, receivedAt: Date)?
+
+    var pending: WatchAssistedSignInAttempt? { assisted.pending }
+    var isSendingCode: Bool { assisted.isSendingCode }
+    var codeRequested: Bool { assisted.codeRequested }
+    var codeSent: Bool { assisted.codeSent }
+    var verificationSucceeded: Bool { assisted.verificationSucceeded }
+    var errorMessage: String? { assisted.errorMessage }
 
     func bind(to authStore: AuthStore) {
         authSubscription = authStore.$state.sink { [weak self] state in
@@ -35,38 +40,7 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
 
     private func observe(_ state: AuthState) {
         publisher.observe(state)
-        let user = state.session?.user
-        let id = user?.id
-        if id != currentUserID { clearAttempt() }
-        currentUserID = id
-        currentEmail = user?.email
-
-        switch state {
-        case .loading:
-            isRestoringAuth = true
-        case .signedIn:
-            isRestoringAuth = false
-            if let earlyRequest {
-                self.earlyRequest = nil
-                acceptRequest(earlyRequest.id, receivedAt: earlyRequest.receivedAt)
-            }
-        case .signedOut, .error:
-            isRestoringAuth = false
-            earlyRequest = nil
-        }
-    }
-
-    private func acceptRequest(_ id: UUID, receivedAt: Date) {
-        guard let userID = currentUserID, currentEmail != nil else { return }
-        let attempt = WatchAssistedSignInAttempt(id: id, userID: userID, startedAt: receivedAt)
-        guard attempt.accepts(id: id, userID: userID) else { return }
-        clearAttempt()
-        pending = attempt
-        expirationTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(600))
-            guard !Task.isCancelled, let self, self.pending == attempt else { return }
-            self.expireAttempt()
-        }
+        assisted.observe(state)
     }
 
     func foreground() {
@@ -84,91 +58,23 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     }
 
     func requestCode(using authService: any AuthServicing) async {
-        guard let attempt = liveAttempt(), let email = currentEmail else {
-            errorMessage = "Open NeoGym on both devices and request sign-in from your watch."
-            return
-        }
-        guard !isSendingCode else { return }
-        if codeRequested {
-            errorMessage = nil
-            sendChallenge(for: attempt, email: email)
-            return
-        }
-        isSendingCode = true
-        errorMessage = nil
-        defer { isSendingCode = false }
-        do {
-            try await authService.requestSignInOTP(email: email)
-            guard liveAttempt() == attempt else { return }
-            codeRequested = true
-            sendChallenge(for: attempt, email: email)
-        } catch {
-            if pending == attempt {
-                errorMessage = "Could not send an email code. Try again."
-            }
-        }
+        await assisted.requestCode(using: authService)
     }
 
-    func sendCode(_ otp: String) {
-        guard let attempt = liveAttempt(), codeRequested,
-              otp.count == 6, otp.allSatisfy(\.isNumber) else {
-            errorMessage = "Request a new watch sign-in and enter its six-digit code."
-            return
-        }
-        errorMessage = nil
-        codeSent = true
-        send(.code(attempt.id, otp: otp), for: attempt)
-    }
-
-    func clearAttempt() {
-        endAttempt()
-        verificationSucceeded = false
-        errorMessage = nil
-    }
-
-    func clearPresentedSuccess() {
-        guard pending == nil else { return }
-        verificationSucceeded = false
-    }
-
-    func expireAttempt() {
-        guard pending != nil else { return }
-        _ = liveAttempt()
-    }
-
-    private func endAttempt() {
-        expirationTask?.cancel()
-        expirationTask = nil
-        pending = nil
-        codeRequested = false
-        codeSent = false
-    }
-
-    private func liveAttempt() -> WatchAssistedSignInAttempt? {
-        guard let pending else { return nil }
-        guard let id = currentUserID, pending.accepts(id: pending.id, userID: id) else {
-            clearAttempt()
-            return nil
-        }
-        return pending
-    }
-
-    private func sendChallenge(for attempt: WatchAssistedSignInAttempt, email: String) {
-        send(.challenge(attempt.id, email: email, userID: attempt.userID), for: attempt)
-    }
+    func sendCode(_ otp: String) { assisted.sendCode(otp) }
+    func clearAttempt() { assisted.clearAttempt() }
+    func clearPresentedSuccess() { assisted.clearPresentedSuccess() }
+    func expireAttempt() { assisted.expireAttempt() }
 
     private func send(_ message: WatchAssistedSignInMessage, for attempt: WatchAssistedSignInAttempt) {
         guard WCSession.isSupported(), WCSession.default.activationState == .activated,
               WCSession.default.isReachable else {
-            errorMessage = "Watch is not reachable. Keep NeoGym open on both devices and retry."
+            assisted.deliveryFailed(for: attempt)
             return
         }
         WCSession.default.sendMessage(message.context, replyHandler: nil) { [weak self] _ in
             Task { @MainActor [weak self] in
-                if self?.pending == attempt, self?.verificationSucceeded == false {
-                    self?.codeSent = false
-                    self?.errorMessage = "Watch is not reachable. Keep NeoGym open on both devices and retry."
-                }
+                self?.assisted.deliveryFailed(for: attempt)
             }
         }
     }
@@ -199,28 +105,7 @@ extension PhoneAccountConnectivity: WCSessionDelegate {
               let payload = WatchAssistedSignInMessage.decode(strings) else { return }
         let receivedAt = Date()
         Task { @MainActor [self] in
-            switch payload {
-            case .request(let id):
-                if isRestoringAuth {
-                    // WCSession can deliver before the async Keychain bootstrap completes.
-                    // Keep only the latest nonce in memory, never an unauthenticated attempt.
-                    earlyRequest = (id, receivedAt)
-                } else {
-                    acceptRequest(id, receivedAt: receivedAt)
-                }
-            case .result(let id, let succeeded):
-                guard pending != nil, let attempt = liveAttempt(),
-                      attempt.acceptsResult(id: id, verificationSucceeded: verificationSucceeded) else { return }
-                if succeeded {
-                    endAttempt()
-                    verificationSucceeded = true
-                    errorMessage = nil
-                } else {
-                    codeSent = false
-                    errorMessage = "Watch could not verify the code. Check it, tap Resend to watch, or start again from the watch."
-                }
-            case .challenge, .code: break
-            }
+            assisted.receive(payload, receivedAt: receivedAt)
         }
     }
 }

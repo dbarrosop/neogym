@@ -19,15 +19,15 @@ private struct WatchHomeView: View {
     @StateObject private var signIn: SignInModel
     @State private var activity = WatchActivity()
     @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
-    @State private var assistedAttempt: WatchAssistedSignInAttempt?
-    @State private var assistedEmail: String?
-    @State private var assistedStatus: String?
-    @State private var assistedVerifying = false
+    @StateObject private var assisted: WatchAssistedSignInModel
 
     init(runtime: WatchEnergyRuntime) {
         self.runtime = runtime
         _account = ObservedObject(wrappedValue: runtime.account)
         _signIn = StateObject(wrappedValue: SignInModel(authService: runtime.account.authStore.authService))
+        _assisted = StateObject(wrappedValue: WatchAssistedSignInModel(account: runtime.account) { message, onFailure in
+            runtime.connectivity.send(message, onFailure: onFailure)
+        })
     }
 
     var body: some View {
@@ -51,7 +51,13 @@ private struct WatchHomeView: View {
             }
         }
         .task {
-            runtime.connectivity.onAssistedMessage = { message in receiveAssisted(message) }
+            runtime.connectivity.onAssistedMessage = { message in
+                if assisted.receive(message) {
+                    activity.perform("auth") {
+                        if await assisted.verify() { signIn.reset() }
+                    }
+                }
+            }
             await runtime.bootstrap()
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
@@ -82,11 +88,11 @@ private struct WatchHomeView: View {
             else if account.state == .reauthenticate { Text("Session expired. Sign in again.") }
             else { Text("Sign in to your existing account.") }
             if account.assistedSignInUserID != nil {
-                Button("Sign in using iPhone") { startAssistedSignIn() }
-                    .disabled(assistedVerifying || signIn.isVerifying || signIn.isSending)
-                if let assistedStatus { Text(assistedStatus).font(.caption) }
+                Button("Sign in using iPhone") { assisted.start() }
+                    .disabled(assisted.isVerifying || signIn.isVerifying || signIn.isSending)
+                if let status = assisted.status { Text(status).font(.caption) }
             }
-            otpForm.disabled(assistedVerifying)
+            otpForm.disabled(assisted.isVerifying)
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")
         case .authError:
@@ -99,80 +105,6 @@ private struct WatchHomeView: View {
             signOutButton
         }
     }
-}
-
-private extension WatchHomeView {
-    func startAssistedSignIn() {
-        guard let id = account.assistedSignInUserID else { return }
-        let attempt = WatchAssistedSignInAttempt(id: UUID(), userID: id)
-        assistedAttempt = attempt
-        assistedEmail = nil
-        assistedStatus = "Open NeoGym on your iPhone, then open Me → Profile → Connect Apple Watch."
-        runtime.connectivity.send(.request(attempt.id)) {
-            if assistedAttempt == attempt {
-                assistedStatus = "iPhone unavailable. Keep NeoGym open on both devices and retry."
-            }
-        }
-    }
-
-    func receiveAssisted(_ message: WatchAssistedSignInMessage) {
-        switch message {
-        case .challenge(let id, let email, let userID):
-            guard let attempt = assistedAttempt,
-                  account.assistedSignInUserID == attempt.userID,
-                  attempt.accepts(id: id, userID: userID) else { return }
-            assistedEmail = email
-            assistedStatus = "Enter the emailed code on your iPhone."
-        case .code(let id, let otp):
-            // Ignore retransmissions of the in-flight code, but answer every
-            // other code even when this process has lost its watch attempt.
-            if assistedVerifying, assistedAttempt?.id == id { return }
-            guard let attempt = assistedAttempt, let email = assistedEmail,
-                  WatchAssistedSignInAttempt.canVerifyCode(
-                    id: id, attempt: attempt, currentUserID: account.assistedSignInUserID,
-                    challengeEmail: email
-                  ) else {
-                runtime.connectivity.send(.result(id, succeeded: false), onFailure: {})
-                return
-            }
-            assistedVerifying = true
-            activity.perform("auth") { await verifyAssisted(otp: otp, email: email, attempt: attempt) }
-        case .request, .result: break
-        }
-    }
-
-    func verifyAssisted(otp: String, email: String, attempt: WatchAssistedSignInAttempt) async {
-        defer { assistedVerifying = false }
-        guard assistedAttempt == attempt,
-              WatchAssistedSignInAttempt.canVerifyCode(
-                id: attempt.id, attempt: assistedAttempt, currentUserID: account.assistedSignInUserID,
-                challengeEmail: assistedEmail
-              ) else {
-            runtime.connectivity.send(.result(attempt.id, succeeded: false), onFailure: {})
-            return
-        }
-        do {
-            guard let session = try await account.authStore.authService.verifySignInOTP(email: email, otp: otp)
-            else { throw AssistedSignInError.noSession }
-            guard session.user?.id == attempt.userID else {
-                // Verification already persisted a session. Never show or keep
-                // credentials for a different phone user on this watch.
-                try await account.authStore.authService.clearSession()
-                throw AssistedSignInError.accountMismatch
-            }
-            account.acceptVerifiedSession(session)
-            assistedAttempt = nil
-            assistedEmail = nil
-            assistedStatus = nil
-            signIn.reset()
-            runtime.connectivity.send(.result(attempt.id, succeeded: true), onFailure: {})
-        } catch {
-            assistedStatus = "Code could not be verified. Check it on your iPhone or try again."
-            runtime.connectivity.send(.result(attempt.id, succeeded: false), onFailure: {})
-        }
-    }
-
-    enum AssistedSignInError: Error { case noSession, accountMismatch }
 }
 
 private extension WatchHomeView {

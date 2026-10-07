@@ -6,7 +6,8 @@ Guidance for future Claude Code sessions working inside `ios/NeoGym`.
 
 Native SwiftUI shell for NeoGym plus the host-testable `NeoGymKit` package.
 The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
-`NeoGymKit` owns validators, auth/session models, repositories, domain view
+`NeoGymKit` owns validators, auth/session models (including the host-tested
+`PhoneAssistedSignInModel` and `WatchAssistedSignInModel`), repositories, domain view
 models, daily energy models/import helpers, and testable form validation;
 iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
 watch app SwiftUI and connectivity live under `Watch/`; the token-free
@@ -111,8 +112,10 @@ watch assets must remain included in `sources` (do not exclude
 Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 'generic/platform=watchOS Simulator' build` after generation.
 `Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
-`WatchHomeView` keeps assisted sign-in handlers in a same-file private extension
-so the Swift lint 350-line type-body limit remains satisfied.
+`WatchHomeView` forwards assisted sign-in messages to `WatchAssistedSignInModel`;
+only the view holds the watchOS expiring activity while the model verifies. The
+model rejects unmatched/expired challenges and clears a persisted session if
+verification returns another account or the live attempt was invalidated.
 The `WatchWidgets/WatchEnergyComplication.swift` rectangular view tints only
 its icons (green cutlery, red flame, teal hand-drawn two-pan balance), not the
 calorie text. Consumed/burned values share the same bold typography without
@@ -313,7 +316,14 @@ version/state/userId and optional opaque deliveryId, never credential or name ma
 The separate live `WatchAssistedSignInMessage` channel carries a nonce-bound,
 short-lived OTP typed into the phone's Profile → Connect Apple Watch sheet;
 the watch verifies it directly, checks the definitive phone user ID, and keeps
-its own SDK Keychain session. A reachable watch answers a code that cannot start
+its own SDK Keychain session. `PhoneAssistedSignInModel` owns the pending challenge,
+expiry, account-switch and result transitions; `PhoneAccountConnectivity` only
+bridges live transport and publishes the model to the sheet. Keep timer sleeps
+compatible with NeoGymKit's macOS 12 floor (`Task.sleep(nanoseconds:)`, not
+`Task.sleep(for:)`). The watch checks the live attempt before calling Auth so a
+code queued behind an expired or changed account is not consumed; it checks again
+after Auth because verification may persist the session while the account hint
+or attempt changes. A reachable watch answers a code that cannot start
 verification (missing/expired attempt, missing email challenge, wrong nonce or
 phone account) with a failed result instead of silently dropping it; the phone
 suggests checking the code, resending the challenge, or restarting on the watch.
