@@ -281,9 +281,16 @@ last timeline snapshot; unchanged-value reads may not update that age until
 WidgetKit asks for another timeline. Foreground return explicitly awaits the
 uncached `/user` revalidation and calls Energy refresh even when the account
 name is unchanged, coalescing with the existing account-state-driven refresh.
-The phone publishes definitive `AuthStore` states through
-`PhoneHintPublisher` and WCSession, re-sending with an opaque delivery ID on
-activation/foreground. Transient bootstrap states do not overwrite hints.
+The phone creates and binds `AuthStore` to `PhoneAccountConnectivity` and
+activates WCSession in `NeoGymApp.init`, independently of any `WindowGroup`
+scene. An incoming watch sign-in request during asynchronous Auth restoration
+is held in memory (latest nonce only) until a signed-in account is known, using
+the original receipt time for its ten-minute expiry; signed-out/error restores
+discard it. A system background launch can therefore retain the pending request
+for Profile, but force-quit delivery is not guaranteed by iOS, so the watch
+must still offer retry and direct OTP. The phone publishes definitive `AuthStore`
+states through `PhoneHintPublisher` and WCSession, re-sending with an opaque
+delivery ID on activation/foreground. Transient bootstrap states do not overwrite hints.
 The watch reads on cold start. On background-to-active, including the first
 active scene after a background-only launch that never created a view, it
 cancels any in-flight background name read before refreshing, so an eligible

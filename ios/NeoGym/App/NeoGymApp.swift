@@ -9,7 +9,7 @@ struct NeoGymApp: App {
     private let notificationDelegate: NeoGymNotificationDelegate
     @StateObject private var authStore: AuthStore
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
-    @StateObject private var phoneConnectivity = PhoneAccountConnectivity()
+    @StateObject private var phoneConnectivity: PhoneAccountConnectivity
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
@@ -17,10 +17,15 @@ struct NeoGymApp: App {
         let notificationDelegate = NeoGymNotificationDelegate()
         self.appEnvironment = appEnvironment
         self.notificationDelegate = notificationDelegate
-        _authStore = StateObject(wrappedValue: AuthStore(
+        let authStore = AuthStore(
             authService: appEnvironment.authService,
             snapshotClearHandler: { _ in Self.clearEnergyBalanceWidgetSnapshot() }
-        ))
+        )
+        let phoneConnectivity = PhoneAccountConnectivity()
+        _authStore = StateObject(wrappedValue: authStore)
+        _phoneConnectivity = StateObject(wrappedValue: phoneConnectivity)
+        phoneConnectivity.bind(to: authStore)
+        phoneConnectivity.start()
         UNUserNotificationCenter.current().delegate = notificationDelegate
     }
 
@@ -38,8 +43,6 @@ struct NeoGymApp: App {
                 .onOpenURL { url in
                     authCallbackURLRouter.open(url)
                 }
-                .onAppear { phoneConnectivity.start() }
-                .onReceive(authStore.$state) { phoneConnectivity.observe($0) }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active { phoneConnectivity.foreground() }
                 }

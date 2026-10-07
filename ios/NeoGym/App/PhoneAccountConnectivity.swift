@@ -17,6 +17,15 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     private var currentUserID: String?
     private var currentEmail: String?
     private var expirationTask: Task<Void, Never>?
+    private var authSubscription: AnyCancellable?
+    private var isRestoringAuth = true
+    private var earlyRequest: (id: UUID, receivedAt: Date)?
+
+    func bind(to authStore: AuthStore) {
+        authSubscription = authStore.$state.sink { [weak self] state in
+            self?.observe(state)
+        }
+    }
 
     func start() {
         guard WCSession.isSupported() else { return }
@@ -24,13 +33,40 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
         WCSession.default.activate()
     }
 
-    func observe(_ state: AuthState) {
+    private func observe(_ state: AuthState) {
         publisher.observe(state)
         let user = state.session?.user
         let id = user?.id
         if id != currentUserID { clearAttempt() }
         currentUserID = id
         currentEmail = user?.email
+
+        switch state {
+        case .loading:
+            isRestoringAuth = true
+        case .signedIn:
+            isRestoringAuth = false
+            if let earlyRequest {
+                self.earlyRequest = nil
+                acceptRequest(earlyRequest.id, receivedAt: earlyRequest.receivedAt)
+            }
+        case .signedOut, .error:
+            isRestoringAuth = false
+            earlyRequest = nil
+        }
+    }
+
+    private func acceptRequest(_ id: UUID, receivedAt: Date) {
+        guard let userID = currentUserID, currentEmail != nil else { return }
+        let attempt = WatchAssistedSignInAttempt(id: id, userID: userID, startedAt: receivedAt)
+        guard attempt.accepts(id: id, userID: userID) else { return }
+        clearAttempt()
+        pending = attempt
+        expirationTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(600))
+            guard !Task.isCancelled, let self, self.pending == attempt else { return }
+            self.expireAttempt()
+        }
     }
 
     func foreground() {
@@ -161,17 +197,16 @@ extension PhoneAccountConnectivity: WCSessionDelegate {
         let strings = message.compactMapValues { $0 as? String }
         guard strings.count == message.count,
               let payload = WatchAssistedSignInMessage.decode(strings) else { return }
+        let receivedAt = Date()
         Task { @MainActor [self] in
             switch payload {
             case .request(let id):
-                guard let userID = currentUserID, currentEmail != nil else { return }
-                clearAttempt()
-                let attempt = WatchAssistedSignInAttempt(id: id, userID: userID)
-                pending = attempt
-                expirationTask = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(600))
-                    guard !Task.isCancelled, let self, self.pending == attempt else { return }
-                    self.expireAttempt()
+                if isRestoringAuth {
+                    // WCSession can deliver before the async Keychain bootstrap completes.
+                    // Keep only the latest nonce in memory, never an unauthenticated attempt.
+                    earlyRequest = (id, receivedAt)
+                } else {
+                    acceptRequest(id, receivedAt: receivedAt)
                 }
             case .result(let id, let succeeded):
                 guard pending != nil, let attempt = liveAttempt(),

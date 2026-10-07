@@ -111,7 +111,11 @@ watch-app-only cached profile (or the SDK session's name) and today's token-free
 energy snapshot immediately, and revalidates the profile in the background;
 WCSession activation does not hold up the foreground UI. The watch signs
 existing accounts in with email OTP, either directly or by tapping **Sign in
-using iPhone** while the signed-in phone app is open. On the phone, **Me →
+using iPhone** with a reachable signed-in phone app. The phone activates
+WatchConnectivity and observes Auth at app launch (including background launches),
+buffering a request received during Auth restoration until the signed-in user
+is known; iOS may suppress force-quit background delivery, so retry remains
+available. On the phone, **Me →
 Profile → Connect Apple Watch** requests the email code and accepts its entry;
 a nonce-bound, 10-minute, live WatchConnectivity message carries that short-lived
 code to the watch, which verifies it with Auth and owns a separate session.

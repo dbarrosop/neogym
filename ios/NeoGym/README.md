@@ -104,9 +104,15 @@ uses its own internet connection and privately rotating Nhost SDK session.
 The watch signs into an **existing** account with email OTP. To avoid typing on
 the watch, tap **Sign in using iPhone** there, then open **Me → Profile → Connect
 Apple Watch** on the signed-in iPhone, request the code, and type the emailed
-six digits on the phone. Both apps must be open and reachable for the live
-WatchConnectivity messages. The request ID expires after ten minutes, the
-watch verifies the OTP directly with Auth, and its new Keychain session is
+six digits on the phone. The iPhone registers WatchConnectivity at process
+launch, including a system background launch, and holds a request received
+during Auth session restoration
+until the signed-in account is known. Live WatchConnectivity delivery is still
+best-effort: a force-quit iPhone app may not be relaunched by iOS, and later
+challenge/code delivery needs both apps reachable. If **Finish watch sign-in**
+does not appear after opening Profile, tap **Sign in using iPhone** again on
+the watch. The request ID expires after ten minutes, the watch verifies the
+OTP directly with Auth, and its new Keychain session is
 separate from the iPhone's. If the watch was not reachable when the challenge
 was sent, raise your wrist and tap **Resend to watch** before retrying the code.
 A reachable watch that lost or expired its request, has no challenge, or no
@@ -258,6 +264,10 @@ promise: its 20-second local deadline releases the assertion without cancelling
 the request; system-reported expiry can cancel OTP or a name read, while local
 session clearing must complete. A verified OTP forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
+terminate the iPhone app, tap **Sign in using iPhone** on the watch, then open
+Profile on the phone; when iOS delivers the request,
+confirm **Finish watch sign-in** appears without a second tap. Repeat after a
+force-quit and retry from the watch if iOS suppressed background delivery. Then
 sign in via watch OTP and repeat with phone-assisted OTP, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
