@@ -101,30 +101,22 @@ and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs into an **existing** account with email OTP. To avoid typing on
-the watch, tap **Sign in using iPhone** there, then open **Me → Profile → Connect
-Apple Watch** on the signed-in iPhone, request the code, and type the emailed
-six digits on the phone. The iPhone registers WatchConnectivity at process
-launch, including a system background launch, and holds a request received
-during Auth session restoration
-until the signed-in account is known. Live WatchConnectivity delivery is still
-best-effort: a force-quit iPhone app may not be relaunched by iOS, and later
-challenge/code delivery needs both apps reachable. If **Finish watch sign-in**
-does not appear after opening Profile, tap **Sign in using iPhone** again on
-the watch. The request ID expires after ten minutes, the watch verifies the
-OTP directly with Auth, and its new Keychain session is
-separate from the iPhone's. If the watch was not reachable when the challenge
-was sent, raise your wrist and tap **Resend to watch** before retrying the code.
-A reachable watch that lost or expired its request, has no challenge, or no
-longer matches the phone account sends a failure instead of silently discarding
-the code; the phone offers a retry or a new watch request. After the phone receives
-success for a request, a delayed failure for that same request cannot replace it.
-Live delivery of the failure is best-effort and still requires both apps reachable. A phone account
-hint alone cannot sign in; watch OTP entry remains the fallback. The persistent
-WatchConnectivity application context still carries only account state/user ID,
-while a live, ephemeral
-message carries the one-time OTP and never a session or refresh token. Signed-in users
-swipe between Energy (today's consumed, total burned, active/resting, and
+The watch signs in **only** through the signed-in iPhone. Tap **Connect using
+iPhone** on the watch, then **Me → Profile → Connect Apple Watch → Connect watch**
+on the phone with both apps open and reachable. The phone creates a 90-day
+app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
+The watch keeps the PAT in a separate device-only Keychain item, calls
+`/signin/pat` to create its own SDK session, and can repeat that sign-in when
+a normal refresh session is lost. If a refresh error leaves the old session
+present, Profile → Restore saved sign-in can use the same PAT manually. No OTP
+is entered on the watch and no phone session is copied. After 90 days, reconnect from the phone. If iOS suppresses
+a force-quit app's message delivery, open both apps and request pairing again.
+Phone account hints in application context contain only state/user ID, never
+the credential. Known phone sign-out/account switches clear the local watch PAT;
+a phone sign-out while the watch is offline cannot revoke it instantly. The PAT
+can sign in as the full user until expiry or server revocation; it is distinct
+from a privileged Nhost Cloud dashboard PAT. Watch-only sign-out erases it.
+Signed-in users swipe between Energy (today's consumed, total burned, active/resting, and
 Net = consumed minus burned kcal) and Profile (a locally cached name/email,
 revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
@@ -170,7 +162,7 @@ before deferred logging runs. A cancelled exchange is logged as
 Skipped · cancelled, not a Network failure; its server outcome is unknown, so
 a later 401 or session removal may mean the token already rotated. A 2xx
 response means only that the transport received it; a separate SDK session-write event indicates a stored
-session (including OTP sign-in), not necessarily that a preceding refresh
+session (including PAT sign-in), not necessarily that a preceding refresh
 belongs to it. Missing terminal/write events cannot prove persistence failed
 if watchOS suspended the app. Older events retain numeric-only detail. Separately, the watch widget writes
 up to 64 timestamp-only provider receipts to an atomic App Group file when
@@ -261,14 +253,14 @@ the watch's server session instantly, and failed remote revocation can leave a
 server token valid until expiry despite successful local removal. The bounded
 watch expiring activity around auth work is best-effort, not a suspension
 promise: its 20-second local deadline releases the assertion without cancelling
-the request; system-reported expiry can cancel OTP or a name read, while local
-session clearing must complete. A verified OTP forces a fresh `/user` read even
+the request; system-reported expiry can cancel PAT sign-in or a name read, while local
+session clearing must complete. A PAT sign-in forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
-terminate the iPhone app, tap **Sign in using iPhone** on the watch, then open
+terminate the iPhone app, tap **Connect using iPhone** on the watch, then open
 Profile on the phone; when iOS delivers the request,
-confirm **Finish watch sign-in** appears without a second tap. Repeat after a
+confirm **Finish watch connection** appears without a second tap. Repeat after a
 force-quit and retry from the watch if iOS suppressed background delivery. Then
-sign in via watch OTP and repeat with phone-assisted OTP, edit the server-side name,
+sign in with the phone-issued PAT, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
@@ -348,10 +340,10 @@ Events-page share). `swift test` and offline verifier fixtures do not prove sign
 Apple signing, report signed archive/IPA checks as blocked.
 
 On paired development-signed iPhone/watch hardware, install the phone app and
-its companion, sign an existing account into the watch by OTP, edit that test
+its companion, connect an existing account to the watch from the phone, edit that test
 account's name server-side (without saving an admin secret in this repo),
 background/reopen watch and confirm the new name from `GET /user`. Test retry
-after network loss, expiry/new OTP, watch-only internet while the phone is
+after network loss, PAT expiry/re-pairing, watch-only internet while the phone is
 unreachable, and delayed phone sign-out/account-switch hints after reconnect.
 A paired iPhone is needed for installation, not independent watch network
 reads. Undelivered hints are not instant server revocation; failed remote
@@ -524,7 +516,7 @@ HealthKit.
 `NhostConfig.local` defaults to `subdomain = "local"` and `region = "local"`,
 matching the web app's local development config. `AuthStore` shows a loading
 state while `getUserSession()` reads the SDK's persisted session, subscribes to
-`sessionStore.subscribe`, then routes to either signed-out OTP forms or the
+`sessionStore.subscribe`, then routes to either the signed-out phone-pairing prompt or the
 protected full-screen app shell.
 
 Sign-in and sign-up use Nhost email OTP: request a 6-digit code, copy it from

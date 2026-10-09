@@ -3,7 +3,6 @@ import Nhost
 import SwiftUI
 
 struct ProfileView: View {
-    @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var phoneConnectivity: PhoneAccountConnectivity
     let session: StoredSession
     let isSigningOut: Bool
@@ -38,8 +37,7 @@ struct ProfileView: View {
         .sheet(isPresented: $isShowingWatchSignIn, onDismiss: {
             phoneConnectivity.clearPresentedSuccess()
         }) {
-            PhoneWatchSignInSheet(connectivity: phoneConnectivity,
-                                  authService: authStore.authService)
+            PhoneWatchSignInSheet(connectivity: phoneConnectivity)
         }
         .onAppear { phoneConnectivity.expireAttempt() }
     }
@@ -167,7 +165,7 @@ struct ProfileView: View {
                     phoneConnectivity.clearPresentedSuccess()
                     isShowingWatchSignIn = true
                 } label: {
-                    Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch sign-in",
+                    Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch connection",
                           systemImage: "applewatch")
                 }
                 .buttonStyle(NeoGymSecondaryButtonStyle())
@@ -229,37 +227,23 @@ private struct DetailRow<Content: View>: View {
 private struct PhoneWatchSignInSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var connectivity: PhoneAccountConnectivity
-    let authService: any AuthServicing
-    @State private var otp = ""
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Connect your watch") {
-                    Text("On your Apple Watch, tap Sign in using iPhone. Keep NeoGym open on both devices.")
-                    if connectivity.verificationSucceeded {
-                        Text("Apple Watch signed in successfully.")
+                    Text("On your Apple Watch, tap Connect using iPhone. Keep NeoGym open on both devices.")
+                    if connectivity.connected {
+                        Text("Apple Watch connected successfully.")
                     } else if connectivity.pending != nil {
-                        Text("Watch request received. An email code will create a separate watch session; your iPhone stays signed in.")
+                        Text("Your iPhone will create a watch sign-in credential that can restore its session without another code. It expires after 90 days.")
                             .foregroundStyle(.secondary)
-                        Button(connectivity.codeRequested ? "Resend to watch" : "Email sign-in code") {
-                            Task { await connectivity.requestCode(using: authService) }
+                        Button(connectivity.isSending ? "Connecting…" : "Connect watch") {
+                            Task { await connectivity.connect() }
                         }
-                        .disabled(connectivity.isSendingCode)
+                        .disabled(connectivity.isSending)
                     } else {
                         Text("Waiting for a request from your watch…")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                if connectivity.codeRequested, !connectivity.verificationSucceeded {
-                    Section("Email code") {
-                        OTPCodeField(code: $otp, isDisabled: connectivity.verificationSucceeded) { _ in }
-                        Button(connectivity.codeSent ? "Send code again" : "Verify on watch") {
-                            connectivity.sendCode(otp)
-                        }
-                        .disabled(otp.count != 6)
-                        Text("The watch verifies this code directly. No iPhone session or refresh token is copied.")
-                            .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -274,10 +258,6 @@ private struct PhoneWatchSignInSheet: View {
                 }
             }
             .onAppear { connectivity.expireAttempt() }
-            .onChange(of: connectivity.pending?.id) { _, _ in otp = "" }
-            .onChange(of: connectivity.verificationSucceeded) { _, succeeded in
-                if succeeded { otp = "" }
-            }
         }
     }
 }
@@ -292,7 +272,7 @@ private struct PhoneWatchSignInSheet: View {
         )
     }
     .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
-    .environmentObject(PhoneAccountConnectivity())
+    .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))
 }
 
 #Preview("Profile · Dark") {
@@ -306,5 +286,5 @@ private struct PhoneWatchSignInSheet: View {
     }
     .preferredColorScheme(.dark)
     .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
-    .environmentObject(PhoneAccountConnectivity())
+    .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))
 }

@@ -16,7 +16,6 @@ private struct WatchHomeView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var runtime: WatchEnergyRuntime
     @ObservedObject private var account: WatchAccountModel
-    @StateObject private var signIn: SignInModel
     @State private var activity = WatchActivity()
     @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
     @StateObject private var assisted: WatchAssistedSignInModel
@@ -24,7 +23,6 @@ private struct WatchHomeView: View {
     init(runtime: WatchEnergyRuntime) {
         self.runtime = runtime
         _account = ObservedObject(wrappedValue: runtime.account)
-        _signIn = StateObject(wrappedValue: SignInModel(authService: runtime.account.authStore.authService))
         _assisted = StateObject(wrappedValue: WatchAssistedSignInModel(account: runtime.account) { message, onFailure in
             runtime.connectivity.send(message, onFailure: onFailure)
         })
@@ -53,9 +51,7 @@ private struct WatchHomeView: View {
         .task {
             runtime.connectivity.onAssistedMessage = { message in
                 if assisted.receive(message) {
-                    activity.perform("auth") {
-                        if await assisted.verify() { signIn.reset() }
-                    }
+                    activity.perform("auth") { _ = await assisted.connect() }
                 }
             }
             await runtime.bootstrap()
@@ -84,20 +80,27 @@ private struct WatchHomeView: View {
         case .name:
             EmptyView() // Signed-in content uses the Energy/Profile/Events pages above.
         case .signedOut, .matchPhone, .reauthenticate:
-            if account.state == .matchPhone { Text("Sign in to match your iPhone account.") }
-            else if account.state == .reauthenticate { Text("Session expired. Sign in again.") }
-            else { Text("Sign in to your existing account.") }
+            if account.state == .reauthenticate { Text("Session expired. Reconnect from your iPhone.") }
+            else { Text("Connect this watch from your signed-in iPhone.") }
+            if account.isRecovering { ProgressView("Restoring session…") }
             if account.assistedSignInUserID != nil {
-                Button("Sign in using iPhone") { assisted.start() }
-                    .disabled(assisted.isVerifying || signIn.isVerifying || signIn.isSending)
+                Button("Connect using iPhone") { assisted.start() }
+                    .disabled(assisted.isConnecting || account.isRecovering)
                 if let status = assisted.status { Text(status).font(.caption) }
             }
-            otpForm.disabled(assisted.isVerifying)
+            if account.state == .reauthenticate {
+                Button("Retry saved sign-in") { activity.perform("auth") { _ = await account.recoverUsingPAT() } }
+                    .disabled(account.isRecovering)
+            }
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")
         case .authError:
-            Text("Authentication failed. Retry or sign out of this watch.")
+            Text("Authentication failed. Retry or restore this watch's sign-in.")
             Button("Retry") { account.refresh() }
+            Button("Restore saved sign-in") {
+                activity.perform("auth") { _ = await account.recoverUsingPAT() }
+            }
+            .disabled(account.isRecovering)
             signOutButton
         case .error(let message):
             Text("Session error: \(message)")
@@ -108,42 +111,6 @@ private struct WatchHomeView: View {
 }
 
 private extension WatchHomeView {
-    private var otpForm: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if signIn.sentTo == nil {
-                TextField("Email", text: $signIn.email)
-                    .textContentType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .accessibilityLabel("Email address")
-                Button(signIn.isSending ? "Sending…" : "Send code") {
-                    activity.perform("auth") { await signIn.requestCode() }
-                }
-                .disabled(signIn.isSending)
-            } else {
-                Text("Code sent to \(signIn.sentTo ?? "")")
-                    .font(.caption)
-                TextField("6-digit code", text: $signIn.otp)
-                    .textContentType(.oneTimeCode)
-                    .onChange(of: signIn.otp) { _, value in signIn.updateOTP(value) }
-                    .accessibilityLabel("Six-digit email code")
-                Button(signIn.isVerifying ? "Verifying…" : "Verify") {
-                    activity.perform("auth") {
-                        let session = await signIn.verifyCode()
-                        if let session {
-                            account.acceptVerifiedSession(session)
-                            signIn.reset()
-                            signIn.email = ""
-                        }
-                    }
-                }
-                .disabled(signIn.isVerifying || signIn.otp.count != 6)
-                Button("Change email") { signIn.reset() }
-            }
-            if let error = signIn.errorMessage { Text(error).foregroundStyle(.red).font(.caption) }
-        }
-    }
-
     private var energyPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 9) {
@@ -265,6 +232,10 @@ private extension WatchHomeView {
                 if let error = account.profileError {
                     Text(error).font(.caption2).foregroundStyle(.secondary)
                     Button("Retry profile") { account.refresh() }
+                    Button("Restore saved sign-in") {
+                        activity.perform("auth") { _ = await account.recoverUsingPAT() }
+                    }
+                    .disabled(account.isRecovering)
                 }
                 signOutButton
             }
@@ -355,10 +326,9 @@ private extension WatchHomeView {
 
     private var signOutButton: some View {
         Button("Sign out", role: .destructive) {
+            assisted.cancel()
             activity.perform("signOut", cancelOnExpire: false) {
                 await runtime.signOut()
-                signIn.reset()
-                signIn.email = ""
             }
         }
     }

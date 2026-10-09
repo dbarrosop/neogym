@@ -109,23 +109,23 @@ no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read.
 The watch restores its local Keychain session first, displays a same-user
 watch-app-only cached profile (or the SDK session's name) and today's token-free
 energy snapshot immediately, and revalidates the profile in the background;
-WCSession activation does not hold up the foreground UI. The watch signs
-existing accounts in with email OTP, either directly or by tapping **Sign in
-using iPhone** with a reachable signed-in phone app. The phone activates
-WatchConnectivity and observes Auth at app launch (including background launches),
-buffering a request received during Auth restoration until the signed-in user
-is known; iOS may suppress force-quit background delivery, so retry remains
-available. On the phone, **Me →
-Profile → Connect Apple Watch** requests the email code and accepts its entry;
-a nonce-bound, 10-minute, live WatchConnectivity message carries that short-lived
-code to the watch, which verifies it with Auth and owns a separate session.
-A reachable watch rejects unverifiable codes (lost/expired request, missing
-challenge or mismatched account) with a failure instead of silently discarding
-them; after a failed challenge send, raise the wrist and tap **Resend to watch**
-before retrying. Failure delivery is still best-effort; once the phone receives
-success for a request, a delayed failure for that request cannot undo it. Unreachable devices fall
-back to watch OTP. Application context still carries only latest-state account
-hints; no session/access/refresh token crosses devices.
+WCSession activation does not hold up the foreground UI. The watch signs in
+only through a phone-issued, app-user Auth PAT. In Me → Profile → Connect Apple
+Watch, the signed-in iPhone creates a 90-day PAT for a
+live, nonce-bound watch request and hands it over by reachable WCSession message;
+there is no watch email/OTP fallback. The watch saves the PAT in its own
+ThisDeviceOnly Keychain item, uses `/signin/pat` to obtain a separate SDK session,
+and reuses the unchanged PAT if its ordinary refresh session is lost. A generic
+refresh HTTP 400 alone does not prove invalid credentials; Profile offers a
+manual Restore saved sign-in using the same PAT when the SDK retains the session.
+PAT renewal requires reconnecting from the phone after expiry. The phone retains the token
+only in memory until acknowledgment/attempt expiry. Application context contains
+only latest-state phone account hints. Known signed-out/different-account hints
+clear the watch credential and block recovery; explicit watch sign-out also clears
+it. PAT metadata is not a permission scope: the credential can sign in as the
+full user until expiry or server revocation. Ordinary phone sign-out does not
+revoke a PAT while the watch is offline; a stale/undelivered hint is not instant
+server revocation. A Nhost Cloud dashboard PAT is not an app-user Auth PAT.
 Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile
@@ -262,7 +262,7 @@ never credentials or display name; known signed-out
 or different-account state blocks the watch while unknown state allows independent
 watch internet use. The watch model exposes non-actionable `.clearing` while a
 blocking hint's session removal is pending; only after clearing finishes may
-`.matchPhone` invite OTP. A later phone signed-in hint after explicit watch
+`.matchPhone` invite phone pairing. A later phone signed-in hint after explicit watch
 sign-out also changes the prompt to `.matchPhone`.
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
@@ -310,7 +310,7 @@ availability gates; existing guards are vestigial, not a pattern for new code.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
-`PhoneAssistedSignInModel`, `WatchAssistedSignInModel`, `UserProfile`,
+`PhoneAssistedSignInModel`, `WatchAssistedSignInModel`, `WatchPATCredential`, `UserProfile`,
 `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
 those models and route signed-in sessions into the full-screen `AppShellView`.

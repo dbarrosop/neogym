@@ -5,249 +5,152 @@ import XCTest
 
 @MainActor
 final class AssistedSignInModelTests: XCTestCase {
-    func testPhoneSuccessEndsAttemptAndUserSwitchDiscardsPendingRequest() throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = PhoneAssistedSignInModel(now: { clock }) { message, _ in messages.append(message) }
-        model.observe(.signedIn(try session(id: "first")))
-        let first = UUID()
-        model.receive(.request(first), receivedAt: date)
-        XCTAssertEqual(model.pending?.id, first)
-        model.receive(.result(UUID(), succeeded: true), receivedAt: date)
-        XCTAssertEqual(model.pending?.id, first)
-        model.receive(.result(first, succeeded: true), receivedAt: date)
-        XCTAssertNil(model.pending)
-        XCTAssertTrue(model.verificationSucceeded)
-        model.receive(.result(first, succeeded: false), receivedAt: date)
-        XCTAssertTrue(model.verificationSucceeded)
-        let second = UUID()
-        model.receive(.request(second), receivedAt: date)
-        XCTAssertFalse(model.verificationSucceeded)
-        model.observe(.signedIn(try session(id: "second")))
-        XCTAssertNil(model.pending)
-        model.receive(.result(second, succeeded: true), receivedAt: date)
-        XCTAssertFalse(model.verificationSucceeded)
-        clock = date.addingTimeInterval(600)
-        model.receive(.request(UUID()), receivedAt: date)
-        XCTAssertNil(model.pending)
-        XCTAssertTrue(messages.isEmpty)
-    }
+    private let date = Date(timeIntervalSince1970: 1_800_000_000)
 
-    func testPhoneSendsChallengeAndCodeOnlyForLiveAttempt() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date
-        var messages: [WatchAssistedSignInMessage] = []
-        let auth = AssistedAuth()
-        let model = PhoneAssistedSignInModel(now: { clock }) { message, _ in messages.append(message) }
+    func testPhoneIssuesOnePATForLiveRequestAndDropsSecretAfterAcknowledgement() async throws {
+        let pat = FakePAT()
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = PhoneAssistedSignInModel(pat: pat, now: { self.date }) { message, _ in sent.append(message) }
         model.observe(.signedIn(try session(id: "first")))
         let id = UUID()
         model.receive(.request(id), receivedAt: date)
-        await model.requestCode(using: auth)
-        XCTAssertEqual(messages.last, .challenge(id, email: "a@example.test", userID: "first"))
-        model.sendCode("123456")
-        XCTAssertEqual(messages.last, .code(id, otp: "123456"))
-        clock = date.addingTimeInterval(600)
-        model.sendCode("123456")
-        XCTAssertNil(model.pending)
-        XCTAssertEqual(messages.count, 2)
-    }
-
-    func testPhoneDeliveryFailureResetsCodeAndLateFailureCannotUndoSuccess() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        let auth = AssistedAuth()
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = PhoneAssistedSignInModel(now: { date }) { message, _ in messages.append(message) }
-        model.observe(.signedIn(try session(id: "first")))
-        let id = UUID()
-        model.receive(.request(id), receivedAt: date)
-        await model.requestCode(using: auth)
-        guard let attempt = model.pending else { return XCTFail("No pending request") }
-        model.sendCode("123456")
-        XCTAssertTrue(model.codeSent)
-        model.deliveryFailed(for: attempt)
-        XCTAssertFalse(model.codeSent)
-        XCTAssertNotNil(model.errorMessage)
-        XCTAssertEqual(model.pending, attempt)
-        model.sendCode("123456")
-        XCTAssertEqual(messages.count, 3)
-        XCTAssertEqual(messages.last, .code(id, otp: "123456"))
+        await model.connect()
+        await model.connect() // A failed delivery can be resent without minting another PAT.
+        let creates = await pat.creates
+        XCTAssertEqual(creates, 1)
+        guard case .credential(id, let credential) = sent.last else { return XCTFail("Missing PAT") }
+        XCTAssertEqual(credential.userID, "first")
+        XCTAssertEqual(credential.expiresAt, date.addingTimeInterval(90 * 24 * 60 * 60))
         model.receive(.result(id, succeeded: true), receivedAt: date)
-        model.deliveryFailed(for: attempt)
-        XCTAssertTrue(model.verificationSucceeded)
         XCTAssertNil(model.pending)
-        XCTAssertNil(model.errorMessage)
+        XCTAssertTrue(model.connected)
+        model.receive(.result(id, succeeded: false), receivedAt: date)
+        XCTAssertTrue(model.connected)
+        model.observe(.signedIn(try session(id: "second")))
+        XCTAssertFalse(model.connected)
     }
 
-    func testPhoneRestorationUsesOriginalReceiptAndRejectsExpiredRequest() throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date.addingTimeInterval(600)
-        let model = PhoneAssistedSignInModel(now: { clock }) { _, _ in }
-        model.receive(.request(UUID()), receivedAt: date)
+    func testPhoneRefusesOldRequestAndClearsPendingOnSignOut() async throws {
+        let pat = FakePAT()
+        let model = PhoneAssistedSignInModel(pat: pat, now: { self.date }) { _, _ in }
+        model.receive(.request(UUID()), receivedAt: date.addingTimeInterval(-600))
         model.observe(.signedIn(try session(id: "first")))
         XCTAssertNil(model.pending)
-        clock = date
-        let id = UUID()
-        model.receive(.request(id), receivedAt: date)
-        XCTAssertEqual(model.pending?.id, id)
-        clock = date.addingTimeInterval(600)
-        model.expireAttempt()
+        model.receive(.request(UUID()), receivedAt: date)
+        XCTAssertNotNil(model.pending)
+        model.observe(.signedOut)
         XCTAssertNil(model.pending)
+        await model.connect()
+        let creates = await pat.creates
+        XCTAssertEqual(creates, 0)
     }
 
-    func testWatchRejectsWrongChallengeAndCodeWithoutLiveChallengeOrAfterExpiry() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date
-        let auth = AssistedAuth()
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account, now: { clock }) { message, _ in
-            messages.append(message)
-        }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        XCTAssertFalse(model.receive(.challenge(UUID(), email: "a@example.test", userID: "first")))
-        XCTAssertFalse(model.receive(.challenge(id, email: "a@example.test", userID: "other")))
-        XCTAssertFalse(model.receive(.code(id, otp: "123456")))
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
-        XCTAssertFalse(model.receive(.challenge(id, email: "a@example.test", userID: "first")))
-        clock = date.addingTimeInterval(600)
-        XCTAssertFalse(model.receive(.code(id, otp: "123456")))
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
-        let verifies = await auth.verifyCount()
-        XCTAssertEqual(verifies, 0)
+    func testWatchAcceptsOnlyMatchingPATAndRecoversWithoutPhoneNetwork() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        var sent: [WatchAssistedSignInMessage] = []
+        let sender = WatchAssistedSignInModel(account: account, now: { self.date }) { message, _ in sent.append(message) }
+        sender.start()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing watch request") }
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        XCTAssertFalse(sender.receive(.credential(UUID(), credential)))
+        XCTAssertFalse(sender.receive(.credential(id, WatchPATCredential(userID: "other", token: credential.token,
+                                                                          expiresAt: credential.expiresAt))))
+        XCTAssertTrue(sender.receive(.credential(id, credential)))
+        let connected = await sender.connect()
+        XCTAssertTrue(connected)
+        XCTAssertEqual(try store.load(), credential)
+        XCTAssertEqual(sent.last, .result(id, succeeded: true))
+        // SDK session can be gone after a failed refresh: the PAT can mint a new one.
+        let recovered = await account.recoverUsingPAT()
+        XCTAssertTrue(recovered)
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 2)
     }
 
-    func testWatchRejectsAccountSwitchBeforeAttemptExpires() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        let auth = AssistedAuth()
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account, now: { date }) { message, _ in
-            messages.append(message)
-        }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        XCTAssertFalse(model.receive(.challenge(id, email: "a@example.test", userID: "first")))
-        account.receiveContext(PhoneAccountHint.signedIn(userID: "second").context)
-        XCTAssertFalse(model.receive(.code(id, otp: "123456")))
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
-        let verifies = await auth.verifyCount()
-        XCTAssertEqual(verifies, 0)
+    func testWatchRecoveryRejectsDifferentPhoneAndSignOutErasesPAT() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        try store.save(WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                          expiresAt: date.addingTimeInterval(3600)))
+        account.receiveContext(PhoneAccountHint.signedIn(userID: "other").context)
+        XCTAssertNil(try store.load())
+        let recovered = await account.recoverUsingPAT()
+        XCTAssertFalse(recovered)
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+        account.receiveContext(PhoneAccountHint.signedIn(userID: "first").context)
+        try store.save(WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                          expiresAt: Date().addingTimeInterval(3600)))
+        await account.signOut()
+        XCTAssertNil(try store.load())
+        let retried = await account.recoverUsingPAT()
+        XCTAssertFalse(retried)
     }
 
-    func testWatchAcceptsMatchingSessionEvenIfAuthPersistedBeforeVerifyReturns() async throws {
-        let auth = AssistedAuth(verified: try session(id: "first"), publishVerified: true)
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account) { message, _ in messages.append(message) }
+    func testCancellingWatchHandoffRejectsLateCredential() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { self.date }) { message, _ in sent.append(message) }
         model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        _ = model.receive(.challenge(id, email: "a@example.test", userID: "first"))
-        XCTAssertTrue(model.receive(.code(id, otp: "123456")))
-        let accepted = await model.verify()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing request") }
+        model.cancel()
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        XCTAssertFalse(model.receive(.credential(id, credential)))
+        let connected = await model.connect()
+        XCTAssertFalse(connected)
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
+    func testFreshPhoneHandoffCanReconnectAfterWatchOnlySignOut() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        await account.signOut()
+        XCTAssertEqual(account.state, .matchPhone)
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: Date().addingTimeInterval(3600))
+        let accepted = await account.acceptPAT(credential)
         XCTAssertTrue(accepted)
-        let clears = await auth.clearCount()
-        XCTAssertEqual(clears, 0)
-        XCTAssertEqual(messages.last, .result(id, succeeded: true))
+        XCTAssertEqual(try store.load(), credential)
     }
 
-    func testWatchDoesNotSpendCodeIfAttemptExpiresBeforeAuthStarts() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date
-        let auth = AssistedAuth(verified: try session(id: "first"))
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account, now: { clock }) { message, _ in
-            messages.append(message)
-        }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        _ = model.receive(.challenge(id, email: "a@example.test", userID: "first"))
-        XCTAssertTrue(model.receive(.code(id, otp: "123456")))
-        clock = date.addingTimeInterval(600)
-        let accepted = await model.verify()
+    func testWatchRejectsWrongUserReturnedByPATAndErasesCredential() async throws {
+        let pat = FakePAT(verified: try session(id: "other"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: Date().addingTimeInterval(3600))
+        let accepted = await account.acceptPAT(credential)
         XCTAssertFalse(accepted)
-        let verifies = await auth.verifyCount()
-        let clears = await auth.clearCount()
-        XCTAssertEqual(verifies, 0)
-        XCTAssertEqual(clears, 0)
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
-    }
-
-    func testWatchClearsSessionWhenPhoneChangesDuringVerification() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        let auth = AssistedAuth(verified: try session(id: "first"), pauseVerification: true)
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account, now: { date }) { message, _ in
-            messages.append(message)
-        }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        _ = model.receive(.challenge(id, email: "a@example.test", userID: "first"))
-        XCTAssertTrue(model.receive(.code(id, otp: "123456")))
-        let verification = Task { await model.verify() }
-        await auth.waitForVerification()
-        account.receiveContext(PhoneAccountHint.signedIn(userID: "second").context)
-        await auth.resumeVerification()
-        let accepted = await verification.value
-        XCTAssertFalse(accepted)
-        let clears = await auth.clearCount()
-        XCTAssertEqual(clears, 1)
+        XCTAssertNil(try store.load())
         XCTAssertNil(account.currentUser)
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
     }
 
-    func testWatchClearsSessionWhenVerificationFinishesAfterExpiry() async throws {
-        let date = Date(timeIntervalSince1970: 1_800_000_000)
-        var clock = date
-        let auth = AssistedAuth(verified: try session(id: "first"), pauseVerification: true)
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account, now: { clock }) { message, _ in
-            messages.append(message)
-        }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        _ = model.receive(.challenge(id, email: "a@example.test", userID: "first"))
-        XCTAssertTrue(model.receive(.code(id, otp: "123456")))
-        let verification = Task { await model.verify() }
-        await auth.waitForVerification()
-        clock = date.addingTimeInterval(600)
-        await auth.resumeVerification()
-        let accepted = await verification.value
-        XCTAssertFalse(accepted)
-        let verifies = await auth.verifyCount()
-        let clears = await auth.clearCount()
-        XCTAssertEqual(verifies, 1)
-        XCTAssertEqual(clears, 1)
-        XCTAssertNil(account.currentUser)
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
+    func testSignedOutPhoneHintErasesSavedPATWithoutAWatchSession() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        try store.save(WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                          expiresAt: Date().addingTimeInterval(3600)))
+        account.receiveContext(PhoneAccountHint.signedOut.context)
+        XCTAssertNil(try store.load())
+        let recovered = await account.recoverUsingPAT()
+        XCTAssertFalse(recovered)
     }
 
-    func testWatchClearsPersistedOtherAccountBeforeReportingFailure() async throws {
-        let auth = AssistedAuth(verified: try session(id: "other"))
-        let account = await watchAccount(auth: auth)
-        var messages: [WatchAssistedSignInMessage] = []
-        let model = WatchAssistedSignInModel(account: account) { message, _ in messages.append(message) }
-        model.start()
-        guard case .request(let id) = messages.last else { return XCTFail("No request") }
-        _ = model.receive(.challenge(id, email: "a@example.test", userID: "first"))
-        XCTAssertTrue(model.receive(.code(id, otp: "123456")))
-        let accepted = await model.verify()
-        XCTAssertFalse(accepted)
-        let clears = await auth.clearCount()
-        XCTAssertEqual(clears, 1)
-        XCTAssertNil(account.currentUser)
-        XCTAssertEqual(messages.last, .result(id, succeeded: false))
-    }
-
-    private func watchAccount(auth: AssistedAuth) async -> WatchAccountModel {
-        let account = WatchAccountModel(authStore: AuthStore(authService: auth, autoBootstrap: false),
-                                        currentUser: AssistedUser())
-        await account.bootstrap()
+    private func makeAccount(pat: FakePAT, store: MemoryPATStore) async -> WatchAccountModel {
+        let account = WatchAccountModel(authStore: AuthStore(authService: FakeAuth(), autoBootstrap: false),
+                                        currentUser: FakeUser(), patService: pat, patStore: store)
         account.localContextReady(PhoneAccountHint.signedIn(userID: "first").context)
+        await account.bootstrap()
         return account
     }
 
@@ -264,58 +167,37 @@ final class AssistedSignInModelTests: XCTestCase {
     }
 }
 
-private struct AssistedUser: CurrentUserServicing {
-    func getUser() async throws -> CurrentWatchUser {
-        CurrentWatchUser(id: "first", displayName: "Athlete")
-    }
+private final class MemoryPATStore: WatchPATStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var saved: WatchPATCredential?
+    func load() throws -> WatchPATCredential? { lock.lock(); defer { lock.unlock() }; return saved }
+    func save(_ credential: WatchPATCredential) throws { lock.lock(); defer { lock.unlock() }; saved = credential }
+    func clear() throws { lock.lock(); defer { lock.unlock() }; saved = nil }
 }
 
-private actor AssistedAuth: AuthServicing {
-    let verified: StoredSession?
-    let publishVerified: Bool
-    let pauseVerification: Bool
-    private var subscriber: (@Sendable (StoredSession?) async -> Void)?
-    private var clears = 0
-    private var verifies = 0
-    private var verificationWaiters: [CheckedContinuation<Void, Never>] = []
-    private var verificationRelease: CheckedContinuation<Void, Never>?
-    init(verified: StoredSession? = nil, publishVerified: Bool = false, pauseVerification: Bool = false) {
-        self.verified = verified
-        self.publishVerified = publishVerified
-        self.pauseVerification = pauseVerification
-    }
+private actor FakePAT: WatchPATServicing {
+    private let verified: StoredSession?
+    private(set) var creates = 0
+    private(set) var signIns = 0
+    init(verified: StoredSession? = nil) { self.verified = verified }
+    func create(expiresAt: Date) async throws -> String { creates += 1; return UUID().uuidString }
+    func signIn(token: String) async throws -> StoredSession? { signIns += 1; return verified }
+}
+
+private struct FakeUser: CurrentUserServicing {
+    func getUser() async throws -> CurrentWatchUser { CurrentWatchUser(id: "first", displayName: "Athlete") }
+}
+
+private actor FakeAuth: AuthServicing {
     func getUserSession() async throws -> StoredSession? { nil }
     func subscribeToSessionChanges(_ handler: @escaping @Sendable (StoredSession?) async -> Void) async -> AuthSessionSubscription {
-        subscriber = handler
-        return AuthSessionSubscription(cancel: {})
+        AuthSessionSubscription(cancel: {})
     }
     func requestSignInOTP(email: String) async throws {}
     func requestSignUpOTP(email: String, displayName: String) async throws {}
-    func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? {
-        verifies += 1
-        if pauseVerification {
-            await withCheckedContinuation { continuation in
-                verificationRelease = continuation
-                let waiters = verificationWaiters
-                verificationWaiters.removeAll()
-                waiters.forEach { $0.resume() }
-            }
-        }
-        if publishVerified { await subscriber?(verified) }
-        return verified
-    }
-    func waitForVerification() async {
-        if verificationRelease != nil { return }
-        await withCheckedContinuation { verificationWaiters.append($0) }
-    }
-    func resumeVerification() {
-        verificationRelease?.resume()
-        verificationRelease = nil
-    }
+    func verifySignInOTP(email: String, otp: String) async throws -> StoredSession? { nil }
     func requestEmailChange(newEmail: String, redirectTo: String, codeChallenge: String) async throws {}
     func exchangeToken(code: String, codeVerifier: String) async throws -> StoredSession? { nil }
     func signOut(refreshToken: String?) async throws {}
-    func clearSession() async throws { clears += 1 }
-    func clearCount() -> Int { clears }
-    func verifyCount() -> Int { verifies }
+    func clearSession() async throws {}
 }

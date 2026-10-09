@@ -21,7 +21,7 @@ struct NeoGymApp: App {
             authService: appEnvironment.authService,
             snapshotClearHandler: { _ in Self.clearEnergyBalanceWidgetSnapshot() }
         )
-        let phoneConnectivity = PhoneAccountConnectivity()
+        let phoneConnectivity = PhoneAccountConnectivity(patService: NhostWatchPATService(client: appEnvironment.client))
         _authStore = StateObject(wrappedValue: authStore)
         _phoneConnectivity = StateObject(wrappedValue: phoneConnectivity)
         phoneConnectivity.bind(to: authStore)

@@ -2,13 +2,19 @@ import Combine
 import NeoGymKit
 import WatchConnectivity
 
-/// Application context remains account hints only. Assisted OTP travels via
-/// live messages, is never persisted, and is verified by Auth on the watch.
+/// Application context remains account hints only. The app-user PAT travels
+/// over one live request and is never queued or placed in application context.
 @MainActor
 final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTransport {
     private lazy var publisher = PhoneHintPublisher(transport: self)
+    private let patService: any WatchPATServicing
+    init(patService: any WatchPATServicing) {
+        self.patService = patService
+        super.init()
+    }
+
     private lazy var assisted: PhoneAssistedSignInModel = {
-        let model = PhoneAssistedSignInModel { [weak self] message, attempt in
+        let model = PhoneAssistedSignInModel(pat: patService) { [weak self] message, attempt in
             self?.send(message, for: attempt)
         }
         assistedSubscription = model.objectWillChange.sink { [weak self] _ in
@@ -20,10 +26,8 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     private var authSubscription: AnyCancellable?
 
     var pending: WatchAssistedSignInAttempt? { assisted.pending }
-    var isSendingCode: Bool { assisted.isSendingCode }
-    var codeRequested: Bool { assisted.codeRequested }
-    var codeSent: Bool { assisted.codeSent }
-    var verificationSucceeded: Bool { assisted.verificationSucceeded }
+    var isSending: Bool { assisted.isSending }
+    var connected: Bool { assisted.connected }
     var errorMessage: String? { assisted.errorMessage }
 
     func bind(to authStore: AuthStore) {
@@ -57,11 +61,7 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
         try WCSession.default.updateApplicationContext(context)
     }
 
-    func requestCode(using authService: any AuthServicing) async {
-        await assisted.requestCode(using: authService)
-    }
-
-    func sendCode(_ otp: String) { assisted.sendCode(otp) }
+    func connect() async { await assisted.connect() }
     func clearAttempt() { assisted.clearAttempt() }
     func clearPresentedSuccess() { assisted.clearPresentedSuccess() }
     func expireAttempt() { assisted.expireAttempt() }

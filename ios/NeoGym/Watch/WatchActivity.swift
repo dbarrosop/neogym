@@ -3,8 +3,8 @@ import NeoGymKit
 
 /// Holds a best-effort watchOS assertion around auth work. The 20-second
 /// deadline releases only the assertion; it does not cancel a live request or
-/// interrupt SDK refresh-token persistence. System expiry may cancel an OTP or
-/// name read. Session clearing must finish locally even on system expiry.
+/// interrupt SDK refresh-token persistence. System expiry may cancel PAT
+/// sign-in or a name read. Credential/session clearing must finish locally.
 @MainActor
 final class WatchActivity {
     private var activities: [String: WatchActivityLease] = [:]

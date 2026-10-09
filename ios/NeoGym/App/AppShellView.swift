@@ -128,5 +128,5 @@ struct AppShellView: View {
         signOut: {}
     )
     .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
-    .environmentObject(PhoneAccountConnectivity())
+    .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))
 }

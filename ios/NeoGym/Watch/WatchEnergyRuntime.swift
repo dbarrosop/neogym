@@ -56,7 +56,9 @@ final class WatchEnergyRuntime: ObservableObject {
         account = WatchAccountModel(
             authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
             currentUser: NhostCurrentUserService(client: client),
-            currentUserStore: WatchCurrentUserStore()
+            currentUserStore: WatchCurrentUserStore(),
+            patService: NhostWatchPATService(client: client),
+            patStore: WatchPATKeychainStore()
         )
         uploadClient = client
         let graphQL = NhostGraphQLService(client: client)
