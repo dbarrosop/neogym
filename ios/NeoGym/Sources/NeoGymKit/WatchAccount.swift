@@ -133,6 +133,9 @@ public final class WatchAccountModel: ObservableObject {
     @Published public private(set) var isRecovering = false
     private var recoveryTask: Task<Bool, Never>?
     private var recoveryID: UUID?
+    // At most one automatic PAT sign-in per failed account validation; a fresh
+    // /user success permits a later automatic recovery. Manual restore remains available.
+    private var automaticRecoveryAttempted = false
     private var phone: PhoneKnowledge = .pending
     private var sessionID: String?
     private var observedAuthState: AuthState = .loading
@@ -179,7 +182,7 @@ public final class WatchAccountModel: ObservableObject {
     public func bootstrap() async {
         await authStore.bootstrap()
         reconcile()
-        if observedAuthState.session == nil { _ = await recoverUsingPAT() }
+        if case .signedOut = observedAuthState { await recoverAutomaticallyUsingPAT() }
     }
 
     /// Background refresh must not finish its system task before the uncached
@@ -201,14 +204,14 @@ public final class WatchAccountModel: ObservableObject {
         guard next != phone else { return }
         phone = next
         reconcile()
-        if case .signedOut = observedAuthState { Task { _ = await recoverUsingPAT() } }
+        if case .signedOut = observedAuthState { Task { await recoverAutomaticallyUsingPAT() } }
     }
 
     public func receiveContext(_ context: [String: Any]) {
         guard let hint = PhoneAccountHint.decode(context), phone != .known(hint) else { return }
         phone = .known(hint)
         reconcile()
-        if case .signedOut = observedAuthState { Task { _ = await recoverUsingPAT() } }
+        if case .signedOut = observedAuthState { Task { await recoverAutomaticallyUsingPAT() } }
     }
 
     /// PAT sign-in may already have persisted a same-ID SDK session before its caller
@@ -284,7 +287,7 @@ public final class WatchAccountModel: ObservableObject {
         }
         if id == nil, sessionID != nil, !explicitSignOut {
             requiresReauthentication = true
-            Task { _ = await recoverUsingPAT() }
+            Task { await recoverAutomaticallyUsingPAT() }
         }
         if id == nil || (sessionID != nil && sessionID != id) { currentUserStore?.clear() }
         if let id {
@@ -465,6 +468,7 @@ public final class WatchAccountModel: ObservableObject {
         currentUserStore?.save(user)
         currentUser = user
         profileError = nil
+        automaticRecoveryAttempted = false
         state = .name(user.displayName)
     }
 
@@ -485,6 +489,20 @@ public final class WatchAccountModel: ObservableObject {
         // automatic recovery remains disabled until that handoff is accepted.
         explicitSignOut = false
         return await recoverUsingPAT()
+    }
+
+    private func recoverAutomaticallyUsingPAT() async {
+        guard !automaticRecoveryAttempted, !explicitSignOut, !explicitlyClearing,
+              clearTask == nil, patStore != nil, patService != nil else { return }
+        // An earlier failure may have queued this task before another sign-in
+        // completed. Never replace a session that has since become usable.
+        if observedAuthState.session != nil, state != .reauthenticate, state != .authError { return }
+        switch phone {
+        case .pending, .known(.signedOut): return
+        case .unknown, .known(.signedIn): break
+        }
+        automaticRecoveryAttempted = true
+        _ = await recoverUsingPAT()
     }
 
     @discardableResult
@@ -572,17 +590,18 @@ public final class WatchAccountModel: ObservableObject {
             invalidate()
             currentUserStore?.clear()
             state = .reauthenticate
-            Task { _ = await recoverUsingPAT() }
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if let fetch = error as? FetchError,
                   fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidRefreshToken {
             invalidate()
             currentUserStore?.clear()
             state = .reauthenticate
-            Task { _ = await recoverUsingPAT() }
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if let fetch = error as? FetchError, fetch.status == 401 {
             invalidate()
             currentUserStore?.clear()
             state = .authError
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if error is URLError {
             profileError = "Profile may be out of date. Retry when connected."
         } else if let fetch = error as? FetchError, case .transport = fetch {

@@ -115,9 +115,13 @@ Watch, the signed-in iPhone creates a 90-day PAT for a
 live, nonce-bound watch request and hands it over by reachable WCSession message;
 there is no watch email/OTP fallback. The watch saves the PAT in its own
 ThisDeviceOnly Keychain item, uses `/signin/pat` to obtain a separate SDK session,
-and reuses the unchanged PAT if its ordinary refresh session is lost. A generic
-refresh HTTP 400 alone does not prove invalid credentials; Profile offers a
-manual Restore saved sign-in using the same PAT when the SDK retains the session.
+and automatically reuses the unchanged PAT if its ordinary refresh session is
+lost or an uncached Auth `/user` read returns 401. Automatic PAT sign-in is
+limited to one attempt until a successful `/user` read, avoiding a sign-in loop
+when Auth remains unavailable; manual Restore saved sign-in remains available
+after failure. A generic refresh HTTP 400 alone does not prove invalid
+credentials, and transient profile/network or energy failures do not trigger
+PAT sign-in.
 PAT renewal requires reconnecting from the phone after expiry. The phone retains the token
 only in memory until acknowledgment/attempt expiry. Application context contains
 only latest-state phone account hints. Known signed-out/different-account hints

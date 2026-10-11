@@ -317,10 +317,12 @@ holds it in memory until success or request expiry. `PhoneAssistedSignInModel`
 tracks the pending request, account switch, delivery and acknowledgment;
 `PhoneAccountConnectivity` bridges live WCSession transport. The watch stores
 the PAT in `WatchPATKeychainStore`, separate from the SDK session and widget,
-and reuses it via `/signin/pat` on lost session. Generic refresh HTTP 400s do
-not automatically trigger recovery; Profile offers manual Restore saved sign-in
-if the SDK retains its old session. An expired/invalid PAT requires new phone
-pairing; there is no OTP fallback. Sign-out and known signed-out or
+and automatically reuses it via `/signin/pat` after session loss or an uncached
+Auth `/user` 401. The watch attempts this only once until a successful `/user`
+read; manual Restore saved sign-in remains available if it fails. Generic
+refresh HTTP 400s alone do not prove invalid credentials, and transient
+profile/network or energy failures do not trigger PAT sign-in. An expired/invalid
+PAT requires new phone pairing; there is no OTP fallback. Sign-out and known signed-out or
 different-account hints erase the local PAT before allowing another session.
 The PAT has full user sign-in authority, not a restricted role; phone sign-out
 cannot remotely revoke an offline watch PAT immediately. A failed local

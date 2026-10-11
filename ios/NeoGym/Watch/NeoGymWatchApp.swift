@@ -80,8 +80,9 @@ private struct WatchHomeView: View {
         case .name:
             EmptyView() // Signed-in content uses the Energy/Profile/Events pages above.
         case .signedOut, .matchPhone, .reauthenticate:
-            if account.state == .reauthenticate { Text("Session expired. Reconnect from your iPhone.") }
-            else { Text("Connect this watch from your signed-in iPhone.") }
+            if account.state == .reauthenticate {
+                Text("Session expired. Restore saved sign-in or reconnect from your iPhone.")
+            } else { Text("Connect this watch from your signed-in iPhone.") }
             if account.isRecovering { ProgressView("Restoring session…") }
             if account.assistedSignInUserID != nil {
                 Button("Connect using iPhone") { assisted.start() }
@@ -89,14 +90,14 @@ private struct WatchHomeView: View {
                 if let status = assisted.status { Text(status).font(.caption) }
             }
             if account.state == .reauthenticate {
-                Button("Retry saved sign-in") { activity.perform("auth") { _ = await account.recoverUsingPAT() } }
+                Button("Restore saved sign-in") { activity.perform("auth") { _ = await account.recoverUsingPAT() } }
                     .disabled(account.isRecovering)
             }
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")
         case .authError:
-            Text("Authentication failed. Retry or restore this watch's sign-in.")
-            Button("Retry") { account.refresh() }
+            Text("Authentication failed. Restore saved sign-in or reconnect from your iPhone.")
+            if account.isRecovering { ProgressView("Restoring session…") }
             Button("Restore saved sign-in") {
                 activity.perform("auth") { _ = await account.recoverUsingPAT() }
             }

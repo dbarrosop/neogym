@@ -106,10 +106,14 @@ iPhone** on the watch, then **Me → Profile → Connect Apple Watch → Connect
 on the phone with both apps open and reachable. The phone creates a 90-day
 app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
 The watch keeps the PAT in a separate device-only Keychain item, calls
-`/signin/pat` to create its own SDK session, and can repeat that sign-in when
-a normal refresh session is lost. If a refresh error leaves the old session
-present, Profile → Restore saved sign-in can use the same PAT manually. No OTP
-is entered on the watch and no phone session is copied. After 90 days, reconnect from the phone. If iOS suppresses
+`/signin/pat` to create its own SDK session, and automatically repeats that
+sign-in when its session is lost or Auth `/user` returns 401. It tries once per
+failed validation, then offers Restore saved sign-in manually if needed; a
+successful `/user` read permits a later automatic attempt. Transient network,
+profile and energy errors do not trigger PAT sign-in. A generic refresh HTTP
+400 alone does not prove the PAT is invalid; if the SDK retains its session,
+Profile → Restore saved sign-in remains available. No OTP is entered on the
+watch and no phone session is copied. After 90 days, reconnect from the phone. If iOS suppresses
 a force-quit app's message delivery, open both apps and request pairing again.
 Phone account hints in application context contain only state/user ID, never
 the credential. Known phone sign-out/account switches clear the local watch PAT;

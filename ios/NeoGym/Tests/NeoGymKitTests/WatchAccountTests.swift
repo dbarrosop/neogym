@@ -11,6 +11,7 @@ private actor WatchTransport: HTTPTransport {
     var refresh = false
     var transportFailure = false
     var invalidRefresh = false
+    var failPAT = false
     var failSignOut = false
     private var holdSignOut = false
     private var signOutWaiter: CheckedContinuation<Void, Never>?
@@ -18,6 +19,8 @@ private actor WatchTransport: HTTPTransport {
     private var signOutIsWaiting = false
 
     func rejectRefresh() { invalidRefresh = true }
+    func rejectPAT() { failPAT = true }
+    func allowPAT() { failPAT = false }
     func rejectSignOut() { failSignOut = true }
     func pauseSignOut() { holdSignOut = true }
 
@@ -54,6 +57,7 @@ private actor WatchTransport: HTTPTransport {
             return NhostRawResponse(status: 200, body: Data())
         }
         if request.url.path.hasSuffix("/signin/pat") {
+            if failPAT { throw URLError(.notConnectedToInternet) }
             return NhostRawResponse(status: 200, body: Data("{\"session\":\(Self.refreshedSession)}".utf8))
         }
         if request.url.path.hasSuffix("/token") {
@@ -613,6 +617,46 @@ extension WatchAccountTests {
         XCTAssertEqual(saved?.refreshToken, "new-refresh")
     }
 
+    func testAuth401AutomaticallyUsesSavedPATButDoesNotLoopOnRepeated401() async throws {
+        let (model, transport, _) = try await accountWithPAT()
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 1)
+        await waitForRecoveryToFinish(model)
+        await waitFor(model, .authError) // The server still rejects /user after PAT sign-in.
+
+        model.refresh()
+        await model.waitForCurrentRead()
+        let attempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+        XCTAssertEqual(attempts.count, 1) // No automatic sign-in loop for a persistent 401.
+
+        await transport.set(status: 200)
+        let manuallyRecovered = await model.recoverUsingPAT() // Explicit fallback can still recover.
+        XCTAssertTrue(manuallyRecovered)
+        await waitFor(model, .name("Server Name"))
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 3) // A validated /user resets the gate.
+    }
+
+    func testAuth401PATNetworkFailureKeepsManualRestoreAvailable() async throws {
+        let (model, transport, store) = try await accountWithPAT()
+        await transport.rejectPAT()
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 1)
+        await waitForRecoveryToFinish(model)
+        XCTAssertEqual(model.state, .authError)
+        XCTAssertNotNil(try store.load()) // Transient failure never erases the PAT.
+
+        await transport.allowPAT()
+        await transport.set(status: 200)
+        let manuallyRecovered = await model.recoverUsingPAT()
+        XCTAssertTrue(manuallyRecovered)
+        await waitFor(model, .name("Server Name"))
+        await waitForPATAttempts(transport, count: 2)
+    }
+
     func testInvalidRefreshNeverDisplaysSessionName() async throws {
         let (model, client, transport) = try await setup(expiresIn: -1)
         await transport.rejectRefresh()
@@ -762,6 +806,44 @@ extension WatchAccountTests {
 }
 
 private extension WatchAccountTests {
+    func accountWithPAT() async throws -> (WatchAccountModel, WatchTransport, WatchTestPATStore) {
+        let store = WatchTestPATStore()
+        try store.save(WatchPATCredential(userID: "watch-user", token: UUID().uuidString,
+                                          expiresAt: Date().addingTimeInterval(3600)))
+        let transport = WatchTransport()
+        let client = createClient(NhostClientOptions(
+            subdomain: "local", region: "local",
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session())),
+            transport: transport
+        ))
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: NhostCurrentUserService(client: client),
+            patService: NhostWatchPATService(client: client), patStore: store
+        )
+        model.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        await model.bootstrap()
+        await waitFor(model, .name("Server Name"))
+        return (model, transport, store)
+    }
+
+    func waitForPATAttempts(_ transport: WatchTransport, count: Int) async {
+        for _ in 0..<1000 {
+            let attempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+            if attempts.count >= count { return }
+            await Task.yield()
+        }
+        XCTFail("Expected at least \(count) PAT sign-ins")
+    }
+
+    func waitForRecoveryToFinish(_ model: WatchAccountModel) async {
+        for _ in 0..<1000 {
+            if !model.isRecovering { return }
+            await Task.yield()
+        }
+        XCTFail("PAT recovery did not finish")
+    }
+
     func session(expiresIn: Int = 3600) throws -> StoredSession {
         try StoredSession(
             accessToken: WatchTransport.token(expiresIn: expiresIn), accessTokenExpiresIn: expiresIn,
