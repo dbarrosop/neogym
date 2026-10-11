@@ -56,9 +56,12 @@ final class AssistedSignInModelTests: XCTestCase {
         guard case .request(let id) = sent.last else { return XCTFail("Missing watch request") }
         let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
                                             expiresAt: date.addingTimeInterval(3600))
-        XCTAssertFalse(sender.receive(.credential(UUID(), credential)))
+        let otherID = UUID()
+        XCTAssertFalse(sender.receive(.credential(otherID, credential)))
+        XCTAssertEqual(sent.last, .result(otherID, succeeded: false))
         XCTAssertFalse(sender.receive(.credential(id, WatchPATCredential(userID: "other", token: credential.token,
                                                                           expiresAt: credential.expiresAt))))
+        XCTAssertEqual(sent.last, .result(id, succeeded: false))
         XCTAssertTrue(sender.receive(.credential(id, credential)))
         let connected = await sender.connect()
         XCTAssertTrue(connected)
@@ -121,6 +124,7 @@ final class AssistedSignInModelTests: XCTestCase {
         let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
                                             expiresAt: date.addingTimeInterval(3600))
         XCTAssertFalse(model.receive(.credential(id, credential)))
+        XCTAssertEqual(sent.last, .result(id, succeeded: false))
         let connected = await model.connect()
         XCTAssertFalse(connected)
         let signIns = await pat.signIns
@@ -164,10 +168,115 @@ final class AssistedSignInModelTests: XCTestCase {
         XCTAssertFalse(recovered)
     }
 
+    func testExpiredHandoffAndBlockedPhoneAccountReplyWithoutSigningIn() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        var clock = date
+        let account = await makeAccount(pat: pat, store: MemoryPATStore(), now: { clock })
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { clock }) { message, _ in sent.append(message) }
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        model.start()
+        guard case .request(let expiredID) = sent.last else { return XCTFail("Missing request") }
+        clock.addTimeInterval(600)
+        XCTAssertFalse(model.receive(.credential(expiredID, credential)))
+        XCTAssertEqual(sent.last, .result(expiredID, succeeded: false))
+
+        model.start()
+        guard case .request(let blockedID) = sent.last else { return XCTFail("Missing request") }
+        account.receiveContext(PhoneAccountHint.signedOut.context)
+        XCTAssertFalse(model.receive(.credential(blockedID, credential)))
+        XCTAssertEqual(sent.last, .result(blockedID, succeeded: false))
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
+    func testExpiredCredentialRepliesWithoutSigningIn() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let account = await makeAccount(pat: pat, store: MemoryPATStore())
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { self.date }) { message, _ in sent.append(message) }
+        model.start()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing request") }
+        let expired = WatchPATCredential(userID: "first", token: UUID().uuidString, expiresAt: date)
+        XCTAssertFalse(model.receive(.credential(id, expired)))
+        XCTAssertEqual(sent.last, .result(id, succeeded: false))
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
+    func testConnectPrecheckRepliesAndClearsConnectingStatusAfterAccountSwitch() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let account = await makeAccount(pat: pat, store: MemoryPATStore())
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { self.date }) { message, _ in sent.append(message) }
+        model.start()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing request") }
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        XCTAssertTrue(model.receive(.credential(id, credential)))
+        account.receiveContext(PhoneAccountHint.signedIn(userID: "second").context)
+        let connected = await model.connect()
+        XCTAssertFalse(connected)
+        XCTAssertEqual(sent.last, .result(id, succeeded: false))
+        XCTAssertEqual(model.status, "Could not connect. Keep both apps open and try again.")
+        XCTAssertFalse(model.isConnecting)
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
+    func testConnectPrecheckRepliesWhenAttemptExpiresAfterReceipt() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        var clock = date
+        let account = await makeAccount(pat: pat, store: MemoryPATStore(), now: { clock })
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { clock }) { message, _ in sent.append(message) }
+        model.start()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing request") }
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        XCTAssertTrue(model.receive(.credential(id, credential)))
+        clock.addTimeInterval(600)
+        let connected = await model.connect()
+        XCTAssertFalse(connected)
+        XCTAssertEqual(sent.last, .result(id, succeeded: false))
+        XCTAssertEqual(model.status, "Could not connect. Keep both apps open and try again.")
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
+    func testDuplicateDuringInFlightPATSignInDoesNotContradictFinalSuccess() async throws {
+        let gate = FakeSignInGate()
+        let pat = FakePAT(verified: try session(id: "first"), signInGate: gate)
+        let account = await makeAccount(pat: pat, store: MemoryPATStore())
+        var sent: [WatchAssistedSignInMessage] = []
+        let model = WatchAssistedSignInModel(account: account, now: { self.date }) { message, _ in sent.append(message) }
+        model.start()
+        guard case .request(let id) = sent.last else { return XCTFail("Missing request") }
+        let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
+                                            expiresAt: date.addingTimeInterval(3600))
+        XCTAssertTrue(model.receive(.credential(id, credential)))
+        let connecting = Task { await model.connect() }
+        await gate.waitUntilStarted()
+        XCTAssertFalse(model.receive(.credential(id, credential)))
+        XCTAssertEqual(sent, [.request(id)])
+        let unrelatedID = UUID()
+        XCTAssertFalse(model.receive(.credential(unrelatedID, credential)))
+        XCTAssertEqual(sent.last, .result(unrelatedID, succeeded: false))
+        await gate.finish()
+        let connected = await connecting.value
+        XCTAssertTrue(connected)
+        XCTAssertEqual(sent.last, .result(id, succeeded: true))
+    }
+
     private func makeAccount(pat: FakePAT, store: MemoryPATStore) async -> WatchAccountModel {
+        await makeAccount(pat: pat, store: store, now: { self.date })
+    }
+
+    private func makeAccount(pat: FakePAT, store: MemoryPATStore,
+                             now: @escaping @MainActor () -> Date) async -> WatchAccountModel {
         let account = WatchAccountModel(authStore: AuthStore(authService: FakeAuth(), autoBootstrap: false),
-                                        currentUser: FakeUser(), patService: pat, patStore: store,
-                                        now: { self.date })
+                                        currentUser: FakeUser(), patService: pat, patStore: store, now: now)
         account.localContextReady(PhoneAccountHint.signedIn(userID: "first").context)
         await account.bootstrap()
         return account
@@ -196,11 +305,42 @@ private final class MemoryPATStore: WatchPATStoring, @unchecked Sendable {
 
 private actor FakePAT: WatchPATServicing {
     private let verified: StoredSession?
+    private let signInGate: FakeSignInGate?
     private(set) var creates = 0
     private(set) var signIns = 0
-    init(verified: StoredSession? = nil) { self.verified = verified }
+    init(verified: StoredSession? = nil, signInGate: FakeSignInGate? = nil) {
+        self.verified = verified
+        self.signInGate = signInGate
+    }
     func create(expiresAt: Date) async throws -> String { creates += 1; return UUID().uuidString }
-    func signIn(token: String) async throws -> StoredSession? { signIns += 1; return verified }
+    func signIn(token: String) async throws -> StoredSession? {
+        signIns += 1
+        if let signInGate { await signInGate.wait() }
+        return verified
+    }
+}
+
+private actor FakeSignInGate {
+    private var started = false
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+    private var signInWaiter: CheckedContinuation<Void, Never>?
+
+    func waitUntilStarted() async {
+        if started { return }
+        await withCheckedContinuation { startedWaiter = $0 }
+    }
+
+    func wait() async {
+        started = true
+        startedWaiter?.resume()
+        startedWaiter = nil
+        await withCheckedContinuation { signInWaiter = $0 }
+    }
+
+    func finish() {
+        signInWaiter?.resume()
+        signInWaiter = nil
+    }
 }
 
 private struct FakeUser: CurrentUserServicing {

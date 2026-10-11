@@ -119,7 +119,10 @@ Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 `Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
 `WatchHomeView` forwards live PAT handoff messages to `WatchAssistedSignInModel`;
 only the view holds a watchOS expiring activity for the sign-in. The model
-checks the request nonce, age, expiry and definitive phone user ID. The account
+checks the request nonce, age, expiry and definitive phone user ID. Rejected
+credential handoffs and failed connect pre-checks reply with a nonce-bound
+failure so the phone can offer retry; a duplicate for the same in-flight request
+does not send a premature failure before its final result. The account
 stores the PAT in a private device-only Keychain item and signs in via Auth
 `/signin/pat`; it rejects a different-user result and clears the session.
 The `WatchWidgets/WatchEnergyComplication.swift` rectangular view tints only

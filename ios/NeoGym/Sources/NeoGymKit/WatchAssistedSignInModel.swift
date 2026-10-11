@@ -39,11 +39,15 @@ public final class WatchAssistedSignInModel: ObservableObject {
     }
 
     public func receive(_ message: WatchAssistedSignInMessage) -> Bool {
-        guard case .credential(let id, let credential) = message,
-              !isConnecting, let attempt,
+        guard case .credential(let id, let credential) = message else { return false }
+        guard !isConnecting, let attempt,
               attempt.accepts(id: id, userID: credential.userID, now: now()),
               account.assistedSignInUserID == credential.userID,
-              credential.isValid(at: now()) else { return false }
+              credential.isValid(at: now()) else {
+            // A duplicate must not contradict the still-pending sign-in result.
+            if !(isConnecting && attempt?.id == id) { send(.result(id, succeeded: false), {}) }
+            return false
+        }
         received = (attempt, credential)
         isConnecting = true
         status = "Connecting…"
@@ -55,7 +59,11 @@ public final class WatchAssistedSignInModel: ObservableObject {
         defer { received = nil; isConnecting = false }
         guard self.attempt == attempt,
               attempt.accepts(id: attempt.id, userID: credential.userID, now: now()),
-              account.assistedSignInUserID == credential.userID else { return false }
+              account.assistedSignInUserID == credential.userID else {
+            status = "Could not connect. Keep both apps open and try again."
+            send(.result(attempt.id, succeeded: false), {})
+            return false
+        }
         let succeeded = await account.acceptPAT(credential)
         let stillAllowed = self.attempt == attempt
             && attempt.accepts(id: attempt.id, userID: credential.userID, now: now())
