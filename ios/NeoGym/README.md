@@ -522,8 +522,8 @@ HealthKit.
 `NhostConfig.local` defaults to `subdomain = "local"` and `region = "local"`,
 matching the web app's local development config. `AuthStore` shows a loading
 state while `getUserSession()` reads the SDK's persisted session, subscribes to
-`sessionStore.subscribe`, then routes to either the signed-out phone-pairing prompt or the
-protected full-screen app shell.
+`sessionStore.subscribe`, then routes to either the signed-out email OTP
+sign-in/sign-up forms or the protected full-screen app shell.
 
 Sign-in and sign-up use Nhost email OTP: request a 6-digit code, copy it from
 local MailHog, and verify it in the app. Sign-up sends
