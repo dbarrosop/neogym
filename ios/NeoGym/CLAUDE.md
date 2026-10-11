@@ -26,7 +26,10 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests. In XCTest, await actor snapshots into a local before passing them to
+  tests. For fixed-date watch PAT handoff tests, inject the same clock into
+  `WatchAssistedSignInModel` and `WatchAccountModel`; both validate credential
+  expiry, including account recovery and saved-credential presentation.
+  In XCTest, await actor snapshots into a local before passing them to
   `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
   `WatchAccountTests` methods in its existing extension: the main class is near
   the Swift lint 350-line type-body limit, and `WatchAccountTests.swift` is at

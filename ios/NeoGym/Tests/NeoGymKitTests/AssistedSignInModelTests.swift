@@ -5,7 +5,8 @@ import XCTest
 
 @MainActor
 final class AssistedSignInModelTests: XCTestCase {
-    private let date = Date(timeIntervalSince1970: 1_800_000_000)
+    // Deliberately in the past: handoff and account expiry checks must use the same injected clock.
+    private let date = Date(timeIntervalSince1970: 1_600_000_000)
 
     func testPhoneIssuesOnePATForLiveRequestAndDropsSecretAfterAcknowledgement() async throws {
         let pat = FakePAT()
@@ -70,6 +71,23 @@ final class AssistedSignInModelTests: XCTestCase {
         XCTAssertEqual(signIns, 2)
     }
 
+    func testWatchAccountRejectsPATAtInjectedExpiry() async throws {
+        let pat = FakePAT(verified: try session(id: "first"))
+        let store = MemoryPATStore()
+        let account = await makeAccount(pat: pat, store: store)
+        let expired = WatchPATCredential(userID: "first", token: UUID().uuidString, expiresAt: date)
+        let accepted = await account.acceptPAT(expired)
+        XCTAssertFalse(accepted)
+        XCTAssertNil(try store.load())
+
+        try store.save(expired)
+        let recovered = await account.recoverUsingPAT()
+        XCTAssertFalse(recovered)
+        XCTAssertNil(try store.load())
+        let signIns = await pat.signIns
+        XCTAssertEqual(signIns, 0)
+    }
+
     func testWatchRecoveryRejectsDifferentPhoneAndSignOutErasesPAT() async throws {
         let pat = FakePAT(verified: try session(id: "first"))
         let store = MemoryPATStore()
@@ -84,7 +102,7 @@ final class AssistedSignInModelTests: XCTestCase {
         XCTAssertEqual(signIns, 0)
         account.receiveContext(PhoneAccountHint.signedIn(userID: "first").context)
         try store.save(WatchPATCredential(userID: "first", token: UUID().uuidString,
-                                          expiresAt: Date().addingTimeInterval(3600)))
+                                          expiresAt: date.addingTimeInterval(3600)))
         await account.signOut()
         XCTAssertNil(try store.load())
         let retried = await account.recoverUsingPAT()
@@ -116,7 +134,7 @@ final class AssistedSignInModelTests: XCTestCase {
         await account.signOut()
         XCTAssertEqual(account.state, .matchPhone)
         let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
-                                            expiresAt: Date().addingTimeInterval(3600))
+                                            expiresAt: date.addingTimeInterval(3600))
         let accepted = await account.acceptPAT(credential)
         XCTAssertTrue(accepted)
         XCTAssertEqual(try store.load(), credential)
@@ -127,7 +145,7 @@ final class AssistedSignInModelTests: XCTestCase {
         let store = MemoryPATStore()
         let account = await makeAccount(pat: pat, store: store)
         let credential = WatchPATCredential(userID: "first", token: UUID().uuidString,
-                                            expiresAt: Date().addingTimeInterval(3600))
+                                            expiresAt: date.addingTimeInterval(3600))
         let accepted = await account.acceptPAT(credential)
         XCTAssertFalse(accepted)
         XCTAssertNil(try store.load())
@@ -139,7 +157,7 @@ final class AssistedSignInModelTests: XCTestCase {
         let store = MemoryPATStore()
         let account = await makeAccount(pat: pat, store: store)
         try store.save(WatchPATCredential(userID: "first", token: UUID().uuidString,
-                                          expiresAt: Date().addingTimeInterval(3600)))
+                                          expiresAt: date.addingTimeInterval(3600)))
         account.receiveContext(PhoneAccountHint.signedOut.context)
         XCTAssertNil(try store.load())
         let recovered = await account.recoverUsingPAT()
@@ -148,7 +166,8 @@ final class AssistedSignInModelTests: XCTestCase {
 
     private func makeAccount(pat: FakePAT, store: MemoryPATStore) async -> WatchAccountModel {
         let account = WatchAccountModel(authStore: AuthStore(authService: FakeAuth(), autoBootstrap: false),
-                                        currentUser: FakeUser(), patService: pat, patStore: store)
+                                        currentUser: FakeUser(), patService: pat, patStore: store,
+                                        now: { self.date })
         account.localContextReady(PhoneAccountHint.signedIn(userID: "first").context)
         await account.bootstrap()
         return account

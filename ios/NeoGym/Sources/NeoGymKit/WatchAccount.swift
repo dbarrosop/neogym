@@ -130,6 +130,7 @@ public final class WatchAccountModel: ObservableObject {
     private let currentUserStore: WatchCurrentUserStore?
     private let patService: (any WatchPATServicing)?
     private let patStore: (any WatchPATStoring)?
+    private let now: @MainActor () -> Date
     @Published public private(set) var isRecovering = false
     private var recoveryTask: Task<Bool, Never>?
     private var recoveryID: UUID?
@@ -156,12 +157,14 @@ public final class WatchAccountModel: ObservableObject {
     public init(authStore: AuthStore, currentUser: any CurrentUserServicing,
                 currentUserStore: WatchCurrentUserStore? = nil,
                 patService: (any WatchPATServicing)? = nil,
-                patStore: (any WatchPATStoring)? = nil) {
+                patStore: (any WatchPATStoring)? = nil,
+                now: @escaping @MainActor () -> Date = Date.init) {
         self.authStore = authStore
         self.currentUserService = currentUser
         self.currentUserStore = currentUserStore
         self.patService = patService
         self.patStore = patStore
+        self.now = now
         subscription = authStore.$state.sink { [weak self] state in
             // Publisher delivery is synchronous on the main actor for AuthStore.
             MainActor.assumeIsolated { self?.sessionChanged(state) }
@@ -475,7 +478,7 @@ public final class WatchAccountModel: ObservableObject {
     /// can retry with the same PAT instead of losing a one-shot transfer.
     public func acceptPAT(_ credential: WatchPATCredential) async -> Bool {
         guard assistedSignInUserID == credential.userID,
-              credential.isValid(at: Date()) else { return false }
+              credential.isValid(at: now()) else { return false }
         if let recoveryTask {
             let previousID = recoveryID
             _ = await recoveryTask.value
@@ -531,7 +534,7 @@ public final class WatchAccountModel: ObservableObject {
             state = .error("Watch credential could not be read.")
             return false
         }
-        guard credential.isValid(at: Date()) else {
+        guard credential.isValid(at: now()) else {
             try? patStore?.clear()
             return false
         }
@@ -617,7 +620,7 @@ private extension WatchAccountModel {
     /// automatic attempt fails, including on later foreground reconciliations.
     func signedOutState() -> WatchAccountState {
         do {
-            if let credential = try patStore?.load(), credential.isValid(at: Date()) {
+            if let credential = try patStore?.load(), credential.isValid(at: now()) {
                 if case .known(.signedIn(let id)) = phone, id != credential.userID { return .matchPhone }
                 return .reauthenticate
             }
