@@ -28,6 +28,18 @@ private actor FailingRefreshProbeTransport: HTTPTransport {
     }
 }
 
+private enum RefreshTestError: Error { case unexpectedRequest }
+
+private func refreshTestSession(expiry: Date, refreshToken: String) throws -> StoredSession {
+    let claims = try JSONSerialization.data(withJSONObject: ["exp": Int(expiry.timeIntervalSince1970)])
+    let payload = claims.base64EncodedString().replacingOccurrences(of: "+", with: "-")
+        .replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+    return try StoredSession(
+        accessToken: "header.\(payload).signature", accessTokenExpiresIn: 900,
+        refreshTokenId: "fixture-id-\(refreshToken)", refreshToken: refreshToken
+    )
+}
+
 private func captureRefreshEvents(_ observer: WatchAuthRefreshObserver) async -> AsyncStream<WatchAuthRefreshObservation> {
     let (stream, continuation) = AsyncStream<WatchAuthRefreshObservation>.makeStream()
     await observer.setHandler { event in _ = continuation.yield(event) }
@@ -57,6 +69,36 @@ private func takeEvents(_ count: Int, from stream: AsyncStream<WatchAuthRefreshO
 }
 
 final class WatchAuthRefreshTransportTests: XCTestCase {
+    func testSDKRefreshIsObservedAndPersistsRotatedSession() async throws {
+        let expired = try refreshTestSession(expiry: Date().addingTimeInterval(-3_600),
+                                             refreshToken: "fixture-original")
+        let rotated = try refreshTestSession(expiry: Date().addingTimeInterval(3_600),
+                                             refreshToken: "fixture-rotated")
+        let observer = WatchAuthRefreshObserver()
+        let stream = await captureRefreshEvents(observer)
+        let client = createClient(NhostClientOptions(
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: expired)),
+            transport: WatchAuthRefreshTransport(
+                authBaseURL: generateServiceURL(.auth), observer: observer,
+                underlying: StubTransport { request in
+                    guard request.method == "POST", request.url.path.hasSuffix("/token") else {
+                        throw RefreshTestError.unexpectedRequest
+                    }
+                    return NhostRawResponse(status: 200, body: try NhostJSON.restEncoder.encode(rotated.authSession))
+                }
+            )
+        ))
+
+        let refreshed = try await client.sessionRefresher.refreshSession(marginSeconds: 0)
+        let persisted = try await client.sessionStore.get()
+        XCTAssertEqual(refreshed?.refreshToken, rotated.refreshToken)
+        XCTAssertEqual(persisted?.refreshToken, rotated.refreshToken)
+        let events = await takeEvents(2, from: stream)
+        XCTAssertEqual(events.map(\.outcome), [.started, .responseReceived])
+        XCTAssertEqual(events.count, 2)
+        XCTAssertEqual(events.first?.id, events.last?.id)
+    }
+
     func testOnlyAuthRefreshIsObservedAndNoCredentialsAreRetained() async throws {
         let url = try XCTUnwrap(URL(string: "https://auth.example.test/v1"))
         let probe = RefreshProbeTransport()
