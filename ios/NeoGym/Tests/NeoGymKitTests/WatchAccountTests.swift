@@ -562,33 +562,46 @@ extension WatchAccountTests {
         XCTAssertNil(remaining)
     }
 
-    func testPATRecoveryMintsAndPersistsIndependentWatchSession() async throws {
-        let store = WatchTestPATStore()
-        let token = UUID().uuidString
-        try store.save(WatchPATCredential(userID: "watch-user", token: token,
-                                          expiresAt: Date().addingTimeInterval(3600)))
-        let transport = WatchTransport()
-        let client = createClient(NhostClientOptions(
-            subdomain: "local", region: "local",
-            sessionManagement: .processLocal(storage: MemorySessionStorageBackend()),
-            transport: transport
-        ))
-        let model = WatchAccountModel(
-            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
-            currentUser: NhostCurrentUserService(client: client),
-            patService: NhostWatchPATService(client: client), patStore: store
-        )
-        model.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
-        await model.bootstrap()
-        await waitFor(model, .name("Server Name"))
-        let requests = await transport.requests
-        let signIn = try XCTUnwrap(requests.first { $0.url.path.hasSuffix("/signin/pat") })
-        XCTAssertTrue(String(decoding: signIn.body ?? Data(), as: UTF8.self).contains(token))
-        let saved = try await client.getUserSession()
-        XCTAssertEqual(saved?.user?.id, "watch-user")
-        XCTAssertEqual(saved?.refreshToken, "new-refresh")
-        XCTAssertNotEqual(saved?.refreshToken, token)
-        XCTAssertEqual(try store.load()?.token, token)
+    func testTransientColdStartPATFailureKeepsManualRestoreForKnownAndUnknownPhone() async throws {
+        for hint: PhoneAccountHint? in [nil, .signedIn(userID: "watch-user")] {
+            let store = WatchTestPATStore()
+            let token = UUID().uuidString
+            try store.save(WatchPATCredential(userID: "watch-user", token: token,
+                                              expiresAt: Date().addingTimeInterval(3600)))
+            let transport = WatchTransport()
+            await transport.rejectPAT() // Transient offline sign-in; the credential remains valid.
+            let client = createClient(NhostClientOptions(
+                subdomain: "local", region: "local",
+                sessionManagement: .processLocal(storage: MemorySessionStorageBackend()), transport: transport
+            ))
+            let model = WatchAccountModel(
+                authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+                currentUser: NhostCurrentUserService(client: client),
+                patService: NhostWatchPATService(client: client), patStore: store
+            )
+            if let hint { model.localContextReady(hint.context) }
+            else { model.localContextReady(nil) }
+            await model.bootstrap()
+            XCTAssertEqual(model.state, .reauthenticate)
+            model.refresh() // Foreground must preserve Restore without another automatic request.
+            XCTAssertEqual(model.state, .reauthenticate)
+            let firstAttempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+            XCTAssertEqual(firstAttempts.count, 1)
+            XCTAssertEqual(model.assistedSignInUserID, hint == nil ? nil : "watch-user")
+            await transport.allowPAT()
+            let restored = await model.recoverUsingPAT()
+            XCTAssertTrue(restored)
+            await waitFor(model, .name("Server Name"))
+            let requests = await transport.requests
+            let signIn = try XCTUnwrap(requests.first { $0.url.path.hasSuffix("/signin/pat") })
+            XCTAssertTrue(String(decoding: signIn.body ?? Data(), as: UTF8.self).contains(token))
+            XCTAssertEqual(requests.filter { $0.url.path.hasSuffix("/signin/pat") }.count, 2)
+            let saved = try await client.getUserSession()
+            XCTAssertEqual(saved?.user?.id, "watch-user")
+            XCTAssertEqual(saved?.refreshToken, "new-refresh")
+            XCTAssertNotEqual(saved?.refreshToken, token)
+            XCTAssertEqual(try store.load()?.token, token)
+        }
     }
 
     func testRejectedRefreshRecoversFromSavedPAT() async throws {

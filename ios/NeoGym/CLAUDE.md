@@ -29,7 +29,9 @@ package at its lower deployment floor unless its own code needs newer APIs.
   tests. In XCTest, await actor snapshots into a local before passing them to
   `XCTAssertEqual`: assertion autoclosures do not support `await`. Put additional
   `WatchAccountTests` methods in its existing extension: the main class is near
-  the Swift lint 350-line type-body limit. For ordered refresh-observer test
+  the Swift lint 350-line type-body limit, and `WatchAccountTests.swift` is at
+  the 1000-line file limit; use a separate test file for further additions.
+  For ordered refresh-observer test
   assertions, yield events directly into an `AsyncStream` in the callback;
   spawning separate tasks to append events can reorder them. `BodyMeasurementsTests.swift` is near
   the 1000-line file limit; keep standalone Body date-planning tests in
@@ -319,10 +321,12 @@ tracks the pending request, account switch, delivery and acknowledgment;
 the PAT in `WatchPATKeychainStore`, separate from the SDK session and widget,
 and automatically reuses it via `/signin/pat` after session loss or an uncached
 Auth `/user` 401. The watch attempts this only once until a successful `/user`
-read; manual Restore saved sign-in remains available if it fails. Generic
-refresh HTTP 400s alone do not prove invalid credentials, and transient
-profile/network or energy failures do not trigger PAT sign-in. An expired/invalid
-PAT requires new phone pairing; there is no OTP fallback. Sign-out and known signed-out or
+read; a valid, non-blocked PAT keeps manual Restore saved sign-in available after
+failure and later foreground opens, with Sign out available to erase it even
+without a session. Generic refresh HTTP 400s alone do not prove invalid
+credentials, and transient profile/network or energy failures do not trigger
+PAT sign-in. An expired/invalid PAT requires new phone pairing; there is no OTP
+fallback. Sign-out and known signed-out or
 different-account hints erase the local PAT before allowing another session.
 The PAT has full user sign-in authority, not a restricted role; phone sign-out
 cannot remotely revoke an offline watch PAT immediately. A failed local

@@ -387,8 +387,7 @@ public final class WatchAccountModel: ObservableObject {
         case .signedOut:
             invalidate()
             currentUserStore?.clear()
-            if case .known(.signedIn) = phone { state = .matchPhone }
-            else { state = requiresReauthentication ? .reauthenticate : .signedOut }
+            state = signedOutState()
         case .error(let error):
             invalidate()
             state = .error(error)
@@ -563,9 +562,10 @@ public final class WatchAccountModel: ObservableObject {
             if let fetch = error as? FetchError,
                fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidPat {
                 try? patStore?.clear()
-            } else if observedAuthState.session == nil {
-                state = .reauthenticate // Keep a retry available when a saved PAT meets a transient failure.
             }
+            // Re-evaluate the current hint and credential: an in-flight failure
+            // must not override a sign-out or a newly blocking phone hint.
+            if observedAuthState.session == nil { reconcile() }
             return false
         }
     }
@@ -609,5 +609,22 @@ public final class WatchAccountModel: ObservableObject {
         } else {
             profileError = "Profile could not be refreshed. Retry."
         }
+    }
+}
+
+private extension WatchAccountModel {
+    /// A saved credential remains manually restorable after the one permitted
+    /// automatic attempt fails, including on later foreground reconciliations.
+    func signedOutState() -> WatchAccountState {
+        do {
+            if let credential = try patStore?.load(), credential.isValid(at: Date()) {
+                if case .known(.signedIn(let id)) = phone, id != credential.userID { return .matchPhone }
+                return .reauthenticate
+            }
+        } catch {
+            return .error("Watch credential could not be read.")
+        }
+        if case .known(.signedIn) = phone { return .matchPhone }
+        return requiresReauthentication ? .reauthenticate : .signedOut
     }
 }

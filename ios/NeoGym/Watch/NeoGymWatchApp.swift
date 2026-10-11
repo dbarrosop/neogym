@@ -92,6 +92,7 @@ private struct WatchHomeView: View {
             if account.state == .reauthenticate {
                 Button("Restore saved sign-in") { activity.perform("auth") { _ = await account.recoverUsingPAT() } }
                     .disabled(account.isRecovering)
+                signOutButton // Erase a retained PAT even when no SDK session remains.
             }
         case .phoneSignedOut:
             Text("Signed out on iPhone. Sign in there to use NeoGym on this watch.")

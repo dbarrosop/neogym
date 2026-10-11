@@ -118,10 +118,11 @@ ThisDeviceOnly Keychain item, uses `/signin/pat` to obtain a separate SDK sessio
 and automatically reuses the unchanged PAT if its ordinary refresh session is
 lost or an uncached Auth `/user` read returns 401. Automatic PAT sign-in is
 limited to one attempt until a successful `/user` read, avoiding a sign-in loop
-when Auth remains unavailable; manual Restore saved sign-in remains available
-after failure. A generic refresh HTTP 400 alone does not prove invalid
-credentials, and transient profile/network or energy failures do not trigger
-PAT sign-in.
+when Auth remains unavailable; a still-valid, non-blocked saved PAT keeps manual
+Restore saved sign-in available across foreground opens after a transient failure,
+and that screen also allows watch-only sign-out to erase it. A generic refresh
+HTTP 400 alone does not prove invalid credentials, and transient profile/network
+or energy failures do not trigger PAT sign-in.
 PAT renewal requires reconnecting from the phone after expiry. The phone retains the token
 only in memory until acknowledgment/attempt expiry. Application context contains
 only latest-state phone account hints. Known signed-out/different-account hints
