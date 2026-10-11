@@ -172,17 +172,30 @@ background scheduling requests/acceptances/failures, actual wakes, Health
 observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
 observer-query and background-delivery registration failures, stage-level
 HealthKit active/resting queries, Health import, backend reconciliation
-read/write and final today read, fresh backend results, snapshot saves, and
-WidgetKit reload requests. Actual scheduled background wakes have separate
-started/finished/expired-by-watchOS events; expiry may not be recorded if the
-process is suspended or killed first. Random IDs correlate
+read/write and final today read, fresh backend results, snapshot saves,
+Auth refresh HTTP starts/responses/cancellations/failures, SDK session-store
+write notifications, and WidgetKit reload requests. Actual scheduled
+background wakes have separate started/finished/expired-by-watchOS events;
+expiry may not be recorded if the process is suspended or killed first. Random
+IDs correlate
 same-run observer/refresh/snapshot events; resumed pending work uses a new
-attempt ID. Active/resting metric, app state when handled, active elapsed
-seconds, wall-clock age of a pending delivery at refresh start, backend
-operation and account-gate skip reason make related records identifiable
-without storing
-Health values or account data. Failures carry fixed stages and safe categories:
-HealthKit, network, backend, GraphQL transport, other. New transport events
+attempt ID. Active/resting metric, app state when captured during handling
+(where applicable), active elapsed seconds, wall-clock age of a pending
+delivery at refresh start, backend operation and account-gate skip reason make
+related records identifiable without storing Health values or account data.
+Auth refresh events have their own random per-request attempt ID and
+HTTP-boundary timestamps. A 2xx response is logged as
+"Response received; storage unconfirmed", not proof that the rotated token
+reached Keychain. A cancelled request is "Skipped · cancelled", not a
+Network failure; the server may already have
+rotated the token, so its outcome remains unknown. A separate successful SDK
+session-write notification (including PAT sign-in) uses the session-store
+callback time, not a refresh attempt ID; it is not attributed to a specific
+refresh. Neither an absent write event after watchOS suspension nor a 2xx
+response proves whether a refreshed session persisted. Both Auth event
+families omit app state because MainActor logging can be delayed. Failures
+carry fixed stages and safe categories: HealthKit, network, backend, GraphQL
+transport, other. New transport events
 preserve only a safe provenance: URLSession numeric error, HTTP status, fixed
 service/response category, or unknown. `FetchError.transport` can expose an
 SDK-generated `URLError <code>:` prefix; only the numeric prefix is retained,
