@@ -325,12 +325,22 @@ holds it in memory until success or request expiry. `PhoneAssistedSignInModel`
 tracks the pending request, account switch, delivery and acknowledgment;
 `PhoneAccountConnectivity` bridges live WCSession transport. The watch stores
 the PAT in `WatchPATKeychainStore`, separate from the SDK session and widget,
-and automatically reuses it via `/signin/pat` after session loss or an uncached
-Auth `/user` 401. The watch attempts this only once until a successful `/user`
-read; a valid, non-blocked PAT keeps manual Restore saved sign-in available after
+and automatically reuses it via `/signin/pat` after session loss, an uncached
+Auth `/user` 401, or HTTP 400 confirmed specifically at Auth `POST /token` by
+`WatchAuthRefreshTransport`. Its body-free `WatchAuthRefreshRejection` preserves
+that endpoint distinction through GraphQL and Health-sync error wrapping; an
+unrelated HTTP 400 is not a recovery signal. The transport leaves the SDK's
+recognized `invalid-refresh-token` response unchanged for conditional session
+removal. Other refresh 400s permit a fallback attempt, not a claim that the PAT
+is invalid. Profile reads and energy/forced-upload refresh failures use the same
+owner-, phone-hint- and sign-out-gated recovery. Concurrent failures join rather
+than cancel the new profile read. An energy refresh can reconcile once more after
+successful validation, never recursively retrying recovery without a bound.
+The watch attempts PAT sign-in only once until a successful `/user` read;
+a valid, non-blocked PAT keeps manual Restore saved sign-in available after
 failure and later foreground opens, with Sign out available to erase it even
-without a session. Generic refresh HTTP 400s alone do not prove invalid
-credentials, and transient profile/network or energy failures do not trigger
+without a session. Transient profile/network or energy failures, malformed
+response bodies alone, and HTTP 400s outside the refresh endpoint do not trigger
 PAT sign-in. An expired/invalid PAT requires new phone pairing; there is no OTP
 fallback. Sign-out and known signed-out or
 different-account hints erase the local PAT before allowing another session.

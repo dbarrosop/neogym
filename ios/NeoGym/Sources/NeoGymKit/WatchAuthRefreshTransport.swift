@@ -1,6 +1,26 @@
 import Foundation
 import Nhost
 
+/// A watch-only recovery signal for a confirmed Auth POST /token HTTP 400.
+/// It says the refresh was rejected, not that the credential is proven invalid.
+/// No request, token, response body or server description is retained.
+public enum WatchAuthRefreshRejection: Error, Sendable, Equatable {
+    case badRequest
+
+    static func matches(_ error: any Error) -> Bool {
+        if error is Self { return true }
+        let diagnostic = (error as? GraphQLDomainError)?.transportDiagnostic
+            ?? (error as? WatchHealthSyncFailure)?.transportDiagnostic
+        // Only this typed rejection produces a session-refresh diagnostic with
+        // HTTP 400. An unrelated .http/400 must never request PAT recovery.
+        return diagnostic == WatchTransportDiagnostic(kind: .sessionRefresh, code: 400)
+    }
+}
+
+extension WatchAuthRefreshRejection: LocalizedError {
+    public var errorDescription: String? { "Watch session refresh was rejected (HTTP 400)." }
+}
+
 /// Only fixed outcomes and allowlisted error categories cross into watch diagnostics.
 /// Neither the request nor its response (including tokens and headers) is retained.
 public struct WatchAuthRefreshObservation: Sendable, Equatable {
@@ -65,13 +85,9 @@ public struct WatchAuthRefreshTransport: HTTPTransport {
         let id = UUID()
         let started = Date()
         await observer.observe(.init(id: id, outcome: .started, occurredAt: started))
+        let response: NhostRawResponse
         do {
-            let response = try await underlying.fetch(request)
-            let outcome: WatchAuthRefreshObservation.Outcome = (200..<300).contains(response.status)
-                ? .responseReceived : .rejected(response.status)
-            await observer.observe(.init(id: id, outcome: outcome, occurredAt: Date(),
-                                         wallSeconds: max(0, Int(Date().timeIntervalSince(started).rounded(.up)))))
-            return response
+            response = try await underlying.fetch(request)
         } catch where error is CancellationError || (error as? URLError)?.code == .cancelled {
             // The server may already have rotated the token; preserve the SDK's original error.
             await observer.observe(.init(id: id, outcome: .cancelled, occurredAt: Date(),
@@ -83,5 +99,17 @@ public struct WatchAuthRefreshTransport: HTTPTransport {
                                          wallSeconds: max(0, Int(Date().timeIntervalSince(started).rounded(.up)))))
             throw error
         }
+        let outcome: WatchAuthRefreshObservation.Outcome = (200..<300).contains(response.status)
+            ? .responseReceived : .rejected(response.status)
+        await observer.observe(.init(id: id, outcome: outcome, occurredAt: Date(),
+                                     wallSeconds: max(0, Int(Date().timeIntervalSince(started).rounded(.up)))))
+        if response.status == 400 {
+            let authError = try? NhostJSON.restDecoder.decode(AuthErrorResponse.self, from: response.body)
+            // Keep the SDK's conditional session removal for its recognized
+            // invalid-refresh-token response. Other refresh 400s need a safe,
+            // endpoint-specific signal before the SDK discards request origin.
+            if authError?.error != .invalidRefreshToken { throw WatchAuthRefreshRejection.badRequest }
+        }
+        return response
     }
 }

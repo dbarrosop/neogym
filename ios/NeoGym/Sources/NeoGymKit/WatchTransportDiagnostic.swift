@@ -40,6 +40,7 @@ public struct WatchTransportDiagnostic: Equatable, Sendable {
         if let urlError = error as? URLError {
             return .init(kind: .urlSession, code: urlError.code.rawValue)
         }
+        if error is WatchAuthRefreshRejection { return .init(kind: .sessionRefresh, code: 400) }
         if error is SessionRefreshError { return .init(kind: .sessionRefresh) }
         if let fetch = error as? FetchError {
             switch fetch {

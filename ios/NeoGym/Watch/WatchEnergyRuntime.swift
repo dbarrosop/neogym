@@ -206,7 +206,8 @@ final class WatchEnergyRuntime: ObservableObject {
         }
     }
 
-    func refresh(trigger: WatchEventTrigger = .automatic, attemptID: UUID? = nil) async {
+    func refresh(trigger: WatchEventTrigger = .automatic, attemptID: UUID? = nil,
+                 allowAuthRecoveryRetry: Bool = true) async {
         if trigger == .manual { await revalidateAccountIfNeeded() }
         if Task.isCancelled {
             record(.energyRefresh, .skipped, trigger: trigger, attemptID: attemptID, skipReason: .cancelled)
@@ -240,6 +241,7 @@ final class WatchEnergyRuntime: ObservableObject {
         record(.energyRefresh, .started, trigger: trigger, attemptID: runID,
                pendingWallSeconds: pendingAge)
         let stageReporter = makeStageReporter(trigger: trigger, attemptID: runID)
+        var retryAfterAuthRecovery = false
         let task = Task { [self] in
             isRefreshing = true
             defer {
@@ -256,23 +258,17 @@ final class WatchEnergyRuntime: ObservableObject {
             }
             var syncError: String?
             if syncHealth {
-                let healthStarted = ProcessInfo.processInfo.systemUptime
                 do {
-                    try await service.syncHealth(now: now, onStage: stageReporter)
-                    record(.healthSync, .succeeded, trigger: trigger, attemptID: runID,
-                           durationSeconds: elapsed(since: healthStarted))
+                    if try await syncHealthForRefresh(now: now, trigger: trigger, attemptID: runID,
+                                                      userID: id, onStage: stageReporter) {
+                        retryAfterAuthRecovery = true
+                        return
+                    }
                 } catch {
                     if Task.isCancelled || error is CancellationError {
                         record(.energyRefresh, .skipped, trigger: trigger, attemptID: runID,
                                skipReason: .cancelled, durationSeconds: elapsed(since: started))
                         return
-                    }
-                    recordFailure(.healthSync, trigger: trigger, error: error, stage: .healthRead,
-                                  attemptID: runID, durationSeconds: elapsed(since: healthStarted))
-                    if let failure = error as? WatchHealthSyncFailure,
-                       failure.stage == .backendRead || failure.stage == .backendWrite
-                        || failure.diagnosticSource == .transport || failure.diagnosticSource == .network {
-                        scheduleRefresh(retry: true)
                     }
                     syncError = "Apple Health sync failed: \(error.localizedDescription)"
                 }
@@ -298,6 +294,11 @@ final class WatchEnergyRuntime: ObservableObject {
                 recordFailure(.energyRefresh, trigger: trigger, error: error, stage: .backendRead,
                               attemptID: runID, backendOperation: .todayEnergyRead,
                               durationSeconds: elapsed(since: started))
+                if activeRefreshID == runID,
+                   await account.recoverAfterRefreshRejection(error, for: id) {
+                    retryAfterAuthRecovery = true
+                    return
+                }
                 scheduleRefresh(retry: true)
                 if case .name = account.state, account.currentUser?.id == id {
                     errorMessage = error.localizedDescription
@@ -306,11 +307,42 @@ final class WatchEnergyRuntime: ObservableObject {
         }
         refreshTask = task
         await task.value
+        // The failed refresh has released its slot. Reconcile once with the new
+        // session, never recursively replay work while account recovery is open.
+        if allowAuthRecoveryRetry, retryAfterAuthRecovery, !Task.isCancelled,
+           case .name = account.state, account.currentUser?.id == id,
+           !account.isReadingProfile, account.profileError == nil {
+            await refresh(trigger: .retry, allowAuthRecoveryRetry: false)
+        }
     }
 
 }
 
 extension WatchEnergyRuntime {
+    /// True means this run must stop for account recovery before retrying.
+    private func syncHealthForRefresh(now: Date, trigger: WatchEventTrigger, attemptID: UUID,
+                                     userID: String, onStage: @escaping WatchEnergyStageReporter) async throws -> Bool {
+        let started = ProcessInfo.processInfo.systemUptime
+        do {
+            try await service.syncHealth(now: now, onStage: onStage)
+            record(.healthSync, .succeeded, trigger: trigger, attemptID: attemptID,
+                   durationSeconds: elapsed(since: started))
+            return false
+        } catch {
+            if Task.isCancelled || error is CancellationError { throw error }
+            recordFailure(.healthSync, trigger: trigger, error: error, stage: .healthRead,
+                          attemptID: attemptID, durationSeconds: elapsed(since: started))
+            if activeRefreshID == attemptID,
+               await account.recoverAfterRefreshRejection(error, for: userID) { return true }
+            if let failure = error as? WatchHealthSyncFailure,
+               failure.stage == .backendRead || failure.stage == .backendWrite
+                || failure.diagnosticSource == .transport || failure.diagnosticSource == .network {
+                scheduleRefresh(retry: true)
+            }
+            throw error
+        }
+    }
+
     private func finishRefresh(_ result: WatchEnergySnapshot, userID: String,
                                pending: WatchPendingHealthSync?, syncError: String?,
                                trigger: WatchEventTrigger, attemptID: UUID, started: TimeInterval) {
@@ -679,6 +711,9 @@ extension WatchEnergyRuntime {
             if !(error is CancellationError) {
                 recordFailure(.healthSync, trigger: .background, error: error,
                               stage: .backendWrite, attemptID: attemptID)
+                // A forced pre-upload refresh can fail even while the old
+                // access token is unexpired. Recover before the direct path.
+                if await account.recoverAfterRefreshRejection(error, for: ownerID) { return false }
             }
             scheduleRefresh(retry: true)
             return false

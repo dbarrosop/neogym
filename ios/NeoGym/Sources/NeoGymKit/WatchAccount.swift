@@ -474,6 +474,9 @@ public final class WatchAccountModel: ObservableObject {
         state = .name(user.displayName)
     }
 
+}
+
+extension WatchAccountModel {
     /// Store a phone-issued credential before signing in, so a suspended watch
     /// can retry with the same PAT instead of losing a one-shot transfer.
     public func acceptPAT(_ credential: WatchPATCredential) async -> Bool {
@@ -589,7 +592,7 @@ public final class WatchAccountModel: ObservableObject {
         isReadingProfile = false
         // startRead seeds an owner-checked profile before the request; only
         // invalidation can clear it, and that also changes the generation.
-        if error is SessionRefreshError {
+        if error is SessionRefreshError || WatchAuthRefreshRejection.matches(error) {
             invalidate()
             currentUserStore?.clear()
             state = .reauthenticate
@@ -612,6 +615,31 @@ public final class WatchAccountModel: ObservableObject {
         } else {
             profileError = "Profile could not be refreshed. Retry."
         }
+    }
+}
+
+extension WatchAccountModel {
+    /// Handle an endpoint-proven refresh rejection discovered by an energy read,
+    /// reconciliation, or forced upload refresh. Returns whether it was handled,
+    /// not whether sign-in succeeded. Never replay the failed operation here.
+    @discardableResult
+    public func recoverAfterRefreshRejection(_ error: any Error, for userID: String) async -> Bool {
+        guard !Task.isCancelled, WatchAuthRefreshRejection.matches(error), sessionID == userID,
+              !explicitSignOut, !explicitlyClearing, clearTask == nil,
+              !handleBlockingState() else { return false }
+        // Another failure may arrive while the PAT sign-in or its /user read is
+        // pending. Joining must not cancel that new read or reset the one-shot gate.
+        if automaticRecoveryAttempted || recoveryTask != nil {
+            _ = await recoveryTask?.value
+            await waitForCurrentRead()
+            return true
+        }
+        invalidate()
+        currentUserStore?.clear()
+        state = .reauthenticate
+        await recoverAutomaticallyUsingPAT()
+        await waitForCurrentRead()
+        return true
     }
 }
 

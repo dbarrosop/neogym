@@ -237,6 +237,16 @@ uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
 non-auth `/user` errors retain the same-owner cached or session-fallback
 profile with Retry; connectivity failures say to retry when connected, while
 other failures use a neutral refresh warning. Auth errors clear the profile.
+The watch also permits one saved-PAT sign-in when its transport confirms HTTP 400
+specifically from Auth `POST /token`, including a refresh started by profile reads,
+energy reconciliation or forced pre-upload refresh. This is a bounded fallback,
+not proof that the PAT is invalid. A successful uncached `/user` read re-arms it;
+concurrent failures join existing recovery without cancelling its new profile
+read. A recovered energy refresh may reconcile once more. HTTP 400s elsewhere,
+malformed response bodies alone and transient network failures do not request PAT
+sign-in. Owner/phone-hint/sign-out gates still apply, and a failed attempt retains
+manual Restore while a valid PAT remains available. The SDK's typed
+`invalid-refresh-token` handling and conditional session removal are unchanged.
 Local WCSession activation also runs without delaying this foreground display.
 An already delivered signed-out/different-account hint blocks immediately; one
 delivered later may leave stale values visible briefly before the watch clears

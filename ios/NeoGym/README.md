@@ -107,13 +107,17 @@ on the phone with both apps open and reachable. The phone creates a 90-day
 app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
 The watch keeps the PAT in a separate device-only Keychain item, calls
 `/signin/pat` to create its own SDK session, and automatically repeats that
-sign-in when its session is lost or Auth `/user` returns 401. It tries once per
-failed validation, then keeps Restore saved sign-in available on later opens
+sign-in when its session is lost, Auth `/user` returns 401, or Auth `POST /token`
+rejects a refresh with HTTP 400. The last case is identified at the actual refresh
+endpoint, including refreshes started by energy sync or a background upload;
+HTTP 400 elsewhere does not trigger sign-in. It tries once per failed validation,
+then keeps Restore saved sign-in available on later opens
 while a valid, non-blocked PAT remains stored; Sign out on this screen erases it
 even without a session. A successful `/user` read permits a later automatic
-attempt. Transient network, profile and energy errors do not trigger PAT sign-in.
-A generic refresh HTTP 400 alone does not prove the PAT is invalid; if the SDK
-retains its session, Profile → Restore saved sign-in remains available. No OTP
+attempt. A refresh 400 does not prove the PAT is invalid; it permits this bounded
+fallback. Transient network, profile and energy errors and malformed responses
+alone do not trigger PAT sign-in. A recovered energy refresh can reconcile once
+more after fresh account validation, without an unbounded retry loop. No OTP
 is entered on the watch and no phone session is copied. After 90 days,
 reconnect from the phone. If iOS suppresses
 a force-quit app's message delivery, open both apps and request pairing again.

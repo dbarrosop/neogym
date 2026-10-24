@@ -116,13 +116,19 @@ live, nonce-bound watch request and hands it over by reachable WCSession message
 there is no watch email/OTP fallback. The watch saves the PAT in its own
 ThisDeviceOnly Keychain item, uses `/signin/pat` to obtain a separate SDK session,
 and automatically reuses the unchanged PAT if its ordinary refresh session is
-lost or an uncached Auth `/user` read returns 401. Automatic PAT sign-in is
-limited to one attempt until a successful `/user` read, avoiding a sign-in loop
+lost, an uncached Auth `/user` read returns 401, or the watch transport confirms
+HTTP 400 specifically from Auth `POST /token`. That refresh rejection is a
+recovery signal, not proof of an invalid PAT; other HTTP 400s do not trigger it.
+The same bounded recovery handles a rejected refresh during profile validation,
+energy reconciliation/read, or forced pre-upload refresh. After fresh account
+validation, an energy refresh can reconcile once more; it never retries in a loop.
+Automatic PAT sign-in is limited to one attempt until a successful `/user` read, avoiding a sign-in loop
 when Auth remains unavailable; a still-valid, non-blocked saved PAT keeps manual
 Restore saved sign-in available across foreground opens after a transient failure,
-and that screen also allows watch-only sign-out to erase it. A generic refresh
-HTTP 400 alone does not prove invalid credentials, and transient profile/network
-or energy failures do not trigger PAT sign-in.
+and that screen also allows watch-only sign-out to erase it. Transient
+profile/network or energy failures and malformed response bodies alone do not
+trigger PAT sign-in. The SDK still handles its typed `invalid-refresh-token`
+response and conditional session removal normally.
 PAT renewal requires reconnecting from the phone after expiry. The phone retains the token
 only in memory until acknowledgment/attempt expiry. Application context contains
 only latest-state phone account hints. Known signed-out/different-account hints
