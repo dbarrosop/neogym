@@ -84,14 +84,9 @@ private struct WatchHomeView: View {
                 Text("Session expired. Restore saved sign-in or reconnect from your iPhone.")
             } else { Text("Connect this watch from your signed-in iPhone.") }
             if account.isRecovering { ProgressView("Restoring session…") }
-            if account.assistedSignInUserID != nil {
-                Button("Connect using iPhone") { assisted.start() }
-                    .disabled(assisted.isConnecting || account.isRecovering)
-                if let status = assisted.status { Text(status).font(.caption) }
-            }
+            connectUsingPhone
             if account.state == .reauthenticate {
-                Button("Restore saved sign-in") { activity.perform("auth") { _ = await account.recoverUsingPAT() } }
-                    .disabled(account.isRecovering)
+                restoreSavedSignIn
                 signOutButton // Erase a retained PAT even when no SDK session remains.
             }
         case .phoneSignedOut:
@@ -99,10 +94,8 @@ private struct WatchHomeView: View {
         case .authError:
             Text("Authentication failed. Restore saved sign-in or reconnect from your iPhone.")
             if account.isRecovering { ProgressView("Restoring session…") }
-            Button("Restore saved sign-in") {
-                activity.perform("auth") { _ = await account.recoverUsingPAT() }
-            }
-            .disabled(account.isRecovering)
+            connectUsingPhone
+            restoreSavedSignIn
             signOutButton
         case .error(let message):
             Text("Session error: \(message)")
@@ -113,6 +106,25 @@ private struct WatchHomeView: View {
 }
 
 private extension WatchHomeView {
+    @ViewBuilder
+    private var connectUsingPhone: some View {
+        if account.assistedSignInUserID != nil {
+            Button("Connect using iPhone") { assisted.start() }
+                .disabled(assisted.isConnecting || account.isRecovering)
+            if let status = assisted.status { Text(status).font(.caption) }
+        }
+    }
+
+    @ViewBuilder
+    private var restoreSavedSignIn: some View {
+        if account.hasRestorablePAT {
+            Button("Restore saved sign-in") {
+                activity.perform("auth") { _ = await account.recoverUsingPAT() }
+            }
+            .disabled(account.isRecovering)
+        }
+    }
+
     private var energyPage: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 9) {
@@ -234,10 +246,7 @@ private extension WatchHomeView {
                 if let error = account.profileError {
                     Text(error).font(.caption2).foregroundStyle(.secondary)
                     Button("Retry profile") { account.refresh() }
-                    Button("Restore saved sign-in") {
-                        activity.perform("auth") { _ = await account.recoverUsingPAT() }
-                    }
-                    .disabled(account.isRecovering)
+                    restoreSavedSignIn
                 }
                 signOutButton
             }

@@ -129,7 +129,12 @@ and that screen also allows watch-only sign-out to erase it. Transient
 profile/network or energy failures and malformed response bodies alone do not
 trigger PAT sign-in. The SDK still handles its typed `invalid-refresh-token`
 response and conditional session removal normally.
-PAT renewal requires reconnecting from the phone after expiry. The phone retains the token
+PAT renewal requires reconnecting from the phone after expiry. With a definitive
+same-user phone hint, reauthentication and Auth-error screens offer Connect using
+iPhone even if the SDK still retains the rejected session; a healthy session or
+pending local clearing cannot be replaced. Restore saved sign-in is shown only
+while a locally valid, owner-eligible PAT remains saved (Auth may still reject it).
+The phone retains the token
 only in memory until acknowledgment/attempt expiry. Application context contains
 only latest-state phone account hints. Known signed-out/different-account hints
 clear the watch credential and block recovery; explicit watch sign-out also clears

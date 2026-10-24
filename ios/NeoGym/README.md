@@ -119,7 +119,12 @@ fallback. Transient network, profile and energy errors and malformed responses
 alone do not trigger PAT sign-in. A recovered energy refresh can reconcile once
 more after fresh account validation, without an unbounded retry loop. No OTP
 is entered on the watch and no phone session is copied. After 90 days,
-reconnect from the phone. If iOS suppresses
+reconnect from the phone. With a matching signed-in phone hint, both Session
+expired and Authentication failed screens show **Connect using iPhone**, even
+if the rejected SDK session is still stored; no preliminary Sign out is needed.
+Healthy sessions and pending local clearing cannot be replaced. **Restore saved
+sign-in** is shown only while a locally valid, owner-eligible PAT remains saved;
+Auth may still reject it. If iOS suppresses
 a force-quit app's message delivery, open both apps and request pairing again.
 Phone account hints in application context contain only state/user ID, never
 the credential. Known phone sign-out/account switches clear the local watch PAT;

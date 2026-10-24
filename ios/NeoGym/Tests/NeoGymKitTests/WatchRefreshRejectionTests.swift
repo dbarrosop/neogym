@@ -80,6 +80,7 @@ final class WatchRefreshRejectionTests: XCTestCase {
         let failedCounts = await fixture.transport.counts()
         XCTAssertEqual(failedCounts.pat, 1)
         XCTAssertNotNil(try fixture.patStore.load())
+        XCTAssertTrue(fixture.model.hasRestorablePAT)
         await fixture.transport.allowPAT()
         let restored = await fixture.model.recoverUsingPAT()
         XCTAssertTrue(restored)
@@ -203,25 +204,121 @@ final class WatchRefreshRejectionTests: XCTestCase {
     }
 }
 
+extension WatchRefreshRejectionTests {
+    func testFreshPhoneHandoffReplacesRetainedRejectedSessionWithoutUsableSavedPAT() async throws {
+        for mode in [RejectionTransport.Mode.refresh400, .profile401] {
+            for savedPAT in [RejectionFixture.SavedPAT.absent, .expired, .valid] {
+                let rejectedPAT = savedPAT == .valid
+                let fixture = try await RejectionFixture.make(expired: mode == .refresh400, mode: mode,
+                    savedPAT: savedPAT, rejectPAT: rejectedPAT)
+                let expected: WatchAccountState = mode == .refresh400 ? .reauthenticate : .authError
+                await fixture.waitUntil {
+                    let counts = await fixture.transport.counts()
+                    return fixture.model.state == expected && !fixture.model.isRecovering
+                        && counts.pat == (rejectedPAT ? 1 : 0) && !fixture.model.hasRestorablePAT
+                }
+                let retained = try await fixture.client.sessionStore.get()
+                XCTAssertEqual(retained?.refreshTokenId, "original-id")
+                XCTAssertEqual(fixture.model.assistedSignInUserID, "watch-user")
+                XCTAssertFalse(fixture.model.hasRestorablePAT)
+
+                var sent: [WatchAssistedSignInMessage] = []
+                let assisted = WatchAssistedSignInModel(account: fixture.model, now: { RejectionFixture.date }) {
+                    message, _ in sent.append(message)
+                }
+                assisted.start()
+                guard case .request(let id) = sent.last else { return XCTFail("Missing reconnect request") }
+                XCTAssertNotNil(assisted.status)
+                let fresh = WatchPATCredential(userID: "watch-user", token: "fresh-fixture-pat",
+                                               expiresAt: RejectionFixture.date.addingTimeInterval(3_600))
+                XCTAssertTrue(assisted.receive(.credential(id, fresh)))
+                await fixture.transport.allowPAT()
+                let connected = await assisted.connect()
+                XCTAssertTrue(connected)
+                XCTAssertEqual(sent.last, .result(id, succeeded: true))
+                await fixture.waitForValidatedProfile()
+                let replaced = try await fixture.client.sessionStore.get()
+                XCTAssertEqual(replaced?.refreshTokenId, "rotated-id")
+                XCTAssertEqual(replaced?.user?.id, "watch-user")
+                XCTAssertTrue(try fixture.patStore.load() == fresh)
+                XCTAssertNil(fixture.model.assistedSignInUserID) // Healthy accounts cannot be overwritten.
+                let counts = await fixture.transport.counts()
+                XCTAssertEqual(counts.pat, rejectedPAT ? 2 : 1)
+            }
+        }
+    }
+
+    func testFreshHandoffIsBlockedWhileHealthyClearingOrSigningOut() async throws {
+        for block in ["healthy", "other-phone", "phone-out", "watch-out"] {
+            let fixture = try await RejectionFixture.make()
+            await fixture.waitForValidatedProfile()
+            await fixture.transport.pauseSignOut()
+            var signOut: Task<Void, Never>?
+            if block == "other-phone" {
+                fixture.model.receiveContext(PhoneAccountHint.signedIn(userID: "other-user").context)
+            } else if block == "phone-out" {
+                fixture.model.receiveContext(PhoneAccountHint.signedOut.context)
+            } else if block == "watch-out" {
+                signOut = Task { await fixture.model.signOut() }
+            }
+            if block != "healthy" {
+                await fixture.waitUntil { await fixture.transport.isWaitingForSignOut() }
+                XCTAssertEqual(fixture.model.state, block == "watch-out" ? .loading : .clearing)
+                // Even a matching hint cannot reopen pairing until local clearing finishes.
+                fixture.model.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
+                XCTAssertFalse(fixture.model.hasRestorablePAT)
+            }
+            XCTAssertNil(fixture.model.assistedSignInUserID)
+            var sent = false
+            let assisted = WatchAssistedSignInModel(account: fixture.model, now: { RejectionFixture.date }) {
+                _, _ in sent = true
+            }
+            assisted.start()
+            XCTAssertFalse(sent)
+            let fresh = WatchPATCredential(userID: "watch-user", token: "fresh-fixture-pat",
+                                           expiresAt: RejectionFixture.date.addingTimeInterval(3_600))
+            let accepted = await fixture.model.acceptPAT(fresh)
+            XCTAssertFalse(accepted)
+            let counts = await fixture.transport.counts()
+            XCTAssertEqual(counts.pat, 0)
+            await fixture.transport.resumeSignOut()
+            await signOut?.value
+            if block != "healthy" {
+                await fixture.waitUntil { fixture.model.state == .matchPhone }
+                let stored = try await fixture.client.sessionStore.get()
+                XCTAssertNil(stored)
+            }
+            if block == "watch-out" {
+                let recovered = await fixture.model.recoverUsingPAT()
+                XCTAssertFalse(recovered) // Only a new explicit handoff can undo watch sign-out.
+            }
+        }
+    }
+}
+
 private struct RejectionGraphQLData: Decodable, Sendable {}
 
 @MainActor
 private struct RejectionFixture {
+    enum SavedPAT { case absent, expired, valid }
+    static let date = Date(timeIntervalSince1970: 1_600_000_000)
     let model: WatchAccountModel
     let client: NhostClient
     let transport: RejectionTransport
     let patStore: RejectionPATStore
 
     static func make(expired: Bool = false, mode: RejectionTransport.Mode = .refresh400,
-                     failPAT: Bool = false) async throws -> Self {
-        let fixture = try await makeClient(expired: expired, mode: mode, failPAT: failPAT)
+                     failPAT: Bool = false, savedPAT: SavedPAT = .valid, rejectPAT: Bool = false) async throws -> Self {
+        let fixture = try await makeClient(expired: expired, mode: mode, failPAT: failPAT, rejectPAT: rejectPAT)
         let store = RejectionPATStore()
-        try store.save(WatchPATCredential(userID: "watch-user", token: "fixture-pat",
-                                         expiresAt: Date().addingTimeInterval(3_600)))
+        if savedPAT != .absent {
+            try store.save(WatchPATCredential(userID: "watch-user", token: "fixture-pat",
+                expiresAt: date.addingTimeInterval(savedPAT == .expired ? -1 : 3_600)))
+        }
         let model = WatchAccountModel(
             authStore: AuthStore(authService: NhostAuthService(client: fixture.client), autoBootstrap: false),
             currentUser: NhostCurrentUserService(client: fixture.client),
-            patService: NhostWatchPATService(client: fixture.client), patStore: store
+            patService: NhostWatchPATService(client: fixture.client), patStore: store, now: { date }
         )
         model.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
         await model.bootstrap()
@@ -229,8 +326,8 @@ private struct RejectionFixture {
     }
 
     static func makeClient(expired: Bool, mode: RejectionTransport.Mode = .refresh400,
-                           failPAT: Bool = false) async throws -> (client: NhostClient, transport: RejectionTransport) {
-        let transport = RejectionTransport(mode: mode, failPAT: failPAT)
+                           failPAT: Bool = false, rejectPAT: Bool = false) async throws -> (client: NhostClient, transport: RejectionTransport) {
+        let transport = RejectionTransport(mode: mode, failPAT: failPAT, rejectPAT: rejectPAT)
         let client = createClient(NhostClientOptions(
             subdomain: "local", region: "local",
             sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try rejectionSession(expired: expired))),
@@ -254,15 +351,24 @@ private struct RejectionFixture {
 }
 
 private actor RejectionTransport: HTTPTransport {
-    enum Mode { case refresh400, profile400, malformedProfile, malformedRefresh, serverError, offline, invalidRefresh }
+    enum Mode { case refresh400, profile400, profile401, malformedProfile, malformedRefresh, serverError, offline, invalidRefresh }
     let mode: Mode
     private var failPAT: Bool
+    private var rejectPAT: Bool
     private var paths: [String] = []
     private var holdPAT = false
     private var patWaiter: CheckedContinuation<Void, Never>?
+    private var holdSignOut = false
+    private var signOutWaiter: CheckedContinuation<Void, Never>?
+    private var didSignIn = false
 
-    init(mode: Mode, failPAT: Bool) { self.mode = mode; self.failPAT = failPAT }
-    func allowPAT() { failPAT = false }
+    init(mode: Mode, failPAT: Bool, rejectPAT: Bool) {
+        self.mode = mode; self.failPAT = failPAT; self.rejectPAT = rejectPAT
+    }
+    func allowPAT() { failPAT = false; rejectPAT = false }
+    func pauseSignOut() { holdSignOut = true }
+    func isWaitingForSignOut() -> Bool { signOutWaiter != nil }
+    func resumeSignOut() { holdSignOut = false; signOutWaiter?.resume(); signOutWaiter = nil }
     func pausePAT() { holdPAT = true }
     func resumePAT() { holdPAT = false; patWaiter?.resume(); patWaiter = nil }
     func counts() -> (pat: Int, user: Int, graphQL: Int) {
@@ -289,15 +395,24 @@ private actor RejectionTransport: HTTPTransport {
         if request.url.path.hasSuffix("/signin/pat") {
             if holdPAT { await withCheckedContinuation { patWaiter = $0 } }
             if failPAT { throw URLError(.notConnectedToInternet) }
+            if rejectPAT {
+                return NhostRawResponse(status: 401, body: Data(
+                    #"{"status":401,"error":"invalid-pat","message":"fixture rejection"}"#.utf8))
+            }
+            didSignIn = true
             let session = try rejectionSession(expired: false, rotated: true)
             return NhostRawResponse(status: 200, body: try NhostJSON.restEncoder.encode(AuthSessionPayload(session: session.authSession)))
         }
         if request.url.path.hasSuffix("/user") {
+            if mode == .profile401 && !didSignIn { return NhostRawResponse(status: 401, body: Data()) }
             if mode == .profile400 { return NhostRawResponse(status: 400, body: Data()) }
             if mode == .malformedProfile { return NhostRawResponse(status: 200, body: Data("{}".utf8)) }
             return NhostRawResponse(status: 200, body: try NhostJSON.restEncoder.encode(rejectionUser(name: "Server Name")))
         }
-        if request.url.path.hasSuffix("/signout") { return NhostRawResponse(status: 200, body: Data()) }
+        if request.url.path.hasSuffix("/signout") {
+            if holdSignOut { await withCheckedContinuation { signOutWaiter = $0 } }
+            return NhostRawResponse(status: 200, body: Data())
+        }
         if request.url.path == "/v1" { return NhostRawResponse(status: 200, body: Data(#"{"data":{}}"#.utf8)) }
         throw URLError(.unsupportedURL) // Never fall through to a real network transport.
     }

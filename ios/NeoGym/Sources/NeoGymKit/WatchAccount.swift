@@ -239,11 +239,15 @@ public final class WatchAccountModel: ObservableObject {
         reconcile(forceFetch: true)
     }
 
-    /// Initial pairing requires a definitive signed-in phone hint.
+    /// Pairing requires a definitive phone hint; only a rejected same-user
+    /// session may be replaced before local sign-out.
     public var assistedSignInUserID: String? {
-        guard case .known(.signedIn(let id)) = phone, observedAuthState.session == nil else { return nil }
+        guard case .known(.signedIn(let id)) = phone, !explicitlyClearing, clearTask == nil else { return nil }
+        if let session = observedAuthState.session {
+            guard session.user?.id == id, state == .reauthenticate || state == .authError else { return nil }
+        }
         switch state {
-        case .signedOut, .matchPhone, .reauthenticate: return id
+        case .signedOut, .matchPhone, .reauthenticate, .authError: return id
         default: return nil
         }
     }
@@ -477,6 +481,19 @@ public final class WatchAccountModel: ObservableObject {
 }
 
 extension WatchAccountModel {
+    /// Presentation only: a locally valid, owner-eligible PAT can still be
+    /// rejected by Auth. Explicit phone pairing does not require a saved PAT.
+    public var hasRestorablePAT: Bool {
+        guard !explicitSignOut, !explicitlyClearing, clearTask == nil,
+              let credential = try? patStore?.load(), credential.isValid(at: now()) else { return false }
+        if let session = observedAuthState.session, session.user?.id != credential.userID { return false }
+        switch phone {
+        case .pending, .known(.signedOut): return false
+        case .known(.signedIn(let id)): return id == credential.userID
+        case .unknown: return true
+        }
+    }
+
     /// Store a phone-issued credential before signing in, so a suspended watch
     /// can retry with the same PAT instead of losing a one-shot transfer.
     public func acceptPAT(_ credential: WatchPATCredential) async -> Bool {
