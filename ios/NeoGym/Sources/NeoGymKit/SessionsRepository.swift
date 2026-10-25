@@ -1,36 +1,5 @@
 import Foundation
 
-public struct WorkoutProgressExercise: Decodable, Identifiable, Sendable, Equatable {
-    public let id: String
-    public let name: String
-    public let strength: ExerciseStrengthSummary?
-
-    public init(id: String, name: String, strength: ExerciseStrengthSummary? = nil) {
-        self.id = id
-        self.name = name
-        self.strength = strength
-    }
-}
-
-public struct WorkoutProgressEntry: Decodable, Identifiable, Sendable, Equatable {
-    public let id: String
-    public let exercise: WorkoutProgressExercise
-    public let workoutSession: SessionPriorWorkoutSession
-    public let workoutSessionStrengthSets: [ExerciseStrengthSet]
-
-    public init(
-        id: String,
-        exercise: WorkoutProgressExercise,
-        workoutSession: SessionPriorWorkoutSession,
-        workoutSessionStrengthSets: [ExerciseStrengthSet]
-    ) {
-        self.id = id
-        self.exercise = exercise
-        self.workoutSession = workoutSession
-        self.workoutSessionStrengthSets = workoutSessionStrengthSets
-    }
-}
-
 public protocol SessionsRepositoryProtocol: Sendable {
     func listSessions(limit: Int, offset: Int) async throws -> [SessionListItem]
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error>
@@ -38,9 +7,6 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func sessionDetail(id: String) async throws -> SessionDetailModel?
     func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
     func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel]
-    func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]
-    func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]?
-    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error>
     func muscleSetProgressUpdates(
         fromDay: String, throughDay: String, timeZone: String
     ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error>
@@ -74,16 +40,10 @@ public extension SessionsRepositoryProtocol {
         singleValueUpdates { try await sessionDetail(id: id) }
     }
 
-    func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]? { nil }
-
     func muscleSetProgressUpdates(
         fromDay: String, throughDay: String, timeZone: String
     ) -> AsyncThrowingStream<[MuscleSetProgressRow], Error> {
         singleValueUpdates { throw GraphQLDomainError.missingData(operationName: "MuscleSetProgress") }
-    }
-
-    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
-        singleValueUpdates { try await strengthProgressEntries(since: since) }
     }
 }
 
@@ -163,39 +123,6 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             operationName: "PriorWorkoutSessions"
         )
         return data.workoutSessions
-    }
-
-    public func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry] {
-        let data: WorkoutStrengthProgressData = try await graphQL.execute(
-            query: Self.workoutStrengthProgressQuery,
-            variables: ["since": GraphQLScalars.timestamptz(since)],
-            operationName: "WorkoutStrengthProgress"
-        )
-        return data.workoutSessionExercises
-    }
-
-    public func cachedStrengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry]? {
-        let data: WorkoutStrengthProgressData? = try await graphQL.cachedSnapshot(
-            WorkoutStrengthProgressData.self,
-            query: Self.workoutStrengthProgressQuery,
-            variables: ["since": GraphQLScalars.timestamptz(since)],
-            operationName: "WorkoutStrengthProgress",
-            namespace: "sessions",
-            tags: ["sessions"]
-        )
-        return data?.workoutSessionExercises
-    }
-
-    public func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
-        graphQL.cachedValues(
-            WorkoutStrengthProgressData.self,
-            query: Self.workoutStrengthProgressQuery,
-            variables: ["since": GraphQLScalars.timestamptz(since)],
-            operationName: "WorkoutStrengthProgress",
-            namespace: "sessions",
-            tags: ["sessions"],
-            transform: \WorkoutStrengthProgressData.workoutSessionExercises
-        )
     }
 
     public func muscleSetProgressUpdates(
@@ -365,10 +292,6 @@ private struct MuscleSetProgressData: Decodable, Sendable {
     let muscleSetProgress: [MuscleSetProgressRow]
 }
 
-private struct WorkoutStrengthProgressData: Decodable, Sendable {
-    let workoutSessionExercises: [WorkoutProgressEntry]
-}
-
 private struct UpdateSessionData: Decodable, Sendable {
     let updateWorkoutSession: MutationIdPayload?
 }
@@ -528,20 +451,6 @@ public extension SessionsRepository {
       muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $timeZone}) {
         day muscleGroup
         rollingDirectSets rollingIndirectSets rollingWeightedSets
-      }
-    }
-    """
-
-    static let workoutStrengthProgressQuery = """
-    query WorkoutStrengthProgress($since: timestamptz!) {
-      workoutSessionExercises(
-        where: { kind: { _eq: "strength" }, workoutSessionStrengthSets: {}, workoutSession: { startedAt: { _gte: $since } } }
-        order_by: { workoutSession: { startedAt: asc } }
-      ) {
-        id
-        exercise { id name strength { doubleWeight } }
-        workoutSession { id startedAt }
-        workoutSessionStrengthSets { id setNumber reps weight }
       }
     }
     """
