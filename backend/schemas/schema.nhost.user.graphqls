@@ -280,6 +280,47 @@ enum exerciseSecondaryMuscleGroups_select_column {
   muscleGroup
 }
 """
+select columns of table "exercise_strength_history_rows"
+"""
+enum exerciseStrengthHistoryRows_select_column {
+  """
+  column name
+  """
+  exerciseId
+  """
+  column name
+  """
+  sessionId
+  """
+  column name
+  """
+  workoutId
+  """
+  column name
+  """
+  startedAt
+  """
+  column name
+  """
+  loggedSets
+  """
+  column name
+  """
+  completedSets
+  """
+  column name
+  """
+  reps
+  """
+  column name
+  """
+  volume
+  """
+  column name
+  """
+  estimatedOneRepMax
+}
+"""
 unique or primary key constraints on table "exercises_cardio"
 """
 enum exercisesCardio_constraint {
@@ -1049,6 +1090,7 @@ enum muscleGroups_enum {
   calves
   chest
   forearms
+  front_delts
   glutes
   hamstrings
   lats
@@ -1056,7 +1098,9 @@ enum muscleGroups_enum {
   middle_back
   neck
   quadriceps
+  rear_delts
   shoulders
+  side_delts
   traps
   triceps
 }
@@ -1072,6 +1116,43 @@ enum muscleGroups_select_column {
   column name
   """
   comment
+}
+"""
+select columns of table "muscle_set_progress_rows"
+"""
+enum muscleSetProgressRows_select_column {
+  """
+  column name
+  """
+  day
+  """
+  column name
+  """
+  muscleGroup
+  """
+  column name
+  """
+  directSets
+  """
+  column name
+  """
+  indirectSets
+  """
+  column name
+  """
+  weightedSets
+  """
+  column name
+  """
+  rollingDirectSets
+  """
+  column name
+  """
+  rollingIndirectSets
+  """
+  column name
+  """
+  rollingWeightedSets
 }
 """
 unique or primary key constraints on table "nutrition_days"
@@ -1865,6 +1946,39 @@ enum workoutSessions_update_column {
   column name
   """
   startedAt
+}
+"""
+select columns of table "workout_strength_history_rows"
+"""
+enum workoutStrengthHistoryRows_select_column {
+  """
+  column name
+  """
+  workoutId
+  """
+  column name
+  """
+  sessionId
+  """
+  column name
+  """
+  startedAt
+  """
+  column name
+  """
+  loggedSets
+  """
+  column name
+  """
+  completedSets
+  """
+  column name
+  """
+  reps
+  """
+  column name
+  """
+  volume
 }
 """
 unique or primary key constraints on table "workouts"
@@ -2696,6 +2810,24 @@ type exerciseSecondaryMuscleGroups_min_fields {
   exerciseId: uuid
 }
 """
+columns and relationships of "exercise_strength_history_rows"
+"""
+type exerciseStrengthHistoryRows {
+  exerciseId: uuid!
+  sessionId: uuid!
+  workoutId: uuid
+  startedAt: timestamptz!
+  loggedSets: Int!
+  completedSets: Int!
+  reps: Int!
+  volume: numeric!
+  estimatedOneRepMax: numeric
+  """
+  An object relationship
+  """
+  workoutSession: workoutSessions
+}
+"""
 columns and relationships of "exercises"
 """
 type exercises {
@@ -2717,6 +2849,40 @@ type exercises {
   GENERATED STORED discriminator derived from category ('cardio' iff category='cardio', else 'strength'). Read-only — set indirectly via category. Used as the FK target alongside id for child tables (workout_exercises, workout_session_exercises, exercises_strength, exercises_cardio), making the strength/cardio split structural rather than trigger-based.
   """
   kind: String
+  """
+  A computed field, executes function "exercise_strength_history"
+  """
+  strengthHistory(
+    """
+    input parameters for computed field "strengthHistory" defined on table "exercises"
+    """
+    args: strengthHistory_exercises_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]
   """
   An object relationship
   """
@@ -4541,6 +4707,19 @@ aggregate min on columns
 type muscleGroups_min_fields {
   value: String
   comment: String
+}
+"""
+columns and relationships of "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows {
+  day: date!
+  muscleGroup: String!
+  directSets: Int!
+  indirectSets: Int!
+  weightedSets: numeric!
+  rollingDirectSets: Int!
+  rollingIndirectSets: Int!
+  rollingWeightedSets: numeric!
 }
 """
 mutation root
@@ -8394,6 +8573,35 @@ type query_root {
     where: exerciseSecondaryMuscleGroups_bool_exp
   ): exerciseSecondaryMuscleGroups_aggregate!
   """
+  fetch data from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
   fetch data from the table: "exercises"
   """
   exercises(
@@ -9108,6 +9316,35 @@ type query_root {
     """
     where: muscleGroups_bool_exp
   ): muscleGroups_aggregate!
+  """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
   """
   fetch data from the table: "nutrition_days"
   """
@@ -9853,6 +10090,35 @@ type query_root {
     where: workoutSessions_bool_exp
   ): workoutSessions_aggregate!
   """
+  fetch data from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
   fetch data from the table: "workouts"
   """
   workouts(
@@ -9947,6 +10213,108 @@ type query_root {
   fetch data from the table: "storage.files" using primary key columns
   """
   file(id: uuid!): files
+  """
+  execute function "exercise_strength_report" which returns "exerciseStrengthHistoryRows"
+  """
+  exerciseStrengthReport(
+    """
+    input parameters for function "exerciseStrengthReport"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  execute function "muscle_set_progress" which returns "muscleSetProgressRows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  execute function "workout_strength_report" which returns "workoutStrengthHistoryRows"
+  """
+  workoutStrengthReport(
+    """
+    input parameters for function "workoutStrengthReport"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
 }
 type subscription_root {
   """
@@ -10597,6 +10965,54 @@ type subscription_root {
     """
     where: exerciseSecondaryMuscleGroups_bool_exp
   ): [exerciseSecondaryMuscleGroups!]!
+  """
+  fetch data from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  fetch data from the table in a streaming manner: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [exerciseStrengthHistoryRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
   """
   fetch data from the table: "exercises"
   """
@@ -11540,6 +11956,54 @@ type subscription_root {
     """
     where: muscleGroups_bool_exp
   ): [muscleGroups!]!
+  """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch data from the table in a streaming manner: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [muscleSetProgressRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
   """
   fetch data from the table: "nutrition_days"
   """
@@ -12513,6 +12977,54 @@ type subscription_root {
     where: workoutSessions_bool_exp
   ): [workoutSessions!]!
   """
+  fetch data from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  fetch data from the table in a streaming manner: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [workoutStrengthHistoryRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
   fetch data from the table: "workouts"
   """
   workouts(
@@ -12645,6 +13157,108 @@ type subscription_root {
     """
     where: files_bool_exp
   ): [files!]!
+  """
+  execute function "exercise_strength_report" which returns "exerciseStrengthHistoryRows"
+  """
+  exerciseStrengthReport(
+    """
+    input parameters for function "exerciseStrengthReport"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  execute function "muscle_set_progress" which returns "muscleSetProgressRows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  execute function "workout_strength_report" which returns "workoutStrengthHistoryRows"
+  """
+  workoutStrengthReport(
+    """
+    input parameters for function "workoutStrengthReport"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
 }
 """
 columns and relationships of "workout_exercises"
@@ -13504,6 +14118,22 @@ type workoutSessions_mutation_response {
   returning: [workoutSessions!]!
 }
 """
+columns and relationships of "workout_strength_history_rows"
+"""
+type workoutStrengthHistoryRows {
+  workoutId: uuid!
+  sessionId: uuid!
+  startedAt: timestamptz!
+  loggedSets: Int!
+  completedSets: Int!
+  reps: Int!
+  volume: numeric!
+  """
+  An object relationship
+  """
+  workoutSession: workoutSessions
+}
+"""
 columns and relationships of "workouts"
 """
 type workouts {
@@ -13514,6 +14144,40 @@ type workouts {
   isPublic: Boolean!
   createdAt: timestamptz!
   updatedAt: timestamptz!
+  """
+  A computed field, executes function "workout_strength_history"
+  """
+  strengthHistory(
+    """
+    input parameters for computed field "strengthHistory" defined on table "workouts"
+    """
+    args: strengthHistory_workouts_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]
   """
   An array relationship
   """
@@ -14392,6 +15056,72 @@ Initial value of the column from where the streaming should start
 input exerciseSecondaryMuscleGroups_stream_cursor_value_input {
   exerciseId: uuid
   muscleGroup: muscleGroups_enum
+}
+"""
+Boolean expression to filter rows from the table "exercise_strength_history_rows". All fields are combined with a logical 'AND'.
+"""
+input exerciseStrengthHistoryRows_bool_exp {
+  _and: [exerciseStrengthHistoryRows_bool_exp!]
+  _not: exerciseStrengthHistoryRows_bool_exp
+  _or: [exerciseStrengthHistoryRows_bool_exp!]
+  exerciseId: uuid_comparison_exp
+  sessionId: uuid_comparison_exp
+  workoutId: uuid_comparison_exp
+  startedAt: timestamptz_comparison_exp
+  loggedSets: Int_comparison_exp
+  completedSets: Int_comparison_exp
+  reps: Int_comparison_exp
+  volume: numeric_comparison_exp
+  estimatedOneRepMax: numeric_comparison_exp
+  workoutSession: workoutSessions_bool_exp
+}
+"""
+Ordering options when selecting data from "exercise_strength_history_rows".
+"""
+input exerciseStrengthHistoryRows_order_by {
+  exerciseId: order_by
+  sessionId: order_by
+  workoutId: order_by
+  startedAt: order_by
+  loggedSets: order_by
+  completedSets: order_by
+  reps: order_by
+  volume: order_by
+  estimatedOneRepMax: order_by
+  workoutSession: workoutSessions_order_by
+}
+"""
+Streaming cursor of the table "exerciseStrengthHistoryRows"
+"""
+input exerciseStrengthHistoryRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: exerciseStrengthHistoryRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input exerciseStrengthHistoryRows_stream_cursor_value_input {
+  exerciseId: uuid
+  sessionId: uuid
+  workoutId: uuid
+  startedAt: timestamptz
+  loggedSets: Int
+  completedSets: Int
+  reps: Int
+  volume: numeric
+  estimatedOneRepMax: numeric
+}
+input exerciseStrengthReport_args {
+  exercise_id: uuid!
+  from_day: date!
+  through_day: date!
+  time_zone: String!
 }
 """
 append existing jsonb value of filtered columns with new jsonb value
@@ -16218,6 +16948,66 @@ input muscleGroups_stream_cursor_value_input {
   comment: String
 }
 """
+Boolean expression to filter rows from the table "muscle_set_progress_rows". All fields are combined with a logical 'AND'.
+"""
+input muscleSetProgressRows_bool_exp {
+  _and: [muscleSetProgressRows_bool_exp!]
+  _not: muscleSetProgressRows_bool_exp
+  _or: [muscleSetProgressRows_bool_exp!]
+  day: date_comparison_exp
+  muscleGroup: String_comparison_exp
+  directSets: Int_comparison_exp
+  indirectSets: Int_comparison_exp
+  weightedSets: numeric_comparison_exp
+  rollingDirectSets: Int_comparison_exp
+  rollingIndirectSets: Int_comparison_exp
+  rollingWeightedSets: numeric_comparison_exp
+}
+"""
+Ordering options when selecting data from "muscle_set_progress_rows".
+"""
+input muscleSetProgressRows_order_by {
+  day: order_by
+  muscleGroup: order_by
+  directSets: order_by
+  indirectSets: order_by
+  weightedSets: order_by
+  rollingDirectSets: order_by
+  rollingIndirectSets: order_by
+  rollingWeightedSets: order_by
+}
+"""
+Streaming cursor of the table "muscleSetProgressRows"
+"""
+input muscleSetProgressRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: muscleSetProgressRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input muscleSetProgressRows_stream_cursor_value_input {
+  day: date
+  muscleGroup: String
+  directSets: Int
+  indirectSets: Int
+  weightedSets: numeric
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+}
+input muscleSetProgress_args {
+  from_day: date!
+  through_day: date!
+  time_zone: String!
+}
+"""
 Boolean expression to compare columns of type "numeric". All fields are combined with logical 'AND'.
 """
 input numeric_comparison_exp {
@@ -17687,6 +18477,14 @@ input nutritionPlans_updates {
   """
   where: nutritionPlans_bool_exp!
 }
+input strengthHistory_exercises_args {
+  from_at: timestamptz
+  before_at: timestamptz
+}
+input strengthHistory_workouts_args {
+  from_at: timestamptz
+  before_at: timestamptz
+}
 """
 Boolean expression to compare columns of type "time". All fields are combined with logical 'AND'.
 """
@@ -19003,6 +19801,66 @@ input workoutSessions_updates {
   filter the rows which have to be updated
   """
   where: workoutSessions_bool_exp!
+}
+"""
+Boolean expression to filter rows from the table "workout_strength_history_rows". All fields are combined with a logical 'AND'.
+"""
+input workoutStrengthHistoryRows_bool_exp {
+  _and: [workoutStrengthHistoryRows_bool_exp!]
+  _not: workoutStrengthHistoryRows_bool_exp
+  _or: [workoutStrengthHistoryRows_bool_exp!]
+  workoutId: uuid_comparison_exp
+  sessionId: uuid_comparison_exp
+  startedAt: timestamptz_comparison_exp
+  loggedSets: Int_comparison_exp
+  completedSets: Int_comparison_exp
+  reps: Int_comparison_exp
+  volume: numeric_comparison_exp
+  workoutSession: workoutSessions_bool_exp
+}
+"""
+Ordering options when selecting data from "workout_strength_history_rows".
+"""
+input workoutStrengthHistoryRows_order_by {
+  workoutId: order_by
+  sessionId: order_by
+  startedAt: order_by
+  loggedSets: order_by
+  completedSets: order_by
+  reps: order_by
+  volume: order_by
+  workoutSession: workoutSessions_order_by
+}
+"""
+Streaming cursor of the table "workoutStrengthHistoryRows"
+"""
+input workoutStrengthHistoryRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: workoutStrengthHistoryRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input workoutStrengthHistoryRows_stream_cursor_value_input {
+  workoutId: uuid
+  sessionId: uuid
+  startedAt: timestamptz
+  loggedSets: Int
+  completedSets: Int
+  reps: Int
+  volume: numeric
+}
+input workoutStrengthReport_args {
+  workout_id: uuid!
+  from_day: date!
+  through_day: date!
+  time_zone: String!
 }
 """
 Boolean expression to filter rows from the table "workouts". All fields are combined with a logical 'AND'.

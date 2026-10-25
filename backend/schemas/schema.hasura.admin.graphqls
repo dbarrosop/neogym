@@ -9,6 +9,7 @@ scalar citext
 scalar date
 scalar jsonb
 scalar numeric
+scalar smallint
 scalar time
 scalar timestamptz
 scalar uuid
@@ -1356,6 +1357,51 @@ enum exerciseSecondaryMuscleGroups_update_column {
   muscleGroup
 }
 """
+select columns of table "exercise_strength_history_rows"
+"""
+enum exerciseStrengthHistoryRows_select_column {
+  """
+  column name
+  """
+  completedSets
+  """
+  column name
+  """
+  estimatedOneRepMax
+  """
+  column name
+  """
+  exerciseId
+  """
+  column name
+  """
+  loggedSets
+  """
+  column name
+  """
+  reps
+  """
+  column name
+  """
+  sessionId
+  """
+  column name
+  """
+  startedAt
+  """
+  column name
+  """
+  userId
+  """
+  column name
+  """
+  volume
+  """
+  column name
+  """
+  workoutId
+}
+"""
 unique or primary key constraints on table "exercises_cardio"
 """
 enum exercisesCardio_constraint {
@@ -2402,6 +2448,7 @@ enum muscleGroups_enum {
   calves
   chest
   forearms
+  front_delts
   glutes
   hamstrings
   lats
@@ -2409,7 +2456,9 @@ enum muscleGroups_enum {
   middle_back
   neck
   quadriceps
+  rear_delts
   shoulders
+  side_delts
   traps
   triceps
 }
@@ -2438,6 +2487,47 @@ enum muscleGroups_update_column {
   column name
   """
   value
+}
+"""
+select columns of table "muscle_set_progress_rows"
+"""
+enum muscleSetProgressRows_select_column {
+  """
+  column name
+  """
+  day
+  """
+  column name
+  """
+  directSets
+  """
+  column name
+  """
+  indirectSets
+  """
+  column name
+  """
+  muscleGroup
+  """
+  column name
+  """
+  rollingDirectSets
+  """
+  column name
+  """
+  rollingIndirectSets
+  """
+  column name
+  """
+  rollingWeightedSets
+  """
+  column name
+  """
+  userId
+  """
+  column name
+  """
+  weightedSets
 }
 """
 unique or primary key constraints on table "nutrition_days"
@@ -3126,6 +3216,10 @@ enum users_select_column {
   """
   column name
   """
+  new_phone_number
+  """
+  column name
+  """
   otpHash
   """
   column name
@@ -3138,7 +3232,15 @@ enum users_select_column {
   """
   column name
   """
+  otp_attempts
+  """
+  column name
+  """
   passwordHash
+  """
+  column name
+  """
+  pending_sms_deanonymize_options
   """
   column name
   """
@@ -3273,6 +3375,10 @@ enum users_update_column {
   """
   column name
   """
+  new_phone_number
+  """
+  column name
+  """
   otpHash
   """
   column name
@@ -3285,7 +3391,15 @@ enum users_update_column {
   """
   column name
   """
+  otp_attempts
+  """
+  column name
+  """
   passwordHash
+  """
+  column name
+  """
+  pending_sms_deanonymize_options
   """
   column name
   """
@@ -3819,6 +3933,43 @@ enum workoutSessions_update_column {
   column name
   """
   userId
+  """
+  column name
+  """
+  workoutId
+}
+"""
+select columns of table "workout_strength_history_rows"
+"""
+enum workoutStrengthHistoryRows_select_column {
+  """
+  column name
+  """
+  completedSets
+  """
+  column name
+  """
+  loggedSets
+  """
+  column name
+  """
+  reps
+  """
+  column name
+  """
+  sessionId
+  """
+  column name
+  """
+  startedAt
+  """
+  column name
+  """
+  userId
+  """
+  column name
+  """
+  volume
   """
   column name
   """
@@ -6258,6 +6409,171 @@ type exerciseSecondaryMuscleGroups_mutation_response {
   returning: [exerciseSecondaryMuscleGroups!]!
 }
 """
+columns and relationships of "exercise_strength_history_rows"
+"""
+type exerciseStrengthHistoryRows {
+  completedSets: Int!
+  estimatedOneRepMax: numeric
+  exerciseId: uuid!
+  loggedSets: Int!
+  reps: Int!
+  sessionId: uuid!
+  startedAt: timestamptz!
+  userId: uuid!
+  volume: numeric!
+  workoutId: uuid
+  """
+  An object relationship
+  """
+  workoutSession: workoutSessions
+}
+"""
+aggregated selection of "exercise_strength_history_rows"
+"""
+type exerciseStrengthHistoryRows_aggregate {
+  aggregate: exerciseStrengthHistoryRows_aggregate_fields
+  nodes: [exerciseStrengthHistoryRows!]!
+}
+"""
+aggregate fields of "exercise_strength_history_rows"
+"""
+type exerciseStrengthHistoryRows_aggregate_fields {
+  avg: exerciseStrengthHistoryRows_avg_fields
+  count(columns: [exerciseStrengthHistoryRows_select_column!], distinct: Boolean): Int!
+  max: exerciseStrengthHistoryRows_max_fields
+  min: exerciseStrengthHistoryRows_min_fields
+  stddev: exerciseStrengthHistoryRows_stddev_fields
+  stddev_pop: exerciseStrengthHistoryRows_stddev_pop_fields
+  stddev_samp: exerciseStrengthHistoryRows_stddev_samp_fields
+  sum: exerciseStrengthHistoryRows_sum_fields
+  var_pop: exerciseStrengthHistoryRows_var_pop_fields
+  var_samp: exerciseStrengthHistoryRows_var_samp_fields
+  variance: exerciseStrengthHistoryRows_variance_fields
+}
+"""
+aggregate avg on columns
+"""
+type exerciseStrengthHistoryRows_avg_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate max on columns
+"""
+type exerciseStrengthHistoryRows_max_fields {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  exerciseId: uuid
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+aggregate min on columns
+"""
+type exerciseStrengthHistoryRows_min_fields {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  exerciseId: uuid
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+response of any mutation on the table "exercise_strength_history_rows"
+"""
+type exerciseStrengthHistoryRows_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [exerciseStrengthHistoryRows!]!
+}
+"""
+aggregate stddev on columns
+"""
+type exerciseStrengthHistoryRows_stddev_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate stddev_pop on columns
+"""
+type exerciseStrengthHistoryRows_stddev_pop_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate stddev_samp on columns
+"""
+type exerciseStrengthHistoryRows_stddev_samp_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate sum on columns
+"""
+type exerciseStrengthHistoryRows_sum_fields {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  loggedSets: Int
+  reps: Int
+  volume: numeric
+}
+"""
+aggregate var_pop on columns
+"""
+type exerciseStrengthHistoryRows_var_pop_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate var_samp on columns
+"""
+type exerciseStrengthHistoryRows_var_samp_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate variance on columns
+"""
+type exerciseStrengthHistoryRows_variance_fields {
+  completedSets: Float
+  estimatedOneRepMax: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
 columns and relationships of "exercises"
 """
 type exercises {
@@ -6351,6 +6667,40 @@ type exercises {
   An object relationship
   """
   strength: exercisesStrength
+  """
+  A computed field, executes function "exercise_strength_history"
+  """
+  strengthHistory(
+    """
+    input parameters for computed field "strengthHistory" defined on table "exercises"
+    """
+    args: strengthHistory_exercises_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]
   updatedAt: timestamptz!
   """
   An object relationship
@@ -8277,6 +8627,172 @@ type muscleGroups_mutation_response {
   returning: [muscleGroups!]!
 }
 """
+columns and relationships of "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows {
+  day: date!
+  directSets: Int!
+  indirectSets: Int!
+  muscleGroup: String!
+  rollingDirectSets: Int!
+  rollingIndirectSets: Int!
+  rollingWeightedSets: numeric!
+  userId: uuid!
+  weightedSets: numeric!
+}
+"""
+aggregated selection of "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows_aggregate {
+  aggregate: muscleSetProgressRows_aggregate_fields
+  nodes: [muscleSetProgressRows!]!
+}
+"""
+aggregate fields of "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows_aggregate_fields {
+  avg: muscleSetProgressRows_avg_fields
+  count(columns: [muscleSetProgressRows_select_column!], distinct: Boolean): Int!
+  max: muscleSetProgressRows_max_fields
+  min: muscleSetProgressRows_min_fields
+  stddev: muscleSetProgressRows_stddev_fields
+  stddev_pop: muscleSetProgressRows_stddev_pop_fields
+  stddev_samp: muscleSetProgressRows_stddev_samp_fields
+  sum: muscleSetProgressRows_sum_fields
+  var_pop: muscleSetProgressRows_var_pop_fields
+  var_samp: muscleSetProgressRows_var_samp_fields
+  variance: muscleSetProgressRows_variance_fields
+}
+"""
+aggregate avg on columns
+"""
+type muscleSetProgressRows_avg_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate max on columns
+"""
+type muscleSetProgressRows_max_fields {
+  day: date
+  directSets: Int
+  indirectSets: Int
+  muscleGroup: String
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  userId: uuid
+  weightedSets: numeric
+}
+"""
+aggregate min on columns
+"""
+type muscleSetProgressRows_min_fields {
+  day: date
+  directSets: Int
+  indirectSets: Int
+  muscleGroup: String
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  userId: uuid
+  weightedSets: numeric
+}
+"""
+response of any mutation on the table "muscle_set_progress_rows"
+"""
+type muscleSetProgressRows_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [muscleSetProgressRows!]!
+}
+"""
+aggregate stddev on columns
+"""
+type muscleSetProgressRows_stddev_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate stddev_pop on columns
+"""
+type muscleSetProgressRows_stddev_pop_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate stddev_samp on columns
+"""
+type muscleSetProgressRows_stddev_samp_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate sum on columns
+"""
+type muscleSetProgressRows_sum_fields {
+  directSets: Int
+  indirectSets: Int
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  weightedSets: numeric
+}
+"""
+aggregate var_pop on columns
+"""
+type muscleSetProgressRows_var_pop_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate var_samp on columns
+"""
+type muscleSetProgressRows_var_samp_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
+aggregate variance on columns
+"""
+type muscleSetProgressRows_variance_fields {
+  directSets: Float
+  indirectSets: Float
+  rollingDirectSets: Float
+  rollingIndirectSets: Float
+  rollingWeightedSets: Float
+  weightedSets: Float
+}
+"""
 mutation root
 """
 type mutation_root {
@@ -8917,6 +9433,33 @@ type mutation_root {
     """
     where: workouts_bool_exp!
   ): workouts_mutation_response
+  """
+  delete data from the table: "exercise_strength_history_rows"
+  """
+  delete_exerciseStrengthHistoryRows(
+    """
+    filter the rows which have to be deleted
+    """
+    where: exerciseStrengthHistoryRows_bool_exp!
+  ): exerciseStrengthHistoryRows_mutation_response
+  """
+  delete data from the table: "muscle_set_progress_rows"
+  """
+  delete_muscleSetProgressRows(
+    """
+    filter the rows which have to be deleted
+    """
+    where: muscleSetProgressRows_bool_exp!
+  ): muscleSetProgressRows_mutation_response
+  """
+  delete data from the table: "workout_strength_history_rows"
+  """
+  delete_workoutStrengthHistoryRows(
+    """
+    filter the rows which have to be deleted
+    """
+    where: workoutStrengthHistoryRows_bool_exp!
+  ): workoutStrengthHistoryRows_mutation_response
   """
   insert a single row into the table: "auth.oauth2_auth_requests"
   """
@@ -10290,6 +10833,60 @@ type mutation_root {
     on_conflict: workouts_on_conflict
   ): workouts_mutation_response
   """
+  insert data into the table: "exercise_strength_history_rows"
+  """
+  insert_exerciseStrengthHistoryRows(
+    """
+    the rows to be inserted
+    """
+    objects: [exerciseStrengthHistoryRows_insert_input!]!
+  ): exerciseStrengthHistoryRows_mutation_response
+  """
+  insert a single row into the table: "exercise_strength_history_rows"
+  """
+  insert_exerciseStrengthHistoryRows_one(
+    """
+    the row to be inserted
+    """
+    object: exerciseStrengthHistoryRows_insert_input!
+  ): exerciseStrengthHistoryRows
+  """
+  insert data into the table: "muscle_set_progress_rows"
+  """
+  insert_muscleSetProgressRows(
+    """
+    the rows to be inserted
+    """
+    objects: [muscleSetProgressRows_insert_input!]!
+  ): muscleSetProgressRows_mutation_response
+  """
+  insert a single row into the table: "muscle_set_progress_rows"
+  """
+  insert_muscleSetProgressRows_one(
+    """
+    the row to be inserted
+    """
+    object: muscleSetProgressRows_insert_input!
+  ): muscleSetProgressRows
+  """
+  insert data into the table: "workout_strength_history_rows"
+  """
+  insert_workoutStrengthHistoryRows(
+    """
+    the rows to be inserted
+    """
+    objects: [workoutStrengthHistoryRows_insert_input!]!
+  ): workoutStrengthHistoryRows_mutation_response
+  """
+  insert a single row into the table: "workout_strength_history_rows"
+  """
+  insert_workoutStrengthHistoryRows_one(
+    """
+    the row to be inserted
+    """
+    object: workoutStrengthHistoryRows_insert_input!
+  ): workoutStrengthHistoryRows
+  """
   update single row of the table: "auth.oauth2_auth_requests"
   """
   updateAuthOauth2AuthRequest(
@@ -11644,6 +12241,11 @@ type mutation_root {
     _delete_key: users_delete_key_input
 
     """
+    increments the numeric columns with given value of the filtered values
+    """
+    _inc: users_inc_input
+
+    """
     prepend existing jsonb value of filtered columns with new jsonb value
     """
     _prepend: users_prepend_input
@@ -11676,6 +12278,11 @@ type mutation_root {
     delete key/value pair or string element. key/value pairs are matched based on their key value
     """
     _delete_key: users_delete_key_input
+
+    """
+    increments the numeric columns with given value of the filtered values
+    """
+    _inc: users_inc_input
 
     """
     prepend existing jsonb value of filtered columns with new jsonb value
@@ -12206,6 +12813,34 @@ type mutation_root {
     updates: [exerciseSecondaryMuscleGroups_updates!]!
   ): [exerciseSecondaryMuscleGroups_mutation_response]
   """
+  update data of the table: "exercise_strength_history_rows"
+  """
+  update_exerciseStrengthHistoryRows(
+    """
+    increments the numeric columns with given value of the filtered values
+    """
+    _inc: exerciseStrengthHistoryRows_inc_input
+
+    """
+    sets the columns of the filtered rows to the given values
+    """
+    _set: exerciseStrengthHistoryRows_set_input
+
+    """
+    filter the rows which have to be updated
+    """
+    where: exerciseStrengthHistoryRows_bool_exp!
+  ): exerciseStrengthHistoryRows_mutation_response
+  """
+  update multiples rows of table: "exercise_strength_history_rows"
+  """
+  update_exerciseStrengthHistoryRows_many(
+    """
+    updates to execute, in order
+    """
+    updates: [exerciseStrengthHistoryRows_updates!]!
+  ): [exerciseStrengthHistoryRows_mutation_response]
+  """
   update multiples rows of table: "exercises_cardio"
   """
   update_exercisesCardio_many(
@@ -12322,6 +12957,34 @@ type mutation_root {
     """
     updates: [muscleGroups_updates!]!
   ): [muscleGroups_mutation_response]
+  """
+  update data of the table: "muscle_set_progress_rows"
+  """
+  update_muscleSetProgressRows(
+    """
+    increments the numeric columns with given value of the filtered values
+    """
+    _inc: muscleSetProgressRows_inc_input
+
+    """
+    sets the columns of the filtered rows to the given values
+    """
+    _set: muscleSetProgressRows_set_input
+
+    """
+    filter the rows which have to be updated
+    """
+    where: muscleSetProgressRows_bool_exp!
+  ): muscleSetProgressRows_mutation_response
+  """
+  update multiples rows of table: "muscle_set_progress_rows"
+  """
+  update_muscleSetProgressRows_many(
+    """
+    updates to execute, in order
+    """
+    updates: [muscleSetProgressRows_updates!]!
+  ): [muscleSetProgressRows_mutation_response]
   """
   update multiples rows of table: "nutrition_days"
   """
@@ -12448,6 +13111,34 @@ type mutation_root {
     """
     updates: [workoutSessions_updates!]!
   ): [workoutSessions_mutation_response]
+  """
+  update data of the table: "workout_strength_history_rows"
+  """
+  update_workoutStrengthHistoryRows(
+    """
+    increments the numeric columns with given value of the filtered values
+    """
+    _inc: workoutStrengthHistoryRows_inc_input
+
+    """
+    sets the columns of the filtered rows to the given values
+    """
+    _set: workoutStrengthHistoryRows_set_input
+
+    """
+    filter the rows which have to be updated
+    """
+    where: workoutStrengthHistoryRows_bool_exp!
+  ): workoutStrengthHistoryRows_mutation_response
+  """
+  update multiples rows of table: "workout_strength_history_rows"
+  """
+  update_workoutStrengthHistoryRows_many(
+    """
+    updates to execute, in order
+    """
+    updates: [workoutStrengthHistoryRows_updates!]!
+  ): [workoutStrengthHistoryRows_mutation_response]
   """
   update multiples rows of table: "workouts"
   """
@@ -15027,6 +15718,132 @@ type query_root {
   """
   exerciseStrength(exerciseId: uuid!): exercisesStrength
   """
+  fetch data from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  fetch aggregated fields from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): exerciseStrengthHistoryRows_aggregate!
+  """
+  execute function "exercise_strength_report" which returns "exercise_strength_history_rows"
+  """
+  exerciseStrengthReport(
+    """
+    input parameters for function "exerciseStrengthReport"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  execute function "exercise_strength_report" and query aggregates on result of table type "exercise_strength_history_rows"
+  """
+  exerciseStrengthReport_aggregate(
+    """
+    input parameters for function "exerciseStrengthReport_aggregate"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): exerciseStrengthHistoryRows_aggregate!
+  """
   An array relationship
   """
   exercises(
@@ -15820,6 +16637,132 @@ type query_root {
     """
     where: muscleGroups_bool_exp
   ): muscleGroups_aggregate!
+  """
+  execute function "muscle_set_progress" which returns "muscle_set_progress_rows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch aggregated fields from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): muscleSetProgressRows_aggregate!
+  """
+  execute function "muscle_set_progress" and query aggregates on result of table type "muscle_set_progress_rows"
+  """
+  muscleSetProgress_aggregate(
+    """
+    input parameters for function "muscleSetProgress_aggregate"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): muscleSetProgressRows_aggregate!
   """
   fetch data from the table: "nutrition_days" using primary key columns
   """
@@ -16692,6 +17635,132 @@ type query_root {
     """
     where: workoutSessions_bool_exp
   ): workoutSessions_aggregate!
+  """
+  fetch data from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  fetch aggregated fields from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): workoutStrengthHistoryRows_aggregate!
+  """
+  execute function "workout_strength_report" which returns "workout_strength_history_rows"
+  """
+  workoutStrengthReport(
+    """
+    input parameters for function "workoutStrengthReport"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  execute function "workout_strength_report" and query aggregates on result of table type "workout_strength_history_rows"
+  """
+  workoutStrengthReport_aggregate(
+    """
+    input parameters for function "workoutStrengthReport_aggregate"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): workoutStrengthHistoryRows_aggregate!
   """
   fetch data from the table: "workouts"
   """
@@ -18466,6 +19535,151 @@ type subscription_root {
   """
   exerciseStrength(exerciseId: uuid!): exercisesStrength
   """
+  fetch data from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  fetch aggregated fields from the table: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): exerciseStrengthHistoryRows_aggregate!
+  """
+  fetch data from the table in a streaming manner: "exercise_strength_history_rows"
+  """
+  exerciseStrengthHistoryRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [exerciseStrengthHistoryRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  execute function "exercise_strength_report" which returns "exercise_strength_history_rows"
+  """
+  exerciseStrengthReport(
+    """
+    input parameters for function "exerciseStrengthReport"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
+  execute function "exercise_strength_report" and query aggregates on result of table type "exercise_strength_history_rows"
+  """
+  exerciseStrengthReport_aggregate(
+    """
+    input parameters for function "exerciseStrengthReport_aggregate"
+    """
+    args: exerciseStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): exerciseStrengthHistoryRows_aggregate!
+  """
   An array relationship
   """
   exercises(
@@ -19506,6 +20720,151 @@ type subscription_root {
     """
     where: muscleGroups_bool_exp
   ): [muscleGroups!]!
+  """
+  execute function "muscle_set_progress" which returns "muscle_set_progress_rows"
+  """
+  muscleSetProgress(
+    """
+    input parameters for function "muscleSetProgress"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch data from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  fetch aggregated fields from the table: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): muscleSetProgressRows_aggregate!
+  """
+  fetch data from the table in a streaming manner: "muscle_set_progress_rows"
+  """
+  muscleSetProgressRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [muscleSetProgressRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): [muscleSetProgressRows!]!
+  """
+  execute function "muscle_set_progress" and query aggregates on result of table type "muscle_set_progress_rows"
+  """
+  muscleSetProgress_aggregate(
+    """
+    input parameters for function "muscleSetProgress_aggregate"
+    """
+    args: muscleSetProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [muscleSetProgressRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [muscleSetProgressRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: muscleSetProgressRows_bool_exp
+  ): muscleSetProgressRows_aggregate!
   """
   fetch data from the table: "nutrition_days" using primary key columns
   """
@@ -20645,6 +22004,151 @@ type subscription_root {
     where: workoutSessions_bool_exp
   ): [workoutSessions!]!
   """
+  fetch data from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  fetch aggregated fields from the table: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows_aggregate(
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): workoutStrengthHistoryRows_aggregate!
+  """
+  fetch data from the table in a streaming manner: "workout_strength_history_rows"
+  """
+  workoutStrengthHistoryRows_stream(
+    """
+    maximum number of rows returned in a single batch
+    """
+    batch_size: Int!
+
+    """
+    cursor to stream the results returned by the query
+    """
+    cursor: [workoutStrengthHistoryRows_stream_cursor_input]!
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  execute function "workout_strength_report" which returns "workout_strength_history_rows"
+  """
+  workoutStrengthReport(
+    """
+    input parameters for function "workoutStrengthReport"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]!
+  """
+  execute function "workout_strength_report" and query aggregates on result of table type "workout_strength_history_rows"
+  """
+  workoutStrengthReport_aggregate(
+    """
+    input parameters for function "workoutStrengthReport_aggregate"
+    """
+    args: workoutStrengthReport_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): workoutStrengthHistoryRows_aggregate!
+  """
   fetch data from the table: "workouts"
   """
   workouts(
@@ -20750,6 +22254,7 @@ type users {
     path: String
   ): jsonb
   newEmail: citext
+  new_phone_number: String
   """
   An array relationship
   """
@@ -20869,7 +22374,14 @@ type users {
   otpHash: String
   otpHashExpiresAt: timestamptz!
   otpMethodLastUsed: String
+  otp_attempts: smallint!
   passwordHash: String
+  pending_sms_deanonymize_options(
+    """
+    JSON select path
+    """
+    path: String
+  ): jsonb
   phoneNumber: String
   phoneNumberVerified: Boolean!
   """
@@ -21120,9 +22632,23 @@ type users_aggregate {
 aggregate fields of "auth.users"
 """
 type users_aggregate_fields {
+  avg: users_avg_fields
   count(columns: [users_select_column!], distinct: Boolean): Int!
   max: users_max_fields
   min: users_min_fields
+  stddev: users_stddev_fields
+  stddev_pop: users_stddev_pop_fields
+  stddev_samp: users_stddev_samp_fields
+  sum: users_sum_fields
+  var_pop: users_var_pop_fields
+  var_samp: users_var_samp_fields
+  variance: users_variance_fields
+}
+"""
+aggregate avg on columns
+"""
+type users_avg_fields {
+  otp_attempts: Float
 }
 """
 aggregate max on columns
@@ -21139,9 +22665,11 @@ type users_max_fields {
   lastSeen: timestamptz
   locale: String
   newEmail: citext
+  new_phone_number: String
   otpHash: String
   otpHashExpiresAt: timestamptz
   otpMethodLastUsed: String
+  otp_attempts: smallint
   passwordHash: String
   phoneNumber: String
   ticket: String
@@ -21164,9 +22692,11 @@ type users_min_fields {
   lastSeen: timestamptz
   locale: String
   newEmail: citext
+  new_phone_number: String
   otpHash: String
   otpHashExpiresAt: timestamptz
   otpMethodLastUsed: String
+  otp_attempts: smallint
   passwordHash: String
   phoneNumber: String
   ticket: String
@@ -21186,6 +22716,48 @@ type users_mutation_response {
   data from the rows affected by the mutation
   """
   returning: [users!]!
+}
+"""
+aggregate stddev on columns
+"""
+type users_stddev_fields {
+  otp_attempts: Float
+}
+"""
+aggregate stddev_pop on columns
+"""
+type users_stddev_pop_fields {
+  otp_attempts: Float
+}
+"""
+aggregate stddev_samp on columns
+"""
+type users_stddev_samp_fields {
+  otp_attempts: Float
+}
+"""
+aggregate sum on columns
+"""
+type users_sum_fields {
+  otp_attempts: smallint
+}
+"""
+aggregate var_pop on columns
+"""
+type users_var_pop_fields {
+  otp_attempts: Float
+}
+"""
+aggregate var_samp on columns
+"""
+type users_var_samp_fields {
+  otp_attempts: Float
+}
+"""
+aggregate variance on columns
+"""
+type users_variance_fields {
+  otp_attempts: Float
 }
 """
 columns and relationships of "storage.virus"
@@ -22136,6 +23708,157 @@ type workoutSessions_mutation_response {
   returning: [workoutSessions!]!
 }
 """
+columns and relationships of "workout_strength_history_rows"
+"""
+type workoutStrengthHistoryRows {
+  completedSets: Int!
+  loggedSets: Int!
+  reps: Int!
+  sessionId: uuid!
+  startedAt: timestamptz!
+  userId: uuid!
+  volume: numeric!
+  workoutId: uuid!
+  """
+  An object relationship
+  """
+  workoutSession: workoutSessions
+}
+"""
+aggregated selection of "workout_strength_history_rows"
+"""
+type workoutStrengthHistoryRows_aggregate {
+  aggregate: workoutStrengthHistoryRows_aggregate_fields
+  nodes: [workoutStrengthHistoryRows!]!
+}
+"""
+aggregate fields of "workout_strength_history_rows"
+"""
+type workoutStrengthHistoryRows_aggregate_fields {
+  avg: workoutStrengthHistoryRows_avg_fields
+  count(columns: [workoutStrengthHistoryRows_select_column!], distinct: Boolean): Int!
+  max: workoutStrengthHistoryRows_max_fields
+  min: workoutStrengthHistoryRows_min_fields
+  stddev: workoutStrengthHistoryRows_stddev_fields
+  stddev_pop: workoutStrengthHistoryRows_stddev_pop_fields
+  stddev_samp: workoutStrengthHistoryRows_stddev_samp_fields
+  sum: workoutStrengthHistoryRows_sum_fields
+  var_pop: workoutStrengthHistoryRows_var_pop_fields
+  var_samp: workoutStrengthHistoryRows_var_samp_fields
+  variance: workoutStrengthHistoryRows_variance_fields
+}
+"""
+aggregate avg on columns
+"""
+type workoutStrengthHistoryRows_avg_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate max on columns
+"""
+type workoutStrengthHistoryRows_max_fields {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+aggregate min on columns
+"""
+type workoutStrengthHistoryRows_min_fields {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+response of any mutation on the table "workout_strength_history_rows"
+"""
+type workoutStrengthHistoryRows_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [workoutStrengthHistoryRows!]!
+}
+"""
+aggregate stddev on columns
+"""
+type workoutStrengthHistoryRows_stddev_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate stddev_pop on columns
+"""
+type workoutStrengthHistoryRows_stddev_pop_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate stddev_samp on columns
+"""
+type workoutStrengthHistoryRows_stddev_samp_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate sum on columns
+"""
+type workoutStrengthHistoryRows_sum_fields {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  volume: numeric
+}
+"""
+aggregate var_pop on columns
+"""
+type workoutStrengthHistoryRows_var_pop_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate var_samp on columns
+"""
+type workoutStrengthHistoryRows_var_samp_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
+aggregate variance on columns
+"""
+type workoutStrengthHistoryRows_variance_fields {
+  completedSets: Float
+  loggedSets: Float
+  reps: Float
+  volume: Float
+}
+"""
 columns and relationships of "workouts"
 """
 type workouts {
@@ -22144,6 +23867,40 @@ type workouts {
   id: uuid!
   isPublic: Boolean!
   name: String!
+  """
+  A computed field, executes function "workout_strength_history"
+  """
+  strengthHistory(
+    """
+    input parameters for computed field "strengthHistory" defined on table "workouts"
+    """
+    args: strengthHistory_workouts_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [workoutStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [workoutStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: workoutStrengthHistoryRows_bool_exp
+  ): [workoutStrengthHistoryRows!]
   updatedAt: timestamptz!
   """
   An object relationship
@@ -25340,6 +27097,130 @@ input exerciseSecondaryMuscleGroups_updates {
   where: exerciseSecondaryMuscleGroups_bool_exp!
 }
 """
+Boolean expression to filter rows from the table "exercise_strength_history_rows". All fields are combined with a logical 'AND'.
+"""
+input exerciseStrengthHistoryRows_bool_exp {
+  _and: [exerciseStrengthHistoryRows_bool_exp!]
+  _not: exerciseStrengthHistoryRows_bool_exp
+  _or: [exerciseStrengthHistoryRows_bool_exp!]
+  completedSets: Int_comparison_exp
+  estimatedOneRepMax: numeric_comparison_exp
+  exerciseId: uuid_comparison_exp
+  loggedSets: Int_comparison_exp
+  reps: Int_comparison_exp
+  sessionId: uuid_comparison_exp
+  startedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+  volume: numeric_comparison_exp
+  workoutId: uuid_comparison_exp
+  workoutSession: workoutSessions_bool_exp
+}
+"""
+input type for incrementing numeric columns in table "exercise_strength_history_rows"
+"""
+input exerciseStrengthHistoryRows_inc_input {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  loggedSets: Int
+  reps: Int
+  volume: numeric
+}
+"""
+input type for inserting data into table "exercise_strength_history_rows"
+"""
+input exerciseStrengthHistoryRows_insert_input {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  exerciseId: uuid
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+  workoutSession: workoutSessions_obj_rel_insert_input
+}
+"""
+Ordering options when selecting data from "exercise_strength_history_rows".
+"""
+input exerciseStrengthHistoryRows_order_by {
+  completedSets: order_by
+  estimatedOneRepMax: order_by
+  exerciseId: order_by
+  loggedSets: order_by
+  reps: order_by
+  sessionId: order_by
+  startedAt: order_by
+  userId: order_by
+  volume: order_by
+  workoutId: order_by
+  workoutSession: workoutSessions_order_by
+}
+"""
+input type for updating data in table "exercise_strength_history_rows"
+"""
+input exerciseStrengthHistoryRows_set_input {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  exerciseId: uuid
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+Streaming cursor of the table "exerciseStrengthHistoryRows"
+"""
+input exerciseStrengthHistoryRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: exerciseStrengthHistoryRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input exerciseStrengthHistoryRows_stream_cursor_value_input {
+  completedSets: Int
+  estimatedOneRepMax: numeric
+  exerciseId: uuid
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+input exerciseStrengthHistoryRows_updates {
+  """
+  increments the numeric columns with given value of the filtered values
+  """
+  _inc: exerciseStrengthHistoryRows_inc_input
+  """
+  sets the columns of the filtered rows to the given values
+  """
+  _set: exerciseStrengthHistoryRows_set_input
+  """
+  filter the rows which have to be updated
+  """
+  where: exerciseStrengthHistoryRows_bool_exp!
+}
+input exerciseStrengthReport_args {
+  exercise_id: uuid
+  from_day: date
+  through_day: date
+  time_zone: String
+}
+"""
 append existing jsonb value of filtered columns with new jsonb value
 """
 input exercisesCardio_append_input {
@@ -27579,6 +29460,122 @@ input muscleGroups_updates {
   where: muscleGroups_bool_exp!
 }
 """
+Boolean expression to filter rows from the table "muscle_set_progress_rows". All fields are combined with a logical 'AND'.
+"""
+input muscleSetProgressRows_bool_exp {
+  _and: [muscleSetProgressRows_bool_exp!]
+  _not: muscleSetProgressRows_bool_exp
+  _or: [muscleSetProgressRows_bool_exp!]
+  day: date_comparison_exp
+  directSets: Int_comparison_exp
+  indirectSets: Int_comparison_exp
+  muscleGroup: String_comparison_exp
+  rollingDirectSets: Int_comparison_exp
+  rollingIndirectSets: Int_comparison_exp
+  rollingWeightedSets: numeric_comparison_exp
+  userId: uuid_comparison_exp
+  weightedSets: numeric_comparison_exp
+}
+"""
+input type for incrementing numeric columns in table "muscle_set_progress_rows"
+"""
+input muscleSetProgressRows_inc_input {
+  directSets: Int
+  indirectSets: Int
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  weightedSets: numeric
+}
+"""
+input type for inserting data into table "muscle_set_progress_rows"
+"""
+input muscleSetProgressRows_insert_input {
+  day: date
+  directSets: Int
+  indirectSets: Int
+  muscleGroup: String
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  userId: uuid
+  weightedSets: numeric
+}
+"""
+Ordering options when selecting data from "muscle_set_progress_rows".
+"""
+input muscleSetProgressRows_order_by {
+  day: order_by
+  directSets: order_by
+  indirectSets: order_by
+  muscleGroup: order_by
+  rollingDirectSets: order_by
+  rollingIndirectSets: order_by
+  rollingWeightedSets: order_by
+  userId: order_by
+  weightedSets: order_by
+}
+"""
+input type for updating data in table "muscle_set_progress_rows"
+"""
+input muscleSetProgressRows_set_input {
+  day: date
+  directSets: Int
+  indirectSets: Int
+  muscleGroup: String
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  userId: uuid
+  weightedSets: numeric
+}
+"""
+Streaming cursor of the table "muscleSetProgressRows"
+"""
+input muscleSetProgressRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: muscleSetProgressRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input muscleSetProgressRows_stream_cursor_value_input {
+  day: date
+  directSets: Int
+  indirectSets: Int
+  muscleGroup: String
+  rollingDirectSets: Int
+  rollingIndirectSets: Int
+  rollingWeightedSets: numeric
+  userId: uuid
+  weightedSets: numeric
+}
+input muscleSetProgressRows_updates {
+  """
+  increments the numeric columns with given value of the filtered values
+  """
+  _inc: muscleSetProgressRows_inc_input
+  """
+  sets the columns of the filtered rows to the given values
+  """
+  _set: muscleSetProgressRows_set_input
+  """
+  filter the rows which have to be updated
+  """
+  where: muscleSetProgressRows_bool_exp!
+}
+input muscleSetProgress_args {
+  from_day: date
+  through_day: date
+  time_zone: String
+}
+"""
 Boolean expression to compare columns of type "numeric". All fields are combined with logical 'AND'.
 """
 input numeric_comparison_exp {
@@ -29057,6 +31054,28 @@ input nutritionPlans_updates {
   where: nutritionPlans_bool_exp!
 }
 """
+Boolean expression to compare columns of type "smallint". All fields are combined with logical 'AND'.
+"""
+input smallint_comparison_exp {
+  _eq: smallint
+  _gt: smallint
+  _gte: smallint
+  _in: [smallint!]
+  _is_null: Boolean
+  _lt: smallint
+  _lte: smallint
+  _neq: smallint
+  _nin: [smallint!]
+}
+input strengthHistory_exercises_args {
+  before_at: timestamptz
+  from_at: timestamptz
+}
+input strengthHistory_workouts_args {
+  before_at: timestamptz
+  from_at: timestamptz
+}
+"""
 Boolean expression to compare columns of type "time". All fields are combined with logical 'AND'.
 """
 input time_comparison_exp {
@@ -29111,15 +31130,24 @@ input users_aggregate_bool_exp_count {
 order by aggregate values of table "auth.users"
 """
 input users_aggregate_order_by {
+  avg: users_avg_order_by
   count: order_by
   max: users_max_order_by
   min: users_min_order_by
+  stddev: users_stddev_order_by
+  stddev_pop: users_stddev_pop_order_by
+  stddev_samp: users_stddev_samp_order_by
+  sum: users_sum_order_by
+  var_pop: users_var_pop_order_by
+  var_samp: users_var_samp_order_by
+  variance: users_variance_order_by
 }
 """
 append existing jsonb value of filtered columns with new jsonb value
 """
 input users_append_input {
   metadata: jsonb
+  pending_sms_deanonymize_options: jsonb
 }
 """
 input type for inserting array relation for remote table "auth.users"
@@ -29130,6 +31158,12 @@ input users_arr_rel_insert_input {
   upsert condition
   """
   on_conflict: users_on_conflict
+}
+"""
+order by avg() on columns of table "auth.users"
+"""
+input users_avg_order_by {
+  otp_attempts: order_by
 }
 """
 Boolean expression to filter rows from the table "auth.users". All fields are combined with a logical 'AND'.
@@ -29154,6 +31188,7 @@ input users_bool_exp {
   locale: String_comparison_exp
   metadata: jsonb_comparison_exp
   newEmail: citext_comparison_exp
+  new_phone_number: String_comparison_exp
   oauth2AuthRequests: authOauth2AuthRequests_bool_exp
   oauth2AuthRequests_aggregate: authOauth2AuthRequests_aggregate_bool_exp
   oauth2RefreshTokens: authOauth2RefreshTokens_bool_exp
@@ -29161,7 +31196,9 @@ input users_bool_exp {
   otpHash: String_comparison_exp
   otpHashExpiresAt: timestamptz_comparison_exp
   otpMethodLastUsed: String_comparison_exp
+  otp_attempts: smallint_comparison_exp
   passwordHash: String_comparison_exp
+  pending_sms_deanonymize_options: jsonb_comparison_exp
   phoneNumber: String_comparison_exp
   phoneNumberVerified: Boolean_comparison_exp
   refreshTokens: authRefreshTokens_bool_exp
@@ -29182,18 +31219,27 @@ delete the field or element with specified path (for JSON arrays, negative integ
 """
 input users_delete_at_path_input {
   metadata: [String!]
+  pending_sms_deanonymize_options: [String!]
 }
 """
 delete the array element with specified index (negative integers count from the end). throws an error if top level container is not an array
 """
 input users_delete_elem_input {
   metadata: Int
+  pending_sms_deanonymize_options: Int
 }
 """
 delete key/value pair or string element. key/value pairs are matched based on their key value
 """
 input users_delete_key_input {
   metadata: String
+  pending_sms_deanonymize_options: String
+}
+"""
+input type for incrementing numeric columns in table "auth.users"
+"""
+input users_inc_input {
+  otp_attempts: smallint
 }
 """
 input type for inserting data into table "auth.users"
@@ -29215,12 +31261,15 @@ input users_insert_input {
   locale: String
   metadata: jsonb
   newEmail: citext
+  new_phone_number: String
   oauth2AuthRequests: authOauth2AuthRequests_arr_rel_insert_input
   oauth2RefreshTokens: authOauth2RefreshTokens_arr_rel_insert_input
   otpHash: String
   otpHashExpiresAt: timestamptz
   otpMethodLastUsed: String
+  otp_attempts: smallint
   passwordHash: String
+  pending_sms_deanonymize_options: jsonb
   phoneNumber: String
   phoneNumberVerified: Boolean
   refreshTokens: authRefreshTokens_arr_rel_insert_input
@@ -29247,9 +31296,11 @@ input users_max_order_by {
   lastSeen: order_by
   locale: order_by
   newEmail: order_by
+  new_phone_number: order_by
   otpHash: order_by
   otpHashExpiresAt: order_by
   otpMethodLastUsed: order_by
+  otp_attempts: order_by
   passwordHash: order_by
   phoneNumber: order_by
   ticket: order_by
@@ -29272,9 +31323,11 @@ input users_min_order_by {
   lastSeen: order_by
   locale: order_by
   newEmail: order_by
+  new_phone_number: order_by
   otpHash: order_by
   otpHashExpiresAt: order_by
   otpMethodLastUsed: order_by
+  otp_attempts: order_by
   passwordHash: order_by
   phoneNumber: order_by
   ticket: order_by
@@ -29320,12 +31373,15 @@ input users_order_by {
   locale: order_by
   metadata: order_by
   newEmail: order_by
+  new_phone_number: order_by
   oauth2AuthRequests_aggregate: authOauth2AuthRequests_aggregate_order_by
   oauth2RefreshTokens_aggregate: authOauth2RefreshTokens_aggregate_order_by
   otpHash: order_by
   otpHashExpiresAt: order_by
   otpMethodLastUsed: order_by
+  otp_attempts: order_by
   passwordHash: order_by
+  pending_sms_deanonymize_options: order_by
   phoneNumber: order_by
   phoneNumberVerified: order_by
   refreshTokens_aggregate: authRefreshTokens_aggregate_order_by
@@ -29348,6 +31404,7 @@ prepend existing jsonb value of filtered columns with new jsonb value
 """
 input users_prepend_input {
   metadata: jsonb
+  pending_sms_deanonymize_options: jsonb
 }
 """
 input type for updating data in table "auth.users"
@@ -29368,16 +31425,37 @@ input users_set_input {
   locale: String
   metadata: jsonb
   newEmail: citext
+  new_phone_number: String
   otpHash: String
   otpHashExpiresAt: timestamptz
   otpMethodLastUsed: String
+  otp_attempts: smallint
   passwordHash: String
+  pending_sms_deanonymize_options: jsonb
   phoneNumber: String
   phoneNumberVerified: Boolean
   ticket: String
   ticketExpiresAt: timestamptz
   totpSecret: String
   updatedAt: timestamptz
+}
+"""
+order by stddev() on columns of table "auth.users"
+"""
+input users_stddev_order_by {
+  otp_attempts: order_by
+}
+"""
+order by stddev_pop() on columns of table "auth.users"
+"""
+input users_stddev_pop_order_by {
+  otp_attempts: order_by
+}
+"""
+order by stddev_samp() on columns of table "auth.users"
+"""
+input users_stddev_samp_order_by {
+  otp_attempts: order_by
 }
 """
 Streaming cursor of the table "users"
@@ -29411,16 +31489,25 @@ input users_stream_cursor_value_input {
   locale: String
   metadata: jsonb
   newEmail: citext
+  new_phone_number: String
   otpHash: String
   otpHashExpiresAt: timestamptz
   otpMethodLastUsed: String
+  otp_attempts: smallint
   passwordHash: String
+  pending_sms_deanonymize_options: jsonb
   phoneNumber: String
   phoneNumberVerified: Boolean
   ticket: String
   ticketExpiresAt: timestamptz
   totpSecret: String
   updatedAt: timestamptz
+}
+"""
+order by sum() on columns of table "auth.users"
+"""
+input users_sum_order_by {
+  otp_attempts: order_by
 }
 input users_updates {
   """
@@ -29440,6 +31527,10 @@ input users_updates {
   """
   _delete_key: users_delete_key_input
   """
+  increments the numeric columns with given value of the filtered values
+  """
+  _inc: users_inc_input
+  """
   prepend existing jsonb value of filtered columns with new jsonb value
   """
   _prepend: users_prepend_input
@@ -29451,6 +31542,24 @@ input users_updates {
   filter the rows which have to be updated
   """
   where: users_bool_exp!
+}
+"""
+order by var_pop() on columns of table "auth.users"
+"""
+input users_var_pop_order_by {
+  otp_attempts: order_by
+}
+"""
+order by var_samp() on columns of table "auth.users"
+"""
+input users_var_samp_order_by {
+  otp_attempts: order_by
+}
+"""
+order by variance() on columns of table "auth.users"
+"""
+input users_variance_order_by {
+  otp_attempts: order_by
 }
 """
 Boolean expression to compare columns of type "uuid". All fields are combined with logical 'AND'.
@@ -30988,6 +33097,119 @@ input workoutSessions_updates {
   filter the rows which have to be updated
   """
   where: workoutSessions_bool_exp!
+}
+"""
+Boolean expression to filter rows from the table "workout_strength_history_rows". All fields are combined with a logical 'AND'.
+"""
+input workoutStrengthHistoryRows_bool_exp {
+  _and: [workoutStrengthHistoryRows_bool_exp!]
+  _not: workoutStrengthHistoryRows_bool_exp
+  _or: [workoutStrengthHistoryRows_bool_exp!]
+  completedSets: Int_comparison_exp
+  loggedSets: Int_comparison_exp
+  reps: Int_comparison_exp
+  sessionId: uuid_comparison_exp
+  startedAt: timestamptz_comparison_exp
+  userId: uuid_comparison_exp
+  volume: numeric_comparison_exp
+  workoutId: uuid_comparison_exp
+  workoutSession: workoutSessions_bool_exp
+}
+"""
+input type for incrementing numeric columns in table "workout_strength_history_rows"
+"""
+input workoutStrengthHistoryRows_inc_input {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  volume: numeric
+}
+"""
+input type for inserting data into table "workout_strength_history_rows"
+"""
+input workoutStrengthHistoryRows_insert_input {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+  workoutSession: workoutSessions_obj_rel_insert_input
+}
+"""
+Ordering options when selecting data from "workout_strength_history_rows".
+"""
+input workoutStrengthHistoryRows_order_by {
+  completedSets: order_by
+  loggedSets: order_by
+  reps: order_by
+  sessionId: order_by
+  startedAt: order_by
+  userId: order_by
+  volume: order_by
+  workoutId: order_by
+  workoutSession: workoutSessions_order_by
+}
+"""
+input type for updating data in table "workout_strength_history_rows"
+"""
+input workoutStrengthHistoryRows_set_input {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+"""
+Streaming cursor of the table "workoutStrengthHistoryRows"
+"""
+input workoutStrengthHistoryRows_stream_cursor_input {
+  """
+  Stream column input with initial value
+  """
+  initial_value: workoutStrengthHistoryRows_stream_cursor_value_input!
+  """
+  cursor ordering
+  """
+  ordering: cursor_ordering
+}
+"""
+Initial value of the column from where the streaming should start
+"""
+input workoutStrengthHistoryRows_stream_cursor_value_input {
+  completedSets: Int
+  loggedSets: Int
+  reps: Int
+  sessionId: uuid
+  startedAt: timestamptz
+  userId: uuid
+  volume: numeric
+  workoutId: uuid
+}
+input workoutStrengthHistoryRows_updates {
+  """
+  increments the numeric columns with given value of the filtered values
+  """
+  _inc: workoutStrengthHistoryRows_inc_input
+  """
+  sets the columns of the filtered rows to the given values
+  """
+  _set: workoutStrengthHistoryRows_set_input
+  """
+  filter the rows which have to be updated
+  """
+  where: workoutStrengthHistoryRows_bool_exp!
+}
+input workoutStrengthReport_args {
+  from_day: date
+  through_day: date
+  time_zone: String
+  workout_id: uuid
 }
 """
 Boolean expression to filter rows from the table "workouts". All fields are combined with a logical 'AND'.
