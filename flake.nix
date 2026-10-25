@@ -49,7 +49,6 @@
             nhost.biome
             hasura-cli
             bun
-            rover
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen
@@ -83,7 +82,7 @@
               [
                 gnumake
                 nixpkgs-fmt
-                nhost-cli
+                nhost.nhost-cli
               ]
               ++ checkDeps
               ++ buildInputs
