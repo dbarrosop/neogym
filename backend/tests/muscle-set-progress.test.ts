@@ -107,12 +107,14 @@ describe("server-calculated muscle sets", () => {
         secondaryMuscleGroups { muscleGroup }
       }
       mixed: exercises(where: {slug: {_eq: "Alternating_Deltoid_Raise"}}) { primaryMuscleGroup }
+      mixedLaterals: exercises(where: {slug: {_eq: "Side_Laterals_to_Front_Raise"}}) { primaryMuscleGroup }
     }`, {}, USER);
     expect(result.errors).toBeUndefined();
     expect(result.data?.side[0].primaryMuscleGroup).toBe("side_delts");
     expect(result.data?.rear[0].primaryMuscleGroup).toBe("rear_delts");
     expect(result.data?.press[0].secondaryMuscleGroups.map((row: { muscleGroup: string }) => row.muscleGroup)).toContain("front_delts");
     expect(result.data?.mixed[0].primaryMuscleGroup).toBe("shoulders");
+    expect(result.data?.mixedLaterals[0].primaryMuscleGroup).toBe("shoulders");
   });
 
   test("matching public movement variants credit the same delt head", async () => {
@@ -120,12 +122,24 @@ describe("server-calculated muscle sets", () => {
     const primary = [
       ["Upright_Barbell_Row", "side_delts"],
       ["Dumbbell_Raise", "side_delts"],
+      ["Side_Lateral_Raise", "side_delts"],
+      ["Power_Partials", "side_delts"],
       ["Standing_Low-Pulley_Deltoid_Raise", "side_delts"],
       ["Machine_Shoulder_Military_Press", "front_delts"],
       ["Kettlebell_Seated_Press", "front_delts"],
+      ["Alternating_Kettlebell_Press", "front_delts"],
+      ["Kettlebell_Seesaw_Press", "front_delts"],
+      ["Front_Plate_Raise", "front_delts"],
+      ["Single_Dumbbell_Raise", "front_delts"],
       ["Cable_Rope_Rear-Delt_Rows", "rear_delts"],
     ] as const;
     const secondary = [
+      ["Standing_Dumbbell_Upright_Row", "side_delts"],
+      ["Upright_Cable_Row", "side_delts"],
+      ["Smith_Machine_Upright_Row", "side_delts"],
+      ["Upright_Row_-_With_Bands", "side_delts"],
+      ["Neck_Press", "front_delts"],
+      ["Barbell_Guillotine_Bench_Press", "front_delts"],
       ["Incline_Dumbbell_Press", "front_delts"],
       ["Incline_Dumbbell_Bench_With_Palms_Facing_In", "front_delts"],
       ["Close-Grip_Dumbbell_Press", "front_delts"],
