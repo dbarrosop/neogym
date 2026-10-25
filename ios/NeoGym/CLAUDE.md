@@ -526,7 +526,9 @@ intact instead of inventing one-off styles.
   not download raw sets. It requests the last 180 local days by default and
   extends the date range on demand for older chart periods, up to one year.
   The "Sets by muscle" list shows the latest day's trailing seven-local-day
-  direct, indirect, and weighted set totals. Tapping a muscle selects it for
+  direct, indirect, and weighted set totals. Only strength-style sets with
+  `reps > 0` qualify, excluding `category = 'stretching'`; all other strength-style
+  categories remain eligible. Tapping a muscle selects it for
   the single weighted-set history chart without navigating; `shoulders` is
   labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
   cache namespace/tag. The SDK stream emits only the exact range key's eligible

@@ -15,7 +15,7 @@ struct WorkoutProgressView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                Text("Logged strength sets by muscle. A primary muscle gets one set; a secondary muscle gets half a set. Totals cover the trailing seven local days.")
+                Text("Logged strength sets with reps above zero, excluding stretching. A primary muscle gets one set; a secondary muscle gets half a set. Totals cover the trailing seven local days.")
                     .font(.subheadline)
                     .foregroundColor(NeoGymTheme.mutedText)
                 content
@@ -74,7 +74,7 @@ struct WorkoutProgressView: View {
                     SectionShell(title: "Muscle sets") {
                         AppEmptyStateView(
                             title: "No strength sets",
-                            message: "Log a strength set to see sets by muscle here.",
+                            message: "Log a non-stretching strength set with reps above zero to see sets by muscle here.",
                             systemImage: "chart.bar"
                         )
                     }

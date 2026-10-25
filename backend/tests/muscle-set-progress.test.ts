@@ -265,6 +265,69 @@ describe("server-calculated muscle sets", () => {
     }
   });
 
+  for (const category of ["stretching", "strength", "powerlifting", "plyometrics", "olympic_weightlifting", "strongman"]) {
+    test(`${category} ${category === "stretching" ? "earns no" : "retains"} muscle set credit`, async () => {
+      if (!reachable) return;
+      const sessionId = crypto.randomUUID();
+      const exerciseId = crypto.randomUUID();
+      const name = `progress-category-${exerciseId}`;
+      try {
+        const created = await gql(`mutation($session: uuid!, $exercise: uuid!, $name: String!, $user: uuid!, $category: exerciseCategories_enum!) {
+          insertWorkoutSession(object: {id: $session, userId: $user, startedAt: "2040-03-10T12:00:00Z",
+            workoutSessionExercises: {data: [{position: 0,
+              exercise: {data: {id: $exercise, slug: $name, name: $name, userId: $user, isPublic: false,
+                category: $category, primaryMuscleGroup: biceps, strength: {data: {}},
+                secondaryMuscleGroups: {data: [{muscleGroup: triceps}]}}},
+              workoutSessionStrengthSets: {data: [
+                {setNumber: 1, reps: 1, weight: 0}, {setNumber: 2, reps: 10, weight: 20},
+                {setNumber: 3, reps: 0, weight: 20}
+              ]}
+            }]}}) { id }
+        }`, { session: sessionId, exercise: exerciseId, name, user: USER, category });
+        expect(created.errors).toBeUndefined();
+        const result = await gql(`query($session: uuid!) {
+          sets: workoutSessionStrengthSetsAggregate(where: {workoutSessionExercise: {workoutSessionId: {_eq: $session}}}) {
+            aggregate { count }
+          }
+          muscleSetProgress(args: {from_day: "2040-03-10", through_day: "2040-03-17", time_zone: "UTC"}) {
+            day muscleGroup directSets indirectSets weightedSets
+            rollingDirectSets rollingIndirectSets rollingWeightedSets
+          }
+        }`, { session: sessionId }, USER);
+        expect(result.errors).toBeUndefined();
+        // Even stretching remains loggable; only the report's qualification changes.
+        expect(result.data?.sets.aggregate.count).toBe(3);
+        const rows = result.data!.muscleSetProgress as Array<Record<string, string | number>>;
+        if (category === "stretching") {
+          expect(rows).toEqual([]);
+        } else {
+          expect(rows).toHaveLength(16);
+          for (const [index, day] of [10, 11, 12, 13, 14, 15, 16, 17].entries()) {
+            for (const muscle of ["biceps", "triceps"]) {
+              const row = rows.find((entry) => entry.day === `2040-03-${day}` && entry.muscleGroup === muscle);
+              const direct = muscle === "biceps" ? 2 : 0;
+              const indirect = muscle === "triceps" ? 2 : 0;
+              expect(row).toMatchObject({
+                directSets: index === 0 ? direct : 0,
+                indirectSets: index === 0 ? indirect : 0,
+                rollingDirectSets: index < 7 ? direct : 0,
+                rollingIndirectSets: index < 7 ? indirect : 0,
+              });
+              expect(Number(row?.weightedSets)).toBe(index === 0 ? direct + indirect * 0.5 : 0);
+              expect(Number(row?.rollingWeightedSets)).toBe(index < 7 ? direct + indirect * 0.5 : 0);
+            }
+          }
+        }
+      } finally {
+        const removed = await gql(`mutation($session: uuid!, $exercise: uuid!) {
+          deleteWorkoutSession(id: $session) { id }
+          deleteExercise(id: $exercise) { id }
+        }`, { session: sessionId, exercise: exerciseId });
+        expect(removed.errors).toBeUndefined();
+      }
+    });
+  }
+
   test("counts direct once and secondary half, with a seven-local-day window and user isolation", async () => {
     if (!reachable) return;
     const found = await gql(`query {

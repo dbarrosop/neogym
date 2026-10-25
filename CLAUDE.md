@@ -355,8 +355,10 @@ Workouts area and pulling to refresh its hub root also syncs the separate raw
 HealthKit workout stream (`health_workouts`); that import does not create session
 or template rows. Progress now reads the user-scoped `muscleSetProgress` Hasura
 function, not raw sets: Postgres counts one direct set per primary muscle and a
-half set per distinct secondary muscle, with daily and rolling seven-local-day
-totals. Its descriptive list selects a muscle's weighted-set history chart;
+half set per distinct secondary muscle for strength-style sets with `reps > 0`,
+excluding only `category = 'stretching'`; all other strength-style categories
+remain eligible. Daily and rolling seven-local-day totals use the same rule.
+Its descriptive list selects a muscle's weighted-set history chart;
 ambiguous shoulders remain "Shoulders (unspecified)" alongside front, side, and
 rear delts. It uses the SDK's sessions cache and requests 180 local days by
 default, extending up to one year for older custom chart periods. The iOS
