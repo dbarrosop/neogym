@@ -121,11 +121,18 @@ describe("shared strength reporting", () => {
 
   test("root reports work through Constellation, honor IDs and reject cross-user access", async () => {
     if (!reachable) return;
+    const latest = await gql(`query($id: uuid!) {
+      workoutSessionsAggregate(where: {workoutId: {_eq: $id}}) { aggregate { max { startedAt } } }
+    }`, { id: SAMPLE_WORKOUT }, USER);
+    expect(latest.errors).toBeUndefined();
+    const day = latest.data!.workoutSessionsAggregate.aggregate.max.startedAt.slice(0, 10);
+    // The seed advances on reset; its last two sessions are always two UTC days apart.
+    const from = new Date(Date.parse(`${day}T00:00:00Z`) - 2 * 86_400_000).toISOString().slice(0, 10);
     const vars = {
       workout: SAMPLE_WORKOUT,
       exercise: "019e0675-a26c-7b80-9fda-9075c6c51b8b",
-      from: "2026-09-29",
-      through: "2026-10-01",
+      from,
+      through: day,
       zone: "UTC",
     };
     const query = `query($workout: uuid!, $exercise: uuid!, $from: date!, $through: date!, $zone: String!) {
