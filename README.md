@@ -24,11 +24,11 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 
 - [Nix](https://nixos.org/download/) with flakes enabled
 - [Docker](https://docs.docker.com/get-docker/) (the Nhost CLI runs the local stack via Docker)
-- [Nhost CLI](https://docs.nhost.io/platform/cli) — install via `brew install nhost/cli/nhost` or the upstream installer
+- [Nhost CLI](https://docs.nhost.io/platform/cli) with `schema dump` / `schema diff` support — provided by the Nix devshell
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
+`nhost`, `bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
 
 ## Quick start
 
@@ -65,7 +65,9 @@ All run from `frontend/` and require `nix develop ../ --command` as a prefix unl
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run lint` | `biome check .` (lint + format check) |
 | `bun run format` | `biome format --write .` |
-| `bun run codegen` | Generate typed GraphQL operations into `src/gql/` (requires backend up) |
+| `bun run codegen` | Dump role schemas/diffs, then generate typed GraphQL operations into `src/gql/` (requires backend up) |
+| `bun run codegen:graphql-schema` | Refresh only the Hasura/Nhost schema dumps and diffs |
+| `bun run codegen:graphql` | Generate types offline from the checked-in Nhost user-role SDL |
 
 Backend (from `backend/`):
 
@@ -75,6 +77,22 @@ Backend (from `backend/`):
 | `nhost down` | Stop the local stack |
 | `nhost config validate` | Validate `nhost.toml` after editing |
 | `nhost logs <service>` | Tail a service's logs |
+| `make schema` | Refresh Hasura/Nhost role schemas and structural diffs using `nhost schema dump` / `nhost schema diff` |
+
+Schema generation uses `backend/gen.sh` for the `admin`, `user`, and `public`
+GraphQL roles. Auth's `me` role has no GraphQL permissions in this repo. Each
+role gets `schema.hasura.<role>.graphqls`, `schema.nhost.<role>.graphqls`, and
+`schema.<role>.diff` under `backend/schemas/`. The frontend consumes
+`backend/schemas/schema.nhost.user.graphqls` directly; there is no duplicate
+frontend SDL or Rover dependency. Snapshots are replaced only after every
+dump/diff succeeds.
+
+The script defaults to the local Hasura and Nhost/Constellation endpoints at
+`https://local.hasura.local.nhost.run/v1/graphql` and
+`https://local.graphql.local.nhost.run/v1/graphql`, respectively. Both must be
+running. To target another environment, set `NHOST_SUBDOMAIN`, `NHOST_REGION`,
+and `NHOST_ADMIN_SECRET` explicitly; `DST_PATH` optionally changes the output
+directory (the default is script-relative, independent of the caller's cwd).
 
 Native iOS (from `ios/NeoGym/`):
 
@@ -98,7 +116,7 @@ CLI does not hot-reload `nhost.toml`.
 
 ```
 .
-├── flake.nix                  # Nix devshell — bun + biome + XcodeGen on Darwin
+├── flake.nix                  # Nix devshell — nhost + bun + biome + XcodeGen on Darwin
 ├── ios/NeoGym/                # SwiftUI app + XcodeGen spec + NeoGymKit package
 ├── frontend/
 │   ├── src/
@@ -123,6 +141,8 @@ CLI does not hot-reload `nhost.toml`.
 │   ├── tsconfig.json
 │   └── vite.config.ts
 └── backend/
+    ├── gen.sh                 # Nhost role-schema dump/diff pipeline
+    ├── schemas/               # Checked-in Hasura/Nhost SDL and structural diffs
     ├── nhost/
     │   ├── nhost.toml         # Auth + Hasura config (local-dev baseline)
     │   ├── overlays/          # JSON Patch overrides per environment (prod)

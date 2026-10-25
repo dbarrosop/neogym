@@ -1,30 +1,41 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
-DST_PATH="./schemas"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+DST_PATH="${DST_PATH:-${SCRIPT_DIR}/schemas}"
 
-mkdir -p "$DST_PATH"
-rm -f "${DST_PATH}/schema."*
+SUBDOMAIN="${NHOST_SUBDOMAIN:-local}"
+REGION="${NHOST_REGION:-local}"
+ADMIN_SECRET="${NHOST_ADMIN_SECRET:-nhost-admin-secret}"
 
-SUBDOMAIN="local"
-REGION="local"
-ADMIN_SECRET="nhost-admin-secret"
-
-ROLES=(admin user public)
+# These are the roles exposed by our Hasura metadata (admin is implicit).
+ROLES="admin user public"
 
 HASURA_URL="https://${SUBDOMAIN}.hasura.${REGION}.nhost.run/v1/graphql"
 CONSTELLATION_URL="https://${SUBDOMAIN}.graphql.${REGION}.nhost.run/v1/graphql"
 
-for role in "${ROLES[@]}"; do
+mkdir -p "$DST_PATH"
+TMP_PATH=$(mktemp -d "${DST_PATH}/.schema-dump.XXXXXX")
+trap 'rm -rf "$TMP_PATH"' 0
+trap 'exit 1' HUP INT TERM
+
+for role in ${ROLES}; do
     nhost schema dump \
         --role "${role}" --admin-secret "${ADMIN_SECRET}" \
-        -u "${HASURA_URL}" -o "${DST_PATH}/schema.hasura.${role}.graphqls"
+        -u "${HASURA_URL}" -o "${TMP_PATH}/schema.hasura.${role}.graphqls"
 
     nhost schema dump \
         --role "${role}" --admin-secret "${ADMIN_SECRET}" \
-        -u "${CONSTELLATION_URL}" -o "${DST_PATH}/schema.nhost.${role}.graphqls"
+        -u "${CONSTELLATION_URL}" -o "${TMP_PATH}/schema.nhost.${role}.graphqls"
 
     nhost schema diff \
-        -a "${DST_PATH}/schema.hasura.${role}.graphqls" \
-        -b "${DST_PATH}/schema.nhost.${role}.graphqls" > "${DST_PATH}/schema.${role}.diff"
+        -a "${TMP_PATH}/schema.hasura.${role}.graphqls" \
+        -b "${TMP_PATH}/schema.nhost.${role}.graphqls" > "${TMP_PATH}/schema.${role}.diff"
+done
+
+# Keep the last complete set of dumps if any generation step fails.
+for role in ${ROLES}; do
+    mv "${TMP_PATH}/schema.hasura.${role}.graphqls" "${DST_PATH}/"
+    mv "${TMP_PATH}/schema.nhost.${role}.graphqls" "${DST_PATH}/"
+    mv "${TMP_PATH}/schema.${role}.diff" "${DST_PATH}/"
 done

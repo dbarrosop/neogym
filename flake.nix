@@ -49,7 +49,6 @@
             nhost.biome
             hasura-cli
             bun
-            rover
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen

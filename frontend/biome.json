@@ -15,8 +15,7 @@
       "!.vinxi",
       "!src/routeTree.gen.ts",
       "!src/gql",
-      "!src/components/ui",
-      "!schema.user.graphqls"
+      "!src/components/ui"
     ]
   },
   "formatter": {
