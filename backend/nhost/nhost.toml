@@ -30,10 +30,10 @@ httpPoolSize = 100
 
 [functions]
 [functions.node]
-version = 22
+version = 24
 
 [auth]
-version = '0.50.1'
+version = '0.52.0'
 
 [auth.elevatedPrivileges]
 mode = 'disabled'
@@ -193,7 +193,7 @@ limit = 100
 interval = '5m'
 
 [postgres]
-version = '18.3-20260320-1'
+version = '18.6-20260930-1'
 
 [postgres.resources]
 [postgres.resources.storage]
@@ -202,7 +202,7 @@ capacity = 1
 [provider]
 
 [storage]
-version = '0.15.0'
+version = '0.15.1'
 
 [observability]
 [observability.grafana]

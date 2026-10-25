@@ -89,6 +89,12 @@
               ++ buildInputs
               ++ nativeBuildInputs;
           };
+
+          skopeo = pkgs.mkShell {
+            buildInputs = with pkgs; [
+              skopeo
+            ];
+          };
         };
 
         packages = flake-utils.lib.flattenTree { };
