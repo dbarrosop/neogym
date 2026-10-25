@@ -540,8 +540,9 @@ intact instead of inventing one-off styles.
   age; no app-owned snapshots are stored. The backend also exposes
   tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions
   for per-session sets/reps/volume and exercise e1RM reports through the normal
-  Constellation endpoint. Nested `strengthHistory` computed fields exist only
-  on Hasura-direct GraphQL; do not use them in app queries. Existing native
+  Constellation endpoint. Nested `strengthHistory` computed fields are exposed
+  by both Hasura and the current local Constellation `0.0.0-dev` pin; app queries
+  keep using the tracked roots' local-day contract. Existing native
   exercise-history charts still build points locally; `StrengthOneRepMax` mirrors
   the backend's measured-single-rep / Epley-for-2+-reps rule (per recorded side),
   until these charts migrate to the server fields. `doubleWeight` doubles volume,

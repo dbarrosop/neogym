@@ -93,6 +93,8 @@ erDiagram
 
 All seven enum tables are seeded in the init migration; only the value column exists. Migration `1790000570000` adds `front_delts`, `side_delts`, and `rear_delts` to `muscle_groups`, preserving `shoulders` for unresolved and user-owned catalog exercises. It also adds a tracked but permanently empty `muscle_set_progress_rows` table as the return shape for the read-only `muscleSetProgress` Hasura function; this is not a materialized cache. They're FKed for referential integrity, not for any computed behavior. The `exercise_categories` enum is what the `kind` GENERATED column reads when deriving cardio-vs-strength. `exercise_forces` and `exercise_mechanics` are referenced from the **`exercises_strength` sidecar** rather than the base — cardio rows don't have either.
 
+Strength reporting likewise uses tracked, permanently empty return-shape tables: `workout_strength_history_rows` / `exercise_strength_history_rows` have `CHECK (false)` and are not stored summaries. Migration `1790000580000` creates them, the nested `strengthHistory` computed-field functions, and the untracked, non-materialized `strength_set_report_facts` view that centralizes per-set calculations. Migration `1790000590000` adds the tracked `workoutStrengthReport` / `exerciseStrengthReport` root functions for Hasura and Constellation, reusing those shapes and calculations. See [`sessions.md`](sessions.md#shared-workout-and-exercise-strength-reports) for report semantics and [`permissions.md`](permissions.md#strength-report-functions-private-read-only-history) for their private read-only boundary.
+
 `exercise_secondary_muscle_groups` is a pure association table (no timestamps, no id — composite PK `(exercise_id, muscle_group)`).
 
 ## Workout labels

@@ -1,6 +1,6 @@
 # Permissions
 
-This document describes every Hasura permission configured in `backend/nhost/metadata/databases/default/tables/*.yaml`. Permissions are the security boundary between the GraphQL API and the database — they decide *which rows each role can read, insert, update, or delete*, and *which columns each role can touch*. Everything in this doc reflects what's in the YAML files; if a claim here disagrees with the metadata, the metadata is the source of truth and this doc needs an update (see the doc-sync rule in CLAUDE.md).
+This document describes every Hasura permission configured in `backend/nhost/metadata/databases/default/tables/*.yaml` and `backend/nhost/metadata/databases/default/functions/*.yaml`. Permissions are the security boundary between the GraphQL API and the database — they decide *which rows each role can read, insert, update, or delete*, and *which columns each role can touch*. Everything in this doc reflects what's in the YAML files; if a claim here disagrees with the metadata, the metadata is the source of truth and this doc needs an update (see the doc-sync rule in CLAUDE.md).
 
 ## Roles
 
@@ -63,6 +63,12 @@ Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_str
 ## Progress function (private read-only aggregate)
 
 `muscleSetProgress(from_day, through_day, time_zone)` is a tracked `STABLE` Hasura query. Hasura injects the `hasura_session` JSON argument, and SQL restricts `workout_sessions.user_id` to `x-hasura-user-id`; no user ID argument is accepted from the client. Its tracked return-shape table `muscle_set_progress_rows` has `CHECK (false)` and no user insert/update/delete permissions. The `user` role may read only rows filtered by `user_id = X-Hasura-User-Id` and cannot select the `user_id` output column. The function has an explicit `user` function permission. The two guards (SQL scope and result permission) keep the aggregate private even though exercise-muscle catalog associations are globally readable. See `backend/tests/muscle-set-progress.test.ts` for cross-user proof.
+
+## Strength report functions (private read-only history)
+
+`workoutStrengthReport` / `exerciseStrengthReport` are tracked `STABLE` query functions with explicit `user` function permissions and Hasura-injected `hasura_session`; neither accepts a client user ID. Their shared SQL restricts `workout_sessions.user_id` to the caller's `x-hasura-user-id`. The tracked return-shape tables `workout_strength_history_rows` / `exercise_strength_history_rows` have `CHECK (false)` (no stored rows), no user insert/update/delete permissions, and an owner-filtered `user` select permission (`user_id = X-Hasura-User-Id`) whose column allowlist excludes `user_id`. Both expose a manual `workoutSession` relationship through `session_id`.
+
+The nested `workouts.strengthHistory` / `exercises.strengthHistory` computed fields also receive the injected session and use these return-table select permissions. They appear on public parents visible through the owner-or-public select rule, but SQL ownership filtering plus the result-row filter still return only the caller's sessions — public catalog visibility does not make history public. Both Hasura and the currently pinned local Constellation expose these computed fields; app reports continue to use the tracked roots' local-day contract. See `backend/tests/strength-reporting.test.ts` for cross-user proof and [`sessions.md`](sessions.md#shared-workout-and-exercise-strength-reports) for report semantics.
 
 ## Public, user-readable catalog data
 
