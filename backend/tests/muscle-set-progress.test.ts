@@ -15,7 +15,10 @@ async function gql(query: string, variables: Record<string, unknown> = {}, user?
     },
     body: JSON.stringify({ query, variables }),
   });
-  return res.json() as Promise<{ data?: Record<string, any>; errors?: Array<{ message: string }> }>;
+  return res.json() as Promise<{
+    data?: Record<string, any>;
+    errors?: Array<{ message: string; extensions?: { code?: string } }>;
+  }>;
 }
 
 let reachable = false;
@@ -33,6 +36,67 @@ beforeAll(async () => {
 
 describe("server-calculated muscle sets", () => {
   test("local Hasura must be reachable", () => expect(reachable).toBe(true));
+
+  const guardQuery = `query($from: date, $through: date, $zone: String) {
+    muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $zone}) { day }
+  }`;
+  const validRange = { from: "2025-10-01", through: "2026-10-01", zone: "UTC" };
+
+  test("accepts a 365-day difference (366 inclusive dates)", async () => {
+    if (!reachable) return;
+    const result = await gql(guardQuery, validRange, USER);
+    expect(result.errors).toBeUndefined();
+    expect(Array.isArray(result.data?.muscleSetProgress)).toBe(true);
+  });
+
+  for (const { label, variables } of [
+    { label: "366-day difference", variables: { ...validRange, from: "2025-09-30" } },
+    { label: "reversed range", variables: { ...validRange, from: "2026-10-02" } },
+    { label: "null start day", variables: { ...validRange, from: null } },
+    { label: "null end day", variables: { ...validRange, through: null } },
+    { label: "POSIX time zone", variables: { ...validRange, zone: "UTC+3" } },
+    { label: "unknown time zone", variables: { ...validRange, zone: "Mars/Base" } },
+  ]) {
+    test(`rejects ${label} with the progress guard error`, async () => {
+      if (!reachable) return;
+      const result = await gql(guardQuery, variables, USER);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors?.[0]).toMatchObject({
+        message: "Invalid progress range or time zone",
+        extensions: { code: "data-exception" },
+      });
+      expect(result.data?.muscleSetProgress).toBeUndefined();
+    });
+  }
+
+  test("rejects an injected session without a user ID", async () => {
+    if (!reachable) return;
+    // Admin requests still inject hasura_session, but omit x-hasura-user-id.
+    // This reaches the SQL guard without user-role header validation masking it.
+    const result = await gql(guardQuery, validRange);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors?.[0]).toMatchObject({
+      message: "Invalid progress range or time zone",
+      extensions: { code: "data-exception" },
+    });
+    expect(result.data?.muscleSetProgress).toBeUndefined();
+  });
+
+  test("return-shape table stays empty and has no user insert mutation", async () => {
+    if (!reachable) return;
+    const empty = await gql("{ muscleSetProgressRows { day } }", {}, USER);
+    expect(empty.errors).toBeUndefined();
+    expect(empty.data?.muscleSetProgressRows).toEqual([]);
+    // Verify the real admin root so a misspelling cannot pass as a permission denial.
+    const adminSchema = await gql("{ __schema { mutationType { fields { name } } } }");
+    expect(adminSchema.errors).toBeUndefined();
+    const adminRoots = adminSchema.data?.__schema.mutationType.fields.map((field: { name: string }) => field.name);
+    expect(adminRoots).toContain("insert_muscleSetProgressRows");
+    const inserted = await gql(`mutation {
+      insert_muscleSetProgressRows(objects: []) { affected_rows }
+    }`, {}, USER);
+    expect(inserted.errors?.[0]?.message).toContain("field 'insert_muscleSetProgressRows' not found");
+  });
 
   test("recent local seed supplies 180 days of strength work with zero-rep sets", async () => {
     if (!reachable) return;
