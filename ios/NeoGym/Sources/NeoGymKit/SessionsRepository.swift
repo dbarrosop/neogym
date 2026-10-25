@@ -526,7 +526,7 @@ public extension SessionsRepository {
     static let muscleSetProgressQuery = """
     query MuscleSetProgress($from: date!, $through: date!, $timeZone: String!) {
       muscleSetProgress(args: {from_day: $from, through_day: $through, time_zone: $timeZone}) {
-        day muscleGroup directSets indirectSets weightedSets
+        day muscleGroup
         rollingDirectSets rollingIndirectSets rollingWeightedSets
       }
     }

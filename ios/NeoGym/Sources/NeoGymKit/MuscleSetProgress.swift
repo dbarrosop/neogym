@@ -1,14 +1,11 @@
 import Combine
 import Foundation
 
-/// One day's server-calculated set credits for a muscle. The seven-day totals
-/// are returned by Postgres, not derived from raw strength sets on the device.
+/// One day's server-calculated trailing seven-day totals for a muscle, returned
+/// by Postgres rather than derived from raw strength sets on the device.
 public struct MuscleSetProgressRow: Decodable, Sendable, Equatable, Identifiable {
     public let day: String
     public let muscleGroup: String
-    public let directSets: Int
-    public let indirectSets: Int
-    public let weightedSets: Double
     public let rollingDirectSets: Int
     public let rollingIndirectSets: Int
     public let rollingWeightedSets: Double
@@ -21,22 +18,18 @@ public struct MuscleSetProgressRow: Decodable, Sendable, Equatable, Identifiable
     }
 
     public init(
-        day: String, muscleGroup: String, directSets: Int, indirectSets: Int,
-        weightedSets: Double, rollingDirectSets: Int, rollingIndirectSets: Int,
+        day: String, muscleGroup: String, rollingDirectSets: Int, rollingIndirectSets: Int,
         rollingWeightedSets: Double
     ) {
         self.day = day
         self.muscleGroup = muscleGroup
-        self.directSets = directSets
-        self.indirectSets = indirectSets
-        self.weightedSets = weightedSets
         self.rollingDirectSets = rollingDirectSets
         self.rollingIndirectSets = rollingIndirectSets
         self.rollingWeightedSets = rollingWeightedSets
     }
 
     private enum CodingKeys: String, CodingKey {
-        case day, muscleGroup, directSets, indirectSets, weightedSets
+        case day, muscleGroup
         case rollingDirectSets, rollingIndirectSets, rollingWeightedSets
     }
 
@@ -44,9 +37,6 @@ public struct MuscleSetProgressRow: Decodable, Sendable, Equatable, Identifiable
         let container = try decoder.container(keyedBy: CodingKeys.self)
         day = try container.decode(String.self, forKey: .day)
         muscleGroup = try container.decode(String.self, forKey: .muscleGroup)
-        directSets = try container.decode(Int.self, forKey: .directSets)
-        indirectSets = try container.decode(Int.self, forKey: .indirectSets)
-        weightedSets = try container.decodeFlexibleDouble(forKey: .weightedSets)
         rollingDirectSets = try container.decode(Int.self, forKey: .rollingDirectSets)
         rollingIndirectSets = try container.decode(Int.self, forKey: .rollingIndirectSets)
         rollingWeightedSets = try container.decodeFlexibleDouble(forKey: .rollingWeightedSets)

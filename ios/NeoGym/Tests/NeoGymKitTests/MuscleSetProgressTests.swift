@@ -7,7 +7,6 @@ final class MuscleSetProgressTests: XCTestCase {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "muscleSetProgress": .array([.object([
                 "day": .string("2026-07-07"), "muscleGroup": .string("side_delts"),
-                "directSets": .number(1), "indirectSets": .number(1), "weightedSets": .string("1.5"),
                 "rollingDirectSets": .number(3), "rollingIndirectSets": .number(1),
                 "rollingWeightedSets": .string("3.5")
             ])])
@@ -21,6 +20,8 @@ final class MuscleSetProgressTests: XCTestCase {
         }
         XCTAssertEqual(emissions.count, 1)
         XCTAssertEqual(emissions.first?.first?.rollingWeightedSets, 3.5)
+        XCTAssertEqual(emissions.first?.first?.rollingDirectSets, 3)
+        XCTAssertEqual(emissions.first?.first?.rollingIndirectSets, 1)
         XCTAssertEqual(emissions.first?.first?.muscleName, "Side Delts")
         let requests = await fake.cachedRequestsSnapshot()
         let request = try XCTUnwrap(requests.first)
@@ -32,6 +33,11 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertEqual(request.tags, ["sessions"])
         XCTAssertTrue(request.request.query.contains("muscleSetProgress(args:"))
         XCTAssertFalse(request.request.query.contains("workoutSessionStrengthSets"))
+        let fields = Set(request.request.query.components(separatedBy: .whitespacesAndNewlines))
+        XCTAssertTrue(fields.isSuperset(of: [
+            "day", "muscleGroup", "rollingDirectSets", "rollingIndirectSets", "rollingWeightedSets"
+        ]))
+        XCTAssertTrue(fields.isDisjoint(with: ["directSets", "indirectSets", "weightedSets"]))
     }
 
     @MainActor
@@ -221,7 +227,6 @@ final class MuscleSetProgressTests: XCTestCase {
     private static func progressReply(day: String, sets: Double) -> JSONValue {
         .object(["muscleSetProgress": .array([.object([
             "day": .string(day), "muscleGroup": .string("chest"),
-            "directSets": .number(1), "indirectSets": .number(0), "weightedSets": .number(sets),
             "rollingDirectSets": .number(1), "rollingIndirectSets": .number(0),
             "rollingWeightedSets": .number(sets)
         ])])])
@@ -272,8 +277,8 @@ final class MuscleSetProgressTests: XCTestCase {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
         let row = MuscleSetProgressRow(
-            day: "2023-09-03", muscleGroup: "shoulders", directSets: 1, indirectSets: 0,
-            weightedSets: 1, rollingDirectSets: 1, rollingIndirectSets: 0, rollingWeightedSets: 1
+            day: "2023-09-03", muscleGroup: "shoulders",
+            rollingDirectSets: 1, rollingIndirectSets: 0, rollingWeightedSets: 1
         )
         XCTAssertEqual(row.muscleName, "Shoulders (unspecified)")
         let date = try XCTUnwrap(row.date(in: calendar))
