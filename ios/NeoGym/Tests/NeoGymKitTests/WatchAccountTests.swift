@@ -11,6 +11,7 @@ private actor WatchTransport: HTTPTransport {
     var refresh = false
     var transportFailure = false
     var invalidRefresh = false
+    var failPAT = false
     var failSignOut = false
     private var holdSignOut = false
     private var signOutWaiter: CheckedContinuation<Void, Never>?
@@ -18,6 +19,8 @@ private actor WatchTransport: HTTPTransport {
     private var signOutIsWaiting = false
 
     func rejectRefresh() { invalidRefresh = true }
+    func rejectPAT() { failPAT = true }
+    func allowPAT() { failPAT = false }
     func rejectSignOut() { failSignOut = true }
     func pauseSignOut() { holdSignOut = true }
 
@@ -52,6 +55,10 @@ private actor WatchTransport: HTTPTransport {
             }
             if failSignOut { throw URLError(.notConnectedToInternet) }
             return NhostRawResponse(status: 200, body: Data())
+        }
+        if request.url.path.hasSuffix("/signin/pat") {
+            if failPAT { throw URLError(.notConnectedToInternet) }
+            return NhostRawResponse(status: 200, body: Data("{\"session\":\(Self.refreshedSession)}".utf8))
         }
         if request.url.path.hasSuffix("/token") {
             if invalidRefresh {
@@ -187,7 +194,7 @@ final class WatchAccountTests: XCTestCase {
         }
     }
 
-    func testKnownPhoneSignOutBlocksOTPWithoutAWatchSession() async throws {
+    func testKnownPhoneSignOutBlocksPATWithoutAWatchSession() async throws {
         let (model, client, _) = await setup(storage: MemorySessionStorageBackend())
         model.localContextReady(PhoneAccountHint.signedOut.context)
         XCTAssertEqual(model.state, .phoneSignedOut)
@@ -224,7 +231,7 @@ final class WatchAccountTests: XCTestCase {
         }
     }
 
-    func testRetryAfterFailedExplicitSignOutNeverOffersOTPBeforeRestoration() async throws {
+    func testRetryAfterFailedExplicitSignOutNeverOffersPairingBeforeRestoration() async throws {
         for hint: PhoneAccountHint? in [nil, .signedIn(userID: "watch-user")] {
             let storage = FailingWatchStorage(session: try session())
             let (model, client, transport) = await setup(storage: storage)
@@ -371,6 +378,20 @@ final class WatchAccountTests: XCTestCase {
 }
 
 extension WatchAccountTests {
+    func testAssistedSignInRequiresSignedInPhoneHintAndNoWatchSession() async throws {
+        let (signedOut, _, _) = await setup(storage: MemorySessionStorageBackend())
+        signedOut.localContextReady(nil)
+        XCTAssertNil(signedOut.assistedSignInUserID)
+        signedOut.receiveContext(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        XCTAssertEqual(signedOut.assistedSignInUserID, "watch-user")
+        signedOut.receiveContext(PhoneAccountHint.signedOut.context)
+        XCTAssertNil(signedOut.assistedSignInUserID)
+
+        let (signedIn, _, _) = try await setup()
+        signedIn.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        XCTAssertNil(signedIn.assistedSignInUserID)
+    }
+
     func testWatchProfileCacheRequiresMatchingRestoredUserAndClearsOnSignOut() async throws {
         let cache = WatchCurrentUserStore(suite: "WatchAccountTests.\(UUID().uuidString)")
         cache.save(CurrentWatchUser(id: "watch-user", displayName: "Recently fetched", email: "cached@example.test"))
@@ -517,7 +538,7 @@ extension WatchAccountTests {
         XCTAssertNotEqual(model.state, .name("Too late"))
     }
 
-    func testPersistedOTPBeforeCallerReturnsStillReconciles() async throws {
+    func testPersistedPATBeforeCallerReturnsStillReconciles() async throws {
         let storage = MemorySessionStorageBackend()
         let client = createClient(NhostClientOptions(
             sessionManagement: .processLocal(storage: storage), transport: WatchTransport()
@@ -528,7 +549,7 @@ extension WatchAccountTests {
         )
         await model.bootstrap()
         model.receiveContext(PhoneAccountHint.signedIn(userID: "other").context)
-        // SDK persists the OTP result before the UI's verification call returns.
+        // SDK persists the PAT result before the caller's sign-in returns.
         let persisted = try session()
         try await client.sessionStore.set(persisted)
         model.acceptVerifiedSession(persisted)
@@ -539,6 +560,114 @@ extension WatchAccountTests {
         }
         let remaining = try await client.getUserSession()
         XCTAssertNil(remaining)
+    }
+
+    func testTransientColdStartPATFailureKeepsManualRestoreForKnownAndUnknownPhone() async throws {
+        for hint: PhoneAccountHint? in [nil, .signedIn(userID: "watch-user")] {
+            let store = WatchTestPATStore()
+            let token = UUID().uuidString
+            try store.save(WatchPATCredential(userID: "watch-user", token: token,
+                                              expiresAt: Date().addingTimeInterval(3600)))
+            let transport = WatchTransport()
+            await transport.rejectPAT() // Transient offline sign-in; the credential remains valid.
+            let client = createClient(NhostClientOptions(
+                subdomain: "local", region: "local",
+                sessionManagement: .processLocal(storage: MemorySessionStorageBackend()), transport: transport
+            ))
+            let model = WatchAccountModel(
+                authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+                currentUser: NhostCurrentUserService(client: client),
+                patService: NhostWatchPATService(client: client), patStore: store
+            )
+            if let hint { model.localContextReady(hint.context) }
+            else { model.localContextReady(nil) }
+            await model.bootstrap()
+            XCTAssertEqual(model.state, .reauthenticate)
+            model.refresh() // Foreground must preserve Restore without another automatic request.
+            XCTAssertEqual(model.state, .reauthenticate)
+            let firstAttempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+            XCTAssertEqual(firstAttempts.count, 1)
+            XCTAssertEqual(model.assistedSignInUserID, hint == nil ? nil : "watch-user")
+            await transport.allowPAT()
+            let restored = await model.recoverUsingPAT()
+            XCTAssertTrue(restored)
+            await waitFor(model, .name("Server Name"))
+            let requests = await transport.requests
+            let signIn = try XCTUnwrap(requests.first { $0.url.path.hasSuffix("/signin/pat") })
+            XCTAssertTrue(String(decoding: signIn.body ?? Data(), as: UTF8.self).contains(token))
+            XCTAssertEqual(requests.filter { $0.url.path.hasSuffix("/signin/pat") }.count, 2)
+            let saved = try await client.getUserSession()
+            XCTAssertEqual(saved?.user?.id, "watch-user")
+            XCTAssertEqual(saved?.refreshToken, "new-refresh")
+            XCTAssertNotEqual(saved?.refreshToken, token)
+            XCTAssertEqual(try store.load()?.token, token)
+        }
+    }
+
+    func testRejectedRefreshRecoversFromSavedPAT() async throws {
+        let store = WatchTestPATStore()
+        try store.save(WatchPATCredential(userID: "watch-user", token: UUID().uuidString,
+                                          expiresAt: Date().addingTimeInterval(3600)))
+        let transport = WatchTransport()
+        await transport.rejectRefresh()
+        let client = createClient(NhostClientOptions(
+            subdomain: "local", region: "local",
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session(expiresIn: -1))),
+            transport: transport
+        ))
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: NhostCurrentUserService(client: client),
+            patService: NhostWatchPATService(client: client), patStore: store
+        )
+        model.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        await model.bootstrap()
+        await waitFor(model, .name("Server Name"))
+        let requests = await transport.requests
+        XCTAssertTrue(requests.contains { $0.url.path.hasSuffix("/token") })
+        XCTAssertTrue(requests.contains { $0.url.path.hasSuffix("/signin/pat") })
+        let saved = try await client.getUserSession()
+        XCTAssertEqual(saved?.refreshToken, "new-refresh")
+    }
+
+    func testAuth401AutomaticallyUsesSavedPATButDoesNotLoopOnRepeated401() async throws {
+        let (model, transport, _) = try await accountWithPAT()
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 1)
+        await waitForRecoveryToFinish(model)
+        await waitFor(model, .authError) // The server still rejects /user after PAT sign-in.
+
+        model.refresh()
+        await model.waitForCurrentRead()
+        let attempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+        XCTAssertEqual(attempts.count, 1) // No automatic sign-in loop for a persistent 401.
+
+        await transport.set(status: 200)
+        let manuallyRecovered = await model.recoverUsingPAT() // Explicit fallback can still recover.
+        XCTAssertTrue(manuallyRecovered)
+        await waitFor(model, .name("Server Name"))
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 3) // A validated /user resets the gate.
+    }
+
+    func testAuth401PATNetworkFailureKeepsManualRestoreAvailable() async throws {
+        let (model, transport, store) = try await accountWithPAT()
+        await transport.rejectPAT()
+        await transport.set(status: 401)
+        model.refresh()
+        await waitForPATAttempts(transport, count: 1)
+        await waitForRecoveryToFinish(model)
+        XCTAssertEqual(model.state, .authError)
+        XCTAssertNotNil(try store.load()) // Transient failure never erases the PAT.
+
+        await transport.allowPAT()
+        await transport.set(status: 200)
+        let manuallyRecovered = await model.recoverUsingPAT()
+        XCTAssertTrue(manuallyRecovered)
+        await waitFor(model, .name("Server Name"))
+        await waitForPATAttempts(transport, count: 2)
     }
 
     func testInvalidRefreshNeverDisplaysSessionName() async throws {
@@ -647,14 +776,14 @@ extension WatchAccountTests {
         }
     }
 
-    func testSameIDOTPAlwaysTriggersFreshReadWhileRetainingEarlierName() async throws {
+    func testSameIDPATAlwaysTriggersFreshReadWhileRetainingEarlierName() async throws {
         let (model, client, controlled) = try await controlledSetup()
         model.localContextReady(nil)
         try await controlled.waitForRequest()
         await controlled.release(CurrentWatchUser(id: "watch-user", displayName: "Before OTP"))
         await waitFor(model, .name("Before OTP"))
 
-        // OTP writes to SDK storage before the UI is given its verified result.
+        // PAT sign-in writes to SDK storage before the caller gets its result.
         let persisted = try session()
         try await client.sessionStore.set(persisted)
         model.acceptVerifiedSession(persisted)
@@ -667,7 +796,7 @@ extension WatchAccountTests {
         XCTAssertEqual(count, 2)
     }
 
-    func testOTPInvalidatesAlreadyRunningSameIDNameRead() async throws {
+    func testPATInvalidatesAlreadyRunningSameIDNameRead() async throws {
         let (model, client, controlled) = try await controlledSetup()
         model.localContextReady(nil)
         try await controlled.waitForRequest()
@@ -690,6 +819,44 @@ extension WatchAccountTests {
 }
 
 private extension WatchAccountTests {
+    func accountWithPAT() async throws -> (WatchAccountModel, WatchTransport, WatchTestPATStore) {
+        let store = WatchTestPATStore()
+        try store.save(WatchPATCredential(userID: "watch-user", token: UUID().uuidString,
+                                          expiresAt: Date().addingTimeInterval(3600)))
+        let transport = WatchTransport()
+        let client = createClient(NhostClientOptions(
+            subdomain: "local", region: "local",
+            sessionManagement: .processLocal(storage: MemorySessionStorageBackend(session: try session())),
+            transport: transport
+        ))
+        let model = WatchAccountModel(
+            authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
+            currentUser: NhostCurrentUserService(client: client),
+            patService: NhostWatchPATService(client: client), patStore: store
+        )
+        model.localContextReady(PhoneAccountHint.signedIn(userID: "watch-user").context)
+        await model.bootstrap()
+        await waitFor(model, .name("Server Name"))
+        return (model, transport, store)
+    }
+
+    func waitForPATAttempts(_ transport: WatchTransport, count: Int) async {
+        for _ in 0..<1000 {
+            let attempts = await transport.requests.filter { $0.url.path.hasSuffix("/signin/pat") }
+            if attempts.count >= count { return }
+            await Task.yield()
+        }
+        XCTFail("Expected at least \(count) PAT sign-ins")
+    }
+
+    func waitForRecoveryToFinish(_ model: WatchAccountModel) async {
+        for _ in 0..<1000 {
+            if !model.isRecovering { return }
+            await Task.yield()
+        }
+        XCTFail("PAT recovery did not finish")
+    }
+
     func session(expiresIn: Int = 3600) throws -> StoredSession {
         try StoredSession(
             accessToken: WatchTransport.token(expiresIn: expiresIn), accessTokenExpiresIn: expiresIn,
@@ -755,6 +922,14 @@ private extension WatchAccountTests {
         }
         XCTFail("Expected local-clear error, got \(model.state)")
     }
+}
+
+private final class WatchTestPATStore: WatchPATStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var saved: WatchPATCredential?
+    func load() throws -> WatchPATCredential? { lock.lock(); defer { lock.unlock() }; return saved }
+    func save(_ value: WatchPATCredential) throws { lock.lock(); defer { lock.unlock() }; saved = value }
+    func clear() throws { lock.lock(); defer { lock.unlock() }; saved = nil }
 }
 
 private actor FailFirstWatchReadStorage: SessionStorageBackend {

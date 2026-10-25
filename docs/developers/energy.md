@@ -172,17 +172,30 @@ background scheduling requests/acceptances/failures, actual wakes, Health
 observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
 observer-query and background-delivery registration failures, stage-level
 HealthKit active/resting queries, Health import, backend reconciliation
-read/write and final today read, fresh backend results, snapshot saves, and
-WidgetKit reload requests. Actual scheduled background wakes have separate
-started/finished/expired-by-watchOS events; expiry may not be recorded if the
-process is suspended or killed first. Random IDs correlate
+read/write and final today read, fresh backend results, snapshot saves,
+Auth refresh HTTP starts/responses/cancellations/failures, SDK session-store
+write notifications, and WidgetKit reload requests. Actual scheduled
+background wakes have separate started/finished/expired-by-watchOS events;
+expiry may not be recorded if the process is suspended or killed first. Random
+IDs correlate
 same-run observer/refresh/snapshot events; resumed pending work uses a new
-attempt ID. Active/resting metric, app state when handled, active elapsed
-seconds, wall-clock age of a pending delivery at refresh start, backend
-operation and account-gate skip reason make related records identifiable
-without storing
-Health values or account data. Failures carry fixed stages and safe categories:
-HealthKit, network, backend, GraphQL transport, other. New transport events
+attempt ID. Active/resting metric, app state when captured during handling
+(where applicable), active elapsed seconds, wall-clock age of a pending
+delivery at refresh start, backend operation and account-gate skip reason make
+related records identifiable without storing Health values or account data.
+Auth refresh events have their own random per-request attempt ID and
+HTTP-boundary timestamps. A 2xx response is logged as
+"Response received; storage unconfirmed", not proof that the rotated token
+reached Keychain. A cancelled request is "Skipped · cancelled", not a
+Network failure; the server may already have
+rotated the token, so its outcome remains unknown. A separate successful SDK
+session-write notification (including PAT sign-in) uses the session-store
+callback time, not a refresh attempt ID; it is not attributed to a specific
+refresh. Neither an absent write event after watchOS suspension nor a 2xx
+response proves whether a refreshed session persisted. Both Auth event
+families omit app state because MainActor logging can be delayed. Failures
+carry fixed stages and safe categories: HealthKit, network, backend, GraphQL
+transport, other. New transport events
 preserve only a safe provenance: URLSession numeric error, HTTP status, fixed
 service/response category, or unknown. `FetchError.transport` can expose an
 SDK-generated `URLError <code>:` prefix; only the numeric prefix is retained,
@@ -224,6 +237,16 @@ uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
 non-auth `/user` errors retain the same-owner cached or session-fallback
 profile with Retry; connectivity failures say to retry when connected, while
 other failures use a neutral refresh warning. Auth errors clear the profile.
+The watch also permits one saved-PAT sign-in when its transport confirms HTTP 400
+specifically from Auth `POST /token`, including a refresh started by profile reads,
+energy reconciliation or forced pre-upload refresh. This is a bounded fallback,
+not proof that the PAT is invalid. A successful uncached `/user` read re-arms it;
+concurrent failures join existing recovery without cancelling its new profile
+read. A recovered energy refresh may reconcile once more. HTTP 400s elsewhere,
+malformed response bodies alone and transient network failures do not request PAT
+sign-in. Owner/phone-hint/sign-out gates still apply, and a failed attempt retains
+manual Restore while a valid PAT remains available. The SDK's typed
+`invalid-refresh-token` handling and conditional session removal are unchanged.
 Local WCSession activation also runs without delaying this foreground display.
 An already delivered signed-out/different-account hint blocks immediately; one
 delivered later may leave stale values visible briefly before the watch clears

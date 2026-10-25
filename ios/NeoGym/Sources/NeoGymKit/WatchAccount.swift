@@ -128,6 +128,15 @@ public final class WatchAccountModel: ObservableObject {
     public let authStore: AuthStore
     private let currentUserService: any CurrentUserServicing
     private let currentUserStore: WatchCurrentUserStore?
+    private let patService: (any WatchPATServicing)?
+    private let patStore: (any WatchPATStoring)?
+    private let now: @MainActor () -> Date
+    @Published public private(set) var isRecovering = false
+    private var recoveryTask: Task<Bool, Never>?
+    private var recoveryID: UUID?
+    // At most one automatic PAT sign-in per failed account validation; a fresh
+    // /user success permits a later automatic recovery. Manual restore remains available.
+    private var automaticRecoveryAttempted = false
     private var phone: PhoneKnowledge = .pending
     private var sessionID: String?
     private var observedAuthState: AuthState = .loading
@@ -146,10 +155,16 @@ public final class WatchAccountModel: ObservableObject {
     private enum PhoneKnowledge: Equatable { case pending, unknown, known(PhoneAccountHint) }
 
     public init(authStore: AuthStore, currentUser: any CurrentUserServicing,
-                currentUserStore: WatchCurrentUserStore? = nil) {
+                currentUserStore: WatchCurrentUserStore? = nil,
+                patService: (any WatchPATServicing)? = nil,
+                patStore: (any WatchPATStoring)? = nil,
+                now: @escaping @MainActor () -> Date = Date.init) {
         self.authStore = authStore
         self.currentUserService = currentUser
         self.currentUserStore = currentUserStore
+        self.patService = patService
+        self.patStore = patStore
+        self.now = now
         subscription = authStore.$state.sink { [weak self] state in
             // Publisher delivery is synchronous on the main actor for AuthStore.
             MainActor.assumeIsolated { self?.sessionChanged(state) }
@@ -161,13 +176,16 @@ public final class WatchAccountModel: ObservableObject {
         return WatchAccountModel(
             authStore: AuthStore(authService: NhostAuthService(client: client), autoBootstrap: false),
             currentUser: NhostCurrentUserService(client: client),
-            currentUserStore: WatchCurrentUserStore()
+            currentUserStore: WatchCurrentUserStore(),
+            patService: NhostWatchPATService(client: client),
+            patStore: WatchPATKeychainStore()
         )
     }
 
     public func bootstrap() async {
         await authStore.bootstrap()
         reconcile()
+        if case .signedOut = observedAuthState { await recoverAutomaticallyUsingPAT() }
     }
 
     /// Background refresh must not finish its system task before the uncached
@@ -189,15 +207,17 @@ public final class WatchAccountModel: ObservableObject {
         guard next != phone else { return }
         phone = next
         reconcile()
+        if case .signedOut = observedAuthState { Task { await recoverAutomaticallyUsingPAT() } }
     }
 
     public func receiveContext(_ context: [String: Any]) {
         guard let hint = PhoneAccountHint.decode(context), phone != .known(hint) else { return }
         phone = .known(hint)
         reconcile()
+        if case .signedOut = observedAuthState { Task { await recoverAutomaticallyUsingPAT() } }
     }
 
-    /// OTP may already have persisted a same-ID SDK session before its caller
+    /// PAT sign-in may already have persisted a same-ID SDK session before its caller
     /// returns. Always invalidate an earlier read and fetch again from Auth;
     /// reconciliation first blocks/clears a session that conflicts with a hint.
     public func acceptVerifiedSession(_ session: StoredSession) {
@@ -219,6 +239,26 @@ public final class WatchAccountModel: ObservableObject {
         reconcile(forceFetch: true)
     }
 
+    /// Pairing requires a definitive phone hint; only a rejected same-user
+    /// session may be replaced before local sign-out.
+    public var assistedSignInUserID: String? {
+        guard case .known(.signedIn(let id)) = phone, !explicitlyClearing, clearTask == nil else { return nil }
+        if let session = observedAuthState.session {
+            guard session.user?.id == id, state == .reauthenticate || state == .authError else { return nil }
+        }
+        switch state {
+        case .signedOut, .matchPhone, .reauthenticate, .authError: return id
+        default: return nil
+        }
+    }
+
+    /// A received PAT must match the definitive hint, even after Auth persists
+    /// a session before the sign-in call returns.
+    public func allowsAssistedVerifiedSession(userID: String) -> Bool {
+        guard case .known(.signedIn(let id)) = phone else { return false }
+        return id == userID
+    }
+
     /// Expiring watchOS activity stops a managed name read; Retry starts a new one.
     /// Never cancel a session-clear task here: local removal must complete.
     public func cancelPendingRead() {
@@ -228,6 +268,12 @@ public final class WatchAccountModel: ObservableObject {
     }
 
     public func signOut() async {
+        do { try patStore?.clear() }
+        catch {
+            invalidate()
+            state = .error("Could not clear the watch credential. Retry sign out.")
+            return
+        }
         invalidate()
         currentUserStore?.clear()
         requiresReauthentication = false
@@ -246,7 +292,10 @@ public final class WatchAccountModel: ObservableObject {
             reconcile() // Same-ID token updates and error → signed-out still change the policy.
             return
         }
-        if id == nil, sessionID != nil, !explicitSignOut { requiresReauthentication = true }
+        if id == nil, sessionID != nil, !explicitSignOut {
+            requiresReauthentication = true
+            Task { await recoverAutomaticallyUsingPAT() }
+        }
         if id == nil || (sessionID != nil && sessionID != id) { currentUserStore?.clear() }
         if let id {
             currentUserStore?.retainOnly(userID: id)
@@ -294,7 +343,7 @@ public final class WatchAccountModel: ObservableObject {
         }
         if clearTask != nil {
             invalidate()
-            state = .clearing // Do not offer OTP while local removal may still delete a new session.
+            state = .clearing // Do not offer pairing while local removal may still delete a new session.
             return true
         }
         if case .pending = phone {
@@ -306,14 +355,20 @@ public final class WatchAccountModel: ObservableObject {
         case .known(.signedOut):
             invalidate()
             currentUserStore?.clear()
+            guard clearBlockedPAT() else { return true }
             blockAndClear(.phoneSignedOut)
             return true
         case .known(.signedIn(let phoneID)):
             if let id = sessionID, id != phoneID {
                 invalidate()
                 currentUserStore?.clear()
+                guard clearBlockedPAT() else { return true }
                 blockAndClear(.matchPhone)
                 return true
+            }
+            if let credential = try? patStore?.load(), credential.userID != phoneID {
+                invalidate()
+                guard clearBlockedPAT() else { return true }
             }
         case .pending, .unknown: break
         }
@@ -339,8 +394,7 @@ public final class WatchAccountModel: ObservableObject {
         case .signedOut:
             invalidate()
             currentUserStore?.clear()
-            if case .known(.signedIn) = phone { state = .matchPhone }
-            else { state = requiresReauthentication ? .reauthenticate : .signedOut }
+            state = signedOutState()
         case .error(let error):
             invalidate()
             state = .error(error)
@@ -420,7 +474,131 @@ public final class WatchAccountModel: ObservableObject {
         currentUserStore?.save(user)
         currentUser = user
         profileError = nil
+        automaticRecoveryAttempted = false
         state = .name(user.displayName)
+    }
+
+}
+
+extension WatchAccountModel {
+    /// Presentation only: a locally valid, owner-eligible PAT can still be
+    /// rejected by Auth. Explicit phone pairing does not require a saved PAT.
+    public var hasRestorablePAT: Bool {
+        guard !explicitSignOut, !explicitlyClearing, clearTask == nil,
+              let credential = try? patStore?.load(), credential.isValid(at: now()) else { return false }
+        if let session = observedAuthState.session, session.user?.id != credential.userID { return false }
+        switch phone {
+        case .pending, .known(.signedOut): return false
+        case .known(.signedIn(let id)): return id == credential.userID
+        case .unknown: return true
+        }
+    }
+
+    /// Store a phone-issued credential before signing in, so a suspended watch
+    /// can retry with the same PAT instead of losing a one-shot transfer.
+    public func acceptPAT(_ credential: WatchPATCredential) async -> Bool {
+        guard assistedSignInUserID == credential.userID,
+              credential.isValid(at: now()) else { return false }
+        if let recoveryTask {
+            let previousID = recoveryID
+            _ = await recoveryTask.value
+            if recoveryID == previousID { self.recoveryTask = nil; recoveryID = nil }
+        }
+        guard assistedSignInUserID == credential.userID else { return false }
+        do { try patStore?.save(credential) }
+        catch { state = .error("Watch credential could not be saved."); return false }
+        // A new, explicit phone handoff is allowed after watch-only sign-out;
+        // automatic recovery remains disabled until that handoff is accepted.
+        explicitSignOut = false
+        return await recoverUsingPAT()
+    }
+
+    private func recoverAutomaticallyUsingPAT() async {
+        guard !automaticRecoveryAttempted, !explicitSignOut, !explicitlyClearing,
+              clearTask == nil, patStore != nil, patService != nil else { return }
+        // An earlier failure may have queued this task before another sign-in
+        // completed. Never replace a session that has since become usable.
+        if observedAuthState.session != nil, state != .reauthenticate, state != .authError { return }
+        switch phone {
+        case .pending, .known(.signedOut): return
+        case .unknown, .known(.signedIn): break
+        }
+        automaticRecoveryAttempted = true
+        _ = await recoverUsingPAT()
+    }
+
+    @discardableResult
+    public func recoverUsingPAT() async -> Bool {
+        if let recoveryTask { return await recoveryTask.value }
+        guard !explicitSignOut, !explicitlyClearing, clearTask == nil,
+              patStore != nil, patService != nil else { return false }
+        switch phone {
+        case .pending, .known(.signedOut): return false
+        case .unknown, .known(.signedIn): break
+        }
+        let id = UUID()
+        let task = Task { [self] in await performPATRecovery() }
+        recoveryID = id
+        recoveryTask = task
+        let succeeded = await task.value
+        if recoveryID == id { recoveryTask = nil; recoveryID = nil }
+        return succeeded
+    }
+
+    private func performPATRecovery() async -> Bool {
+        let credential: WatchPATCredential
+        do {
+            guard let stored = try patStore?.load() else { return false }
+            credential = stored
+        } catch {
+            state = .error("Watch credential could not be read.")
+            return false
+        }
+        guard credential.isValid(at: now()) else {
+            try? patStore?.clear()
+            return false
+        }
+        if case .known(.signedIn(let id)) = phone, id != credential.userID {
+            _ = clearBlockedPAT()
+            return false
+        }
+        isRecovering = true
+        defer { isRecovering = false }
+        do {
+            guard let session = try await patService?.signIn(token: credential.token) else { return false }
+            guard !explicitSignOut, !explicitlyClearing,
+                  credential.userID == session.user?.id,
+                  phone != .known(.signedOut),
+                  (try? patStore?.load()) == credential else {
+                try? patStore?.clear()
+                await authStore.signOut()
+                return false
+            }
+            if case .known(.signedIn(let id)) = phone, id != credential.userID {
+                try? patStore?.clear()
+                await authStore.signOut()
+                return false
+            }
+            acceptVerifiedSession(session)
+            return true
+        } catch {
+            if let fetch = error as? FetchError,
+               fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidPat {
+                try? patStore?.clear()
+            }
+            // Re-evaluate the current hint and credential: an in-flight failure
+            // must not override a sign-out or a newly blocking phone hint.
+            if observedAuthState.session == nil { reconcile() }
+            return false
+        }
+    }
+
+    private func clearBlockedPAT() -> Bool {
+        do { try patStore?.clear(); return true }
+        catch {
+            state = .error("Watch credential could not be cleared. Retry sign out.")
+            return false
+        }
     }
 
     private func fail(_ error: Error, revision: UInt64) {
@@ -431,19 +609,22 @@ public final class WatchAccountModel: ObservableObject {
         isReadingProfile = false
         // startRead seeds an owner-checked profile before the request; only
         // invalidation can clear it, and that also changes the generation.
-        if error is SessionRefreshError {
+        if error is SessionRefreshError || WatchAuthRefreshRejection.matches(error) {
             invalidate()
             currentUserStore?.clear()
             state = .reauthenticate
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if let fetch = error as? FetchError,
                   fetch.decodedBody(AuthErrorResponse.self)?.error == .invalidRefreshToken {
             invalidate()
             currentUserStore?.clear()
             state = .reauthenticate
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if let fetch = error as? FetchError, fetch.status == 401 {
             invalidate()
             currentUserStore?.clear()
             state = .authError
+            Task { await recoverAutomaticallyUsingPAT() }
         } else if error is URLError {
             profileError = "Profile may be out of date. Retry when connected."
         } else if let fetch = error as? FetchError, case .transport = fetch {
@@ -451,5 +632,47 @@ public final class WatchAccountModel: ObservableObject {
         } else {
             profileError = "Profile could not be refreshed. Retry."
         }
+    }
+}
+
+extension WatchAccountModel {
+    /// Handle an endpoint-proven refresh rejection discovered by an energy read,
+    /// reconciliation, or forced upload refresh. Returns whether it was handled,
+    /// not whether sign-in succeeded. Never replay the failed operation here.
+    @discardableResult
+    public func recoverAfterRefreshRejection(_ error: any Error, for userID: String) async -> Bool {
+        guard !Task.isCancelled, WatchAuthRefreshRejection.matches(error), sessionID == userID,
+              !explicitSignOut, !explicitlyClearing, clearTask == nil,
+              !handleBlockingState() else { return false }
+        // Another failure may arrive while the PAT sign-in or its /user read is
+        // pending. Joining must not cancel that new read or reset the one-shot gate.
+        if automaticRecoveryAttempted || recoveryTask != nil {
+            _ = await recoveryTask?.value
+            await waitForCurrentRead()
+            return true
+        }
+        invalidate()
+        currentUserStore?.clear()
+        state = .reauthenticate
+        await recoverAutomaticallyUsingPAT()
+        await waitForCurrentRead()
+        return true
+    }
+}
+
+private extension WatchAccountModel {
+    /// A saved credential remains manually restorable after the one permitted
+    /// automatic attempt fails, including on later foreground reconciliations.
+    func signedOutState() -> WatchAccountState {
+        do {
+            if let credential = try patStore?.load(), credential.isValid(at: now()) {
+                if case .known(.signedIn(let id)) = phone, id != credential.userID { return .matchPhone }
+                return .reauthenticate
+            }
+        } catch {
+            return .error("Watch credential could not be read.")
+        }
+        if case .known(.signedIn) = phone { return .matchPhone }
+        return requiresReauthentication ? .reauthenticate : .signedOut
     }
 }

@@ -101,19 +101,48 @@ and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs into an **existing** account with email OTP. Signed-in users
-swipe between Energy (today's consumed, total burned, active/resting, and
+The watch signs in **only** through the signed-in iPhone. Tap **Connect using
+iPhone** on the watch, then **Me → Profile → Connect Apple Watch → Connect watch**
+on the phone with both apps open and reachable. The phone creates a 90-day
+app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
+The watch keeps the PAT in a separate device-only Keychain item, calls
+`/signin/pat` to create its own SDK session, and automatically repeats that
+sign-in when its session is lost, Auth `/user` returns 401, or Auth `POST /token`
+rejects a refresh with HTTP 400. The last case is identified at the actual refresh
+endpoint, including refreshes started by energy sync or a background upload;
+HTTP 400 elsewhere does not trigger sign-in. It tries once per failed validation,
+then keeps Restore saved sign-in available on later opens
+while a valid, non-blocked PAT remains stored; Sign out on this screen erases it
+even without a session. A successful `/user` read permits a later automatic
+attempt. A refresh 400 does not prove the PAT is invalid; it permits this bounded
+fallback. Transient network, profile and energy errors and malformed responses
+alone do not trigger PAT sign-in. A recovered energy refresh can reconcile once
+more after fresh account validation, without an unbounded retry loop. No OTP
+is entered on the watch and no phone session is copied. After 90 days,
+reconnect from the phone. With a matching signed-in phone hint, both Session
+expired and Authentication failed screens show **Connect using iPhone**, even
+if the rejected SDK session is still stored; no preliminary Sign out is needed.
+Healthy sessions and pending local clearing cannot be replaced. **Restore saved
+sign-in** is shown only while a locally valid, owner-eligible PAT remains saved;
+Auth may still reject it. If iOS suppresses
+a force-quit app's message delivery, open both apps and request pairing again.
+Phone account hints in application context contain only state/user ID, never
+the credential. Known phone sign-out/account switches clear the local watch PAT;
+a phone sign-out while the watch is offline cannot revoke it instantly. The PAT
+can sign in as the full user until expiry or server revocation; it is distinct
+from a privileged Nhost Cloud dashboard PAT. Watch-only sign-out erases it.
+Signed-in users swipe between Energy (today's consumed, total burned, active/resting, and
 Net = consumed minus burned kcal) and Profile (a locally cached name/email,
 revalidated by uncached Auth `GET /user` in the background, plus watch-only
 sign-out; blank names become “Athlete”), and Events (recent timestamped
 background scheduling, wake, Health sync, observer-query and background-delivery
-registration failures, backend read, snapshot save, and complication
-reload-request outcomes). The last 300 events stay on the watch, not in its
+registration failures, backend read, snapshot save, Auth refresh exchanges
+and SDK session-write notifications, and complication reload-request outcomes). The last 300 events stay on the watch, not in its
 widget or on a server. A random attempt ID ties together observer arrival,
 energy reconciliation, snapshot save, and HealthKit acknowledgement within
 one in-process attempt; a resumed pending import has a new ID. Entries
-include the observed active/resting metric, app state when handled, elapsed
-seconds, backend operation or account-gate skip reason. A refresh now emits
+include the observed active/resting metric, optional app state captured at
+handling time, elapsed seconds, backend operation or account-gate skip reason. A refresh now emits
 start and terminal events for the active/resting HealthKit statistics queries,
 Health import, reconciliation read/write, and today's final backend read.
 These stage durations use wall time (including suspension), not the older
@@ -140,7 +169,17 @@ number or HTTP status when available); older `GraphQL transport · code 3`
 records are Swift enum indices, not HTTP/HealthKit codes. Uncached Auth `/user`
 failures record their own safe cause; scene transitions record
 active/inactive/background but cannot prove uninterrupted background work.
-Older events retain numeric-only detail. Separately, the watch widget writes
+Auth refresh events use a random attempt ID and record request start, safe
+HTTP/transport outcome, and wall time at the HTTP boundary. Session-write
+events use the session-store notification callback time (after any SDK queueing),
+not the later MainActor log time. Both omit app state because it could change
+before deferred logging runs. A cancelled exchange is logged as
+Skipped · cancelled, not a Network failure; its server outcome is unknown, so
+a later 401 or session removal may mean the token already rotated. A 2xx
+response means only that the transport received it; a separate SDK session-write event indicates a stored
+session (including PAT sign-in), not necessarily that a preceding refresh
+belongs to it. Missing terminal/write events cannot prove persistence failed
+if watchOS suspended the app. Older events retain numeric-only detail. Separately, the watch widget writes
 up to 64 timestamp-only provider receipts to an atomic App Group file when
 `getTimeline` or `getSnapshot` reads the shared snapshot. In Events, tap
 **Read widget receipts** to inspect the latest six; the `.txt` export includes
@@ -229,14 +268,19 @@ the watch's server session instantly, and failed remote revocation can leave a
 server token valid until expiry despite successful local removal. The bounded
 watch expiring activity around auth work is best-effort, not a suspension
 promise: its 20-second local deadline releases the assertion without cancelling
-the request; system-reported expiry can cancel OTP or a name read, while local
-session clearing must complete. A verified OTP forces a fresh `/user` read even
+the request; system-reported expiry can cancel PAT sign-in or a name read, while local
+session clearing must complete. A PAT sign-in forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
-sign in via OTP, edit the server-side name,
+terminate the iPhone app, tap **Connect using iPhone** on the watch, then open
+Profile on the phone; when iOS delivers the request,
+confirm **Finish watch connection** appears without a second tap. Repeat after a
+force-quit and retry from the watch if iOS suppressed background delivery. Then
+sign in with the phone-issued PAT, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
 sign-out/account switch. Check Events for accepted scheduling versus actual
-background wakes and for snapshot-save failures. Tap **Share logs** on the
+background wakes, Auth refresh request/response versus session-write events,
+and snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
 attachment for matching same-run observer/refresh attempt IDs, callback-time
 acknowledgement, active/background state when the handler ran, typed stage
@@ -311,10 +355,10 @@ Events-page share). `swift test` and offline verifier fixtures do not prove sign
 Apple signing, report signed archive/IPA checks as blocked.
 
 On paired development-signed iPhone/watch hardware, install the phone app and
-its companion, sign an existing account into the watch by OTP, edit that test
+its companion, connect an existing account to the watch from the phone, edit that test
 account's name server-side (without saving an admin secret in this repo),
 background/reopen watch and confirm the new name from `GET /user`. Test retry
-after network loss, expiry/new OTP, watch-only internet while the phone is
+after network loss, PAT expiry/re-pairing, watch-only internet while the phone is
 unreachable, and delayed phone sign-out/account-switch hints after reconnect.
 A paired iPhone is needed for installation, not independent watch network
 reads. Undelivered hints are not instant server revocation; failed remote
@@ -487,8 +531,8 @@ HealthKit.
 `NhostConfig.local` defaults to `subdomain = "local"` and `region = "local"`,
 matching the web app's local development config. `AuthStore` shows a loading
 state while `getUserSession()` reads the SDK's persisted session, subscribes to
-`sessionStore.subscribe`, then routes to either signed-out OTP forms or the
-protected full-screen app shell.
+`sessionStore.subscribe`, then routes to either the signed-out email OTP
+sign-in/sign-up forms or the protected full-screen app shell.
 
 Sign-in and sign-up use Nhost email OTP: request a 6-digit code, copy it from
 local MailHog, and verify it in the app. Sign-up sends

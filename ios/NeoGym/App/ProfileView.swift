@@ -3,12 +3,14 @@ import Nhost
 import SwiftUI
 
 struct ProfileView: View {
+    @EnvironmentObject private var phoneConnectivity: PhoneAccountConnectivity
     let session: StoredSession
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
 
     @State private var isShowingChangeEmail = false
+    @State private var isShowingWatchSignIn = false
 
     var body: some View {
         ScrollView {
@@ -32,6 +34,12 @@ struct ProfileView: View {
                 )
             }
         }
+        .sheet(isPresented: $isShowingWatchSignIn, onDismiss: {
+            phoneConnectivity.clearPresentedSuccess()
+        }) {
+            PhoneWatchSignInSheet(connectivity: phoneConnectivity)
+        }
+        .onAppear { phoneConnectivity.expireAttempt() }
     }
 
     private var accountHeader: some View {
@@ -154,6 +162,15 @@ struct ProfileView: View {
                     .font(.headline)
                 GlassDivider()
                 Button {
+                    phoneConnectivity.clearPresentedSuccess()
+                    isShowingWatchSignIn = true
+                } label: {
+                    Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch connection",
+                          systemImage: "applewatch")
+                }
+                .buttonStyle(NeoGymSecondaryButtonStyle())
+                .disabled(isSigningOut)
+                Button {
                     signOut()
                 } label: {
                     if isSigningOut {
@@ -207,6 +224,44 @@ private struct DetailRow<Content: View>: View {
     }
 }
 
+private struct PhoneWatchSignInSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var connectivity: PhoneAccountConnectivity
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Connect your watch") {
+                    Text("On your Apple Watch, tap Connect using iPhone. Keep NeoGym open on both devices.")
+                    if connectivity.connected {
+                        Text("Apple Watch connected successfully.")
+                    } else if connectivity.pending != nil {
+                        Text("Your iPhone will create a watch sign-in credential that can restore its session without another code. It expires after 90 days.")
+                            .foregroundStyle(.secondary)
+                        Button(connectivity.isSending ? "Connecting…" : "Connect watch") {
+                            Task { await connectivity.connect() }
+                        }
+                        .disabled(connectivity.isSending)
+                    } else {
+                        Text("Waiting for a request from your watch…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let error = connectivity.errorMessage {
+                    Section { Text(error).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Connect Apple Watch")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .onAppear { connectivity.expireAttempt() }
+        }
+    }
+}
+
 #Preview("Profile") {
     ScreenScaffold {
         ProfileView(
@@ -216,6 +271,8 @@ private struct DetailRow<Content: View>: View {
             signOut: {}
         )
     }
+    .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
+    .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))
 }
 
 #Preview("Profile · Dark") {
@@ -228,4 +285,6 @@ private struct DetailRow<Content: View>: View {
         )
     }
     .preferredColorScheme(.dark)
+    .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
+    .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))
 }

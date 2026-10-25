@@ -109,9 +109,40 @@ no GraphQL cache, and a managed, uncached Auth `GET /user` name/email read.
 The watch restores its local Keychain session first, displays a same-user
 watch-app-only cached profile (or the SDK session's name) and today's token-free
 energy snapshot immediately, and revalidates the profile in the background;
-WCSession activation does not hold up the foreground UI. The watch signs
-existing accounts in with email OTP; WatchConnectivity carries only latest-state
-account hints, never credentials. Signed-in watch users swipe between
+WCSession activation does not hold up the foreground UI. The watch signs in
+only through a phone-issued, app-user Auth PAT. In Me → Profile → Connect Apple
+Watch, the signed-in iPhone creates a 90-day PAT for a
+live, nonce-bound watch request and hands it over by reachable WCSession message;
+there is no watch email/OTP fallback. The watch saves the PAT in its own
+ThisDeviceOnly Keychain item, uses `/signin/pat` to obtain a separate SDK session,
+and automatically reuses the unchanged PAT if its ordinary refresh session is
+lost, an uncached Auth `/user` read returns 401, or the watch transport confirms
+HTTP 400 specifically from Auth `POST /token`. That refresh rejection is a
+recovery signal, not proof of an invalid PAT; other HTTP 400s do not trigger it.
+The same bounded recovery handles a rejected refresh during profile validation,
+energy reconciliation/read, or forced pre-upload refresh. After fresh account
+validation, an energy refresh can reconcile once more; it never retries in a loop.
+Automatic PAT sign-in is limited to one attempt until a successful `/user` read, avoiding a sign-in loop
+when Auth remains unavailable; a still-valid, non-blocked saved PAT keeps manual
+Restore saved sign-in available across foreground opens after a transient failure,
+and that screen also allows watch-only sign-out to erase it. Transient
+profile/network or energy failures and malformed response bodies alone do not
+trigger PAT sign-in. The SDK still handles its typed `invalid-refresh-token`
+response and conditional session removal normally.
+PAT renewal requires reconnecting from the phone after expiry. With a definitive
+same-user phone hint, reauthentication and Auth-error screens offer Connect using
+iPhone even if the SDK still retains the rejected session; a healthy session or
+pending local clearing cannot be replaced. Restore saved sign-in is shown only
+while a locally valid, owner-eligible PAT remains saved (Auth may still reject it).
+The phone retains the token
+only in memory until acknowledgment/attempt expiry. Application context contains
+only latest-state phone account hints. Known signed-out/different-account hints
+clear the watch credential and block recovery; explicit watch sign-out also clears
+it. PAT metadata is not a permission scope: the credential can sign in as the
+full user until expiry or server revocation. Ordinary phone sign-out does not
+revoke a PAT while the watch is offline; a stale/undelivered hint is not instant
+server revocation. A Nhost Cloud dashboard PAT is not an app-user Auth PAT.
+Signed-in watch users swipe between
 Energy (today's logged consumed kcal, active+resting burned total and its
 active/resting breakdown, and Net = consumed minus burned), Profile
 (uncached Auth name/email and watch-only sign-out), and Events (the last 300
@@ -119,14 +150,17 @@ timestamped, watch-app-only diagnostic outcomes). Events distinguish background
 requests accepted by watchOS from actual wakes and delivered task expiry,
 Health observer delivery from sync, typed starts/ends for active/resting
 HealthKit queries and backend reconciliation/read/write stages, fresh energy
-reads, local snapshot-save success/failure, and WidgetKit reload requests;
+reads, local snapshot-save success/failure, Auth refresh HTTP start/response/
+cancellation/failure and SDK session-write notifications, and WidgetKit reload requests;
 a reload request does not confirm a new display.
 Random per-attempt IDs correlate observer arrival, sync, snapshot and HealthKit
 acknowledgement within one in-process attempt; a resumed pending import uses a
 new attempt ID and records the pending wall-clock age instead. Entries include
-active/resting metric, app state, elapsed time,
-backend operation or skip reason when relevant. Stage elapsed times and
-pending age use wall clock (including watch sleep); a missing stage end or
+active/resting metric, app state when captured during handling, elapsed time,
+backend operation or skip reason when relevant. Auth refresh events use HTTP
+boundary timestamps, and SDK session-write events use the notification callback
+time; both omit app state because their MainActor log writes can be delayed.
+Stage elapsed times and pending age use wall clock (including watch sleep); a missing stage end or
 expiry event cannot prove a hung query or a successful wake. Observer
 acknowledgement is timestamped in the HealthKit callback rather than at a
 delayed MainActor log write, and exports remain occurrence-sorted.
@@ -146,7 +180,12 @@ events could have been logged much later after suspension. Errors retain
 fixed stages, numeric codes and safe sources, including a distinct GraphQL
 transport category. New events retain only a typed URLSession error number,
 HTTP status, service/response category or unknown cause; no URLs, headers,
-response bodies or raw descriptions are exported. The old GraphQL transport
+response bodies or raw descriptions are exported. A cancelled Auth refresh
+is logged as skipped/cancelled, not a network failure; its server outcome is
+unknown and a later 401 or session removal can follow if the token rotated.
+A refresh HTTP success is not evidence that the rotated token reached Keychain; a missing SDK write event
+is also not proof of failure if watchOS suspended delivery. Auth refresh attempt
+IDs are random and never derived from tokens or account IDs. The old GraphQL transport
 `code 3` was a Swift enum index, not an HTTP/HealthKit status. A watch scene
 transition event distinguishes active/inactive/background (but does not prove
 continuous execution), and an uncached Auth `/user` read failure records the
@@ -239,7 +278,7 @@ never credentials or display name; known signed-out
 or different-account state blocks the watch while unknown state allows independent
 watch internet use. The watch model exposes non-actionable `.clearing` while a
 blocking hint's session removal is pending; only after clearing finishes may
-`.matchPhone` invite OTP. A later phone signed-in hint after explicit watch
+`.matchPhone` invite phone pairing. A later phone signed-in hint after explicit watch
 sign-out also changes the prompt to `.matchPhone`.
 
 The iOS package depends on the local Nhost Swift SDK at `../../../../../nhost/nhost/swift/packages/nhost-swift` relative to `ios/NeoGym/` (normally `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift`). Update `Package.swift` and docs together if that workspace assumption changes.
@@ -287,7 +326,8 @@ availability gates; existing guards are vestigial, not a pattern for new code.
 
 The native app uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
-`UserProfile`, `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
+`PhoneAssistedSignInModel`, `WatchAssistedSignInModel`, `WatchPATCredential`, `UserProfile`,
+`ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the
 `AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
 those models and route signed-in sessions into the full-screen `AppShellView`.
 Watch SwiftUI views live under `ios/NeoGym/Watch/`; the rectangular watch
