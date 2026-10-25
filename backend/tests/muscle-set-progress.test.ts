@@ -181,6 +181,30 @@ describe("server-calculated muscle sets", () => {
     expect(result.data?.mixedLaterals[0].primaryMuscleGroup).toBe("shoulders");
   });
 
+  test("private dev catalog fixtures retain their legacy shoulder targets", async () => {
+    if (!reachable) return;
+    const fixtures = [
+      { slug: "Landmine_Press", primary: "shoulders", secondary: [] },
+      { slug: "Front_Plate_Raise_to_Overhead_Press", primary: "shoulders", secondary: [] },
+      { slug: "Wide_Grip_Seated_Cable_Rows", primary: "middle_back", secondary: ["biceps", "lats", "shoulders"] },
+    ];
+    const result = await gql(`query($slugs: [String!]!) {
+      exercises(where: {slug: {_in: $slugs}}) {
+        slug isPublic userId primaryMuscleGroup secondaryMuscleGroups { muscleGroup }
+      }
+    }`, { slugs: fixtures.map(({ slug }) => slug) }, USER);
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.exercises).toHaveLength(fixtures.length);
+    for (const fixture of fixtures) {
+      const exercise = result.data!.exercises.find((row: { slug: string }) => row.slug === fixture.slug);
+      expect(exercise).toMatchObject({
+        isPublic: false, userId: USER, primaryMuscleGroup: fixture.primary,
+      });
+      expect(exercise.secondaryMuscleGroups.map((row: { muscleGroup: string }) => row.muscleGroup).sort())
+        .toEqual(fixture.secondary);
+    }
+  });
+
   test("matching public movement variants credit the same delt head", async () => {
     if (!reachable) return;
     const primary = [

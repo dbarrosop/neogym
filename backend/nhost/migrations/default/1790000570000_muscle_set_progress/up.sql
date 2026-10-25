@@ -78,9 +78,7 @@ FROM (VALUES
   ('019e0675-ab8c-79d7-8b6f-c71cabe039df'::uuid, 'front_delts'),
   ('019e0675-ab8d-7090-a3a2-9f0b775071e8'::uuid, 'front_delts'),
   ('019e0675-ac3b-7a5a-8d65-567ebc98d521'::uuid, 'front_delts'),
-  ('019e0675-ac42-77fb-9992-8086e1b49b0f'::uuid, 'side_delts'),
-  ('019e06e5-17ca-79bf-bd90-5f30fcca04e9'::uuid, 'front_delts'),
-  ('019e06f1-8c2a-7d17-9ee8-1f6b88f04824'::uuid, 'front_delts')
+  ('019e0675-ac42-77fb-9992-8086e1b49b0f'::uuid, 'side_delts')
 ) AS mapping(id, target)
 WHERE e.id = mapping.id AND e.is_public AND e.primary_muscle_group = 'shoulders';
 
@@ -165,8 +163,7 @@ FROM (VALUES
   ('019e0675-abec-7793-b699-8a6089dc8033'::uuid, 'front_delts'),
   ('019e0675-ac6b-7cef-8cf0-4cadce763fed'::uuid, 'front_delts'),
   ('019e0675-ac7e-7dbd-b1de-e895636db371'::uuid, 'front_delts'),
-  ('019e0675-ac8a-73df-a146-fa8e34824600'::uuid, 'front_delts'),
-  ('019e06de-3599-71e2-a23b-d558928b6702'::uuid, 'rear_delts')
+  ('019e0675-ac8a-73df-a146-fa8e34824600'::uuid, 'front_delts')
 ) AS mapping(id, target)
 JOIN public.exercises AS e ON e.id = mapping.id AND e.is_public
 WHERE sm.exercise_id = mapping.id AND sm.muscle_group = 'shoulders'
@@ -252,8 +249,7 @@ DELETE FROM public.exercise_secondary_muscle_groups AS sm USING (VALUES
   ('019e0675-abec-7793-b699-8a6089dc8033'::uuid, 'front_delts'),
   ('019e0675-ac6b-7cef-8cf0-4cadce763fed'::uuid, 'front_delts'),
   ('019e0675-ac7e-7dbd-b1de-e895636db371'::uuid, 'front_delts'),
-  ('019e0675-ac8a-73df-a146-fa8e34824600'::uuid, 'front_delts'),
-  ('019e06de-3599-71e2-a23b-d558928b6702'::uuid, 'rear_delts')
+  ('019e0675-ac8a-73df-a146-fa8e34824600'::uuid, 'front_delts')
 ) AS mapping(id, target), public.exercises AS e
 WHERE sm.exercise_id = mapping.id AND e.id = mapping.id AND e.is_public
   AND sm.muscle_group = 'shoulders' AND e.primary_muscle_group = mapping.target;
