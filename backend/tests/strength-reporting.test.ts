@@ -17,7 +17,10 @@ async function gql(query: string, variables: Record<string, unknown> = {}, roleU
     },
     body: JSON.stringify({ query, variables }),
   });
-  return response.json() as Promise<{ data?: Record<string, any>; errors?: Array<{ message: string }> }>;
+  return response.json() as Promise<{
+    data?: Record<string, any>;
+    errors?: Array<{ message: string; extensions?: { code?: string } }>;
+  }>;
 }
 
 let reachable = false;
@@ -49,7 +52,7 @@ const historyQuery = `query($workout: uuid!, $exercise: String!, $from: timestam
 describe("shared strength reporting", () => {
   test("local Hasura and seeds are reachable", () => expect(reachable).toBe(true));
 
-  test("return-shape tables stay empty and cannot be written", async () => {
+  test("return-shape tables stay empty", async () => {
     if (!reachable) return;
     const empty = await gql(`query {
       workoutStrengthHistoryRows { sessionId }
@@ -58,34 +61,51 @@ describe("shared strength reporting", () => {
     expect(empty.errors).toBeUndefined();
     expect(empty.data?.workoutStrengthHistoryRows).toEqual([]);
     expect(empty.data?.exerciseStrengthHistoryRows).toEqual([]);
-    const inserted = await gql(`mutation($user: uuid!, $workout: uuid!, $session: uuid!) {
-      insertWorkoutStrengthHistoryRows(objects: [{
-        userId: $user, workoutId: $workout, sessionId: $session,
-        startedAt: "2026-10-01T00:00:00Z", loggedSets: 0, completedSets: 0,
-        reps: 0, volume: 0
-      }]) { affected_rows }
-    }`, { user: USER, workout: SAMPLE_WORKOUT, session: "00000000-0000-4000-8000-000000000001" });
-    expect(inserted.errors?.[0]?.message).toContain("field 'insertWorkoutStrengthHistoryRows' not found");
-    // Hasura doesn't expose writes to return-only tables. Verify the database
-    // also enforces the no-storage CHECK if a SQL client bypasses GraphQL.
-    const check = await fetch("https://local.hasura.local.nhost.run/v2/query", {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-hasura-admin-secret": ADMIN_SECRET },
-      body: JSON.stringify({
-        type: "run_sql",
-        args: { source: "default", sql: `SELECT conname, pg_get_constraintdef(oid)
-          FROM pg_constraint WHERE conname IN (
-            'workout_strength_history_rows_no_storage',
-            'exercise_strength_history_rows_no_storage') ORDER BY conname` },
-      }),
-    });
-    const constraints = await check.json() as { result?: string[][] };
-    expect(check.ok).toBe(true);
-    expect(constraints.result?.slice(1)).toEqual([
-      ["exercise_strength_history_rows_no_storage", "CHECK (false)"],
-      ["workout_strength_history_rows_no_storage", "CHECK (false)"],
-    ]);
   });
+
+  for (const shape of [
+    {
+      table: "workout_strength_history_rows",
+      insertRoot: "insert_workoutStrengthHistoryRows",
+      targetColumn: "workoutId",
+      targetId: SAMPLE_WORKOUT,
+    },
+    {
+      table: "exercise_strength_history_rows",
+      insertRoot: "insert_exerciseStrengthHistoryRows",
+      targetColumn: "exerciseId",
+      targetId: "019e0675-a26c-7b80-9fda-9075c6c51b8b",
+    },
+  ]) {
+    test(`${shape.table} rejects user inserts and admin storage`, async () => {
+      if (!reachable) return;
+      // Confirm the real admin root before treating its absence for users as a permission boundary.
+      const schema = await gql(`query { __schema { mutationType { fields { name } } } }`);
+      expect(schema.errors).toBeUndefined();
+      const adminRoots = schema.data!.__schema.mutationType.fields.map((field: { name: string }) => field.name);
+      expect(adminRoots).toContain(shape.insertRoot);
+      const mutation = `mutation($user: uuid!, $target: uuid!, $session: uuid!) {
+        ${shape.insertRoot}(objects: [{
+          userId: $user, ${shape.targetColumn}: $target, sessionId: $session,
+          startedAt: "2026-10-01T00:00:00Z", loggedSets: 0, completedSets: 0,
+          reps: 0, volume: 0
+        }]) { affected_rows }
+      }`;
+      const variables = {
+        user: USER,
+        target: shape.targetId,
+        session: "00000000-0000-4000-8000-000000000001",
+      };
+      const userInsert = await gql(mutation, variables, USER);
+      expect(userInsert.errors?.[0]?.extensions?.code).toBe("validation-failed");
+      expect(userInsert.errors?.[0]?.message).toContain(`field '${shape.insertRoot}' not found`);
+      // Admin has a write root, but an actual insert must still hit the database no-storage CHECK.
+      const adminInsert = await gql(mutation, variables);
+      expect(adminInsert.errors?.[0]?.extensions?.code).toBe("permission-error");
+      expect(adminInsert.errors?.[0]?.message).toContain("Check constraint violation");
+      expect(adminInsert.errors?.[0]?.message).toContain(`"${shape.table}_no_storage"`);
+    });
+  }
 
   test("seeded workout and exercise histories agree on sets, reps, volume and Epley", async () => {
     if (!reachable) return;
