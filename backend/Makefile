@@ -20,6 +20,10 @@ dev-env-down:
 		--volumes
 
 
+.PHONY: schema
+schema:
+	sh ./gen.sh
+
 .PHONY: test
 test:
 	cd tests && bun install && bun test

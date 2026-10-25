@@ -12,7 +12,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "codegen:graphql": "graphql-codegen --config codegen.ts",
-    "codegen:graphql-schema": "rover graph introspect --skip-update-check -H \"X-Hasura-Role: user\" -H \"X-Hasura-Admin-Secret: nhost-admin-secret\" -o ./schema.user.graphqls https://local.graphql.local.nhost.run/v1",
+    "codegen:graphql-schema": "sh ../backend/gen.sh",
     "codegen": "bun run codegen:graphql-schema && bun run codegen:graphql",
     "test": "bun test",
     "check": "bun run typecheck && bun run lint && bun run test"
