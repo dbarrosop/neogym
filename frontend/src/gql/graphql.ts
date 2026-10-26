@@ -1318,6 +1318,13 @@ export type ExerciseSecondaryMuscleGroups_Aggregate_Order_By = {
   min?: InputMaybe<ExerciseSecondaryMuscleGroups_Min_Order_By>;
 };
 
+/** input type for inserting array relation for remote table "exercise_secondary_muscle_groups" */
+export type ExerciseSecondaryMuscleGroups_Arr_Rel_Insert_Input = {
+  data: Array<ExerciseSecondaryMuscleGroups_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<ExerciseSecondaryMuscleGroups_On_Conflict>;
+};
+
 /** Boolean expression to filter rows from the table "exercise_secondary_muscle_groups". All fields are combined with a logical 'AND'. */
 export type ExerciseSecondaryMuscleGroups_Bool_Exp = {
   _and?: InputMaybe<Array<ExerciseSecondaryMuscleGroups_Bool_Exp>>;
@@ -1326,6 +1333,19 @@ export type ExerciseSecondaryMuscleGroups_Bool_Exp = {
   exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
   muscleGroup?: InputMaybe<MuscleGroups_Enum_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "exercise_secondary_muscle_groups" */
+export enum ExerciseSecondaryMuscleGroups_Constraint {
+  /** unique or primary key constraint on columns "exercise_id", "muscle_group" */
+  ExerciseSecondaryMuscleGroupsPkey = 'exercise_secondary_muscle_groups_pkey'
+}
+
+/** input type for inserting data into table "exercise_secondary_muscle_groups" */
+export type ExerciseSecondaryMuscleGroups_Insert_Input = {
+  exercise?: InputMaybe<Exercises_Obj_Rel_Insert_Input>;
+  exerciseId?: InputMaybe<Scalars['uuid']['input']>;
+  muscleGroup?: InputMaybe<MuscleGroups_Enum>;
 };
 
 /** aggregate max on columns */
@@ -1348,6 +1368,22 @@ export type ExerciseSecondaryMuscleGroups_Min_Fields = {
 /** order by min() on columns of table "exercise_secondary_muscle_groups" */
 export type ExerciseSecondaryMuscleGroups_Min_Order_By = {
   exerciseId?: InputMaybe<Order_By>;
+};
+
+/** response of any mutation on the table "exercise_secondary_muscle_groups" */
+export type ExerciseSecondaryMuscleGroups_Mutation_Response = {
+  __typename?: 'exerciseSecondaryMuscleGroups_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<ExerciseSecondaryMuscleGroups>;
+};
+
+/** on_conflict condition type for table "exercise_secondary_muscle_groups" */
+export type ExerciseSecondaryMuscleGroups_On_Conflict = {
+  constraint: ExerciseSecondaryMuscleGroups_Constraint;
+  update_columns?: Array<ExerciseSecondaryMuscleGroups_Update_Column>;
+  where?: InputMaybe<ExerciseSecondaryMuscleGroups_Bool_Exp>;
 };
 
 /** Ordering options when selecting data from "exercise_secondary_muscle_groups". */
@@ -1378,6 +1414,12 @@ export type ExerciseSecondaryMuscleGroups_Stream_Cursor_Value_Input = {
   exerciseId?: InputMaybe<Scalars['uuid']['input']>;
   muscleGroup?: InputMaybe<MuscleGroups_Enum>;
 };
+
+/** placeholder for update columns of table "exercise_secondary_muscle_groups" (current role has no relevant permissions) */
+export enum ExerciseSecondaryMuscleGroups_Update_Column {
+  /** placeholder (do not use) */
+  Placeholder = '_PLACEHOLDER'
+}
 
 /** columns and relationships of "exercise_strength_history_rows" */
 export type ExerciseStrengthHistoryRows = {
@@ -1505,6 +1547,8 @@ export type Exercises = {
   slug?: Maybe<Scalars['String']['output']>;
   /** An object relationship */
   strength?: Maybe<ExercisesStrength>;
+  /** A computed field, executes function "exercise_strength_history" */
+  strengthHistory?: Maybe<Array<ExerciseStrengthHistoryRows>>;
   updatedAt: Scalars['timestamptz']['output'];
   userId?: Maybe<Scalars['uuid']['output']>;
   /** An array relationship */
@@ -1535,6 +1579,17 @@ export type ExercisesSecondaryMuscleGroups_AggregateArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order_by?: InputMaybe<Array<ExerciseSecondaryMuscleGroups_Order_By>>;
   where?: InputMaybe<ExerciseSecondaryMuscleGroups_Bool_Exp>;
+};
+
+
+/** columns and relationships of "exercises" */
+export type ExercisesStrengthHistoryArgs = {
+  args: StrengthHistory_Exercises_Args;
+  distinct_on?: InputMaybe<Array<ExerciseStrengthHistoryRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExerciseStrengthHistoryRows_Order_By>>;
+  where?: InputMaybe<ExerciseStrengthHistoryRows_Bool_Exp>;
 };
 
 
@@ -2197,6 +2252,7 @@ export type Exercises_Insert_Input = {
   level?: InputMaybe<ExerciseLevels_Enum>;
   name?: InputMaybe<Scalars['String']['input']>;
   primaryMuscleGroup?: InputMaybe<MuscleGroups_Enum>;
+  secondaryMuscleGroups?: InputMaybe<ExerciseSecondaryMuscleGroups_Arr_Rel_Insert_Input>;
   strength?: InputMaybe<ExercisesStrength_Obj_Rel_Insert_Input>;
   workoutExercises?: InputMaybe<WorkoutExercises_Arr_Rel_Insert_Input>;
   workoutSessionExercises?: InputMaybe<WorkoutSessionExercises_Arr_Rel_Insert_Input>;
@@ -4846,6 +4902,10 @@ export type Mutation_Root = {
   deleteDailyEnergyEntry?: Maybe<DailyEnergy>;
   /** delete single row from the table: "exercises" */
   deleteExercise?: Maybe<Exercises>;
+  /** delete single row from the table: "exercise_secondary_muscle_groups" */
+  deleteExerciseSecondaryMuscleGroup?: Maybe<ExerciseSecondaryMuscleGroups>;
+  /** delete data from the table: "exercise_secondary_muscle_groups" */
+  deleteExerciseSecondaryMuscleGroups?: Maybe<ExerciseSecondaryMuscleGroups_Mutation_Response>;
   /** delete data from the table: "exercises" */
   deleteExercises?: Maybe<Exercises_Mutation_Response>;
   /** delete single row from the table: "foods" */
@@ -4944,6 +5004,10 @@ export type Mutation_Root = {
   insertExercise?: Maybe<Exercises>;
   /** insert a single row into the table: "exercises_cardio" */
   insertExerciseCardio?: Maybe<ExercisesCardio>;
+  /** insert a single row into the table: "exercise_secondary_muscle_groups" */
+  insertExerciseSecondaryMuscleGroup?: Maybe<ExerciseSecondaryMuscleGroups>;
+  /** insert data into the table: "exercise_secondary_muscle_groups" */
+  insertExerciseSecondaryMuscleGroups?: Maybe<ExerciseSecondaryMuscleGroups_Mutation_Response>;
   /** insert a single row into the table: "exercises_strength" */
   insertExerciseStrength?: Maybe<ExercisesStrength>;
   /** insert data into the table: "exercises" */
@@ -5210,6 +5274,19 @@ export type Mutation_RootDeleteDailyEnergyEntryArgs = {
 /** mutation root */
 export type Mutation_RootDeleteExerciseArgs = {
   id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteExerciseSecondaryMuscleGroupArgs = {
+  exerciseId: Scalars['uuid']['input'];
+  muscleGroup: MuscleGroups_Enum;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteExerciseSecondaryMuscleGroupsArgs = {
+  where: ExerciseSecondaryMuscleGroups_Bool_Exp;
 };
 
 
@@ -5512,6 +5589,20 @@ export type Mutation_RootInsertExerciseArgs = {
 export type Mutation_RootInsertExerciseCardioArgs = {
   object: ExercisesCardio_Insert_Input;
   on_conflict?: InputMaybe<ExercisesCardio_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertExerciseSecondaryMuscleGroupArgs = {
+  object: ExerciseSecondaryMuscleGroups_Insert_Input;
+  on_conflict?: InputMaybe<ExerciseSecondaryMuscleGroups_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertExerciseSecondaryMuscleGroupsArgs = {
+  objects: Array<ExerciseSecondaryMuscleGroups_Insert_Input>;
+  on_conflict?: InputMaybe<ExerciseSecondaryMuscleGroups_On_Conflict>;
 };
 
 
@@ -9873,6 +9964,16 @@ export type Query_RootWorkoutsAggregateArgs = {
   where?: InputMaybe<Workouts_Bool_Exp>;
 };
 
+export type StrengthHistory_Exercises_Args = {
+  before_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  from_at?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+export type StrengthHistory_Workouts_Args = {
+  before_at?: InputMaybe<Scalars['timestamptz']['input']>;
+  from_at?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
 export type Subscription_Root = {
   __typename?: 'subscription_root';
   /** fetch data from the table: "body_measurements" using primary key columns */
@@ -13339,6 +13440,8 @@ export type Workouts = {
   id: Scalars['uuid']['output'];
   isPublic: Scalars['Boolean']['output'];
   name: Scalars['String']['output'];
+  /** A computed field, executes function "workout_strength_history" */
+  strengthHistory?: Maybe<Array<WorkoutStrengthHistoryRows>>;
   updatedAt: Scalars['timestamptz']['output'];
   userId?: Maybe<Scalars['uuid']['output']>;
   /** An array relationship */
@@ -13353,6 +13456,17 @@ export type Workouts = {
   workoutSessions: Array<WorkoutSessions>;
   /** An aggregate relationship */
   workoutSessions_aggregate: WorkoutSessions_Aggregate;
+};
+
+
+/** columns and relationships of "workouts" */
+export type WorkoutsStrengthHistoryArgs = {
+  args: StrengthHistory_Workouts_Args;
+  distinct_on?: InputMaybe<Array<WorkoutStrengthHistoryRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<WorkoutStrengthHistoryRows_Order_By>>;
+  where?: InputMaybe<WorkoutStrengthHistoryRows_Bool_Exp>;
 };
 
 

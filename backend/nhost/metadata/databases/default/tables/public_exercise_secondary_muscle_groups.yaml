@@ -25,11 +25,40 @@ object_relationships:
   - name: exercise
     using:
       foreign_key_constraint_on: exercise_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        exercise:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false
+      columns:
+        - exercise_id
+        - muscle_group
 select_permissions:
   - role: user
     permission:
       columns:
         - exercise_id
         - muscle_group
-      filter: {}
+      filter:
+        exercise:
+          _or:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: true
       allow_aggregations: true
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        exercise:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - is_public:
+                _eq: false

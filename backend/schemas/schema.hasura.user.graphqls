@@ -267,6 +267,15 @@ enum exerciseMechanics_select_column {
   value
 }
 """
+unique or primary key constraints on table "exercise_secondary_muscle_groups"
+"""
+enum exerciseSecondaryMuscleGroups_constraint {
+  """
+  unique or primary key constraint on columns "muscle_group", "exercise_id"
+  """
+  exercise_secondary_muscle_groups_pkey
+}
+"""
 select columns of table "exercise_secondary_muscle_groups"
 """
 enum exerciseSecondaryMuscleGroups_select_column {
@@ -278,6 +287,15 @@ enum exerciseSecondaryMuscleGroups_select_column {
   column name
   """
   muscleGroup
+}
+"""
+placeholder for update columns of table "exercise_secondary_muscle_groups" (current role has no relevant permissions)
+"""
+enum exerciseSecondaryMuscleGroups_update_column {
+  """
+  placeholder (do not use)
+  """
+  _PLACEHOLDER
 }
 """
 select columns of table "exercise_strength_history_rows"
@@ -2810,6 +2828,19 @@ type exerciseSecondaryMuscleGroups_min_fields {
   exerciseId: uuid
 }
 """
+response of any mutation on the table "exercise_secondary_muscle_groups"
+"""
+type exerciseSecondaryMuscleGroups_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [exerciseSecondaryMuscleGroups!]!
+}
+"""
 columns and relationships of "exercise_strength_history_rows"
 """
 type exerciseStrengthHistoryRows {
@@ -4736,6 +4767,19 @@ type mutation_root {
   """
   deleteExercise(id: uuid!): exercises
   """
+  delete single row from the table: "exercise_secondary_muscle_groups"
+  """
+  deleteExerciseSecondaryMuscleGroup(exerciseId: uuid!, muscleGroup: muscleGroups_enum!): exerciseSecondaryMuscleGroups
+  """
+  delete data from the table: "exercise_secondary_muscle_groups"
+  """
+  deleteExerciseSecondaryMuscleGroups(
+    """
+    filter the rows which have to be deleted
+    """
+    where: exerciseSecondaryMuscleGroups_bool_exp!
+  ): exerciseSecondaryMuscleGroups_mutation_response
+  """
   delete data from the table: "exercises"
   """
   deleteExercises(
@@ -5101,6 +5145,34 @@ type mutation_root {
     """
     on_conflict: exercisesCardio_on_conflict
   ): exercisesCardio
+  """
+  insert a single row into the table: "exercise_secondary_muscle_groups"
+  """
+  insertExerciseSecondaryMuscleGroup(
+    """
+    the row to be inserted
+    """
+    object: exerciseSecondaryMuscleGroups_insert_input!
+
+    """
+    upsert condition
+    """
+    on_conflict: exerciseSecondaryMuscleGroups_on_conflict
+  ): exerciseSecondaryMuscleGroups
+  """
+  insert data into the table: "exercise_secondary_muscle_groups"
+  """
+  insertExerciseSecondaryMuscleGroups(
+    """
+    the rows to be inserted
+    """
+    objects: [exerciseSecondaryMuscleGroups_insert_input!]!
+
+    """
+    upsert condition
+    """
+    on_conflict: exerciseSecondaryMuscleGroups_on_conflict
+  ): exerciseSecondaryMuscleGroups_mutation_response
   """
   insert a single row into the table: "exercises_strength"
   """
@@ -14951,6 +15023,16 @@ input exerciseSecondaryMuscleGroups_aggregate_order_by {
   min: exerciseSecondaryMuscleGroups_min_order_by
 }
 """
+input type for inserting array relation for remote table "exercise_secondary_muscle_groups"
+"""
+input exerciseSecondaryMuscleGroups_arr_rel_insert_input {
+  data: [exerciseSecondaryMuscleGroups_insert_input!]!
+  """
+  upsert condition
+  """
+  on_conflict: exerciseSecondaryMuscleGroups_on_conflict
+}
+"""
 Boolean expression to filter rows from the table "exercise_secondary_muscle_groups". All fields are combined with a logical 'AND'.
 """
 input exerciseSecondaryMuscleGroups_bool_exp {
@@ -14960,6 +15042,14 @@ input exerciseSecondaryMuscleGroups_bool_exp {
   exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
   muscleGroup: muscleGroups_enum_comparison_exp
+}
+"""
+input type for inserting data into table "exercise_secondary_muscle_groups"
+"""
+input exerciseSecondaryMuscleGroups_insert_input {
+  exercise: exercises_obj_rel_insert_input
+  exerciseId: uuid
+  muscleGroup: muscleGroups_enum
 }
 """
 order by max() on columns of table "exercise_secondary_muscle_groups"
@@ -14972,6 +15062,14 @@ order by min() on columns of table "exercise_secondary_muscle_groups"
 """
 input exerciseSecondaryMuscleGroups_min_order_by {
   exerciseId: order_by
+}
+"""
+on_conflict condition type for table "exercise_secondary_muscle_groups"
+"""
+input exerciseSecondaryMuscleGroups_on_conflict {
+  constraint: exerciseSecondaryMuscleGroups_constraint!
+  update_columns: [exerciseSecondaryMuscleGroups_update_column!]! = []
+  where: exerciseSecondaryMuscleGroups_bool_exp
 }
 """
 Ordering options when selecting data from "exercise_secondary_muscle_groups".
@@ -15508,6 +15606,7 @@ input exercises_insert_input {
   level: exerciseLevels_enum
   name: String
   primaryMuscleGroup: muscleGroups_enum
+  secondaryMuscleGroups: exerciseSecondaryMuscleGroups_arr_rel_insert_input
   strength: exercisesStrength_obj_rel_insert_input
   workoutExercises: workoutExercises_arr_rel_insert_input
   workoutSessionExercises: workoutSessionExercises_arr_rel_insert_input

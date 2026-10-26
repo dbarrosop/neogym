@@ -891,6 +891,159 @@ describe("user-role permissions", () => {
       });
     }
   });
+
+  describe("secondary-muscle ownership", () => {
+    async function withTargetFixture(isPublic: boolean, check: (id: string) => Promise<void>) {
+      const created = await gql<{ insertExercise: { id: string } }>(
+        `mutation TargetFixture($name: String!, $public: Boolean!, $owner: uuid) {
+          insertExercise(object: {
+            name: $name, category: strength, primaryMuscleGroup: quadriceps,
+            isPublic: $public, userId: $owner, strength: { data: {} },
+            secondaryMuscleGroups: { data: [{ muscleGroup: glutes }, { muscleGroup: hamstrings }] }
+          }) { id }
+        }`,
+        { name: `Secondary permission ${crypto.randomUUID()}`, public: isPublic, owner: isPublic ? null : TEST_USER_ID },
+      );
+      expect(created.errors).toBeUndefined();
+      const id = created.data!.insertExercise.id;
+      try {
+        await check(id);
+      } finally {
+        const removed = await gql(`mutation CleanupTarget($id: uuid!) { deleteExercise(id: $id) { id } }`, { id });
+        expect(removed.errors).toBeUndefined();
+      }
+    }
+
+    const readTargets = `query Targets($id: uuid!) {
+      exerciseSecondaryMuscleGroups(where: { exerciseId: { _eq: $id } }, order_by: { muscleGroup: asc }) {
+        muscleGroup
+      }
+    }`;
+    type Targets = { exerciseSecondaryMuscleGroups: Array<{ muscleGroup: string }> };
+    const originalTargets = [{ muscleGroup: "glutes" }, { muscleGroup: "hamstrings" }];
+
+    test("owner can create multiple secondary targets and replace them with delete plus insert", async () => {
+      if (!hasuraReachable) return;
+      const created = await gqlAsUser<{
+        insertExercise: { id: string; userId: string; isPublic: boolean };
+      }>(TEST_USER_ID, `mutation OwnTargets($name: String!) {
+        insertExercise(object: {
+          name: $name, category: strength, primaryMuscleGroup: quadriceps,
+          strength: { data: {} },
+          secondaryMuscleGroups: { data: [{ muscleGroup: glutes }, { muscleGroup: hamstrings }] }
+        }) { id userId isPublic }
+      }`, { name: `Owned target permission ${crypto.randomUUID()}` });
+      expect(created.errors).toBeUndefined();
+      const id = created.data!.insertExercise.id;
+      try {
+        expect(created.data!.insertExercise).toMatchObject({ userId: TEST_USER_ID, isPublic: false });
+        const before = await gqlAsUser<Targets>(TEST_USER_ID, readTargets, { id });
+        expect(before.errors).toBeUndefined();
+        expect(before.data!.exerciseSecondaryMuscleGroups).toEqual(originalTargets);
+
+        const replaced = await gqlAsUser<{
+          removed: { exerciseId: string } | null;
+          added: { affected_rows: number };
+        }>(TEST_USER_ID, `mutation ReplaceOwnTargets($id: uuid!) {
+          removed: deleteExerciseSecondaryMuscleGroup(exerciseId: $id, muscleGroup: hamstrings) { exerciseId }
+          added: insertExerciseSecondaryMuscleGroups(objects: [
+            { exerciseId: $id, muscleGroup: adductors }, { exerciseId: $id, muscleGroup: calves }
+          ]) { affected_rows }
+        }`, { id });
+        expect(replaced.errors).toBeUndefined();
+        expect(replaced.data!.removed).toEqual({ exerciseId: id });
+        expect(replaced.data!.added.affected_rows).toBe(2);
+        const after = await gqlAsUser<Targets>(TEST_USER_ID, readTargets, { id });
+        expect(after.errors).toBeUndefined();
+        expect(after.data!.exerciseSecondaryMuscleGroups).toEqual([
+          { muscleGroup: "adductors" }, { muscleGroup: "calves" }, { muscleGroup: "glutes" },
+        ]);
+        const cleared = await gqlAsUser<{ deleteExerciseSecondaryMuscleGroups: { affected_rows: number } }>(
+          TEST_USER_ID,
+          `mutation ClearOwnTargets($id: uuid!) {
+            deleteExerciseSecondaryMuscleGroups(where: { exerciseId: { _eq: $id } }) { affected_rows }
+          }`, { id },
+        );
+        expect(cleared.errors).toBeUndefined();
+        expect(cleared.data!.deleteExerciseSecondaryMuscleGroups.affected_rows).toBe(3);
+      } finally {
+        const removed = await gql(`mutation CleanupOwnTargets($id: uuid!) { deleteExercise(id: $id) { id } }`, { id });
+        expect(removed.errors).toBeUndefined();
+      }
+    });
+
+    test("another user's private targets are hidden in lists, primary-key reads, aggregates, and parent reads", async () => {
+      if (!hasuraReachable) return;
+      await withTargetFixture(false, async (id) => {
+        const result = await gqlAsUser<{
+          rows: unknown[]; row: unknown; totals: { aggregate: { count: number } }; parent: unknown;
+        }>(OTHER_USER_ID, `query ForeignTargets($id: uuid!) {
+          rows: exerciseSecondaryMuscleGroups(where: { exerciseId: { _eq: $id } }) { muscleGroup }
+          row: exerciseSecondaryMuscleGroup(exerciseId: $id, muscleGroup: glutes) { muscleGroup }
+          totals: exerciseSecondaryMuscleGroupsAggregate(where: { exerciseId: { _eq: $id } }) { aggregate { count } }
+          parent: exercise(id: $id) { secondaryMuscleGroups { muscleGroup } }
+        }`, { id });
+        expect(result.errors).toBeUndefined();
+        expect(result.data).toEqual({ rows: [], row: null, totals: { aggregate: { count: 0 } }, parent: null });
+      });
+    });
+
+    for (const scope of [
+      { label: "another user's private", isPublic: false, actor: OTHER_USER_ID },
+      { label: "public catalog", isPublic: true, actor: TEST_USER_ID },
+    ]) {
+      test(`user cannot insert targets on ${scope.label} exercises`, async () => {
+        if (!hasuraReachable) return;
+        await withTargetFixture(scope.isPublic, async (id) => {
+          // Lats is absent, so a duplicate-key error cannot mask a missing permission check.
+          const attempted = await gqlAsUser(scope.actor, `mutation ForbiddenTargetInsert($id: uuid!) {
+            insertExerciseSecondaryMuscleGroup(object: { exerciseId: $id, muscleGroup: lats }) { exerciseId }
+          }`, { id });
+          expect(attempted.errors).toBeDefined();
+          expect(attempted.errors![0].extensions?.code).toBe("permission-error");
+          const after = await gql<Targets>(readTargets, { id });
+          expect(after.errors).toBeUndefined();
+          expect(after.data!.exerciseSecondaryMuscleGroups).toEqual(originalTargets);
+        });
+      });
+
+      test(`user cannot delete targets on ${scope.label} exercises`, async () => {
+        if (!hasuraReachable) return;
+        await withTargetFixture(scope.isPublic, async (id) => {
+          if (scope.isPublic) {
+            const visible = await gqlAsUser<Targets>(scope.actor, readTargets, { id });
+            expect(visible.errors).toBeUndefined();
+            expect(visible.data!.exerciseSecondaryMuscleGroups).toEqual(originalTargets);
+          }
+          const attempted = await gqlAsUser<{
+            one: unknown; many: { affected_rows: number };
+          }>(scope.actor, `mutation ForbiddenTargetDelete($id: uuid!) {
+            one: deleteExerciseSecondaryMuscleGroup(exerciseId: $id, muscleGroup: glutes) { exerciseId }
+            many: deleteExerciseSecondaryMuscleGroups(where: { exerciseId: { _eq: $id } }) { affected_rows }
+          }`, { id });
+          expect(attempted.errors).toBeUndefined();
+          expect(attempted.data).toEqual({ one: null, many: { affected_rows: 0 } });
+          const after = await gql<Targets>(readTargets, { id });
+          expect(after.errors).toBeUndefined();
+          expect(after.data!.exerciseSecondaryMuscleGroups).toEqual(originalTargets);
+        });
+      });
+    }
+
+    test("junction update and reparent mutations remain unavailable to users", async () => {
+      if (!hasuraReachable) return;
+      const schema = await gqlAsUser<{
+        __schema: { mutationType: { fields: Array<{ name: string }> } };
+      }>(TEST_USER_ID, "{ __schema { mutationType { fields { name } } } }");
+      expect(schema.errors).toBeUndefined();
+      const roots = schema.data!.__schema.mutationType.fields.map(({ name }) => name);
+      expect(roots).toContain("insertExerciseSecondaryMuscleGroup");
+      expect(roots).toContain("deleteExerciseSecondaryMuscleGroup");
+      expect(roots).not.toContain("updateExerciseSecondaryMuscleGroup");
+      expect(roots).not.toContain("updateExerciseSecondaryMuscleGroups");
+      expect(roots).not.toContain("update_exerciseSecondaryMuscleGroups_many");
+    });
+  });
 });
 
 // Cascade-integrity tests.
