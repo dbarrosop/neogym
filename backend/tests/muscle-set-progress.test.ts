@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 const URL = "https://local.hasura.local.nhost.run/v1/graphql";
 const ADMIN_SECRET = "nhost-admin-secret";
@@ -203,6 +204,155 @@ describe("server-calculated muscle sets", () => {
       expect(exercise.secondaryMuscleGroups.map((row: { muscleGroup: string }) => row.muscleGroup).sort())
         .toEqual(fixture.secondary);
     }
+  });
+
+  const reviewedSecondaryTargets = [
+    { id: "019e0675-a2a1-77d0-9cee-39cfad6a62e9", slug: "Barbell_Shoulder_Press", primary: "front_delts", secondary: ["chest", "side_delts", "triceps"] },
+    { id: "019e0675-a9b4-771c-b3c8-a6219f99df89", slug: "Seated_Dumbbell_Press", primary: "front_delts", secondary: ["side_delts", "triceps"] },
+    { id: "019e0675-a597-7724-bd17-40c101d5773f", slug: "Hammer_Curls", primary: "biceps", secondary: ["forearms"] },
+    { id: "019e0675-ac8f-76d4-b224-5fba7c7a8b69", slug: "Wide-Grip_Lat_Pulldown", primary: "lats", secondary: ["biceps", "middle_back", "rear_delts"] },
+    { id: "019e0675-a934-7a87-8e7b-7c3f41c7af5b", slug: "Romanian_Deadlift", primary: "hamstrings", secondary: ["glutes", "lower_back"] },
+    { id: "019e0675-a552-72ed-9b8e-bb9f36750092", slug: "Front_Barbell_Squat", primary: "quadriceps", secondary: ["glutes", "hamstrings"] },
+    { id: "019e0675-a2b6-7a74-b5c9-709e056b5c36", slug: "Barbell_Walking_Lunge", primary: "quadriceps", secondary: ["glutes", "hamstrings"] },
+    { id: "019e0675-a2e0-7405-a6ef-9c2822bef44d", slug: "Bent_Over_Barbell_Row", primary: "middle_back", secondary: ["biceps", "lats", "lower_back", "rear_delts"] },
+    { id: "019e0675-a26c-7db4-8037-cfdc635707a7", slug: "Barbell_Ab_Rollout", primary: "abdominals", secondary: ["lats", "lower_back", "shoulders"] },
+  ];
+
+  test("reviewed public secondary targets preserve primary and unrelated muscles", async () => {
+    if (!reachable) return;
+    const result = await gql(`query($ids: [uuid!]!) {
+      exercises(where: {id: {_in: $ids}}) {
+        id slug isPublic primaryMuscleGroup secondaryMuscleGroups { muscleGroup }
+      }
+    }`, { ids: reviewedSecondaryTargets.map(({ id }) => id) }, USER);
+    expect(result.errors).toBeUndefined();
+    expect(result.data?.exercises).toHaveLength(reviewedSecondaryTargets.length);
+    for (const fixture of reviewedSecondaryTargets) {
+      const exercise = result.data!.exercises.find((row: { id: string }) => row.id === fixture.id);
+      expect(exercise).toMatchObject({ slug: fixture.slug, isPublic: true, primaryMuscleGroup: fixture.primary });
+      expect(exercise.secondaryMuscleGroups.map((row: { muscleGroup: string }) => row.muscleGroup).sort())
+        .toEqual(fixture.secondary);
+    }
+  });
+
+  test("reviewed secondary targets change daily and rolling credits without incidental calf credit", async () => {
+    if (!reachable) return;
+    const sessionId = crypto.randomUUID();
+    const query = `query {
+      muscleSetProgress(args: {from_day: "2050-04-10", through_day: "2050-04-10", time_zone: "UTC"}) {
+        muscleGroup directSets indirectSets weightedSets rollingDirectSets rollingIndirectSets rollingWeightedSets
+      }
+    }`;
+    type CreditRow = Record<string, string | number>;
+    const byMuscle = (rows: CreditRow[]) => new Map(rows.map((row) => [row.muscleGroup, row]));
+    const before = await gql(query, {}, USER);
+    expect(before.errors).toBeUndefined();
+    const previous = byMuscle(before.data!.muscleSetProgress);
+    try {
+      const created = await gql(`mutation($object: workoutSessions_insert_input!) {
+        insertWorkoutSession(object: $object) { id }
+      }`, { object: {
+        id: sessionId, userId: USER, startedAt: "2050-04-10T12:00:00Z",
+        workoutSessionExercises: { data: reviewedSecondaryTargets.map(({ id }, position) => ({
+          exerciseId: id, position,
+          workoutSessionStrengthSets: { data: [{ setNumber: 1, reps: 8, weight: 20 }] },
+        })) },
+      } });
+      expect(created.errors).toBeUndefined();
+      const result = await gql(query, {}, USER);
+      expect(result.errors).toBeUndefined();
+      const current = byMuscle(result.data!.muscleSetProgress);
+      for (const [muscle, direct, indirect] of [
+        ["front_delts", 2, 0], ["side_delts", 0, 2], ["chest", 0, 1], ["triceps", 0, 2],
+        ["biceps", 1, 2], ["forearms", 0, 1], ["lats", 1, 2], ["middle_back", 1, 1],
+        ["rear_delts", 0, 2], ["hamstrings", 1, 2], ["glutes", 0, 3], ["lower_back", 0, 3],
+        ["quadriceps", 2, 0], ["abdominals", 1, 0], ["shoulders", 0, 1],
+      ] as const) {
+        const prior = previous.get(muscle);
+        const row = current.get(muscle);
+        expect(row).toMatchObject({
+          directSets: Number(prior?.directSets ?? 0) + direct,
+          indirectSets: Number(prior?.indirectSets ?? 0) + indirect,
+          rollingDirectSets: Number(prior?.rollingDirectSets ?? 0) + direct,
+          rollingIndirectSets: Number(prior?.rollingIndirectSets ?? 0) + indirect,
+        });
+        expect(Number(row?.weightedSets)).toBe(Number(prior?.weightedSets ?? 0) + direct + indirect * 0.5);
+        expect(Number(row?.rollingWeightedSets)).toBe(Number(prior?.rollingWeightedSets ?? 0) + direct + indirect * 0.5);
+      }
+      expect(current.get("calves")).toEqual(previous.get("calves"));
+    } finally {
+      const removed = await gql(`mutation($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, { id: sessionId });
+      expect(removed.errors).toBeUndefined();
+    }
+  });
+
+  test("reviewed secondary migration rolls back, reapplies idempotently, and skips private targets", async () => {
+    if (!reachable) return;
+    const migration = new globalThis.URL("../nhost/migrations/default/1792997064993_reviewed_secondary_targets/", import.meta.url);
+    const up = readFileSync(new globalThis.URL("up.sql", migration), "utf8");
+    const down = readFileSync(new globalThis.URL("down.sql", migration), "utf8");
+    // Only fixed test-fixture UUIDs enter this SQL; no user input is interpolated.
+    const ids = reviewedSecondaryTargets.map(({ id }) => `'${id}'::uuid`).join(", ");
+    const snapshot = `SELECT jsonb_agg(jsonb_build_array(e.id, e.primary_muscle_group,
+      ARRAY(SELECT sm.muscle_group FROM public.exercise_secondary_muscle_groups sm
+            WHERE sm.exercise_id = e.id ORDER BY sm.muscle_group)) ORDER BY e.id)`;
+    const sql = `BEGIN;
+      DO $migration_test$
+      DECLARE before_targets jsonb; after_targets jsonb;
+      BEGIN
+        ${snapshot} INTO before_targets FROM public.exercises e WHERE e.id IN (${ids});
+        ${down}
+        IF EXISTS (
+          SELECT 1 FROM public.exercise_secondary_muscle_groups sm
+          WHERE (sm.exercise_id, sm.muscle_group) IN (
+            ('019e0675-a2a1-77d0-9cee-39cfad6a62e9'::uuid, 'side_delts'),
+            ('019e0675-a9b4-771c-b3c8-a6219f99df89'::uuid, 'side_delts'),
+            ('019e0675-a597-7724-bd17-40c101d5773f'::uuid, 'forearms'),
+            ('019e0675-a2e0-7405-a6ef-9c2822bef44d'::uuid, 'lower_back'),
+            ('019e0675-a26c-7db4-8037-cfdc635707a7'::uuid, 'lats'),
+            ('019e0675-ac8f-76d4-b224-5fba7c7a8b69'::uuid, 'rear_delts')
+          )
+        ) OR NOT EXISTS (
+          SELECT 1 FROM public.exercise_secondary_muscle_groups
+          WHERE exercise_id = '019e0675-ac8f-76d4-b224-5fba7c7a8b69'::uuid AND muscle_group = 'shoulders'
+        ) OR 3 <> (
+          SELECT count(*) FROM public.exercise_secondary_muscle_groups
+          WHERE muscle_group = 'calves' AND exercise_id IN (
+            '019e0675-a934-7a87-8e7b-7c3f41c7af5b'::uuid,
+            '019e0675-a552-72ed-9b8e-bb9f36750092'::uuid,
+            '019e0675-a2b6-7a74-b5c9-709e056b5c36'::uuid
+          )
+        ) THEN RAISE EXCEPTION 'Secondary-target rollback did not restore the catalog baseline'; END IF;
+        ${up}
+        ${snapshot} INTO after_targets FROM public.exercises e WHERE e.id IN (${ids});
+        IF after_targets IS DISTINCT FROM before_targets THEN
+          RAISE EXCEPTION 'Secondary-target migration roundtrip did not restore reviewed target rows';
+        END IF;
+        ${up}
+        ${snapshot} INTO after_targets FROM public.exercises e WHERE e.id IN (${ids});
+        IF after_targets IS DISTINCT FROM before_targets THEN
+          RAISE EXCEPTION 'Secondary-target migration is not idempotent';
+        END IF;
+        -- Make the same stable IDs private inside this rolled-back transaction.
+        -- Both migration directions must leave their associations untouched.
+        UPDATE public.exercises SET is_public = false, user_id = '${USER}'::uuid WHERE id IN (${ids});
+        ${down}
+        ${up}
+        ${snapshot} INTO after_targets FROM public.exercises e WHERE e.id IN (${ids});
+        IF after_targets IS DISTINCT FROM before_targets THEN
+          RAISE EXCEPTION 'Secondary-target migration changed private associations';
+        END IF;
+      END $migration_test$;
+      ROLLBACK;`;
+    const response = await fetch("https://local.hasura.local.nhost.run/v2/query", {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-hasura-admin-secret": ADMIN_SECRET },
+      body: JSON.stringify({ type: "run_sql", args: { source: "default", sql, read_only: false } }),
+    });
+    const result = await response.json() as { result_type?: string; error?: string };
+    expect(result.error).toBeUndefined();
+    expect(response.ok).toBe(true);
+    expect(result.result_type).toBe("CommandOk");
   });
 
   test("matching public movement variants credit the same delt head", async () => {

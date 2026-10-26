@@ -61,6 +61,18 @@ The private dev-user fixtures `Landmine_Press` and `Front_Plate_Raise_to_Overhea
 
 Mixed front/lateral raises (`Alternating_Deltoid_Raise` and `Side_Laterals_to_Front_Raise`) remain `shoulders` rather than assigning all their sets to one head. `Single_Dumbbell_Raise` is `front_delts`: its instructions describe both hands holding one dumbbell by its head, arms extended from the waist to above shoulder level with the torso and hips stationary, matching the straight-arm `Front_Plate_Raise`. Upright-row variants retain their existing primary target while explicit secondary shoulder associations become `side_delts`; only variants already primary shoulders move their direct credit to `side_delts`.
 
+Migration `1792997064993_reviewed_secondary_targets` makes a separate, public-only secondary-target correction, mirrored in the catalog seed:
+
+- `Barbell_Shoulder_Press` and `Seated_Dumbbell_Press` gain `side_delts`.
+- `Hammer_Curls` gains `forearms`; `Bent_Over_Barbell_Row` gains `lower_back`.
+- `Barbell_Ab_Rollout` gains `lats`, retaining its existing `lower_back` and `shoulders` secondaries.
+- `Wide-Grip_Lat_Pulldown` replaces secondary `shoulders` with `rear_delts`.
+- `Romanian_Deadlift`, `Front_Barbell_Squat`, and `Barbell_Walking_Lunge` lose secondary `calves`.
+
+Primary targets and unrelated associations are unchanged; both migration directions exclude private exercises. The down migration restores the previous seeded associations for these public IDs. These credits remain a catalog-based heuristic, not a measurement of muscle activation or hypertrophy. The correction does not promote glutes from secondary to primary or change the one-primary/half-secondary model.
+
+The `Barbell_Ab_Rollout` addition follows confirmation of its standing-rollout use: lats is an additional secondary target, not a replacement for its other associations. The separate `Barbell_Ab_Rollout_-_On_Knees` entry is unchanged. Private/custom exercises, including an owner-created Belt Squat, remain the owner's responsibility rather than being rewritten by a public-catalog migration.
+
 For per-exercise strength reporting, the tracked `exerciseStrengthReport` GraphQL function aggregates logged sets by exercise and session, including reps, double-weight-adjusted volume, and the session's best load-based estimated one-rep max. The nested `exercises.strengthHistory` computed field also appears in both checked-in Hasura and Constellation user SDLs; app reports continue to use the tracked root's local-day contract. See the schema-verification guidance in `sessions.md` before inferring compatibility with a newly configured Constellation binary. Its calculation, permission boundaries, and workout counterpart are specified in [`sessions.md`](sessions.md) under “Shared workout and exercise strength reports”. The estimate uses recorded per-side weight for single reps and Epley for sets of two or more reps; it does not double the estimate when `double_weight` is set. Zero-load bodyweight work has no load-based 1RM estimate.
 
 ## Cardio exercises
