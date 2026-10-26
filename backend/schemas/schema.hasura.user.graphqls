@@ -2846,6 +2846,10 @@ columns and relationships of "exercise_strength_history_rows"
 type exerciseStrengthHistoryRows {
   completedSets: Int!
   estimatedOneRepMax: numeric
+  """
+  An object relationship
+  """
+  exercise: exercises
   exerciseId: uuid!
   loggedSets: Int!
   reps: Int!
@@ -9845,6 +9849,40 @@ type query_root {
     where: nutritionPlans_bool_exp
   ): nutritionPlans_aggregate!
   """
+  execute function "strength_progress" which returns "exercise_strength_history_rows"
+  """
+  strengthProgress(
+    """
+    input parameters for function "strengthProgress"
+    """
+    args: strengthProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
   fetch data from the table: "workouts" using primary key columns
   """
   workout(id: uuid!): workouts
@@ -12637,6 +12675,40 @@ type subscription_root {
     where: nutritionPlans_bool_exp
   ): [nutritionPlans!]!
   """
+  execute function "strength_progress" which returns "exercise_strength_history_rows"
+  """
+  strengthProgress(
+    """
+    input parameters for function "strengthProgress"
+    """
+    args: strengthProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
   fetch data from the table: "workouts" using primary key columns
   """
   workout(id: uuid!): workouts
@@ -15108,6 +15180,7 @@ input exerciseStrengthHistoryRows_bool_exp {
   _or: [exerciseStrengthHistoryRows_bool_exp!]
   completedSets: Int_comparison_exp
   estimatedOneRepMax: numeric_comparison_exp
+  exercise: exercises_bool_exp
   exerciseId: uuid_comparison_exp
   loggedSets: Int_comparison_exp
   reps: Int_comparison_exp
@@ -15123,6 +15196,7 @@ Ordering options when selecting data from "exercise_strength_history_rows".
 input exerciseStrengthHistoryRows_order_by {
   completedSets: order_by
   estimatedOneRepMax: order_by
+  exercise: exercises_order_by
   exerciseId: order_by
   loggedSets: order_by
   reps: order_by
@@ -18421,6 +18495,11 @@ input strengthHistory_exercises_args {
 input strengthHistory_workouts_args {
   before_at: timestamptz
   from_at: timestamptz
+}
+input strengthProgress_args {
+  from_day: date
+  through_day: date
+  time_zone: String
 }
 """
 Boolean expression to compare columns of type "time". All fields are combined with logical 'AND'.

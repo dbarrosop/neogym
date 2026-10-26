@@ -2856,6 +2856,10 @@ type exerciseStrengthHistoryRows {
   """
   An object relationship
   """
+  exercise: exercises
+  """
+  An object relationship
+  """
   workoutSession: workoutSessions
 }
 """
@@ -10354,6 +10358,40 @@ type query_root {
     where: muscleSetProgressRows_bool_exp
   ): [muscleSetProgressRows!]!
   """
+  execute function "strength_progress" which returns "exerciseStrengthHistoryRows"
+  """
+  strengthProgress(
+    """
+    input parameters for function "strengthProgress"
+    """
+    args: strengthProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
   execute function "workout_strength_report" which returns "workoutStrengthHistoryRows"
   """
   workoutStrengthReport(
@@ -13298,6 +13336,40 @@ type subscription_root {
     where: muscleSetProgressRows_bool_exp
   ): [muscleSetProgressRows!]!
   """
+  execute function "strength_progress" which returns "exerciseStrengthHistoryRows"
+  """
+  strengthProgress(
+    """
+    input parameters for function "strengthProgress"
+    """
+    args: strengthProgress_args!
+
+    """
+    distinct select on columns
+    """
+    distinct_on: [exerciseStrengthHistoryRows_select_column!]
+
+    """
+    limit the number of rows returned
+    """
+    limit: Int
+
+    """
+    skip the first n rows. Use only with order_by
+    """
+    offset: Int
+
+    """
+    sort the rows by one or more columns
+    """
+    order_by: [exerciseStrengthHistoryRows_order_by!]
+
+    """
+    filter the rows returned
+    """
+    where: exerciseStrengthHistoryRows_bool_exp
+  ): [exerciseStrengthHistoryRows!]!
+  """
   execute function "workout_strength_report" which returns "workoutStrengthHistoryRows"
   """
   workoutStrengthReport(
@@ -15171,6 +15243,7 @@ input exerciseStrengthHistoryRows_bool_exp {
   reps: Int_comparison_exp
   volume: numeric_comparison_exp
   estimatedOneRepMax: numeric_comparison_exp
+  exercise: exercises_bool_exp
   workoutSession: workoutSessions_bool_exp
 }
 """
@@ -15186,6 +15259,7 @@ input exerciseStrengthHistoryRows_order_by {
   reps: order_by
   volume: order_by
   estimatedOneRepMax: order_by
+  exercise: exercises_order_by
   workoutSession: workoutSessions_order_by
 }
 """
@@ -18583,6 +18657,11 @@ input strengthHistory_exercises_args {
 input strengthHistory_workouts_args {
   from_at: timestamptz
   before_at: timestamptz
+}
+input strengthProgress_args {
+  from_day: date!
+  through_day: date!
+  time_zone: String!
 }
 """
 Boolean expression to compare columns of type "time". All fields are combined with logical 'AND'.

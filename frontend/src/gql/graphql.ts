@@ -1426,6 +1426,8 @@ export type ExerciseStrengthHistoryRows = {
   __typename?: 'exerciseStrengthHistoryRows';
   completedSets: Scalars['Int']['output'];
   estimatedOneRepMax?: Maybe<Scalars['numeric']['output']>;
+  /** An object relationship */
+  exercise?: Maybe<Exercises>;
   exerciseId: Scalars['uuid']['output'];
   loggedSets: Scalars['Int']['output'];
   reps: Scalars['Int']['output'];
@@ -1444,6 +1446,7 @@ export type ExerciseStrengthHistoryRows_Bool_Exp = {
   _or?: InputMaybe<Array<ExerciseStrengthHistoryRows_Bool_Exp>>;
   completedSets?: InputMaybe<Int_Comparison_Exp>;
   estimatedOneRepMax?: InputMaybe<Numeric_Comparison_Exp>;
+  exercise?: InputMaybe<Exercises_Bool_Exp>;
   exerciseId?: InputMaybe<Uuid_Comparison_Exp>;
   loggedSets?: InputMaybe<Int_Comparison_Exp>;
   reps?: InputMaybe<Int_Comparison_Exp>;
@@ -1458,6 +1461,7 @@ export type ExerciseStrengthHistoryRows_Bool_Exp = {
 export type ExerciseStrengthHistoryRows_Order_By = {
   completedSets?: InputMaybe<Order_By>;
   estimatedOneRepMax?: InputMaybe<Order_By>;
+  exercise?: InputMaybe<Exercises_Order_By>;
   exerciseId?: InputMaybe<Order_By>;
   loggedSets?: InputMaybe<Order_By>;
   reps?: InputMaybe<Order_By>;
@@ -9092,6 +9096,8 @@ export type Query_Root = {
   nutritionPlans: Array<NutritionPlans>;
   /** fetch aggregated fields from the table: "nutrition_plans" */
   nutritionPlansAggregate: NutritionPlans_Aggregate;
+  /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
+  strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
   workout?: Maybe<Workouts>;
   /** fetch data from the table: "workout_exercises" using primary key columns */
@@ -9784,6 +9790,16 @@ export type Query_RootNutritionPlansAggregateArgs = {
 };
 
 
+export type Query_RootStrengthProgressArgs = {
+  args: StrengthProgress_Args;
+  distinct_on?: InputMaybe<Array<ExerciseStrengthHistoryRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExerciseStrengthHistoryRows_Order_By>>;
+  where?: InputMaybe<ExerciseStrengthHistoryRows_Bool_Exp>;
+};
+
+
 export type Query_RootWorkoutArgs = {
   id: Scalars['uuid']['input'];
 };
@@ -9972,6 +9988,12 @@ export type StrengthHistory_Exercises_Args = {
 export type StrengthHistory_Workouts_Args = {
   before_at?: InputMaybe<Scalars['timestamptz']['input']>;
   from_at?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+export type StrengthProgress_Args = {
+  from_day: Scalars['date']['input'];
+  through_day: Scalars['date']['input'];
+  time_zone: Scalars['String']['input'];
 };
 
 export type Subscription_Root = {
@@ -10200,6 +10222,8 @@ export type Subscription_Root = {
   nutritionPlansAggregate: NutritionPlans_Aggregate;
   /** fetch data from the table in a streaming manner: "nutrition_plans" */
   nutritionPlans_stream: Array<NutritionPlans>;
+  /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
+  strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
   workout?: Maybe<Workouts>;
   /** fetch data from the table: "workout_exercises" using primary key columns */
@@ -11108,6 +11132,16 @@ export type Subscription_RootNutritionPlans_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<NutritionPlans_Stream_Cursor_Input>>;
   where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+
+export type Subscription_RootStrengthProgressArgs = {
+  args: StrengthProgress_Args;
+  distinct_on?: InputMaybe<Array<ExerciseStrengthHistoryRows_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ExerciseStrengthHistoryRows_Order_By>>;
+  where?: InputMaybe<ExerciseStrengthHistoryRows_Bool_Exp>;
 };
 
 

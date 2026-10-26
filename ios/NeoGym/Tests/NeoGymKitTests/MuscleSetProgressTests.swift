@@ -287,7 +287,7 @@ final class MuscleSetProgressTests: XCTestCase {
     }
 }
 
-private final class ProgressTestClock: @unchecked Sendable {
+final class ProgressTestClock: @unchecked Sendable {
     private let lock = NSLock()
     private var date: Date
 
@@ -308,7 +308,7 @@ private final class ProgressTestClock: @unchecked Sendable {
 
 /// Simulates the SDK's exact-key cached/fresh stream; can hold the first stream
 /// to verify that a superseded or cancelled load never starts its network read.
-private actor ProgressStreamGraphQL: GraphQLServicing {
+actor ProgressStreamGraphQL: GraphQLServicing {
     private let fake: FakeGraphQLService
     private let delayFirstStream: Bool
     private var hasBlocked = false

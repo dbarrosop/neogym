@@ -1,3 +1,4 @@
 - "!include public_exercise_strength_report.yaml"
 - "!include public_muscle_set_progress.yaml"
+- "!include public_strength_progress.yaml"
 - "!include public_workout_strength_report.yaml"

@@ -188,6 +188,74 @@ describe("shared strength reporting", () => {
     expect((badZone.errors?.length ?? 0) > 0).toBe(true);
   });
 
+  test("all-exercise Progress reuses report totals through Hasura and Constellation without leaking owners", async () => {
+    if (!reachable) return;
+    const latest = await gql(`query($id: uuid!) {
+      workoutSessionsAggregate(where: {workoutId: {_eq: $id}}) { aggregate { max { startedAt } } }
+    }`, { id: SAMPLE_WORKOUT }, USER);
+    expect(latest.errors).toBeUndefined();
+    const through = latest.data!.workoutSessionsAggregate.aggregate.max.startedAt.slice(0, 10);
+    const from = new Date(Date.parse(`${through}T00:00:00Z`) - 2 * 86_400_000).toISOString().slice(0, 10);
+    const query = `query($from: date!, $through: date!, $workout: uuid!) {
+      strengthProgress(args: {from_day: $from, through_day: $through, time_zone: "UTC"},
+        where: {workoutId: {_eq: $workout}}) {
+        sessionId exerciseId loggedSets completedSets reps volume estimatedOneRepMax exercise { name }
+      }
+    }`;
+    for (const endpoint of [URL, PROXY_URL]) {
+      const owner = await gql(query, { from, through, workout: SAMPLE_WORKOUT }, USER, endpoint);
+      expect(owner.errors).toBeUndefined();
+      const rows = owner.data!.strengthProgress;
+      expect(rows).toHaveLength(10);
+      expect(rows.reduce((sum: number, row: {volume: number}) => sum + Number(row.volume), 0)).toBe(13680);
+      const bench = rows.filter((row: {exerciseId: string}) => row.exerciseId === "019e0675-a26c-7b80-9fda-9075c6c51b8b");
+      expect(bench).toHaveLength(2);
+      expect(bench[0].exercise.name).toBe("Barbell Bench Press - Medium Grip");
+      expect(Number(bench[0].estimatedOneRepMax)).toBe(41);
+      const other = await gql(query, { from, through, workout: SAMPLE_WORKOUT }, OTHER, endpoint);
+      expect(other.errors).toBeUndefined();
+      expect(other.data!.strengthProgress).toEqual([]);
+    }
+    // Bypass Hasura's return-row filter to prove the SQL owner guard independently.
+    const sql = `SELECT count(*) FROM public.strength_progress('${from}', '${through}', 'UTC',
+      '{"x-hasura-user-id":"${OTHER}"}'::json) WHERE user_id <> '${OTHER}'::uuid`;
+    const response = await fetch("https://local.hasura.local.nhost.run/v2/query", {
+      method: "POST", headers: {"content-type": "application/json", "x-hasura-admin-secret": ADMIN_SECRET},
+      body: JSON.stringify({type: "run_sql", args: {source: "default", sql, read_only: true}}),
+    });
+    expect(response.ok).toBe(true);
+    const result = await response.json() as { result: string[][] };
+    expect(result.result[1][0]).toBe("0");
+  });
+
+  test("all-exercise Progress validates date bounds and exposes neither owner input nor owner output", async () => {
+    if (!reachable) return;
+    const query = `query($from: date, $through: date, $zone: String) {
+      strengthProgress(args: {from_day: $from, through_day: $through, time_zone: $zone}) { sessionId }
+    }`;
+    const valid = await gql(query, {from: "2025-01-01", through: "2026-01-01", zone: "UTC"}, USER);
+    expect(valid.errors).toBeUndefined(); // The full 366-date boundary is valid.
+    for (const variables of [
+      {from: null, through: "2026-10-01", zone: "UTC"},
+      {from: "2026-10-01", through: null, zone: "UTC"},
+      {from: "2026-10-02", through: "2026-10-01", zone: "UTC"},
+      {from: "2025-01-01", through: "2026-01-02", zone: "UTC"},
+      {from: "2026-10-01", through: "2026-10-01", zone: "Not/A_Zone"},
+      {from: "2026-10-01", through: "2026-10-01", zone: null},
+    ]) {
+      const invalid = await gql(query, variables, USER);
+      expect((invalid.errors?.length ?? 0) > 0).toBe(true);
+    }
+    const schema = await gql(`query {
+      args: __type(name: "strengthProgress_args") { inputFields { name } }
+      rows: __type(name: "exerciseStrengthHistoryRows") { fields { name } }
+    }`, {}, USER);
+    expect(schema.errors).toBeUndefined();
+    expect(schema.data!.args.inputFields.map((field: {name: string}) => field.name).sort())
+      .toEqual(["from_day", "through_day", "time_zone"]);
+    expect(schema.data!.rows.fields.map((field: {name: string}) => field.name)).not.toContain("userId");
+  });
+
   test("measured single reps, per-side volume, empty sessions and edits recompute on read", async () => {
     if (!reachable) return;
     const from = "2026-12-12T00:00:00Z";
@@ -263,6 +331,20 @@ describe("shared strength reporting", () => {
       const foreignRoot = await gql(rootQuery, rootVars, USER, PROXY_URL);
       expect(foreignRoot.errors).toBeUndefined();
       expect(foreignRoot.data!.workoutStrengthReport).toEqual([]); // public workout, private sessions
+      const progressQuery = `query($exercise: uuid!, $through: date!, $zone: String!) {
+        strengthProgress(args: {from_day: "2026-12-12", through_day: $through, time_zone: $zone},
+          where: {exerciseId: {_eq: $exercise}}) {
+          sessionId workoutId loggedSets completedSets reps volume estimatedOneRepMax exercise { name }
+        }
+      }`;
+      const progressVars = { exercise: exerciseId, through: "2026-12-13", zone: "UTC" };
+      const progress = await gql(progressQuery, progressVars, OTHER, PROXY_URL);
+      expect(progress.errors).toBeUndefined();
+      expect(progress.data!.strengthProgress).toHaveLength(1); // No sets means no old-dashboard point.
+      expect(progress.data!.strengthProgress[0]).toMatchObject({ loggedSets: 4, completedSets: 3, reps: 16 });
+      expect(Number(progress.data!.strengthProgress[0].volume)).toBe(620);
+      expect(Number(progress.data!.strengthProgress[0].estimatedOneRepMax)).toBe(60);
+      expect(progress.data!.strengthProgress[0].exercise.name).toBe("Report fixture");
       expect(first.data!.exercise.strengthHistory[0]).toMatchObject({ loggedSets: 4, completedSets: 3, reps: 16 });
       expect(Number(first.data!.exercise.strengthHistory[0].volume)).toBe(620);
       expect(Number(first.data!.exercise.strengthHistory[0].estimatedOneRepMax)).toBe(60);
@@ -294,6 +376,29 @@ describe("shared strength reporting", () => {
       expect(foreign.errors).toBeUndefined();
       expect(foreign.data!.workout.strengthHistory).toEqual([]); // public parent cannot leak OTHER's sessions
       expect(foreign.data!.exercise).toBeNull();
+      // The same exercise logged twice still produces one session point; ad-hoc
+      // sessions and local-midnight boundaries must not disappear from Progress.
+      for (const [id, reps, weight] of [[sessionId, 2, 10], [emptySessionId, 4, 30]] as const) {
+        const extra = await gql(`mutation($session: uuid!, $exercise: uuid!, $reps: Int!, $weight: numeric!) {
+          insertWorkoutSessionExercise(object: {workoutSessionId: $session, exerciseId: $exercise, position: 1,
+            workoutSessionStrengthSets: {data: [{setNumber: 1, reps: $reps, weight: $weight}]}}) { id }
+        }`, { session: id, exercise: exerciseId, reps, weight });
+        expect(extra.errors).toBeUndefined();
+      }
+      const adHoc = await gql(`mutation($id: uuid!) {
+        updateWorkoutSession(pk_columns: {id: $id}, _set: {workoutId: null}) { id }
+      }`, {id: sessionId});
+      expect(adHoc.errors).toBeUndefined();
+      const localProgress = await gql(progressQuery, {...progressVars, through: "2026-12-12", zone: "America/New_York"}, OTHER);
+      expect(localProgress.errors).toBeUndefined();
+      expect(localProgress.data!.strengthProgress).toHaveLength(2);
+      const combined = localProgress.data!.strengthProgress.find((row: {sessionId: string}) => row.sessionId === sessionId);
+      expect(combined).toMatchObject({workoutId: null, loggedSets: 5, completedSets: 4, reps: 18});
+      expect(Number(combined.volume)).toBe(580);
+      expect(Math.abs(Number(combined.estimatedOneRepMax) - 50 * (1 + 5 / 30)) < 0.001).toBe(true);
+      const utcProgress = await gql(progressQuery, {...progressVars, through: "2026-12-12"}, OTHER);
+      expect(utcProgress.errors).toBeUndefined();
+      expect(utcProgress.data!.strengthProgress).toHaveLength(1);
     } finally {
       for (const id of [sessionId, emptySessionId]) {
         if (id) await gql(`mutation($id: uuid!) { deleteWorkoutSession(id: $id) { id } }`, { id });

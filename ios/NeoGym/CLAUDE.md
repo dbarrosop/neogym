@@ -520,7 +520,14 @@ intact instead of inventing one-off styles.
   with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
   deleted). "New workout" lives on
   the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
-  Progress reads server-calculated muscle sets via
+  Progress has a native **Muscle sets / Strength** segmented picker, defaulting
+  to Muscle sets; it is local to the pushed Progress page, not a `TabView` or
+  another bottom navigation band. Each pane keeps its chart/scroll state after
+  first opening. Strength mounts lazily; only the selected pane reacts to reload
+  tokens and foreground-day changes, and a revisited pane revalidates after
+  missed mutations. `ProgressRefreshModifier` and the host-testable
+  `ProgressHistoryViewModel` share bounded loading, cancellation, and cache
+  behavior between panes. Muscle sets reads server-calculated muscle sets via
   `SessionsRepository.muscleSetProgressUpdates` and the user-scoped
   `muscleSetProgress(args: {from_day, through_day, time_zone})` function; it does
   not download raw sets. It requests the last 180 local days by default and
@@ -539,7 +546,18 @@ intact instead of inventing one-off styles.
   history also uses only its exact key, so a shorter default snapshot is not
   shown as full history. If visible shorter history is retained while extending,
   it is labeled partial until refreshed. The SDK enforces user scope and cache
-  age; no app-owned snapshots are stored. The backend also exposes
+  age; no app-owned snapshots are stored. Strength restores weekly total volume
+  and session volume/e1RM charts for exercises logged in the last ten local
+  dates, retaining their older loaded points and exercise-detail links. It uses
+  `SessionsRepository.strengthProgressUpdates` and the owner-filtered
+  `strengthProgress` root (migration `1793029694424`), not raw sets. Postgres
+  reuses `strength_set_report_facts` and the existing empty
+  `exercise_strength_history_rows` shape; its new manual `exercise` relationship
+  supplies the current visible name. The client only groups weekly totals and
+  recent exercises. The first week may be partial at the history boundary;
+  null e1RMs are not plotted. Unlike Muscle sets, ordinary strength reporting
+  retains stretching. Strength uses the same 180/366-date sessions cache and
+  prior-day/partial-history labeling described above. The backend also exposes
   tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions
   for per-session sets/reps/volume and exercise e1RM reports through the normal
   Constellation endpoint. Nested `strengthHistory` computed fields appear in
@@ -547,7 +565,7 @@ intact instead of inventing one-off styles.
   tracked roots' local-day contract. After a Constellation pin change, follow
   the schema-verification guidance in `docs/developers/sessions.md` before
   asserting compatibility with the newly configured binary. Existing native
-  exercise-history charts still build points locally; `StrengthOneRepMax` mirrors
+  exercise-detail history charts still build points locally; `StrengthOneRepMax` mirrors
   the backend's measured-single-rep / Epley-for-2+-reps rule (per recorded side),
   until these charts migrate to the server fields. `doubleWeight` doubles volume,
   not estimated 1RM.

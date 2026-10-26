@@ -37,6 +37,15 @@ configuration:
   custom_name: exerciseStrengthHistoryRows
   custom_root_fields: {}
 object_relationships:
+  - name: exercise
+    using:
+      manual_configuration:
+        column_mapping:
+          exercise_id: id
+        insertion_order: null
+        remote_table:
+          name: exercises
+          schema: public
   - name: workoutSession
     using:
       manual_configuration:

@@ -293,7 +293,7 @@ live-fetch queries stay network-only. The cache uses a 5-minute freshness window
 and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
 remain available for responsive rendering and offline fallback. Workout Progress
-uses the sessions cache for server-calculated muscle-set summaries. Its SDK
+uses the sessions cache for server-calculated muscle-set and strength summaries. Each pane's SDK
 stream reads only the exact query key (180 local days by default, up to 366 for
 extended history) and revalidates it; a cold key after local midnight has no
 prior-day offline fallback. An already open view retains and labels yesterday's
@@ -353,8 +353,17 @@ segmented `Picker` lives in the Workouts hub's nav-bar **principal** slot, and
 "New workout" lives on the `.workoutsList` route's own `.bottomBar`. Opening the
 Workouts area and pulling to refresh its hub root also syncs the separate raw
 HealthKit workout stream (`health_workouts`); that import does not create session
-or template rows. Progress now reads the user-scoped `muscleSetProgress` Hasura
-function, not raw sets: Postgres counts one direct set per primary muscle and a
+or template rows. Progress has a native Muscle sets / Strength segmented picker
+(default Muscle sets), not a `TabView`. Both panes retain chart/scroll state after
+first opening; Strength loads lazily and only the selected pane reacts to reloads
+and foreground-day changes. Strength restores weekly volume plus recent-exercise
+volume/e1RM charts using the owner-filtered `strengthProgress` root (migration
+`1793029694424`), shared strength facts, and the existing empty
+`exercise_strength_history_rows` shape; no raw sets are downloaded. It includes
+templated/ad-hoc sessions and ordinary strength categories, including stretching.
+The client only groups local weeks and selects exercises logged in the last ten
+local dates; the first week can be partial at the history boundary. Muscle sets
+reads the user-scoped `muscleSetProgress` Hasura function, not raw sets: Postgres counts one direct set per primary muscle and a
 half set per distinct secondary muscle for strength-style sets with `reps > 0`,
 excluding only `category = 'stretching'`; all other strength-style categories
 remain eligible. Daily and rolling seven-local-day totals use the same rule.
@@ -367,7 +376,7 @@ screen does not infer targets, RIR, or warm-up status. The database's tracked
 and the function enforces the injected Hasura session's user ID before joining
 private sessions. The local-only `1790000570001_progress_recent.sql` seed supplies 91 moving-window sessions (1,911 sets including 91 zero-rep entries) for the dev user; it advances only on fresh local reset/reseed, and the backend suite verifies its Progress totals. Public catalog shoulder corrections are made in migration
 `1790000570000` for existing databases and the exercise seed for new ones;
-uncertain exercises keep the `shoulders` value. Follow-up migration `1792997064993_reviewed_secondary_targets` corrects secondary associations for nine reviewed public exercises (presses, Hammer Curls, pulldown, row, Barbell Ab Rollout, and three lower-body movements), mirrored in the seed; it preserves primary targets and private exercises. Barbell Ab Rollout adds lats without replacing its other secondaries. See `docs/developers/exercises.md` for the changes and deliberately unaddressed custom-exercise cases. The read-time `strength_set_report_facts` view centralizes reps, volume (per-side `double_weight` multiplier) and per-set Epley; the tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions expose owner-filtered session points through Hasura **and Constellation** via empty return-shape tables (migrations `1790000580000`/`1790000590000`, details in `docs/developers/sessions.md`). Nested `workouts.strengthHistory` and `exercises.strengthHistory` computed fields share the SQL and appear in both checked-in Hasura and Constellation user SDLs; app reports continue to use the roots' local-day contract. The configured Constellation version lives in `backend/nhost/nhost.toml`; checked-in SDLs or an already-running service do not prove a newly configured binary's compatibility (see the schema-verification guidance in `docs/developers/sessions.md`). The workout grouping follows the session's current nullable `workout_id`; exercise points expose best per-session e1RM, using recorded weight for single reps and Epley for 2+ reps, never doubling e1RM. Existing web/iOS charts mirror that formula locally until switched to server report fields. On a session detail with strength
+uncertain exercises keep the `shoulders` value. Follow-up migration `1792997064993_reviewed_secondary_targets` corrects secondary associations for nine reviewed public exercises (presses, Hammer Curls, pulldown, row, Barbell Ab Rollout, and three lower-body movements), mirrored in the seed; it preserves primary targets and private exercises. Barbell Ab Rollout adds lats without replacing its other secondaries. See `docs/developers/exercises.md` for the changes and deliberately unaddressed custom-exercise cases. The read-time `strength_set_report_facts` view centralizes reps, volume (per-side `double_weight` multiplier) and per-set Epley; the tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions expose owner-filtered session points through Hasura **and Constellation** via empty return-shape tables (migrations `1790000580000`/`1790000590000`, details in `docs/developers/sessions.md`). Nested `workouts.strengthHistory` and `exercises.strengthHistory` computed fields share the SQL and appear in both checked-in Hasura and Constellation user SDLs; app reports continue to use the roots' local-day contract. The configured Constellation version lives in `backend/nhost/nhost.toml`; checked-in SDLs or an already-running service do not prove a newly configured binary's compatibility (see the schema-verification guidance in `docs/developers/sessions.md`). The workout grouping follows the session's current nullable `workout_id`; exercise points expose best per-session e1RM, using recorded weight for single reps and Epley for 2+ reps, never doubling e1RM. Existing web charts and native exercise-detail charts mirror that formula locally until switched to server report fields. On a session detail with strength
 entries, the totals are followed by the three most
 recent earlier sessions still linked to the same workout template (ad-hoc
 sessions have no same-workout comparison). No area uses
