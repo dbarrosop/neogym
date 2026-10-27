@@ -66,7 +66,7 @@ final class StrengthProgressTests: XCTestCase {
     func testCachedCurrentRangeSurvivesOfflineRefreshAndWiderFailureIsPartial() async throws {
         let fake = FakeGraphQLService(
             replies: [.failure(GraphQLDomainError.transport("offline")), .failure(GraphQLDomainError.transport("offline"))],
-            cachedOnlyReplies: [.json(Self.reply(volume: 620)), .missingData]
+            cachedOnlyReplies: [.json(Self.reply(volume: 620)), .missingData, .missingData]
         )
         let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
         await model.load()
@@ -77,8 +77,44 @@ final class StrengthProgressTests: XCTestCase {
         XCTAssertEqual(model.rows?.first?.volume, 620)
         XCTAssertTrue(model.isShowingPartialHistory)
         let reads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(reads.map { $0.request.variables?["from"] }, [.string("2026-01-09"), .string("2025-12-01")])
+        XCTAssertEqual(reads.map { $0.request.variables?["from"] }, [
+            .string("2026-01-09"), .string("2026-01-09"), .string("2025-12-01")
+        ])
         XCTAssertTrue(reads.allSatisfy { $0.namespace == "sessions" })
+    }
+
+    @MainActor
+    func testColdStrengthUsesPriorDayCacheUntilCurrentEmission() async throws {
+        let fake = FakeGraphQLService(
+            replies: [.json(Self.reply(volume: 200))],
+            cachedOnlyReplies: [.missingData, .json(Self.reply(volume: 100))]
+        )
+        let gate = ProgressStreamGraphQL(fake: fake, delayFirstStream: true)
+        let model = try makeModel(graphQL: gate)
+        let load = Task { await model.load() }
+        await gate.waitUntilBlocked()
+        XCTAssertEqual(model.rows?.first?.volume, 100)
+        XCTAssertEqual(model.cachedThrough, "2026-07-06")
+        let beforeRevalidation = await fake.requestsSnapshot()
+        XCTAssertTrue(beforeRevalidation.isEmpty)
+        await gate.releaseBlocked()
+        await load.value
+        XCTAssertEqual(model.rows?.first?.volume, 200)
+        XCTAssertNil(model.cachedThrough)
+        XCTAssertFalse(model.isShowingPartialHistory)
+    }
+
+    @MainActor
+    func testColdStrengthRetainsPriorDayCacheOnFailure() async throws {
+        let fake = FakeGraphQLService(
+            replies: [.failure(GraphQLDomainError.transport("offline"))],
+            cachedOnlyReplies: [.missingData, .json(Self.reply(volume: 100))]
+        )
+        let model = try makeModel(graphQL: fake)
+        await model.load()
+        XCTAssertEqual(model.rows?.first?.volume, 100)
+        XCTAssertEqual(model.cachedThrough, "2026-07-06")
+        XCTAssertNotNil(model.state.errorMessage)
     }
 
     @MainActor
@@ -118,6 +154,22 @@ final class StrengthProgressTests: XCTestCase {
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.last?.variables?["from"], .string("2025-07-07"))
         XCTAssertEqual(requests.last?.variables?["through"], .string("2026-07-07"))
+    }
+
+    @MainActor
+    func testColdExtendedStrengthReadsOnlyExactCustomCacheKey() async throws {
+        let fake = FakeGraphQLService(
+            replies: [.failure(GraphQLDomainError.transport("offline"))],
+            cachedOnlyReplies: [.json(Self.reply(volume: 100))]
+        )
+        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
+        await model.extendHistory(to: try XCTUnwrap(ExerciseDateParser.parseTimestamp("2025-12-01T12:00:00Z")))
+        XCTAssertEqual(model.rows?.first?.volume, 100)
+        XCTAssertNil(model.cachedThrough)
+        XCTAssertFalse(model.isShowingPartialHistory)
+        let reads = await fake.cachedOnlyRequestsSnapshot()
+        XCTAssertEqual(reads.count, 1)
+        XCTAssertEqual(reads.first?.request.variables?["from"], .string("2025-12-01"))
     }
 
     @MainActor

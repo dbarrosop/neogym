@@ -106,7 +106,9 @@ public final class StrengthProgressViewModel: ProgressHistoryViewModel<StrengthP
         repository: any SessionsRepositoryProtocol, calendar: Calendar = .current,
         clock: @escaping @Sendable () -> Date = Date.init
     ) {
-        super.init(updates: { from, through, zone in
+        super.init(cachedSnapshot: { from, through, zone in
+            try await repository.cachedStrengthProgress(fromDay: from, throughDay: through, timeZone: zone)
+        }, updates: { from, through, zone in
             repository.strengthProgressUpdates(fromDay: from, throughDay: through, timeZone: zone)
         }, calendar: calendar, clock: clock)
     }

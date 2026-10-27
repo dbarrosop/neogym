@@ -538,13 +538,18 @@ intact instead of inventing one-off styles.
   categories remain eligible. Tapping a muscle selects it for
   the single weighted-set history chart without navigating; `shoulders` is
   labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
-  cache namespace/tag. The SDK stream emits only the exact range key's eligible
-  cached value, then revalidates it; a cold key after local midnight does not
-  search yesterday's cache and may fail offline. An already open Progress view
-  retains and labels yesterday's rows through their date, refreshing on the next
-  foreground return without reloading on same-day returns. Extended/custom
-  history also uses only its exact key, so a shorter default snapshot is not
-  shown as full history. If visible shorter history is retained while extending,
+  cache namespace/tag. A cold default-history load probes today's key and up to
+  seven previous local-day 180-date keys, nearest first, with SDK cache-only
+  reads using the live stream's query/variables/namespace/tags. The first eligible
+  hit (including empty rows) renders with its actual displayed range and a
+  cached-through label for prior-day data. Today's exact stream still revalidates;
+  a current-key emission clears that label, while failure retains the fallback.
+  Probe failures are misses, except cancellation; version/cancellation guards
+  prevent a late probe from publishing or starting a superseded stream. An already
+  open Progress view retains and labels yesterday's rows through their date,
+  refreshing on the next foreground return without reloading on same-day returns.
+  Extended/custom history uses only its exact stream key, so a shorter default
+  snapshot is not shown as full history. If visible shorter history is retained while extending,
   it is labeled partial until refreshed. The SDK enforces user scope and cache
   age; no app-owned snapshots are stored. Strength restores weekly total volume
   and session volume/e1RM charts for exercises logged in the last ten local

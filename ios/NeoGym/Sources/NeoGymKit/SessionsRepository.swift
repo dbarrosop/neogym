@@ -13,6 +13,9 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func strengthProgressUpdates(
         fromDay: String, throughDay: String, timeZone: String
     ) -> AsyncThrowingStream<[StrengthProgressRow], Error>
+    /// Eligible SDK cache reads only; use the live streams' exact request identity.
+    func cachedMuscleSetProgress(fromDay: String, throughDay: String, timeZone: String) async throws -> [MuscleSetProgressRow]?
+    func cachedStrengthProgress(fromDay: String, throughDay: String, timeZone: String) async throws -> [StrengthProgressRow]?
     func updateStartedAt(sessionId: String, startedAt: Date) async throws
     func deleteSession(id: String) async throws
     func addSessionExercises(sessionId: String, exercises: [ExerciseListItem], basePosition: Int) async throws
@@ -35,6 +38,14 @@ public protocol SessionsRepositoryProtocol: Sendable {
 }
 
 public extension SessionsRepositoryProtocol {
+    func cachedMuscleSetProgress(fromDay: String, throughDay: String, timeZone: String) async throws -> [MuscleSetProgressRow]? {
+        nil
+    }
+
+    func cachedStrengthProgress(fromDay: String, throughDay: String, timeZone: String) async throws -> [StrengthProgressRow]? {
+        nil
+    }
+
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error> {
         singleValueUpdates { try await listSessions(limit: limit, offset: offset) }
     }
@@ -160,6 +171,34 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
             tags: ["sessions"],
             transform: \.strengthProgress
         )
+    }
+
+    public func cachedMuscleSetProgress(
+        fromDay: String, throughDay: String, timeZone: String
+    ) async throws -> [MuscleSetProgressRow]? {
+        let data = try await graphQL.cachedSnapshot(
+            MuscleSetProgressData.self,
+            query: Self.muscleSetProgressQuery,
+            variables: Self.progressVariables(fromDay: fromDay, throughDay: throughDay, timeZone: timeZone),
+            operationName: "MuscleSetProgress",
+            namespace: "sessions",
+            tags: ["sessions"]
+        )
+        return data?.muscleSetProgress
+    }
+
+    public func cachedStrengthProgress(
+        fromDay: String, throughDay: String, timeZone: String
+    ) async throws -> [StrengthProgressRow]? {
+        let data = try await graphQL.cachedSnapshot(
+            StrengthProgressData.self,
+            query: Self.strengthProgressQuery,
+            variables: Self.progressVariables(fromDay: fromDay, throughDay: throughDay, timeZone: timeZone),
+            operationName: "StrengthProgress",
+            namespace: "sessions",
+            tags: ["sessions"]
+        )
+        return data?.strengthProgress
     }
 
     private static func progressVariables(

@@ -344,6 +344,44 @@ final class NhostGraphQLCacheAdapterTests: XCTestCase {
         XCTAssertEqual(countAfterReads, countAfterFill)
     }
 
+    func testProgressCacheOnlyMatchesBothStreamIdentitiesWithoutTransport() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("neogym-cache-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let transportState = CacheTestTransportState()
+        await transportState.setBody(Data(#"{"data":{"muscleSetProgress":[],"strengthProgress":[]}}"#.utf8))
+        let repository = SessionsRepository(graphQL: try makeService(directory: directory, transportState: transportState))
+        for try await _ in repository.muscleSetProgressUpdates(
+            fromDay: "2026-01-08", throughDay: "2026-07-06", timeZone: "America/New_York"
+        ) {}
+        for try await _ in repository.strengthProgressUpdates(
+            fromDay: "2026-01-08", throughDay: "2026-07-06", timeZone: "America/New_York"
+        ) {}
+        let afterFill = await transportState.requestCountSnapshot()
+        XCTAssertEqual(afterFill, 2)
+        await transportState.setOffline(true)
+        let muscles = try await repository.cachedMuscleSetProgress(
+            fromDay: "2026-01-08", throughDay: "2026-07-06", timeZone: "America/New_York"
+        )
+        let strength = try await repository.cachedStrengthProgress(
+            fromDay: "2026-01-08", throughDay: "2026-07-06", timeZone: "America/New_York"
+        )
+        XCTAssertEqual(muscles, [])
+        XCTAssertEqual(strength, [])
+        for (from, through, zone) in [
+            ("2026-01-09", "2026-07-06", "America/New_York"),
+            ("2026-01-08", "2026-07-07", "America/New_York"),
+            ("2026-01-08", "2026-07-06", "UTC")
+        ] {
+            let muscleMiss = try await repository.cachedMuscleSetProgress(fromDay: from, throughDay: through, timeZone: zone)
+            let strengthMiss = try await repository.cachedStrengthProgress(fromDay: from, throughDay: through, timeZone: zone)
+            XCTAssertNil(muscleMiss)
+            XCTAssertNil(strengthMiss)
+        }
+        let afterProbes = await transportState.requestCountSnapshot()
+        XCTAssertEqual(afterProbes, afterFill)
+    }
+
     func testCacheOnlyWithoutConfiguredCacheReturnsNilWithoutTransport() async throws {
         let transportState = CacheTestTransportState()
         let client = createNhostClient(NhostClientOptions(

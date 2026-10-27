@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// Shared bounded, exact-key cached history and foreground-day refresh behavior.
+/// Shared bounded SDK-cached history and foreground-day refresh behavior.
 @MainActor
 public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
     @Published public private(set) var state: Loadable<[Row]> = .idle
@@ -11,6 +11,7 @@ public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
     private var displayedThroughDay: String?
     private var lastRequestedThroughDay: String?
     private var hasExtendedHistory = false
+    private let cachedSnapshot: @Sendable (String, String, String) async throws -> [Row]?
     private let updates: @Sendable (String, String, String) -> AsyncThrowingStream<[Row], Error>
     let calendar: Calendar
     let clock: @Sendable () -> Date
@@ -18,10 +19,12 @@ public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
     private var loadVersion = 0
 
     public init(
+        cachedSnapshot: @escaping @Sendable (String, String, String) async throws -> [Row]?,
         updates: @escaping @Sendable (String, String, String) -> AsyncThrowingStream<[Row], Error>,
         calendar: Calendar = .current,
         clock: @escaping @Sendable () -> Date = Date.init
     ) {
+        self.cachedSnapshot = cachedSnapshot
         self.updates = updates
         self.calendar = calendar
         self.clock = clock
@@ -73,11 +76,16 @@ public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
         if let displayedThroughDay, displayedThroughDay < through, state.value != nil {
             cachedThrough = displayedThroughDay
         }
-        // The SDK stream emits only this query's exact cached key, then revalidates.
-        // There is no older-day fallback for a cold key after local midnight.
         let timeZone = calendar.timeZone.identifier
         guard version == loadVersion, !Task.isCancelled else { return }
         do {
+            // Only a cold default window searches prior daily keys, without network.
+            // Extended/custom windows remain exact-key streams, never shorter substitutes.
+            if state.value == nil, !hasExtendedHistory {
+                try await restoreCachedDefaultHistory(today: today, timeZone: timeZone, version: version)
+            }
+            guard version == loadVersion, !Task.isCancelled else { return }
+            // Today's exact stream still revalidates, replacing any labeled fallback.
             for try await rows in updates(from, through, timeZone) {
                 guard version == loadVersion, !Task.isCancelled else { return }
                 cachedThrough = nil
@@ -92,6 +100,33 @@ public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
         } catch {
             guard version == loadVersion, !Task.isCancelled else { return }
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        }
+    }
+
+    private func restoreCachedDefaultHistory(today: Date, timeZone: String, version: Int) async throws {
+        for daysAgo in 0...7 {
+            guard version == loadVersion, !Task.isCancelled else { return }
+            guard let end = calendar.date(byAdding: .day, value: -daysAgo, to: today),
+                  let start = calendar.date(byAdding: .day, value: -179, to: end),
+                  case let .string(from) = GraphQLScalars.date(start, calendar: calendar),
+                  case let .string(through) = GraphQLScalars.date(end, calendar: calendar) else { continue }
+            let cached: [Row]?
+            do {
+                cached = try await cachedSnapshot(from, through, timeZone)
+            } catch where GraphQLDomainError.isCancellation(error) {
+                throw error
+            } catch {
+                // A corrupt/unavailable cache entry must not prevent normal revalidation.
+                continue
+            }
+            guard version == loadVersion, !Task.isCancelled else { return }
+            if let cached {
+                displayedFromDay = from
+                displayedThroughDay = through
+                cachedThrough = daysAgo == 0 ? nil : through
+                state = .loaded(cached)
+                return
+            }
         }
     }
 }

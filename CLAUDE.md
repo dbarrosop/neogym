@@ -294,11 +294,16 @@ and 7-day stale-if-error window. Mutations remain network-only; cached browsing
 queries always revalidate against the backend, while their existing cached values
 remain available for responsive rendering and offline fallback. Workout Progress
 uses the sessions cache for server-calculated muscle-set and strength summaries. Each pane's SDK
-stream reads only the exact query key (180 local days by default, up to 366 for
-extended history) and revalidates it; a cold key after local midnight has no
-prior-day offline fallback. An already open view retains and labels yesterday's
-rows through their date while refreshing on foreground return, and labels
-previously displayed shorter history partial until a wider request succeeds.
+stream revalidates the exact query key (180 local days by default, up to 366 for
+extended history). Before a cold default-history stream, each pane probes today's
+key then at most seven previous local-day 180-date keys through SDK cache-only
+reads. The first eligible hit renders immediately with its actual displayed range
+and a cached-through label for prior-day data, remains on refresh failure, and is
+replaced/unlabeled on a current-key emission. Extended/custom requests stay
+exact-key only, never substituting a shorter default snapshot. An already open
+view retains and labels yesterday's rows through their date while refreshing on
+foreground return, and labels previously displayed shorter history partial until
+a wider request succeeds.
 The SDK enforces managed-user scope and cache age; no app-owned snapshot is
 saved. The SDK purges prior managed-user scopes on sign-out/session replacement. The
 file cache is app-process-only; the widget client deliberately has no GraphQL

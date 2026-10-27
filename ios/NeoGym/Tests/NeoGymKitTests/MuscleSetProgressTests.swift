@@ -46,7 +46,7 @@ final class MuscleSetProgressTests: XCTestCase {
             replies: [.failure(GraphQLDomainError.transport("offline"))],
             cachedOnlyReplies: [.json(Self.progressReply(day: "2026-07-07", sets: 3.5))]
         )
-        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
+        let model = try makeModel(graphQL: fake)
         await model.load()
 
         XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 3.5)
@@ -63,19 +63,19 @@ final class MuscleSetProgressTests: XCTestCase {
     }
 
     @MainActor
-    func testColdNewDayKeyDoesNotSearchYesterdayOnFailure() async throws {
+    func testColdNewDayUsesYesterdayCacheAndRetainsItOnFailure() async throws {
         let fake = FakeGraphQLService(
             replies: [.failure(GraphQLDomainError.transport("offline"))],
             cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-06", sets: 3.5))]
         )
-        let model = try makeModel(graphQL: ProgressStreamGraphQL(fake: fake))
+        let model = try makeModel(graphQL: fake)
         await model.load()
 
-        XCTAssertNil(model.rows)
-        XCTAssertNil(model.cachedThrough)
+        XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 3.5)
+        XCTAssertEqual(model.cachedThrough, "2026-07-06")
         XCTAssertNotNil(model.state.errorMessage)
         let reads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [.string("2026-07-07")])
+        XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [.string("2026-07-07"), .string("2026-07-06")])
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.count, 1)
     }
@@ -94,9 +94,10 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertEqual(model.rows?.first?.rollingWeightedSets, 2)
         XCTAssertTrue(model.isShowingPartialHistory)
         XCTAssertNotNil(model.state.errorMessage)
-        // No second cache-only API is called; the SDK stream owns exact-key caching.
+        // Only the initial default window probes; extending does not search shorter keys.
         let cacheReads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertTrue(cacheReads.isEmpty)
+        XCTAssertEqual(cacheReads.count, 8)
+        XCTAssertEqual(cacheReads.first?.request.variables?["from"], .string("2026-01-09"))
         let requests = await fake.requestsSnapshot()
         XCTAssertEqual(requests.last?.variables?["from"], .string("2025-12-01"))
     }
@@ -113,7 +114,10 @@ final class MuscleSetProgressTests: XCTestCase {
                 .json(Self.progressReply(day: "2026-07-06", sets: 2)),
                 .failure(GraphQLDomainError.transport("offline"))
             ],
-            cachedOnlyReplies: [.missingData, .json(Self.progressReply(day: "2026-07-07", sets: 4))]
+            cachedOnlyReplies: [
+                .json(Self.progressReply(day: "2026-07-06", sets: 2)),
+                .missingData, .json(Self.progressReply(day: "2026-07-07", sets: 4))
+            ]
         )
         let model = MuscleSetProgressViewModel(
             repository: SessionsRepository(graphQL: ProgressStreamGraphQL(fake: fake)),
@@ -129,7 +133,7 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertNotNil(model.state.errorMessage)
         let reads = await fake.cachedOnlyRequestsSnapshot()
         XCTAssertEqual(reads.map { $0.request.variables?["through"] }, [
-            .string("2026-07-06"), .string("2026-07-07")
+            .string("2026-07-06"), .string("2026-07-06"), .string("2026-07-07")
         ])
     }
 
@@ -162,7 +166,7 @@ final class MuscleSetProgressTests: XCTestCase {
         XCTAssertEqual(requests.map { $0.variables?["from"] }, [.string("2026-01-08"), .string("2026-01-09")])
         XCTAssertEqual(requests.map { $0.variables?["through"] }, [.string("2026-07-06"), .string("2026-07-07")])
         let cacheReads = await fake.cachedOnlyRequestsSnapshot()
-        XCTAssertTrue(cacheReads.isEmpty)
+        XCTAssertEqual(cacheReads.count, 8) // Initial cold default load only, not keep-warm rollover.
     }
 
     @MainActor

@@ -55,7 +55,9 @@ public final class MuscleSetProgressViewModel: ProgressHistoryViewModel<MuscleSe
         calendar: Calendar = .current,
         clock: @escaping @Sendable () -> Date = Date.init
     ) {
-        super.init(updates: { from, through, zone in
+        super.init(cachedSnapshot: { from, through, zone in
+            try await repository.cachedMuscleSetProgress(fromDay: from, throughDay: through, timeZone: zone)
+        }, updates: { from, through, zone in
             repository.muscleSetProgressUpdates(fromDay: from, throughDay: through, timeZone: zone)
         }, calendar: calendar, clock: clock)
     }
