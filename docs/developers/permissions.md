@@ -1,6 +1,6 @@
 # Permissions
 
-This document describes every Hasura permission configured in `backend/nhost/metadata/databases/default/tables/*.yaml`. Permissions are the security boundary between the GraphQL API and the database — they decide *which rows each role can read, insert, update, or delete*, and *which columns each role can touch*. Everything in this doc reflects what's in the YAML files; if a claim here disagrees with the metadata, the metadata is the source of truth and this doc needs an update (see the doc-sync rule in CLAUDE.md).
+This document describes every Hasura permission configured in `backend/nhost/metadata/databases/default/tables/*.yaml` and `backend/nhost/metadata/databases/default/functions/*.yaml`. Permissions are the security boundary between the GraphQL API and the database — they decide *which rows each role can read, insert, update, or delete*, and *which columns each role can touch*. Everything in this doc reflects what's in the YAML files; if a claim here disagrees with the metadata, the metadata is the source of truth and this doc needs an update (see the doc-sync rule in CLAUDE.md).
 
 ## Roles
 
@@ -58,7 +58,19 @@ The table itself has no `user_id` column — ownership is determined by walking 
 - The `filter` and `check` follow a relationship path: `<relationship>.<parent>.user_id._eq: X-Hasura-User-Id` (sometimes with an `is_public` branch for read-only access to public parents).
 - There's no `user_id` column to forge, so no `set` block is needed.
 
-Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_strength_sets`, `workout_session_cardio_entries`, `workout_labels`, `journal_entry_labels`, `exercises_strength`, `exercises_cardio`, `meal_ingredients`, `nutrition_plan_meals`, `nutrition_log_meals`, `nutrition_log_entries`.
+Used for: `workout_exercises`, `workout_session_exercises`, `workout_session_strength_sets`, `workout_session_cardio_entries`, `workout_labels`, `journal_entry_labels`, `exercise_secondary_muscle_groups`, `exercises_strength`, `exercises_cardio`, `meal_ingredients`, `nutrition_plan_meals`, `nutrition_log_meals`, `nutrition_log_entries`.
+
+## Progress function (private read-only aggregate)
+
+`muscleSetProgress(from_day, through_day, time_zone)` is a tracked `STABLE` Hasura query. Hasura injects the `hasura_session` JSON argument, and SQL restricts `workout_sessions.user_id` to `x-hasura-user-id`; no user ID argument is accepted from the client. Its tracked return-shape table `muscle_set_progress_rows` has `CHECK (false)` and no user insert/update/delete permissions. The `user` role may read only rows filtered by `user_id = X-Hasura-User-Id` and cannot select the `user_id` output column. The function has an explicit `user` function permission. The two guards (SQL scope and result permission) keep the aggregate private even when public exercise-muscle associations are visible to all signed-in users. See `backend/tests/muscle-set-progress.test.ts` for cross-user proof.
+
+## Strength report functions (private read-only history)
+
+`workoutStrengthReport` / `exerciseStrengthReport` are tracked `STABLE` query functions with explicit `user` function permissions and Hasura-injected `hasura_session`; neither accepts a client user ID. Their shared SQL restricts `workout_sessions.user_id` to the caller's `x-hasura-user-id`. The tracked return-shape tables `workout_strength_history_rows` / `exercise_strength_history_rows` have `CHECK (false)` (no stored rows), no user insert/update/delete permissions, and an owner-filtered `user` select permission (`user_id = X-Hasura-User-Id`) whose column allowlist excludes `user_id`. Both expose a manual `workoutSession` relationship through `session_id`.
+
+The all-exercise `strengthProgress` root has the same explicit `user` function permission and injected session contract. It aggregates only the caller's logged strength sets from the shared facts view and reuses `exercise_strength_history_rows` and its existing owner-filtered, read-only permission. The SQL owner guard is tested independently of Hasura's row filter, and the user schema exposes neither a caller ID argument nor the `user_id` result column. That return shape also exposes a manual `exercise` relationship through `exercise_id`; ordinary exercise owner-or-public select permissions still govern the nested name. No new storage table or user write permission is introduced.
+
+The nested `workouts.strengthHistory` / `exercises.strengthHistory` computed fields also receive the injected session and use these return-table select permissions. They appear on public parents visible through the owner-or-public select rule, but SQL ownership filtering plus the result-row filter still return only the caller's sessions — public catalog visibility does not make history public. These computed fields appear in both checked-in Hasura and Constellation user SDLs; app reports continue to use the tracked roots' local-day contract. Schema snapshots do not establish compatibility with a newly configured Constellation binary; see the version-verification guidance in `sessions.md`. See `backend/tests/strength-reporting.test.ts` for cross-user proof and [`sessions.md`](sessions.md#shared-workout-and-exercise-strength-reports) for report semantics.
 
 ## Public, user-readable catalog data
 
@@ -72,7 +84,6 @@ These tables expose canonical lists used as foreign keys / enums. Everything in 
 | `exercise_levels` | `user` | `select` | `value`, `comment` | `{}` (all rows) | Lookup for `exercises.level`. Read-only. |
 | `exercise_mechanics` | `user` | `select` | `value`, `comment` | `{}` (all rows) | Lookup for `exercises_strength.mechanic`. Read-only. |
 | `muscle_groups` | `user` | `select` | `value`, `comment` | `{}` (all rows) | Lookup for `exercises.primary_muscle_group` and `exercise_secondary_muscle_groups.muscle_group`. Read-only. |
-| `exercise_secondary_muscle_groups` | `user` | `select` | `exercise_id`, `muscle_group` | `{}` (all rows) | Read-only mapping of secondary muscles per exercise. There's no user-role write path: a user-created exercise can't yet declare secondary muscle groups via the GraphQL API. |
 
 ## Exercise catalog
 
@@ -88,6 +99,18 @@ The exercise catalog uses class-table inheritance: `exercises` is the base, `exe
 | `user` | `delete` | — | filter: `_and [user_id eq self, is_public eq false]` | Same scope as update: delete only your private exercises. |
 
 Note: `user_id` and `is_public` are returnable in select but **not** in the user's insert/update column allowlist — the `set` block on insert is the only way they get populated, and there's no path to flip a private row public.
+
+### `exercise_secondary_muscle_groups` — pattern **C (junction via exercise)**
+
+Secondary-muscle associations inherit the parent exercise's owner-or-public visibility, like its sidecars; they are not a globally readable lookup table.
+
+| Role | Action | Columns | Filter / Check | Enforces |
+|---|---|---|---|---|
+| `user` | `select` | `exercise_id`, `muscle_group` | filter: `exercise._or [user_id eq self, is_public eq true]`; aggregations allowed | Read public targets and your own private targets only. Another user's private mappings are hidden from list, primary-key, and aggregate reads. |
+| `user` | `insert` | `exercise_id`, `muscle_group` | check: `exercise._and [user_id eq self, is_public eq false]` | Add a target only to your own private exercise, including nested `secondaryMuscleGroups: { data: [...] }` when creating an exercise. Muscle values still come from the read-only `muscle_groups` lookup. |
+| `user` | `delete` | — | filter: `exercise._and [user_id eq self, is_public eq false]` | Remove a target only from your own private exercise. Public mappings remain admin-managed. |
+
+There is no user update permission: both columns form the junction's identity, so replace a mapping with delete + insert rather than reparenting it. Send replacements together in one GraphQL mutation to keep them atomic. The parent exercise's existing `primary_muscle_group` update permission is unchanged. The `secondary-muscle ownership` tests within `backend/tests/kind-enforcement.test.ts` cover owner creation/replacement, foreign-private read/insert/delete denial, public read-only access, and the absence of update/reparent roots.
 
 ### `exercises_strength` — pattern **C (inherited from exercise)**
 

@@ -53,6 +53,30 @@ When used in a session, entries are stored in `workout_session_strength_sets`: `
 
 Hasura exposes the sidecar as an `object_relationship` on `exercises` named `strength`, so the frontend reads as `exercise.strength?.doubleWeight`. For a cardio exercise the relationship resolves to `null`.
 
+## Muscle targets for Progress
+
+For logged strength-style sets with `reps > 0`, `exercises.primary_muscle_group` contributes one set and each distinct `exercise_secondary_muscle_groups.muscle_group` contributes half a set (unless it duplicates the primary group). Exercises whose current `category = 'stretching'` earn no direct or indirect Progress credit, including rolling totals; `strength`, `powerlifting`, `plyometrics`, `olympic_weightlifting`, and `strongman` remain eligible. Migration `1790000600000_progress_exclude_stretching` applies this report-only exclusion without changing strength-style logging or ordinary workout/exercise strength reports. The catalog includes `front_delts`, `side_delts`, and `rear_delts` for explicitly reviewed public exercise associations; ambiguous movements and user-owned exercises may still use `shoulders` (display as “Shoulders (unspecified)”). Migration `1790000570000_muscle_set_progress` updates existing public rows by stable ID, and `1778235894691_exercise-catalog.sql` has the same targets for fresh databases. Review the described movement and comparable public variants together when assigning a head (including secondary targets on presses and rows); keep genuinely ambiguous movements unspecified rather than guessing from a name at query time. Catalog corrections intentionally reclassify past logged sessions.
+
+Owners can author secondary targets for their own private exercises through `insertExerciseSecondaryMuscleGroup(s)` and `deleteExerciseSecondaryMuscleGroup(s)`, including multiple targets nested in exercise creation. Reads inherit the parent's owner-or-public scope; public targets are admin-managed, and another user's private targets are neither readable nor writable. Like other junction tables, mappings have no user update/reparent permission: replace them with delete + insert in one GraphQL mutation. Primary targets remain editable through the existing parent exercise update permission. These are API permissions, not a new exercise-editor UI. Target edits reclassify previously logged sessions on read; see [`permissions.md`](permissions.md#exercise_secondary_muscle_groups--pattern-c-junction-via-exercise).
+
+The private dev-user fixtures `Landmine_Press` and `Front_Plate_Raise_to_Overhead_Press` retain primary `shoulders`, and `Wide_Grip_Seated_Cable_Rows` retains secondary `shoulders`, on both fresh and upgraded databases. They are intentionally absent from the migration's public-only mapping lists.
+
+Mixed front/lateral raises (`Alternating_Deltoid_Raise` and `Side_Laterals_to_Front_Raise`) remain `shoulders` rather than assigning all their sets to one head. `Single_Dumbbell_Raise` is `front_delts`: its instructions describe both hands holding one dumbbell by its head, arms extended from the waist to above shoulder level with the torso and hips stationary, matching the straight-arm `Front_Plate_Raise`. Upright-row variants retain their existing primary target while explicit secondary shoulder associations become `side_delts`; only variants already primary shoulders move their direct credit to `side_delts`.
+
+Migration `1792997064993_reviewed_secondary_targets` makes a separate, public-only secondary-target correction, mirrored in the catalog seed:
+
+- `Barbell_Shoulder_Press` and `Seated_Dumbbell_Press` gain `side_delts`.
+- `Hammer_Curls` gains `forearms`; `Bent_Over_Barbell_Row` gains `lower_back`.
+- `Barbell_Ab_Rollout` gains `lats`, retaining its existing `lower_back` and `shoulders` secondaries.
+- `Wide-Grip_Lat_Pulldown` replaces secondary `shoulders` with `rear_delts`.
+- `Romanian_Deadlift`, `Front_Barbell_Squat`, and `Barbell_Walking_Lunge` lose secondary `calves`.
+
+Primary targets and unrelated associations are unchanged; both migration directions exclude private exercises. The down migration restores the previous seeded associations for these public IDs. These credits remain a catalog-based heuristic, not a measurement of muscle activation or hypertrophy. The correction does not promote glutes from secondary to primary or change the one-primary/half-secondary model.
+
+The `Barbell_Ab_Rollout` addition follows confirmation of its standing-rollout use: lats is an additional secondary target, not a replacement for its other associations. The separate `Barbell_Ab_Rollout_-_On_Knees` entry is unchanged. Private/custom exercises, including an owner-created Belt Squat, remain the owner's responsibility rather than being rewritten by a public-catalog migration.
+
+For per-exercise strength reporting, the tracked `exerciseStrengthReport` GraphQL function aggregates logged sets by exercise and session, including reps, double-weight-adjusted volume, and the session's best load-based estimated one-rep max. The nested `exercises.strengthHistory` computed field also appears in both checked-in Hasura and Constellation user SDLs; app reports continue to use the tracked root's local-day contract. See the schema-verification guidance in `sessions.md` before inferring compatibility with a newly configured Constellation binary. Its calculation, permission boundaries, and workout counterpart are specified in [`sessions.md`](sessions.md) under “Shared workout and exercise strength reports”. The estimate uses recorded per-side weight for single reps and Epley for sets of two or more reps; it does not double the estimate when `double_weight` is set. Zero-load bodyweight work has no load-based 1RM estimate.
+
 ## Cardio exercises
 
 A cardio exercise is one where `category = 'cardio'` (and therefore `kind = 'cardio'` by the generated-column rule). Cardio uses a **schema-driven** logging model: each cardio exercise carries a JSON Schema in the `exercises_cardio` sidecar table, and a database trigger validates each inserted entry's metrics against that schema.

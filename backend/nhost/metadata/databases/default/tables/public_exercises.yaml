@@ -114,6 +114,14 @@ array_relationships:
         table:
           name: workout_session_exercises
           schema: public
+computed_fields:
+  - name: strengthHistory
+    definition:
+      function:
+        name: exercise_strength_history
+        schema: public
+      session_argument: hasura_session
+      table_argument: exercise_row
 insert_permissions:
   - role: user
     permission:

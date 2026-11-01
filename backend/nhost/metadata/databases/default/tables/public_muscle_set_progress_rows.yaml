@@ -1,0 +1,50 @@
+table:
+  name: muscle_set_progress_rows
+  schema: public
+configuration:
+  column_config:
+    day:
+      custom_name: day
+    direct_sets:
+      custom_name: directSets
+    indirect_sets:
+      custom_name: indirectSets
+    muscle_group:
+      custom_name: muscleGroup
+    rolling_direct_sets:
+      custom_name: rollingDirectSets
+    rolling_indirect_sets:
+      custom_name: rollingIndirectSets
+    rolling_weighted_sets:
+      custom_name: rollingWeightedSets
+    user_id:
+      custom_name: userId
+    weighted_sets:
+      custom_name: weightedSets
+  custom_column_names:
+    day: day
+    direct_sets: directSets
+    indirect_sets: indirectSets
+    muscle_group: muscleGroup
+    rolling_direct_sets: rollingDirectSets
+    rolling_indirect_sets: rollingIndirectSets
+    rolling_weighted_sets: rollingWeightedSets
+    user_id: userId
+    weighted_sets: weightedSets
+  custom_name: muscleSetProgressRows
+  custom_root_fields: {}
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - day
+        - muscle_group
+        - direct_sets
+        - indirect_sets
+        - weighted_sets
+        - rolling_direct_sets
+        - rolling_indirect_sets
+        - rolling_weighted_sets
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id

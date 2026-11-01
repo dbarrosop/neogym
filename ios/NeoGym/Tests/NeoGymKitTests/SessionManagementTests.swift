@@ -61,6 +61,43 @@ final class SessionsRepositoryTests: XCTestCase {
         XCTAssertTrue(request.query.contains("_neq: $excludeSessionId"))
     }
 
+    func testPriorWorkoutQueryLimitsSameWorkoutAndDecodesTotals() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object([
+            "workoutSessions": .array([.object([
+                "id": .string("prior"),
+                "startedAt": .string("2026-06-20T12:00:00Z"),
+                "workoutSessionExercises": .array([.object([
+                    "id": .string("wse"),
+                    "position": .number(0),
+                    "exercise": .object([
+                        "id": .string("bench"), "name": .string("Bench"),
+                        "kind": .string("strength"), "primaryMuscleGroup": .string("chest"),
+                        "strength": .object(["doubleWeight": .bool(true)])
+                    ]),
+                    "workoutSessionStrengthSets": .array([.object([
+                        "id": .string("set"), "setNumber": .number(1),
+                        "reps": .number(10), "weight": .string("20")
+                    ])]),
+                    "workoutSessionCardioEntries": .array([])
+                ])])
+            ])])
+        ]))])
+        let repository = SessionsRepository(graphQL: fake)
+        let before = try XCTUnwrap(ExerciseDateParser.parseTimestamp("2026-06-26T12:00:00Z"))
+
+        let sessions = try await repository.priorWorkoutSessions(
+            workoutId: "workout-1", before: before, excludeSessionId: "current"
+        )
+
+        XCTAssertEqual(sessions.first?.strengthTotals, SessionStrengthTotals(sets: 1, reps: 10, volume: 400, hasStrength: true))
+        let requests = await fake.requestsSnapshot()
+        let request = try XCTUnwrap(requests.first)
+        XCTAssertEqual(request.variables?["workoutId"], .string("workout-1"))
+        XCTAssertEqual(request.variables?["excludeSessionId"], .string("current"))
+        XCTAssertTrue(request.query.contains("limit: 3"))
+        XCTAssertTrue(request.query.contains("_lte: $before"))
+    }
+
     func testSessionExerciseInsertVariablesOmitForbiddenColumnsAndDoNotUpdateExerciseId() async throws {
         let fake = FakeGraphQLService(replies: [.json(.object([
             "insertWorkoutSessionExercises": .object(["affected_rows": .number(2)])
@@ -181,30 +218,6 @@ final class SessionsRepositoryTests: XCTestCase {
 
 @MainActor
 final class SessionsViewModelTests: XCTestCase {
-    func testProgressModelRetainsCachedValueAfterRevalidationFails() async throws {
-        let repository = StubSessionsRepository()
-        repository.progressUpdateEntries = [WorkoutProgressEntry(
-            id: "cached",
-            exercise: WorkoutProgressExercise(id: "bench", name: "Bench"),
-            workoutSession: SessionPriorWorkoutSession(
-                id: "session", startedAt: ISO8601DateFormatter().string(from: Date())
-            ),
-            workoutSessionStrengthSets: [ExerciseStrengthSet(id: "set", setNumber: 1, reps: 5, weight: 100)]
-        )]
-        repository.progressUpdateError = GraphQLDomainError.missingData(operationName: "WorkoutStrengthProgress")
-        let viewModel = WorkoutProgressViewModel(repository: repository)
-
-        await viewModel.load()
-
-        let progress = try XCTUnwrap(viewModel.progress)
-        XCTAssertEqual(progress.recentExercises.map(\.id), ["bench"])
-        guard case let .failed(message, previous) = viewModel.state else {
-            return XCTFail("Expected failed revalidation with cached progress")
-        }
-        XCTAssertFalse(message.isEmpty)
-        XCTAssertEqual(previous, progress)
-    }
-
     func testListGroupsSessionsByMonthAndUsesDisplayNames() async {
         let repository = StubSessionsRepository(sessions: [
             SessionListItem(
@@ -785,8 +798,6 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
     var priorWorkoutError: Error?
     var priorHistoryRequests: [(exerciseIds: [String], excludeSessionId: String)] = []
     var priorHistoryError: Error?
-    var progressUpdateEntries: [WorkoutProgressEntry] = []
-    var progressUpdateError: Error?
     var addedCardioEntryNumbers: [Int] = []
     var updatedCardioEntryIds: [String] = []
     var deletedCardioEntryIds: [String] = []
@@ -855,15 +866,6 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         ))
         if let priorWorkoutError { throw priorWorkoutError }
         return priorWorkoutSessionsResult
-    }
-
-    func strengthProgressEntries(since: Date) async throws -> [WorkoutProgressEntry] { [] }
-
-    func strengthProgressUpdates(since: Date) -> AsyncThrowingStream<[WorkoutProgressEntry], Error> {
-        AsyncThrowingStream { continuation in
-            continuation.yield(progressUpdateEntries)
-            continuation.finish(throwing: progressUpdateError)
-        }
     }
 
     func updateStartedAt(sessionId: String, startedAt: Date) async throws {

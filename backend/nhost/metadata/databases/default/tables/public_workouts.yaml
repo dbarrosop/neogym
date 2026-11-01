@@ -62,6 +62,14 @@ array_relationships:
         table:
           name: workout_sessions
           schema: public
+computed_fields:
+  - name: strengthHistory
+    definition:
+      function:
+        name: workout_strength_history
+        schema: public
+      session_argument: hasura_session
+      table_argument: workout_row
 insert_permissions:
   - role: user
     permission:

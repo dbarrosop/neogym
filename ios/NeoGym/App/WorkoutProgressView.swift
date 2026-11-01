@@ -2,156 +2,86 @@ import NeoGymKit
 import SwiftUI
 
 struct WorkoutProgressView: View {
-    @StateObject private var viewModel: WorkoutProgressViewModel
+    @StateObject private var muscleModel: MuscleSetProgressViewModel
+    @StateObject private var strengthModel: StrengthProgressViewModel
+    @State private var selection: ProgressSection = .muscles
+    @State private var visited: Set<ProgressSection> = [.muscles]
     let reloadToken: Int
 
     init(repository: any SessionsRepositoryProtocol, reloadToken: Int) {
-        _viewModel = StateObject(wrappedValue: WorkoutProgressViewModel(repository: repository))
+        _muscleModel = StateObject(wrappedValue: MuscleSetProgressViewModel(repository: repository))
+        _strengthModel = StateObject(wrappedValue: StrengthProgressViewModel(repository: repository))
         self.reloadToken = reloadToken
     }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                Text("Weekly total volume, plus session volume and estimated one-rep max for exercises logged in the last 10 days.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                content
+        VStack(spacing: 0) {
+            Picker("Progress view", selection: $selection) {
+                ForEach(ProgressSection.allCases) { section in
+                    Text(section.title).tag(section)
+                }
             }
+            .pickerStyle(.segmented)
+            .frame(minHeight: 44)
             .frame(maxWidth: 760)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, NeoGymTheme.spacingXS)
+            ZStack {
+                MuscleSetProgressView(
+                    viewModel: muscleModel, reloadToken: reloadToken, isActive: selection == .muscles
+                )
+                .opacity(selection == .muscles ? 1 : 0)
+                .allowsHitTesting(selection == .muscles)
+                .accessibilityHidden(selection != .muscles)
+                if visited.contains(.strength) {
+                    StrengthProgressView(
+                        viewModel: strengthModel, reloadToken: reloadToken, isActive: selection == .strength
+                    )
+                    .opacity(selection == .strength ? 1 : 0)
+                    .allowsHitTesting(selection == .strength)
+                    .accessibilityHidden(selection != .strength)
+                }
+            }
         }
         .navigationTitle("Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            if case .idle = viewModel.state { await viewModel.load() }
-        }
-        .onChange(of: reloadToken) { Task { await viewModel.load() } }
-        .refreshable { await viewModel.load() }
+        .onChange(of: selection) { _, section in visited.insert(section) }
     }
+}
 
-    @ViewBuilder
-    private var content: some View {
-        switch viewModel.state {
-        case .idle:
-            SectionShell(title: "Progress") { AppLoadingStateView(title: "Loading progress") }
-        case .loading where viewModel.progress == nil:
-            SectionShell(title: "Progress") { AppLoadingStateView(title: "Loading progress") }
-        case let .failed(message, _) where viewModel.progress == nil:
-            SectionShell(title: "Progress") {
-                AppErrorStateView(title: "Failed to load progress", message: message) {
-                    Task { await viewModel.load() }
-                }
-            }
-        default:
-            if let progress = viewModel.progress {
-                if viewModel.isShowingPriorWeekCache {
-                    FeedbackBanner(
-                        message: "Showing an earlier cached snapshot; newer sessions may be missing.", tone: .info
-                    )
-                }
-                SectionShell(title: "Weekly total volume", subtitle: "Strength · kg · all exercises") {
-                    TimeSeriesTrendChartView(
-                        series: [TimeSeriesChartSeries(
-                            id: "weekly-volume",
-                            name: "Volume (kg)",
-                            color: .accentColor,
-                            points: progress.weeklyVolume.map { week in
-                                TimeSeriesChartDataPoint(
-                                    id: week.weekStart.ISO8601Format(),
-                                    date: week.weekStart,
-                                    value: week.volume
-                                )
-                            },
-                            valueFormatter: { "\(Int($0.rounded()).formatted()) kg" }
-                        )],
-                        emptyMessage: "No strength sets in this period.",
-                        accessibilityLabel: "Weekly strength volume chart",
-                        initialPeriod: .last8Weeks,
-                        onVisibleRangeChange: { start, _ in
-                            Task { await viewModel.extendHistory(to: start) }
-                        }
-                    )
-                }
-                if progress.recentExercises.isEmpty {
-                    SectionShell(title: "Exercise progress") {
-                        AppEmptyStateView(
-                            title: "No recent strength exercises",
-                            message: "Log a strength set to see its volume and estimated 1RM progress here for the next 10 days.",
-                            systemImage: "chart.line.uptrend.xyaxis"
-                        )
-                    }
+private enum ProgressSection: String, CaseIterable, Identifiable {
+    case muscles
+    case strength
+    var id: Self { self }
+    var title: String { self == .muscles ? "Muscle sets" : "Strength" }
+}
+
+/// Only the active pane loads. Mounted panes keep chart selections and scroll
+/// positions; a pane revisited after a mutation or local midnight revalidates.
+struct ProgressRefreshModifier<Row: Sendable>: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject var model: ProgressHistoryViewModel<Row>
+    let reloadToken: Int
+    let isActive: Bool
+    @State private var loadedToken: Int?
+
+    func body(content: Content) -> some View {
+        content
+            .task(id: isActive ? reloadToken : nil) {
+                guard isActive else { return }
+                if loadedToken != reloadToken || model.rows == nil {
+                    loadedToken = reloadToken
+                    await model.load()
                 } else {
-                    ForEach(progress.recentExercises) { exercise in
-                        GroupBox {
-                            TimeSeriesTrendChartView(
-                                series: exerciseSeries(for: exercise),
-                                emptyMessage: "No sets in this period.",
-                                accessibilityLabel: "\(exercise.name) volume and estimated one-rep max chart",
-                                initialPeriod: .last8Weeks,
-                                onVisibleRangeChange: { start, _ in
-                                    Task { await viewModel.extendHistory(to: start) }
-                                }
-                            )
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        } label: {
-                            NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
-                                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                                    HStack(spacing: NeoGymTheme.spacingXS) {
-                                        Text(exercise.name)
-                                            .font(.title2.bold())
-                                            .tracking(-0.4)
-                                        Spacer(minLength: NeoGymTheme.spacingSM)
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(NeoGymTheme.mutedText)
-                                    }
-                                    Text("Session volume & estimated 1RM · kg")
-                                        .font(.subheadline)
-                                        .foregroundStyle(NeoGymTheme.mutedText)
-                                }
-                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Opens exercise details")
-                        }
-                        .groupBoxStyle(.automatic)
-                    }
+                    await model.refreshIfNewLocalDay()
                 }
-                if case let .failed(message, _) = viewModel.state {
-                    FeedbackBanner(message: "Could not load selected period: \(message)")
-                }
+                // Switching panes can cancel a cached-first load before revalidation.
+                if Task.isCancelled { loadedToken = nil }
             }
-        }
-    }
-
-    private func exerciseSeries(for exercise: WorkoutExerciseTrend) -> [TimeSeriesChartSeries] {
-        let points = exercise.points.enumerated().map { index, point in
-            (id: "\(exercise.id)-\(index)", point: point)
-        }
-        return [
-            TimeSeriesChartSeries(
-                id: "\(exercise.id)-volume",
-                name: "Volume (kg)",
-                color: .accentColor,
-                points: points.map { item in
-                    TimeSeriesChartDataPoint(id: item.id, date: item.point.date, value: item.point.volume)
-                },
-                valueFormatter: { "\(Int($0.rounded()).formatted()) kg" }
-            ),
-            TimeSeriesChartSeries(
-                id: "\(exercise.id)-one-rep-max",
-                name: "Est. 1RM (kg)",
-                color: .orange,
-                axis: .right,
-                points: points.map { item in
-                    TimeSeriesChartDataPoint(id: item.id, date: item.point.date, value: item.point.oneRepMax)
-                },
-                valueFormatter: { String(format: "%.1f kg", $0) }
-            )
-        ]
+            .onChange(of: scenePhase) { _, phase in
+                guard isActive, phase == .active else { return }
+                Task { await model.refreshIfNewLocalDay() }
+            }
+            .refreshable { await model.load() }
     }
 }
