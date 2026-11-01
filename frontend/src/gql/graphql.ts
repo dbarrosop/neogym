@@ -5076,6 +5076,10 @@ export type Mutation_Root = {
   insertNutritionPlanMeals?: Maybe<NutritionPlanMeals_Mutation_Response>;
   /** insert data into the table: "nutrition_plans" */
   insertNutritionPlans?: Maybe<NutritionPlans_Mutation_Response>;
+  /** insert a single row into the table: "progress_photos" */
+  insertProgressPhoto?: Maybe<ProgressPhotos>;
+  /** insert data into the table: "progress_photos" */
+  insertProgressPhotos?: Maybe<ProgressPhotos_Mutation_Response>;
   /** insert a single row into the table: "workouts" */
   insertWorkout?: Maybe<Workouts>;
   /** insert a single row into the table: "workout_exercises" */
@@ -5176,6 +5180,10 @@ export type Mutation_Root = {
   updateNutritionPlanMeals?: Maybe<NutritionPlanMeals_Mutation_Response>;
   /** update data of the table: "nutrition_plans" */
   updateNutritionPlans?: Maybe<NutritionPlans_Mutation_Response>;
+  /** update single row of the table: "progress_photos" */
+  updateProgressPhoto?: Maybe<ProgressPhotos>;
+  /** update data of the table: "progress_photos" */
+  updateProgressPhotos?: Maybe<ProgressPhotos_Mutation_Response>;
   /** update single row of the table: "workouts" */
   updateWorkout?: Maybe<Workouts>;
   /** update single row of the table: "workout_exercises" */
@@ -5236,6 +5244,8 @@ export type Mutation_Root = {
   update_nutritionPlanMeals_many?: Maybe<Array<Maybe<NutritionPlanMeals_Mutation_Response>>>;
   /** update multiples rows of table: "nutrition_plans" */
   update_nutritionPlans_many?: Maybe<Array<Maybe<NutritionPlans_Mutation_Response>>>;
+  /** update multiples rows of table: "progress_photos" */
+  update_progressPhotos_many?: Maybe<Array<Maybe<ProgressPhotos_Mutation_Response>>>;
   /** update multiples rows of table: "workout_exercises" */
   update_workoutExercises_many?: Maybe<Array<Maybe<WorkoutExercises_Mutation_Response>>>;
   /** update multiples rows of table: "workout_session_cardio_entries" */
@@ -5835,6 +5845,20 @@ export type Mutation_RootInsertNutritionPlansArgs = {
 
 
 /** mutation root */
+export type Mutation_RootInsertProgressPhotoArgs = {
+  object: ProgressPhotos_Insert_Input;
+  on_conflict?: InputMaybe<ProgressPhotos_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertProgressPhotosArgs = {
+  objects: Array<ProgressPhotos_Insert_Input>;
+  on_conflict?: InputMaybe<ProgressPhotos_On_Conflict>;
+};
+
+
+/** mutation root */
 export type Mutation_RootInsertWorkoutArgs = {
   object: Workouts_Insert_Input;
   on_conflict?: InputMaybe<Workouts_On_Conflict>;
@@ -6221,6 +6245,20 @@ export type Mutation_RootUpdateNutritionPlansArgs = {
 
 
 /** mutation root */
+export type Mutation_RootUpdateProgressPhotoArgs = {
+  _set?: InputMaybe<ProgressPhotos_Set_Input>;
+  pk_columns: ProgressPhotos_Pk_Columns_Input;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdateProgressPhotosArgs = {
+  _set?: InputMaybe<ProgressPhotos_Set_Input>;
+  where: ProgressPhotos_Bool_Exp;
+};
+
+
+/** mutation root */
 export type Mutation_RootUpdateWorkoutArgs = {
   _set?: InputMaybe<Workouts_Set_Input>;
   pk_columns: Workouts_Pk_Columns_Input;
@@ -6427,6 +6465,12 @@ export type Mutation_RootUpdate_NutritionPlanMeals_ManyArgs = {
 /** mutation root */
 export type Mutation_RootUpdate_NutritionPlans_ManyArgs = {
   updates: Array<NutritionPlans_Updates>;
+};
+
+
+/** mutation root */
+export type Mutation_RootUpdate_ProgressPhotos_ManyArgs = {
+  updates: Array<ProgressPhotos_Updates>;
 };
 
 
@@ -8928,6 +8972,328 @@ export enum Order_By {
   DescNullsLast = 'desc_nulls_last'
 }
 
+/** Admin-managed, stable IDs. Retire labels instead of deleting/reusing IDs. Retired labels remain readable and retainable. */
+export type ProgressPhotoLabels = {
+  __typename?: 'progressPhotoLabels';
+  createdAt: Scalars['timestamptz']['output'];
+  id: Scalars['String']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  position: Scalars['Int']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+};
+
+/** Boolean expression to filter rows from the table "progress_photo_labels". All fields are combined with a logical 'AND'. */
+export type ProgressPhotoLabels_Bool_Exp = {
+  _and?: InputMaybe<Array<ProgressPhotoLabels_Bool_Exp>>;
+  _not?: InputMaybe<ProgressPhotoLabels_Bool_Exp>;
+  _or?: InputMaybe<Array<ProgressPhotoLabels_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  id?: InputMaybe<String_Comparison_Exp>;
+  isActive?: InputMaybe<Boolean_Comparison_Exp>;
+  name?: InputMaybe<String_Comparison_Exp>;
+  position?: InputMaybe<Int_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+};
+
+/** Ordering options when selecting data from "progress_photo_labels". */
+export type ProgressPhotoLabels_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  isActive?: InputMaybe<Order_By>;
+  name?: InputMaybe<Order_By>;
+  position?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+};
+
+/** select columns of table "progress_photo_labels" */
+export enum ProgressPhotoLabels_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  IsActive = 'isActive',
+  /** column name */
+  Name = 'name',
+  /** column name */
+  Position = 'position',
+  /** column name */
+  UpdatedAt = 'updatedAt'
+}
+
+/** Streaming cursor of the table "progressPhotoLabels" */
+export type ProgressPhotoLabels_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: ProgressPhotoLabels_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type ProgressPhotoLabels_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  id?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  position?: InputMaybe<Scalars['Int']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+};
+
+/** Private dated images. Delete through Storage REST; file metadata deletion cascades this row. SQL does not guarantee S3 byte erasure. */
+export type ProgressPhotos = {
+  __typename?: 'progressPhotos';
+  createdAt: Scalars['timestamptz']['output'];
+  /** An object relationship */
+  file: Files;
+  fileId: Scalars['uuid']['output'];
+  id: Scalars['uuid']['output'];
+  /** An object relationship */
+  label: ProgressPhotoLabels;
+  labelId: Scalars['String']['output'];
+  revision: Scalars['Int']['output'];
+  takenOn: Scalars['date']['output'];
+  updatedAt: Scalars['timestamptz']['output'];
+  userId: Scalars['uuid']['output'];
+};
+
+/** aggregated selection of "progress_photos" */
+export type ProgressPhotos_Aggregate = {
+  __typename?: 'progressPhotos_aggregate';
+  aggregate?: Maybe<ProgressPhotos_Aggregate_Fields>;
+  nodes: Array<ProgressPhotos>;
+};
+
+/** aggregate fields of "progress_photos" */
+export type ProgressPhotos_Aggregate_Fields = {
+  __typename?: 'progressPhotos_aggregate_fields';
+  avg?: Maybe<ProgressPhotos_Avg_Fields>;
+  count: Scalars['Int']['output'];
+  max?: Maybe<ProgressPhotos_Max_Fields>;
+  min?: Maybe<ProgressPhotos_Min_Fields>;
+  stddev?: Maybe<ProgressPhotos_Stddev_Fields>;
+  stddev_pop?: Maybe<ProgressPhotos_Stddev_Pop_Fields>;
+  stddev_samp?: Maybe<ProgressPhotos_Stddev_Samp_Fields>;
+  sum?: Maybe<ProgressPhotos_Sum_Fields>;
+  var_pop?: Maybe<ProgressPhotos_Var_Pop_Fields>;
+  var_samp?: Maybe<ProgressPhotos_Var_Samp_Fields>;
+  variance?: Maybe<ProgressPhotos_Variance_Fields>;
+};
+
+
+/** aggregate fields of "progress_photos" */
+export type ProgressPhotos_Aggregate_FieldsCountArgs = {
+  columns?: InputMaybe<Array<ProgressPhotos_Select_Column>>;
+  distinct?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+/** aggregate avg on columns */
+export type ProgressPhotos_Avg_Fields = {
+  __typename?: 'progressPhotos_avg_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Boolean expression to filter rows from the table "progress_photos". All fields are combined with a logical 'AND'. */
+export type ProgressPhotos_Bool_Exp = {
+  _and?: InputMaybe<Array<ProgressPhotos_Bool_Exp>>;
+  _not?: InputMaybe<ProgressPhotos_Bool_Exp>;
+  _or?: InputMaybe<Array<ProgressPhotos_Bool_Exp>>;
+  createdAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  file?: InputMaybe<Files_Bool_Exp>;
+  fileId?: InputMaybe<Uuid_Comparison_Exp>;
+  id?: InputMaybe<Uuid_Comparison_Exp>;
+  label?: InputMaybe<ProgressPhotoLabels_Bool_Exp>;
+  labelId?: InputMaybe<String_Comparison_Exp>;
+  revision?: InputMaybe<Int_Comparison_Exp>;
+  takenOn?: InputMaybe<Date_Comparison_Exp>;
+  updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
+  userId?: InputMaybe<Uuid_Comparison_Exp>;
+};
+
+/** unique or primary key constraints on table "progress_photos" */
+export enum ProgressPhotos_Constraint {
+  /** unique or primary key constraint on columns "file_id" */
+  ProgressPhotosFileKey = 'progress_photos_file_key',
+  /** unique or primary key constraint on columns "id" */
+  ProgressPhotosPkey = 'progress_photos_pkey',
+  /** unique or primary key constraint on columns "user_id", "taken_on", "label_id" */
+  ProgressPhotosUserDateLabelKey = 'progress_photos_user_date_label_key'
+}
+
+/** input type for inserting data into table "progress_photos" */
+export type ProgressPhotos_Insert_Input = {
+  fileId?: InputMaybe<Scalars['uuid']['input']>;
+  labelId?: InputMaybe<Scalars['String']['input']>;
+  takenOn?: InputMaybe<Scalars['date']['input']>;
+};
+
+/** aggregate max on columns */
+export type ProgressPhotos_Max_Fields = {
+  __typename?: 'progressPhotos_max_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  fileId?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  labelId?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['Int']['output']>;
+  takenOn?: Maybe<Scalars['date']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** aggregate min on columns */
+export type ProgressPhotos_Min_Fields = {
+  __typename?: 'progressPhotos_min_fields';
+  createdAt?: Maybe<Scalars['timestamptz']['output']>;
+  fileId?: Maybe<Scalars['uuid']['output']>;
+  id?: Maybe<Scalars['uuid']['output']>;
+  labelId?: Maybe<Scalars['String']['output']>;
+  revision?: Maybe<Scalars['Int']['output']>;
+  takenOn?: Maybe<Scalars['date']['output']>;
+  updatedAt?: Maybe<Scalars['timestamptz']['output']>;
+  userId?: Maybe<Scalars['uuid']['output']>;
+};
+
+/** response of any mutation on the table "progress_photos" */
+export type ProgressPhotos_Mutation_Response = {
+  __typename?: 'progressPhotos_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<ProgressPhotos>;
+};
+
+/** on_conflict condition type for table "progress_photos" */
+export type ProgressPhotos_On_Conflict = {
+  constraint: ProgressPhotos_Constraint;
+  update_columns?: Array<ProgressPhotos_Update_Column>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
+};
+
+/** Ordering options when selecting data from "progress_photos". */
+export type ProgressPhotos_Order_By = {
+  createdAt?: InputMaybe<Order_By>;
+  file?: InputMaybe<Files_Order_By>;
+  fileId?: InputMaybe<Order_By>;
+  id?: InputMaybe<Order_By>;
+  label?: InputMaybe<ProgressPhotoLabels_Order_By>;
+  labelId?: InputMaybe<Order_By>;
+  revision?: InputMaybe<Order_By>;
+  takenOn?: InputMaybe<Order_By>;
+  updatedAt?: InputMaybe<Order_By>;
+  userId?: InputMaybe<Order_By>;
+};
+
+/** primary key columns input for table: progress_photos */
+export type ProgressPhotos_Pk_Columns_Input = {
+  id: Scalars['uuid']['input'];
+};
+
+/** select columns of table "progress_photos" */
+export enum ProgressPhotos_Select_Column {
+  /** column name */
+  CreatedAt = 'createdAt',
+  /** column name */
+  FileId = 'fileId',
+  /** column name */
+  Id = 'id',
+  /** column name */
+  LabelId = 'labelId',
+  /** column name */
+  Revision = 'revision',
+  /** column name */
+  TakenOn = 'takenOn',
+  /** column name */
+  UpdatedAt = 'updatedAt',
+  /** column name */
+  UserId = 'userId'
+}
+
+/** input type for updating data in table "progress_photos" */
+export type ProgressPhotos_Set_Input = {
+  fileId?: InputMaybe<Scalars['uuid']['input']>;
+  labelId?: InputMaybe<Scalars['String']['input']>;
+  takenOn?: InputMaybe<Scalars['date']['input']>;
+};
+
+/** aggregate stddev on columns */
+export type ProgressPhotos_Stddev_Fields = {
+  __typename?: 'progressPhotos_stddev_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_pop on columns */
+export type ProgressPhotos_Stddev_Pop_Fields = {
+  __typename?: 'progressPhotos_stddev_pop_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate stddev_samp on columns */
+export type ProgressPhotos_Stddev_Samp_Fields = {
+  __typename?: 'progressPhotos_stddev_samp_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** Streaming cursor of the table "progressPhotos" */
+export type ProgressPhotos_Stream_Cursor_Input = {
+  /** Stream column input with initial value */
+  initial_value: ProgressPhotos_Stream_Cursor_Value_Input;
+  /** cursor ordering */
+  ordering?: InputMaybe<Cursor_Ordering>;
+};
+
+/** Initial value of the column from where the streaming should start */
+export type ProgressPhotos_Stream_Cursor_Value_Input = {
+  createdAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  fileId?: InputMaybe<Scalars['uuid']['input']>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  labelId?: InputMaybe<Scalars['String']['input']>;
+  revision?: InputMaybe<Scalars['Int']['input']>;
+  takenOn?: InputMaybe<Scalars['date']['input']>;
+  updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
+  userId?: InputMaybe<Scalars['uuid']['input']>;
+};
+
+/** aggregate sum on columns */
+export type ProgressPhotos_Sum_Fields = {
+  __typename?: 'progressPhotos_sum_fields';
+  revision?: Maybe<Scalars['Int']['output']>;
+};
+
+/** update columns of table "progress_photos" */
+export enum ProgressPhotos_Update_Column {
+  /** column name */
+  FileId = 'fileId',
+  /** column name */
+  LabelId = 'labelId',
+  /** column name */
+  TakenOn = 'takenOn'
+}
+
+export type ProgressPhotos_Updates = {
+  /** sets the columns of the filtered rows to the given values */
+  _set?: InputMaybe<ProgressPhotos_Set_Input>;
+  /** filter the rows which have to be updated */
+  where: ProgressPhotos_Bool_Exp;
+};
+
+/** aggregate var_pop on columns */
+export type ProgressPhotos_Var_Pop_Fields = {
+  __typename?: 'progressPhotos_var_pop_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate var_samp on columns */
+export type ProgressPhotos_Var_Samp_Fields = {
+  __typename?: 'progressPhotos_var_samp_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
+/** aggregate variance on columns */
+export type ProgressPhotos_Variance_Fields = {
+  __typename?: 'progressPhotos_variance_fields';
+  revision?: Maybe<Scalars['Float']['output']>;
+};
+
 export type Query_Root = {
   __typename?: 'query_root';
   /** fetch data from the table: "body_measurements" using primary key columns */
@@ -9096,6 +9462,16 @@ export type Query_Root = {
   nutritionPlans: Array<NutritionPlans>;
   /** fetch aggregated fields from the table: "nutrition_plans" */
   nutritionPlansAggregate: NutritionPlans_Aggregate;
+  /** fetch data from the table: "progress_photos" using primary key columns */
+  progressPhoto?: Maybe<ProgressPhotos>;
+  /** fetch data from the table: "progress_photo_labels" using primary key columns */
+  progressPhotoLabel?: Maybe<ProgressPhotoLabels>;
+  /** fetch data from the table: "progress_photo_labels" */
+  progressPhotoLabels: Array<ProgressPhotoLabels>;
+  /** fetch data from the table: "progress_photos" */
+  progressPhotos: Array<ProgressPhotos>;
+  /** fetch aggregated fields from the table: "progress_photos" */
+  progressPhotosAggregate: ProgressPhotos_Aggregate;
   /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
   strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
@@ -9790,6 +10166,43 @@ export type Query_RootNutritionPlansAggregateArgs = {
 };
 
 
+export type Query_RootProgressPhotoArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Query_RootProgressPhotoLabelArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type Query_RootProgressPhotoLabelsArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotoLabels_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotoLabels_Order_By>>;
+  where?: InputMaybe<ProgressPhotoLabels_Bool_Exp>;
+};
+
+
+export type Query_RootProgressPhotosArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotos_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotos_Order_By>>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
+};
+
+
+export type Query_RootProgressPhotosAggregateArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotos_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotos_Order_By>>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
+};
+
+
 export type Query_RootStrengthProgressArgs = {
   args: StrengthProgress_Args;
   distinct_on?: InputMaybe<Array<ExerciseStrengthHistoryRows_Select_Column>>;
@@ -10222,6 +10635,20 @@ export type Subscription_Root = {
   nutritionPlansAggregate: NutritionPlans_Aggregate;
   /** fetch data from the table in a streaming manner: "nutrition_plans" */
   nutritionPlans_stream: Array<NutritionPlans>;
+  /** fetch data from the table: "progress_photos" using primary key columns */
+  progressPhoto?: Maybe<ProgressPhotos>;
+  /** fetch data from the table: "progress_photo_labels" using primary key columns */
+  progressPhotoLabel?: Maybe<ProgressPhotoLabels>;
+  /** fetch data from the table: "progress_photo_labels" */
+  progressPhotoLabels: Array<ProgressPhotoLabels>;
+  /** fetch data from the table in a streaming manner: "progress_photo_labels" */
+  progressPhotoLabels_stream: Array<ProgressPhotoLabels>;
+  /** fetch data from the table: "progress_photos" */
+  progressPhotos: Array<ProgressPhotos>;
+  /** fetch aggregated fields from the table: "progress_photos" */
+  progressPhotosAggregate: ProgressPhotos_Aggregate;
+  /** fetch data from the table in a streaming manner: "progress_photos" */
+  progressPhotos_stream: Array<ProgressPhotos>;
   /** execute function "strength_progress" which returns "exerciseStrengthHistoryRows" */
   strengthProgress: Array<ExerciseStrengthHistoryRows>;
   /** fetch data from the table: "workouts" using primary key columns */
@@ -11132,6 +11559,57 @@ export type Subscription_RootNutritionPlans_StreamArgs = {
   batch_size: Scalars['Int']['input'];
   cursor: Array<InputMaybe<NutritionPlans_Stream_Cursor_Input>>;
   where?: InputMaybe<NutritionPlans_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotoArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+export type Subscription_RootProgressPhotoLabelArgs = {
+  id: Scalars['String']['input'];
+};
+
+
+export type Subscription_RootProgressPhotoLabelsArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotoLabels_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotoLabels_Order_By>>;
+  where?: InputMaybe<ProgressPhotoLabels_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotoLabels_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<ProgressPhotoLabels_Stream_Cursor_Input>>;
+  where?: InputMaybe<ProgressPhotoLabels_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotosArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotos_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotos_Order_By>>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotosAggregateArgs = {
+  distinct_on?: InputMaybe<Array<ProgressPhotos_Select_Column>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order_by?: InputMaybe<Array<ProgressPhotos_Order_By>>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
+};
+
+
+export type Subscription_RootProgressPhotos_StreamArgs = {
+  batch_size: Scalars['Int']['input'];
+  cursor: Array<InputMaybe<ProgressPhotos_Stream_Cursor_Input>>;
+  where?: InputMaybe<ProgressPhotos_Bool_Exp>;
 };
 
 
