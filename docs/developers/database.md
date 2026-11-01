@@ -119,6 +119,30 @@ erDiagram
     LABELS   ||--o{ WORKOUT_LABELS  : "applied to"
 ```
 
+## Progress photos
+
+Private visual-progress images use a separate domain from Body measurements and workout Progress reports; see [`progress-photos.md`](progress-photos.md).
+
+```mermaid
+erDiagram
+    USERS["auth.users"]
+    STORAGE_FILES["storage.files"]
+    PROGRESS_PHOTO_LABELS { text id PK text name int position boolean is_active }
+    PROGRESS_PHOTOS {
+        uuid id PK
+        uuid user_id FK
+        date taken_on "finite 0001..9999"
+        text label_id FK
+        uuid file_id "FK UNIQUE"
+        int revision "server-incremented"
+    }
+    USERS ||--o{ PROGRESS_PHOTOS : "owns; CASCADE delete"
+    PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "label; RESTRICT delete"
+    STORAGE_FILES ||--o| PROGRESS_PHOTOS : "file; CASCADE delete"
+```
+
+Migration `1793528798662_progress_photos` adds the private/no-store, no-presigned-URL `progress_photos` bucket (1 byte–5 MiB), stable admin label catalog and one photo per `(user_id, taken_on, label_id)`. Domain-table guards require a completed, same-owner progress-bucket file on insert/reference change; enforce active new label assignments; preserve identity/creation time and increment revision. Retired labels remain retainable. Storage tables have no custom lifecycle triggers or locks. The owner-only Storage phase opens progress-file insert/select/delete through Hasura permissions, never file update or bucket writes; exercise-image/public selects stay unchanged. This is a backend API rollout, not a shipped web/iOS gallery. There is no user photo-row delete permission. File metadata deletion cascades photos atomically but cannot guarantee S3 byte removal; account deletion can leave file metadata/bytes.
+
 ## Auxiliary domains — body measurements, journal, daily energy, and HealthKit workouts
 
 These are unrelated to the workout/session model — they're separate per-user data streams attached directly to `auth.users`.
@@ -262,6 +286,9 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 
 | FK | Action | Why |
 |---|---|---|
+| `progress_photos.file_id` → `storage.files.id` | `ON DELETE CASCADE` | Storage REST metadata deletion atomically removes the photo; bytes remain Storage's responsibility. |
+| `progress_photos.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Account deletion removes photos, not necessarily private file metadata/bytes. |
+| `progress_photos.label_id` → `progress_photo_labels.id` | `ON DELETE RESTRICT` | Referenced catalog labels cannot be deleted; operators retire stable IDs instead of deleting/reusing them. |
 | `health_workouts.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Imported private workout snapshots are removed with the account. |
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
@@ -283,6 +310,8 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 
 | Table | Trigger | Fires on | What it does |
 |---|---|---|---|
+| `progress_photos` | `guard_public_progress_photo` | `BEFORE INSERT OR UPDATE` | Checks new file bucket/completion/uploader and newly assigned label activity; keeps ID/owner immutable, preserves creation time, increments server revision. Ordinary file FK serialization handles attach/delete races. |
+| `progress_photo_labels` | `guard_public_progress_photo_label_identity` | `BEFORE UPDATE` | Rejects ID changes, preserves creation time and sets update time. |
 | `workout_exercises` | `sync_public_workout_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id, kind` | Copies `kind` from the parent `exercises.kind`, overwriting any client-supplied value (including on UPDATE OF `kind` itself, so a client can't bypass the FK by re-pointing `kind` without changing `exercise_id`). |
 | `workout_session_exercises` | `sync_public_workout_session_exercises_kind` | `BEFORE INSERT OR UPDATE OF exercise_id, kind` | Same. |
 | `workout_session_cardio_entries` | `validate_public_workout_session_cardio_entries_metrics` | `BEFORE INSERT OR UPDATE OF metrics, workout_session_exercise_id` | Validates `metrics` against `exercises_cardio.metrics_schema` via `pg_jsonschema`. Noops if the parent isn't cardio so the FK can give a clearer error. |

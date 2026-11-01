@@ -39,6 +39,8 @@
 - "!include public_nutrition_plan_foods.yaml"
 - "!include public_nutrition_plan_meals.yaml"
 - "!include public_nutrition_plans.yaml"
+- "!include public_progress_photo_labels.yaml"
+- "!include public_progress_photos.yaml"
 - "!include public_workout_exercises.yaml"
 - "!include public_workout_labels.yaml"
 - "!include public_workout_session_cardio_entries.yaml"

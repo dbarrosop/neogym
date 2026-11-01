@@ -1,0 +1,37 @@
+table:
+  name: progress_photo_labels
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    is_active:
+      custom_name: isActive
+    updated_at:
+      custom_name: updatedAt
+  custom_column_names:
+    created_at: createdAt
+    is_active: isActive
+    updated_at: updatedAt
+  custom_name: progressPhotoLabels
+  custom_root_fields:
+    delete: deleteProgressPhotoLabels
+    delete_by_pk: deleteProgressPhotoLabel
+    insert: insertProgressPhotoLabels
+    insert_one: insertProgressPhotoLabel
+    select: progressPhotoLabels
+    select_aggregate: progressPhotoLabelsAggregate
+    select_by_pk: progressPhotoLabel
+    update: updateProgressPhotoLabels
+    update_by_pk: updateProgressPhotoLabel
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - name
+        - position
+        - is_active
+        - created_at
+        - updated_at
+      filter: {}

@@ -1,0 +1,86 @@
+table:
+  name: progress_photos
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    file_id:
+      custom_name: fileId
+    label_id:
+      custom_name: labelId
+    taken_on:
+      custom_name: takenOn
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    file_id: fileId
+    label_id: labelId
+    taken_on: takenOn
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: progressPhotos
+  custom_root_fields:
+    delete: deleteProgressPhotos
+    delete_by_pk: deleteProgressPhoto
+    insert: insertProgressPhotos
+    insert_one: insertProgressPhoto
+    select: progressPhotos
+    select_aggregate: progressPhotosAggregate
+    select_by_pk: progressPhoto
+    update: updateProgressPhotos
+    update_by_pk: updateProgressPhoto
+object_relationships:
+  - name: file
+    using:
+      foreign_key_constraint_on: file_id
+  - name: label
+    using:
+      foreign_key_constraint_on: label_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id
+      set:
+        user_id: X-Hasura-User-Id
+      columns:
+        - taken_on
+        - label_id
+        - file_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - taken_on
+        - label_id
+        - file_id
+        - revision
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      allow_aggregations: true
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - taken_on
+        - label_id
+        - file_id
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check:
+        user_id:
+          _eq: X-Hasura-User-Id

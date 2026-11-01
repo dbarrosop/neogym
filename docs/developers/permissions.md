@@ -287,6 +287,15 @@ Active/resting kcal notes per energy date. Always private. The database addition
 | `user` | `update` | `energy_on`, `active_kcal`, `resting_kcal`, `notes` | filter: `user_id eq self`; check: `null` | Edit your own daily energy rows. `user_id` cannot be reassigned. |
 | `user` | `delete` | — | filter: `user_id eq self` | Delete your own daily energy rows. |
 
+## Progress photos
+
+See [`progress-photos.md`](progress-photos.md) for the model, CAS and file-cascade contract.
+
+- `progress_photo_labels`: user select only, all catalog rows (including retired labels), columns `id`, `name`, `position`, `is_active`, `created_at`, `updated_at`. No public permission or user catalog mutation.
+- `progress_photos`: user select/aggregate filtered by `user_id = self`; select columns `id`, `user_id`, `taken_on`, `label_id`, `file_id`, `revision`, `created_at`, `updated_at`. Insert checks owner and presets `user_id = self`; update filters/checks owner. Only `taken_on`, `label_id`, `file_id` are insert/update-allowlisted. The SQL trigger rejects invalid file ownership/bucket/completion and inactive new label assignments, makes identity immutable and owns the revision counter.
+- No user photo-row delete permission: the intended delete is Storage REST followed by the file FK cascade, not a domain delete mutation. Edits must use the loaded revision (plus old file ID on replacement) in the `updateProgressPhotos` predicate and check affected rows; ordinary Hasura update roots do not force a CAS predicate.
+- Neither table has public permissions. The owner-only Storage phase permits progress-file upload/select/delete, never update, through the file permissions below. This opens the backend API, not a web/iOS feature; galleries and client image normalization are not shipped.
+
 ## Apple Health workout snapshots
 
 ### `health_workouts` — pattern **A (private per-user)**
@@ -341,19 +350,28 @@ Select/delete walk `nutritionDay.user_id eq self`. Insert checks the owned day, 
 
 ### `storage.files`
 
-Nhost stores uploaded files in S3-compatible buckets (currently just `exercise_images`). This is the only table where the `public` role appears — so an unauthenticated visitor can `GET` an exercise image by URL without signing in. Writes are admin-only (uploads happen through the Nhost Storage API, not the GraphQL API).
+Nhost stores uploaded files in S3-compatible storage, with metadata buckets `exercise_images` and `progress_photos`. This is the only table with a `public` permission, preserving unauthenticated exercise-image URLs. The owner-only Storage phase opens only progress-file upload/read/delete; no web/native progress-photo UI is included.
 
-| Role | Action | Columns | Filter | Enforces |
+| Role | Action | Columns | Filter / Check | Enforces |
 |---|---|---|---|---|
-| `public` | `select` | `id`, `name`, `size`, `bucket_id`, `etag`, `created_at`, `updated_at`, `is_uploaded`, `mime_type`, `uploaded_by_user_id`, `metadata` | filter: `bucket_id eq exercise_images` | Public catalog images are visible to unauthenticated visitors (so the marketing/landing flow works, and the app doesn't have to forge auth headers for image `<img src>`). Files in any other bucket are hidden from public. |
-| `user` | `select` | Same as public | filter: `bucket_id eq exercise_images` | Authenticated users can also read exercise images. (There are no other buckets in use today; if a private-uploads bucket is added, a separate user-scoped row-filter goes here.) |
+| `public` | `select` | `id`, `name`, `size`, `bucket_id`, `etag`, `created_at`, `updated_at`, `is_uploaded`, `mime_type`, `uploaded_by_user_id`, `metadata` | filter: unchanged `bucket_id eq exercise_images` branch | Public exercise-image access is unchanged. All other buckets remain hidden. |
+| `user` | `select` | Same as public | filter: existing exercise branch OR `_and [bucket_id eq progress_photos, uploaded_by_user_id eq self]` | Read exercise images and only own progress-file metadata/bytes. |
+| `user` | `insert` | `id`, `bucket_id`, `mime_type`, `name`, `size` | check: `_and [bucket_id eq progress_photos, uploaded_by_user_id eq self, mime_type eq image/jpeg]`; `set: uploaded_by_user_id = self` | Upload only progress JPEGs, with forced session ownership. Completion/etag/metadata/timestamps are excluded from direct GraphQL inserts. Storage 0.15.1 REST uploads can persist caller-supplied custom `metadata` JSON through the service's admin `PopulateMetadata` completion write. It is untrusted owner-private caller content, never authority for ownership or the photo date/label; official clients omit custom metadata. |
+| `user` | `delete` | — | filter: `_and [bucket_id eq progress_photos, uploaded_by_user_id eq self]` | Delete only own progress files, including unattached/incomplete metadata. Never delete exercise images. |
 
-No insert / update / delete permissions for the user role: file lifecycle goes through Nhost Storage's REST endpoints, which apply their own bucket-scoped rules. The `auth.*` and `storage.buckets` / `storage.virus` tables have no user-role permissions at all — they're managed by Nhost.
+**REST uses Hasura authorization.** Storage initializes file metadata with the caller's JWT and these insert permissions; it byte-sniffs MIME and checks actual multipart size (1 byte–5 MiB for progress uploads). Admin-only service operations read bucket settings and mark successful uploads complete. There is no user file update permission: no ownership/bucket changes or in-place byte replacement. `storage.buckets`, `storage.virus` and `auth.*` remain admin-only. Neither bucket-write access nor broad file-update permission is needed for ordinary REST upload/delete.
+
+Owner GET/HEAD/transformed responses must carry `Cache-Control: private, no-store` **and** `Surrogate-Control: private, no-store`; progress presigned URLs remain disabled. This is not a server image sanitizer: direct callers can upload JPEG-sniffed bytes without proving decode/EXIF safety. Direct GraphQL inserts can create only incomplete metadata; declaring MIME/size does not upload bytes, and the photo guard refuses incomplete attachments.
+
+**GraphQL file deletion is exposed but metadata-only.** The necessary file-delete permission exposes owner-filtered `deleteFile`/`deleteFiles` on Hasura and Constellation too. Official clients must use exact-file **Storage REST DELETE** to request both metadata and object deletion. The file FK atomically cascades photo rows with metadata deletion, not S3 byte deletion. REST can fail after metadata has gone; reconcile rather than infer survival/erasure from an error. Direct GraphQL/SQL deletion, bucket deletion, account deletion and approved operator broken-metadata maintenance can remove photos while leaving private metadata/bytes. No worker, sweep, client orphan cleanup or global Storage cleanup is authorized; maintenance requires separate operator approval. See [`progress-photos.md`](progress-photos.md) for lifecycle limitations and exact-ID independent local byte-removal verification.
+
+`backend/tests/progress-photos-storage.test.ts` proves this API boundary with real Auth-issued JWTs, no admin headers on tested requests, scoped fixtures and persisted-state/byte comparisons after denial. Public exercise reads and denied writes must remain unchanged. Schema generation must show both public SDLs unchanged; local tests do not establish production CDN behavior.
 
 ## What `user` role is *not* allowed to touch
 
 A few intentional omissions worth calling out — these are the columns and tables the user role cannot reach via GraphQL:
 
+- **`progress_photos.id`, `progress_photos.user_id`, timestamps and `revision`** — immutable/server-managed inputs; owner is preset, revision increments on the server. No user domain-row delete or catalog mutation exists.
 - **`health_workouts.user_id`, `health_workouts.healthkit_uuid` after insert** — ownership is forced from the JWT and immutable; the HealthKit UUID is insert-only. Sync can update only its own raw snapshot.
 - **`daily_energy.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`, so daily energy rows are pinned to the caller and cannot be reassigned through GraphQL.
 - **`exercises.is_public`, `exercises.slug`, `exercises.user_id`** — not in the user-role insert/update column allowlist. `user_id` is set by `insert.set`; the others are admin-only fields.
