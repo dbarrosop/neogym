@@ -67,6 +67,25 @@ array_relationships:
         table:
           name: exercises
           schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        _and:
+          - bucket_id:
+              _eq: progress_photos
+          - uploaded_by_user_id:
+              _eq: X-Hasura-User-Id
+          - mime_type:
+              _eq: image/jpeg
+      set:
+        uploaded_by_user_id: X-Hasura-User-Id
+      columns:
+        - id
+        - bucket_id
+        - mime_type
+        - name
+        - size
 select_permissions:
   - role: public
     permission:
@@ -106,3 +125,17 @@ select_permissions:
           - _and:
               - bucket_id:
                   _eq: exercise_images
+          - _and:
+              - bucket_id:
+                  _eq: progress_photos
+              - uploaded_by_user_id:
+                  _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        _and:
+          - bucket_id:
+              _eq: progress_photos
+          - uploaded_by_user_id:
+              _eq: X-Hasura-User-Id

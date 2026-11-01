@@ -2200,6 +2200,13 @@ export type Exercises_Aggregate_Order_By = {
   min?: InputMaybe<Exercises_Min_Order_By>;
 };
 
+/** input type for inserting array relation for remote table "exercises" */
+export type Exercises_Arr_Rel_Insert_Input = {
+  data: Array<Exercises_Insert_Input>;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Exercises_On_Conflict>;
+};
+
 /** Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'. */
 export type Exercises_Bool_Exp = {
   _and?: InputMaybe<Array<Exercises_Bool_Exp>>;
@@ -2250,7 +2257,9 @@ export type Exercises_Insert_Input = {
   cardio?: InputMaybe<ExercisesCardio_Obj_Rel_Insert_Input>;
   category?: InputMaybe<ExerciseCategories_Enum>;
   equipment?: InputMaybe<ExerciseEquipments_Enum>;
+  image1?: InputMaybe<Files_Obj_Rel_Insert_Input>;
   image1FileId?: InputMaybe<Scalars['uuid']['input']>;
+  image2?: InputMaybe<Files_Obj_Rel_Insert_Input>;
   image2FileId?: InputMaybe<Scalars['uuid']['input']>;
   instructions?: InputMaybe<Array<Scalars['String']['input']>>;
   level?: InputMaybe<ExerciseLevels_Enum>;
@@ -2584,6 +2593,46 @@ export type Files_Bool_Exp = {
   uploadedByUserId?: InputMaybe<Uuid_Comparison_Exp>;
 };
 
+/** unique or primary key constraints on table "storage.files" */
+export enum Files_Constraint {
+  /** unique or primary key constraint on columns "id" */
+  FilesPkey = 'files_pkey'
+}
+
+/** input type for inserting data into table "storage.files" */
+export type Files_Insert_Input = {
+  bucketId?: InputMaybe<Scalars['String']['input']>;
+  exercisesAsImage1?: InputMaybe<Exercises_Arr_Rel_Insert_Input>;
+  exercisesAsImage2?: InputMaybe<Exercises_Arr_Rel_Insert_Input>;
+  id?: InputMaybe<Scalars['uuid']['input']>;
+  mimeType?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  size?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** response of any mutation on the table "storage.files" */
+export type Files_Mutation_Response = {
+  __typename?: 'files_mutation_response';
+  /** number of rows affected by the mutation */
+  affected_rows: Scalars['Int']['output'];
+  /** data from the rows affected by the mutation */
+  returning: Array<Files>;
+};
+
+/** input type for inserting object relation for remote table "storage.files" */
+export type Files_Obj_Rel_Insert_Input = {
+  data: Files_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<Files_On_Conflict>;
+};
+
+/** on_conflict condition type for table "storage.files" */
+export type Files_On_Conflict = {
+  constraint: Files_Constraint;
+  update_columns?: Array<Files_Update_Column>;
+  where?: InputMaybe<Files_Bool_Exp>;
+};
+
 /** Ordering options when selecting data from "storage.files". */
 export type Files_Order_By = {
   bucketId?: InputMaybe<Order_By>;
@@ -2649,6 +2698,12 @@ export type Files_Stream_Cursor_Value_Input = {
   updatedAt?: InputMaybe<Scalars['timestamptz']['input']>;
   uploadedByUserId?: InputMaybe<Scalars['uuid']['input']>;
 };
+
+/** placeholder for update columns of table "storage.files" (current role has no relevant permissions) */
+export enum Files_Update_Column {
+  /** placeholder (do not use) */
+  Placeholder = '_PLACEHOLDER'
+}
 
 /** Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent. */
 export type Foods = {
@@ -4912,6 +4967,10 @@ export type Mutation_Root = {
   deleteExerciseSecondaryMuscleGroups?: Maybe<ExerciseSecondaryMuscleGroups_Mutation_Response>;
   /** delete data from the table: "exercises" */
   deleteExercises?: Maybe<Exercises_Mutation_Response>;
+  /** delete single row from the table: "storage.files" */
+  deleteFile?: Maybe<Files>;
+  /** delete data from the table: "storage.files" */
+  deleteFiles?: Maybe<Files_Mutation_Response>;
   /** delete single row from the table: "foods" */
   deleteFood?: Maybe<Foods>;
   /** delete data from the table: "foods" */
@@ -5020,6 +5079,10 @@ export type Mutation_Root = {
   insertExercisesCardio?: Maybe<ExercisesCardio_Mutation_Response>;
   /** insert data into the table: "exercises_strength" */
   insertExercisesStrength?: Maybe<ExercisesStrength_Mutation_Response>;
+  /** insert a single row into the table: "storage.files" */
+  insertFile?: Maybe<Files>;
+  /** insert data into the table: "storage.files" */
+  insertFiles?: Maybe<Files_Mutation_Response>;
   /** insert a single row into the table: "foods" */
   insertFood?: Maybe<Foods>;
   /** insert data into the table: "foods" */
@@ -5307,6 +5370,18 @@ export type Mutation_RootDeleteExerciseSecondaryMuscleGroupsArgs = {
 /** mutation root */
 export type Mutation_RootDeleteExercisesArgs = {
   where: Exercises_Bool_Exp;
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteFileArgs = {
+  id: Scalars['uuid']['input'];
+};
+
+
+/** mutation root */
+export type Mutation_RootDeleteFilesArgs = {
+  where: Files_Bool_Exp;
 };
 
 
@@ -5645,6 +5720,20 @@ export type Mutation_RootInsertExercisesCardioArgs = {
 export type Mutation_RootInsertExercisesStrengthArgs = {
   objects: Array<ExercisesStrength_Insert_Input>;
   on_conflict?: InputMaybe<ExercisesStrength_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertFileArgs = {
+  object: Files_Insert_Input;
+  on_conflict?: InputMaybe<Files_On_Conflict>;
+};
+
+
+/** mutation root */
+export type Mutation_RootInsertFilesArgs = {
+  objects: Array<Files_Insert_Input>;
+  on_conflict?: InputMaybe<Files_On_Conflict>;
 };
 
 
@@ -9122,6 +9211,7 @@ export enum ProgressPhotos_Constraint {
 
 /** input type for inserting data into table "progress_photos" */
 export type ProgressPhotos_Insert_Input = {
+  file?: InputMaybe<Files_Obj_Rel_Insert_Input>;
   fileId?: InputMaybe<Scalars['uuid']['input']>;
   labelId?: InputMaybe<Scalars['String']['input']>;
   takenOn?: InputMaybe<Scalars['date']['input']>;

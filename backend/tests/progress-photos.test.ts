@@ -14,7 +14,7 @@ import {
 	STORAGE_URL,
 } from "./progress-photos-helpers";
 
-// Phase 1: model, FK serialization, and the closed user Storage boundary.
+// Model/FK serialization plus the current owner-only Storage permission boundary.
 // No reachability skips: unavailable/wrong local services fail the suite.
 const fixtures = new PhotoFixtures();
 const fields = "id userId takenOn labelId fileId revision createdAt updatedAt";
@@ -656,7 +656,7 @@ describe("progress photo file cascade and rollback safety", () => {
 	});
 });
 
-describe("phase 1 permission boundary", () => {
+describe("progress photo permission boundary", () => {
 	test("admin roots exist before asserting omitted user/public mutations", async () => {
 		const introspect = `{ __schema { mutationType { fields { name } } queryType { fields { name } } } }`;
 		type Schema = {
@@ -672,19 +672,22 @@ describe("phase 1 permission boundary", () => {
 			"insertProgressPhotoLabel",
 			"updateProgressPhotoLabel",
 			"deleteProgressPhotoLabel",
-			"insertFile",
-			"insertFiles",
 			"updateFile",
 			"updateFiles",
-			"deleteFile",
-			"deleteFiles",
 			"insertBucket",
 			"updateBucket",
 			"deleteBucket",
 		];
+		const ownerFileRoots = [
+			"insertFile",
+			"insertFiles",
+			"deleteFile",
+			"deleteFiles",
+		];
 		const adminMutations =
 			admin.mutationType?.fields.map((entry) => entry.name) ?? [];
-		for (const name of omitted) expect(adminMutations).toContain(name);
+		for (const name of [...omitted, ...ownerFileRoots])
+			expect(adminMutations).toContain(name);
 		for (const endpoint of [HASURA_URL, NHOST_GRAPHQL_URL]) {
 			const user = data(
 				await gql<Schema>(introspect, {}, fixtures.ownerId, endpoint),
@@ -692,6 +695,7 @@ describe("phase 1 permission boundary", () => {
 			const mutations =
 				user.mutationType?.fields.map((entry) => entry.name) ?? [];
 			for (const name of omitted) expect(mutations).not.toContain(name);
+			for (const name of ownerFileRoots) expect(mutations).toContain(name);
 			// Validate an actual denied mutation only after proving its exact
 			// root exists for admin (a typo must not pass as authorization).
 			const denied = await gql(
@@ -716,7 +720,7 @@ describe("phase 1 permission boundary", () => {
 			);
 			expect(anonymousQueries).not.toContain("progressPhotos");
 			expect(anonymousQueries).not.toContain("progressPhotoLabels");
-			for (const name of omitted)
+			for (const name of [...omitted, ...ownerFileRoots])
 				expect(
 					anonymous.mutationType?.fields.map((entry) => entry.name) ?? [],
 				).not.toContain(name);
@@ -743,13 +747,22 @@ describe("phase 1 permission boundary", () => {
 			signal: AbortSignal.timeout(5000),
 		});
 		expect([403, 404]).toContain(privateRead.status);
-		// Phase 1 does NOT yet permit the owner to read private file metadata.
+		// Phase 2 opens progress metadata only to the uploader.
 		expect(
 			data(
 				await gql<{ file: unknown }>(
 					`query ($id: uuid!) { file(id: $id) { id } }`,
 					{ id: privateId },
 					fixtures.ownerId,
+				),
+			).file,
+		).toEqual({ id: privateId });
+		expect(
+			data(
+				await gql<{ file: unknown }>(
+					`query ($id: uuid!) { file(id: $id) { id } }`,
+					{ id: privateId },
+					fixtures.otherId,
 				),
 			).file,
 		).toBeNull();

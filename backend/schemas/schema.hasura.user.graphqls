@@ -600,6 +600,15 @@ enum exercises_update_column {
   primaryMuscleGroup
 }
 """
+unique or primary key constraints on table "storage.files"
+"""
+enum files_constraint {
+  """
+  unique or primary key constraint on columns "id"
+  """
+  files_pkey
+}
+"""
 select columns of table "storage.files"
 """
 enum files_select_column {
@@ -647,6 +656,15 @@ enum files_select_column {
   column name
   """
   uploadedByUserId
+}
+"""
+placeholder for update columns of table "storage.files" (current role has no relevant permissions)
+"""
+enum files_update_column {
+  """
+  placeholder (do not use)
+  """
+  _PLACEHOLDER
 }
 """
 unique or primary key constraints on table "foods"
@@ -3568,6 +3586,19 @@ type files {
   uploadedByUserId: uuid
 }
 """
+response of any mutation on the table "storage.files"
+"""
+type files_mutation_response {
+  """
+  number of rows affected by the mutation
+  """
+  affected_rows: Int!
+  """
+  data from the rows affected by the mutation
+  """
+  returning: [files!]!
+}
+"""
 Owner-or-public nutrition catalog. Nutrients are canonical per 100 grams. v1 intentionally has no brand column; name uniqueness follows the exercises/workouts/labels UNIQUE NULLS NOT DISTINCT catalog precedent.
 """
 type foods {
@@ -4893,6 +4924,19 @@ type mutation_root {
     where: exercises_bool_exp!
   ): exercises_mutation_response
   """
+  delete single row from the table: "storage.files"
+  """
+  deleteFile(id: uuid!): files
+  """
+  delete data from the table: "storage.files"
+  """
+  deleteFiles(
+    """
+    filter the rows which have to be deleted
+    """
+    where: files_bool_exp!
+  ): files_mutation_response
+  """
   delete single row from the table: "foods"
   """
   deleteFood(id: uuid!): foods
@@ -5333,6 +5377,34 @@ type mutation_root {
     """
     on_conflict: exercisesStrength_on_conflict
   ): exercisesStrength_mutation_response
+  """
+  insert a single row into the table: "storage.files"
+  """
+  insertFile(
+    """
+    the row to be inserted
+    """
+    object: files_insert_input!
+
+    """
+    upsert condition
+    """
+    on_conflict: files_on_conflict
+  ): files
+  """
+  insert data into the table: "storage.files"
+  """
+  insertFiles(
+    """
+    the rows to be inserted
+    """
+    objects: [files_insert_input!]!
+
+    """
+    upsert condition
+    """
+    on_conflict: files_on_conflict
+  ): files_mutation_response
   """
   insert a single row into the table: "foods"
   """
@@ -16165,6 +16237,16 @@ input exercises_aggregate_order_by {
   min: exercises_min_order_by
 }
 """
+input type for inserting array relation for remote table "exercises"
+"""
+input exercises_arr_rel_insert_input {
+  data: [exercises_insert_input!]!
+  """
+  upsert condition
+  """
+  on_conflict: exercises_on_conflict
+}
+"""
 Boolean expression to filter rows from the table "exercises". All fields are combined with a logical 'AND'.
 """
 input exercises_bool_exp {
@@ -16204,7 +16286,9 @@ input exercises_insert_input {
   cardio: exercisesCardio_obj_rel_insert_input
   category: exerciseCategories_enum
   equipment: exerciseEquipments_enum
+  image1: files_obj_rel_insert_input
   image1FileId: uuid
+  image2: files_obj_rel_insert_input
   image2FileId: uuid
   instructions: [String!]
   level: exerciseLevels_enum
@@ -16383,6 +16467,36 @@ input files_bool_exp {
   size: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   uploadedByUserId: uuid_comparison_exp
+}
+"""
+input type for inserting data into table "storage.files"
+"""
+input files_insert_input {
+  bucketId: String
+  exercisesAsImage1: exercises_arr_rel_insert_input
+  exercisesAsImage2: exercises_arr_rel_insert_input
+  id: uuid
+  mimeType: String
+  name: String
+  size: Int
+}
+"""
+input type for inserting object relation for remote table "storage.files"
+"""
+input files_obj_rel_insert_input {
+  data: files_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: files_on_conflict
+}
+"""
+on_conflict condition type for table "storage.files"
+"""
+input files_on_conflict {
+  constraint: files_constraint!
+  update_columns: [files_update_column!]! = []
+  where: files_bool_exp
 }
 """
 Ordering options when selecting data from "storage.files".
@@ -19089,6 +19203,7 @@ input progressPhotos_bool_exp {
 input type for inserting data into table "progress_photos"
 """
 input progressPhotos_insert_input {
+  file: files_obj_rel_insert_input
   fileId: uuid
   labelId: String
   takenOn: date
