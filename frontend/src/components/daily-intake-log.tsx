@@ -39,6 +39,7 @@ import {
   type DailyEnergyNumericValue,
 } from "@/lib/daily-energy";
 import { gqlRequest } from "@/lib/graphql";
+import { useAuth } from "@/lib/nhost/auth-provider";
 import {
   type AdHocLogEntryUpdateSet,
   type AdHocNutritionDraft,
@@ -339,6 +340,7 @@ interface DailyIntakeLogProps {
 }
 
 export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
@@ -363,20 +365,22 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     });
   };
 
+  // Keep the date prefix for mutation invalidation, but never reuse another owner's day.
+  const queryKey = ["nutrition", "days", date, user?.id];
   const query = useQuery({
-    queryKey: ["nutrition", "days", date],
+    queryKey,
     queryFn: () => openDay(date),
+    enabled: !!user,
     // Daily-energy edits use a separate route/query key; remounting this card should refetch
     // the sibling dailyEnergyEntries selection rather than relying on cross-route invalidation.
     refetchOnMount: "always",
   });
 
   const ensureDay = () => {
-    const cachedDay = queryClient.getQueryData<DailyIntakeLogData>([
-      "nutrition",
-      "days",
-      date,
-    ])?.day;
+    if (!user) {
+      return Promise.reject(new Error("Sign in to log intake."));
+    }
+    const cachedDay = queryClient.getQueryData<DailyIntakeLogData>(queryKey)?.day;
     if (cachedDay) {
       return Promise.resolve(cachedDay.id);
     }
@@ -455,6 +459,9 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     },
   });
 
+  if (!user) {
+    return null;
+  }
   if (query.isLoading) {
     return <DailyIntakeLogSkeleton />;
   }
@@ -531,7 +538,10 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
       <MacroSummary totals={totals} targetTotals={targetTotals} />
       <CalorieBalanceCard balance={calorieBalance} date={date} />
-      <TodayEnergyEstimate date={date} balance={{ caloriesIn: totals.kcal, dailyEnergy }} />
+      <TodayEnergyEstimate
+        date={date}
+        balance={{ userId: user.id, caloriesIn: totals.kcal, dailyEnergy }}
+      />
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardContent className="space-y-4 p-4 sm:p-6">

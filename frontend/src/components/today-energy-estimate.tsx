@@ -34,8 +34,9 @@ const TodayEnergyEstimateQuery = graphql(`
 
 interface Props {
   date?: string;
-  /** Daily intake supplies its live logged totals and actual energy, avoiding stale sibling reads. */
+  /** Owner-scoped live intake totals avoid stale sibling reads after food edits. */
   balance?: {
+    userId: string;
     caloriesIn: number;
     dailyEnergy: {
       activeKcal?: DailyEnergyNumericValue;
@@ -85,11 +86,17 @@ function TodayEstimateContent({ today, balance }: { today: string; balance: Prop
     enabled: !!user,
     refetchOnMount: "always",
   });
+  if (!user) {
+    return null;
+  }
+  const ownedBalance = balance?.userId === user.id ? balance : undefined;
   const history = query.data?.dailyEnergyEntries ?? [];
-  const energy = balance ? balance.dailyEnergy : history.find((entry) => entry.energyOn === today);
+  const energy = ownedBalance
+    ? ownedBalance.dailyEnergy
+    : history.find((entry) => entry.energyOn === today);
   const day = query.data?.nutritionDays[0];
   const caloriesIn =
-    balance?.caloriesIn ??
+    ownedBalance?.caloriesIn ??
     [
       ...(day?.nutritionLogEntries ?? []),
       ...(day?.nutritionLogMeals.flatMap((meal) => meal.nutritionLogEntries) ?? []),

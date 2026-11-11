@@ -220,6 +220,20 @@ energy rows from the bounded newest-first history, so future records cannot
 crowd today or its resting history out of the summary. The overview cache key
 includes today's local date. Web estimates use a user/date-scoped query key and
 update the current-date identity at local midnight and on foreground return.
+The web daily log also scopes its query and exact day-creation cache lookup to
+`["nutrition", "days", date, userId]` and does not load or render signed out.
+Its live balance override carries that owner ID; estimates ignore mismatched
+owners and use their own scoped response instead. Food-edit invalidations retain
+the `["nutrition", "days", date]` prefix, so the estimate immediately uses the
+refreshed logged totals without waiting for its separate history query.
+
+The web account-isolation regression mounts the real daily-log and estimate
+components in a separate Bun process so DOM globals and module mocks cannot leak
+into other tests. Its test client disables mutation GC timers with
+`gcTime: Number.POSITIVE_INFINITY`; otherwise those timers can keep the subprocess
+alive after unmount even when every assertion has passed. Account-switch fixtures
+remount the daily-log route to exercise `refetchOnMount: "always"` while retaining
+the same QueryClient.
 
 The watch snapshot carries an optional aggregate resting baseline so the app
 can immediately recompute a projection when an eligible provisional local
