@@ -19,14 +19,9 @@ struct EnergyBalanceWidget: Widget {
 }
 
 struct EnergyBalanceTimelineEntry: TimelineEntry {
-    let date: Date
-    let snapshot: EnergyBalanceWidgetSnapshot?
-    let isPlaceholder: Bool
-    let refreshDecision: EnergyBalanceWidgetLiveRefreshDecision
+    let content: EnergyBalanceWidgetTimelineEntry
 
-    var displaySnapshot: EnergyBalanceWidgetSnapshot? {
-        snapshot ?? (isPlaceholder ? .placeholder : nil)
-    }
+    var date: Date { content.date }
 }
 
 private struct SendableTimelineCompletion: @unchecked Sendable {
@@ -59,47 +54,29 @@ struct EnergyBalanceTimelineProvider: TimelineProvider {
     }
 
     func placeholder(in context: Context) -> EnergyBalanceTimelineEntry {
-        EnergyBalanceTimelineEntry(
-            date: Date(),
-            snapshot: .placeholder,
-            isPlaceholder: true,
-            refreshDecision: .liveSnapshot
-        )
+        EnergyBalanceTimelineEntry(content: EnergyBalanceWidgetTimelineEntry(date: Date(), snapshot: .placeholder))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (EnergyBalanceTimelineEntry) -> Void) {
         let snapshot = context.isPreview ? EnergyBalanceWidgetSnapshot.placeholder : snapshotStore.load()
-        completion(EnergyBalanceTimelineEntry(
-            date: Date(),
-            snapshot: snapshot,
-            isPlaceholder: context.isPreview,
-            refreshDecision: snapshot == nil ? .emptyState : .cachedFallback
-        ))
+        completion(EnergyBalanceTimelineEntry(content: EnergyBalanceWidgetTimelineEntry(date: Date(), snapshot: snapshot)))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<EnergyBalanceTimelineEntry>) -> Void) {
         let completion = SendableTimelineCompletion(completion)
         Task {
             let now = Date()
-            let entry = await timelineEntry(date: now)
+            let timeline = await liveRefreshOrchestrator.timeline(date: now)
 
             // WidgetKit treats timeline policies as best-effort hints. This provider can attempt a
             // live server fetch through the shared keychain session, but iOS still decides when the
             // extension receives runtime. Cached data remains the supported fallback on no session,
             // auth, network, or provisioning failures.
-            let reloadInterval: TimeInterval = entry.refreshDecision == .emptyState ? 15 * 60 : 30 * 60
-            completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(reloadInterval))))
+            completion(Timeline(
+                entries: timeline.entries.map { EnergyBalanceTimelineEntry(content: $0) },
+                policy: .after(timeline.reloadAfter)
+            ))
         }
-    }
-
-    private func timelineEntry(date: Date) async -> EnergyBalanceTimelineEntry {
-        let result = await liveRefreshOrchestrator.refresh(date: date)
-        return EnergyBalanceTimelineEntry(
-            date: date,
-            snapshot: result.snapshot,
-            isPlaceholder: false,
-            refreshDecision: result.decision
-        )
     }
 }
 
@@ -108,7 +85,7 @@ private struct EnergyBalanceWidgetView: View {
 
     var body: some View {
         Group {
-            if let snapshot = entry.displaySnapshot {
+            if let snapshot = entry.content.snapshot {
                 populatedView(snapshot)
             } else {
                 emptyView
@@ -145,14 +122,14 @@ private struct EnergyBalanceWidgetView: View {
                     label: "Burned",
                     value: snapshot.burnedValue,
                     metadata: compactBurnedMetadata(snapshot.burnedCaption),
-                    estimate: snapshot.localDate == DateOnly.formatLocalISO(entry.date) ? snapshot.estimatedBurnedValue : nil
+                    estimate: entry.content.estimatedBurnedValue
                 )
                 metricTile(
                     label: "Net today",
                     value: snapshot.netValue,
                     metadata: snapshot.netCaption,
                     state: snapshot.netState,
-                    estimate: snapshot.localDate == DateOnly.formatLocalISO(entry.date) ? snapshot.estimatedNetValue : nil
+                    estimate: entry.content.estimatedNetValue
                 )
                 metricTile(
                     label: "7-day avg",
@@ -327,18 +304,12 @@ struct EnergyBalanceWidget_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                date: .now,
-                snapshot: .placeholder,
-                isPlaceholder: true,
-                refreshDecision: .liveSnapshot
+                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: .placeholder)
             ))
             .previewDisplayName("Live or cached data")
 
             EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                date: .now,
-                snapshot: nil,
-                isPlaceholder: false,
-                refreshDecision: .emptyState
+                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: nil)
             ))
             .previewDisplayName("Empty state")
         }

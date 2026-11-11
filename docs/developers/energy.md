@@ -243,8 +243,14 @@ still decode and show actual values only. Baseline-only changes do not request
 complication reloads. The iPhone widget snapshot adds optional formatted estimate
 strings; old snapshots still decode. Its compact layout owns its content margins
 and shows estimated burned/net as secondary lines, with the forecast limitation
-also available to VoiceOver. Cached widget estimates are shown only when the
-snapshot's date matches the current timeline entry's local date.
+also available to VoiceOver. Widget estimates are shown only when the snapshot's
+date matches the timeline entry's local date. For live and cached estimates,
+`EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` also schedules an estimate-free
+entry at the next local midnight using calendar-day arithmetic (including DST).
+That entry retains recorded snapshot values and the last-synced caption without
+requiring another backend fetch or provider execution. The existing 15/30-minute
+provider reload policies remain best-effort; a new day's estimates require a
+snapshot for that day.
 
 ## Watch Energy and complication
 

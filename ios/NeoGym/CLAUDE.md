@@ -758,6 +758,12 @@ intact instead of inventing one-off styles.
   resting baseline survives eligible local provisional updates, but is ignored
   by complication display/reload identity; the watch complication stays actuals-only.
   Both widget snapshot additions are optional for old-snapshot compatibility.
+  The medium iPhone widget uses the host-tested live-refresh orchestrator's
+  `timeline` plan: estimates expire in a scheduled next-local-midnight entry
+  while recorded values remain available, even without another provider run.
+  Use calendar-day boundaries, not fixed 24-hour intervals, for that entry.
+  Timeline tests inject both calendar and locale; `en_US_POSIX` numeric fixtures
+  use ungrouped values such as `2100 kcal`, unlike `en_US`'s `2,100 kcal`.
   See `docs/developers/energy.md` from the repo root. Do not introduce a new
   chart or macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,
