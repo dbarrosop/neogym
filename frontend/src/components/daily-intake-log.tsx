@@ -19,6 +19,7 @@ import {
   type LogPlanSlot,
 } from "@/components/log-intake-dialog";
 import { MacroSummary } from "@/components/macro-summary";
+import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -530,6 +531,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
       <MacroSummary totals={totals} targetTotals={targetTotals} />
       <CalorieBalanceCard balance={calorieBalance} date={date} />
+      <TodayEnergyEstimate date={date} balance={{ caloriesIn: totals.kcal, dailyEnergy }} />
 
       <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <CardContent className="space-y-4 p-4 sm:p-6">

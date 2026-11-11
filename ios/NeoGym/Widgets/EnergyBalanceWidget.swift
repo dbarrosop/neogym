@@ -14,6 +14,7 @@ struct EnergyBalanceWidget: Widget {
         .configurationDisplayName("Energy Balance")
         .description("See today’s calories in, calories out, net balance, and 7-day average.")
         .supportedFamilies([.systemMedium])
+        .contentMarginsDisabled()
     }
 }
 
@@ -118,7 +119,7 @@ private struct EnergyBalanceWidgetView: View {
     }
 
     private func populatedView(_ snapshot: EnergyBalanceWidgetSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Energy balance")
@@ -134,7 +135,7 @@ private struct EnergyBalanceWidgetView: View {
                 refreshButton
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 6) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 4) {
                 metricTile(
                     label: "Consumed",
                     value: snapshot.consumedValue,
@@ -143,13 +144,15 @@ private struct EnergyBalanceWidgetView: View {
                 metricTile(
                     label: "Burned",
                     value: snapshot.burnedValue,
-                    metadata: compactBurnedMetadata(snapshot.burnedCaption)
+                    metadata: compactBurnedMetadata(snapshot.burnedCaption),
+                    estimate: snapshot.localDate == DateOnly.formatLocalISO(entry.date) ? snapshot.estimatedBurnedValue : nil
                 )
                 metricTile(
                     label: "Net today",
                     value: snapshot.netValue,
                     metadata: snapshot.netCaption,
-                    state: snapshot.netState
+                    state: snapshot.netState,
+                    estimate: snapshot.localDate == DateOnly.formatLocalISO(entry.date) ? snapshot.estimatedNetValue : nil
                 )
                 metricTile(
                     label: "7-day avg",
@@ -159,7 +162,7 @@ private struct EnergyBalanceWidgetView: View {
                 )
             }
         }
-        .padding(12)
+        .padding(10)
         .accessibilityElement(children: .contain)
     }
 
@@ -211,8 +214,9 @@ private struct EnergyBalanceWidgetView: View {
         }
     }
 
-    private func metricTile(label: String, value: String, metadata: String, state: String? = nil) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func metricTile(label: String, value: String, metadata: String, state: String? = nil,
+                            estimate: String? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text(label)
                     .font(.caption2.weight(.bold))
@@ -239,9 +243,17 @@ private struct EnergyBalanceWidgetView: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.65)
+            if let estimate {
+                Text("Est. \(estimate)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .accessibilityLabel("Estimated \(label.lowercased()) \(estimate). Recent resting energy plus activity so far; food already logged only.")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
+        .padding(6)
         .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         .accessibilityElement(children: .combine)
     }
@@ -279,7 +291,7 @@ private struct EnergyBalanceWidgetView: View {
 
 private extension EnergyBalanceWidgetSnapshot {
     static let placeholder = EnergyBalanceWidgetSnapshot(
-        localDate: "2026-07-11",
+        localDate: DateOnly.todayLocalISO(),
         userMarker: "preview",
         generatedAtISO8601: "2026-07-11T12:30:00Z",
         generatedAtText: "Jul 11, 12:30 PM",
@@ -293,7 +305,9 @@ private extension EnergyBalanceWidgetSnapshot {
         netState: "deficit",
         sevenDayValue: "−210 kcal",
         sevenDayCaption: "Deficit",
-        sevenDayState: "deficit"
+        sevenDayState: "deficit",
+        estimatedBurnedValue: "≈2,360 kcal",
+        estimatedNetValue: "≈−510 kcal"
     )
 }
 

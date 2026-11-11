@@ -744,8 +744,22 @@ intact instead of inventing one-off styles.
   Empty-state text remains naturally accessible. Nutrition totals use
   `MacroSummaryView` grids with monospaced digits and optional target totals;
   the daily intake balance is read-only, with calories in from logged snapshots
-  and calories out from the same date's `daily_energy` row. Do not introduce a
-  new chart or macro tile style unless these primitives cannot express the need.
+  and calories out from the same date's `daily_energy` row. Today-only Overview,
+  Energy list/detail, intake, watch app and medium iPhone widget also show
+  `DailyEnergyProjection`: prior seven local dates' mean positive resting kcal,
+  floored at resting already recorded today, plus today's recorded active kcal;
+  estimated net subtracts this from food already logged. Require today's row and
+  at least one usable historical resting value, show the day count in app summaries,
+  and never replace actual values, historical charts or `daily_energy` records.
+  Future food/activity are not predicted. Overview reads extra past/current
+  `balanceDays` without hiding future logs from browsing, and its cache key
+  includes today. Daily intake/watch reads fetch today plus seven prior energy
+  dates and explicitly select today by date. The watch snapshot's optional
+  resting baseline survives eligible local provisional updates, but is ignored
+  by complication display/reload identity; the watch complication stays actuals-only.
+  Both widget snapshot additions are optional for old-snapshot compatibility.
+  See `docs/developers/energy.md` from the repo root. Do not introduce a new
+  chart or macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,
   preserve 44-point hit targets for tappable chips/buttons where practical, and
   keep dynamic type in mind. Previews can set `dynamicTypeSize`, color scheme,

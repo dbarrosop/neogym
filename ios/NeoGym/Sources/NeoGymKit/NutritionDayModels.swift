@@ -294,14 +294,17 @@ public struct DailyCalorieBalance: Sendable, Equatable {
 public struct NutritionOverviewPayload: Sendable, Equatable {
     public let days: [NutritionDay]
     public let dailyEnergyEntries: [DailyEnergy]
+    /// Recent past/current days for balance math even when future logs fill the browsing page.
+    public let balanceDays: [NutritionDay]
 
-    public init(days: [NutritionDay], dailyEnergyEntries: [DailyEnergy] = []) {
+    public init(days: [NutritionDay], dailyEnergyEntries: [DailyEnergy] = [], balanceDays: [NutritionDay] = []) {
         self.days = days
         self.dailyEnergyEntries = dailyEnergyEntries
+        self.balanceDays = balanceDays
     }
 
     public var daysByDate: [String: NutritionDay] {
-        Dictionary(uniqueKeysWithValues: days.map { ($0.logDate, $0) })
+        Dictionary((days + balanceDays).map { ($0.logDate, $0) }, uniquingKeysWith: { _, newer in newer })
     }
 
     public var energyByDate: [String: DailyEnergy] {
@@ -401,6 +404,7 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
     public let caloriesOut: Double?
     public let net: Double?
     public let netState: DailyCalorieBalanceState
+    public let projection: DailyEnergyProjection?
     public let sevenDayAverageNet: Double?
     public let sevenDayAverageState: DailyCalorieBalanceState?
     public let latestLoggedSlotTime: String?
@@ -445,6 +449,7 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
         caloriesOut = balance.caloriesOut
         net = balance.net
         netState = balance.state
+        projection = payload.energyProjection(today: today, calendar: calendar)
         sevenDayAverageNet = average?.averageNet
         sevenDayAverageState = average?.state
         latestLoggedSlotTime = todayDay?.latestLoggedSlotTime
@@ -492,6 +497,7 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
 public struct DailyIntakePayload: Sendable, Equatable {
     public let day: NutritionDay?
     public let dailyEnergy: DailyEnergy?
+    public let energyHistory: [DailyEnergy]
     public let nutritionPlans: [NutritionPlan]
     public let meals: [Meal]
     public let foods: [Food]
@@ -499,12 +505,14 @@ public struct DailyIntakePayload: Sendable, Equatable {
     public init(
         day: NutritionDay?,
         dailyEnergy: DailyEnergy? = nil,
+        energyHistory: [DailyEnergy] = [],
         nutritionPlans: [NutritionPlan],
         meals: [Meal],
         foods: [Food]
     ) {
         self.day = day
         self.dailyEnergy = dailyEnergy
+        self.energyHistory = energyHistory
         self.nutritionPlans = nutritionPlans
         self.meals = meals
         self.foods = foods

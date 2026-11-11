@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { addLocalDateDays } from "./nutrition";
 
 export interface DailyEnergyFormValues {
   energyOn: string;
@@ -21,6 +22,83 @@ export interface DailyEnergyBalance {
   caloriesOut: number | null;
   net: number | null;
   state: "intake-only" | "deficit" | "surplus" | "balanced";
+}
+
+export interface DailyEnergyProjectionEntry {
+  energyOn: string;
+  activeKcal?: DailyEnergyNumericValue;
+  restingKcal?: DailyEnergyNumericValue;
+}
+
+export interface DailyEnergyProjection {
+  estimatedBurnedKcal: number;
+  estimatedNetKcal: number;
+  restingAverageKcal: number;
+  historyDayCount: number;
+}
+
+export const ENERGY_PROJECTION_EXPLANATION =
+  "Uses recent resting energy plus activity so far. Net uses food already logged; future food and activity are not predicted.";
+
+/** Read-only today projection. Missing historical dates are not zero-kcal days. */
+export function calculateDailyEnergyProjection({
+  date,
+  today,
+  caloriesIn,
+  dailyEnergy,
+  history,
+}: {
+  date: string;
+  today: string;
+  caloriesIn: number;
+  dailyEnergy: DailyEnergyProjectionEntry | null;
+  history: DailyEnergyProjectionEntry[];
+}): DailyEnergyProjection | null {
+  if (
+    date !== today ||
+    dailyEnergy?.energyOn !== today ||
+    !Number.isFinite(caloriesIn) ||
+    caloriesIn < 0
+  ) {
+    return null;
+  }
+  const dates = new Set(Array.from({ length: 7 }, (_, i) => addLocalDateDays(today, -i - 1)));
+  const values = new Map<string, number>();
+  for (const entry of history) {
+    const value = projectionEnergyNumber(entry.restingKcal);
+    if (dates.has(entry.energyOn) && value !== null && value > 0 && !values.has(entry.energyOn)) {
+      values.set(entry.energyOn, value);
+    }
+  }
+  if (values.size === 0) {
+    return null;
+  }
+  const active =
+    dailyEnergy.activeKcal == null ? 0 : projectionEnergyNumber(dailyEnergy.activeKcal);
+  const resting =
+    dailyEnergy.restingKcal == null ? 0 : projectionEnergyNumber(dailyEnergy.restingKcal);
+  if (active === null || resting === null) {
+    return null;
+  }
+  const restingAverageKcal =
+    [...values.values()].reduce((sum, value) => sum + value, 0) / values.size;
+  const estimatedBurnedKcal = active + Math.max(resting, restingAverageKcal);
+  return {
+    estimatedBurnedKcal,
+    estimatedNetKcal: caloriesIn - estimatedBurnedKcal,
+    restingAverageKcal,
+    historyDayCount: values.size,
+  };
+}
+
+function projectionEnergyNumber(value: DailyEnergyNumericValue): number | null {
+  if (value == null || (typeof value === "string" && value.trim() === "")) {
+    return null;
+  }
+  const numeric = typeof value === "number" ? value : Number(value.replace(",", "."));
+  return Number.isFinite(numeric) && numeric >= 0 && numeric < DAILY_ENERGY_KCAL_MAX
+    ? numeric
+    : null;
 }
 
 const NUMERIC_INPUT = /^\d{0,5}([.,]\d{0,2})?$/;

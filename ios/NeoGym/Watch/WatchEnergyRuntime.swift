@@ -355,7 +355,8 @@ extension WatchEnergyRuntime {
                 userID: userID, localDate: result.localDate, consumedKcal: result.consumedKcal,
                 burnedKcal: local.burnedKcal, activeKcal: local.activeKcal,
                 restingKcal: local.restingKcal, updatedAt: local.updatedAt,
-                rowSource: result.rowSource, pendingBackend: true
+                rowSource: result.rowSource, pendingBackend: true,
+                restingBaseline: result.restingBaseline
             )
         } else {
             displayed = result

@@ -164,6 +164,74 @@ workout HealthKit imports. WidgetKit timeline reloads and the iOS 17+ in-widget 
 are best-effort triggers, not guaranteed fresh server data or an exact refresh
 cadence.
 
+## Today's energy estimate
+
+Today-only summaries add **Estimated burned today** and **Estimated net today**
+alongside the recorded figures. The calculation is shared by `NeoGymKit`'s
+`DailyRestingEnergyBaseline` / `DailyEnergyProjection` and mirrored by the web
+`calculateDailyEnergyProjection` helper:
+
+```text
+resting baseline = mean(available positive resting kcal on the previous 7 local dates)
+estimated burned = today's recorded active kcal + max(today's recorded resting kcal, resting baseline)
+estimated net = today's logged snapshot kcal - estimated burned
+```
+
+- The history window is the seven **calendar dates before today**, excluding
+  today, future dates and older rows; date arithmetic uses the local calendar,
+  not fixed 24-hour durations. Fetching history must cover today plus seven
+  previous dates even though watch HealthKit reconciliation still updates only
+  today plus six previous dates.
+- Missing, zero, negative, non-finite and out-of-range historical resting values
+  do not enter the mean or denominator. One usable day is sufficient (including
+  yesterday-only history); app summaries state how many of the previous seven
+  days contributed. A missing date is never an observed zero-kcal day.
+- A current-day energy row and at least one usable historical resting value
+  are required. A missing component on an existing current row still contributes
+  zero, matching actual balance semantics. No current row means no estimate,
+  even when historical rows exist; queries must select today's row by date,
+  never take an arbitrary first historical row as today's reading.
+- The resting floor prevents an estimate below resting energy already recorded;
+  the baseline **replaces**, rather than adds to, today's partial resting total.
+  Activity is never extrapolated. Net uses food already logged, not a nutrition
+  plan or predicted future meals; future food and activity can change the result.
+  Negative net means an estimated deficit against this baseline, positive means
+  an estimated surplus. Values are explicitly labeled as estimates (`≈`).
+- Previous dates are not guaranteed complete: `daily_energy` has no completeness
+  marker and a missed HealthKit sync can leave partial historical totals. This is
+  a simple recent-data baseline, not a guaranteed end-of-day forecast or BMR
+  calculation from personal measurements.
+- Estimates are read-only derived values. Never write them to `daily_energy`,
+  feed them into historical charts/rolling actual net averages, or overwrite
+  manual entries. No database or Hasura permission change is needed.
+
+Surfaces: native Nutrition Overview, today's nutrition day, Energy list and
+current-day detail; web today's daily log and Energy list/current-day detail;
+watch app Energy; and the medium iPhone Energy Balance widget. Energy pages
+fetch nutrition as well as energy to calculate today's estimated net. Historical
+day/detail screens and charts retain recorded values only. The compact **watch
+complication remains unchanged**, including its actual-burn/net math and reload
+identity.
+
+Native daily intake and watch reads include seven previous energy dates plus
+today. Native Overview keeps future-dated nutrition logs in its browsing list
+but separately selects recent past/current `balanceDays`, and excludes future
+energy rows from the bounded newest-first history, so future records cannot
+crowd today or its resting history out of the summary. The overview cache key
+includes today's local date. Web estimates use a user/date-scoped query key and
+update the current-date identity at local midnight and on foreground return.
+
+The watch snapshot carries an optional aggregate resting baseline so the app
+can immediately recompute a projection when an eligible provisional local
+Health reading replaces today's partial totals. It retains the same owner/date
+and manual-row gates as existing snapshots; old snapshots without that baseline
+still decode and show actual values only. Baseline-only changes do not request
+complication reloads. The iPhone widget snapshot adds optional formatted estimate
+strings; old snapshots still decode. Its compact layout owns its content margins
+and shows estimated burned/net as secondary lines, with the forecast limitation
+also available to VoiceOver. Cached widget estimates are shown only when the
+snapshot's date matches the current timeline entry's local date.
+
 ## Watch Energy and complication
 
 The signed-in watch app has swipeable Energy, Profile, and Events pages. Events

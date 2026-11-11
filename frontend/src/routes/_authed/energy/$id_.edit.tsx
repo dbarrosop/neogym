@@ -88,6 +88,7 @@ function EditDailyEnergyRoute() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
       navigate({ to: "/energy/$id", params: { id }, replace: true });
     },
     onError: (e) => {
@@ -99,6 +100,7 @@ function EditDailyEnergyRoute() {
     mutationFn: () => gqlRequest(DeleteDailyEnergyMutation, { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
+      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
       navigate({ to: "/energy", replace: true });
     },
     onError: (e) => {
