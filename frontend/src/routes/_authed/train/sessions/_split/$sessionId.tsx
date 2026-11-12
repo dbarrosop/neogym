@@ -322,10 +322,10 @@ function SessionDetailRoute() {
   const priorCardioByExercise = useMemo(() => buildPriorCardioMap(priorData), [priorData]);
 
   function invalidateAll() {
-    queryClient.invalidateQueries({ queryKey });
     queryClient.invalidateQueries({ queryKey: ["sessions", "index"] });
     queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
     queryClient.invalidateQueries({ queryKey: ["today"] });
+    return queryClient.invalidateQueries({ queryKey });
   }
 
   const updateSessionMutation = useMutation({
@@ -727,7 +727,7 @@ interface ExerciseRowProps {
   onToggle: () => void;
   priorSessionsByExercise: Map<string, PriorEntry[]>;
   priorCardioByExercise: Map<string, PriorCardioEntry[]>;
-  onMutated: () => void;
+  onMutated: () => Promise<void>;
   onConfirmRemove: (info: {
     id: string;
     name: string;
@@ -990,7 +990,7 @@ interface ExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | "onCol
   doubleWeight: boolean;
   sets: SetRow[];
   priorSessions: PriorEntry[];
-  onMutated: () => void;
+  onMutated: () => Promise<void>;
 }
 
 function strengthSummary(sets: SetRow[], lastTime: PriorEntry | undefined) {
@@ -1040,8 +1040,8 @@ function ExerciseLog({
         },
       }),
     onSuccess: (_result, vars) => {
-      onMutated();
       restTimer.start({ sessionId, label: `${exerciseName} · set ${vars.setNumber + 1} next` });
+      return onMutated();
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });
@@ -1052,8 +1052,8 @@ function ExerciseLog({
         id: vars.id,
         set: { reps: vars.reps, weight: vars.weight },
       }),
-    onSuccess: () => {
-      onMutated();
+    onSuccess: async () => {
+      await onMutated();
       setDialog(null);
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
@@ -1061,8 +1061,8 @@ function ExerciseLog({
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => gqlRequest(DeleteSetMutation, { id }),
-    onSuccess: () => {
-      onMutated();
+    onSuccess: async () => {
+      await onMutated();
       setDialog(null);
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
@@ -1758,7 +1758,7 @@ interface CardioExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | 
   schema: CardioMetricsSchema;
   entries: CardioEntryRow[];
   priorEntries: PriorCardioEntry[];
-  onMutated: () => void;
+  onMutated: () => Promise<void>;
 }
 
 function CardioExerciseLog({

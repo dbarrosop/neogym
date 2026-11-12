@@ -68,6 +68,8 @@ let prior: { id: string; workoutSessionExercises: HistoryRow[] }[];
 let earlier: EarlierRow[];
 let historyUnavailable = false;
 let detailReads = 0;
+let detailGate: Promise<void> | null = null;
+let strengthInserts = 0;
 
 function field(selection: SelectionSetNode | undefined, name: string): FieldNode {
   const node = selection?.selections.find(
@@ -153,9 +155,11 @@ function earlierResponse(document: DocumentNode, variables: Record<string, unkno
 mock.module("@/lib/graphql", () => ({
   gqlRequest: (document: DocumentNode, variables: Record<string, unknown>) => {
     switch (getOperationAST(document)?.name?.value) {
-      case "SessionDetail":
+      case "SessionDetail": {
         detailReads += 1;
-        return Promise.resolve({ workoutSession: structuredClone(session) });
+        const response = { workoutSession: structuredClone(session) };
+        return detailGate ? detailGate.then(() => response) : Promise.resolve(response);
+      }
       case "PriorSessionsPerExercise":
         return historyUnavailable
           ? Promise.reject(new Error("History unavailable"))
@@ -163,6 +167,7 @@ mock.module("@/lib/graphql", () => ({
       case "EarlierWorkoutSessions":
         return Promise.resolve(structuredClone(earlierResponse(document, variables)));
       case "InsertWorkoutSessionStrengthSet": {
+        strengthInserts += 1;
         const { obj } = variables as InsertWorkoutSessionStrengthSetMutationVariables;
         const exercise = session.workoutSessionExercises.find(
           (item) => item.id === obj.workoutSessionExerciseId,
@@ -504,6 +509,78 @@ try {
   await settle(() => button("Collapse Squat").click());
   assert(collapsed("Squat").querySelector('[aria-label="In progress"]'));
   assert(!collapsed("Squat").querySelector('[aria-label="Done"]'));
+
+  // A successful insert must stay pending until the session refetch supplies
+  // the next number/prefill, even when the user clicks or submits with Enter again.
+  const delayed = exercise("Squat");
+  delayed.workoutSessionStrengthSets = historyRow(
+    "current",
+    session.startedAt,
+    1,
+    null,
+    60,
+  ).workoutSessionStrengthSets;
+  await openSession([delayed]);
+  const delayedForm = card("Squat").querySelector<HTMLFormElement>('form[aria-label="Log set 2"]');
+  assert(delayedForm);
+  const delayedWeight = delayedForm.querySelector<HTMLInputElement>(
+    'input[aria-label="Weight in kg for set 2"]',
+  );
+  const delayedReps = delayedForm.querySelector<HTMLInputElement>(
+    'input[aria-label="Reps for set 2"]',
+  );
+  assert(delayedWeight && delayedReps);
+  assert.equal(delayedWeight.value, "60");
+  await settle(() => {
+    fill(delayedWeight, "65");
+    fill(delayedReps, "10");
+  });
+  let releaseDetail!: () => void;
+  detailGate = new Promise<void>((resolve) => {
+    releaseDetail = resolve;
+  });
+  const insertsBefore = strengthInserts;
+  const readsBefore = detailReads;
+  await settle(() => button("Log set", delayedForm).click());
+  await waitFor(() => detailReads > readsBefore);
+  assert.equal(session.workoutSessionExercises[0]?.workoutSessionStrengthSets.length, 2);
+  assert.equal(client.isFetching({ queryKey: ["sessions", "detail", "session"] }), 1);
+  assert.equal(button("Log set", delayedForm).disabled, true);
+  assert.equal(client.isMutating(), 1);
+  assert.equal(
+    container.querySelector('[aria-label="Rest label"]')?.textContent,
+    "Squat · set 3 next",
+    "The rest timer starts on insert success, not after the refetch",
+  );
+  await settle(() => {
+    button("Log set", delayedForm).click();
+    delayedForm.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true }));
+  });
+  assert.equal(strengthInserts, insertsBefore + 1, "Pending click/Enter cannot repeat the insert");
+  assert.equal(delayedForm.getAttribute("aria-label"), "Log set 2");
+  assert.equal(delayedWeight.value, "65", "The submitted weight never falls back to the old set");
+  assert.equal(delayedReps.value, "10");
+  await settle(() => {
+    releaseDetail();
+    detailGate = null;
+  });
+  await waitFor(() => client.isFetching() === 0 && client.isMutating() === 0);
+  assert.equal(delayedForm.getAttribute("aria-label"), "Log set 3");
+  assert.equal(delayedWeight.value, "65");
+  assert.equal(delayedReps.value, "10");
+  assert.equal(button("Log set", delayedForm).disabled, false);
+  await settle(() =>
+    delayedForm.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })),
+  );
+  await waitFor(() => client.isFetching() === 0 && client.isMutating() === 0);
+  assert.equal(strengthInserts, insertsBefore + 2);
+  assert.deepEqual(
+    session.workoutSessionExercises[0]?.workoutSessionStrengthSets.map((set) => set.setNumber),
+    [1, 2, 3],
+  );
+  assert.equal(delayedForm.getAttribute("aria-label"), "Log set 4");
+  assert.equal(delayedWeight.value, "65");
+  assert.equal(delayedReps.value, "10");
 
   // First-run templates must not jump to the next exercise after one set.
   await openSession([exercise("Squat"), exercise("Lunge", 1)], [], true);
