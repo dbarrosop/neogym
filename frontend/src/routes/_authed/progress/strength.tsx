@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { WebStrengthProgressQuery } from "@/gql/graphql";
+import { describeTrend } from "@/lib/chart-trend";
 import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -268,7 +269,13 @@ function RecentLift({ exercise }: { exercise: { id: string; name: string; points
         </span>
         <Sparkline
           values={series}
-          label={`${exercise.name} ${useMax ? "estimated one-rep max" : "volume"} trend`}
+          label={describeTrend(
+            series.map((value) => ({ value })),
+            {
+              label: `${exercise.name} ${useMax ? "estimated one-rep max" : "volume"}`,
+              unit: "kg",
+            },
+          )}
           className="h-10 w-24 shrink-0"
         />
       </Link>

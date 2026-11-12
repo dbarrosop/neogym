@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { describeTrend } from "@/lib/chart-trend";
 
 export interface BodyMetricsPoint {
   /** ms since epoch — recharts time-scale axis */
@@ -25,13 +26,27 @@ const WEIGHT_COLOR = "var(--color-chart-1)";
 const FAT_COLOR = "var(--color-chart-2)";
 
 export function BodyMetricsChart({ points }: BodyMetricsChartProps) {
+  const label = [
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.weightKg })),
+      { label: "Weight", unit: "kg" },
+    ),
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.bodyFatPct })),
+      { label: "Body fat", unit: "%" },
+    ),
+  ].join(" ");
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <LineChart
+          data={points}
+          aria-label={label}
+          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+        >
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
           <XAxis
             dataKey="date"

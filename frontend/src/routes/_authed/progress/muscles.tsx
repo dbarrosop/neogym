@@ -20,6 +20,7 @@ import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { describeTrend } from "@/lib/chart-trend";
 import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -268,9 +269,16 @@ function MuscleHistoryChart({
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "short" });
   return (
-    <div className="h-60 w-full" role="img" aria-label={`${name} weighted sets per rolling week`}>
+    <div className="h-60 w-full">
       <ResponsiveContainer>
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: -12 }}>
+        <LineChart
+          data={points}
+          aria-label={describeTrend(
+            points.map((point) => ({ date: point.date, value: point.sets })),
+            { label: `${name} weighted sets per rolling week`, unit: "sets" },
+          )}
+          margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+        >
           <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="date"

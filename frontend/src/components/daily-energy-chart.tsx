@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { describeTrend } from "@/lib/chart-trend";
 
 export interface DailyEnergyPoint {
   /** ms since epoch — recharts time-scale axis */
@@ -26,13 +27,27 @@ const ACTIVE_COLOR = "var(--color-chart-2)";
 const RESTING_COLOR = "var(--color-chart-1)";
 
 export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
+  const label = [
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.activeKcal })),
+      { label: "Active energy", unit: "kcal" },
+    ),
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.restingKcal })),
+      { label: "Resting energy", unit: "kcal" },
+    ),
+  ].join(" ");
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <ComposedChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <ComposedChart
+          data={points}
+          aria-label={label}
+          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+        >
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
           <XAxis
             dataKey="date"
