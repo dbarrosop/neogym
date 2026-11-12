@@ -304,8 +304,7 @@ function SessionDetailRoute() {
   );
 
   // History provides logging hints, not a required target. Keep logging usable if it fails.
-  const before = session?.startedAt;
-  const workoutId = session?.workoutId;
+  const { startedAt: before, workoutId } = session ?? {};
   const { data: priorData } = useQuery({
     queryKey: ["sessions", "prior-per-exercise", sessionId, exerciseIds, before, workoutId],
     queryFn: () =>
@@ -325,15 +324,14 @@ function SessionDetailRoute() {
     queryClient.invalidateQueries({ queryKey: ["sessions", "index"] });
     queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
     queryClient.invalidateQueries({ queryKey: ["today"] });
+    queryClient.invalidateQueries({ queryKey: ["progress"] });
     return queryClient.invalidateQueries({ queryKey });
   }
 
   const updateSessionMutation = useMutation({
     mutationFn: (vars: { startedAt: string }) =>
       gqlRequest(UpdateSessionMutation, { id: sessionId, startedAt: vars.startedAt }),
-    onSuccess: () => {
-      invalidateAll();
-    },
+    onSuccess: () => void invalidateAll(),
     onError: (e) => toast.error(`Failed to update session: ${e.message}`),
   });
 
@@ -343,6 +341,7 @@ function SessionDetailRoute() {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
       queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
       queryClient.invalidateQueries({ queryKey: ["today"] });
+      queryClient.invalidateQueries({ queryKey: ["progress"] });
       // Replace — the session no longer exists, so back must skip its detail page.
       navigate({ to: "/train/sessions", replace: true });
     },

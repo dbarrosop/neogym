@@ -19,6 +19,7 @@ import {
   type PriorSessionsPerExerciseQuery,
   type PriorSessionsPerExerciseQueryVariables,
   type SessionDetailQuery,
+  type UpdateWorkoutSessionStrengthSetMutationVariables,
 } from "@/gql/graphql";
 
 const dom = new TestWindow({ url: "http://localhost" });
@@ -40,12 +41,13 @@ Object.assign(globalThis, {
   cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
+const navigations: unknown[] = [];
 mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({
     options,
     useParams: () => ({ sessionId: "session" }),
   }),
-  useNavigate: () => () => undefined,
+  useNavigate: () => (options: unknown) => navigations.push(options),
   Link: ({ children, className }: ComponentProps<"a">) => (
     <a href="#test" className={className}>
       {children}
@@ -184,6 +186,29 @@ mock.module("@/lib/graphql", () => ({
         });
         return Promise.resolve({ insertWorkoutSessionStrengthSet: { id } });
       }
+      case "UpdateWorkoutSessionStrengthSet": {
+        const { id, set } = variables as UpdateWorkoutSessionStrengthSetMutationVariables;
+        const row = session.workoutSessionExercises
+          .flatMap((item) => item.workoutSessionStrengthSets)
+          .find((item) => item.id === id);
+        assert(row);
+        assert.equal(typeof set.reps, "number");
+        row.reps = set.reps as number;
+        row.weight = set.weight;
+        return Promise.resolve({ updateWorkoutSessionStrengthSet: { id } });
+      }
+      case "DeleteWorkoutSessionStrengthSet": {
+        const { id } = variables;
+        for (const item of session.workoutSessionExercises) {
+          item.workoutSessionStrengthSets = item.workoutSessionStrengthSets.filter(
+            (row) => row.id !== id,
+          );
+        }
+        return Promise.resolve({ deleteWorkoutSessionStrengthSet: { id } });
+      }
+      case "DeleteWorkoutSession":
+        assert.equal(variables["id"], session.id);
+        return Promise.resolve({ deleteWorkoutSession: { id: session.id } });
       case "InsertWorkoutSessionCardioEntry": {
         const { obj } = variables as InsertWorkoutSessionCardioEntryMutationVariables;
         const exercise = session.workoutSessionExercises.find(
@@ -442,7 +467,76 @@ async function logEntry(name: string, number: number) {
   );
 }
 
+const progressKeys = [
+  ["progress", "muscles", "2026-06-01", 60, "test-user"],
+  ["progress", "strength", "2026-06-01", 12, "test-user"],
+];
+function seedProgressReports() {
+  for (const queryKey of progressKeys) {
+    client.setQueryData(queryKey, "cached report");
+    assert.equal(client.getQueryState(queryKey)?.isInvalidated, false);
+  }
+}
+async function expectProgressRefetch(operation: string) {
+  for (const queryKey of progressKeys) {
+    assert.equal(
+      client.getQueryState(queryKey)?.isInvalidated,
+      true,
+      `${operation} invalidates ${queryKey[1]}`,
+    );
+    let fetches = 0;
+    // biome-ignore lint/performance/noAwaitInLoops: Exercise each report's real cache lookup.
+    const result = await client.fetchQuery({
+      queryKey,
+      queryFn: () => {
+        fetches += 1;
+        return Promise.resolve("updated report");
+      },
+    });
+    assert.equal(result, "updated report");
+    assert.equal(fetches, 1, "Returning to a fresh report must refetch after a successful write");
+  }
+}
+
 try {
+  // Inactive reports must refresh after writes, even within their freshness window.
+  await openSession([exercise("Squat")]);
+  seedProgressReports();
+  await logSet("Squat", 1);
+  await expectProgressRefetch("Insert set");
+
+  seedProgressReports();
+  await settle(() => button("Edit set 1", card("Squat")).click());
+  const editDialog = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(editDialog);
+  const editReps = editDialog.querySelector<HTMLInputElement>("#set-reps");
+  assert(editReps);
+  await settle(() => fill(editReps, "10"));
+  await settle(() => button("Save", editDialog).click());
+  await waitFor(() => !document.querySelector('[role="dialog"]') && client.isMutating() === 0);
+  assert.equal(session.workoutSessionExercises[0]?.workoutSessionStrengthSets[0]?.reps, 10);
+  await expectProgressRefetch("Update set");
+
+  seedProgressReports();
+  await settle(() => button("Edit set 1", card("Squat")).click());
+  const deleteSetDialog = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(deleteSetDialog);
+  await settle(() => button("Delete", deleteSetDialog).click());
+  await waitFor(() => !document.querySelector('[role="dialog"]') && client.isMutating() === 0);
+  assert.equal(session.workoutSessionExercises[0]?.workoutSessionStrengthSets.length, 0);
+  await expectProgressRefetch("Delete set");
+
+  // Whole-session deletion has its own success handler rather than onMutated.
+  await logSet("Squat", 1);
+  seedProgressReports();
+  await settle(() => button("Delete session").click());
+  const deleteDialog = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(deleteDialog);
+  await settle(() => button("Delete session", deleteDialog).click());
+  await waitFor(() => navigations.length === 1 && client.isMutating() === 0);
+  await expectProgressRefetch("Delete session");
+  assert.deepEqual(navigations[0], { to: "/train/sessions", replace: true });
+
   // First-ever ad-hoc logging must retain the same next-set controls and focus.
   await openSession([exercise("Squat")]);
   await settle(() => button("Rest 90 s").click());
@@ -768,5 +862,5 @@ try {
   await dom.happyDOM.close();
 }
 console.info(
-  "Session logging handles missing history and uses earlier logged same-workout references.",
+  "Session logging refreshes Progress and handles missing history and earlier logged same-workout references.",
 );
