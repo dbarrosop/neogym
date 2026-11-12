@@ -343,8 +343,12 @@ sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `AuthServicing` boundary; iPhone SwiftUI views under `ios/NeoGym/App/` call
 those models and route signed-in sessions into the full-screen `AppShellView`.
 Watch SwiftUI views live under `ios/NeoGym/Watch/`; the rectangular watch
-complication lives under `ios/NeoGym/WatchWidgets/`. The **iPhone**
-native shell has NO `TabView`: the three primary areas (Workouts, Nutrition, Me)
+complication lives under `ios/NeoGym/WatchWidgets/`.
+**Legacy iPhone shell (superseded by [UI design system](#ui-design-system-web--ios)).**
+The navigation and chrome described in the rest of this paragraph is the
+pre-redesign shell. Read it as current-state fact while migrating, not as rules;
+the data, sync, caching and lifecycle behaviour it describes stays valid. The
+**current iPhone** shell has no `TabView`: the three primary areas (Workouts, Nutrition, Me)
 are hosted keep-warm as a ZStack of per-area `NavigationStack(path:)` views
 keyed by `@State selection: AppDestination` (the active area is shown; the others
 stay mounted but `opacity(0)`, `accessibilityHidden`, and non-interactive so each
@@ -467,8 +471,9 @@ navigation-title spacing and native safe-area insets; do not add custom dock
 clearance constants or extra bottom padding for custom bottom chrome. Reduce
 Motion should suppress custom section scaling polish while preserving native
 navigation structure. Sheet-local `NavigationView` wrappers remain intentional
-for modal editors/pickers. Do not reintroduce a `TabView`,
-`.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
+for modal editors/pickers. The target shell uses a native `TabView` with
+`.tabViewBottomAccessory` for the live session and rest timer (see UI design
+system). Still do not reintroduce `SectionTitleMenu`,
 `SecondarySectionContentHost`, `AppAreaSwitcher`, the interim `.safeAreaInset`
 area switcher, older OS fallbacks, UIKit parent-chain tab-bar hiding, the removed
 `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome, or new hidden-link
@@ -502,6 +507,100 @@ When adding tests, follow the existing patterns: the `gql(...)`/`gqlAdmin(...)` 
 
 A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-reload YAML changes. After editing under `backend/nhost/metadata/`, either restart with `make dev-env-down && make dev-env-up` (destroys local data), or push the change through Hasura's metadata API (`pg_drop_*_permission` + `pg_create_*_permission`, or `replace_metadata`). For schema-only changes via run_sql, use the v2 query endpoint. Then re-run `make test` and frontend `bun run codegen` if user-role visibility changed.
 
+## UI design system (web + iOS)
+
+The source of truth for screens is the **"NeoGym — Unified UI"** Design canvas: <https://claude.ai/artifact/MPsT7eQ33DM1Sob54h9qeu> (private to David until shared). Its *Foundations* page holds the navigation model, tokens and components; the *iOS* page has 22 screens and the *Web* page 13 pages, all drawn with real data. This section supersedes every earlier design note in this file (the old iOS glass/aurora theme, the 3-area segmented iPhone shell with hub lists, the 8-item web navbar). Where an older paragraph describes the legacy UI, treat it as current-state fact for migration, not as a rule. When you migrate a screen, follow this section and update **Migration status** at the end.
+
+### Principles
+
+- **One information architecture, native chrome per platform.** The same areas and sections, in the same order and with the same names, on web and iOS. iOS uses SwiftUI system components; the web uses the shadcn primitives in `src/components/ui/`.
+- **Feature parity by default.** A feature shipped on one platform gets a design on the other. The exceptions are capability-bound: Apple Health / Apple Watch import stays iOS-only, and the web shows imported data read-only with an "Apple Health" tag.
+- **Data first, calm surfaces.** Content sits on plain surfaces. No grid or aurora backgrounds, gradient washes, emoji, or left-border accent cards. On iOS, glass/material is only for system chrome (tab bar, toolbars, bottom accessory, sheets), never for content cards.
+- **Few taps in the gym.** Logging a set, a planned nutrition slot or a measurement takes at most two taps from the area root.
+
+### Information architecture
+
+| Area | Sections, in order | Web routes |
+|---|---|---|
+| Today | — | `/today` (signed-in `/` lands here) |
+| Train | Sessions · Workouts · Exercises | `/sessions`, `/workouts`, `/exercises` (+ `/$id` detail) |
+| Nutrition | Log · Plans · Foods · Meals | `/nutrition/days/$date`, `/nutrition/plans`, `/nutrition/foods`, `/nutrition/meals` |
+| Progress | Muscles · Strength · Body · Energy | `/progress/muscles`, `/progress/strength`, `/progress/body`, `/progress/energy` (Body and Energy move from `/body`, `/energy`) |
+| Me | Journal · Account | `/journal`, `/profile` |
+
+Today replaces Nutrition › Overview: today's training, nutrition so far against the selected plan, yesterday's energy balance and the body trend. The nutrition Days list is replaced by the Log section's date strip/date picker.
+
+### Shell mapping
+
+| Element | iOS (SwiftUI) | Web ≥ 768 px | Web < 768 px |
+|---|---|---|---|
+| Top-level areas | `TabView`, 5 tabs, each with its own `NavigationStack(path:)` | Left sidebar, 232 px, 5 items | Bottom tab bar, 5 items, no horizontal scroll |
+| Sections in an area | Segmented `Picker` under the large title on the area root | Segmented tabs in the page header | Same tabs, full width |
+| Primary create/log | Glass `+` toolbar button, top trailing | Primary button, header right | Icon button, header right |
+| Live session + rest timer | `.tabViewBottomAccessory`, visible on every tab while a session is open or a rest timer runs | Sidebar card above the account row | Pill pinned above the tab bar |
+| Detail | Push in the tab's stack | List + detail split from 1100 px; full page below | Full page with back link |
+| Create / edit | Sheet, large detent; Cancel leading, Save trailing | Full page; Cancel + Save in a sticky header | Full page; sticky Save |
+| Quick entry (set, food, cardio entry) | Inline row, or sheet at medium detent | Inline row, or dialog | Inline row, or bottom sheet |
+| Delete | Destructive button at the end of content + confirmation dialog | Same + alert dialog | Same |
+
+- The rest timer stays shell-owned (one `RestTimerController` on iOS, one provider on the web) so it survives tab/area switches. Logging a set starts it; the accessory/card offers +30 s and Skip, and tapping it opens the session.
+- Each iOS tab keeps its own navigation path when you switch tabs. Deep links (e.g. a pending session id) select the Train tab and push the session.
+- The web `replace: true` rule for spent forms/pickers (see Conventions) still applies.
+
+### Tokens — dark is the default
+
+| Token | Dark (default) | Light |
+|---|---|---|
+| Background | `#09090B` | `#F4F4F6` |
+| Surface (cards, rows, sheets) | `#18181B` | `#FFFFFF` |
+| Inset (tiles inside cards) | `#202024` | `#F7F7F8` |
+| Fill (segmented track, secondary buttons, chips) | `#27272A` | `#EDEDF0` |
+| Segmented thumb | `#3F3F46` | `#FFFFFF` |
+| Separator / border | `#2E2E33` | `#E4E4E7` |
+| Text | `#FAFAFA` | `#18181B` |
+| Text secondary | `#A1A1AA` | `#52525B` |
+| Text tertiary (captions on surface only) | `#8B8B94` | `#6A6A73` |
+| Accent fill (buttons, selection, bars) | `#3463E0` | `#3463E0` |
+| Accent text, links, chart lines | `#6E93FF` | `#3463E0` |
+| Accent soft (selected tab pill, tags) | `#1E2A4D` | `#E9EFFD` |
+| Series 2 (carbs, active energy; fills only) | `#F5A35A` | `#EE8A2A` |
+| Positive | `#4ADE80` | `#15803D` |
+| Destructive | `#F87171` (text) / `#DC2626` (fill) | `#DC2626` |
+
+- **Appearance** is Dark (default) / Light / System on both platforms, under Me › Account. iOS applies it with `.preferredColorScheme`; the web theme provider defaults to `dark`.
+- **Accent** is `#3463E0`, replacing the `#4373F4` AccentColor asset, because white labels on it pass 4.5:1 (5.2:1). On dark surfaces, text-coloured accent uses `#6E93FF` (6.1:1).
+- **Where tokens live.** Web: shadcn CSS variables in `src/styles.css` (`--background`, `--card`, `--primary`, `--muted`, `--muted-foreground`, `--border`, `--chart-1`, `--chart-2`, …) for both `.dark` and light. iOS: asset-catalog colours with Any/Dark variants exposed through `NeoGymTheme`. Never hard-code hex values in views.
+- **Retired.** Remove `grid-bg`, `GridBackground`, the aurora gradients and glass-panel content styling as screens migrate.
+
+### Type, shape, spacing
+
+- **iOS:** SF Pro with Dynamic Type styles — Large Title (34, bold) on area roots, Title 2 for detail titles, Headline / Body / Subheadline / Footnote for content.
+- **Web:** Inter — page title 28 bold, section 18 semibold, row title 15 semibold, body 15, secondary 14, caption 12.
+- **Numbers:** every metric uses tabular figures (`font-variant-numeric: tabular-nums`, `.monospacedDigit()`).
+- **Radius:** iOS cards 22, controls 12–14, pills fully rounded. Web cards 14, controls 9–10.
+- **Spacing and targets:** spacing steps 4 / 8 / 12 / 16 / 20 / 24 / 32. Touch targets are at least 44 pt.
+
+### Patterns
+
+- **Session logging.** Exercises are cards in session order. Completed exercises collapse to one summary line (weight × reps per set). The active exercise lists its logged sets and an inline next-set row, prefilled from the previous set, with weight and reps steppers and a Log button. Every exercise shows "last time" from the previous session of the same workout (exercise history for ad-hoc sessions). Tapping a logged set opens it to edit or delete. Cardio entries use a sheet or dialog generated from the exercise's metrics schema, with required fields first. Session totals (sets, reps, volume) sit under the title; earlier sessions of the same workout and Delete sit at the end.
+- **Nutrition day.** A time-slot timeline: logged slots are solid; planned slots from the day's selected plan are dashed and have one Log action per slot. Tapping a logged row opens its edit sheet. The day summary shows kcal against planned, P/C/F bars (protein accent, carbs series 2, fat secondary text colour) and energy out so far.
+- **Lists.** One title, one metadata line, one trailing value. Show a chevron only when the row pushes.
+- **Charts.** No chart border; grid lines in the separator colour. Series 1 is accent and series 2 is orange (they differ in lightness, not only hue). Daily values are grey with the 7-day average in accent; reference lines are dashed tertiary. Every chart has an accessible label that states the trend.
+- **Health data.** Always show the source: an "Apple Health" tag on web rows, a sync-status row on iOS. Never imply the web can trigger an import.
+- **States.** Empty, loading and error states are not designed yet. Use `src/components/patterns/query-states.tsx` on the web and `AppStateViews` on iOS until they are.
+
+### Accessibility
+
+- Text contrast is at least 4.5:1 in both themes (the tokens above are checked); non-text UI is at least 3:1.
+- Use real buttons, links and labelled inputs. Icon-only buttons need an accessibility label.
+- Colours that must be told apart also differ in lightness.
+- Respect Dynamic Type, Reduce Motion and Reduce Transparency on iOS.
+
+### Migration status
+
+- **Not started.** The code still runs the legacy shells. iPhone: the 3-area segmented picker with hub lists, described in the iOS paragraph above. Web: the 8-item navbar with a scrollable mobile bar, the light-first zinc theme and a `system` theme default.
+- Update this list as areas migrate.
+
 ## Conventions
 
 - **Path alias**: `@/*` → `frontend/src/*`. Wired in `tsconfig.json` (paths) and `vite.config.ts` (`resolve.alias`).
@@ -520,7 +619,7 @@ A note on **applying metadata edits to the running DB**: Nhost CLI doesn't hot-r
 - **Re-run `bun run codegen` after any change that affects what the `user` role can see**: editing a `graphql(...)` document, applying a Hasura migration (database schema), editing Hasura metadata (permissions, relationships, exposed columns), or pulling someone else's metadata/migration changes. This includes body-style metric tables such as `daily_energy` and query additions such as the daily-intake `dailyEnergyEntries` balance selection. Stale outputs cause confusing type errors and "field not found" runtime failures.
 - **Nutrition GraphQL/logging shape**: meal logging should use one nested `insertNutritionLogMeal` with child `nutritionLogEntries`, and each child must explicitly include the same `nutritionDayId` as the parent group. Hasura nested inserts populate `nutritionLogMealId` but not the direct day FK used by permissions/composite same-day enforcement. Individual planned-entry log time is user-selected, user-correctable, defaults to now, and must not blindly copy the template slot: planned-meal logging may keep `nutritionPlanMealId` as provenance, and direct plan-food logging should use a standalone food-backed `insertNutritionLogEntry` with matching `foodId` + `nutritionPlanFoodId` (never grouped under `nutritionLogMealId`; deleting the plan/direct-food slot nulls provenance while snapshots remain). Day logging only shows selected-plan tabs/segments, suggestions, and actions when `nutrition_days.nutritionPlanId` resolves to a plan; no selected plan means no plan logging UI. Selected-plan suggestions are grouped by normalized slot time. Clients no longer expose a whole-plan `Log selected plan` action; each selected-plan time slot has its own `Log` action that logs every planned meal/food in that slot in one combined mutation. Normal slots log at their plan slot time, legacy no-time slots default to now, every entry in the slot receives that slot's logged time, empty planned meals fail the slot all-or-nothing before sending, and re-logging appends duplicates just like individual logging. Plan detail and plan editor screens group mixed meal/direct-food plan entries by normalized slot time; move controls are enforced slot-local, and cross-slot moves happen by editing the row time before the existing sorted/renumbered submit shape is saved. Ad-hoc one-off logs use standalone `source: "ad_hoc"` entries with no `foodId`, `nutritionPlanFoodId`, or `nutritionLogMealId`, and must send name plus kcal/fat/carbs/protein/fiber/sugar snapshot fields per 100g. Standalone entries store their own editable `slotTime`; grouped entries display the parent logged meal's editable `slotTime`. Daily nutrition totals and calories-in/out balance should be computed from logged `snapshot*Per100g` columns, not live `foods`; balance output comes from same-date `daily_energy` and remains read-only.
 - **Form/picker navigation must use `replace: true`**: When a form submit, cancel, picker selection, or delete handler redirects away from a "spent" page (e.g., `/sessions/new` → `/sessions/$sessionId`, `/workouts/$id/edit` → `/workouts/$id` after save *or* cancel, `/workouts/$id/edit` → `/workouts` after delete, `/workouts/new` → `/workouts` after cancel), pass `replace: true` to `navigate(...)`. Without it, the now-spent form/picker (or the just-deleted record's detail page) stays on the history stack and the back button lands on it instead of the previous screen. A cancelled form is "spent" in the same way a submitted one is — the user explicitly abandoned it. Same rule for redirects out of invalid states (e.g., the non-owner bounce in `workouts/$workoutId/edit.tsx`) — the user was never meant to see that page, so don't leave it in history. Auth-flow redirects (`signin`/`signup` → `/profile`) are a separate case and have their own logic.
-- **Mobile primary nav can scroll horizontally**: With the Energy and Nutrition top-level items the mobile tab bar has eight entries. Keep one top-level Nutrition item (not separate Foods/Meals/Plans/Days items) and preserve usability on narrow screens with the existing horizontally scrollable tab bar/min-width items rather than hiding primary destinations.
+- **Primary navigation (web)**: five areas — Today, Train, Nutrition, Progress, Me — in a left sidebar from 768 px and a five-item bottom tab bar below it, with no horizontal scrolling. Sections inside an area (Train: Sessions/Workouts/Exercises; Nutrition: Log/Plans/Foods/Meals; Progress: Muscles/Strength/Body/Energy; Me: Journal/Account) are header tabs, never extra top-level items. See [UI design system](#ui-design-system-web--ios). The current navbar (eight items, horizontally scrollable mobile bar) is legacy and is being migrated.
 - **PWA build outDir**: `vite-plugin-pwa` (≤1.3.0) reads `viteConfig.build.outDir` from the *root* config, but Vite 8's Environments API means Nitro only sets `outDir = ".output/public"` on its `client` environment — the root `build.outDir` stays at the default `"dist"`. Without the override, `sw.js` and `workbox-*.js` get written to `dist/` while everything else lands in `.output/public/`, *and* the precache glob scans `dist/` so the SW only precaches itself + 7 static icons (the actual hashed JS/CSS bundles never make it into the precache manifest). Both bugs are silent — the build succeeds, but the deployed SW is unreachable and offline mode caches nothing useful. Fix: `vite.config.ts` sets `build: { outDir: ".output/public", emptyOutDir: false }` at the root. After upgrading vite-plugin-pwa / TanStack Start / Nitro, sanity-check that `.output/public/sw.js` exists *and* contains a precache entry for `assets/*.js` (e.g. `grep -c '"url":"assets/' .output/public/sw.js` should be in the dozens). To regenerate icons from `public/logo.svg`, run `bunx pwa-assets-generator` (config in `pwa-assets.config.ts`).
 
 ## Nhost MCP
