@@ -239,19 +239,36 @@ function TodayRoute() {
       />
 
       {query.error ? (
-        <ErrorState title="Couldn't load today" message={query.error.message} />
+        <div className="space-y-3">
+          <ErrorState title="Couldn't load today" message={query.error.message} />
+          <Button
+            type="button"
+            variant="outline"
+            className="min-h-11"
+            disabled={query.isFetching}
+            onClick={() => void query.refetch()}
+          >
+            Retry
+          </Button>
+        </div>
       ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-5">
-          {data ? <TrainingCard data={data} /> : <CardSkeleton title="Training" />}
-          {data ? <BodyCard data={data} today={today} /> : <CardSkeleton title="Body" />}
+      {data || query.isPending ? (
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-5">
+            {data ? <TrainingCard data={data} /> : <CardSkeleton title="Training" />}
+            {data ? <BodyCard data={data} today={today} /> : <CardSkeleton title="Body" />}
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            {data ? (
+              <NutritionCard data={data} today={today} />
+            ) : (
+              <CardSkeleton title="Nutrition" />
+            )}
+            {data ? <BalanceCard data={data} /> : <CardSkeleton title="Balance" />}
+          </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          {data ? <NutritionCard data={data} today={today} /> : <CardSkeleton title="Nutrition" />}
-          {data ? <BalanceCard data={data} /> : <CardSkeleton title="Balance" />}
-        </div>
-      </div>
+      ) : null}
     </PageShell>
   );
 }

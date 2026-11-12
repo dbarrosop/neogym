@@ -105,6 +105,13 @@ function renderToday(visible: boolean) {
     <QueryClientProvider client={client}>{visible ? <Today /> : null}</QueryClientProvider>,
   );
 }
+function retryButton() {
+  const button = [...container.querySelectorAll("button")].find(
+    (element) => element.textContent === "Retry",
+  );
+  assert(button, "The overview error offers Retry");
+  return button;
+}
 function card(title: string) {
   const heading = [...container.querySelectorAll("h2")].find(
     (element) => element.textContent === title,
@@ -116,7 +123,19 @@ function card(title: string) {
 try {
   await settle(() => renderToday(true));
   assert.equal(requests.length, 1);
-  await settle(() => requests[0]?.resolve(initial));
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 8);
+  assert(!container.textContent?.includes("Couldn't load today"));
+
+  await settle(() => requests[0]?.reject(new Error("Overview unavailable")));
+  await waitFor(() => container.textContent?.includes("Overview unavailable") ?? false);
+  assert(container.textContent?.includes("Couldn't load today"));
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
+  assert.equal(container.querySelectorAll("h2").length, 0, "Failed cards are not loading");
+
+  await settle(() => retryButton().click());
+  await waitFor(() => requests.length === 2);
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 8);
+  await settle(() => requests[1]?.resolve(initial));
   await waitFor(() => !!container.querySelector('[aria-label="0 kilocalories logged"]'));
   assert(card("Nutrition").textContent?.includes("Nothing logged yet today."));
 
@@ -128,12 +147,12 @@ try {
 
   // Return without any writer invalidating Today, within the same 30-second freshness window.
   await settle(() => renderToday(true));
-  await waitFor(() => requests.length === 2);
+  await waitFor(() => requests.length === 3);
   assert(container.querySelector('[aria-label="0 kilocalories logged"]'));
   assert(card("Balance").textContent?.includes("No energy logged for yesterday."));
   assert(card("Body").textContent?.includes("No measurements in the last three weeks."));
 
-  await settle(() => requests[1]?.resolve(updated));
+  await settle(() => requests[2]?.resolve(updated));
   await waitFor(() => !!container.querySelector('[aria-label="250 kilocalories logged"]'));
   const nutrition = card("Nutrition");
   assert(!nutrition.textContent?.includes("Nothing logged yet today."));
@@ -154,11 +173,34 @@ try {
     ),
   );
   assert(card("Body").textContent?.includes("80.00 kg"));
-  assert.equal(requests.length, 2, "One overview request is made per visit");
+  assert(!container.textContent?.includes("Couldn't load today"));
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
+  assert.equal(requests.length, 3, "One overview request is made per visit or Retry");
+
+  await settle(() => renderToday(false));
+  await settle(() => renderToday(true));
+  await waitFor(() => requests.length === 4);
+  await settle(() => requests[3]?.reject(new Error("Background refresh unavailable")));
+  await waitFor(() => container.textContent?.includes("Background refresh unavailable") ?? false);
+  for (const title of ["Training", "Nutrition", "Balance", "Body"]) {
+    card(title);
+  }
+  assert(container.querySelector('[aria-label="250 kilocalories logged"]'));
+  assert(card("Body").textContent?.includes("80.00 kg"));
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
+
+  await settle(() => retryButton().click());
+  await waitFor(() => requests.length === 5);
+  assert(retryButton().disabled, "Retry is disabled during a cached-data refetch");
+  assert(container.querySelector('[aria-label="250 kilocalories logged"]'));
+  await settle(() => requests[4]?.resolve(initial));
+  await waitFor(() => !!container.querySelector('[aria-label="0 kilocalories logged"]'));
+  assert(!container.textContent?.includes("Couldn't load today"));
+  assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
 } finally {
   act(() => root.unmount());
   client.clear();
   setSystemTime();
   await dom.happyDOM.close();
 }
-console.info("Today revalidates fresh cached nutrition, energy and body data on return.");
+console.info("Today revalidates cached cards and recovers from initial and background errors.");

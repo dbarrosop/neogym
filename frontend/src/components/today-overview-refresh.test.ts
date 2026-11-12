@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("Today revalidates on return within staleTime while retaining cached cards", () => {
+test("Today revalidates cached cards and retries initial and background errors", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -14,6 +14,6 @@ test("Today revalidates on return within staleTime while retaining cached cards"
     output: result.stdout.toString() + result.stderr.toString(),
   }).toEqual({
     exitCode: 0,
-    output: "Today revalidates fresh cached nutrition, energy and body data on return.\n",
+    output: "Today revalidates cached cards and recovers from initial and background errors.\n",
   });
 }, 30_000);
