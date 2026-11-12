@@ -1,76 +1,9 @@
 import NeoGymKit
 import SwiftUI
 
-struct NutritionDaysView: View {
-    let repository: any NutritionFoodMealRepositoryProtocol
-    let reloadToken: Int
-
-    @StateObject private var viewModel: NutritionDaysListViewModel
-
-    init(
-        repository: any NutritionFoodMealRepositoryProtocol,
-        reloadToken: Int
-    ) {
-        self.repository = repository
-        self.reloadToken = reloadToken
-        _viewModel = StateObject(wrappedValue: NutritionDaysListViewModel(repository: repository))
-    }
-
-    var body: some View {
-        daysList
-            .onChange(of: reloadToken) { Task { await viewModel.load() } }
-    }
-
-    private var daysList: some View {
-        ScrollView {
-            SectionShell(title: "Daily logs", subtitle: "Browse by local date") {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("Open a day to choose plan suggestions, log foods and meals, and edit historical entries.")
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
-
-                    switch viewModel.state {
-                    case .idle, .loading:
-                        AppLoadingStateView(message: "Loading daily logs…")
-                    case let .failed(message, _):
-                        AppErrorStateView(title: "Failed to load daily logs", message: message) {
-                            Task { await viewModel.load() }
-                        }
-                    case .loaded:
-                        if viewModel.days.isEmpty {
-                            AppEmptyStateView(
-                                title: "No daily intake logs yet",
-                                message: "Open today to start logging foods and meals.",
-                                systemImage: "calendar"
-                            )
-                        } else {
-                            VStack(spacing: 0) {
-                                ForEach(viewModel.days) { day in
-                                    NavigationLink(value: NutritionRoute.day(day.logDate)) {
-                                        NutritionDayRow(day: day)
-                                    }
-                                    if day.id != viewModel.days.last?.id { Divider() }
-                                }
-                            }
-                            .nutritionGlassCard(cornerRadius: 16)
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: 720)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
-        }
-        .task { if case .idle = viewModel.state { await viewModel.load() } }
-        .refreshable { await viewModel.load() }
-    }
-}
-
 struct DailyIntakeView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
-    let onClose: () -> Void
+    let reloadToken: Int
     let onMutated: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
@@ -83,11 +16,11 @@ struct DailyIntakeView: View {
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
         date: String,
-        onClose: @escaping () -> Void,
+        reloadToken: Int = 0,
         onMutated: @escaping () -> Void
     ) {
         self.repository = repository
-        self.onClose = onClose
+        self.reloadToken = reloadToken
         self.onMutated = onMutated
         _viewModel = StateObject(wrappedValue: DailyIntakeViewModel(date: date, repository: repository))
     }
@@ -95,6 +28,8 @@ struct DailyIntakeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                AreaSectionHeader()
+                dayNavigator
                 header
                 content
                 if isLoaded, viewModel.day != nil {
@@ -113,6 +48,7 @@ struct DailyIntakeView: View {
             .frame(maxWidth: .infinity)
         }
         .task { await viewModel.load() }
+        .onChange(of: reloadToken) { Task { await viewModel.load() } }
         .refreshable { await viewModel.load() }
         .sheet(item: $logRequest) { request in
             LogIntakeSheet(viewModel: viewModel, request: request, onMutated: onMutated)
@@ -123,16 +59,12 @@ struct DailyIntakeView: View {
         .sheet(item: $editingGroup) { item in
             EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: onMutated)
         }
-        .navigationTitle(IntakeGrouping.formatLocalDateLabel(viewModel.date))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar { dailyIntakeDayNavigationToolbar }
-        .toolbar { dailyIntakeBottomToolbar }
+        .toolbar { dailyIntakeLogToolbar }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
                 Task {
                     if await viewModel.deleteDay() {
                         onMutated()
-                        onClose()
                     }
                 }
             }
@@ -147,11 +79,11 @@ struct DailyIntakeView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Totals use logged snapshot nutrition, so later food or template edits do not rewrite this day.")
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 if let message = viewModel.mutationState.errorMessage {
                     Text(message)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundStyle(NeoGymTheme.destructive)
                 }
             }
         }
@@ -253,17 +185,17 @@ struct DailyIntakeView: View {
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "checklist")
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(NeoGymTheme.accentText)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(viewModel.selectedPlan?.name ?? "No plan selected")
                                 .font(.subheadline.weight(.semibold))
                             Text(viewModel.selectedPlan == nil ? "Choose a plan to show its time slots." : "Log one planned time slot at a time.")
                                 .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         Spacer()
                         Image(systemName: selectedPlanSectionExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -305,39 +237,36 @@ struct DailyIntakeView: View {
     }
 
     @ToolbarContentBuilder
-    private var dailyIntakeDayNavigationToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .topBarTrailing) {
-            Button {
-                Task { await viewModel.moveDate(days: -1) }
-            } label: {
-                Label("Previous day", systemImage: "chevron.left")
-            }
-            .disabled(viewModel.isMutating)
-            .accessibilityLabel("Previous day")
-            Button {
-                Task { await viewModel.moveDate(days: 1) }
-            } label: {
-                Label("Next day", systemImage: "chevron.right")
-            }
-            .disabled(viewModel.isMutating)
-            .accessibilityLabel("Next day")
+    private var dailyIntakeLogToolbar: some ToolbarContent {
+        AreaPrimaryAction(title: "Log food") {
+            if isLoaded, !viewModel.isMutating { logRequest = .adHocFood }
         }
     }
 
-    @ToolbarContentBuilder
-    private var dailyIntakeBottomToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            if isLoaded {
-                Spacer()
-                Button {
-                    logRequest = .adHocFood
-                } label: {
-                    Label("Log", systemImage: "plus")
-                }
-                .fontWeight(.semibold)
-                .disabled(viewModel.isMutating)
+    private var dayNavigator: some View {
+        HStack(spacing: NeoGymTheme.spacingXS) {
+            Button {
+                Task { await viewModel.moveDate(days: -1) }
+            } label: {
+                Image(systemName: "chevron.left")
+                    .frame(width: NeoGymTheme.minimumTapTarget, height: NeoGymTheme.minimumTapTarget)
             }
+            .accessibilityLabel("Previous day")
+            Spacer(minLength: 0)
+            Text(IntakeGrouping.formatLocalDateLabel(viewModel.date))
+                .font(.headline)
+                .monospacedDigit()
+            Spacer(minLength: 0)
+            Button {
+                Task { await viewModel.moveDate(days: 1) }
+            } label: {
+                Image(systemName: "chevron.right")
+                    .frame(width: NeoGymTheme.minimumTapTarget, height: NeoGymTheme.minimumTapTarget)
+            }
+            .accessibilityLabel("Next day")
         }
+        .disabled(viewModel.isMutating)
+        .cardSurface()
     }
 
     private var isLoaded: Bool {
@@ -357,7 +286,7 @@ private struct CalorieBalanceView: View {
                     .font(.subheadline.weight(.semibold))
                 Text("Intake uses logged nutrition snapshots. Output uses the matching daily energy row.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                 balanceTile(
@@ -377,7 +306,7 @@ private struct CalorieBalanceView: View {
             }
         }
         .padding(14)
-        .nutritionGlassCard(cornerRadius: 16, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 16, fill: NeoGymTheme.inset)
     }
 
     private var netLabel: String {
@@ -393,14 +322,14 @@ private struct CalorieBalanceView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption2)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(value)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(muted ? NeoGymTheme.mutedText : .primary)
+                .foregroundColor(muted ? NeoGymTheme.textSecondary : .primary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .nutritionGlassCard(cornerRadius: 12)
+        .insetCard(cornerRadius: 12)
     }
 }

@@ -6,26 +6,28 @@ struct SessionsListView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
     let storageBaseURL: URL
-
     let reloadToken: Int
+    let onRefresh: @MainActor () async -> Void
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
         storageBaseURL: URL,
-        reloadToken: Int
+        reloadToken: Int,
+        onRefresh: @escaping @MainActor () async -> Void = {}
     ) {
         _viewModel = StateObject(wrappedValue: SessionsListViewModel(repository: sessionsRepository))
         self.sessionsRepository = sessionsRepository
         self.exercisesRepository = exercisesRepository
         self.storageBaseURL = storageBaseURL
         self.reloadToken = reloadToken
+        self.onRefresh = onRefresh
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 content
             }
             .frame(maxWidth: 760)
@@ -40,20 +42,12 @@ struct SessionsListView: View {
             }
         }
         .onChange(of: reloadToken) { Task { await viewModel.load() } }
-        .refreshable { await viewModel.load() }
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("History")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Every workout you've logged, newest first. Start a new one from a workout or exercise.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+        .refreshable {
+            await viewModel.load()
+            await onRefresh()
         }
     }
+
 
     @ViewBuilder
     private var content: some View {
@@ -87,7 +81,7 @@ struct SessionsListView: View {
                         SectionShell(title: group.title) {
                             VStack(spacing: 0) {
                                 ForEach(group.sessions) { session in
-                                    NavigationLink(value: WorkoutsRoute.sessionDetail(session.id)) {
+                                    NavigationLink(value: TrainRoute.sessionDetail(session.id)) {
                                         SessionListRow(session: session)
                                     }
                                     if session.id != group.sessions.last?.id { Divider() }
@@ -121,22 +115,22 @@ private struct SessionListRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.displayName)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                     .lineLimit(1)
                 Text(Self.longDate(session.startedAtDate))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Text(
                     "\(session.exerciseCount) exercise\(session.exerciseCount == 1 ? "" : "s")"
                         + " · \(session.entryCount) entr\(session.entryCount == 1 ? "y" : "ies")"
                 )
                 .font(.caption2.weight(.medium))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 10)
     }
@@ -158,17 +152,15 @@ private struct SessionDateBadge: View {
             Text(month)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(day)
                 .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(width: 52, height: 52)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 
@@ -246,11 +238,14 @@ struct SessionDetailView: View {
         }
         .navigationTitle(viewModel.displayName)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { sessionBottomActionToolbar }
+        .toolbar { addExerciseToolbar }
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
             }
+        }
+        .onChange(of: viewModel.displayName, initial: true) { _, name in
+            if viewModel.session != nil { restTimer.noteSession(id: viewModel.sessionId, name: name) }
         }
         .refreshable { await reloadAll() }
         .sheet(isPresented: $isShowingExercisePicker) {
@@ -283,6 +278,12 @@ struct SessionDetailView: View {
                             reps: reps,
                             weight: weight
                         )
+                        if didSave {
+                            restTimer.start(
+                                label: "\(state.exerciseName) · set \(state.nextSetNumber + 1) next",
+                                sessionId: viewModel.sessionId
+                            )
+                        }
                     case let .edit(set):
                         didSave = await viewModel.updateStrengthSet(id: set.id, reps: reps, weight: weight)
                     }
@@ -395,7 +396,7 @@ struct SessionDetailView: View {
                 if let message = viewModel.mutationState.errorMessage ?? errorMessage {
                     Text(message)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundStyle(NeoGymTheme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -436,7 +437,7 @@ struct SessionDetailView: View {
                     .trimmingCharacters(in: .whitespacesAndNewlines), !description.isEmpty {
                     Text(description)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -536,39 +537,17 @@ struct SessionDetailView: View {
     }
 
     @ToolbarContentBuilder
-    private var sessionBottomActionToolbar: some ToolbarContent {
-        SessionDetailBottomToolbar(
-            isVisible: viewModel.session != nil,
-            isMutating: viewModel.mutationState.isLoading,
-            restTimer: restTimer,
-            onAddExercise: { isShowingExercisePicker = true }
-        )
+    private var addExerciseToolbar: some ToolbarContent {
+        if viewModel.session != nil {
+            AreaPrimaryAction(title: "Add exercise") {
+                if !viewModel.mutationState.isLoading { isShowingExercisePicker = true }
+            }
+        }
     }
 
     private func reloadAll() async {
         await viewModel.load(refreshComparisons: true)
         onMutated()
-    }
-}
-
-private struct SessionDetailBottomToolbar: ToolbarContent {
-    let isVisible: Bool
-    let isMutating: Bool
-    let restTimer: RestTimerController
-    let onAddExercise: () -> Void
-
-    var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            if isVisible {
-                RestTimerToolbarControl(timer: restTimer)
-                Spacer()
-                Button(action: onAddExercise) {
-                    Label("Add exercise", systemImage: "plus")
-                }
-                .fontWeight(.semibold)
-                .disabled(isMutating)
-            }
-        }
     }
 }
 
@@ -581,10 +560,9 @@ private struct SessionStartedAtEditorSheet: View {
     var body: some View {
         NavigationView {
             ScreenScaffold {
-                GlassPanel(
+                SurfaceCard(
                     cornerRadius: NeoGymTheme.radiusXL,
-                    material: .regular,
-                    tint: NeoGymTheme.glassStrongFill
+                    fill: NeoGymTheme.surface
                 ) {
                     DatePicker(
                         "Started at",
@@ -651,18 +629,16 @@ private struct SessionStatCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Label(title, systemImage: systemImage)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(value)
                 .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(NeoGymTheme.spacingMD)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusLG,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
+            fill: NeoGymTheme.surface
         )
     }
 }
@@ -713,28 +689,28 @@ private struct SessionExerciseCard: View {
                     } label: {
                         Text(row.exercise.name)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(NeoGymTheme.text)
                     }
                     Text(ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup))
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Spacer()
                 if row.exercise.isCardio {
                     Text("Cardio")
                         .font(.caption2.weight(.bold))
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(NeoGymTheme.accentText)
                 } else if row.exercise.doubleWeight {
                     Text("Per side")
                         .font(.caption2.weight(.bold))
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(NeoGymTheme.accentText)
                 }
                 Button(action: onRemove) {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.bold))
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(.red)
+                .foregroundStyle(NeoGymTheme.destructive)
                 .accessibilityLabel("Remove \(row.exercise.name) from session")
             }
 
@@ -781,7 +757,7 @@ private struct StrengthSetsList: View {
         if sets.isEmpty {
             Text("No sets logged yet.")
                 .font(.caption.italic())
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
         } else {
@@ -792,19 +768,17 @@ private struct StrengthSetsList: View {
                             Text("\(set.setNumber)")
                                 .font(.caption.weight(.bold))
                                 .frame(width: 28, height: 28)
-                                .glassSurface(
+                                .cardSurface(
                                     cornerRadius: NeoGymTheme.radiusPill,
-                                    material: .ultraThin,
-                                    tint: NeoGymTheme.glassSubtleFill,
-                                    shadow: false
+                                    fill: NeoGymTheme.inset
                                 )
                             Text(Self.setText(set, doubleWeight: doubleWeight))
                                 .font(.subheadline.monospacedDigit())
-                                .foregroundColor(.primary)
+                                .foregroundStyle(NeoGymTheme.text)
                             Spacer()
                             Text("\(Self.formatVolume(set.volume * (doubleWeight ? 2 : 1))) kg")
                                 .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         .padding(.vertical, 8)
                     }
@@ -813,11 +787,9 @@ private struct StrengthSetsList: View {
                 }
             }
             .padding(.horizontal, NeoGymTheme.spacingXS)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
         }
     }

@@ -89,7 +89,7 @@ struct FoodDetailView: View {
                                     + "if you need a custom variant."
                             )
                             .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         MacroPer100gGrid(food: food)
                     }
@@ -120,12 +120,12 @@ private struct MacroPer100gGrid: View {
 
     private func tile(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption2).foregroundColor(NeoGymTheme.mutedText)
+            Text(label).font(.caption2).foregroundColor(NeoGymTheme.textSecondary)
             Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
     }
 }
 
@@ -313,12 +313,12 @@ struct FoodFormScreen: View {
                         .textInputAutocapitalization(.words)
                         .disableAutocorrection(false)
                         .padding(12)
-                        .nutritionGlassField()
+                        .fieldSurface()
                     }
 
                     Text("Store nutrients using the canonical per-100g values from the package label.")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         nutrientField("Calories", unit: "kcal", text: $form.kcalPer100g, field: .calories)
@@ -372,10 +372,10 @@ struct FoodFormScreen: View {
                     .disableAutocorrection(true)
                 Text(unit)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             .padding(12)
-            .nutritionGlassCard(cornerRadius: 12)
+            .insetCard(cornerRadius: 12)
         }
     }
 

@@ -15,7 +15,7 @@ struct MealsListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 search
                 if viewModel.isFiltered, !viewModel.filteredMeals.isEmpty {
                     MacroSummaryView(
@@ -40,35 +40,24 @@ struct MealsListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Nutrition")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Compose reusable private meal templates from foods.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     private var search: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             TextField("Search meals or ingredients…", text: $viewModel.searchText)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
             if !viewModel.searchText.isEmpty {
                 Button { viewModel.clearSearch() } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundColor(NeoGymTheme.mutedText)
+                    Image(systemName: "xmark.circle.fill").foregroundColor(NeoGymTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
         }
         .padding(10)
-        .nutritionGlassCard(cornerRadius: 12)
+        .insetCard(cornerRadius: 12)
     }
 
     @ViewBuilder
@@ -128,30 +117,30 @@ private struct MealListRow: View {
         HStack(spacing: 12) {
             Image(systemName: "fork.knife.circle")
                 .font(.title3)
-                .foregroundColor(.accentColor)
+                .foregroundStyle(NeoGymTheme.accentText)
                 .frame(width: 44, height: 44)
                 .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 Text(meal.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                     .lineLimit(1)
                 Text("\(meal.mealIngredients.count) ingredient\(meal.mealIngredients.count == 1 ? "" : "s") · "
                     + NutritionMath.macroTotalsSummary(meal.macroTotals))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .lineLimit(2)
                 if let description = meal.description, !description.isEmpty {
                     Text(description)
                         .font(.caption2)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .lineLimit(1)
                 }
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 11)
     }

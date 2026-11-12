@@ -98,15 +98,15 @@ struct NutritionPlanDetailView: View {
                     + "Remove entries before deleting referenced foods or meals."
             )
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(plan.sortedEntries)
             if slots.isEmpty {
                 Text("This plan does not have meal or food entries yet.")
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                    .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     ForEach(slots, id: \.key) { slot in
@@ -130,12 +130,12 @@ private struct NutritionPlanSlotDetailCard: View {
                         .monospacedDigit()
                     Text(planSlotCountText(mealCount: slot.mealCount, foodCount: slot.foodCount))
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Spacer()
                 Text(NutritionMath.macroTotalsSummary(slot.totals))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 260, alignment: .trailing)
             }
@@ -148,7 +148,7 @@ private struct NutritionPlanSlotDetailCard: View {
             }
         }
         .padding(12)
-        .nutritionGlassField()
+        .fieldSurface()
     }
 }
 
@@ -165,13 +165,13 @@ private struct NutritionPlanEntryDetailRow: View {
         let totals = entry.macroTotals
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: entry.kind == .meal ? "fork.knife.circle" : "apple.logo")
-                .foregroundColor(.accentColor)
+                .foregroundStyle(NeoGymTheme.accentText)
                 .frame(width: 24)
             VStack(alignment: .leading, spacing: 4) {
                 Text(IntakeGrouping.formatTimeOfDay(entry.slotTime))
                     .font(.caption.weight(.bold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .monospacedDigit()
                 Text(entry.displayLabel)
                     .font(.subheadline.weight(.semibold))
@@ -183,7 +183,7 @@ private struct NutritionPlanEntryDetailRow: View {
                     .font(.caption.weight(.semibold))
                 Text(NutritionMath.macroTotalsSummary(totals))
                     .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.trailing)
             }
             .frame(maxWidth: 220, alignment: .trailing)
@@ -198,13 +198,13 @@ private struct NutritionPlanEntryDetailRow: View {
             if slot.label?.isEmpty == false, let mealName = slot.meal?.name {
                 Text("Template: \(mealName)")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .lineLimit(1)
             }
         case let .food(slot):
             Text(NutritionMath.formatMacro(slot.grams, unit: "g"))
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .lineLimit(1)
         }
     }

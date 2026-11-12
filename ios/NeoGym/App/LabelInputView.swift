@@ -40,11 +40,9 @@ struct LabelInputView: View {
                     .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > workoutLabelMaxLength)
             }
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
+                fill: NeoGymTheme.surface
             )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
@@ -71,11 +69,9 @@ struct LabelInputView: View {
                 }
                 .padding(NeoGymTheme.spacingSM)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false
+                    fill: NeoGymTheme.inset
                 )
             }
         }
@@ -108,10 +104,10 @@ struct LabelInputView: View {
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
-        .foregroundColor(.accentColor)
+        .foregroundStyle(NeoGymTheme.accentText)
         .background(
             Capsule(style: .continuous)
-                .fill(NeoGymTheme.accentMuted)
+                .fill(NeoGymTheme.accentSoft)
                 .overlay(
                     Capsule(style: .continuous)
                         .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)

@@ -117,7 +117,7 @@ struct StrengthSetEditorView: View {
                 Spacer()
                 Text(summary)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
 
             HStack(spacing: NeoGymTheme.spacingXS) {
@@ -148,7 +148,7 @@ struct StrengthSetEditorView: View {
         VStack(spacing: NeoGymTheme.spacingXXS) {
             Text(title)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Picker(title, selection: selection) {
                 ForEach(Array(values), id: \.self) { value in
                     label(value)

@@ -33,20 +33,7 @@ struct ChangeEmailSheet: View {
 
     private var sheetHero: some View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-            ZStack {
-                Circle()
-                    .fill(NeoGymTheme.accentSoft)
-                    .frame(width: 76, height: 76)
-                    .blur(radius: 14)
-                    .offset(x: 10, y: 8)
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 62, height: 62)
-                    .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
-                Image(systemName: "envelope.open.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(NeoGymTheme.accent)
-            }
+            IconBadge(systemImage: "envelope.open.fill", diameter: 62, symbolSize: 24)
             .accessibilityHidden(true)
 
             Text("Verify a new address")
@@ -54,16 +41,15 @@ struct ChangeEmailSheet: View {
                 .tracking(-0.4)
             Text("We'll send a PKCE-protected link that returns to NeoGym with the native callback URL.")
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
 
     private var formPanel: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.radiusXXL,
-            material: .regular,
-            tint: NeoGymTheme.glassStrongFill,
+        SurfaceCard(
+            cornerRadius: NeoGymTheme.radiusXL,
+            fill: NeoGymTheme.surface,
             contentPadding: EdgeInsets(
                 top: NeoGymTheme.spacingXL,
                 leading: NeoGymTheme.spacingXL,
@@ -75,7 +61,7 @@ struct ChangeEmailSheet: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Current email")
                         .font(.caption.weight(.semibold))
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     Text(currentEmailDisplay)
                         .font(.subheadline.weight(.medium))
                 }
@@ -83,7 +69,7 @@ struct ChangeEmailSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("New email")
                         .font(.caption.weight(.semibold))
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     TextField("athlete@example.com", text: $model.newEmail)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
@@ -91,12 +77,12 @@ struct ChangeEmailSheet: View {
                         .autocorrectionDisabled()
                         .padding(12)
                         .background(
-                            NeoGymTheme.glassSubtleFill,
+                            NeoGymTheme.inset,
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(NeoGymTheme.glassStrokeSecondary)
+                                .stroke(NeoGymTheme.separator)
                         )
                 }
 
@@ -122,7 +108,7 @@ struct ChangeEmailSheet: View {
                         + "Your verifier stays on this device and is cleared after the callback completes."
                 )
                 .font(.footnote)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

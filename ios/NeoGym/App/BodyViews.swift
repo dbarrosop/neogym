@@ -26,7 +26,7 @@ struct BodyMeasurementsListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 content
             }
             .frame(maxWidth: 760)
@@ -44,17 +44,6 @@ struct BodyMeasurementsListView: View {
         .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Log your weight and body fat over time.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     @ViewBuilder
     private var content: some View {
@@ -84,7 +73,7 @@ struct BodyMeasurementsListView: View {
                                 message: "Log your first measurement to start seeing trends.",
                                 systemImage: "heart.text.square"
                             )
-                            NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
+                            NavigationLink(value: ProgressRoute.bodyMeasurementCreate) {
                                 Label("Log your first measurement", systemImage: "plus")
                             }
                             .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -102,7 +91,7 @@ struct BodyMeasurementsListView: View {
                     SectionShell(title: "Measurements", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.measurements) { measurement in
-                                NavigationLink(value: NutritionRoute.bodyMeasurementDetail(measurement.id)) {
+                                NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
                                     BodyMeasurementListRow(measurement: measurement)
                                 }
                                 if measurement.id != viewModel.measurements.last?.id { Divider() }
@@ -146,7 +135,7 @@ private struct BodyMeasurementListRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(DateOnly.formatLong(measurement.measuredOn))
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                 Text(
                     BodyMeasurementFormatters.values(
                         weightKg: measurement.weightKg,
@@ -154,18 +143,18 @@ private struct BodyMeasurementListRow: View {
                     )
                 )
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 if let notes = measurement.notes, !notes.isEmpty {
                     Text(notes)
                         .lineLimit(1)
                         .font(.caption2)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 10)
     }
@@ -179,17 +168,15 @@ private struct BodyDateBadge: View {
             Text(month)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(day)
                 .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(width: 52, height: 52)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 
@@ -308,7 +295,7 @@ struct BodyMeasurementDetailView: View {
                                 Text("Notes")
                                     .font(.caption.weight(.bold))
                                     .textCase(.uppercase)
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                                    .foregroundColor(NeoGymTheme.textSecondary)
                                 Text(notes)
                                     .font(.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,19 +317,17 @@ private struct BodyMeasurementStatCard: View {
             Text(label)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(value)
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(NeoGymTheme.spacingMD)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 }
@@ -559,15 +544,13 @@ private struct BodyMeasurementFormScreen: View {
                         TextEditor(text: $form.notes)
                             .frame(minHeight: 110)
                             .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
+                                fill: NeoGymTheme.surface
                             )
                         Text("Optional")
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
 
                     if let errorMessage {
@@ -611,7 +594,7 @@ private struct BodyMeasurementFormScreen: View {
                     .font(.subheadline.weight(.semibold))
                 Text(unit)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
@@ -619,11 +602,9 @@ private struct BodyMeasurementFormScreen: View {
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .padding(NeoGymTheme.spacingSM)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassFill,
-                    shadow: false
+                    fill: NeoGymTheme.surface
                 )
         }
     }
@@ -638,7 +619,7 @@ struct BodyTrendChartView: View {
             TimeSeriesChartSeries(
                 id: "weight",
                 name: "Weight (kg)",
-                color: .accentColor,
+                color: NeoGymTheme.accentText,
                 points: trendData.points.compactMap { point in
                     point.weightKg.map {
                         TimeSeriesChartDataPoint(id: "\(point.id)-weight", date: point.date, value: $0)

@@ -213,15 +213,13 @@ private struct DailyEnergyFormScreen: View {
                         TextEditor(text: $form.notes)
                             .frame(minHeight: 110)
                             .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
+                                fill: NeoGymTheme.surface
                             )
                         Text("Optional")
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
 
                     if let errorMessage {
@@ -265,7 +263,7 @@ private struct DailyEnergyFormScreen: View {
                     .font(.subheadline.weight(.semibold))
                 Text(unit)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             TextField(placeholder, text: text)
                 .keyboardType(.decimalPad)
@@ -273,11 +271,9 @@ private struct DailyEnergyFormScreen: View {
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .padding(NeoGymTheme.spacingSM)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassFill,
-                    shadow: false
+                    fill: NeoGymTheme.surface
                 )
         }
     }

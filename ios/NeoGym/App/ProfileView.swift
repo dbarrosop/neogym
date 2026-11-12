@@ -11,12 +11,16 @@ struct ProfileView: View {
 
     @State private var isShowingChangeEmail = false
     @State private var isShowingWatchSignIn = false
+    @AppStorage(AppAppearance.storageKey) private var appearanceRawValue = AppAppearance.defaultValue.rawValue
+    @AppStorage(RestTimerPreference.storageKey) private var restSeconds = RestTimerPreference.defaultSeconds
 
     var body: some View {
         ScrollView {
             VStack(spacing: NeoGymTheme.spacingXL) {
+                AreaSectionHeader()
                 accountHeader
                 profileCard
+                preferencesCard
                 settingsCard
             }
             .frame(maxWidth: 640)
@@ -51,13 +55,13 @@ struct ProfileView: View {
                     Text("Account")
                         .font(.caption.weight(.bold))
                         .tracking(1.4)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     Text(profile.displayName)
                         .font(.system(.title2, design: .rounded).weight(.bold))
                         .tracking(-0.4)
                     Text(profile.emailDisplay)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .lineLimit(2)
                 }
             } else {
@@ -65,7 +69,7 @@ struct ProfileView: View {
                     Text("Account")
                         .font(.caption.weight(.bold))
                         .tracking(1.4)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     Text("Signed in")
                         .font(.system(.title2, design: .rounded).weight(.bold))
                 }
@@ -76,10 +80,9 @@ struct ProfileView: View {
     }
 
     private var profileCard: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.radiusXXL,
-            material: .regular,
-            tint: NeoGymTheme.glassStrongFill,
+        SurfaceCard(
+            cornerRadius: NeoGymTheme.radiusXL,
+            fill: NeoGymTheme.surface,
             contentPadding: EdgeInsets(
                 top: NeoGymTheme.spacingXL,
                 leading: NeoGymTheme.spacingXL,
@@ -101,21 +104,19 @@ struct ProfileView: View {
                                 .labelStyle(.titleAndIcon)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 7)
-                                .glassSurface(
+                                .cardSurface(
                                     cornerRadius: NeoGymTheme.radiusPill,
-                                    material: .ultraThin,
-                                    tint: NeoGymTheme.glassSubtleFill,
-                                    shadow: false
+                                    fill: NeoGymTheme.inset
                                 )
                         }
                         .buttonStyle(.plain)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(NeoGymTheme.text)
                         .frame(minHeight: 44)
                         .accessibilityLabel("Change email")
                         .disabled(changeEmailModel == nil)
                     }
 
-                    GlassDivider()
+                    Divider()
 
                     DetailRow(label: "Email") { Text(profile.emailDisplay) }
                     DetailRow(label: "Locale") { Text(profile.locale) }
@@ -125,11 +126,9 @@ struct ProfileView: View {
                             .font(.caption.monospaced())
                             .padding(.horizontal, 7)
                             .padding(.vertical, 4)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusSM,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassSubtleFill,
-                                shadow: false
+                                fill: NeoGymTheme.inset
                             )
                     }
                     DetailRow(label: "Member since") { Text(profile.memberSince) }
@@ -145,11 +144,42 @@ struct ProfileView: View {
         }
     }
 
+    private var preferencesCard: some View {
+        SurfaceCard {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+                Text("Preferences")
+                    .font(.headline)
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                    Text("Appearance")
+                        .font(.subheadline.weight(.semibold))
+                    Picker("Appearance", selection: $appearanceRawValue) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Text(appearance.title).tag(appearance.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                    Text("Default rest")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Starts after each logged set")
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                    Picker("Default rest", selection: $restSeconds) {
+                        ForEach(RestTimerPreference.presets, id: \.self) { seconds in
+                            Text(RestTimerPreference.title(seconds: seconds)).tag(seconds)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+        }
+    }
+
     private var settingsCard: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.radiusXXL,
-            material: .regular,
-            tint: NeoGymTheme.glassFill,
+        SurfaceCard(
+            cornerRadius: NeoGymTheme.radiusXL,
+            fill: NeoGymTheme.surface,
             contentPadding: EdgeInsets(
                 top: NeoGymTheme.spacingXL,
                 leading: NeoGymTheme.spacingXL,
@@ -160,7 +190,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("Settings")
                     .font(.headline)
-                GlassDivider()
+                Divider()
                 Button {
                     phoneConnectivity.clearPresentedSuccess()
                     isShowingWatchSignIn = true
@@ -199,11 +229,10 @@ struct ProfileView: View {
                 .fill(NeoGymTheme.accentSoft)
             Text(profile.initials)
                 .font(.title3.bold())
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(width: 64, height: 64)
-        .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
-        .shadow(color: NeoGymTheme.glassAmbientShadow, radius: 18, y: 8)
+        .overlay(Circle().stroke(NeoGymTheme.separator))
     }
 }
 
@@ -215,7 +244,7 @@ private struct DetailRow<Content: View>: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(label)
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Spacer(minLength: 12)
             content
                 .font(.subheadline.weight(.medium))
@@ -237,18 +266,18 @@ private struct PhoneWatchSignInSheet: View {
                         Text("Apple Watch connected successfully.")
                     } else if connectivity.pending != nil {
                         Text("Your iPhone will create a watch sign-in credential that can restore its session without another code. It expires after 90 days.")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
                         Button(connectivity.isSending ? "Connecting…" : "Connect watch") {
                             Task { await connectivity.connect() }
                         }
                         .disabled(connectivity.isSending)
                     } else {
                         Text("Waiting for a request from your watch…")
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
                     }
                 }
                 if let error = connectivity.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { Text(error).foregroundStyle(NeoGymTheme.destructive) }
                 }
             }
             .navigationTitle("Connect Apple Watch")

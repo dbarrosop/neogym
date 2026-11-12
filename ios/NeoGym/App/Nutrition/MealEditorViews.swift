@@ -279,7 +279,7 @@ struct MealFormScreen: View {
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(false)
                 .padding(12)
-                .nutritionGlassField()
+                .fieldSurface()
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Description")
@@ -290,10 +290,10 @@ struct MealFormScreen: View {
                 ))
                 .frame(minHeight: 90)
                 .padding(8)
-                .nutritionGlassField()
+                .fieldSurface()
                 Text("Optional prep notes or serving ideas.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
     }
@@ -305,15 +305,15 @@ struct MealFormScreen: View {
                     .font(.subheadline.weight(.semibold))
                 Text("Pick from your private foods and public foods. Use arrows to keep a stable order.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             if form.ingredients.isEmpty {
                 Text("Add at least one food to define this meal template.")
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                    .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
             }
             ForEach(Array(form.ingredients.enumerated()), id: \.element.stableId) { index, ingredient in
                 MealIngredientEditorRow(
@@ -357,7 +357,7 @@ private struct MealIngredientEditorRow: View {
                 Text("Ingredient \(index + 1)")
                     .font(.caption.weight(.bold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Spacer()
                 Button { form.moveIngredient(stableId: ingredient.stableId, direction: -1) } label: {
                     Image(systemName: "arrow.up")
@@ -409,14 +409,14 @@ private struct MealIngredientEditorRow: View {
                     .disableAutocorrection(true)
                     Text("g")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 .padding(12)
-                .nutritionGlassField()
+                .fieldSurface()
             }
         }
         .padding(12)
-        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 14, fill: NeoGymTheme.inset)
     }
 }
 

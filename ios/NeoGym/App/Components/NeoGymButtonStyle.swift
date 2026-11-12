@@ -9,6 +9,7 @@ struct NeoGymPrimaryButtonStyle: PrimitiveButtonStyle {
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.large)
+        .tint(NeoGymTheme.accent)
     }
 }
 

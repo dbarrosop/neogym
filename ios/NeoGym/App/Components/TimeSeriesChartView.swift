@@ -37,7 +37,7 @@ struct TimeSeriesChartView: View {
         if candidateSeries.isEmpty {
             Text(emptyMessage)
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .frame(maxWidth: .infinity, minHeight: 180)
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -95,10 +95,10 @@ struct TimeSeriesChartView: View {
     private var chartGrid: some View {
         VStack {
             ForEach(0..<4, id: \.self) { _ in
-                Divider().background(NeoGymTheme.border)
+                Divider().background(NeoGymTheme.separator)
                 Spacer()
             }
-            Divider().background(NeoGymTheme.border)
+            Divider().background(NeoGymTheme.separator)
         }
     }
 
@@ -126,7 +126,7 @@ struct TimeSeriesChartView: View {
             path.move(to: CGPoint(x: size.width, y: 0))
             path.addLine(to: CGPoint(x: size.width, y: size.height))
         }
-        .stroke(NeoGymTheme.mutedText.opacity(0.65), lineWidth: 1)
+        .stroke(NeoGymTheme.textSecondary.opacity(0.65), lineWidth: 1)
     }
 
     private func seriesLayer(_ singleSeries: TimeSeriesChartSeries, size: CGSize) -> some View {
@@ -179,18 +179,16 @@ struct TimeSeriesChartView: View {
                 .foregroundColor(plottedPoint.color)
             Text(plottedPoint.formattedValue)
                 .font(.caption.monospacedDigit().weight(.semibold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
             Text(timeSeriesChartCalloutDateFormatter.string(from: plottedPoint.point.date))
                 .font(.caption2)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusSM,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: true
+            fill: NeoGymTheme.surface
         )
         .position(calloutPosition(for: plottedPoint.position, size: size))
     }
@@ -318,7 +316,7 @@ struct TimeSeriesChartView: View {
             Text(sortedPoints.last.map { timeSeriesChartShortDateFormatter.string(from: $0.date) } ?? "")
         }
         .font(.caption2)
-        .foregroundColor(NeoGymTheme.mutedText)
+        .foregroundColor(NeoGymTheme.textSecondary)
     }
 
     private var legend: some View {
@@ -349,7 +347,7 @@ struct TimeSeriesChartView: View {
                     .lineLimit(1)
             }
             .font(.caption)
-            .foregroundColor(isEffectivelyVisible ? NeoGymTheme.mutedText : NeoGymTheme.mutedText.opacity(0.55))
+            .foregroundColor(isEffectivelyVisible ? NeoGymTheme.textSecondary : NeoGymTheme.textSecondary.opacity(0.55))
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .frame(minHeight: 44)

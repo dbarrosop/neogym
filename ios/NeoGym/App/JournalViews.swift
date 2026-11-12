@@ -15,7 +15,7 @@ struct JournalListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 filters
                 content
             }
@@ -34,26 +34,13 @@ struct JournalListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Notes, reflections, and anything else worth remembering.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     @ViewBuilder
     private var filters: some View {
         if !viewModel.labels.isEmpty {
-            GlassPanel(
+            SurfaceCard(
                 cornerRadius: NeoGymTheme.radiusXL,
-                material: .thin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false,
+                fill: NeoGymTheme.inset,
                 contentPadding: EdgeInsets(
                     top: NeoGymTheme.spacingMD,
                     leading: NeoGymTheme.spacingMD,
@@ -66,7 +53,7 @@ struct JournalListView: View {
                         Text("Filter")
                             .font(.caption.weight(.bold))
                             .textCase(.uppercase)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         if viewModel.isFiltered {
                             Button("Clear") {
                                 Task { await viewModel.clearFilters() }
@@ -163,7 +150,7 @@ struct JournalListView: View {
                         if let message = viewModel.loadMoreErrorMessage {
                             Text(message)
                                 .font(.caption)
-                                .foregroundColor(.red)
+                                .foregroundStyle(NeoGymTheme.destructive)
                                 .padding(.top, 8)
                         }
                     }
@@ -185,13 +172,13 @@ private struct JournalEntryListRow: View {
                     Text(DateOnly.formatLong(entry.entryDate))
                         .font(.caption.weight(.semibold))
                         .textCase(.uppercase)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .lineLimit(1)
                         .fixedSize(horizontal: true, vertical: false)
                     if let title = entry.title, !title.isEmpty {
                         Text(title)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(NeoGymTheme.text)
                             .lineLimit(1)
                             .truncationMode(.tail)
                     }
@@ -200,7 +187,7 @@ private struct JournalEntryListRow: View {
                 if !entry.previewText.isEmpty {
                     Text(entry.previewText)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .lineLimit(2)
                         .truncationMode(.tail)
                 }
@@ -215,7 +202,7 @@ private struct JournalEntryListRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .padding(.top, 4)
         }
         .padding(.vertical, 12)
@@ -230,17 +217,15 @@ private struct JournalDateBadge: View {
             Text(month)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(day)
                 .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(width: 52, height: 52)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 
@@ -557,7 +542,7 @@ private struct JournalEntryFormScreen: View {
                                 .font(.subheadline.weight(.semibold))
                             Text("Optional")
                                 .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         TextField("A short headline for this entry", text: Binding(
                             get: { form.title },
@@ -566,11 +551,9 @@ private struct JournalEntryFormScreen: View {
                         .textInputAutocapitalization(.sentences)
                         .disableAutocorrection(false)
                         .padding(NeoGymTheme.spacingSM)
-                        .glassSurface(
+                        .cardSurface(
                             cornerRadius: NeoGymTheme.radiusMD,
-                            material: .ultraThin,
-                            tint: NeoGymTheme.glassFill,
-                            shadow: false
+                            fill: NeoGymTheme.surface
                         )
                     }
 
@@ -580,15 +563,13 @@ private struct JournalEntryFormScreen: View {
                         TextEditor(text: $form.body)
                             .frame(minHeight: 220)
                             .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
+                                fill: NeoGymTheme.surface
                             )
                         Text("Markdown supported — use **bold**, - lists, headings, and more.")
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
 
                     JournalLabelInputView(form: form, suggestions: suggestions, disabled: isSubmitting)
@@ -655,7 +636,7 @@ private struct JournalLabelInputView: View {
                     .font(.subheadline.weight(.semibold))
                 Text("Optional")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             JournalLabelFlowLayout(spacing: 6) {
                 ForEach(form.labels, id: \.stableId) { label in
@@ -673,10 +654,10 @@ private struct JournalLabelInputView: View {
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(NeoGymTheme.accentText)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(NeoGymTheme.accentMuted)
+                            .fill(NeoGymTheme.accentSoft)
                             .overlay(
                                 Capsule(style: .continuous)
                                     .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
@@ -697,11 +678,9 @@ private struct JournalLabelInputView: View {
                     .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > journalLabelMaxLength)
             }
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
+                fill: NeoGymTheme.surface
             )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
@@ -726,11 +705,9 @@ private struct JournalLabelInputView: View {
                 }
                 .padding(NeoGymTheme.spacingSM)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false
+                    fill: NeoGymTheme.inset
                 )
             }
         }
@@ -760,12 +737,12 @@ private struct JournalMarkdownView: View {
         case let .heading(level, text):
             Text(text)
                 .font(level <= 1 ? .title3.weight(.semibold) : .headline)
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
                 .padding(.top, level <= 2 ? 4 : 2)
         case let .paragraph(text):
             Text(text)
                 .font(.body)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         case let .unorderedList(items):
             VStack(alignment: .leading, spacing: 6) {
@@ -775,7 +752,7 @@ private struct JournalMarkdownView: View {
                         Text(item)
                     }
                     .font(.body)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
         case let .orderedList(items):
@@ -787,7 +764,7 @@ private struct JournalMarkdownView: View {
                         Text(item)
                     }
                     .font(.body)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
         }
@@ -806,29 +783,15 @@ private struct JournalLabelChip: View {
             .minimumScaleFactor(0.85)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .foregroundColor(selected ? .accentColor : NeoGymTheme.mutedText)
+            .foregroundColor(selected ? .accentColor : NeoGymTheme.textSecondary)
             .background(chipBackground)
             .contentShape(Capsule(style: .continuous))
     }
 
     @ViewBuilder
     private var chipBackground: some View {
-        if selected {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.accentMuted)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
+        Capsule(style: .continuous)
+            .fill(selected ? NeoGymTheme.accent : NeoGymTheme.fill)
     }
 }
 

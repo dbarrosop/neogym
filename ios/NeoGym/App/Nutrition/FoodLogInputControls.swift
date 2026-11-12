@@ -21,7 +21,7 @@ struct NutritionGramTextField: View {
                 .multilineTextAlignment(.trailing)
                 .frame(minWidth: 72, maxWidth: 120)
             Text("g")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
     }
 }

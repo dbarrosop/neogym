@@ -26,7 +26,7 @@ struct ExercisesListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 filterControls
                 results
             }
@@ -45,24 +45,11 @@ struct ExercisesListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Catalog")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Search by name, or narrow the catalog by muscle, category, equipment, and level.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     private var filterControls: some View {
-        GlassPanel(
+        SurfaceCard(
             cornerRadius: NeoGymTheme.radiusXL,
-            material: .thin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false,
+            fill: NeoGymTheme.inset,
             contentPadding: EdgeInsets(
                 top: NeoGymTheme.spacingMD,
                 leading: NeoGymTheme.spacingMD,
@@ -73,7 +60,7 @@ struct ExercisesListView: View {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 HStack(spacing: NeoGymTheme.spacingXS) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     TextField("Search exercises…", text: $viewModel.searchText)
                         .textInputAutocapitalization(.never)
                     if !viewModel.searchText.isEmpty {
@@ -81,18 +68,16 @@ struct ExercisesListView: View {
                             viewModel.searchText = ""
                         } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Clear search")
                     }
                 }
                 .padding(NeoGymTheme.spacingSM)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassFill,
-                    shadow: false
+                    fill: NeoGymTheme.surface
                 )
 
                 HStack(spacing: NeoGymTheme.spacingXS) {
@@ -128,7 +113,7 @@ struct ExercisesListView: View {
                         }
                     }
                     .font(.caption.weight(.medium))
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -143,7 +128,7 @@ struct ExercisesListView: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .foregroundColor(viewModel.visibility == value ? .white : NeoGymTheme.primaryText)
+                .foregroundColor(viewModel.visibility == value ? .white : NeoGymTheme.text)
                 .background(visibilityPillBackground(isActive: viewModel.visibility == value))
                 .contentShape(Capsule(style: .continuous))
         }
@@ -179,45 +164,24 @@ struct ExercisesListView: View {
         .font(.caption.weight(.semibold))
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
-        .foregroundColor(value == nil ? .primary : Color.accentColor)
+        .foregroundStyle(value == nil ? NeoGymTheme.text : NeoGymTheme.accentText)
         .background(filterHeaderBackground(isSelected: value != nil))
         .contentShape(RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous))
     }
 
     @ViewBuilder
     private func visibilityPillBackground(isActive: Bool) -> some View {
-        if isActive {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.primaryActionGradient)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
+        Capsule(style: .continuous)
+            .fill(isActive ? NeoGymTheme.accent : NeoGymTheme.fill)
     }
 
     @ViewBuilder
     private func filterHeaderBackground(isSelected: Bool) -> some View {
         let shape = RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
         if isSelected {
-            shape
-                .fill(NeoGymTheme.accentMuted)
-                .overlay(shape.stroke(Color.accentColor.opacity(0.38), lineWidth: NeoGymTheme.hairline))
+            shape.fill(NeoGymTheme.accentSoft)
         } else {
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    shape.stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
+            shape.fill(NeoGymTheme.fill)
         }
     }
 
@@ -227,7 +191,7 @@ struct ExercisesListView: View {
             if options.isEmpty {
                 Text("No options available with the current filters.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
             } else {
@@ -245,7 +209,7 @@ struct ExercisesListView: View {
                                     .lineLimit(1)
                                 Spacer()
                                 Text("\(option.count)")
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                                    .foregroundColor(NeoGymTheme.textSecondary)
                             }
                             .font(.caption)
                             .padding(8)
@@ -260,11 +224,9 @@ struct ExercisesListView: View {
             }
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
+            fill: NeoGymTheme.surface
         )
     }
 
@@ -377,18 +339,18 @@ private struct ExerciseRowLink: View {
     var onSessionStarted: (String) -> Void
 
     var body: some View {
-        NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
+        NavigationLink(value: TrainRoute.exerciseDetail(exercise.id)) {
             HStack(spacing: 12) {
                 Image(systemName: "dumbbell")
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(exercise.name)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(NeoGymTheme.text)
                         Image(systemName: exercise.isPublic ? "globe" : "person")
                             .font(.caption2)
-                            .foregroundColor(exercise.isPublic ? .accentColor : NeoGymTheme.mutedText)
+                            .foregroundColor(exercise.isPublic ? .accentColor : NeoGymTheme.textSecondary)
                     }
                     HStack(spacing: 6) {
                         if showMuscle {
@@ -399,12 +361,12 @@ private struct ExerciseRowLink: View {
                         }
                     }
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             .padding(.vertical, 10)
         }

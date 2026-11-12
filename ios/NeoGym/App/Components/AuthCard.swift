@@ -65,10 +65,9 @@ struct AuthCard<Content: View, Footer: View>: View {
     }
 
     var body: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.cardCornerRadius,
-            material: .regular,
-            tint: NeoGymTheme.glassStrongFill,
+        SurfaceCard(
+            cornerRadius: NeoGymTheme.radiusXL,
+            fill: NeoGymTheme.surface,
             contentPadding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
         ) {
             VStack(spacing: 0) {
@@ -78,7 +77,7 @@ struct AuthCard<Content: View, Footer: View>: View {
                         .tracking(-0.4)
                     Text(description)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -94,14 +93,14 @@ struct AuthCard<Content: View, Footer: View>: View {
 
                 footer
                     .font(.footnote)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, NeoGymTheme.spacingXL)
                     .padding(.vertical, NeoGymTheme.spacingMD)
-                    .background(NeoGymTheme.glassSubtleFill)
+                    .background(NeoGymTheme.inset)
                     .overlay(alignment: .top) {
-                        GlassDivider()
+                        Divider()
                     }
             }
         }
@@ -129,34 +128,21 @@ private struct AuthHero: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingLG) {
-            ZStack {
-                Circle()
-                    .fill(NeoGymTheme.accentSoft)
-                    .frame(width: 92, height: 92)
-                    .blur(radius: 16)
-                    .offset(x: 12, y: 10)
-                Circle()
-                    .fill(.ultraThinMaterial)
-                    .frame(width: 76, height: 76)
-                    .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
-                Image(systemName: systemImage)
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundColor(NeoGymTheme.accent)
-            }
+            IconBadge(systemImage: systemImage, diameter: 76, symbolSize: 30)
             .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 Text(eyebrow.uppercased())
                     .font(.caption.weight(.bold))
                     .tracking(1.6)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Text(title)
                     .font(.system(.largeTitle, design: .rounded).weight(.bold))
                     .tracking(-0.8)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle)
                     .font(.body)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: 460, alignment: .leading)
             }

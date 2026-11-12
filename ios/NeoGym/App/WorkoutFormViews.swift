@@ -188,11 +188,9 @@ private struct WorkoutFormScreen: View {
                         TextField("e.g. Upper / push day", text: $form.name)
                             .textInputAutocapitalization(.words)
                             .padding(NeoGymTheme.spacingSM)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
+                                fill: NeoGymTheme.surface
                             )
                     }
                     VStack(alignment: .leading, spacing: 6) {
@@ -201,15 +199,13 @@ private struct WorkoutFormScreen: View {
                         TextEditor(text: $form.description)
                             .frame(minHeight: 120)
                             .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
+                            .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
+                                fill: NeoGymTheme.surface
                             )
                         Text("Markdown supported for headings, lists, and emphasis.")
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     LabelInputView(form: form, suggestions: labels, disabled: isSubmitting)
                     exerciseRows
@@ -262,7 +258,7 @@ private struct WorkoutFormScreen: View {
                 Spacer()
                 Text("\(form.exercises.count) added")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             if form.exercises.isEmpty {
                 AppEmptyStateView(
@@ -286,11 +282,9 @@ private struct WorkoutFormScreen: View {
                     }
                 }
                 .padding(.horizontal, NeoGymTheme.spacingXS)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false
+                    fill: NeoGymTheme.inset
                 )
             }
             Button {
@@ -320,11 +314,9 @@ private struct WorkoutFormExerciseRowView: View {
             Text("\(index + 1)")
                 .font(.caption.bold())
                 .frame(width: 24, height: 24)
-                .glassSurface(
+                .cardSurface(
                     cornerRadius: NeoGymTheme.radiusPill,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false
+                    fill: NeoGymTheme.inset
                 )
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name)
@@ -334,7 +326,7 @@ private struct WorkoutFormExerciseRowView: View {
                         + (exercise.doubleWeight ? " · two-handed" : "")
                 )
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
             Button(action: moveUp) { Image(systemName: "chevron.up") }

@@ -124,7 +124,7 @@ struct TimeSeriesTrendChartView: View {
                 Text("Period")
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Spacer()
                 Picker("Period", selection: $period) {
                     ForEach(TimeSeriesChartPeriod.allCases) { option in

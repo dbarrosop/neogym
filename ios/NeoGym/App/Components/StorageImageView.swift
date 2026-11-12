@@ -29,7 +29,7 @@ struct StorageImageView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(NeoGymTheme.border)
+                .stroke(NeoGymTheme.separator)
         )
     }
 }
@@ -84,14 +84,14 @@ struct AlternatingStorageImageView: View {
 struct StorageImagePlaceholderView: View {
     var body: some View {
         ZStack {
-            NeoGymTheme.mutedFill
+            NeoGymTheme.fill
             VStack(spacing: 8) {
                 Image(systemName: "photo")
                     .font(.title2)
                 Text("Image unavailable")
                     .font(.caption)
             }
-            .foregroundColor(NeoGymTheme.mutedText)
+            .foregroundColor(NeoGymTheme.textSecondary)
         }
     }
 }

@@ -16,20 +16,20 @@ struct TimeSlotCard: View {
             } label: {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "clock")
-                        .foregroundColor(.accentColor)
+                        .foregroundStyle(NeoGymTheme.accentText)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(slot.label)
                             .font(.subheadline.weight(.semibold))
                         Text(NutritionMath.macroTotalsSummary(slot.totals))
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         Text("\(slot.entries.count) entries · \(slot.mealGroups.count) meal groups")
                             .font(.caption2)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 .padding(12)
             }
@@ -41,7 +41,7 @@ struct TimeSlotCard: View {
                     if !slot.mealGroups.isEmpty {
                         Text("Logged meal groups")
                             .font(.caption.weight(.bold))
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         ForEach(slot.mealGroups, id: \.id) { group in
                             MealGroupRow(
                                 group: group,
@@ -54,11 +54,11 @@ struct TimeSlotCard: View {
                     if slot.entries.isEmpty {
                         Text("This time slot has no food entries.")
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     } else {
                         Text("Food entries")
                             .font(.caption.weight(.bold))
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         ForEach(slot.entries, id: \.entry.id) { slotEntry in
                             EntryRow(
                                 slotEntry: slotEntry,
@@ -70,7 +70,7 @@ struct TimeSlotCard: View {
                 .padding(12)
             }
         }
-        .nutritionGlassCard(cornerRadius: 16)
+        .insetCard(cornerRadius: 16)
     }
 }
 
@@ -92,25 +92,25 @@ private struct MealGroupRow: View {
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "fork.knife.circle")
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(group.name)
                         .font(.subheadline.weight(.semibold))
                     Text("\(group.entryCount) entr\(group.entryCount == 1 ? "y" : "ies")")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             .padding(10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityHint("Edit logged meal group")
-        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
     }
 }
 
@@ -126,29 +126,29 @@ private struct EntryRow: View {
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: slotEntry.kind == .meal ? "fork.knife" : "apple.logo")
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.snapshotFoodName)
                         .font(.subheadline.weight(.semibold))
                     Text(NutritionMath.macroTotalsSummary(totals))
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     Text("\(NutritionMath.formatMacro(entry.grams, unit: "g"))"
                         + (slotEntry.mealName.map { " · From \($0)" } ?? ""))
                         .font(.caption2)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             .padding(10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityHint("Edit food entry")
-        .nutritionGlassCard(cornerRadius: 12)
+        .insetCard(cornerRadius: 12)
     }
 }
 
@@ -167,20 +167,20 @@ struct PlanSuggestionSlotCard: View {
                 } label: {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "clock")
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(NeoGymTheme.accentText)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(slot.label)
                                 .font(.subheadline.weight(.semibold))
                             Text(NutritionMath.macroTotalsSummary(slot.totals))
                                 .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                             Text("\(slot.entries.count) entr\(slot.entries.count == 1 ? "y" : "ies")")
                                 .font(.caption2)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         Spacer()
                         Image(systemName: expanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -204,7 +204,7 @@ struct PlanSuggestionSlotCard: View {
                 .padding(12)
             }
         }
-        .nutritionGlassCard(cornerRadius: 16)
+        .insetCard(cornerRadius: 16)
     }
 }
 
@@ -215,21 +215,21 @@ private struct PlanSuggestionEntryRow: View {
         let totals = entry.macroTotals
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: entry.kind == .meal ? "fork.knife" : "apple.logo")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.displayLabel)
                     .font(.subheadline.weight(.semibold))
                 Text(NutritionMath.macroTotalsSummary(totals))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Text(detail)
                     .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
         }
         .padding(10)
-        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
     }
 
     private var detail: String {

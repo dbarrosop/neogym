@@ -8,13 +8,13 @@ struct AppLoadingStateView: View {
         VStack(spacing: NeoGymTheme.spacingSM) {
             ProgressView()
                 .controlSize(.large)
-                .tint(NeoGymTheme.accent)
+                .tint(NeoGymTheme.accentText)
             Text(title)
                 .font(.headline)
             if let message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -33,10 +33,10 @@ struct AppErrorStateView: View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
             Label(title, systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
-                .foregroundColor(NeoGymTheme.danger)
+                .foregroundColor(NeoGymTheme.destructive)
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             if let retry {
                 Button(retryTitle, action: retry)
                     .buttonStyle(NeoGymSecondaryButtonStyle())
@@ -56,12 +56,12 @@ struct AppEmptyStateView: View {
         VStack(spacing: NeoGymTheme.spacingSM) {
             Image(systemName: systemImage)
                 .font(.system(size: 34, weight: .semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(title)
                 .font(.headline)
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
@@ -78,11 +78,13 @@ struct ConfirmationPanel: View {
     let cancel: () -> Void
 
     var body: some View {
-        GroupBox {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            Text(title)
+                .font(.headline)
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 HStack(spacing: NeoGymTheme.spacingSM) {
                     Button(cancelTitle, action: cancel)
                         .buttonStyle(NeoGymSecondaryButtonStyle())
@@ -91,10 +93,9 @@ struct ConfirmationPanel: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text(title)
-                .font(.headline)
         }
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
     }
 }
 
@@ -105,15 +106,13 @@ struct SectionShell<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        GroupBox {
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
                 HStack(spacing: NeoGymTheme.spacingXS) {
                     Text(title)
-                        .font(.title2.bold())
-                        .tracking(-0.4)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(NeoGymTheme.text)
+                        .accessibilityAddTraits(.isHeader)
                     if isLoading {
                         ProgressView()
                             .controlSize(.small)
@@ -123,10 +122,14 @@ struct SectionShell<Content: View>: View {
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
                 }
             }
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .groupBoxStyle(.automatic)
+        .padding(NeoGymTheme.spacingMD)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
     }
 }

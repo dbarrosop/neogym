@@ -8,14 +8,12 @@ struct CardioMissingSchemaNotice: View {
                 + "An admin needs to configure it before this exercise can be used."
         )
             .font(.caption)
-            .foregroundColor(NeoGymTheme.mutedText)
+            .foregroundColor(NeoGymTheme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
     }
 }
@@ -36,7 +34,7 @@ struct SessionPriorWorkoutSummary: View {
                             Spacer(minLength: 0)
                             Text("\(totals.sets) sets · \(totals.reps) reps · \(Int(totals.volume.rounded()).formatted()) kg")
                                 .font(.caption.monospacedDigit())
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         if session.id != sessions.last?.id { Divider() }
                     }
@@ -58,27 +56,25 @@ struct StrengthPriorSummary: View {
                 Label("Recent", systemImage: "clock.arrow.circlepath")
                     .font(.caption2.weight(.bold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 ForEach(entries) { entry in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(shortPriorDate(entry.startedAt))
                             .font(.caption2)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .frame(width: 54, alignment: .leading)
                         Text(Self.setSummary(entry.sets, doubleWeight: doubleWeight))
                             .font(.caption.monospacedDigit())
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
                 }
             }
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
         }
     }
@@ -100,27 +96,25 @@ struct CardioPriorSummary: View {
                 Label("Recent", systemImage: "clock.arrow.circlepath")
                     .font(.caption2.weight(.bold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 ForEach(filtered) { entry in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(shortPriorDate(entry.startedAt))
                             .font(.caption2)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .frame(width: 54, alignment: .leading)
                         Text(Self.cardioSummary(entry.entries, primary: primary))
                             .font(.caption.monospacedDigit())
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
                 }
             }
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
         }
     }

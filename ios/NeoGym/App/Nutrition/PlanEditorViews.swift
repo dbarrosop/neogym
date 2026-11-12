@@ -306,7 +306,7 @@ private struct NutritionPlanFormScreen: View {
                 .textInputAutocapitalization(.words)
                 .disableAutocorrection(false)
                 .padding(12)
-                .nutritionGlassField()
+                .fieldSurface()
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Description")
@@ -317,10 +317,10 @@ private struct NutritionPlanFormScreen: View {
                 ))
                 .frame(minHeight: 90)
                 .padding(8)
-                .nutritionGlassField()
+                .fieldSurface()
                 Text("Optional prep notes or when to use this one-day template.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
     }
@@ -332,7 +332,7 @@ private struct NutritionPlanFormScreen: View {
                     .font(.subheadline.weight(.semibold))
                 Text("Mix meal templates and direct foods. Positions are saved globally within each time slot.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             let slotGroups = NutritionPlanGrouping.groupPlanDraftEntriesByTimeSlot(
                 mealSlots: form.slots,
@@ -343,10 +343,10 @@ private struct NutritionPlanFormScreen: View {
             if slotGroups.isEmpty {
                 Text("Add at least one meal or food entry to define this reusable daily template.")
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                    .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
             }
             ForEach(slotGroups, id: \.key) { slotGroup in
                 VStack(alignment: .leading, spacing: 12) {
@@ -360,12 +360,12 @@ private struct NutritionPlanFormScreen: View {
                                 foodCount: slotGroup.foodCount
                             ))
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         Spacer()
                         Text(NutritionMath.macroTotalsSummary(slotGroup.totals))
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .multilineTextAlignment(.trailing)
                             .frame(maxWidth: 260, alignment: .trailing)
                     }
@@ -415,7 +415,7 @@ private struct NutritionPlanFormScreen: View {
                     }
                 }
                 .padding(12)
-                .nutritionGlassField()
+                .fieldSurface()
             }
             HStack(spacing: 10) {
                 Button {
@@ -461,7 +461,7 @@ private struct NutritionPlanEntryChrome<Content: View>: View {
             HStack {
                 Text(title)
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Spacer()
                 Button(action: moveUp) { Image(systemName: "arrow.up") }
                     .accessibilityLabel("Move entry up")
@@ -476,7 +476,7 @@ private struct NutritionPlanEntryChrome<Content: View>: View {
             content
         }
         .padding(12)
-        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 14, fill: NeoGymTheme.inset)
     }
 }
 
@@ -589,7 +589,7 @@ private struct NutritionPlanFoodEntryEditorRow: View {
                     )
                     Text(NutritionMath.macroTotalsSummary(totals))
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 pickerActions
             }
@@ -620,10 +620,10 @@ private struct PlanEntryTimeField: View {
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
                 .padding(12)
-                .nutritionGlassField()
+                .fieldSurface()
             Text("HH:MM")
                 .font(.caption2)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .frame(maxWidth: 180, alignment: .leading)
     }
@@ -645,10 +645,10 @@ private struct PlanEntryCommonFields: View {
                     .textInputAutocapitalization(.words)
                     .disableAutocorrection(false)
                     .padding(12)
-                    .nutritionGlassField()
+                    .fieldSurface()
                 Text(helperText)
                     .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
     }

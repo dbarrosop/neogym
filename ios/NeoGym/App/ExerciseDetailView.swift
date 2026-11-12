@@ -78,11 +78,9 @@ struct ExerciseDetailView: View {
                     storageBaseURL: storageBaseURL,
                     startError: viewModel.startState.errorMessage
                 )
-                GlassPanel(
+                SurfaceCard(
                     cornerRadius: NeoGymTheme.radiusLG,
-                    material: .thin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false,
+                    fill: NeoGymTheme.inset,
                     contentPadding: EdgeInsets(
                         top: NeoGymTheme.spacingSM,
                         leading: NeoGymTheme.spacingSM,

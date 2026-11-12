@@ -236,7 +236,7 @@ private extension LogIntakeSheet {
                 if planEntries.isEmpty {
                     Text("The selected plan does not have meal or food entries yet.")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 } else {
                     Picker("Plan entry", selection: $planEntryId) {
                         ForEach(planTimeSlots, id: \.key) { slot in
@@ -256,7 +256,7 @@ private extension LogIntakeSheet {
             case .adHoc:
                 Text("Enter a one-off food below. It is saved only on this day and will not appear in food pickers.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         } header: {
             Text("What are you logging?")
@@ -339,7 +339,7 @@ private extension LogIntakeSheet {
                     .font(.headline.monospacedDigit())
                 Text(NutritionMath.macroTotalsSummary(previewTotals))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         } header: {
             Text("Macro preview")
@@ -352,7 +352,7 @@ private extension LogIntakeSheet {
             Section {
                 Text(message)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.danger)
+                    .foregroundColor(NeoGymTheme.destructive)
             }
         }
     }
@@ -472,7 +472,7 @@ private struct AdHocNutrientFields: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             HStack(spacing: 4) {
                 TextField("0", text: text)
                     .keyboardType(.decimalPad)
@@ -482,7 +482,7 @@ private struct AdHocNutrientFields: View {
                     .multilineTextAlignment(.trailing)
                 Text(unit)
                     .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
     }
@@ -498,7 +498,7 @@ private struct PlanEntryWheelRow: View {
                 .lineLimit(1)
             Text("· \(detail)")
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .lineLimit(1)
         }
         .padding(.horizontal, 10)
@@ -687,7 +687,7 @@ struct EditLogEntrySheet: View {
             Section {
                 Text(message)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.danger)
+                    .foregroundColor(NeoGymTheme.destructive)
             }
         }
     }
@@ -782,7 +782,7 @@ struct EditMealGroupSheet: View {
             Section {
                 Text(message)
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.danger)
+                    .foregroundColor(NeoGymTheme.destructive)
             }
         }
     }

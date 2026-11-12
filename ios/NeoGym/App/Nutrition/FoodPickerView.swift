@@ -67,7 +67,7 @@ struct FoodPickerView: View {
     private var searchField: some View {
         HStack(spacing: NeoGymTheme.spacingXS) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             TextField(selectedFood?.name ?? "Filter foods…", text: $query)
                 .focused($searchFocused)
                 .textInputAutocapitalization(.never)
@@ -80,7 +80,7 @@ struct FoodPickerView: View {
                     query = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .disabled(disabled)
@@ -92,7 +92,7 @@ struct FoodPickerView: View {
     private func message(_ text: String) -> some View {
         Text(text)
             .font(.caption)
-            .foregroundColor(NeoGymTheme.mutedText)
+            .foregroundColor(NeoGymTheme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -130,7 +130,7 @@ private struct FoodPickerWheelRow: View {
                 .lineLimit(1)
             Text("· " + NutritionMath.macroSummary(food.macroFields))
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .lineLimit(1)
         }
         .padding(.horizontal, 10)

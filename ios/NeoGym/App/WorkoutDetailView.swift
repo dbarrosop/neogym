@@ -113,7 +113,7 @@ struct WorkoutDetailView: View {
                                 ForEach(workout.workoutLabels) { label in
                                     Label(label.label.name, systemImage: "tag.fill")
                                         .font(.caption.weight(.semibold))
-                                        .foregroundColor(.accentColor)
+                                        .foregroundStyle(NeoGymTheme.accentText)
                                 }
                             }
                         }
@@ -122,11 +122,11 @@ struct WorkoutDetailView: View {
                                 + "exercise\(workout.workoutExercises.count == 1 ? "" : "s")"
                         )
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         if let error = viewModel.startState.errorMessage {
                             Text(error)
                                 .font(.caption)
-                                .foregroundColor(.red)
+                                .foregroundStyle(NeoGymTheme.destructive)
                         }
                     }
                 }
@@ -187,28 +187,26 @@ private struct WorkoutExerciseDetailRow: View {
                 Text("\(index + 1)")
                     .font(.caption2.bold())
                     .padding(4)
-                    .glassSurface(
-                    cornerRadius: NeoGymTheme.radiusPill,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassStrongFill,
-                    shadow: false
-                )
+                    .cardSurface(
+                        cornerRadius: NeoGymTheme.radiusPill,
+                        fill: NeoGymTheme.surface
+                    )
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(row.exercise.name)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                 Text(
                     ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup)
                         + (row.exercise.strength?.doubleWeight == true ? " · two-handed" : "")
                 )
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 10)
     }
@@ -222,12 +220,10 @@ private struct WorkoutVisibilityBadge: View {
             .font(.caption.weight(.bold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .foregroundColor(isPublic ? .accentColor : NeoGymTheme.mutedText)
-            .glassSurface(
+            .foregroundColor(isPublic ? .accentColor : NeoGymTheme.textSecondary)
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusPill,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
     }
 }
@@ -245,12 +241,12 @@ private struct MarkdownBlocksView: View {
                 case let .paragraph(text):
                     Text(text)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 case let .unorderedList(items):
                     ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                         Label { Text(item) } icon: { Text("•") }
                             .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                 case let .orderedList(items):
                     ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -259,7 +255,7 @@ private struct MarkdownBlocksView: View {
                             Text(item)
                         }
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     }
                 }
             }

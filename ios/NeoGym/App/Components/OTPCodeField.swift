@@ -90,18 +90,18 @@ private struct OTPSlot: View {
             .minimumScaleFactor(0.8)
             .frame(width: width, height: height)
             .background(
-                NeoGymTheme.glassSubtleFill,
+                NeoGymTheme.inset,
                 in: RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
-                    .stroke(isActive ? NeoGymTheme.accent : NeoGymTheme.glassStrokeSecondary, lineWidth: isActive ? 2 : 1)
+                    .stroke(isActive ? NeoGymTheme.accentText : NeoGymTheme.separator, lineWidth: isActive ? 2 : 1)
             )
             .overlay(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
                     .stroke(Color.white.opacity(0.22), lineWidth: NeoGymTheme.hairline)
                     .padding(1)
             }
-            .shadow(color: isActive ? NeoGymTheme.accent.opacity(0.20) : .clear, radius: 10, y: 5)
+            .shadow(color: isActive ? NeoGymTheme.accentText.opacity(0.20) : .clear, radius: 10, y: 5)
     }
 }

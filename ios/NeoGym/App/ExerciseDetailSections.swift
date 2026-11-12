@@ -13,7 +13,7 @@ struct ExerciseSummaryCard: View {
                 if let startError {
                     Text(startError)
                         .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundStyle(NeoGymTheme.destructive)
                 }
 
                 AlternatingStorageImageView(
@@ -27,14 +27,12 @@ struct ExerciseSummaryCard: View {
                 if exercise.strength?.doubleWeight == true {
                     Text("Two-handed: recorded weight is per side; total volume doubles for session totals.")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                         .padding(NeoGymTheme.spacingSM)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .glassSurface(
+                        .cardSurface(
                             cornerRadius: NeoGymTheme.radiusMD,
-                            material: .ultraThin,
-                            tint: NeoGymTheme.glassSubtleFill,
-                            shadow: false
+                            fill: NeoGymTheme.inset
                         )
                 }
             }
@@ -77,17 +75,15 @@ private struct ExerciseAttributesView: View {
                         Text(label)
                             .font(.caption2.weight(.semibold))
                             .textCase(.uppercase)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         Text(value)
                             .font(.caption.weight(.semibold))
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(NeoGymTheme.spacingSM)
-                    .glassSurface(
+                    .cardSurface(
                         cornerRadius: NeoGymTheme.radiusMD,
-                        material: .ultraThin,
-                        tint: NeoGymTheme.glassSubtleFill,
-                        shadow: false
+                        fill: NeoGymTheme.inset
                     )
                 }
             }
@@ -102,17 +98,17 @@ private struct ExerciseInstructionsView: View {
         if instructions.isEmpty {
             Text("No instructions yet.")
                 .font(.subheadline.italic())
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(instructions.enumerated()), id: \.offset) { index, instruction in
                     HStack(alignment: .top, spacing: 8) {
                         Text("\(index + 1).")
                             .font(.subheadline.monospacedDigit())
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         Text(instruction)
                             .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                 }
             }
@@ -152,7 +148,7 @@ struct StrengthProgressSummary: View {
                     )
                     Text(doubleWeight ? "Volume doubles per-side weight." : "Volume is weight × reps across all sets.")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
         }
@@ -163,7 +159,7 @@ struct StrengthProgressSummary: View {
             TimeSeriesChartSeries(
                 id: "volume",
                 name: "Volume",
-                color: .accentColor,
+                color: NeoGymTheme.accentText,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-volume",
@@ -176,7 +172,7 @@ struct StrengthProgressSummary: View {
             TimeSeriesChartSeries(
                 id: "one-rep-max",
                 name: "Est. 1RM",
-                color: .orange,
+                color: NeoGymTheme.series2,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-one-rep-max",
@@ -235,7 +231,7 @@ struct CardioProgressSummary: View {
             TimeSeriesChartSeries(
                 id: primary.key,
                 name: primary.label,
-                color: .accentColor,
+                color: NeoGymTheme.accentText,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-\(primary.key)",
@@ -271,7 +267,7 @@ struct StrengthHistoryList: View {
                     let topWeight = entry.workoutSessionStrengthSets.map(\.weight).max() ?? 0
                     Text(strengthHistorySummary(entry: entry, totalReps: totalReps, topWeight: topWeight))
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     ExerciseFlowLayout(spacing: 6) {
                         ForEach(entry.workoutSessionStrengthSets) { set in
                             BadgeText(strengthSetSummary(set))
@@ -313,7 +309,7 @@ struct CardioHistoryList: View {
                     HistoryHeader(entry: entry, fallbackName: exerciseName)
                     Text("\(entry.workoutSessionCardioEntries.count) \(entryLabel(for: entry))")
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     ExerciseFlowLayout(spacing: 6) {
                         ForEach(entry.workoutSessionCardioEntries) { cardioEntry in
                             let values = specs.compactMap { spec -> String? in
@@ -360,7 +356,7 @@ private struct HistoryHeader: View {
             if let date = entry.workoutSession.startedAtDate {
                 Text(date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
     }

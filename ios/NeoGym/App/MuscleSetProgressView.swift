@@ -5,14 +5,12 @@ struct MuscleSetProgressView: View {
     @ObservedObject var viewModel: MuscleSetProgressViewModel
     @State private var selectedMuscle: String?
     let reloadToken: Int
-    let isActive: Bool
+    @Binding var loadedToken: Int?
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                Text("Logged strength sets with reps above zero, excluding stretching. A primary muscle gets one set; a secondary muscle gets half a set. Totals cover the trailing seven local days.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                AreaSectionHeader()
                 content
             }
             .frame(maxWidth: 760)
@@ -20,7 +18,7 @@ struct MuscleSetProgressView: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .modifier(ProgressRefreshModifier(model: viewModel, reloadToken: reloadToken, isActive: isActive))
+        .modifier(ProgressRefreshModifier(model: viewModel, reloadToken: reloadToken, loadedToken: $loadedToken))
     }
 
     @ViewBuilder
@@ -79,7 +77,7 @@ struct MuscleSetProgressView: View {
                                                 .font(.headline.monospacedDigit())
                                             Text("\(row.rollingDirectSets) direct + \(row.rollingIndirectSets) indirect")
                                                 .font(.caption)
-                                                .foregroundStyle(NeoGymTheme.mutedText)
+                                                .foregroundStyle(NeoGymTheme.textSecondary)
                                         }
                                     }
                                     .frame(minHeight: 44)
@@ -97,7 +95,7 @@ struct MuscleSetProgressView: View {
                                 series: [TimeSeriesChartSeries(
                                     id: muscle,
                                     name: "Weighted sets",
-                                    color: .accentColor,
+                                    color: NeoGymTheme.accentText,
                                     points: rows.filter { $0.muscleGroup == muscle }
                                         .sorted { $0.day < $1.day }.compactMap { row in
                                         guard let date = row.date(in: .current) else { return nil }

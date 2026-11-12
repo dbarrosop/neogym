@@ -17,7 +17,7 @@ struct FoodsListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 filters
                 content
             }
@@ -36,41 +36,30 @@ struct FoodsListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Nutrition")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Search public foods and your private catalog.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     private func visibilityBackground(for visibility: FoodVisibilityFilter) -> Color {
-        viewModel.visibility == visibility ? NeoGymTheme.accentMuted : NeoGymTheme.glassSubtleFill
+        viewModel.visibility == visibility ? NeoGymTheme.accentSoft : NeoGymTheme.inset
     }
 
     private var filters: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 TextField("Search foods…", text: $viewModel.searchText)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
                 if !viewModel.searchText.isEmpty {
                     Button { viewModel.searchText = "" } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("Clear search")
                 }
             }
             .padding(10)
-            .nutritionGlassCard(cornerRadius: 12)
+            .insetCard(cornerRadius: 12)
 
             HStack(spacing: 8) {
                 ForEach(FoodVisibilityFilter.allCases, id: \.self) { visibility in
@@ -81,9 +70,9 @@ struct FoodsListView: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .foregroundColor(viewModel.visibility == visibility ? .accentColor : NeoGymTheme.mutedText)
+                            .foregroundColor(viewModel.visibility == visibility ? .accentColor : NeoGymTheme.textSecondary)
                             .background(visibilityBackground(for: visibility), in: Capsule())
-                            .overlay(Capsule().stroke(NeoGymTheme.border))
+                            .overlay(Capsule().stroke(NeoGymTheme.separator))
                     }
                     .buttonStyle(.plain)
                 }
@@ -160,26 +149,26 @@ private struct FoodListRow: View {
         HStack(spacing: 12) {
             Image(systemName: "apple.logo")
                 .font(.title3)
-                .foregroundColor(.accentColor)
+                .foregroundStyle(NeoGymTheme.accentText)
                 .frame(width: 44, height: 44)
                 .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
                     Text(food.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(NeoGymTheme.text)
                         .lineLimit(1)
                     FoodVisibilityBadge(isPublic: food.isPublic)
                 }
                 Text(NutritionMath.macroSummary(food.macroFields) + " per 100g")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .lineLimit(2)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 11)
     }

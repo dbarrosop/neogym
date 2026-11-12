@@ -64,7 +64,7 @@ struct ExercisePickerView: View {
     private var searchField: some View {
         HStack(spacing: NeoGymTheme.spacingXS) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             TextField(currentExercise?.name ?? "Filter exercises…", text: $search)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(true)
@@ -73,18 +73,16 @@ struct ExercisePickerView: View {
                     search = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
             }
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
+            fill: NeoGymTheme.surface
         )
     }
 
@@ -146,14 +144,14 @@ struct ExercisePickerView: View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
             HStack(spacing: NeoGymTheme.spacingXS) {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.accentColor)
+                    .foregroundStyle(NeoGymTheme.accentText)
                 Text(exercise.name)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
             }
             Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
                 .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -162,13 +160,13 @@ struct ExercisePickerView: View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
             Text("Staged to add")
                 .font(.caption.weight(.semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             ScrollView {
                 LazyVStack(spacing: NeoGymTheme.spacingXXS) {
                     ForEach(Array(picked.values).sorted { $0.name < $1.name }) { exercise in
                         HStack(spacing: NeoGymTheme.spacingXS) {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.accentColor)
+                                .foregroundStyle(NeoGymTheme.accentText)
                             Text(exercise.name)
                                 .font(.caption.weight(.semibold))
                                 .lineLimit(1)
@@ -178,7 +176,7 @@ struct ExercisePickerView: View {
                                 syncWheelSelection()
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                                    .foregroundColor(NeoGymTheme.textSecondary)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove \(exercise.name)")
@@ -202,11 +200,9 @@ struct ExercisePickerView: View {
             .disabled(picked.isEmpty)
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusLG,
-            material: .thin,
-            tint: NeoGymTheme.glassStrongFill,
-            shadow: true
+            fill: NeoGymTheme.surface
         )
     }
 
@@ -243,7 +239,7 @@ private struct ExerciseWheelRow: View {
     var body: some View {
         HStack(spacing: NeoGymTheme.spacingXS) {
             Image(systemName: "figure.strengthtraining.traditional")
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(exercise.name)
                 .font(.body.weight(.semibold))
                 .lineLimit(1)

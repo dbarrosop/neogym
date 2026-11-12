@@ -627,7 +627,12 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
   - Nutrition day navigation is `src/components/nutrition-day-navigator.tsx` (prev/next, native date picker, week strip with logged kcal); the old Days list is gone.
   - The next-set row uses `patterns/number-stepper.tsx` (weight ±2.5 kg, reps ±1).
   - Imported Body and Energy rows are recognised by the exact note "Imported from Apple Health" that the iPhone and watch importers write; `src/components/health-source-tag.tsx` shows the tag and hides that note.
-- **iOS: not started.** The app still runs the legacy 3-area segmented shell with hub lists described in the iOS paragraph above.
+- **iOS: in progress.** Phase 1 shipped:
+  - Shell: `App/Shell/AppShellView.swift` hosts a native `TabView` (Today, Train, Nutrition, Progress, Me), each tab with its own `NavigationStack`. Area roots use a large title with `AreaSectionPicker` (segmented) as the first scroll element via the `areaSectionHeader` environment slot (`App/Shell/AreaChrome.swift`); create/log is a top-trailing `+` (`AreaPrimaryAction`). Routes and section enums live in `App/AppNavigationRoutes.swift`. The Train path is shell state so deep links, Today and the accessory can select Train and push a session (`openSession`).
+  - Tokens: asset-catalog colours (`App/Assets.xcassets/Theme/*`, `AccentColor` = `#3463E0`) exposed by `NeoGymTheme`; flat `SurfaceCard`/`cardSurface`/`insetCard` replace the glass primitives; `GridBackground` and aurora gradients are gone. Appearance (Dark default / Light / System) and the default rest length are `@AppStorage` keys from NeoGymKit `AppAppearance` / `RestTimerPreference`, set under Me › Account; `RootView` applies `.preferredColorScheme`.
+  - Rest timer: one shell-owned `RestTimerController` (`App/Shell/RestTimerController.swift`, Live Activity + notification, restores a running rest after relaunch) shown in `.tabViewBottomAccessory` (`RestTimerAccessory`) while a session is in the Train stack or a rest runs; +30 s, Skip, tap opens the session. Logging a set starts the default rest.
+  - Today (`App/Today/`) replaces Nutrition › Overview and inherits its duties: Energy Balance widget snapshot after a fresh overview, Body HealthKit sync on open/refresh, cached-first reads. Training uses NeoGymKit `TodayTrainingViewModel` (`TodayTraining` query, `sessions` cache); the cards use the host-tested summaries in `TodaySummary.swift`.
+  - Not yet migrated: Train screens (phase 2), the Nutrition Log timeline (phase 3; Log hosts the old day view for now), Progress restyling (phase 4), Me and docs (phase 5).
 - Update this list as areas migrate.
 
 ## Conventions

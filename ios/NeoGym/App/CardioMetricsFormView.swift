@@ -99,15 +99,13 @@ struct CardioMetricsFormView: View {
                         if let errorMessage {
                             Text(errorMessage)
                                 .font(.subheadline)
-                                .foregroundColor(NeoGymTheme.danger)
+                                .foregroundColor(NeoGymTheme.destructive)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(NeoGymTheme.spacingMD)
-                                .glassSurface(
+                                .cardSurface(
                                     cornerRadius: NeoGymTheme.radiusLG,
-                                    material: .thin,
-                                    tint: NeoGymTheme.danger.opacity(0.06),
-                                    stroke: NeoGymTheme.danger.opacity(0.22),
-                                    shadow: false
+                                    fill: NeoGymTheme.destructive.opacity(0.06),
+                                    stroke: NeoGymTheme.destructive.opacity(0.22)
                                 )
                         }
                         deleteSection
@@ -227,12 +225,10 @@ private struct MetricInputRow: View {
                 .foregroundColor(isInvalid ? .red : .primary)
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: isInvalid ? NeoGymTheme.danger.opacity(0.07) : NeoGymTheme.glassSubtleFill,
-            stroke: isInvalid ? NeoGymTheme.danger.opacity(0.28) : NeoGymTheme.glassStrokeSecondary,
-            shadow: false
+            fill: isInvalid ? NeoGymTheme.destructive.opacity(0.07) : NeoGymTheme.inset,
+            stroke: isInvalid ? NeoGymTheme.destructive.opacity(0.28) : NeoGymTheme.separator
         )
     }
 
@@ -240,7 +236,7 @@ private struct MetricInputRow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.caption)
-                .foregroundColor(isInvalid ? .red : NeoGymTheme.mutedText)
+                .foregroundColor(isInvalid ? .red : NeoGymTheme.textSecondary)
             HStack(spacing: 8) {
                 if CardioMetricsSchemaHelpers.shouldShowHoursInput(maximum: spec.maximum) {
                     durationTextField("h", binding: durationBinding(\.hours), field: .hours)
@@ -250,12 +246,10 @@ private struct MetricInputRow: View {
             }
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: isInvalid ? NeoGymTheme.danger.opacity(0.07) : NeoGymTheme.glassSubtleFill,
-            stroke: isInvalid ? NeoGymTheme.danger.opacity(0.28) : NeoGymTheme.glassStrokeSecondary,
-            shadow: false
+            fill: isInvalid ? NeoGymTheme.destructive.opacity(0.07) : NeoGymTheme.inset,
+            stroke: isInvalid ? NeoGymTheme.destructive.opacity(0.28) : NeoGymTheme.separator
         )
     }
 
@@ -304,11 +298,9 @@ private struct MetricInputRow: View {
             .multilineTextAlignment(.trailing)
             .foregroundColor(isInvalid ? .red : .primary)
             .padding(NeoGymTheme.spacingXS)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusSM,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
+                fill: NeoGymTheme.surface
             )
     }
 }

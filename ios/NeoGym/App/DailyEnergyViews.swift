@@ -18,7 +18,9 @@ struct DailyEnergyListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                AreaSectionHeader()
                 TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
+                CalorieHistorySection(repository: nutritionRepository, reloadToken: reloadToken)
                 content
             }
             .frame(maxWidth: 760)
@@ -67,7 +69,7 @@ struct DailyEnergyListView: View {
                             message: "Log active or resting energy to start seeing trends.",
                             systemImage: "flame"
                         )
-                        NavigationLink(value: NutritionRoute.energyCreate) {
+                        NavigationLink(value: ProgressRoute.energyCreate) {
                             Label("Log your first energy entry", systemImage: "plus")
                         }
                         .buttonStyle(NeoGymPrimaryButtonStyle())
@@ -83,7 +85,7 @@ struct DailyEnergyListView: View {
                     SectionShell(title: "Energy", subtitle: "Newest first") {
                         VStack(spacing: 0) {
                             ForEach(viewModel.entries) { entry in
-                                NavigationLink(value: NutritionRoute.energyDetail(entry.id)) {
+                                NavigationLink(value: ProgressRoute.energyDetail(entry.id)) {
                                     DailyEnergyListRow(entry: entry)
                                 }
                                 if entry.id != viewModel.entries.last?.id { Divider() }
@@ -107,7 +109,7 @@ struct DailyEnergyListView: View {
                             if let message = viewModel.loadMoreErrorMessage {
                                 Text(message)
                                     .font(.caption)
-                                    .foregroundColor(.red)
+                                    .foregroundStyle(NeoGymTheme.destructive)
                                     .padding(.top, 8)
                             }
                         }
@@ -127,21 +129,21 @@ private struct DailyEnergyListRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(DateOnly.formatLong(entry.energyOn))
                     .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                 Text(DailyEnergyFormatters.values(activeKcal: entry.activeKcal, restingKcal: entry.restingKcal))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 if let notes = entry.notes, !notes.isEmpty {
                     Text(notes)
                         .lineLimit(1)
                         .font(.caption2)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 10)
     }
@@ -155,17 +157,15 @@ private struct DailyEnergyDateBadge: View {
             Text(month)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(day)
                 .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(width: 52, height: 52)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 

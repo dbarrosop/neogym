@@ -68,7 +68,7 @@ public extension SessionsRepositoryProtocol {
 }
 
 public struct SessionsRepository: SessionsRepositoryProtocol {
-    private let graphQL: any GraphQLServicing
+    let graphQL: any GraphQLServicing
 
     public init(graphQL: any GraphQLServicing) {
         self.graphQL = graphQL

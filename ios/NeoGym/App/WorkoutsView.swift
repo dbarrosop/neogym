@@ -30,7 +30,7 @@ struct WorkoutsListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                AreaSectionHeader()
                 filters
                 results
             }
@@ -45,24 +45,11 @@ struct WorkoutsListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Plans")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Your routines and shared community templates.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     private var filters: some View {
-        GlassPanel(
+        SurfaceCard(
             cornerRadius: NeoGymTheme.radiusXL,
-            material: .thin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false,
+            fill: NeoGymTheme.inset,
             contentPadding: EdgeInsets(
                 top: NeoGymTheme.spacingMD,
                 leading: NeoGymTheme.spacingMD,
@@ -75,7 +62,7 @@ struct WorkoutsListView: View {
                     Text("Filter")
                         .font(.caption.weight(.bold))
                         .textCase(.uppercase)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                     WorkoutFilterPill(
                         title: "Mine",
                         systemImage: "person",
@@ -141,7 +128,7 @@ struct WorkoutsListView: View {
                 SectionShell(title: "Routines", subtitle: "\(viewModel.filteredWorkouts.count) shown") {
                     VStack(spacing: 0) {
                         ForEach(viewModel.filteredWorkouts) { workout in
-                            NavigationLink(value: WorkoutsRoute.workoutDetail(workout.id)) {
+                            NavigationLink(value: TrainRoute.workoutDetail(workout.id)) {
                                 WorkoutListRow(workout: workout)
                             }
                             if workout.id != viewModel.filteredWorkouts.last?.id { Divider() }
@@ -159,23 +146,23 @@ private struct WorkoutListRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: workout.isPublic ? "globe" : "person")
-                .foregroundColor(workout.isPublic ? .accentColor : NeoGymTheme.mutedText)
+                .foregroundColor(workout.isPublic ? .accentColor : NeoGymTheme.textSecondary)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(workout.name)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.primary)
+                        .foregroundStyle(NeoGymTheme.text)
                     if workout.isPublic {
                         Text("Public")
                             .font(.caption2.weight(.bold))
-                            .foregroundColor(.accentColor)
+                            .foregroundStyle(NeoGymTheme.accentText)
                     }
                 }
                 if let description = workout.description, !description.isEmpty {
                     Text(MarkdownRendering.stripMarkdown(description))
                         .lineLimit(1)
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 HStack(spacing: 6) {
                     Text("\(workout.exerciseCount) exercise\(workout.exerciseCount == 1 ? "" : "s")")
@@ -184,12 +171,12 @@ private struct WorkoutListRow: View {
                     }
                 }
                 .font(.caption2.weight(.medium))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
             Image(systemName: "chevron.right")
                 .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
         }
         .padding(.vertical, 10)
     }
@@ -208,7 +195,7 @@ private struct WorkoutFilterPill: View {
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
                 .frame(minHeight: 44)
-                .foregroundColor(active ? .white : NeoGymTheme.primaryText)
+                .foregroundColor(active ? .white : NeoGymTheme.text)
                 .background(pillBackground)
                 .contentShape(Capsule(style: .continuous))
         }
@@ -219,22 +206,8 @@ private struct WorkoutFilterPill: View {
 
     @ViewBuilder
     private var pillBackground: some View {
-        if active {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.primaryActionGradient)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
+        Capsule(style: .continuous)
+            .fill(active ? NeoGymTheme.accent : NeoGymTheme.fill)
     }
 }
 
