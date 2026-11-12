@@ -10,6 +10,7 @@ import {
   type LogPlanSlot,
 } from "@/components/log-intake-dialog";
 import { DayNavigator } from "@/components/nutrition-day-navigator";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { MeterBar } from "@/components/patterns/metrics";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
@@ -520,7 +521,9 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
                 slot={item.slot}
                 onUpdateEntry={(entryId, set) => updateEntryMutation.mutate({ id: entryId, set })}
                 onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
-                onDeleteGroup={(groupId) => deleteGroupMutation.mutate(groupId)}
+                onDeleteGroup={(groupId, onSuccess) =>
+                  deleteGroupMutation.mutate(groupId, { onSuccess })
+                }
                 disabled={isMutating}
               />
             ) : (
@@ -834,9 +837,12 @@ function LoggedSlotCard({
   slot: IntakeTimeSlot<DailyEntry>;
   onUpdateEntry: (entryId: string, set: EntryUpdateSet) => void;
   onDeleteEntry: (entryId: string) => void;
-  onDeleteGroup: (groupId: string) => void;
+  onDeleteGroup: (groupId: string, onSuccess: () => void) => void;
   disabled: boolean;
 }) {
+  const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
+  const groupToDelete = slot.mealGroups.find((group) => group.id === deleteGroupId);
+
   return (
     <section aria-label={`${slot.label}, logged`} className="rounded-xl border bg-card">
       <SlotHeader label={slot.label} status="Logged" totals={slot.totals} />
@@ -845,19 +851,23 @@ function LoggedSlotCard({
           {slot.mealGroups.map((group) => (
             <span
               key={group.id}
-              className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-inset pr-1 pl-3 text-[13px]"
+              className="inline-flex min-h-11 max-w-full items-center gap-1 rounded-full bg-surface-inset pl-3 text-[13px]"
             >
-              <span className="font-medium">{group.name}</span>
-              <span className="text-muted-foreground">· {formatEntryCount(group.entryCount)}</span>
-              <button
+              <span className="min-w-0 break-words font-medium">{group.name}</span>
+              <span className="shrink-0 text-muted-foreground">
+                · {formatEntryCount(group.entryCount)}
+              </span>
+              <Button
                 type="button"
-                onClick={() => onDeleteGroup(group.id)}
+                size="icon"
+                variant="ghost"
+                onClick={() => setDeleteGroupId(group.id)}
                 disabled={disabled}
-                className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                className="size-11 shrink-0 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                 aria-label={`Delete ${group.name} and its entries`}
               >
                 <Trash2 className="size-3.5" />
-              </button>
+              </Button>
             </span>
           ))}
         </div>
@@ -878,6 +888,23 @@ function LoggedSlotCard({
           ))}
         </ul>
       )}
+      {groupToDelete ? (
+        <ConfirmActionDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeleteGroupId(null);
+            }
+          }}
+          title={`Delete ${groupToDelete.name}?`}
+          description={`This logged meal and its ${formatEntryCount(groupToDelete.entryCount)} will be deleted. This can't be undone.`}
+          confirmLabel="Delete meal"
+          pendingLabel="Deleting…"
+          onConfirm={() => onDeleteGroup(groupToDelete.id, () => setDeleteGroupId(null))}
+          isPending={disabled}
+          destructive={true}
+        />
+      ) : null}
     </section>
   );
 }

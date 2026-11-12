@@ -130,8 +130,11 @@ client perspective. Re-running slot logging appends duplicate logged meals/entri
 planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
 
 On the web, the day log is an always-expanded timeline: solid **Logged** cards contain actual intake,
-and dashed **Planned** cards retain their **Log slot** action and full entry list. A planned card
-follows the logged card when their normalized times match, including legacy no-time slots. The plan
+and dashed **Planned** cards retain their **Log slot** action and full entry list. Logged-meal delete
+controls have a 44 px target and require confirmation naming the meal and the number of entries
+that cascade with it; cancelling leaves the log unchanged. The confirmation closes after a successful
+delete and stays open on failure for retry. A planned card follows the logged card when their
+normalized times match, including legacy no-time slots. The plan
 picker lives in the day summary rail; **No plan** clears the selection. Today's **Next in plan** links
 to the day log and names the first timed selected-plan slot after the current local minute,
 regardless of existing intake. It resamples local time once a minute and on focus/visibility changes;
