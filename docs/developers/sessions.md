@@ -77,7 +77,7 @@ The workout reference is therefore best thought of as a label/seed, used by the 
 - Render the workout's name on `/sessions` and `/sessions/$sessionId` (via `sessionDisplayName()`).
 - Show a "session of X" attribution in exercise history.
 
-It is **not** used to validate the session's contents, suggest sets/reps, or constrain edits.
+It is **not** used to validate the session's contents or constrain edits. The web's logging hints use earlier logged history linked to the same current workout (see “Editing a session” below), not the template's exercise list or prescribed sets/reps.
 
 ### What happens if the workout is deleted
 
@@ -159,6 +159,8 @@ The session detail page supports:
 - Adding/updating/removing `workout_session_cardio_entries` (cardio).
 - Deleting the entire session.
 
-On the web, the session detail opens the first exercise that has not reached the most recent prior session's nonzero set/entry count. This is a presentation hint, not a prescribed target or stored completion state. With no history, an empty prior session, or unavailable history, an exercise remains in progress after logging: its next-set row or cardio **Add entry** action stays open for repeated logging until the user manually collapses it. Manual expand/collapse choices take precedence. The same reference-count rule controls both automatic collapse and the collapsed row's status for strength and cardio.
+On the web, each exercise's **Last time** uses its most recent logged occurrence strictly before the current session's `startedAt`. Skipped occurrences (no strength sets or cardio entries) are excluded before limiting results. For a templated session, history from the same current workout takes precedence even when several newer sessions from other workouts exist; if none has logged entries, it falls back to earlier exercise history across workouts. Ad-hoc sessions always use that exercise history. Strength comparisons and first-set prefill, strength/cardio status, and automatic expansion/collapse all use this same selected history. The comparison at the end of a templated session also lists only sessions strictly before the current start. Changing the date or workout link re-keys the affected history queries.
+
+The session detail opens the first exercise that has not reached this reference's nonzero set/entry count. This is a presentation hint, not a prescribed target or stored completion state. With no logged earlier history or unavailable history, an exercise remains in progress after logging: its next-set row or cardio **Add entry** action stays open for repeated logging until the user manually collapses it. Manual expand/collapse choices take precedence. The same reference-count rule controls both automatic collapse and the collapsed row's status for strength and cardio.
 
 Reordering `workout_session_exercises` is not currently exposed in the UI but is permitted by the schema (`position` is updatable and the `(workout_session_id, position)` uniqueness is `DEFERRABLE INITIALLY DEFERRED`). `position` is the **only** column the user role can update on `workout_session_exercises` — `exercise_id` is immutable post-insert (see "Why `workout_session_exercises.exercise_id` is immutable for the user role" above). To change which exercise a row points at, delete it and add a new one.

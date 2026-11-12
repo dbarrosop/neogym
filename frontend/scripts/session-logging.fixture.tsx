@@ -1,14 +1,23 @@
 // Run in a subprocess so DOM globals and module mocks stay isolated.
 import { mock } from "bun:test";
 import assert from "node:assert/strict";
-import { type DocumentNode, getOperationAST } from "graphql";
+import {
+  type DocumentNode,
+  type FieldNode,
+  getOperationAST,
+  type SelectionSetNode,
+  valueFromASTUntyped,
+} from "graphql";
 import { Window as TestWindow } from "happy-dom";
 import { act, type ComponentProps } from "react";
 import {
+  type EarlierWorkoutSessionsQuery,
+  type EarlierWorkoutSessionsQueryVariables,
   type InsertWorkoutSessionCardioEntryMutationVariables,
   type InsertWorkoutSessionStrengthSetMutationVariables,
   MuscleGroups_Enum,
   type PriorSessionsPerExerciseQuery,
+  type PriorSessionsPerExerciseQueryVariables,
   type SessionDetailQuery,
 } from "@/gql/graphql";
 
@@ -49,10 +58,98 @@ const errors: string[] = [];
 mock.module("sonner", () => ({ toast: { error: (message: string) => errors.push(message) } }));
 type Session = NonNullable<SessionDetailQuery["workoutSession"]>;
 type Exercise = Session["workoutSessionExercises"][number];
-let session: Session;
-let prior: PriorSessionsPerExerciseQuery;
+type HistoryRow =
+  PriorSessionsPerExerciseQuery["exercises"][number]["workoutSessionExercises"][number] & {
+    workoutId: string | null;
+  };
+type EarlierRow = EarlierWorkoutSessionsQuery["workoutSessions"][number] & { workoutId: string };
+let session!: Session;
+let prior: { id: string; workoutSessionExercises: HistoryRow[] }[];
+let earlier: EarlierRow[];
 let historyUnavailable = false;
 let detailReads = 0;
+
+function field(selection: SelectionSetNode | undefined, name: string): FieldNode {
+  const node = selection?.selections.find(
+    (item) => item.kind === "Field" && (item.alias?.value ?? item.name.value) === name,
+  );
+  assert(node?.kind === "Field", `Missing GraphQL field ${name}`);
+  return node;
+}
+function argument<T>(node: FieldNode, name: string, variables: Record<string, unknown>): T {
+  const arg = node.arguments?.find((item) => item.name.value === name);
+  assert(arg, `Missing GraphQL argument ${name}`);
+  return structuredClone(valueFromASTUntyped(arg.value, variables)) as T;
+}
+function priorResponse(document: DocumentNode, variables: Record<string, unknown>) {
+  const { before, workoutId, hasWorkout, exerciseIds } =
+    variables as PriorSessionsPerExerciseQueryVariables;
+  assert.equal(before, session.startedAt);
+  assert.equal(workoutId, session.workoutId ?? null);
+  assert.equal(hasWorkout, !!session.workoutId);
+  const exercises = field(getOperationAST(document)?.selectionSet, "exercises");
+  assert.deepEqual(argument(exercises, "where", variables), { id: { _in: exerciseIds } });
+  const history = field(exercises.selectionSet, "workoutSessionExercises");
+  const sameWorkout = field(exercises.selectionSet, "sameWorkoutSessions");
+  assert.deepEqual(
+    sameWorkout.directives?.map((directive) => ({
+      name: directive.name.value,
+      args: directive.arguments?.map((arg) => valueFromASTUntyped(arg.value, variables)),
+    })),
+    [{ name: "include", args: [hasWorkout] }],
+  );
+  function select(rows: HistoryRow[], node: FieldNode, preferred: boolean) {
+    // Check the real generated document at the request boundary, then emulate
+    // its filtering/order/limit over an unfiltered pool (including skipped rows).
+    assert.deepEqual(argument(node, "where", variables), {
+      workoutSession: {
+        startedAt: { _lt: before },
+        ...(preferred ? { workoutId: { _eq: workoutId } } : {}),
+      },
+      _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }],
+    });
+    assert.deepEqual(argument(node, "order_by", variables), {
+      workoutSession: { startedAt: "desc" },
+    });
+    assert.equal(argument(node, "limit", variables), 3);
+    return rows
+      .filter(
+        (row) =>
+          row.workoutSession.startedAt < before &&
+          (!preferred || row.workoutId === workoutId) &&
+          (row.workoutSessionStrengthSets.length > 0 || row.workoutSessionCardioEntries.length > 0),
+      )
+      .sort((a, b) => b.workoutSession.startedAt.localeCompare(a.workoutSession.startedAt))
+      .slice(0, 3);
+  }
+  return {
+    exercises: prior
+      .filter((item) => exerciseIds.includes(item.id))
+      .map((item) => ({
+        id: item.id,
+        workoutSessionExercises: select(item.workoutSessionExercises, history, false),
+        ...(hasWorkout
+          ? { sameWorkoutSessions: select(item.workoutSessionExercises, sameWorkout, true) }
+          : {}),
+      })),
+  };
+}
+function earlierResponse(document: DocumentNode, variables: Record<string, unknown>) {
+  const { before, workoutId } = variables as EarlierWorkoutSessionsQueryVariables;
+  const sessions = field(getOperationAST(document)?.selectionSet, "workoutSessions");
+  assert.deepEqual(argument(sessions, "where", variables), {
+    startedAt: { _lt: before },
+    workoutId: { _eq: workoutId },
+  });
+  assert.deepEqual(argument(sessions, "order_by", variables), { startedAt: "desc" });
+  const limit = argument<number>(sessions, "limit", variables);
+  return {
+    workoutSessions: earlier
+      .filter((row) => row.startedAt < before && row.workoutId === workoutId)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .slice(0, limit),
+  };
+}
 mock.module("@/lib/graphql", () => ({
   gqlRequest: (document: DocumentNode, variables: Record<string, unknown>) => {
     switch (getOperationAST(document)?.name?.value) {
@@ -62,9 +159,9 @@ mock.module("@/lib/graphql", () => ({
       case "PriorSessionsPerExercise":
         return historyUnavailable
           ? Promise.reject(new Error("History unavailable"))
-          : Promise.resolve(structuredClone(prior));
+          : Promise.resolve(structuredClone(priorResponse(document, variables)));
       case "EarlierWorkoutSessions":
-        return Promise.resolve({ workoutSessions: [] });
+        return Promise.resolve(structuredClone(earlierResponse(document, variables)));
       case "InsertWorkoutSessionStrengthSet": {
         const { obj } = variables as InsertWorkoutSessionStrengthSetMutationVariables;
         const exercise = session.workoutSessionExercises.find(
@@ -196,7 +293,57 @@ function exercise(name: string, position = 0, kind = "strength"): Exercise {
     workoutSessionCardioEntries: [],
   };
 }
-async function openSession(exercises: Exercise[], references: number[] = [], templated = false) {
+function historyRow(
+  id: string,
+  startedAt: string,
+  count: number,
+  workoutId: string | null = "workout",
+  weight = 50,
+  kind = "strength",
+): HistoryRow {
+  return {
+    id,
+    workoutId,
+    workoutSession: { id, startedAt },
+    workoutSessionStrengthSets:
+      kind === "cardio"
+        ? []
+        : Array.from({ length: count }, (_, i) => ({
+            id: `${id}-set-${i}`,
+            setNumber: i + 1,
+            weight,
+            reps: 8,
+          })),
+    workoutSessionCardioEntries:
+      kind === "cardio"
+        ? Array.from({ length: count }, (_, i) => ({
+            id: `${id}-entry-${i}`,
+            entryNumber: i + 1,
+            metrics: { duration_s: 60 },
+          }))
+        : [],
+  };
+}
+function earlierRow(row: HistoryRow): EarlierRow {
+  return {
+    id: row.id,
+    startedAt: row.workoutSession.startedAt,
+    workoutId: row.workoutId ?? "workout",
+    workoutSessionExercises: [
+      {
+        id: row.id,
+        exercise: { id: "Squat", strength: { doubleWeight: false } },
+        workoutSessionStrengthSets: row.workoutSessionStrengthSets,
+      },
+    ],
+  };
+}
+async function openSession(
+  exercises: Exercise[],
+  references: number[] = [],
+  templated = false,
+  options: { history?: typeof prior; earlier?: EarlierRow[] } = {},
+) {
   const Page = Route.options.component;
   assert(Page);
   await settle(() => root.render(null));
@@ -205,40 +352,29 @@ async function openSession(exercises: Exercise[], references: number[] = [], tem
   session = {
     id: "session",
     startedAt: "2026-06-01T12:00:00Z",
+    workoutId: templated ? "workout" : null,
     workout: templated ? { id: "workout", name: "Workout" } : null,
     workoutSessionExercises: exercises,
   };
-  prior = {
-    exercises: exercises.map((item, index) => ({
+  prior =
+    options.history ??
+    exercises.map((item, index) => ({
       id: item.exercise.id,
       workoutSessionExercises:
         references[index] === undefined
           ? []
           : [
-              {
-                id: `prior-${item.id}`,
-                workoutSession: { id: "previous", startedAt: "2026-05-30T12:00:00Z" },
-                workoutSessionStrengthSets:
-                  item.exercise.kind === "cardio"
-                    ? []
-                    : Array.from({ length: references[index] ?? 0 }, (_, i) => ({
-                        id: `prior-set-${i}`,
-                        setNumber: i + 1,
-                        weight: 50,
-                        reps: 8,
-                      })),
-                workoutSessionCardioEntries:
-                  item.exercise.kind === "cardio"
-                    ? Array.from({ length: references[index] ?? 0 }, (_, i) => ({
-                        id: `prior-entry-${i}`,
-                        entryNumber: i + 1,
-                        metrics: { duration_s: 60 },
-                      }))
-                    : [],
-              },
+              historyRow(
+                `prior-${item.id}`,
+                "2026-05-30T12:00:00Z",
+                references[index] ?? 0,
+                templated ? "workout" : null,
+                50,
+                item.exercise.kind ?? "strength",
+              ),
             ],
-    })),
-  };
+    }));
+  earlier = options.earlier ?? [];
   await settle(() =>
     root.render(
       <QueryClientProvider client={client}>
@@ -250,6 +386,11 @@ async function openSession(exercises: Exercise[], references: number[] = [], tem
     ),
   );
   await waitFor(() => client.isFetching() === 0);
+  if (!historyUnavailable) {
+    for (const query of client.getQueryCache().findAll()) {
+      assert.equal(query.state.error, null, `Failed fixture query: ${query.queryHash}`);
+    }
+  }
 }
 async function logSet(name: string, number: number) {
   const form = card(name).querySelector<HTMLFormElement>(`form[aria-label="Log set ${number}"]`);
@@ -355,10 +496,143 @@ try {
   await logEntry("Intervals", 2);
   assert(collapsed("Intervals").querySelector('[aria-label="Done"]'));
   assert(card("Squat").querySelector('form[aria-label="Log set 1"]'));
+
+  // Same-workout history is independently bounded: four skipped rows and
+  // three newer other-workout rows must not hide its last logged occurrence.
+  const history = [
+    historyRow("future", "2026-06-02T12:00:00Z", 4, "workout", 100),
+    historyRow("same-time", "2026-06-01T12:00:00Z", 4, "workout", 110),
+    ...[31, 30, 29, 28].map((day) => historyRow(`skipped-${day}`, `2026-05-${day}T12:00:00Z`, 0)),
+    ...[27, 26, 25].map((day) =>
+      historyRow(`other-${day}`, `2026-05-${day}T12:00:00Z`, 4, "other-workout", 90),
+    ),
+    historyRow("same-workout", "2026-05-20T12:00:00Z", 3, "workout", 60),
+  ];
+  const historyOptions = {
+    history: [{ id: "Squat", workoutSessionExercises: history }],
+    earlier: history.map(earlierRow),
+  };
+  await openSession([exercise("Squat"), exercise("Lunge", 1)], [], true, historyOptions);
+  assert.equal(
+    card("Squat").querySelector<HTMLInputElement>('input[aria-label="Weight in kg for set 1"]')
+      ?.value,
+    "60",
+  );
+  assert(card("Squat").textContent?.includes("Last time 60 × 8"));
+  const earlierSection = container.querySelector('section[aria-label="Earlier Workout sessions"]');
+  assert(earlierSection);
+  assert.equal(earlierSection.querySelectorAll("li").length, 5);
+  assert(!earlierSection.textContent?.includes("4 sets"));
+  assert(earlierSection.textContent?.includes("3 sets"));
+  await logSet("Squat", 1);
+  assert(card("Squat").querySelector("tbody tr")?.textContent?.includes("60 × 8"));
+  assert(card("Squat").querySelector('form[aria-label="Log set 2"]'));
+  await logSet("Squat", 2);
+  await logSet("Squat", 3);
+  assert(collapsed("Squat").querySelector('[aria-label="Done"]'));
+  assert(card("Lunge").querySelector('form[aria-label="Log set 1"]'));
+
+  // A completed old session must not become incomplete against a later one.
+  const completed = exercise("Squat");
+  completed.workoutSessionStrengthSets = historyRow(
+    "logged",
+    session.startedAt,
+    3,
+  ).workoutSessionStrengthSets;
+  await openSession([completed, exercise("Lunge", 1)], [], true, historyOptions);
+  assert(collapsed("Squat").querySelector('[aria-label="Done"]'));
+  assert(card("Lunge"));
+
+  // With no logged same-workout history, fall back to earlier exercise history.
+  const fallbackOptions = {
+    history: [
+      {
+        id: "Squat",
+        workoutSessionExercises: history.filter((row) => row.id !== "same-workout"),
+      },
+    ],
+  };
+  await openSession([exercise("Lunge"), exercise("Squat", 1)], [], true, fallbackOptions);
+  assert(collapsed("Squat").textContent?.includes("Last time 90 kg × 8 · 8 · 8 · 8"));
+  await settle(() => collapsed("Squat").click());
+  assert(card("Squat").textContent?.includes("Last time 90 × 8"));
+
+  // Ad-hoc sessions use the newest earlier logged exercise occurrence, not a workout preference.
+  await openSession([exercise("Squat")], [], false, historyOptions);
+  assert.equal(
+    card("Squat").querySelector<HTMLInputElement>('input[aria-label="Weight in kg for set 1"]')
+      ?.value,
+    "90",
+  );
+
+  // Date/link changes must re-key both history queries even while the old key is fresh.
+  await openSession([exercise("Squat")], [], true, historyOptions);
+  session.startedAt = "2026-06-03T12:00:00Z";
+  await settle(() =>
+    client.setQueryData(["sessions", "detail", "session"], {
+      workoutSession: structuredClone(session),
+    }),
+  );
+  await waitFor(
+    () =>
+      card("Squat").querySelector<HTMLInputElement>('input[aria-label="Weight in kg for set 1"]')
+        ?.value === "100" &&
+      !!container
+        .querySelector('section[aria-label="Earlier Workout sessions"]')
+        ?.textContent?.includes("4 sets"),
+  );
+  session.workoutId = "other-workout";
+  session.workout = { id: "other-workout", name: "Other workout" };
+  await settle(() =>
+    client.setQueryData(["sessions", "detail", "session"], {
+      workoutSession: structuredClone(session),
+    }),
+  );
+  await waitFor(
+    () =>
+      card("Squat").querySelector<HTMLInputElement>('input[aria-label="Weight in kg for set 1"]')
+        ?.value === "90",
+  );
+
+  // A template whose catalog row is no longer visible still has a workout link.
+  await openSession([exercise("Squat")], [], true, historyOptions);
+  session.workout = null;
+  await settle(() =>
+    client.setQueryData(["sessions", "detail", "session"], {
+      workoutSession: structuredClone(session),
+    }),
+  );
+  assert.equal(
+    card("Squat").querySelector<HTMLInputElement>('input[aria-label="Weight in kg for set 1"]')
+      ?.value,
+    "60",
+  );
+
+  // Cardio uses the identical earlier/nonempty/same-workout reference-count rule.
+  await openSession([exercise("Intervals", 0, "cardio"), exercise("Squat", 1)], [], true, {
+    history: [
+      {
+        id: "Intervals",
+        workoutSessionExercises: [
+          historyRow("future", "2026-06-02T12:00:00Z", 4, "workout", 0, "cardio"),
+          historyRow("skipped", "2026-05-31T12:00:00Z", 0, "workout", 0, "cardio"),
+          historyRow("other", "2026-05-30T12:00:00Z", 4, "other-workout", 0, "cardio"),
+          historyRow("same-workout", "2026-05-20T12:00:00Z", 2, "workout", 0, "cardio"),
+        ],
+      },
+    ],
+  });
+  await logEntry("Intervals", 1);
+  assert(button("Add entry", card("Intervals")));
+  await logEntry("Intervals", 2);
+  assert(collapsed("Intervals").querySelector('[aria-label="Done"]'));
+  assert(card("Squat"));
   assert.deepEqual(errors, []);
 } finally {
   act(() => root.unmount());
   client.clear();
   await dom.happyDOM.close();
 }
-console.info("Session logging stays open without history and advances only at a reference count.");
+console.info(
+  "Session logging handles missing history and uses earlier logged same-workout references.",
+);

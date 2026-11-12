@@ -61,6 +61,7 @@ const SessionDetailQuery = graphql(`
     workoutSession(id: $id) {
       id
       startedAt
+      workoutId
       workout {
         id
         name
@@ -98,17 +99,50 @@ const SessionDetailQuery = graphql(`
   }
 `);
 
-// Hasura compiles nested array relationships with a lateral join, so `limit: 3`
-// applies *per parent exercise*, not globally — exactly what we want here.
+// Limits apply per exercise. Query the same workout separately so its last
+// logged occurrence cannot be displaced by newer history from other workouts.
 const PriorSessionsQuery = graphql(`
-  query PriorSessionsPerExercise($exerciseIds: [uuid!]!, $excludeSessionId: uuid!) {
+  query PriorSessionsPerExercise(
+    $exerciseIds: [uuid!]!
+    $before: timestamptz!
+    $workoutId: uuid
+    $hasWorkout: Boolean!
+  ) {
     exercises(where: { id: { _in: $exerciseIds } }) {
       id
       workoutSessionExercises(
         limit: 3
         order_by: { workoutSession: { startedAt: desc } }
-        where: { workoutSessionId: { _neq: $excludeSessionId } }
+        where: {
+          workoutSession: { startedAt: { _lt: $before } }
+          _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }]
+        }
       ) {
+        id
+        workoutSession {
+          id
+          startedAt
+        }
+        workoutSessionStrengthSets(order_by: { setNumber: asc }) {
+          id
+          setNumber
+          reps
+          weight
+        }
+        workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+          id
+          entryNumber
+          metrics
+        }
+      }
+      sameWorkoutSessions: workoutSessionExercises(
+        limit: 3
+        order_by: { workoutSession: { startedAt: desc } }
+        where: {
+          workoutSession: { startedAt: { _lt: $before }, workoutId: { _eq: $workoutId } }
+          _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }]
+        }
+      ) @include(if: $hasWorkout) {
         id
         workoutSession {
           id
@@ -219,9 +253,9 @@ const DeleteSessionExerciseMutation = graphql(`
 `);
 
 const EarlierWorkoutSessionsQuery = graphql(`
-  query EarlierWorkoutSessions($workoutId: uuid!, $excludeSessionId: uuid!) {
+  query EarlierWorkoutSessions($workoutId: uuid!, $before: timestamptz!) {
     workoutSessions(
-      where: { workoutId: { _eq: $workoutId }, id: { _neq: $excludeSessionId } }
+      where: { workoutId: { _eq: $workoutId }, startedAt: { _lt: $before } }
       order_by: { startedAt: desc }
       limit: 5
     ) {
@@ -270,15 +304,19 @@ function SessionDetailRoute() {
     [session],
   );
 
-  // Prior history is decorative — silently degrade if it fails so the rest of the page stays usable.
+  // History provides logging hints, not a required target. Keep logging usable if it fails.
+  const before = session?.startedAt;
+  const workoutId = session?.workoutId;
   const { data: priorData } = useQuery({
-    queryKey: ["sessions", "prior-per-exercise", sessionId, exerciseIds],
+    queryKey: ["sessions", "prior-per-exercise", sessionId, exerciseIds, before, workoutId],
     queryFn: () =>
       gqlRequest(PriorSessionsQuery, {
         exerciseIds,
-        excludeSessionId: sessionId,
+        before: before ?? "",
+        workoutId: workoutId ?? null,
+        hasWorkout: !!workoutId,
       }),
-    enabled: exerciseIds.length > 0,
+    enabled: !!session && exerciseIds.length > 0,
   });
 
   const priorSessionsByExercise = useMemo(() => buildPriorSessionsMap(priorData), [priorData]);
@@ -427,6 +465,7 @@ function SessionDetailRoute() {
           workoutId={session.workout.id}
           workoutName={session.workout.name}
           sessionId={sessionId}
+          before={session.startedAt}
         />
       ) : null}
 
@@ -1284,23 +1323,27 @@ function EarlierWorkoutSessions({
   workoutId,
   workoutName,
   sessionId,
+  before,
 }: {
   workoutId: string;
   workoutName: string;
   sessionId: string;
+  before: string;
 }) {
   const { data } = useQuery({
-    queryKey: ["sessions", "earlier", workoutId, sessionId],
-    queryFn: () =>
-      gqlRequest(EarlierWorkoutSessionsQuery, { workoutId, excludeSessionId: sessionId }),
+    queryKey: ["sessions", "earlier", workoutId, sessionId, before],
+    queryFn: () => gqlRequest(EarlierWorkoutSessionsQuery, { workoutId, before }),
   });
   const rows = data?.workoutSessions ?? [];
   if (rows.length === 0) {
     return null;
   }
   return (
-    <section aria-label={`Other ${workoutName} sessions`} className="rounded-xl border bg-card p-4">
-      <h3 className="mb-2 text-sm font-semibold">Other {workoutName} sessions</h3>
+    <section
+      aria-label={`Earlier ${workoutName} sessions`}
+      className="rounded-xl border bg-card p-4"
+    >
+      <h3 className="mb-2 text-sm font-semibold">Earlier {workoutName} sessions</h3>
       <ul className="flex flex-col">
         {rows.map((row) => {
           let sets = 0;
@@ -1338,6 +1381,11 @@ function EarlierWorkoutSessions({
   );
 }
 
+function priorExercises(exercise: ResultOf<typeof PriorSessionsQuery>["exercises"][number]) {
+  const sameWorkout = exercise.sameWorkoutSessions ?? [];
+  return sameWorkout.length > 0 ? sameWorkout : exercise.workoutSessionExercises;
+}
+
 function buildPriorSessionsMap(
   data: ResultOf<typeof PriorSessionsQuery> | undefined,
 ): Map<string, PriorEntry[]> {
@@ -1345,7 +1393,7 @@ function buildPriorSessionsMap(
   for (const e of data?.exercises ?? []) {
     map.set(
       e.id,
-      e.workoutSessionExercises.map((wse) => ({
+      priorExercises(e).map((wse) => ({
         id: wse.id,
         startedAt: wse.workoutSession.startedAt,
         sets: wse.workoutSessionStrengthSets.map((s) => ({
@@ -1365,7 +1413,7 @@ function buildPriorCardioMap(
   for (const e of data?.exercises ?? []) {
     map.set(
       e.id,
-      e.workoutSessionExercises.map((wse) => ({
+      priorExercises(e).map((wse) => ({
         id: wse.id,
         startedAt: wse.workoutSession.startedAt,
         entries: wse.workoutSessionCardioEntries.map((entry) => ({

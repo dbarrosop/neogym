@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("session logging stays open without history and uses real reference counts to advance", () => {
+test("session logging uses earlier logged same-workout history and stays open without it", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -14,6 +14,7 @@ test("session logging stays open without history and uses real reference counts 
     output: result.stdout.toString() + result.stderr.toString(),
   }).toEqual({
     exitCode: 0,
-    output: "Session logging stays open without history and advances only at a reference count.\n",
+    output:
+      "Session logging handles missing history and uses earlier logged same-workout references.\n",
   });
 }, 30_000);
