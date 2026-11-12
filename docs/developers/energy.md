@@ -184,8 +184,7 @@ estimated net = today's logged snapshot kcal - estimated burned
   today plus six previous dates.
 - Missing, zero, negative, non-finite and out-of-range historical resting values
   do not enter the mean or denominator. One usable day is sufficient (including
-  yesterday-only history); app summaries state how many of the previous seven
-  days contributed. A missing date is never an observed zero-kcal day.
+  yesterday-only history). A missing date is never an observed zero-kcal day.
 - A current-day energy row and at least one usable historical resting value
   are required. A missing component on an existing current row still contributes
   zero, matching actual balance semantics. No current row means no estimate,
@@ -197,6 +196,8 @@ estimated net = today's logged snapshot kcal - estimated burned
   plan or predicted future meals; future food and activity can change the result.
   Negative net means an estimated deficit against this baseline, positive means
   an estimated surplus. Values are explicitly labeled as estimates (`≈`).
+  Screens keep the metric labels, units and concise loading/unavailable states;
+  calculation explanations and history-day counts stay out of the visible UI.
 - Previous dates are not guaranteed complete: `daily_energy` has no completeness
   marker and a missed HealthKit sync can leave partial historical totals. This is
   a simple recent-data baseline, not a guaranteed end-of-day forecast or BMR

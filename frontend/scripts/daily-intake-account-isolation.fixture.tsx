@@ -215,6 +215,8 @@ function assertEstimate(selector: string, burned: number, net: number) {
   const content = estimateText(selector);
   assert(content.includes(`Estimated burned today${format(burned)}`), content);
   assert(content.includes(`Estimated net today${format(net, true)}`), content);
+  assert(!content.includes("Resting average:"), content);
+  assert(!content.includes("Uses recent resting energy"), content);
 }
 
 async function settle(action: () => void = () => undefined) {
@@ -280,16 +282,16 @@ async function accountSwitchWithMissingToday() {
 
   const finish = delayIntake("account-b");
   await signIn("account-b");
-  await waitFor(() => estimateText("#standalone").includes("Needs today's energy"));
+  await waitFor(() => estimateText("#standalone").includes("Not enough energy data."));
   assert.equal(client.getQueryState(intakeKey("account-b"))?.fetchStatus, "fetching");
   assert(!text("#intake").includes("account-a"));
   assert(!text("#intake").includes("≈"));
   assert(!estimateText("#standalone").includes("≈"));
   foreignOverride = true;
   await settle(render);
-  assert(estimateText("#standalone").includes("Needs today's energy"));
+  assert(estimateText("#standalone").includes("Not enough energy data."));
   await finish();
-  await waitFor(() => estimateText().includes("Needs today's energy"));
+  await waitFor(() => estimateText().includes("Not enough energy data."));
   assert(!estimateText().includes("Estimated burned today"));
   assert(!estimateText().includes("≈"));
   assert(text("#intake").includes("No energy logged"));

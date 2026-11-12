@@ -18,7 +18,6 @@ struct DailyEnergyListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
                 TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
                 content
             }
@@ -40,18 +39,6 @@ struct DailyEnergyListView: View {
         await viewModel.load()
         estimateRefreshToken += 1
         WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Log active and resting calories burned over time.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
     }
 
     @ViewBuilder

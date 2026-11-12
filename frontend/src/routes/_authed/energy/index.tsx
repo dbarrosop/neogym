@@ -155,9 +155,7 @@ function DailyEnergyRoute() {
   return (
     <PageShell maxWidth="3xl">
       <PageHeader
-        eyebrow="Tracking"
         title="Energy"
-        description="Log active and resting calories over time."
         actions={
           <Button asChild size="sm">
             <Link to="/energy/new">

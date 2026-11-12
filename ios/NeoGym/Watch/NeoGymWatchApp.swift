@@ -175,8 +175,6 @@ private extension WatchHomeView {
                         Text("Estimated today").font(.caption.weight(.semibold))
                         Text("Burned \(projection.burnedValue())")
                         Text("Net \(projection.netValue())")
-                        Text(projection.basisDescription)
-                        Text(DailyEnergyProjection.explanation)
                     }
                     .font(.caption2)
                     .foregroundStyle(.secondary)

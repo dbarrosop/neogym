@@ -28,9 +28,6 @@ public struct DailyEnergyProjection: Equatable, Sendable {
     public let estimatedNetKcal: Double
     public let baseline: DailyRestingEnergyBaseline
 
-    public static let explanation = "Uses recent resting energy plus activity so far. "
-        + "Net uses food already logged; future food and activity are not predicted."
-
     public init?(
         date: String, today: String, caloriesIn: Double, dailyEnergy: DailyEnergy?,
         history: [DailyEnergy], calendar: Calendar = .current
@@ -56,10 +53,6 @@ public struct DailyEnergyProjection: Equatable, Sendable {
         self.baseline = baseline
         estimatedBurnedKcal = active + max(resting, baseline.kcal)
         estimatedNetKcal = caloriesIn - estimatedBurnedKcal
-    }
-
-    public var basisDescription: String {
-        "Resting average: \(baseline.dayCount) of the previous 7 days."
     }
 
     public func burnedValue(locale: Locale = .current) -> String {

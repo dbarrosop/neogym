@@ -7,14 +7,9 @@ struct DailyEnergyProjectionView: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], alignment: .leading, spacing: 10) {
-                metric("Estimated burned today", projection.burnedValue(locale: locale))
-                metric("Estimated net today", projection.netValue(locale: locale))
-            }
-            Text(projection.basisDescription + " " + DailyEnergyProjection.explanation)
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], alignment: .leading, spacing: 10) {
+            metric("Estimated burned today", projection.burnedValue(locale: locale))
+            metric("Estimated net today", projection.netValue(locale: locale))
         }
     }
 
@@ -50,7 +45,7 @@ struct TodayEnergyEstimateSection: View {
                     Task { await viewModel.load() }
                 }
             } else {
-                Text("Needs today's energy and resting energy from at least one of the previous 7 days.")
+                Text("Not enough energy data.")
                     .font(.caption)
                     .foregroundColor(NeoGymTheme.mutedText)
             }

@@ -37,9 +37,6 @@ export interface DailyEnergyProjection {
   historyDayCount: number;
 }
 
-export const ENERGY_PROJECTION_EXPLANATION =
-  "Uses recent resting energy plus activity so far. Net uses food already logged; future food and activity are not predicted.";
-
 /** Read-only today projection. Missing historical dates are not zero-kcal days. */
 export function calculateDailyEnergyProjection({
   date,

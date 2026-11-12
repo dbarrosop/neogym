@@ -749,8 +749,9 @@ intact instead of inventing one-off styles.
   `DailyEnergyProjection`: prior seven local dates' mean positive resting kcal,
   floored at resting already recorded today, plus today's recorded active kcal;
   estimated net subtracts this from food already logged. Require today's row and
-  at least one usable historical resting value, show the day count in app summaries,
-  and never replace actual values, historical charts or `daily_energy` records.
+  at least one usable historical resting value, and never replace actual values,
+  historical charts or `daily_energy` records. Keep estimate presentation compact:
+  labeled values and units, without calculation prose or history-day counts.
   Future food/activity are not predicted. Overview reads extra past/current
   `balanceDays` without hiding future logs from browsing, and its cache key
   includes today. Daily intake/watch reads fetch today plus seven prior energy

@@ -3,11 +3,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { graphql } from "@/gql";
-import {
-  calculateDailyEnergyProjection,
-  type DailyEnergyNumericValue,
-  ENERGY_PROJECTION_EXPLANATION,
-} from "@/lib/daily-energy";
+import { calculateDailyEnergyProjection, type DailyEnergyNumericValue } from "@/lib/daily-energy";
 import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -119,7 +115,7 @@ function TodayEstimateContent({ today, balance }: { today: string; balance: Prop
         <h3 className="text-sm font-medium">Estimated today</h3>
         {query.error ? (
           <div className="text-xs text-muted-foreground">
-            Estimate unavailable. Recorded figures are unchanged.{" "}
+            Estimate unavailable.{" "}
             <Button
               variant="link"
               size="sm"
@@ -131,29 +127,18 @@ function TodayEstimateContent({ today, balance }: { today: string; balance: Prop
           </div>
         ) : null}
         {!query.error && projection ? (
-          <>
-            <dl className="grid grid-cols-2 gap-3">
-              <EstimateMetric
-                label="Estimated burned today"
-                value={projection.estimatedBurnedKcal}
-              />
-              <EstimateMetric
-                label="Estimated net today"
-                value={projection.estimatedNetKcal}
-                signed
-              />
-            </dl>
-            <p className="text-xs text-muted-foreground">
-              Resting average: {projection.historyDayCount} of the previous 7 days.{" "}
-              {ENERGY_PROJECTION_EXPLANATION}
-            </p>
-          </>
+          <dl className="grid grid-cols-2 gap-3">
+            <EstimateMetric label="Estimated burned today" value={projection.estimatedBurnedKcal} />
+            <EstimateMetric
+              label="Estimated net today"
+              value={projection.estimatedNetKcal}
+              signed
+            />
+          </dl>
         ) : null}
         {!query.error && !projection ? (
           <p className="text-xs text-muted-foreground">
-            {query.isPending
-              ? "Loading estimate…"
-              : "Needs today's energy and resting energy from at least one of the previous 7 days."}
+            {query.isPending ? "Loading estimate…" : "Not enough energy data."}
           </p>
         ) : null}
       </CardContent>
