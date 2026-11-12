@@ -13,7 +13,12 @@ const layoutRoute = getRouteApi("/_authed/me/journal/_split");
 function JournalIndexPane() {
   const split = useIsSplit();
   const search = layoutRoute.useSearch();
-  const { data } = useJournalEntries(search.labels ?? []);
+  const { data, isStale, fetchStatus, isRefetchError } = useJournalEntries(search.labels ?? []);
+  // Revalidation can retain deleted rows while pending, paused, or failed.
+  // Data that merely aged past staleTime stays usable while idle.
+  if (isStale && (fetchStatus !== "idle" || isRefetchError)) {
+    return null;
+  }
   const first = data?.pages[0]?.journalEntries[0];
   if (split && first) {
     return (

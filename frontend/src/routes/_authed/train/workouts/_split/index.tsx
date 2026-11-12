@@ -13,7 +13,12 @@ const layoutRoute = getRouteApi("/_authed/train/workouts/_split");
 function WorkoutsIndexPane() {
   const split = useIsSplit();
   const search = layoutRoute.useSearch();
-  const { data } = useWorkoutsIndex();
+  const { data, isStale, fetchStatus, isRefetchError } = useWorkoutsIndex();
+  // Revalidation can retain deleted rows while pending, paused, or failed.
+  // Data that merely aged past staleTime stays usable while idle.
+  if (isStale && (fetchStatus !== "idle" || isRefetchError)) {
+    return null;
+  }
   const first = data ? filterWorkouts(data.workouts, search)[0] : undefined;
 
   if (split && first) {

@@ -13,7 +13,12 @@ export const Route = createFileRoute("/_authed/train/sessions/_split/")({
  */
 function SessionsIndexPane() {
   const split = useIsSplit();
-  const { data } = useSessionsIndex();
+  const { data, isStale, fetchStatus, isRefetchError } = useSessionsIndex();
+  // Revalidation can retain deleted rows while pending, paused, or failed.
+  // Data that merely aged past staleTime stays usable while idle.
+  if (isStale && (fetchStatus !== "idle" || isRefetchError)) {
+    return null;
+  }
   const latest = data?.pages[0]?.workoutSessions[0];
 
   if (split && latest) {
