@@ -34,7 +34,7 @@ Sessions can be started in two shapes. The same `insertWorkoutSession` mutation 
 
 ### 1. From a workout (templated)
 
-The user picks a workout on `/workouts/$workoutId` and taps **Start session**. `useStartSession` is called with `{ workoutId, exercises: [{exerciseId, position}, ...] }` (the caller copies the workout's `workout_exercises` into `workoutSessionExercises.data` via a nested insert).
+The user picks a workout on `/train/workouts/$workoutId` and taps **Start session**. `useStartSession` is called with `{ workoutId, exercises: [{exerciseId, position}, ...] }` (the caller copies the workout's `workout_exercises` into `workoutSessionExercises.data` via a nested insert).
 
 ```ts
 startSession.mutate({
@@ -50,7 +50,7 @@ The mutation inserts the `workout_sessions` row **and** seeds the session's exer
 
 ### 2. Ad-hoc (no workout)
 
-The user opens an exercise on `/exercises/$exerciseId` (or any cardio detail page) and taps **Start session**. `useStartSession` is called with `{ exerciseId }`:
+The user opens an exercise on `/train/exercises/$exerciseId` (or any cardio detail page) and taps **Start session**. `useStartSession` is called with `{ exerciseId }`:
 
 ```ts
 startSession.mutate({ exerciseId: exercise.id });
@@ -58,7 +58,7 @@ startSession.mutate({ exerciseId: exercise.id });
 
 This produces a session with `workout_id = NULL` and a single `workout_session_exercise` at `position: 0` for that exercise. The user can then add more exercises from the session detail page.
 
-In both cases, `useStartSession` navigates to `/sessions/$sessionId` without `replace`, so back-navigation lands on the originating workout/exercise detail page. The originating page is a legit destination, not a "spent" form/picker, so the CLAUDE.md `replace: true` rule does not apply here.
+In both cases, `useStartSession` navigates to `/train/sessions/$sessionId` without `replace`, so back-navigation lands on the originating workout/exercise detail page. The originating page is a legit destination, not a "spent" form/picker, so the CLAUDE.md `replace: true` rule does not apply here.
 
 ## The workout link is a template, not a contract
 
@@ -74,7 +74,7 @@ Concretely:
 The workout reference is therefore best thought of as a label/seed, used by the UI to:
 
 - Pre-fill the exercise list at session creation.
-- Render the workout's name on `/sessions` and `/sessions/$sessionId` (via `sessionDisplayName()`).
+- Render the workout's name on `/train/sessions` and `/train/sessions/$sessionId` (via `sessionDisplayName()`).
 - Show a "session of X" attribution in exercise history.
 
 It is **not** used to validate the session's contents or constrain edits. The web's logging hints use earlier logged history linked to the same current workout (see “Editing a session” below), not the template's exercise list or prescribed sets/reps.
@@ -109,7 +109,7 @@ This branch is in `frontend/src/routes/_authed/train/sessions/_split/$sessionId.
 
 The `update_permissions.columns` list for the `user` role on `workout_session_exercises` is just `position` — `exercise_id` is **not** updatable. Inserts and deletes are allowed; reordering is allowed; re-pointing an existing row at a different exercise is not.
 
-This closes a kind-mismatch loophole. If `exercise_id` were updatable, swapping it would change `kind` (the sync trigger fires on `UPDATE OF exercise_id`), but the children (sets/cardio entries) attached to that session-exercise would still have their old `parent_kind`. The composite FK would then fail the update — not silently bad, but a confusing error path. By keeping `exercise_id` immutable for users, the only way to switch which exercise a row points at is delete + insert, which cascades to the children. This matches the Add/Remove UX in `/sessions/$sessionId`.
+This closes a kind-mismatch loophole. If `exercise_id` were updatable, swapping it would change `kind` (the sync trigger fires on `UPDATE OF exercise_id`), but the children (sets/cardio entries) attached to that session-exercise would still have their old `parent_kind`. The composite FK would then fail the update — not silently bad, but a confusing error path. By keeping `exercise_id` immutable for users, the only way to switch which exercise a row points at is delete + insert, which cascades to the children. This matches the Add/Remove UX in `/train/sessions/$sessionId`.
 
 ## Display names
 
