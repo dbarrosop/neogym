@@ -42,7 +42,7 @@ const DeleteDailyEnergyMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/energy/$id_/edit")({
+export const Route = createFileRoute("/_authed/progress/energy/$id_/edit")({
   component: EditDailyEnergyRoute,
 });
 
@@ -89,7 +89,7 @@ function EditDailyEnergyRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      navigate({ to: "/energy/$id", params: { id }, replace: true });
+      navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
     },
     onError: (e) => {
       toast.error(dailyEnergyMutationErrorMessage(e, "save"));
@@ -101,7 +101,7 @@ function EditDailyEnergyRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      navigate({ to: "/energy", replace: true });
+      navigate({ to: "/progress/energy", replace: true });
     },
     onError: (e) => {
       toast.error(dailyEnergyMutationErrorMessage(e, "delete"));
@@ -125,7 +125,7 @@ function EditDailyEnergyRoute() {
           submitLabel="Save changes"
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/energy/$id", params: { id }, replace: true })}
+          onCancel={() => navigate({ to: "/progress/energy/$id", params: { id }, replace: true })}
           extraActions={
             <Button
               type="button"

@@ -10,8 +10,8 @@ interface AuthCardProps {
 
 export function AuthCard({ title, description, footer, children }: AuthCardProps) {
   return (
-    <div className="grid-bg flex min-h-[calc(100vh-3.5rem)] items-center justify-center px-4 py-12">
-      <Card className="w-full max-w-md border-border/60 shadow-2xl shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <div className="flex min-h-[calc(100dvh-3.5rem)] items-center justify-center px-4 py-12">
+      <Card className="w-full max-w-md border-border/60 shadow-2xl shadow-primary/5">
         <CardHeader className="space-y-1.5">
           <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>

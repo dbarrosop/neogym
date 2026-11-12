@@ -169,7 +169,7 @@ function FoodsIndexRoute() {
       );
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardContent className="px-2 py-2">
           <ul className="divide-y divide-border/50">
             {filteredFoods.map((food) => (

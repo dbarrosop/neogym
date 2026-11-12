@@ -44,7 +44,7 @@ const DeleteBodyMeasurementMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/body/$id_/edit")({
+export const Route = createFileRoute("/_authed/progress/body/$id_/edit")({
   component: EditBodyMeasurementRoute,
 });
 
@@ -92,7 +92,7 @@ function EditBodyMeasurementRoute() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      navigate({ to: "/body/$id", params: { id }, replace: true });
+      navigate({ to: "/progress/body/$id", params: { id }, replace: true });
     },
     onError: (e) => {
       toast.error(`Failed to save: ${e.message}`);
@@ -103,7 +103,7 @@ function EditBodyMeasurementRoute() {
     mutationFn: () => gqlRequest(DeleteBodyMeasurementMutation, { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      navigate({ to: "/body", replace: true });
+      navigate({ to: "/progress/body", replace: true });
     },
     onError: (e) => {
       toast.error(`Failed to delete: ${e.message}`);
@@ -127,7 +127,7 @@ function EditBodyMeasurementRoute() {
           submitLabel="Save changes"
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/body/$id", params: { id }, replace: true })}
+          onCancel={() => navigate({ to: "/progress/body/$id", params: { id }, replace: true })}
           extraActions={
             <Button
               type="button"

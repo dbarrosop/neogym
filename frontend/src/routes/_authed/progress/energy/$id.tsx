@@ -25,7 +25,7 @@ const DailyEnergyByIdQuery = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/energy/$id")({
+export const Route = createFileRoute("/_authed/progress/energy/$id")({
   component: DailyEnergyDetailRoute,
 });
 
@@ -48,7 +48,7 @@ function DailyEnergyDetailRoute() {
     }
     const entry = data.dailyEnergyEntry;
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -60,7 +60,7 @@ function DailyEnergyDetailRoute() {
               </CardTitle>
             </div>
             <Button asChild size="icon" variant="ghost" aria-label="Edit energy day">
-              <Link to="/energy/$id/edit" params={{ id: entry.id }}>
+              <Link to="/progress/energy/$id/edit" params={{ id: entry.id }}>
                 <Pencil className="h-4 w-4" />
               </Link>
             </Button>

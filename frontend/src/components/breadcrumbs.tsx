@@ -28,10 +28,16 @@ const ROUTES: Record<string, RouteDef> = {
     label: "Exercise",
     parent: "/sessions/$sessionId",
   },
-  "/body": { label: "Body", parent: null },
-  "/body/new": { label: "New", parent: "/body" },
-  "/body/$id": { label: "Measurement", parent: "/body" },
-  "/body/$id/edit": { label: "Edit", parent: "/body/$id" },
+  "/today": { label: "Today", parent: null },
+  "/progress": { label: "Progress", parent: null },
+  "/progress/body": { label: "Body", parent: "/progress" },
+  "/progress/body/new": { label: "New", parent: "/progress/body" },
+  "/progress/body/$id": { label: "Measurement", parent: "/progress/body" },
+  "/progress/body/$id/edit": { label: "Edit", parent: "/progress/body/$id" },
+  "/progress/energy": { label: "Energy", parent: "/progress" },
+  "/progress/energy/new": { label: "New", parent: "/progress/energy" },
+  "/progress/energy/$id": { label: "Day", parent: "/progress/energy" },
+  "/progress/energy/$id/edit": { label: "Edit", parent: "/progress/energy/$id" },
   "/journal": { label: "Journal", parent: null },
   "/journal/new": { label: "New", parent: "/journal" },
   "/journal/$id": { label: "Entry", parent: "/journal" },
@@ -60,7 +66,7 @@ const ROUTES: Record<string, RouteDef> = {
     label: "Edit",
     parent: "/nutrition/plans/$planId",
   },
-  "/profile": { label: "Profile", parent: null },
+  "/profile": { label: "Account", parent: null },
 };
 
 type Match = { pattern: string; params: Record<string, string> };
@@ -126,11 +132,11 @@ function trailFor(pathname: string): Crumb[] {
 
 export const __testing = { matchPattern, trailFor };
 
-export function Breadcrumbs() {
+export function Breadcrumbs({ minDepth = 1 }: { minDepth?: number } = {}) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const trail = trailFor(pathname);
 
-  if (trail.length === 0) {
+  if (trail.length === 0 || trail.length < minDepth) {
     return null;
   }
 
@@ -184,7 +190,7 @@ const CRUMB_LABEL_RENDERERS: Record<string, (crumb: Crumb) => ReactNode> = {
   "/sessions/$sessionId/exercises/$exerciseId": (crumb) => (
     <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
   ),
-  "/body/$id": (crumb) => (
+  "/progress/body/$id": (crumb) => (
     <BodyMeasurementLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
   ),
   "/journal/$id": (crumb) => (

@@ -197,7 +197,7 @@ function EditMealRoute() {
       return <p className="text-sm text-muted-foreground">Meal not found.</p>;
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="pb-4">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Edit meal

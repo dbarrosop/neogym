@@ -4,6 +4,8 @@ import Fuse from "fuse.js";
 import { ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
+import { PageHeader } from "@/components/patterns/page-shell";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -285,17 +287,9 @@ function ExercisesRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-3xl space-y-6">
-        <header className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Catalog
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Exercises</h1>
-          <p className="text-sm text-muted-foreground">
-            Search by name, or narrow the catalog by muscle, category, equipment, and level.
-          </p>
-        </header>
+        <PageHeader title="Train" tabs={<AreaTabs area="train" />} />
 
         <div className="space-y-3">
           <SearchBar value={search} onChange={setSearchText} />
@@ -564,10 +558,7 @@ function GroupedResults({ exercises }: { exercises: Exercise[] }) {
   return (
     <div className="space-y-4">
       {grouped.map(([muscle, items]) => (
-        <Card
-          key={muscle}
-          className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80"
-        >
+        <Card key={muscle} className="border-border/60">
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
             <CardTitle className="text-lg tracking-tight">{formatEnumValue(muscle)}</CardTitle>
             <span className="text-xs text-muted-foreground">
@@ -589,7 +580,7 @@ function GroupedResults({ exercises }: { exercises: Exercise[] }) {
 
 function FlatResults({ exercises }: { exercises: Exercise[] }) {
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="border-border/60">
       <CardContent className="px-2 py-2">
         <ul className="divide-y divide-border/50">
           {exercises.map((ex) => (

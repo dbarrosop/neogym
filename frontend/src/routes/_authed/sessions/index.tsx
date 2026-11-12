@@ -1,7 +1,9 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, ChevronRight, Loader2 } from "lucide-react";
+import { CalendarDays, ChevronRight, Loader2, Plus } from "lucide-react";
 import { useMemo } from "react";
+import { PageHeader } from "@/components/patterns/page-shell";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -141,7 +143,7 @@ function SessionsRoute() {
                       params={{ sessionId: s.id }}
                       className="group block"
                     >
-                      <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                      <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                         <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                           <div className="flex min-w-0 items-center gap-3">
                             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-muted text-center">
@@ -208,25 +210,20 @@ function SessionsRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-3xl space-y-6">
-        <header className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            History
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Sessions</h1>
-          <p className="text-sm text-muted-foreground">
-            Every session you've logged, newest first. To start a new one, pick a{" "}
-            <Link to="/workouts" className="underline-offset-2 hover:underline">
-              workout
-            </Link>{" "}
-            or open an{" "}
-            <Link to="/exercises" className="underline-offset-2 hover:underline">
-              exercise
-            </Link>{" "}
-            and tap <span className="font-medium text-foreground">Start session</span>.
-          </p>
-        </header>
+        <PageHeader
+          title="Train"
+          tabs={<AreaTabs area="train" />}
+          actions={
+            <Button asChild size="sm">
+              <Link to="/workouts">
+                <Plus />
+                Start session
+              </Link>
+            </Button>
+          }
+        />
         {renderContent()}
       </div>
     </section>

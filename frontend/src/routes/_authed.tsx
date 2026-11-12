@@ -18,7 +18,7 @@ function AuthedLayout() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="grid-bg flex min-h-[calc(100vh-3.5rem)] items-center justify-center">
+      <div className="flex min-h-dvh items-center justify-center">
         <div className="h-2 w-32 animate-pulse rounded-full bg-muted" />
       </div>
     );

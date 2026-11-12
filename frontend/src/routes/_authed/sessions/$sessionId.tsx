@@ -487,7 +487,7 @@ function SessionDetailRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-2xl space-y-6">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Session
@@ -780,7 +780,7 @@ function ExerciseLog({
   const lastSet = sets[sets.length - 1];
 
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="border-border/60">
       <CardHeader className="flex flex-row items-start gap-3 pb-2">
         <Link
           to="/sessions/$sessionId/exercises/$exerciseId"
@@ -1272,7 +1272,7 @@ function Stat({
   value: number | string;
 }) {
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="border-border/60">
       <CardContent className="space-y-1 px-3 py-3">
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           {icon}

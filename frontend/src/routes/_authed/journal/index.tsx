@@ -6,6 +6,7 @@ import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,7 +156,7 @@ function JournalRoute() {
             return (
               <li key={e.id}>
                 <Link to="/journal/$id" params={{ id: e.id }} className="group block">
-                  <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                  <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                     <CardContent className="flex items-start justify-between gap-3 px-4 py-3">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-baseline gap-2">
@@ -214,9 +215,8 @@ function JournalRoute() {
   return (
     <PageShell maxWidth="3xl">
       <PageHeader
-        eyebrow="Tracking"
-        title="Journal"
-        description="Notes, reflections, and anything else worth remembering."
+        title="Me"
+        tabs={<AreaTabs area="me" />}
         actions={
           <Button asChild size="sm">
             <Link to="/journal/new">

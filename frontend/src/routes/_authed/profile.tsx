@@ -6,6 +6,9 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
+import { McpConnectCard } from "@/components/mcp-connect-card";
+import { PageHeader } from "@/components/patterns/page-shell";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -70,9 +73,10 @@ function ProfileRoute() {
     .toUpperCase();
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 py-12">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <Card className="border-border/60 shadow-xl shadow-primary/5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
+      <div className="mx-auto max-w-[900px] space-y-6">
+        <PageHeader title="Me" tabs={<AreaTabs area="me" />} />
+        <Card>
           <CardHeader className="flex flex-row items-center gap-4 pb-2">
             <Avatar className="h-16 w-16 border border-border/60">
               <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? user.email} />
@@ -106,7 +110,9 @@ function ProfileRoute() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <McpConnectCard />
+
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg tracking-tight">Settings</CardTitle>
           </CardHeader>

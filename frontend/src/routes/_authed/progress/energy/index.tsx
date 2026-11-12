@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { DailyEnergyChart, type DailyEnergyPoint } from "@/components/daily-energy-chart";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,7 @@ const DailyEnergyQuery = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/energy/")({
+export const Route = createFileRoute("/_authed/progress/energy/")({
   component: DailyEnergyRoute,
 });
 
@@ -85,7 +86,7 @@ function DailyEnergyRoute() {
       return (
         <EmptyState title="No energy days yet.">
           <Button asChild size="sm">
-            <Link to="/energy/new">
+            <Link to="/progress/energy/new">
               <Plus className="h-4 w-4" />
               Log your first energy day
             </Link>
@@ -96,7 +97,7 @@ function DailyEnergyRoute() {
     return (
       <>
         {activeCount >= 2 || restingCount >= 2 ? (
-          <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <Card className="border-border/60">
             <CardHeader className="pb-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Trend
@@ -112,8 +113,8 @@ function DailyEnergyRoute() {
         <ul className="space-y-2">
           {entries.map((entry) => (
             <li key={entry.id}>
-              <Link to="/energy/$id" params={{ id: entry.id }} className="group block">
-                <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+              <Link to="/progress/energy/$id" params={{ id: entry.id }} className="group block">
+                <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                   <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium tabular-nums">
@@ -155,10 +156,11 @@ function DailyEnergyRoute() {
   return (
     <PageShell maxWidth="3xl">
       <PageHeader
-        title="Energy"
+        title="Progress"
+        tabs={<AreaTabs area="progress" />}
         actions={
           <Button asChild size="sm">
-            <Link to="/energy/new">
+            <Link to="/progress/energy/new">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New energy day</span>
               <span className="sm:hidden">New</span>

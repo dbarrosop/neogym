@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 
 export function NotFound() {
   return (
-    <section className="grid-bg relative">
-      <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-2xl flex-col items-center justify-center px-4 py-24 text-center">
+    <section className="relative">
+      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-2xl flex-col items-center justify-center px-4 py-24 text-center">
         <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">404</p>
-        <h1 className="mt-4 text-balance bg-gradient-to-br from-foreground via-foreground to-foreground/60 bg-clip-text text-5xl font-semibold tracking-tight text-transparent sm:text-6xl">
+        <h1 className="mt-4 text-balance text-4xl font-bold tracking-tight sm:text-5xl">
           Page not found
         </h1>
         <p className="mt-6 max-w-md text-balance text-lg text-muted-foreground">

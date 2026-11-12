@@ -543,7 +543,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
         balance={{ userId: user.id, caloriesIn: totals.kcal, dailyEnergy }}
       />
 
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardContent className="space-y-4 p-4 sm:p-6">
           {intakeSlots.length === 0 ? (
             <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
@@ -691,7 +691,7 @@ function CalorieBalanceCard({ balance, date }: { balance: DailyEnergyBalance; da
             <div className="rounded-md border border-border/60 border-dashed bg-background/70 px-3 py-2 sm:col-span-1">
               <p className="text-xs text-muted-foreground">Net</p>
               <Button asChild size="sm" variant="link" className="h-auto p-0 text-xs">
-                <Link to="/energy/new" search={{ date }}>
+                <Link to="/progress/energy/new" search={{ date }}>
                   Add energy for this date
                 </Link>
               </Button>
@@ -899,7 +899,7 @@ function SelectedPlanCard({
   children: ReactNode;
 }) {
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="border-border/60">
       <CardHeader className="pb-3">
         <button
           type="button"

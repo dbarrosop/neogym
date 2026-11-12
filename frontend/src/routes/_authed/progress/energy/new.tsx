@@ -21,7 +21,7 @@ const InsertDailyEnergyMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/energy/new")({
+export const Route = createFileRoute("/_authed/progress/energy/new")({
   validateSearch: searchSchema,
   component: NewDailyEnergyRoute,
 });
@@ -47,9 +47,9 @@ function NewDailyEnergyRoute() {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
       const id = res.insertDailyEnergyEntry?.id;
       if (id) {
-        navigate({ to: "/energy/$id", params: { id }, replace: true });
+        navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
       } else {
-        navigate({ to: "/energy", replace: true });
+        navigate({ to: "/progress/energy", replace: true });
       }
     },
     onError: (e) => {
@@ -70,7 +70,7 @@ function NewDailyEnergyRoute() {
           submitLabel="Save energy day"
           isSubmitting={createMutation.isPending}
           onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/energy", replace: true })}
+          onCancel={() => navigate({ to: "/progress/energy", replace: true })}
         />
       </FormCardShell>
     </PageShell>

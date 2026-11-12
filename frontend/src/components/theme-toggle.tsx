@@ -2,7 +2,7 @@ import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type Theme, useTheme } from "@/lib/theme/theme-provider";
 
-const ORDER: Theme[] = ["light", "dark", "system"];
+const ORDER: Theme[] = ["dark", "light", "system"];
 
 const LABELS: Record<Theme, string> = {
   light: "Light",
@@ -11,9 +11,9 @@ const LABELS: Record<Theme, string> = {
 };
 
 const NEXT_LABEL: Record<Theme, string> = {
-  light: "dark",
-  dark: "system",
-  system: "light",
+  dark: "light",
+  light: "system",
+  system: "dark",
 };
 
 const ICONS = {
@@ -27,7 +27,7 @@ export function ThemeToggle() {
 
   function cycle() {
     const idx = ORDER.indexOf(theme);
-    setTheme(ORDER[(idx + 1) % ORDER.length] ?? "system");
+    setTheme(ORDER[(idx + 1) % ORDER.length] ?? "dark");
   }
 
   const Icon = ICONS[theme];

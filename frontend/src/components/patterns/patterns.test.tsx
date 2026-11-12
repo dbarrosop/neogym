@@ -25,7 +25,7 @@ describe("pattern components", () => {
       ),
     );
 
-    expect(markup).toContain("grid-bg");
+    expect(markup).toContain("md:px-10");
     expect(markup).toContain("max-w-2xl");
     expect(markup).toContain("Tracking");
     expect(markup).toContain("Body");

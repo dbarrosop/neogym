@@ -173,7 +173,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
 
     return (
       <>
-        <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <Card className="border-border/60">
           <CardHeader className="space-y-3 pb-4">
             <div className="space-y-1">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -249,7 +249,7 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-2xl space-y-6">{renderContent()}</div>
     </section>
   );
@@ -353,7 +353,7 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
                   params={{ sessionId: entry.workoutSession.id }}
                   className="group block"
                 >
-                  <Card className="border-border/60 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                  <Card className="border-border/60 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                     <CardContent className="space-y-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 space-y-0.5">
@@ -542,7 +542,7 @@ function ProgressCard({
   const deltaTone = deltaToneClass(delta);
 
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="border-border/60">
       <CardHeader className="space-y-1 pb-2">
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -926,7 +926,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
                   params={{ sessionId: entry.workoutSession.id }}
                   className="group block"
                 >
-                  <Card className="border-border/60 group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80 backdrop-blur transition-colors">
+                  <Card className="border-border/60 group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80 transition-colors">
                     <CardContent className="space-y-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 space-y-0.5">

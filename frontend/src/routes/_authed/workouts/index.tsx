@@ -4,6 +4,8 @@ import { ChevronRight, Globe2, Plus, Tag, User } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { stripMarkdown } from "@/components/markdown";
+import { PageHeader } from "@/components/patterns/page-shell";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -147,7 +149,7 @@ function WorkoutsRoute() {
         {filtered.map((w) => (
           <li key={w.id}>
             <Link to="/workouts/$workoutId" params={{ workoutId: w.id }} className="group block">
-              <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+              <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                 <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex min-w-0 items-center gap-2">
@@ -190,26 +192,21 @@ function WorkoutsRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-3xl space-y-6">
-        <header className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Plans
-            </p>
-            <h1 className="text-3xl font-semibold tracking-tight">Workouts</h1>
-            <p className="text-sm text-muted-foreground">
-              Your routines and shared community templates.
-            </p>
-          </div>
-          <Button asChild size="sm" className="shrink-0">
-            <Link to="/workouts/new">
-              <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">New workout</span>
-              <span className="sm:hidden">New</span>
-            </Link>
-          </Button>
-        </header>
+        <PageHeader
+          title="Train"
+          tabs={<AreaTabs area="train" />}
+          actions={
+            <Button asChild size="sm" className="shrink-0">
+              <Link to="/workouts/new">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">New workout</span>
+                <span className="sm:hidden">New</span>
+              </Link>
+            </Button>
+          }
+        />
 
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

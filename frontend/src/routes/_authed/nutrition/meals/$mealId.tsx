@@ -69,7 +69,7 @@ function MealDetailRoute() {
     );
 
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">

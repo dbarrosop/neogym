@@ -275,7 +275,7 @@ function EditWorkoutRoute() {
       return null;
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="pb-4">
           <CardTitle className="text-2xl tracking-tight">{workout.name}</CardTitle>
         </CardHeader>
@@ -308,7 +308,7 @@ function EditWorkoutRoute() {
   }
 
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
+    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-2xl space-y-6">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
         {renderContent()}

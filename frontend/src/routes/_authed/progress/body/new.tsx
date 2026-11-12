@@ -18,7 +18,7 @@ const InsertBodyMeasurementMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/body/new")({
+export const Route = createFileRoute("/_authed/progress/body/new")({
   component: NewBodyMeasurementRoute,
 });
 
@@ -40,9 +40,9 @@ function NewBodyMeasurementRoute() {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
       const id = res.insertBodyMeasurement?.id;
       if (id) {
-        navigate({ to: "/body/$id", params: { id }, replace: true });
+        navigate({ to: "/progress/body/$id", params: { id }, replace: true });
       } else {
-        navigate({ to: "/body", replace: true });
+        navigate({ to: "/progress/body", replace: true });
       }
     },
     onError: (e) => {
@@ -63,7 +63,7 @@ function NewBodyMeasurementRoute() {
           submitLabel="Save measurement"
           isSubmitting={createMutation.isPending}
           onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/body", replace: true })}
+          onCancel={() => navigate({ to: "/progress/body", replace: true })}
         />
       </FormCardShell>
     </PageShell>

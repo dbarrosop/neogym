@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { BodyMetricsChart, type BodyMetricsPoint } from "@/components/body-metrics-chart";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +25,7 @@ const BodyMeasurementsQuery = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/body/")({
+export const Route = createFileRoute("/_authed/progress/body/")({
   component: BodyRoute,
 });
 
@@ -66,7 +67,7 @@ function BodyRoute() {
       return (
         <EmptyState title="No measurements yet.">
           <Button asChild size="sm">
-            <Link to="/body/new">
+            <Link to="/progress/body/new">
               <Plus className="h-4 w-4" />
               Log your first measurement
             </Link>
@@ -77,7 +78,7 @@ function BodyRoute() {
     return (
       <>
         {weightCount >= 2 || fatCount >= 2 ? (
-          <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <Card className="border-border/60">
             <CardHeader className="pb-2">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Trend
@@ -93,8 +94,8 @@ function BodyRoute() {
         <ul className="space-y-2">
           {measurements.map((m) => (
             <li key={m.id}>
-              <Link to="/body/$id" params={{ id: m.id }} className="group block">
-                <Card className="border-border/60 py-0 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+              <Link to="/progress/body/$id" params={{ id: m.id }} className="group block">
+                <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
                   <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium tabular-nums">
@@ -121,12 +122,11 @@ function BodyRoute() {
   return (
     <PageShell maxWidth="3xl">
       <PageHeader
-        eyebrow="Tracking"
-        title="Body"
-        description="Log your weight and body fat over time."
+        title="Progress"
+        tabs={<AreaTabs area="progress" />}
         actions={
           <Button asChild size="sm">
-            <Link to="/body/new">
+            <Link to="/progress/body/new">
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">New measurement</span>
               <span className="sm:hidden">New</span>

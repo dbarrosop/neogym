@@ -23,7 +23,7 @@ const BodyMeasurementByIdQuery = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/body/$id")({
+export const Route = createFileRoute("/_authed/progress/body/$id")({
   component: BodyMeasurementDetailRoute,
 });
 
@@ -46,7 +46,7 @@ function BodyMeasurementDetailRoute() {
     }
     const m = data.bodyMeasurement;
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
@@ -58,7 +58,7 @@ function BodyMeasurementDetailRoute() {
               </CardTitle>
             </div>
             <Button asChild size="icon" variant="ghost" aria-label="Edit measurement">
-              <Link to="/body/$id/edit" params={{ id: m.id }}>
+              <Link to="/progress/body/$id/edit" params={{ id: m.id }}>
                 <Pencil className="h-4 w-4" />
               </Link>
             </Button>
