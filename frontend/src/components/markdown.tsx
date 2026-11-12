@@ -44,11 +44,11 @@ export function Markdown({ children, className }: MarkdownProps) {
         "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic",
         "[&_hr]:my-4 [&_hr]:border-border/60",
         "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_code]:text-foreground",
-        "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border/60 [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre]:text-xs",
+        "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre]:text-xs",
         "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-foreground/90",
         "[&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs",
-        "[&_th]:border [&_th]:border-border/60 [&_th]:bg-muted/40 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-medium [&_th]:text-foreground",
-        "[&_td]:border [&_td]:border-border/60 [&_td]:px-2 [&_td]:py-1",
+        "[&_th]:border [&_th]:border-border [&_th]:bg-surface-inset [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-medium [&_th]:text-foreground",
+        "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1",
         className,
       )}
     >

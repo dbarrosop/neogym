@@ -348,9 +348,7 @@ function EditNutritionPlanRoute() {
     return (
       <Card className="border-border/60">
         <CardHeader className="pb-4">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Edit plan
-          </p>
+          <p className="text-[13px] font-semibold text-muted-foreground">Edit plan</p>
           <CardTitle className="text-2xl tracking-tight">{plan.name}</CardTitle>
         </CardHeader>
         <CardContent>

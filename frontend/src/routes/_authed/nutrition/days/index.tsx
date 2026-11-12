@@ -89,7 +89,7 @@ function NutritionDaysIndexRoute() {
     }
     if (days.length === 0) {
       return (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-border border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
             <p>No daily intake logs yet. Open today to start logging foods and meals.</p>
             <Button asChild size="sm">
@@ -105,7 +105,7 @@ function NutritionDaysIndexRoute() {
     return (
       <Card className="border-border/60">
         <CardContent className="px-2 py-2">
-          <ul className="divide-y divide-border/50">
+          <ul className="divide-y divide-border">
             {days.map((day) => (
               <DayRow key={day.id} day={day} />
             ))}
@@ -151,7 +151,7 @@ function DayRow({ day }: { day: NutritionDay }) {
       <Link
         to="/nutrition/days/$date"
         params={{ date: day.logDate }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
+        className="group flex min-h-16 items-center justify-between gap-3 rounded-md px-3 py-3 transition-colors hover:bg-muted/60"
       >
         <span className="flex min-w-0 items-start gap-3">
           <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">

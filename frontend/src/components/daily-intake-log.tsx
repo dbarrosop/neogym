@@ -1,15 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import {
-  Check,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Pencil,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Pencil, Trash2, X } from "lucide-react";
 import { type FocusEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -18,10 +9,10 @@ import {
   type LogPlanFoodSlot,
   type LogPlanSlot,
 } from "@/components/log-intake-dialog";
-import { MacroSummary } from "@/components/macro-summary";
+import { MeterBar } from "@/components/patterns/metrics";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -52,12 +43,13 @@ import {
   DECIMAL_INPUT_PATTERN,
   formatLocalDateLabel,
   formatMacro,
-  formatTimeOfDay,
   groupIntakeByTimeSlot,
   groupPlanEntriesByTimeSlot,
   type IntakeTimeSlot,
+  localDateToDate,
   loggedEntryMacroTotals,
   loggedMacroTotals,
+  type MacroTotals,
   macroTotalsSummary,
   mergePlanEntriesByTime,
   NUTRIENT_FIELDS,
@@ -69,6 +61,7 @@ import {
   timeToInputValue,
 } from "@/lib/nutrition";
 import { logSelectedPlanMaterialization } from "@/lib/nutrition-plan-log";
+import { useLocalToday } from "@/lib/use-local-today";
 import { cn } from "@/lib/utils";
 
 const DailyIntakeLogQuery = graphql(`
@@ -343,27 +336,6 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [confirmDeleteDay, setConfirmDeleteDay] = useState(false);
-  const [selectedPlanExpanded, setSelectedPlanExpanded] = useState(true);
-  const [expandedSlots, setExpandedSlots] = useState<Set<string>>(() => new Set());
-
-  useEffect(() => {
-    if (date) {
-      setExpandedSlots(new Set());
-    }
-  }, [date]);
-
-  const toggleSlot = (slotKey: string) => {
-    setExpandedSlots((current) => {
-      const next = new Set(current);
-      if (next.has(slotKey)) {
-        next.delete(slotKey);
-      } else {
-        next.add(slotKey);
-      }
-      return next;
-    });
-  };
 
   // Keep the date prefix for mutation invalidation, but never reuse another owner's day.
   const queryKey = ["nutrition", "days", date, user?.id];
@@ -466,13 +438,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     return <DailyIntakeLogSkeleton />;
   }
   if (query.error) {
-    return (
-      <Card className="border-destructive/30 bg-destructive/5">
-        <CardContent className="py-4">
-          <p className="text-sm text-destructive">Failed to load day: {query.error.message}</p>
-        </CardContent>
-      </Card>
-    );
+    return <ErrorState title="Couldn't load this day" message={query.error.message} />;
   }
   if (!query.data) {
     return null;
@@ -509,148 +475,323 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     deleteDayMutation.isPending;
   const intakeSlots = groupIntakeByTimeSlot(loggedMeals, standaloneEntries);
 
+  const plannedSlots = selectedPlan
+    ? (groupPlanEntriesByTimeSlot(selectedPlanEntries as DailyPlanEntry[]) as DailyPlanTimeSlot[])
+    : [];
+  const loggedKeys = new Set(intakeSlots.map((slot) => slot.key));
+  const timeline: TimelineItem[] = [
+    ...intakeSlots.map((slot) => ({ kind: "logged" as const, sortKey: slot.sortKey, slot })),
+    ...plannedSlots
+      .filter((slot) => !loggedKeys.has(slot.key))
+      .map((slot) => ({ kind: "planned" as const, sortKey: slot.sortKey, slot })),
+  ].sort((left, right) => left.sortKey.localeCompare(right.sortKey));
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Daily log
+    <div className="flex flex-col gap-4">
+      <DayToolbar date={date}>
+        <LogIntakeDialog
+          ensureDay={ensureDay}
+          date={date}
+          foods={foods}
+          meals={meals}
+          selectedPlan={selectedPlan}
+          nextEntryPosition={nextEntryPosition}
+          nextGroupPosition={nextGroupPosition}
+          disabled={isMutating}
+          triggerLabel="Log food"
+          triggerVariant="default"
+        />
+      </DayToolbar>
+
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section aria-label="Timeline" className="flex min-w-0 flex-col gap-3">
+          {timeline.length === 0 ? (
+            <EmptyState
+              title="Nothing logged yet"
+              description={
+                selectedPlan
+                  ? "This plan has no time slots yet. Use Log food to add what you ate."
+                  : "Use Log food to add what you ate, or pick a plan to see its time slots here."
+              }
+            />
+          ) : null}
+          {timeline.map((item) =>
+            item.kind === "logged" ? (
+              <LoggedSlotCard
+                key={`logged-${item.slot.key}`}
+                slot={item.slot}
+                onUpdateEntry={(entryId, set) => updateEntryMutation.mutate({ id: entryId, set })}
+                onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
+                onDeleteGroup={(groupId) => deleteGroupMutation.mutate(groupId)}
+                disabled={isMutating}
+              />
+            ) : (
+              <PlannedSlotCard
+                key={`planned-${item.slot.key}`}
+                plan={selectedPlan as DailyPlan}
+                slot={item.slot}
+                ensureDay={ensureDay}
+                date={date}
+                existingMealGroups={loggedMeals}
+                existingStandaloneEntries={standaloneEntries}
+                disabled={isMutating}
+              />
+            ),
+          )}
+        </section>
+
+        <aside
+          aria-label="Day summary"
+          className="order-first flex flex-col gap-4 lg:sticky lg:top-6 lg:order-none"
+        >
+          <DaySummaryCard
+            totals={totals}
+            targetTotals={targetTotals}
+            balance={calorieBalance}
+            date={date}
+            nutritionPlans={nutritionPlans}
+            selectedPlanId={day?.nutritionPlanId ?? ""}
+            onPlanChange={(planId) => updatePlanMutation.mutate(planId)}
+            isUpdatingPlan={updatePlanMutation.isPending}
+          />
+          <TodayEnergyEstimate
+            date={date}
+            balance={{ userId: user.id, caloriesIn: totals.kcal, dailyEnergy }}
+          />
+          <p className="px-1 text-[12px] text-muted-foreground">
+            Totals use the values saved when food was logged, so later edits to foods or plans don't
+            change this day.
           </p>
-          <h2 className="text-2xl font-semibold tracking-tight">{formatLocalDateLabel(date)}</h2>
-          <p className="text-sm text-muted-foreground">
-            Totals use logged snapshot nutrition, so later food or template edits do not rewrite
-            this day.
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button asChild size="icon" variant="ghost" aria-label="Previous day">
-            <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, -1) }}>
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button asChild size="icon" variant="ghost" aria-label="Next day">
-            <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, 1) }}>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
+        </aside>
       </div>
 
-      <MacroSummary totals={totals} targetTotals={targetTotals} />
-      <CalorieBalanceCard balance={calorieBalance} date={date} />
-      <TodayEnergyEstimate
-        date={date}
-        balance={{ userId: user.id, caloriesIn: totals.kcal, dailyEnergy }}
-      />
-
-      <Card className="border-border/60">
-        <CardContent className="space-y-4 p-4 sm:p-6">
-          {intakeSlots.length === 0 ? (
-            <p className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-              No food has been logged for this day yet.
-            </p>
-          ) : null}
-
-          {intakeSlots.map((slot) => (
-            <TimeSlotSection
-              key={slot.key}
-              slot={slot}
-              isExpanded={expandedSlots.has(slot.key)}
-              onToggle={() => toggleSlot(slot.key)}
-              onUpdateEntry={(entryId, set) => updateEntryMutation.mutate({ id: entryId, set })}
-              onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
-              onDeleteGroup={(groupId) => deleteGroupMutation.mutate(groupId)}
-              disabled={isMutating}
-            />
-          ))}
-
-          <div className="flex flex-wrap justify-end gap-2">
-            <LogIntakeDialog
-              ensureDay={ensureDay}
-              date={date}
-              foods={foods}
-              meals={meals}
-              selectedPlan={selectedPlan}
-              nextEntryPosition={nextEntryPosition}
-              nextGroupPosition={nextGroupPosition}
-              disabled={isMutating}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <SelectedPlanCard
-        selectedPlan={selectedPlan}
-        selectedPlanId={day?.nutritionPlanId ?? ""}
-        nutritionPlans={nutritionPlans}
-        expanded={selectedPlanExpanded}
-        onToggleExpanded={() => setSelectedPlanExpanded((expanded) => !expanded)}
-        onPlanChange={(planId) => updatePlanMutation.mutate(planId)}
-        isUpdatingPlan={updatePlanMutation.isPending}
-      >
-        {selectedPlan ? (
-          <PlanSuggestions
-            plan={selectedPlan}
-            ensureDay={ensureDay}
-            date={date}
-            existingMealGroups={loggedMeals}
-            existingStandaloneEntries={standaloneEntries}
-            disabled={isMutating}
-          />
-        ) : (
-          <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-            Select a reusable daily plan to compare targets and log planned time slots.
-          </p>
-        )}
-      </SelectedPlanCard>
-
       {day ? (
-        <>
-          <div className="flex justify-end">
+        <ClearDayButton
+          date={date}
+          onConfirm={() => deleteDayMutation.mutate(day.id)}
+          isPending={deleteDayMutation.isPending}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ClearDayButton({
+  date,
+  onConfirm,
+  isPending,
+}: {
+  date: string;
+  onConfirm: () => void;
+  isPending: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <Button
+        type="button"
+        variant="ghost"
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        onClick={() => setOpen(true)}
+        disabled={isPending}
+      >
+        <Trash2 />
+        Clear day log
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="md:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Clear this day?</DialogTitle>
+            <DialogDescription>
+              Everything logged on {formatLocalDateLabel(date)} is deleted, including meal groups.
+              This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
             <Button
               type="button"
               variant="ghost"
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => setConfirmDeleteDay(true)}
-              disabled={deleteDayMutation.isPending}
+              onClick={() => setOpen(false)}
+              disabled={isPending}
             >
-              <Trash2 className="h-4 w-4" />
-              Clear day log
+              Cancel
             </Button>
-          </div>
-
-          <Dialog open={confirmDeleteDay} onOpenChange={setConfirmDeleteDay}>
-            <DialogContent className="md:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Clear this day?</DialogTitle>
-                <DialogDescription>
-                  This deletes the nutrition day row for {formatLocalDateLabel(date)}. Logged meal
-                  groups and entries cascade and cannot be recovered.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setConfirmDeleteDay(false)}
-                  disabled={deleteDayMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => deleteDayMutation.mutate(day.id)}
-                  disabled={deleteDayMutation.isPending}
-                >
-                  {deleteDayMutation.isPending ? "Clearing…" : "Clear day"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
-      ) : null}
+            <Button type="button" variant="destructive" onClick={onConfirm} disabled={isPending}>
+              {isPending ? "Clearing…" : "Clear day"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+type TimelineItem =
+  | { kind: "logged"; sortKey: string; slot: IntakeTimeSlot<DailyEntry> }
+  | { kind: "planned"; sortKey: string; slot: DailyPlanTimeSlot };
+
+function DayToolbar({ date, children }: { date: string; children: ReactNode }) {
+  const today = useLocalToday();
+  const parsed = localDateToDate(date);
+  const label = parsed
+    ? parsed.toLocaleDateString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        ...(parsed.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
+      })
+    : date;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5">
+        <Button asChild size="icon" variant="outline" aria-label="Previous day">
+          <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, -1) }}>
+            <ChevronLeft />
+          </Link>
+        </Button>
+        <h2 className="min-w-[8.5rem] px-1 text-center text-[15px] font-semibold tabular-nums">
+          {date === today ? `Today · ${label}` : label}
+        </h2>
+        <Button asChild size="icon" variant="outline" aria-label="Next day">
+          <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, 1) }}>
+            <ChevronRight />
+          </Link>
+        </Button>
+        {date === today ? null : (
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/nutrition/days/$date" params={{ date: today }}>
+              Go to today
+            </Link>
+          </Button>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+
+function DaySummaryCard({
+  totals,
+  targetTotals,
+  balance,
+  date,
+  nutritionPlans,
+  selectedPlanId,
+  onPlanChange,
+  isUpdatingPlan,
+}: {
+  totals: MacroTotals;
+  targetTotals: MacroTotals | null;
+  balance: DailyEnergyBalance;
+  date: string;
+  nutritionPlans: DailyPlan[];
+  selectedPlanId: string;
+  onPlanChange: (planId: string | null) => void;
+  isUpdatingPlan: boolean;
+}) {
+  const kcalPercent =
+    targetTotals && targetTotals.kcal > 0
+      ? Math.min(100, (totals.kcal / targetTotals.kcal) * 100)
+      : 0;
+  const macro = (value: number, target: number | undefined) =>
+    target === undefined
+      ? `${wholeNumber.format(value)} g`
+      : `${wholeNumber.format(value)} / ${wholeNumber.format(target)} g`;
+  return (
+    <section className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="day-plan" className="text-[13px] font-medium text-muted-foreground">
+          Plan
+        </label>
+        <select
+          id="day-plan"
+          aria-label="Selected nutrition plan"
+          value={selectedPlanId}
+          onChange={(event) => onPlanChange(event.target.value || null)}
+          disabled={isUpdatingPlan}
+          className="h-9 min-w-0 max-w-[70%] rounded-lg border bg-card px-2.5 text-sm font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
+        >
+          <option value="">No plan</option>
+          {nutritionPlans.map((plan) => (
+            <option key={plan.id} value={plan.id}>
+              {plan.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="flex flex-col gap-2">
+        <p className="tabular-nums">
+          <strong className="text-[28px] font-semibold">{wholeNumber.format(totals.kcal)}</strong>
+          <span className="text-sm text-muted-foreground">
+            {targetTotals ? ` / ${wholeNumber.format(targetTotals.kcal)} kcal` : " kcal"}
+          </span>
+        </p>
+        {targetTotals ? (
+          <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${kcalPercent}%` }} />
+          </div>
+        ) : null}
+      </div>
+      <div className="flex flex-col gap-2.5">
+        <MeterBar
+          label="Protein"
+          value={totals.protein}
+          max={targetTotals?.protein ?? null}
+          valueLabel={macro(totals.protein, targetTotals?.protein)}
+        />
+        <MeterBar
+          label="Carbs"
+          value={totals.carbs}
+          max={targetTotals?.carbs ?? null}
+          tone="orange"
+          valueLabel={macro(totals.carbs, targetTotals?.carbs)}
+        />
+        <MeterBar
+          label="Fat"
+          value={totals.fat}
+          max={targetTotals?.fat ?? null}
+          tone="neutral"
+          valueLabel={macro(totals.fat, targetTotals?.fat)}
+        />
+        <p className="text-[13px] text-muted-foreground tabular-nums">
+          Fiber {macro(totals.fiber, targetTotals?.fiber)} · Sugar{" "}
+          {macro(totals.sugar, targetTotals?.sugar)}
+        </p>
+      </div>
+      <dl className="grid grid-cols-2 gap-3 border-t pt-3.5 tabular-nums">
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[13px] text-muted-foreground">Energy out</dt>
+          <dd className="font-semibold">
+            {balance.caloriesOut === null ? (
+              <span className="text-sm font-normal text-muted-foreground">No energy logged</span>
+            ) : (
+              `${wholeNumber.format(balance.caloriesOut)} kcal`
+            )}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className="text-[13px] text-muted-foreground">Balance</dt>
+          <dd className="font-semibold">
+            {balance.net === null
+              ? "—"
+              : `${balance.net > 0 ? "+" : ""}${wholeNumber.format(balance.net)} kcal`}
+          </dd>
+        </div>
+        {balance.caloriesOut === null ? (
+          <dd className="col-span-2 -mt-1">
+            <Link
+              to="/progress/energy/new"
+              search={{ date }}
+              className="text-[13px] font-medium text-link hover:underline"
+            >
+              Add energy for this day
+            </Link>
+          </dd>
+        ) : null}
+      </dl>
+    </section>
   );
 }
 
@@ -661,71 +802,6 @@ async function openDay(date: string): Promise<DailyIntakeLogData> {
     day: data.nutritionDays[0] ?? null,
     dailyEnergy: data.dailyEnergyEntries[0] ?? null,
   };
-}
-
-function CalorieBalanceCard({ balance, date }: { balance: DailyEnergyBalance; date: string }) {
-  let netLabel = "Balance";
-  if (balance.state === "deficit") {
-    netLabel = "Deficit";
-  } else if (balance.state === "surplus") {
-    netLabel = "Surplus";
-  }
-
-  return (
-    <Card className="border-border/60 bg-muted/20">
-      <CardContent className="space-y-3 p-4 sm:p-6">
-        <div className="space-y-1">
-          <h2 className="text-sm font-medium">Calories in / out</h2>
-          <p className="text-xs text-muted-foreground">
-            Intake uses logged nutrition snapshots. Output uses the matching daily energy row.
-          </p>
-        </div>
-        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <BalanceTile label="In" value={formatBalanceKcal(balance.caloriesIn)} />
-          {balance.caloriesOut === null ? (
-            <BalanceTile label="Out" value="No energy logged" muted />
-          ) : (
-            <BalanceTile label="Out" value={formatBalanceKcal(balance.caloriesOut)} />
-          )}
-          {balance.net === null ? (
-            <div className="rounded-md border border-border/60 border-dashed bg-background/70 px-3 py-2 sm:col-span-1">
-              <p className="text-xs text-muted-foreground">Net</p>
-              <Button asChild size="sm" variant="link" className="h-auto p-0 text-xs">
-                <Link to="/progress/energy/new" search={{ date }}>
-                  Add energy for this date
-                </Link>
-              </Button>
-            </div>
-          ) : (
-            <BalanceTile label={netLabel} value={formatBalanceKcal(Math.abs(balance.net))} />
-          )}
-        </dl>
-      </CardContent>
-    </Card>
-  );
-}
-
-function BalanceTile({
-  label,
-  value,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-}) {
-  return (
-    <div className="rounded-md border border-border/60 bg-background/70 px-3 py-2">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className={muted ? "text-sm text-muted-foreground" : "font-medium tabular-nums"}>
-        {value}
-      </dd>
-    </div>
-  );
-}
-
-function formatBalanceKcal(value: number): string {
-  return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} kcal`;
 }
 
 async function createDay(date: string): Promise<string> {
@@ -760,204 +836,105 @@ function isUniqueConflictError(error: unknown): boolean {
   );
 }
 
-function TimeSlotSection({
+function SlotHeader({
+  label,
+  status,
+  totals,
+  action,
+}: {
+  label: string;
+  status: "Logged" | "Planned";
+  totals: MacroTotals;
+  action?: ReactNode;
+}) {
+  return (
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 pt-3.5 pb-2.5">
+      <strong className="text-[15px] font-semibold tabular-nums">{label}</strong>
+      <span
+        className={cn(
+          "rounded-full px-2 py-px text-[12px] font-semibold",
+          status === "Logged" ? "bg-positive-soft text-positive" : "bg-muted text-muted-foreground",
+        )}
+      >
+        {status}
+      </span>
+      <span className="ml-auto text-[13px] text-muted-foreground tabular-nums">
+        {wholeNumber.format(totals.kcal)} kcal · P {wholeNumber.format(totals.protein)}
+      </span>
+      {action}
+    </header>
+  );
+}
+
+function LoggedSlotCard({
   slot,
-  isExpanded,
-  onToggle,
   onUpdateEntry,
   onDeleteEntry,
   onDeleteGroup,
   disabled,
 }: {
   slot: IntakeTimeSlot<DailyEntry>;
-  isExpanded: boolean;
-  onToggle: () => void;
   onUpdateEntry: (entryId: string, set: EntryUpdateSet) => void;
   onDeleteEntry: (entryId: string) => void;
   onDeleteGroup: (groupId: string) => void;
   disabled: boolean;
 }) {
-  const slotPanelId = `intake-slot-${slot.key.replaceAll(":", "-")}`;
   return (
-    <section className="overflow-hidden rounded-md border border-border/60">
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        aria-expanded={isExpanded}
-        aria-controls={slotPanelId}
-        onClick={onToggle}
-      >
-        <span className="min-w-0 space-y-1">
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            {slot.label}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {macroTotalsSummary(slot.totals)}
-          </span>
-          <span className="block text-xs text-muted-foreground">
-            {formatSlotCounts(slot.entries.length, slot.mealGroups.length)}
-          </span>
-        </span>
-        <ChevronDown
-          className={`mt-0.5 h-4 w-4 shrink-0 text-muted-foreground transition-transform ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-          aria-hidden="true"
-        />
-      </button>
-
-      {isExpanded ? (
-        <div id={slotPanelId} className="space-y-3 border-t border-border/60 p-3">
-          {slot.mealGroups.length > 0 ? (
-            <div className="rounded-md bg-muted/40 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Logged meal groups
-              </p>
-              <ul className="mt-2 space-y-2">
-                {slot.mealGroups.map((group) => (
-                  <li key={group.id} className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{group.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatEntryCount(group.entryCount)}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => onDeleteGroup(group.id)}
-                      disabled={disabled}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete group
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {slot.entries.length === 0 ? (
-            <p className="rounded-md border border-border/60 border-dashed px-3 py-4 text-sm text-muted-foreground">
-              This time slot has no food entries.
-            </p>
-          ) : (
-            <div className="overflow-hidden rounded-md border border-border/60">
-              <ul className="divide-y divide-border/50">
-                {slot.entries.map((slotEntry) => (
-                  <EntryRow
-                    key={slotEntry.entry.id}
-                    entry={slotEntry.entry}
-                    onUpdate={(set) => onUpdateEntry(slotEntry.entry.id, set)}
-                    onDelete={() => onDeleteEntry(slotEntry.entry.id)}
-                    disabled={disabled}
-                    showTime={false}
-                    provenance={slotEntry.mealName ? `From ${slotEntry.mealName}` : undefined}
-                  />
-                ))}
-              </ul>
-            </div>
-          )}
+    <section aria-label={`${slot.label}, logged`} className="rounded-xl border bg-card">
+      <SlotHeader label={slot.label} status="Logged" totals={slot.totals} />
+      {slot.mealGroups.length > 0 ? (
+        <div className="flex flex-wrap gap-2 px-4 pb-2.5">
+          {slot.mealGroups.map((group) => (
+            <span
+              key={group.id}
+              className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-inset pr-1 pl-3 text-[13px]"
+            >
+              <span className="font-medium">{group.name}</span>
+              <span className="text-muted-foreground">· {formatEntryCount(group.entryCount)}</span>
+              <button
+                type="button"
+                onClick={() => onDeleteGroup(group.id)}
+                disabled={disabled}
+                className="grid size-6 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                aria-label={`Delete ${group.name} and its entries`}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </span>
+          ))}
         </div>
       ) : null}
+      {slot.entries.length === 0 ? (
+        <p className="border-t px-4 py-3 text-sm text-muted-foreground">No entries.</p>
+      ) : (
+        <ul>
+          {slot.entries.map((slotEntry) => (
+            <EntryRow
+              key={slotEntry.entry.id}
+              entry={slotEntry.entry}
+              onUpdate={(set) => onUpdateEntry(slotEntry.entry.id, set)}
+              onDelete={() => onDeleteEntry(slotEntry.entry.id)}
+              disabled={disabled}
+              provenance={slotEntry.mealName ? `From ${slotEntry.mealName}` : undefined}
+            />
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
 
-function formatSlotCounts(entryCount: number, groupCount: number): string {
-  return [formatEntryCount(entryCount), formatGroupCount(groupCount)].join(" · ");
-}
-
 function formatEntryCount(count: number): string {
-  return `${count.toLocaleString()} ${count === 1 ? "entry" : "entries"}`;
-}
-
-function formatGroupCount(count: number): string {
-  return `${count.toLocaleString()} ${count === 1 ? "meal group" : "meal groups"}`;
-}
-
-function SelectedPlanCard({
-  selectedPlan,
-  selectedPlanId,
-  nutritionPlans,
-  expanded,
-  onToggleExpanded,
-  onPlanChange,
-  isUpdatingPlan,
-  children,
-}: {
-  selectedPlan: DailyPlan | null;
-  selectedPlanId: string;
-  nutritionPlans: DailyPlan[];
-  expanded: boolean;
-  onToggleExpanded: () => void;
-  onPlanChange: (planId: string | null) => void;
-  isUpdatingPlan: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Card className="border-border/60">
-      <CardHeader className="pb-3">
-        <button
-          type="button"
-          onClick={onToggleExpanded}
-          className="flex w-full items-start justify-between gap-3 text-left"
-        >
-          <div className="space-y-1">
-            <CardTitle className="text-lg tracking-tight">Selected plan</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {selectedPlan?.name ?? "Choose a plan to show its time slots."}
-            </p>
-          </div>
-          <ChevronDown
-            className={cn(
-              "mt-1 h-4 w-4 text-muted-foreground transition-transform",
-              expanded && "rotate-180",
-            )}
-          />
-        </button>
-      </CardHeader>
-      {expanded ? (
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select
-              value={selectedPlanId}
-              onChange={(event) => onPlanChange(event.target.value || null)}
-              disabled={isUpdatingPlan}
-              className="h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Selected nutrition plan"
-            >
-              <option value="">No plan selected</option>
-              {nutritionPlans.map((plan) => (
-                <option key={plan.id} value={plan.id}>
-                  {plan.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onPlanChange(null)}
-              disabled={!selectedPlanId || isUpdatingPlan}
-            >
-              Clear plan
-            </Button>
-          </div>
-          {children}
-        </CardContent>
-      ) : null}
-    </Card>
-  );
+  return `${count.toLocaleString()} ${count === 1 ? "item" : "items"}`;
 }
 
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
 type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
-function PlanSuggestions({
+/** A plan time slot that hasn't been logged yet; one click logs all of it. */
+function PlannedSlotCard({
   plan,
+  slot,
   ensureDay,
   date,
   existingMealGroups,
@@ -965,6 +942,7 @@ function PlanSuggestions({
   disabled,
 }: {
   plan: DailyPlan;
+  slot: DailyPlanTimeSlot;
   ensureDay: () => Promise<string>;
   date: string;
   existingMealGroups: DailyLogMeal[];
@@ -972,14 +950,8 @@ function PlanSuggestions({
   disabled: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [expandedSlotKeys, setExpandedSlotKeys] = useState<Set<string>>(() => new Set());
-  const entries = mergePlanEntriesByTime(
-    plan.nutritionPlanMeals,
-    plan.nutritionPlanFoods,
-  ) as DailyPlanEntry[];
-  const slots = groupPlanEntriesByTimeSlot(entries) as DailyPlanTimeSlot[];
   const slotMutation = useMutation({
-    mutationFn: async (slot: DailyPlanTimeSlot) => {
+    mutationFn: async () => {
       const dayId = await ensureDay();
       const nutritionPlanMeals: LogPlanSlot[] = [];
       const nutritionPlanFoods: LogPlanFoodSlot[] = [];
@@ -1011,130 +983,66 @@ function PlanSuggestions({
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
-      toast.success(
-        `Plan time slot logged (${result.mealRows + result.entryRows} top-level entries).`,
-      );
+      queryClient.invalidateQueries({ queryKey: ["today"] });
+      toast.success(`Logged ${slot.label} (${result.mealRows + result.entryRows} items)`);
     },
     onError: (error) => {
-      toast.error(`Failed to log plan time slot: ${error.message}`);
+      toast.error(`Failed to log ${slot.label}: ${error.message}`);
     },
   });
 
-  function toggleSlot(slotKey: string) {
-    setExpandedSlotKeys((current) => {
-      const next = new Set(current);
-      if (next.has(slotKey)) {
-        next.delete(slotKey);
-      } else {
-        next.add(slotKey);
-      }
-      return next;
-    });
-  }
-
-  if (entries.length === 0) {
-    return (
-      <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
-        This selected plan does not have meal or food entries yet.
-      </p>
-    );
-  }
-
   return (
-    <div className="space-y-3">
-      {slots.map((slot) => (
-        <PlanSuggestionSlotSection
-          key={slot.key}
-          slot={slot}
-          expanded={expandedSlotKeys.has(slot.key)}
-          disabled={disabled || slotMutation.isPending}
-          onToggle={() => toggleSlot(slot.key)}
-          onLog={() => slotMutation.mutate(slot)}
-        />
-      ))}
-    </div>
-  );
-}
-
-function PlanSuggestionSlotSection({
-  slot,
-  expanded,
-  disabled,
-  onToggle,
-  onLog,
-}: {
-  slot: DailyPlanTimeSlot;
-  expanded: boolean;
-  disabled: boolean;
-  onToggle: () => void;
-  onLog: () => void;
-}) {
-  return (
-    <section className="overflow-hidden rounded-md border border-border/60">
-      <div className="flex items-start justify-between gap-3 bg-muted/30 px-3 py-3">
-        <button type="button" onClick={onToggle} className="min-w-0 flex-1 text-left">
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            {slot.label}
-          </span>
-          <span className="mt-1 block text-xs text-muted-foreground">
-            {macroTotalsSummary(slot.totals)}
-          </span>
-          <span className="mt-1 block text-xs text-muted-foreground">
-            {slot.entries.length} entr{slot.entries.length === 1 ? "y" : "ies"}
-          </span>
-        </button>
-        <div className="flex shrink-0 items-center gap-2">
+    <section
+      aria-label={`${slot.label}, planned`}
+      className="rounded-xl border-[1.5px] border-border border-dashed"
+    >
+      <SlotHeader
+        label={slot.label}
+        status="Planned"
+        totals={slot.totals}
+        action={
           <Button
             type="button"
             size="sm"
-            onClick={onLog}
-            disabled={disabled || slot.entries.length === 0}
+            onClick={() => slotMutation.mutate()}
+            disabled={disabled || slotMutation.isPending || slot.entries.length === 0}
           >
-            Log
+            {slotMutation.isPending ? "Logging…" : "Log slot"}
           </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            onClick={onToggle}
-            aria-label="Toggle time slot"
-          >
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 text-muted-foreground transition-transform",
-                expanded && "rotate-180",
-              )}
-            />
-          </Button>
-        </div>
-      </div>
-
-      {expanded ? (
-        <ul className="divide-y divide-border/50">
-          {slot.entries.map((entry) => (
-            <PlanSuggestionEntryRow key={sourceKeyForDailyPlanEntry(entry)} entry={entry} />
-          ))}
-        </ul>
-      ) : null}
+        }
+      />
+      <ul>
+        {slot.entries.map((entry) => (
+          <PlannedEntryRow key={sourceKeyForDailyPlanEntry(entry)} entry={entry} />
+        ))}
+      </ul>
     </section>
   );
 }
 
-function PlanSuggestionEntryRow({ entry }: { entry: DailyPlanEntry }) {
+function PlannedEntryRow({ entry }: { entry: DailyPlanEntry }) {
   const totals = planEntryMacroTotals(entry);
   const title = entry.kind === "meal" ? entry.label || entry.meal.name : entry.food.name;
   const detail = entry.kind === "food" ? formatMacro(entry.grams, "g") : mealEntryDetail(entry);
 
   return (
-    <li className="px-3 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="truncate text-sm font-medium">{title}</p>
-          {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
-          <p className="text-xs text-muted-foreground">{macroTotalsSummary(totals)}</p>
-        </div>
-      </div>
+    <li className="flex items-center gap-x-3 border-t border-dashed px-4 py-2 text-sm text-muted-foreground">
+      <span className="min-w-0 flex-1 truncate">
+        {entry.kind === "meal" ? (
+          <span className="mr-1.5 rounded bg-accent-soft px-1.5 py-px text-[11px] font-semibold text-accent-soft-foreground">
+            MEAL
+          </span>
+        ) : null}
+        {title}
+      </span>
+      {detail ? <span className="shrink-0 px-3 tabular-nums">{detail}</span> : null}
+      <span className="hidden w-12 shrink-0 text-right text-[13px] tabular-nums sm:inline">
+        P {wholeNumber.format(totals.protein)}
+      </span>
+      <span className="w-16 shrink-0 text-right tabular-nums">
+        {wholeNumber.format(totals.kcal)} kcal
+      </span>
+      <span aria-hidden="true" className="w-8 shrink-0" />
     </li>
   );
 }
@@ -1155,14 +1063,12 @@ function EntryRow({
   onUpdate,
   onDelete,
   disabled,
-  showTime = true,
   provenance,
 }: {
   entry: DailyEntry;
   onUpdate: (set: EntryUpdateSet) => void;
   onDelete: () => void;
   disabled: boolean;
-  showTime?: boolean;
   provenance?: string | undefined;
 }) {
   const [isEditingGrams, setIsEditingGrams] = useState(false);
@@ -1284,36 +1190,34 @@ function EntryRow({
   }
 
   return (
-    <li className="space-y-3 px-3 py-3 sm:flex sm:items-center sm:justify-between sm:gap-3 sm:space-y-0">
-      <div className="min-w-0 space-y-1">
-        <p className="truncate text-sm font-medium">{entry.snapshotFoodName}</p>
-        <p className="text-xs text-muted-foreground">
-          {showTime && entry.slotTime ? `${formatTimeOfDay(entry.slotTime)} · ` : ""}
-          {macroTotalsSummary(totals)}
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-4 py-1.5">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm" title={`Per 100 g: ${snapshotMacroSummary(entry)}`}>
+          {entry.snapshotFoodName}
         </p>
-        {isAdHoc ? (
-          <p className="text-xs text-muted-foreground">Custom one-off entry</p>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Snapshot per 100 g: {snapshotMacroSummary(entry)}
-          </p>
-        )}
-        {provenance ? <p className="text-xs text-muted-foreground">{provenance}</p> : null}
+        {provenance || isAdHoc ? (
+          <p className="text-[12px] text-muted-foreground">{provenance ?? "Quick entry"}</p>
+        ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {editControl}
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive"
-          onClick={onDelete}
-          disabled={disabled}
-        >
-          <Trash2 className="h-4 w-4" />
-          <span className="sr-only">Delete {entry.snapshotFoodName}</span>
-        </Button>
-      </div>
+      <div className="flex items-center gap-1">{editControl}</div>
+      <span className="hidden w-12 text-right text-[13px] text-muted-foreground tabular-nums sm:inline">
+        P {wholeNumber.format(totals.protein)}
+      </span>
+      <span className="w-16 text-right text-sm tabular-nums">
+        {wholeNumber.format(totals.kcal)}
+        <span className="text-muted-foreground"> kcal</span>
+      </span>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        onClick={onDelete}
+        disabled={disabled}
+        aria-label={`Delete ${entry.snapshotFoodName}`}
+      >
+        <Trash2 />
+      </Button>
     </li>
   );
 }
@@ -1486,16 +1390,15 @@ function snapshotMacroSummary(entry: DailyEntry): string {
 
 function DailyIntakeLogSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-3">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-7 w-56" />
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Skeleton className="h-32 w-full" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-52 w-full" />
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Skeleton className="h-9 w-64" />
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-40 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+        <Skeleton className="h-80 w-full rounded-xl" />
+      </div>
+    </div>
   );
 }

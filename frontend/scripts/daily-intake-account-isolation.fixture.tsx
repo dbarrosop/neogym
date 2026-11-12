@@ -330,9 +330,7 @@ async function foodEditsAndEnsureDay() {
   const intakeRequestCount = requests.filter(
     (request) => request.operation === "DailyIntakeLog",
   ).length;
-  await settle(() =>
-    findElement<HTMLButtonElement>('#intake button[aria-expanded="false"]').click(),
-  );
+  // Logged time slots are always expanded, so the entry's grams button is visible directly.
   await settle(() =>
     findElement<HTMLButtonElement>('#intake button[title="Click to edit grams"]').click(),
   );

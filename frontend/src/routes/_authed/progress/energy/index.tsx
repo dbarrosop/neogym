@@ -99,9 +99,7 @@ function DailyEnergyRoute() {
         {activeCount >= 2 || restingCount >= 2 ? (
           <Card className="border-border/60">
             <CardHeader className="pb-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Trend
-              </p>
+              <p className="text-[13px] font-semibold text-muted-foreground">Trend</p>
               <CardTitle className="text-base font-medium">Energy over time</CardTitle>
             </CardHeader>
             <CardContent>
@@ -114,7 +112,7 @@ function DailyEnergyRoute() {
           {entries.map((entry) => (
             <li key={entry.id}>
               <Link to="/progress/energy/$id" params={{ id: entry.id }} className="group block">
-                <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                <Card className="border-border py-0 transition-colors group-hover:border-foreground/20">
                   <CardContent className="flex items-center justify-between gap-3 px-4 py-3">
                     <div className="min-w-0 space-y-0.5">
                       <p className="text-sm font-medium tabular-nums">
@@ -181,7 +179,7 @@ function EnergySkeleton() {
       <ul className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
           <li key={i}>
-            <Card className="border-border/60 py-0">
+            <Card className="border-border py-0">
               <CardContent className="space-y-2 px-4 py-3">
                 <Skeleton className="h-5 w-32" />
                 <Skeleton className="h-4 w-48" />

@@ -180,7 +180,7 @@ export function WorkoutForm({
         </div>
 
         {exercises.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border bg-surface-inset px-4 py-6 text-center text-sm text-muted-foreground">
             No exercises yet. Add one to get started.
           </div>
         ) : (
@@ -242,7 +242,7 @@ export function WorkoutForm({
             {isSubmitting ? "Saving…" : submitLabel}
           </Button>
         </div>
-        {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
+        {extraActions ? <div className="border-t border-border pt-3">{extraActions}</div> : null}
       </div>
     </form>
   );
@@ -269,14 +269,14 @@ function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowP
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-border/60 bg-card/80 px-2 py-2 backdrop-blur",
+        "flex items-center gap-2 rounded-md border border-border bg-card/80 px-2 py-2",
         isDragging && "z-10 shadow-lg ring-2 ring-primary/40",
       )}
     >
       <button
         type="button"
         aria-label="Drag to reorder"
-        className="grid h-9 w-7 shrink-0 cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-accent/50 hover:text-foreground active:cursor-grabbing"
+        className="grid h-9 w-7 shrink-0 cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-muted/60 hover:text-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >

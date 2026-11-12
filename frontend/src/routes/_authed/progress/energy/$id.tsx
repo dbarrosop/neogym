@@ -52,9 +52,7 @@ function DailyEnergyDetailRoute() {
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Energy day
-              </p>
+              <p className="text-[13px] font-semibold text-muted-foreground">Energy day</p>
               <CardTitle className="text-2xl tabular-nums tracking-tight">
                 {formatDateLong(entry.energyOn)}
               </CardTitle>
@@ -74,9 +72,7 @@ function DailyEnergyDetailRoute() {
           <TodayEnergyEstimate date={entry.energyOn} />
           {entry.notes ? (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Notes
-              </p>
+              <p className="text-[13px] font-semibold text-muted-foreground">Notes</p>
               <p className="whitespace-pre-wrap text-sm">{entry.notes}</p>
             </div>
           ) : null}
@@ -90,7 +86,7 @@ function DailyEnergyDetailRoute() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="space-y-0.5 rounded-md border border-border/40 bg-muted/30 p-3">
+    <div className="space-y-0.5 rounded-md border border-border bg-surface-inset p-3">
       <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/80">{label}</dt>
       <dd className="text-xl font-medium tabular-nums">{value}</dd>
     </div>

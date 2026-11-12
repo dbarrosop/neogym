@@ -141,15 +141,15 @@ function NutritionPlanDetailRoute() {
               </p>
             </div>
             {entries.length === 0 ? (
-              <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-md border border-border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
                 This plan does not have meal or food entries yet.
               </p>
             ) : (
               <div className="space-y-4">
                 {slotGroups.map((slot) => (
-                  <Card key={slot.key} className="border-border/60 bg-muted/10 shadow-none">
+                  <Card key={slot.key} className="border-border bg-muted/10 shadow-none">
                     <CardContent className="space-y-3 p-3">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-border/60 border-b pb-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-border border-b pb-3">
                         <div className="space-y-1">
                           <h3 className="text-sm font-semibold tabular-nums">{slot.label}</h3>
                           <p className="text-xs text-muted-foreground">
@@ -161,7 +161,7 @@ function NutritionPlanDetailRoute() {
                           {macroTotalsSummary(slot.totals)}
                         </p>
                       </div>
-                      <ul className="divide-y divide-border/50 overflow-hidden rounded-md border border-border/60 bg-background/60">
+                      <ul className="divide-y divide-border overflow-hidden rounded-md border border-border bg-background/60">
                         {slot.entries.map((entry) => (
                           <PlanEntryRow key={`${entry.kind}:${entry.id}`} entry={entry} />
                         ))}
@@ -193,7 +193,7 @@ function PlanEntryRow({ entry }: { entry: PlanEntry }) {
     <li className="px-3 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+          <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
             {formatTimeOfDay(entry.slotTime)}
           </p>
           <p className="truncate text-sm font-medium">{title}</p>

@@ -123,7 +123,7 @@ function MetricsTooltip({ active, payload }: Partial<TooltipContentProps<number,
   }
   const date = new Date(point.date);
   return (
-    <div className="space-y-0.5 rounded-md border border-border/60 bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="space-y-0.5 rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {date.toLocaleDateString(undefined, {
           weekday: "short",

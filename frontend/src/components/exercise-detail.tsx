@@ -470,7 +470,7 @@ interface ExerciseProgressProps {
 function ExerciseProgress({ points, doubleWeight }: ExerciseProgressProps) {
   if (points.length === 0) {
     return (
-      <Card className="border-border/60 border-dashed">
+      <Card className="border-border border-dashed">
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
           Log a session to start tracking progress.
         </CardContent>
@@ -561,9 +561,7 @@ function ProgressCard({
     <Card className="gap-3 border-0 bg-surface-inset py-4 shadow-none">
       <CardHeader className="space-y-1 pb-2">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {title}
-          </p>
+          <p className="text-[13px] font-semibold text-muted-foreground">{title}</p>
           {deltaPct === null ? null : (
             <span className={cn("text-xs tabular-nums", deltaTone)}>
               {deltaPct > 0 ? "+" : ""}
@@ -674,7 +672,7 @@ function TrendTooltip({ active, payload, metric, metricLabel, format }: TrendToo
   const value = point[metric];
   const date = new Date(point.date);
   return (
-    <div className="rounded-md border border-border/60 bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {date.toLocaleDateString(undefined, {
           weekday: "short",
@@ -749,7 +747,7 @@ function buildCardioProgressPoints(
 
 function CardioSchemaMissingNotice() {
   return (
-    <Card className="border-border/60 border-dashed">
+    <Card className="border-border border-dashed">
       <CardContent className="text-muted-foreground py-6 text-center text-sm">
         This cardio exercise is missing its metrics schema, so there's nothing to show here. An
         admin needs to configure it before sessions can record entries.
@@ -761,7 +759,7 @@ function CardioSchemaMissingNotice() {
 function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: CardioMetricSpec }) {
   if (points.length === 0) {
     return (
-      <Card className="border-border/60 border-dashed">
+      <Card className="border-border border-dashed">
         <CardContent className="text-muted-foreground py-6 text-center text-sm">
           Log a session to start tracking progress.
         </CardContent>
@@ -788,7 +786,7 @@ function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: C
       <p className="text-muted-foreground text-right text-xs">
         {points.length} session{points.length === 1 ? "" : "s"}
       </p>
-      <Card className="border-border/60 supports-[backdrop-filter]:bg-card/80 backdrop-blur">
+      <Card className="border-border/60">
         <CardHeader className="space-y-1 pb-2">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
@@ -894,7 +892,7 @@ function CardioTrendTooltip({
     return null;
   }
   return (
-    <div className="border-border/60 bg-popover/95 rounded-md border px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="border-border bg-popover/95 rounded-md border px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {new Date(point.date).toLocaleDateString(undefined, {
           weekday: "short",
@@ -925,7 +923,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
         {entries.length} session{entries.length === 1 ? "" : "s"}
       </p>
       {entries.length === 0 ? (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-border border-dashed">
           <CardContent className="text-muted-foreground py-6 text-center text-sm">
             You haven't logged this exercise yet.
           </CardContent>
@@ -942,7 +940,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
                   params={{ sessionId: entry.workoutSession.id }}
                   className="group block"
                 >
-                  <Card className="border-border/60 group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80 transition-colors">
+                  <Card className="border-border group-hover:border-foreground/20 transition-colors">
                     <CardContent className="space-y-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 space-y-0.5">
@@ -968,7 +966,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
                           {cardioEntries.map((e) => (
                             <span
                               key={e.id}
-                              className="border-border/50 bg-muted/40 inline-flex items-baseline gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums"
+                              className="border-border bg-surface-inset inline-flex items-baseline gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums"
                             >
                               <span className="text-muted-foreground">{e.entryNumber}.</span>
                               {specs.map((spec) => {

@@ -156,11 +156,11 @@ function JournalRoute() {
             return (
               <li key={e.id}>
                 <Link to="/journal/$id" params={{ id: e.id }} className="group block">
-                  <Card className="border-border/60 py-0 transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
+                  <Card className="border-border py-0 transition-colors group-hover:border-foreground/20">
                     <CardContent className="flex items-start justify-between gap-3 px-4 py-3">
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-baseline gap-2">
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+                          <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
                             {formatDateLong(e.entryDate)}
                           </p>
                           {e.title ? (
@@ -230,9 +230,7 @@ function JournalRoute() {
 
       {allLabels.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Filter
-          </span>
+          <span className="text-[13px] font-semibold text-muted-foreground">Filter</span>
           {allLabels.map((label) => (
             <FilterPill
               key={label.id}
@@ -276,8 +274,8 @@ function FilterPill({
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
         active
-          ? "border-primary/40 bg-primary/15 text-primary"
-          : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+          ? "border-transparent bg-accent-soft text-accent-soft-foreground"
+          : "border-border bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
       )}
     >
       {children}
@@ -291,7 +289,7 @@ function JournalSkeleton() {
       <ul className="space-y-2">
         {[0, 1, 2, 3].map((i) => (
           <li key={i}>
-            <Card className="border-border/60 py-0">
+            <Card className="border-border py-0">
               <CardContent className="space-y-2 px-4 py-3">
                 <Skeleton className="h-3 w-32" />
                 <Skeleton className="h-4 w-64" />

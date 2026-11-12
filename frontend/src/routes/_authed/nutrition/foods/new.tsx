@@ -63,9 +63,7 @@ function NewFoodRoute() {
   return (
     <Card className="border-border/60">
       <CardHeader className="pb-4">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Food catalog
-        </p>
+        <p className="text-[13px] font-semibold text-muted-foreground">Food catalog</p>
         <CardTitle className="text-2xl tracking-tight">New food</CardTitle>
       </CardHeader>
       <CardContent>

@@ -106,12 +106,12 @@ function MealDetailRoute() {
               </p>
             </div>
             {meal.mealIngredients.length === 0 ? (
-              <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-md border border-border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
                 This meal does not have ingredients yet.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-md border border-border/60">
-                <ul className="divide-y divide-border/50">
+              <div className="overflow-hidden rounded-md border border-border">
+                <ul className="divide-y divide-border">
                   {meal.mealIngredients.map((ingredient) => {
                     const ingredientTotals = macrosForGrams(ingredient.food, ingredient.grams);
                     return (

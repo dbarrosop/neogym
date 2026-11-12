@@ -23,13 +23,13 @@ export function CardioEntriesList({ entries, schema, onSelect }: CardioEntriesLi
   }
   const specs = iterateMetrics(schema);
   return (
-    <ul className="divide-border/40 divide-y">
+    <ul className="divide-border divide-y">
       {entries.map((entry) => (
         <li key={entry.id}>
           <button
             type="button"
             onClick={() => onSelect(entry)}
-            className="hover:bg-accent/50 flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors"
+            className="hover:bg-muted/60 flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors"
           >
             <span className="bg-muted text-muted-foreground grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-medium tabular-nums">
               {entry.entryNumber}

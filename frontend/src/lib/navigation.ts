@@ -95,6 +95,24 @@ export function isSectionActive(section: AreaSection, pathname: string): boolean
   return section.match.some((prefix) => matchesPrefix(pathname, prefix));
 }
 
+const TRAILING_SLASH = /\/$/;
+const DAY_LOG_PATH = /^\/nutrition\/days\/[^/]+$/;
+
+/**
+ * True on a page reached straight from an area tab (e.g. /nutrition/foods or
+ * a day log). The header tabs already say where you are, so the breadcrumb
+ * trail is redundant there.
+ */
+export function isSectionLanding(pathname: string): boolean {
+  const path = pathname.replace(TRAILING_SLASH, "") || "/";
+  if (DAY_LOG_PATH.test(path)) {
+    return true;
+  }
+  return AREAS.some(
+    (area) => area.to === path || area.sections.some((section) => section.to === path),
+  );
+}
+
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     /** List + detail layout: from 1100 px the list stays visible beside the detail. */

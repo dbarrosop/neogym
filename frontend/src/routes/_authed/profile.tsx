@@ -78,7 +78,7 @@ function ProfileRoute() {
         <PageHeader title="Me" tabs={<AreaTabs area="me" />} />
         <Card>
           <CardHeader className="flex flex-row items-center gap-4 pb-2">
-            <Avatar className="h-16 w-16 border border-border/60">
+            <Avatar className="h-16 w-16 border border-border">
               <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? user.email} />
               <AvatarFallback>{initials}</AvatarFallback>
             </Avatar>
@@ -198,7 +198,7 @@ function ChangeEmailDialog({ currentEmail }: { currentEmail: string | undefined 
           </DialogDescription>
         </DialogHeader>
         {pendingEmail ? (
-          <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+          <div className="rounded-md border border-border bg-surface-inset px-3 py-2 text-sm">
             Verification link sent to{" "}
             <span className="font-medium text-foreground">{pendingEmail}</span>.
           </div>

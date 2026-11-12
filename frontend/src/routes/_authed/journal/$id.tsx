@@ -57,7 +57,7 @@ function JournalEntryDetailRoute() {
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground tabular-nums">
+              <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
                 {formatDateLong(entry.entryDate)}
               </p>
               <CardTitle className="text-2xl tracking-tight">

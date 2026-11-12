@@ -305,7 +305,7 @@ export function MealForm({
           ) : null}
 
           {!isLoading && ingredients.length === 0 ? (
-            <Card className="border-border/60 border-dashed">
+            <Card className="border-border border-dashed">
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 Add at least one food to define this meal template.
               </CardContent>
@@ -354,7 +354,7 @@ export function MealForm({
           ) : null}
         </section>
 
-        <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse gap-2 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div>{extraActions}</div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
@@ -415,12 +415,10 @@ function IngredientCard({
   const canEditFood = isEditablePrivateFood(selectedFood);
 
   return (
-    <Card className="border-border/60 bg-muted/20">
+    <Card className="border-border bg-surface-inset">
       <CardContent className="space-y-3 p-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Ingredient {index + 1}
-          </p>
+          <p className="text-[13px] font-semibold text-muted-foreground">Ingredient {index + 1}</p>
           <div className="flex items-center gap-1">
             <Button
               type="button"

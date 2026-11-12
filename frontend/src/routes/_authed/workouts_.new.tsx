@@ -91,9 +91,7 @@ function NewWorkoutRoute() {
       <div className="mx-auto max-w-2xl space-y-6">
         <Card className="border-border/60">
           <CardHeader className="pb-4">
-            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Plans
-            </p>
+            <p className="text-[13px] font-semibold text-muted-foreground">Plans</p>
             <CardTitle className="text-2xl tracking-tight">New workout</CardTitle>
           </CardHeader>
           <CardContent>

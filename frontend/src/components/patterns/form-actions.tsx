@@ -54,7 +54,7 @@ export function FormActions({
           {isSubmitting ? submittingLabel : submitLabel}
         </Button>
       </div>
-      {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
+      {extraActions ? <div className="border-t border-border pt-3">{extraActions}</div> : null}
     </div>
   );
 }

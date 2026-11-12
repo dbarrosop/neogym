@@ -1,10 +1,11 @@
-import { useMatches } from "@tanstack/react-router";
+import { useMatches, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
 import { PublicTopBar } from "@/components/shell/public-top-bar";
 import { RestTimerCard, RestTimerPill } from "@/components/shell/rest-timer";
+import { isSectionLanding } from "@/lib/navigation";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { RestTimerProvider } from "@/lib/rest-timer";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   // Split-view routes (list + detail) show their own context from 1100 px,
   // so the breadcrumb trail is only needed below that width.
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const splitView = useMatches({
     select: (matches) => matches.some((match) => match.staticData?.splitView),
   });
@@ -41,7 +43,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
               splitView && "min-[1100px]:hidden",
             )}
           >
-            <Breadcrumbs minDepth={2} />
+            {isSectionLanding(pathname) ? null : <Breadcrumbs minDepth={2} />}
           </div>
           <main className="flex-1 pb-20 md:pb-0">{children}</main>
         </div>

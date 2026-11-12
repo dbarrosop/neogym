@@ -899,7 +899,7 @@ function CollapsedExercise({
       type="button"
       onClick={onToggle}
       aria-expanded="false"
-      className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:bg-surface-inset"
     >
       <StatusIcon className="size-5 shrink-0" status={status} />
       <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">

@@ -173,7 +173,7 @@ export function FoodForm({
         </div>
       </div>
 
-      <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col-reverse gap-2 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div>{extraActions}</div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>

@@ -448,7 +448,7 @@ export function NutritionPlanForm({
           onEditMeal={(clientId, meal) => setMealDialog({ kind: "edit", clientId, meal })}
         />
 
-        <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col-reverse gap-2 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
           <div>{extraActions}</div>
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
@@ -640,9 +640,8 @@ function NutritionPlanEntriesSection({
     <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
       <div>
         <h2 className="text-sm font-medium">Plan entries</h2>
-        <p className="text-xs text-muted-foreground">
-          Add meal templates or direct foods. Entries are grouped by time; positions are shared
-          across meals and foods within each time slot.
+        <p className="text-[13px] text-muted-foreground">
+          Add meals or foods at a time of day. Entries with the same time form one slot.
         </p>
       </div>
 
@@ -652,7 +651,7 @@ function NutritionPlanEntriesSection({
       ) : null}
 
       {!isLoading && entries.length === 0 ? (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-border border-dashed">
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
             Add at least one timed meal or food entry to define this reusable daily template.
           </CardContent>
@@ -661,21 +660,17 @@ function NutritionPlanEntriesSection({
 
       <div className="space-y-4">
         {slotGroups.map((slot) => (
-          <Card key={slot.key} className="border-border/60 bg-muted/10">
-            <CardContent className="space-y-3 p-3">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-border/60 border-b pb-3">
-                <div className="space-y-1">
-                  <h3 className="text-sm font-semibold tabular-nums">{slot.label}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {slot.mealCount} meal{slot.mealCount === 1 ? "" : "s"} · {slot.foodCount} food
-                    {slot.foodCount === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <p className="max-w-md text-right text-xs text-muted-foreground tabular-nums">
-                  {macroTotalsSummary(slot.totals)}
+          <Card key={slot.key} className="gap-0 py-0">
+            <CardContent className="p-4 pb-1">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pb-2">
+                <h3 className="text-[15px] font-semibold tabular-nums">{slot.label}</h3>
+                <p className="text-[13px] text-muted-foreground tabular-nums">
+                  {Math.round(slot.totals.kcal).toLocaleString()} kcal · P{" "}
+                  {Math.round(slot.totals.protein)} · C {Math.round(slot.totals.carbs)} · F{" "}
+                  {Math.round(slot.totals.fat)}
                 </p>
               </div>
-              <div className="space-y-3">
+              <div>
                 {slot.entries.map((entry, index) => {
                   const matchingPlanEntry = planEntriesById.get(entry.id ?? entry.clientId);
                   return (
@@ -706,7 +701,7 @@ function NutritionPlanEntriesSection({
         ))}
       </div>
 
-      <div className="flex flex-wrap justify-end gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button type="button" size="sm" variant="outline" onClick={onAddMeal} disabled={isLoading}>
           <Plus className="h-4 w-4" />
           Add meal entry
@@ -767,183 +762,173 @@ function NutritionPlanEntryCard({
   const canEditFood = isEditablePrivateFood(selectedFood);
 
   return (
-    <Card className="border-border/60 bg-muted/20">
-      <CardContent className="space-y-3 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="truncate text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Entry {index + 1}
-          </p>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onMove(entry.clientId, -1)}
-              disabled={index === 0 || isSubmitting}
-              aria-label="Move entry up"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onMove(entry.clientId, 1)}
-              disabled={index === entryCount - 1 || isSubmitting}
-              aria-label="Move entry down"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => onRemove(entry.clientId)}
-              disabled={isSubmitting}
-              aria-label="Remove entry"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+    <div className="flex flex-col gap-1.5 border-t py-3">
+      <div className="grid items-center gap-2 sm:grid-cols-[8.75rem_minmax(0,1fr)_7rem_auto]">
+        <div>
+          <label htmlFor={timeId} className="sr-only">
+            Time of day
+          </label>
+          <Input
+            id={timeId}
+            type="time"
+            value={entry.slotTime}
+            onChange={(event) => onUpdate(entry.clientId, { slotTime: event.target.value })}
+            disabled={isSubmitting}
+            required
+            className="h-9 tabular-nums"
+          />
         </div>
-
-        <div
-          className={
-            entry.kind === "meal"
-              ? "grid gap-3 sm:grid-cols-[minmax(0,10rem)_1fr]"
-              : "max-w-40 space-y-1.5"
-          }
-        >
-          <div className="space-y-1.5">
-            <label htmlFor={timeId} className="text-sm font-medium">
-              Time of day
-            </label>
-            <Input
-              id={timeId}
-              type="time"
-              value={entry.slotTime}
-              onChange={(event) => onUpdate(entry.clientId, { slotTime: event.target.value })}
-              disabled={isSubmitting}
-              required
-            />
-          </div>
+        <div className="min-w-0">
           {entry.kind === "meal" ? (
-            <div className="space-y-1.5">
-              <label htmlFor={labelId} className="text-sm font-medium">
-                Label <span className="font-normal text-muted-foreground">(optional)</span>
-              </label>
-              <Input
-                id={labelId}
-                value={entry.label}
-                onChange={(event) => onUpdate(entry.clientId, { label: event.target.value })}
-                placeholder="e.g. Post-workout"
-                maxLength={160}
-                disabled={isSubmitting}
-              />
-            </div>
-          ) : null}
-        </div>
-
-        {entry.kind === "meal" ? (
-          <div className="space-y-2">
             <MealPicker
               meals={meals}
               value={entry.mealId}
               onChange={(mealId) => onUpdate(entry.clientId, { mealId })}
               disabled={isSubmitting}
             />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onCreateMeal(entry.clientId)}
-                disabled={isSubmitting}
-              >
-                <Plus className="h-4 w-4" />
-                New meal
-              </Button>
-              {selectedMeal ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onEditMeal(entry.clientId, selectedMeal)}
-                  disabled={isSubmitting}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit selected meal
-                </Button>
-              ) : null}
-            </div>
+          ) : (
+            <FoodPicker
+              foods={foods}
+              value={entry.foodId}
+              onChange={(foodId) => onUpdate(entry.clientId, { foodId })}
+              disabled={isSubmitting}
+            />
+          )}
+        </div>
+        {entry.kind === "meal" ? (
+          <div>
+            <label htmlFor={labelId} className="sr-only">
+              Label (optional)
+            </label>
+            <Input
+              id={labelId}
+              value={entry.label}
+              onChange={(event) => onUpdate(entry.clientId, { label: event.target.value })}
+              placeholder="Label"
+              maxLength={160}
+              disabled={isSubmitting}
+              className="h-9"
+            />
           </div>
         ) : (
-          <div className="space-y-2">
-            <div className="grid gap-3 sm:grid-cols-[1fr_minmax(0,10rem)]">
-              <FoodPicker
-                foods={foods}
-                value={entry.foodId}
-                onChange={(foodId) => onUpdate(entry.clientId, { foodId })}
-                disabled={isSubmitting}
-              />
-              <div className="space-y-1.5">
-                <label htmlFor={gramsId} className="text-sm font-medium">
-                  Grams
-                </label>
-                <Input
-                  id={gramsId}
-                  type="text"
-                  inputMode="decimal"
-                  pattern={DECIMAL_INPUT_PATTERN}
-                  value={entry.grams}
-                  onChange={(event) => onUpdate(entry.clientId, { grams: event.target.value })}
-                  placeholder="100"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onCreateFood(entry.clientId)}
-                disabled={isSubmitting}
-              >
-                <Plus className="h-4 w-4" />
-                New private food
-              </Button>
-              {canEditFood && selectedFood ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onEditFood(entry.clientId, selectedFood)}
-                  disabled={isSubmitting}
-                >
-                  <Pencil className="h-4 w-4" />
-                  Edit selected food
-                </Button>
-              ) : null}
-              {selectedFood?.isPublic ? (
-                <p className="self-center text-xs text-muted-foreground">
-                  Public foods are read-only in plan composition.
-                </p>
-              ) : null}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <label htmlFor={gramsId} className="sr-only">
+              Grams
+            </label>
+            <Input
+              id={gramsId}
+              type="text"
+              inputMode="decimal"
+              pattern={DECIMAL_INPUT_PATTERN}
+              value={entry.grams}
+              onChange={(event) => onUpdate(entry.clientId, { grams: event.target.value })}
+              placeholder="100"
+              disabled={isSubmitting}
+              className="h-9 text-right tabular-nums"
+            />
+            <span className="text-[13px] text-muted-foreground">g</span>
           </div>
         )}
-
+        <div className="flex items-center justify-end gap-0.5">
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8 text-muted-foreground"
+            onClick={() => onMove(entry.clientId, -1)}
+            disabled={index === 0 || isSubmitting}
+            aria-label="Move entry up"
+          >
+            <ArrowUp />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8 text-muted-foreground"
+            onClick={() => onMove(entry.clientId, 1)}
+            disabled={index === entryCount - 1 || isSubmitting}
+            aria-label="Move entry down"
+          >
+            <ArrowDown />
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => onRemove(entry.clientId)}
+            disabled={isSubmitting}
+            aria-label="Remove entry"
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
+        <span
+          className={
+            entry.kind === "meal"
+              ? "rounded bg-accent-soft px-1.5 py-px text-[11px] font-semibold text-accent-soft-foreground"
+              : "rounded bg-muted px-1.5 py-px text-[11px] font-semibold text-foreground/80"
+          }
+        >
+          {entry.kind === "meal" ? "MEAL" : "FOOD"}
+        </span>
         {entryTotals ? (
-          <p className="rounded-md border border-border/60 bg-background/60 px-3 py-2 text-xs text-muted-foreground">
-            {macroTotalsSummary(entryTotals)}
-          </p>
+          <span className="tabular-nums">{macroTotalsSummary(entryTotals)}</span>
         ) : null}
-      </CardContent>
-    </Card>
+        <span className="flex-1" />
+        {entry.kind === "meal" ? (
+          <>
+            {selectedMeal ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
+                onClick={() => onEditMeal(entry.clientId, selectedMeal)}
+                disabled={isSubmitting}
+              >
+                <Pencil className="size-3" />
+                Edit meal
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
+              onClick={() => onCreateMeal(entry.clientId)}
+              disabled={isSubmitting}
+            >
+              <Plus className="size-3" />
+              New meal
+            </button>
+          </>
+        ) : (
+          <>
+            {selectedFood?.isPublic ? <span>Public food · read-only</span> : null}
+            {canEditFood && selectedFood ? (
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
+                onClick={() => onEditFood(entry.clientId, selectedFood)}
+                disabled={isSubmitting}
+              >
+                <Pencil className="size-3" />
+                Edit food
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
+              onClick={() => onCreateFood(entry.clientId)}
+              disabled={isSubmitting}
+            >
+              <Plus className="size-3" />
+              New private food
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 

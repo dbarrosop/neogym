@@ -115,7 +115,7 @@ function FoodDetailRoute() {
 
 function MacroTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+    <div className="rounded-md border border-border bg-surface-inset px-3 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="font-medium tabular-nums">{value}</dd>
     </div>

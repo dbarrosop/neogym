@@ -99,9 +99,7 @@ export function FormCardShell({
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             {eyebrow ? (
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {eyebrow}
-              </p>
+              <p className="text-[13px] font-semibold text-muted-foreground">{eyebrow}</p>
             ) : null}
             <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
             {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}

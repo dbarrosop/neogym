@@ -310,7 +310,7 @@ function EditWorkoutRoute() {
   return (
     <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
       <div className="mx-auto max-w-2xl space-y-6">
-        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Edit</p>
+        <p className="text-[13px] font-semibold text-muted-foreground">Edit</p>
         {renderContent()}
       </div>
 

@@ -629,7 +629,7 @@ function LogIntakeDialogContents({
           </div>
 
           {selectedSource && "plannedSlotTime" in selectedSource ? (
-            <div className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm">
+            <div className="rounded-md border border-border bg-surface-inset p-3 text-sm">
               <p className="flex items-center gap-2 font-medium">
                 <Clock className="h-4 w-4 text-primary" />
                 Planned {formatTimeOfDay(selectedSource.plannedSlotTime)}
@@ -848,17 +848,17 @@ function PlanSourcePicker({
       </div>
 
       {shownEntries.length === 0 ? (
-        <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-md border border-border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
           No selected-plan entries match this search.
         </p>
       ) : (
-        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border border-border/60 p-2">
+        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border border-border p-2">
           {shownSlots.map((slot) => (
-            <section key={slot.key} className="overflow-hidden rounded-md border border-border/60">
-              <div className="bg-muted/30 px-3 py-2 text-xs font-medium text-muted-foreground">
+            <section key={slot.key} className="overflow-hidden rounded-md border border-border">
+              <div className="bg-surface-inset px-3 py-2 text-xs font-medium text-muted-foreground">
                 {slot.label}
               </div>
-              <ul className="divide-y divide-border/50">
+              <ul className="divide-y divide-border">
                 {slot.entries.map((entry) => (
                   <PlanSourcePickerRow
                     key={sourceKeyForPlanEntry(entry)}
@@ -897,7 +897,7 @@ function PlanSourcePickerRow({
         onClick={onSelect}
         disabled={disabled}
         className={cn(
-          "flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-accent/50 disabled:cursor-not-allowed disabled:opacity-50",
+          "flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50",
           selected && "bg-primary/10 text-primary hover:bg-primary/15",
         )}
       >
@@ -1002,7 +1002,7 @@ function AdHocDraftReview({
   validationMessage: string;
 }) {
   return (
-    <div className="space-y-2 rounded-md border border-border/60 p-3">
+    <div className="space-y-2 rounded-md border border-border p-3">
       <div className="space-y-1">
         <p className="text-sm font-medium">Review custom food</p>
         <p className="text-xs text-muted-foreground">{previewSummary}</p>
@@ -1027,14 +1027,14 @@ function DraftReview({
 }) {
   if (!selectedSource) {
     return (
-      <div className="rounded-md border border-border/60 border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-md border border-border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
         Choose a food, meal, or selected-plan entry to review grams and macros before logging.
       </div>
     );
   }
 
   return (
-    <div className="space-y-3 rounded-md border border-border/60 p-3">
+    <div className="space-y-3 rounded-md border border-border p-3">
       <div className="space-y-1">
         <p className="text-sm font-medium">Review {selectedSource.title}</p>
         {"subtitle" in selectedSource && selectedSource.subtitle ? (
@@ -1044,12 +1044,12 @@ function DraftReview({
       </div>
 
       {draftItems.length === 0 ? (
-        <p className="rounded-md border border-border/60 border-dashed px-3 py-4 text-sm text-muted-foreground">
+        <p className="rounded-md border border-border border-dashed px-3 py-4 text-sm text-muted-foreground">
           This meal has no ingredients to log.
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md border border-border/60">
-          <ul className="divide-y divide-border/50">
+        <div className="overflow-hidden rounded-md border border-border">
+          <ul className="divide-y divide-border">
             {draftItems.map((item) => {
               const parsedGrams = parseMacroInput(item.grams);
               const itemTotals = intakeDraftMacroTotals([

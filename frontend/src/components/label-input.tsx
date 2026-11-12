@@ -154,7 +154,7 @@ export function LabelInput({
           />
         </div>
         {(showSuggestions || showCreateHint) && (
-          <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border/60 bg-popover p-1 text-sm shadow-md">
+          <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-popover p-1 text-sm shadow-md">
             {filteredSuggestions.map((s) => (
               <li key={s.id}>
                 <button
