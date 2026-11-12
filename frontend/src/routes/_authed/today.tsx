@@ -206,6 +206,7 @@ function TodayRoute() {
     queryKey: ["today", "overview", today, user?.id],
     queryFn: () => gqlRequest(TodayOverviewQuery, variables),
     enabled: !!user,
+    refetchOnMount: "always",
   });
 
   const heading = (parseDateOnly(today) ?? new Date()).toLocaleDateString(undefined, {
