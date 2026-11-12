@@ -403,6 +403,7 @@ function useLogIntakeMutations({
   function handleLoggedSuccess(label: string) {
     queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
     queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+    queryClient.invalidateQueries({ queryKey: ["today"] });
     toast.success(`${label} logged`);
     onLogged();
   }

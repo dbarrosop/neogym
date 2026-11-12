@@ -372,6 +372,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success("Day plan updated");
     },
     onError: (error) => {
@@ -385,6 +386,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success("Entry updated");
     },
     onError: (error) => {
@@ -397,6 +399,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success("Entry deleted");
     },
     onError: (error) => {
@@ -409,6 +412,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success("Logged meal deleted");
     },
     onError: (error) => {
@@ -420,6 +424,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     mutationFn: (id: string) => gqlRequest(DeleteNutritionDayMutation, { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       toast.success("Day log cleared");
     },
     onError: (error) => {
