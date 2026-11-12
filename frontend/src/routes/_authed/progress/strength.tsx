@@ -15,7 +15,7 @@ import { describeTrend } from "@/lib/chart-trend";
 import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
-import { addLocalDateDays } from "@/lib/nutrition";
+import { addLocalDateDays, localDateToDate } from "@/lib/nutrition";
 import { useLocalToday } from "@/lib/use-local-today";
 import { cn } from "@/lib/utils";
 
@@ -125,7 +125,7 @@ function StrengthRoute() {
   });
 
   const rows = useMemo(() => query.data?.strengthProgress ?? [], [query.data]);
-  const now = useMemo(() => new Date(), []);
+  const now = useMemo(() => localDateToDate(today) ?? new Date(), [today]);
   const weekly = useMemo(() => buildWeeks(rows, weeks, now), [rows, weeks, now]);
   const recent = useMemo(() => buildRecentExercises(rows, now), [rows, now]);
 
