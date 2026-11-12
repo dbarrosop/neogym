@@ -59,14 +59,18 @@ function write(key: string, value: unknown) {
   }
 }
 
-function isTimerState(
-  value: unknown,
-): value is Omit<RestTimerState, "sessionId"> & { sessionId?: string | null } {
+type StoredRestTimerState = Omit<RestTimerState, "sessionId"> & {
+  userId: string;
+  sessionId?: string | null;
+};
+
+function isTimerState(value: unknown): value is StoredRestTimerState {
   if (!value || typeof value !== "object") {
     return false;
   }
-  const candidate = value as Partial<RestTimerState>;
+  const candidate = value as Partial<StoredRestTimerState>;
   return (
+    typeof candidate.userId === "string" &&
     typeof candidate.endsAt === "number" &&
     typeof candidate.duration === "number" &&
     (candidate.sessionId == null ||
@@ -77,16 +81,22 @@ function isTimerState(
 /**
  * One rest timer for the whole app. It lives in the shell (sidebar card on
  * desktop, floating pill on mobile) so it keeps running while you navigate,
- * and it survives reloads through localStorage.
+ * and it survives reloads through owner-checked localStorage. The shell keys
+ * this provider by userId to discard in-memory state and timeouts on account changes.
  */
-export function RestTimerProvider({ children }: { children: ReactNode }) {
+export function RestTimerProvider({ children, userId }: { children: ReactNode; userId: string }) {
   const [timer, setTimer] = useState<RestTimerState | null>(null);
   const [defaultSeconds, setDefaultSecondsState] = useState(DEFAULT_REST_SECONDS);
 
   useEffect(() => {
     const stored = readJson<unknown>(STATE_KEY);
-    if (isTimerState(stored) && stored.endsAt > Date.now()) {
-      setTimer({ ...stored, label: stored.label ?? null, sessionId: stored.sessionId ?? null });
+    if (isTimerState(stored) && stored.userId === userId && stored.endsAt > Date.now()) {
+      setTimer({
+        endsAt: stored.endsAt,
+        duration: stored.duration,
+        label: stored.label ?? null,
+        sessionId: stored.sessionId ?? null,
+      });
     } else if (stored) {
       write(STATE_KEY, null);
     }
@@ -94,12 +104,15 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     if (typeof storedDefault === "number" && storedDefault > 0) {
       setDefaultSecondsState(storedDefault);
     }
-  }, []);
+  }, [userId]);
 
-  const update = useCallback((next: RestTimerState | null) => {
-    setTimer(next);
-    write(STATE_KEY, next);
-  }, []);
+  const update = useCallback(
+    (next: RestTimerState | null) => {
+      setTimer(next);
+      write(STATE_KEY, next ? { ...next, userId } : null);
+    },
+    [userId],
+  );
 
   useEffect(() => {
     if (!timer) {
@@ -134,20 +147,23 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
     [defaultSeconds, update],
   );
 
-  const extend = useCallback((seconds: number) => {
-    setTimer((current) => {
-      if (!current) {
-        return current;
-      }
-      const next = {
-        ...current,
-        endsAt: current.endsAt + seconds * 1000,
-        duration: current.duration + seconds,
-      };
-      write(STATE_KEY, next);
-      return next;
-    });
-  }, []);
+  const extend = useCallback(
+    (seconds: number) => {
+      setTimer((current) => {
+        if (!current) {
+          return current;
+        }
+        const next = {
+          ...current,
+          endsAt: current.endsAt + seconds * 1000,
+          duration: current.duration + seconds,
+        };
+        write(STATE_KEY, { ...next, userId });
+        return next;
+      });
+    },
+    [userId],
+  );
 
   const clear = useCallback(() => update(null), [update]);
 

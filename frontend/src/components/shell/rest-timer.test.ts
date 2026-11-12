@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("rest timer links and actions survive navigation and storage restoration", () => {
+test("rest timers preserve navigation and same-owner restores without leaking across accounts", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -15,6 +15,6 @@ test("rest timer links and actions survive navigation and storage restoration", 
   }).toEqual({
     exitCode: 0,
     output:
-      "Rest timers link to their originating session, keep actions separate, and restore legacy state.\n",
+      "Rest timers preserve session links and same-owner restores, and isolate account changes and expiry.\n",
   });
 }, 30_000);

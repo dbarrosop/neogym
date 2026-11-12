@@ -1,8 +1,8 @@
 // Run in a subprocess so browser globals and the clock stay isolated.
-import { setSystemTime } from "bun:test";
+import { mock, setSystemTime, spyOn } from "bun:test";
 import assert from "node:assert/strict";
 import { Window as TestWindow } from "happy-dom";
-import { act } from "react";
+import { act, type ReactNode, useSyncExternalStore } from "react";
 import type { RestTimerState } from "@/lib/rest-timer";
 
 setSystemTime(new Date(2026, 5, 1, 12));
@@ -16,30 +16,68 @@ Object.assign(globalThis, {
   Node: window.Node,
   IS_REACT_ACT_ENVIRONMENT: true,
 });
+let owner: string | null = "account-a";
+const authListeners = new Set<() => void>();
+mock.module("@/lib/nhost/auth-provider", () => ({
+  useAuth: () => {
+    const userId = useSyncExternalStore(
+      (listener) => {
+        authListeners.add(listener);
+        return () => authListeners.delete(listener);
+      },
+      () => owner,
+    );
+    return { user: userId ? { id: userId } : null, isAuthenticated: userId !== null };
+  },
+}));
+// Keep the real account-bound shell and timer UI, without unrelated chrome queries.
+mock.module("@/components/breadcrumbs", () => ({ Breadcrumbs: () => null }));
+mock.module("@/components/shell/app-sidebar", () => ({
+  AppSidebar: ({ footer }: { footer: ReactNode }) => <aside>{footer}</aside>,
+}));
+mock.module("@/components/shell/mobile-tab-bar", () => ({ MobileTabBar: () => null }));
+mock.module("@/components/shell/public-top-bar", () => ({ PublicTopBar: () => null }));
+const toasts: { title: string; description: string | null | undefined }[] = [];
+mock.module("sonner", () => ({
+  toast: (title: string, options?: { description?: string | null }) => {
+    toasts.push({ title, description: options?.description });
+  },
+}));
+const timeouts = new Map<number, () => void>();
+let nextTimeout = 0;
+const timeout = spyOn(window as Window, "setTimeout").mockImplementation((callback) => {
+  assert.equal(typeof callback, "function");
+  nextTimeout += 1;
+  timeouts.set(nextTimeout, callback as () => void);
+  return nextTimeout;
+});
+const clearTimeout = spyOn(window, "clearTimeout").mockImplementation((handle) => {
+  timeouts.delete(handle as number);
+});
+
 const { createMemoryHistory, createRootRoute, createRoute, createRouter, Outlet, RouterProvider } =
   await import("@tanstack/react-router");
 const { createRoot } = await import("react-dom/client");
-const { RestTimerProvider, useRestTimer } = await import("@/lib/rest-timer");
-const { RestTimerCard, RestTimerPill, StartRestButton } = await import(
-  "@/components/shell/rest-timer"
-);
+const { useRestTimer } = await import("@/lib/rest-timer");
+const { StartRestButton } = await import("@/components/shell/rest-timer");
+const { AppFrame } = await import("@/components/shell/app-frame");
+const { useAuth } = await import("@/lib/nhost/auth-provider");
 
 function Shell() {
-  return (
-    <RestTimerProvider>
-      <RestTimerCard />
-      <RestTimerPill />
-      <Outlet />
-    </RestTimerProvider>
-  );
+  const { isAuthenticated } = useAuth();
+  return <AppFrame>{isAuthenticated ? <Outlet /> : <p>Signed out</p>}</AppFrame>;
 }
 function Today() {
-  const { start } = useRestTimer();
+  const { start, defaultSeconds } = useRestTimer();
   return (
     <main>
       <h1>Today</h1>
+      <output aria-label="Default rest">{defaultSeconds}</output>
       <button type="button" onClick={() => start()}>
         Start unlinked rest
+      </button>
+      <button type="button" onClick={() => start({ label: "Squat · set 2 next", sessionId })}>
+        Start labelled rest
       </button>
     </main>
   );
@@ -119,10 +157,28 @@ function sessionLink(index: number) {
   assert.equal(link.querySelectorAll("button").length, 0, "Actions must be outside the link");
   return link;
 }
-function storedTimer(): RestTimerState {
+function storedTimer(): RestTimerState & { userId: string } {
   const raw = window.localStorage.getItem(stateKey);
   assert(raw, "Missing persisted timer");
-  return JSON.parse(raw) as RestTimerState;
+  return JSON.parse(raw) as RestTimerState & { userId: string };
+}
+async function switchAccount(nextOwner: string | null) {
+  await settle(() => {
+    owner = nextOwner;
+    for (const listener of [...authListeners]) {
+      listener();
+    }
+  });
+}
+async function expireTimer(endsAt: number) {
+  await settle(() => {
+    setSystemTime(endsAt + 1);
+    const pending = [...timeouts.values()];
+    timeouts.clear();
+    for (const callback of pending) {
+      callback();
+    }
+  });
 }
 async function goToToday() {
   await settle(() => router.navigate({ to: "/today" }));
@@ -132,6 +188,7 @@ async function startSessionRest() {
   await settle(() => router.navigate({ to: "/train/sessions/$sessionId", params: { sessionId } }));
   await settle(() => button("Rest 90 s").click());
   assert.equal(storedTimer().sessionId, sessionId);
+  assert.equal(storedTimer().userId, owner);
   await goToToday();
 }
 async function verifyActions(index: number) {
@@ -151,8 +208,8 @@ async function verifyActions(index: number) {
   assert.equal(timers().length, 0);
   assert.equal(window.localStorage.getItem(stateKey), null);
 }
-async function verifyLegacyTimer(legacy: object) {
-  window.localStorage.setItem(stateKey, JSON.stringify(legacy));
+async function verifyUnlinkedTimer(timer: object) {
+  window.localStorage.setItem(stateKey, JSON.stringify(timer));
   await mount("/today");
   assert.equal(timers().length, 2);
   assert(timers().every((section) => section.querySelector("a") === null));
@@ -200,20 +257,66 @@ try {
   assert(timers().every((section) => section.querySelector("a") === null));
 
   const legacy = { endsAt: Date.now() + 120_000, duration: 120, label: "Legacy rest" };
-  await verifyLegacyTimer(legacy);
-  await verifyLegacyTimer({ ...legacy, sessionId: null });
+  const owned = { ...legacy, userId: owner };
+  await verifyUnlinkedTimer(owned);
+  await verifyUnlinkedTimer({ ...owned, sessionId: null });
+  // Timers from before ownership was recorded cannot safely be attributed.
+  window.localStorage.setItem(stateKey, JSON.stringify({ ...legacy, sessionId }));
+  await mount("/today");
+  assert.equal(timers().length, 0);
+  assert.equal(window.localStorage.getItem(stateKey), null);
   for (const invalidId of [42, {}, [], ""]) {
-    window.localStorage.setItem(stateKey, JSON.stringify({ ...legacy, sessionId: invalidId }));
+    window.localStorage.setItem(stateKey, JSON.stringify({ ...owned, sessionId: invalidId }));
     // biome-ignore lint/performance/noAwaitInLoops: Remount to exercise each persisted invalid value.
     await mount("/today");
     assert.equal(timers().length, 0);
     assert.equal(window.localStorage.getItem(stateKey), null);
   }
+  // A sign-out cancels expiry; the same owner can still restore before it ends.
+  window.localStorage.setItem("neogym-rest-seconds", "60");
+  await mount("/today");
+  await settle(() => button("Start labelled rest").click());
+  const beforeSignOut = storedTimer();
+  assert(timers()[0]?.textContent?.includes("Squat · set 2 next"));
+  await switchAccount(null);
+  assert(container.textContent?.includes("Signed out"));
+  assert.equal(timers().length, 0);
+  assert.equal(timeouts.size, 0);
+  await switchAccount("account-a");
+  assert.deepEqual(storedTimer(), beforeSignOut);
+  assert.equal(timers().length, 2);
+
+  // Another account must not see the prior owner's timer or get its expiry toast.
+  await switchAccount(null);
+  await switchAccount("account-b");
+  assert.equal(timers().length, 0);
+  assert.equal(window.localStorage.getItem(stateKey), null);
+  assert.equal(container.querySelector('[aria-label="Default rest"]')?.textContent, "60");
+  await expireTimer(beforeSignOut.endsAt);
+  assert.deepEqual(toasts, []);
+
+  // Switching owners without an intermediate signed-out render also cancels memory state.
+  await settle(() => button("Start labelled rest").click());
+  const beforeSwitch = storedTimer();
+  assert.equal(beforeSwitch.userId, "account-b");
+  await switchAccount("account-a");
+  assert.equal(timers().length, 0);
+  assert.equal(window.localStorage.getItem(stateKey), null);
+  await expireTimer(beforeSwitch.endsAt);
+  assert.deepEqual(toasts, []);
+
+  // Ownership checks must not disable normal timer completion for the current user.
+  await settle(() => button("Start labelled rest").click());
+  await expireTimer(storedTimer().endsAt);
+  assert.equal(timers().length, 0);
+  assert.deepEqual(toasts, [{ title: "Rest over", description: "Squat · set 2 next" }]);
   process.stdout.write(
-    "Rest timers link to their originating session, keep actions separate, and restore legacy state.\n",
+    "Rest timers preserve session links and same-owner restores, and isolate account changes and expiry.\n",
   );
 } finally {
   await settle(() => root.unmount());
+  timeout.mockRestore();
+  clearTimeout.mockRestore();
   dom.happyDOM.abort();
   dom.close();
 }

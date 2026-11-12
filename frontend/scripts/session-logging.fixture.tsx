@@ -382,7 +382,7 @@ async function openSession(
   await settle(() =>
     root.render(
       <QueryClientProvider client={client}>
-        <RestTimerProvider>
+        <RestTimerProvider userId="test-user">
           <Page />
           <TimerLabel />
         </RestTimerProvider>

@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
  * tab bar below it. Signed-out pages keep a minimal top bar.
  */
 export function AppFrame({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   // Split-view routes (list + detail) show their own context from 1100 px,
   // so the breadcrumb trail is only needed below that width.
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -23,7 +23,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
     select: (matches) => matches.some((match) => match.staticData?.splitView),
   });
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <div className="flex min-h-dvh flex-col">
         <PublicTopBar />
@@ -33,7 +33,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   }
 
   return (
-    <RestTimerProvider>
+    <RestTimerProvider key={user.id} userId={user.id}>
       <div className="flex min-h-dvh">
         <AppSidebar footer={<RestTimerCard />} />
         <div className="flex min-w-0 flex-1 flex-col">
