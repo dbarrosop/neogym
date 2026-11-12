@@ -112,7 +112,7 @@ export function QuickDailyEnergyForm() {
   return (
     <QuickFormCard
       title="Log energy"
-      note="Active and resting kilocalories for one date. The iPhone app can import them from Apple Health."
+      note="Active and resting kilocalories for one date. The NeoGym Apple Watch app can import them from Apple Health."
     >
       <DailyEnergyForm
         key={formKey}

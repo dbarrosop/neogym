@@ -13,8 +13,8 @@ export function visibleNotes(notes: string | null | undefined): string {
 }
 
 /**
- * Source tag for rows imported on iPhone. The web can show them but never
- * triggers an import itself.
+ * Source tag for rows imported on iPhone (Body) or Apple Watch (Energy).
+ * The web can show them but never triggers an import itself.
  */
 export function HealthSourceTag() {
   return (
