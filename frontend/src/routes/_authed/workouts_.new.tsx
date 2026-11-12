@@ -24,7 +24,7 @@ const CreateWorkoutMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/workouts/new")({
+export const Route = createFileRoute("/_authed/workouts_/new")({
   component: NewWorkoutRoute,
 });
 

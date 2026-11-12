@@ -102,7 +102,7 @@ const DeleteWorkoutMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/workouts/$workoutId_/edit")({
+export const Route = createFileRoute("/_authed/workouts_/$workoutId/edit")({
   component: EditWorkoutRoute,
 });
 

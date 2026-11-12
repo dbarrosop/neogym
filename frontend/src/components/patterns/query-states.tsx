@@ -14,7 +14,7 @@ export function EmptyState({ title, description, children, className }: EmptySta
     <Card className={cn("border-border/60 border-dashed", className)}>
       <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
         <div className="space-y-1">
-          <p>{title}</p>
+          <p className="font-medium text-foreground">{title}</p>
           {description ? <p>{description}</p> : null}
         </div>
         {children ? <div className="flex justify-center">{children}</div> : null}

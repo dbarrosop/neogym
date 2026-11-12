@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { ExerciseDetail } from "@/components/exercise-detail";
 
-export const Route = createFileRoute("/_authed/sessions/$sessionId_/exercises/$exerciseId")({
+export const Route = createFileRoute("/_authed/sessions_/$sessionId/exercises/$exerciseId")({
   component: SessionExerciseRoute,
 });
 

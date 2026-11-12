@@ -94,3 +94,10 @@ export function getArea(id: AreaId): Area {
 export function isSectionActive(section: AreaSection, pathname: string): boolean {
   return section.match.some((prefix) => matchesPrefix(pathname, prefix));
 }
+
+declare module "@tanstack/react-router" {
+  interface StaticDataRouteOption {
+    /** List + detail layout: from 1100 px the list stays visible beside the detail. */
+    splitView?: boolean;
+  }
+}

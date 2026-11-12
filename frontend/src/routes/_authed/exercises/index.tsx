@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { PageHeader } from "@/components/patterns/page-shell";
+import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { AreaTabs } from "@/components/shell/area-tabs";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
@@ -43,6 +42,19 @@ const exercisesSearchSchema = z.object({
   level: z.string().optional(),
   visibility: z.enum(visibilityValues).optional(),
 });
+
+const RecentExercisesQuery = graphql(`
+  query RecentlyLoggedExercises {
+    workoutSessionExercises(order_by: { workoutSession: { startedAt: desc } }, limit: 80) {
+      id
+      exerciseId
+      workoutSession {
+        id
+        startedAt
+      }
+    }
+  }
+`);
 
 export const Route = createFileRoute("/_authed/exercises/")({
   validateSearch: exercisesSearchSchema,
@@ -253,100 +265,304 @@ function ExercisesRoute() {
     setActivePanel(null);
   }
 
+  const { data: recentData } = useQuery({
+    queryKey: ["exercises", "recent"],
+    queryFn: () => gqlRequest(RecentExercisesQuery),
+  });
+  const lastLogged = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const row of recentData?.workoutSessionExercises ?? []) {
+      if (!map.has(row.exerciseId)) {
+        map.set(row.exerciseId, row.workoutSession.startedAt);
+      }
+    }
+    return map;
+  }, [recentData]);
+
   function renderResults() {
     if (isLoading) {
       return <ExercisesSkeleton />;
     }
     if (error) {
-      return <ErrorCard message={error.message} />;
+      return <ErrorState title="Couldn't load exercises" message={error.message} />;
     }
     if (filteredExercises.length === 0) {
       return (
-        <Card className="border-border/60 border-dashed">
-          <CardContent className="space-y-2 py-8 text-center text-sm text-muted-foreground">
-            <p>No exercises match these filters.</p>
-            {isFiltered ? (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Clear filters
-              </button>
-            ) : null}
-          </CardContent>
-        </Card>
+        <EmptyState
+          title="No exercises match"
+          description="Try a different search or remove a filter."
+        >
+          {isFiltered ? (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-sm font-medium text-link hover:underline"
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </EmptyState>
       );
     }
     if (search.trim() !== "") {
       // Fuzzy search ranks by relevance; grouping by muscle would bucket the
       // best match alphabetically and hide it under unrelated groups.
-      return <FlatResults exercises={filteredExercises} />;
+      return <FlatResults exercises={filteredExercises} lastLogged={lastLogged} />;
     }
-    return <GroupedResults exercises={filteredExercises} />;
+    return <GroupedResults exercises={filteredExercises} lastLogged={lastLogged} />;
   }
 
-  return (
-    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <PageHeader title="Train" tabs={<AreaTabs area="train" />} />
+  const activeChips = [
+    ...(visibility
+      ? [{ key: "visibility", label: visibility === "mine" ? "Mine" : "Public" }]
+      : []),
+    ...COLUMN_ORDER.flatMap((key) =>
+      filters[key] ? [{ key, label: formatEnumValue(filters[key] ?? "") }] : [],
+    ),
+  ];
 
-        <div className="space-y-3">
-          <SearchBar value={search} onChange={setSearchText} />
-          <FilterStrip
+  return (
+    <PageShell maxWidth="6xl">
+      <PageHeader title="Train" tabs={<AreaTabs area="train" />} />
+      <div className="grid items-start gap-6 min-[1100px]:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="hidden min-[1100px]:sticky min-[1100px]:top-6 min-[1100px]:block">
+          <FilterRail
             filters={filters}
             visibility={visibility}
             onVisibilityChange={setVisibility}
-            activePanel={activePanel}
-            onToggle={(key) => setActivePanel((cur) => (cur === key ? null : key))}
-            onClear={(key) => setFilter(key, null)}
             onSelect={setFilter}
             exercises={exercises}
             searchMatchIds={searchMatchIds}
           />
+        </aside>
+        <section aria-label="Results" className="flex min-w-0 flex-col gap-3">
+          <SearchBar value={search} onChange={setSearchText} count={exercises.length} />
+          <div className="min-[1100px]:hidden">
+            <FilterStrip
+              filters={filters}
+              visibility={visibility}
+              onVisibilityChange={setVisibility}
+              activePanel={activePanel}
+              onToggle={(key) => setActivePanel((cur) => (cur === key ? null : key))}
+              onClear={(key) => setFilter(key, null)}
+              onSelect={setFilter}
+              exercises={exercises}
+              searchMatchIds={searchMatchIds}
+            />
+          </div>
           {isFiltered ? (
-            <div className="flex items-center justify-between gap-2 px-1 text-xs text-muted-foreground">
-              <span>
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              {activeChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex h-7 items-center gap-1 rounded-full bg-accent-soft pr-1 pl-3 font-medium text-accent-soft-foreground"
+                >
+                  {chip.label}
+                  <button
+                    type="button"
+                    className="grid size-5 place-items-center rounded-full hover:bg-primary/20"
+                    aria-label={`Clear ${chip.label} filter`}
+                    onClick={() =>
+                      chip.key === "visibility"
+                        ? setVisibility(null)
+                        : setFilter(chip.key as FilterKey, null)
+                    }
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </span>
+              ))}
+              <span className="tabular-nums">
                 {filteredExercises.length} match{filteredExercises.length === 1 ? "" : "es"}
               </span>
               <button
                 type="button"
                 onClick={clearAll}
-                className="font-medium text-primary hover:underline"
+                className="font-medium text-link hover:underline"
               >
                 Clear all
               </button>
             </div>
           ) : null}
-        </div>
-
-        {renderResults()}
+          {renderResults()}
+        </section>
       </div>
-    </section>
+    </PageShell>
   );
 }
 
-function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function SearchBar({
+  value,
+  onChange,
+  count,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  count: number;
+}) {
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Search exercises…"
-        className="pr-9 pl-9"
+        placeholder={count > 0 ? `Search ${count} exercises` : "Search exercises"}
+        aria-label="Search exercises"
+        className="h-11 rounded-xl bg-card pr-10 pl-10"
       />
       {value ? (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+          className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
           aria-label="Clear search"
         >
-          <X className="h-4 w-4" />
+          <X className="size-4" />
         </button>
       ) : null}
     </div>
+  );
+}
+
+interface FilterRailProps {
+  filters: Filters;
+  visibility: Visibility | null;
+  onVisibilityChange: (value: Visibility | null) => void;
+  onSelect: (key: FilterKey, value: string | null) => void;
+  exercises: Exercise[];
+  searchMatchIds: Set<string> | null;
+}
+
+/** Desktop filter column: every facet visible at once, one pick per facet. */
+function FilterRail({
+  filters,
+  visibility,
+  onVisibilityChange,
+  onSelect,
+  exercises,
+  searchMatchIds,
+}: FilterRailProps) {
+  return (
+    <nav
+      aria-label="Exercise filters"
+      className="flex flex-col gap-5 rounded-xl border bg-card p-4"
+    >
+      <RailGroup title="Show">
+        <RailOption selected={visibility === null} onClick={() => onVisibilityChange(null)}>
+          All exercises
+        </RailOption>
+        <RailOption selected={visibility === "mine"} onClick={() => onVisibilityChange("mine")}>
+          Only mine
+        </RailOption>
+        <RailOption selected={visibility === "public"} onClick={() => onVisibilityChange("public")}>
+          Public library
+        </RailOption>
+      </RailGroup>
+      {COLUMN_ORDER.map((key) => (
+        <RailFacet
+          key={key}
+          title={FILTER_LABELS[key]}
+          options={computeOptions(exercises, filters, visibility, searchMatchIds, key)}
+          selected={filters[key]}
+          onSelect={(value) => onSelect(key, value)}
+        />
+      ))}
+    </nav>
+  );
+}
+
+function RailGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <h3 className="px-2 pb-1 text-[13px] font-semibold text-muted-foreground">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function RailOption({
+  selected,
+  onClick,
+  count,
+  children,
+}: {
+  selected: boolean;
+  onClick: () => void;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={selected}
+      className={cn(
+        "flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors hover:bg-muted/60",
+        selected && "font-semibold text-foreground",
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "grid size-4 shrink-0 place-items-center rounded border",
+          selected ? "border-primary bg-primary text-primary-foreground" : "border-border",
+        )}
+      >
+        {selected ? <Check className="size-3" strokeWidth={3} /> : null}
+      </span>
+      <span className="min-w-0 flex-1 truncate">{children}</span>
+      {count === undefined ? null : (
+        <span className="text-[12px] text-muted-foreground tabular-nums">{count}</span>
+      )}
+    </button>
+  );
+}
+
+const RAIL_VISIBLE_OPTIONS = 6;
+
+function RailFacet({
+  title,
+  options,
+  selected,
+  onSelect,
+}: {
+  title: string;
+  options: Array<{ value: string; count: number }>;
+  selected: string | null;
+  onSelect: (value: string | null) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  if (options.length === 0) {
+    return null;
+  }
+  const ranked = [...options].sort((a, b) => b.count - a.count);
+  let visible = showAll ? options : ranked.slice(0, RAIL_VISIBLE_OPTIONS);
+  if (!showAll && selected && !visible.some((o) => o.value === selected)) {
+    const picked = options.find((o) => o.value === selected);
+    visible = picked ? [picked, ...visible.slice(0, RAIL_VISIBLE_OPTIONS - 1)] : visible;
+  }
+  return (
+    <RailGroup title={title}>
+      {visible.map((option) => (
+        <RailOption
+          key={option.value}
+          selected={selected === option.value}
+          count={option.count}
+          onClick={() => onSelect(selected === option.value ? null : option.value)}
+        >
+          {formatEnumValue(option.value)}
+        </RailOption>
+      ))}
+      {options.length > RAIL_VISIBLE_OPTIONS ? (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="self-start px-2 pt-1 text-[13px] font-medium text-link hover:underline"
+        >
+          {showAll ? "Show fewer" : `Show all ${options.length}`}
+        </button>
+      ) : null}
+    </RailGroup>
   );
 }
 
@@ -428,8 +644,8 @@ function VisibilityPill({
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "border-primary/40 bg-primary/15 text-primary"
-          : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+          ? "border-transparent bg-accent-soft text-accent-soft-foreground"
+          : "border-border text-muted-foreground hover:text-foreground",
       )}
     >
       <Icon className="h-3 w-3" />
@@ -455,7 +671,7 @@ function FilterColumnHeader({
 }: FilterColumnHeaderProps) {
   if (value) {
     return (
-      <div className="flex h-9 items-center justify-between gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 text-xs font-medium text-primary">
+      <div className="flex h-9 items-center justify-between gap-1 rounded-lg bg-accent-soft px-2 text-xs font-medium text-accent-soft-foreground">
         <button
           type="button"
           onClick={onToggle}
@@ -480,8 +696,8 @@ function FilterColumnHeader({
       type="button"
       onClick={onToggle}
       className={cn(
-        "flex h-9 items-center justify-between gap-1 rounded-md border border-border/60 bg-card/60 px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent/50",
-        isActive && "border-primary/40 bg-accent/40",
+        "flex h-9 items-center justify-between gap-1 rounded-lg border bg-card px-2 text-xs font-medium text-foreground transition-colors hover:bg-muted/60",
+        isActive && "bg-muted",
       )}
     >
       <span className="truncate">{label}</span>
@@ -504,13 +720,13 @@ interface FilterPanelProps {
 function FilterPanel({ options, selected, onSelect }: FilterPanelProps) {
   if (options.length === 0) {
     return (
-      <div className="rounded-md border border-border/60 bg-card/80 p-3 text-center text-xs text-muted-foreground backdrop-blur">
+      <div className="rounded-xl border bg-card p-3 text-center text-xs text-muted-foreground">
         No options available with the current filters.
       </div>
     );
   }
   return (
-    <div className="rounded-md border border-border/60 bg-card/80 p-2 backdrop-blur">
+    <div className="rounded-xl border bg-card p-2">
       <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
         {options.map((option) => {
           const isSelected = selected === option.value;
@@ -521,14 +737,16 @@ function FilterPanel({ options, selected, onSelect }: FilterPanelProps) {
               onClick={() => onSelect(isSelected ? null : option.value)}
               className={cn(
                 "flex items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
-                isSelected ? "bg-primary/15 text-primary" : "text-foreground hover:bg-accent/50",
+                isSelected
+                  ? "bg-accent-soft text-accent-soft-foreground"
+                  : "text-foreground hover:bg-muted/60",
               )}
             >
               <span className="truncate font-medium">{formatEnumValue(option.value)}</span>
               <span
                 className={cn(
                   "text-[11px] tabular-nums",
-                  isSelected ? "text-primary/80" : "text-muted-foreground",
+                  isSelected ? "text-accent-soft-foreground/80" : "text-muted-foreground",
                 )}
               >
                 {option.count}
@@ -541,7 +759,24 @@ function FilterPanel({ options, selected, onSelect }: FilterPanelProps) {
   );
 }
 
-function GroupedResults({ exercises }: { exercises: Exercise[] }) {
+function lastLoggedLabel(iso: string | undefined): string | null {
+  if (!iso) {
+    return null;
+  }
+  return `last ${new Date(iso).toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  })}`;
+}
+
+function GroupedResults({
+  exercises,
+  lastLogged,
+}: {
+  exercises: Exercise[];
+  lastLogged: Map<string, string>;
+}) {
   const grouped = useMemo(() => {
     const map = new Map<string, Exercise[]>();
     for (const ex of exercises) {
@@ -554,75 +789,116 @@ function GroupedResults({ exercises }: { exercises: Exercise[] }) {
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]));
   }, [exercises]);
+  const recent = useMemo(
+    () =>
+      exercises
+        .filter((ex) => lastLogged.has(ex.id))
+        .sort((a, b) => (lastLogged.get(b.id) ?? "").localeCompare(lastLogged.get(a.id) ?? ""))
+        .slice(0, 6),
+    [exercises, lastLogged],
+  );
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
+      {recent.length > 0 ? (
+        <ResultGroup title="Recently logged" count={null}>
+          {recent.map((ex) => (
+            <ExerciseRow key={ex.id} exercise={ex} lastLogged={lastLogged.get(ex.id)} showMuscle />
+          ))}
+        </ResultGroup>
+      ) : null}
       {grouped.map(([muscle, items]) => (
-        <Card key={muscle} className="border-border/60">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
-            <CardTitle className="text-lg tracking-tight">{formatEnumValue(muscle)}</CardTitle>
-            <span className="text-xs text-muted-foreground">
-              {items.length} exercise{items.length === 1 ? "" : "s"}
-            </span>
-          </CardHeader>
-          <CardContent className="px-2 pt-0 pb-2">
-            <ul className="divide-y divide-border/50">
-              {items.map((ex) => (
-                <ExerciseRow key={ex.id} exercise={ex} />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <ResultGroup key={muscle} title={formatEnumValue(muscle)} count={items.length}>
+          {items.map((ex) => (
+            <ExerciseRow key={ex.id} exercise={ex} lastLogged={lastLogged.get(ex.id)} />
+          ))}
+        </ResultGroup>
       ))}
     </div>
   );
 }
 
-function FlatResults({ exercises }: { exercises: Exercise[] }) {
+function ResultGroup({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number | null;
+  children: React.ReactNode;
+}) {
   return (
-    <Card className="border-border/60">
-      <CardContent className="px-2 py-2">
-        <ul className="divide-y divide-border/50">
-          {exercises.map((ex) => (
-            <ExerciseRow key={ex.id} exercise={ex} showMuscle />
-          ))}
-        </ul>
-      </CardContent>
-    </Card>
+    <section aria-label={title} className="rounded-xl border bg-card p-2">
+      <div className="flex items-baseline justify-between gap-2 px-2.5 pt-2 pb-1.5">
+        <h2 className="text-[15px] font-semibold">{title}</h2>
+        {count === null ? null : (
+          <span className="text-[13px] text-muted-foreground tabular-nums">
+            {count} exercise{count === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+      <ul className="grid gap-0.5 sm:grid-cols-2">{children}</ul>
+    </section>
   );
 }
 
-function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?: boolean }) {
-  const VisibilityIcon = exercise.isPublic ? Globe2 : User;
+function FlatResults({
+  exercises,
+  lastLogged,
+}: {
+  exercises: Exercise[];
+  lastLogged: Map<string, string>;
+}) {
   return (
-    <li>
+    <ResultGroup title="Best matches" count={exercises.length}>
+      {exercises.map((ex) => (
+        <ExerciseRow key={ex.id} exercise={ex} lastLogged={lastLogged.get(ex.id)} showMuscle />
+      ))}
+    </ResultGroup>
+  );
+}
+
+function ExerciseRow({
+  exercise,
+  showMuscle,
+  lastLogged,
+}: {
+  exercise: Exercise;
+  showMuscle?: boolean;
+  lastLogged?: string | undefined;
+}) {
+  const VisibilityIcon = exercise.isPublic ? Globe2 : User;
+  const meta = [
+    showMuscle ? formatEnumValue(exercise.primaryMuscleGroup) : null,
+    exercise.equipment ? formatEnumValue(exercise.equipment) : null,
+    lastLoggedLabel(lastLogged),
+  ].filter(Boolean);
+  return (
+    <li className="min-w-0">
       <Link
         to="/exercises/$exerciseId"
         params={{ exerciseId: exercise.id }}
-        className="group flex min-h-12 items-center justify-between gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent/50"
+        className="group flex min-h-14 items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/60"
       >
-        <span className="flex min-w-0 items-center gap-3">
-          <Dumbbell className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="min-w-0 truncate text-sm font-medium">{exercise.name}</span>
-          <VisibilityIcon
-            className={cn(
-              "h-3 w-3 shrink-0",
-              exercise.isPublic ? "text-primary/70" : "text-muted-foreground/60",
-            )}
-            aria-label={exercise.isPublic ? "Public" : "Mine"}
-          />
-          {showMuscle ? (
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              {formatEnumValue(exercise.primaryMuscleGroup)}
-            </span>
-          ) : null}
-          {exercise.strength?.doubleWeight ? (
-            <Badge variant="outline" className="hidden sm:inline-flex">
-              Two-handed
-            </Badge>
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-inset text-muted-foreground">
+          <Dumbbell className="size-[18px]" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-semibold">{exercise.name}</span>
+            <VisibilityIcon
+              className={cn(
+                "size-3 shrink-0",
+                exercise.isPublic ? "text-link/70" : "text-muted-foreground/70",
+              )}
+              aria-label={exercise.isPublic ? "Public" : "Mine"}
+            />
+          </span>
+          {meta.length > 0 ? (
+            <span className="truncate text-[13px] text-muted-foreground">{meta.join(" · ")}</span>
           ) : null}
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
       </Link>
     </li>
   );
@@ -630,29 +906,17 @@ function ExerciseRow({ exercise, showMuscle }: { exercise: Exercise; showMuscle?
 
 function ExercisesSkeleton() {
   return (
-    <div className="space-y-4">
-      {[0, 1, 2].map((i) => (
-        <Card key={i} className="border-border/60">
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-3/4" />
-          </CardContent>
-        </Card>
+    <div className="flex flex-col gap-4">
+      {[0, 1].map((i) => (
+        <div key={i} className="flex flex-col gap-2 rounded-xl border bg-card p-4">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid gap-2 sm:grid-cols-2">
+            {[0, 1, 2, 3].map((j) => (
+              <Skeleton key={j} className="h-12 w-full" />
+            ))}
+          </div>
+        </div>
       ))}
     </div>
-  );
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <Card className="border-destructive/30 bg-destructive/5">
-      <CardContent className="py-4">
-        <p className="text-sm text-destructive">Failed to load: {message}</p>
-      </CardContent>
-    </Card>
   );
 }
