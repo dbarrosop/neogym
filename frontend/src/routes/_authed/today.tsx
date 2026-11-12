@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Play } from "lucide-react";
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
   MeterBar,
   RingMeter,
@@ -413,7 +413,19 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
     ? mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods)
     : [];
   const planned = plan ? planEntriesMacroTotals(planEntries) : null;
-  const now = currentTimeKey();
+  const [now, setNow] = useState(currentTimeKey);
+  useEffect(() => {
+    const update = () => setNow(currentTimeKey());
+    const timer = window.setInterval(update, 60_000);
+    update();
+    window.addEventListener("focus", update);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", update);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
   const nextSlot = plan
     ? groupPlanEntriesByTimeSlot(planEntries).find(
         (slot) => timeToInputValue(slot.sortKey) !== "" && slot.sortKey > now,

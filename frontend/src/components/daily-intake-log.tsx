@@ -479,12 +479,9 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const plannedSlots = selectedPlan
     ? (groupPlanEntriesByTimeSlot(selectedPlanEntries as DailyPlanEntry[]) as DailyPlanTimeSlot[])
     : [];
-  const loggedKeys = new Set(intakeSlots.map((slot) => slot.key));
   const timeline: TimelineItem[] = [
     ...intakeSlots.map((slot) => ({ kind: "logged" as const, sortKey: slot.sortKey, slot })),
-    ...plannedSlots
-      .filter((slot) => !loggedKeys.has(slot.key))
-      .map((slot) => ({ kind: "planned" as const, sortKey: slot.sortKey, slot })),
+    ...plannedSlots.map((slot) => ({ kind: "planned" as const, sortKey: slot.sortKey, slot })),
   ].sort((left, right) => left.sortKey.localeCompare(right.sortKey));
 
   return (
@@ -892,7 +889,7 @@ function formatEntryCount(count: number): string {
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
 type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
-/** A plan time slot that hasn't been logged yet; one click logs all of it. */
+/** A selected-plan slot; each click appends all its entries, including on re-log. */
 function PlannedSlotCard({
   plan,
   slot,

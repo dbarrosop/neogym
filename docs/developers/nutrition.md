@@ -120,14 +120,24 @@ Direct individual plan-food logging uses a standalone food-backed `insertNutriti
 Daily plan logging only uses the `nutrition_days.nutrition_plan_id` selected for that day. If no
 plan is selected, clients hide plan-entry logging tabs/segments and suggestions entirely. If a plan
 is selected, clients show its meal and direct-food suggestions grouped by normalized plan time slot.
-The selected-plan section and each time slot are collapsible, and the plan picker lives inside that
-selected-plan section. Clients no longer expose a whole-plan **Log selected plan** action; instead,
-each time slot has its own Log action that materializes every planned meal/food in that slot in one
-combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
+Each time slot keeps its own Log action regardless of existing intake, including unrelated items,
+partial slot logs, or a fully logged slot at the same time. Clients no longer expose a whole-plan
+**Log selected plan** action; each slot action materializes every planned meal/food in that slot in
+one combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
 default to the current time, and every entry in that slot receives the same actual logged time. Empty
 planned meals fail the slot action before sending so the operation stays all-or-nothing from the
 client perspective. Re-running slot logging appends duplicate logged meals/entries, matching existing
 planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
+
+On the web, the day log is an always-expanded timeline: solid **Logged** cards contain actual intake,
+and dashed **Planned** cards retain their **Log slot** action and full entry list. A planned card
+follows the logged card when their normalized times match, including legacy no-time slots. The plan
+picker lives in the day summary rail; **No plan** clears the selection. Today's **Next in plan** links
+to the day log and names the first timed selected-plan slot after the current local minute,
+regardless of existing intake. It resamples local time once a minute and on focus/visibility changes;
+it is a clock-based suggestion, not a claim that a slot remains unlogged.
+The legacy iOS day log instead has a collapsible selected-plan section with its picker inside;
+each planned slot is also collapsible and keeps its own Log action.
 
 Metadata footgun: `nutrition_log_entries.nutrition_day_id` participates in both the direct day FK and the composite same-day group FK. Nhost GraphQL/Constellation can choose the wrong FK or generate ambiguous SQL if those relationships are auto-tracked from constraints. The metadata therefore uses manual relationships for `nutritionLogEntry.nutritionDay`, `nutritionLogEntry.nutritionLogMeal`, `nutritionDay.nutritionLogEntries`, and `nutritionLogMeal.nutritionLogEntries`; keep that explicit mapping if you regenerate or edit metadata. The `nutritionLogEntry.nutritionPlanFood` relationship is an additional simple FK relationship and does not replace those manual mappings.
 
