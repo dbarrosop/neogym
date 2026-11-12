@@ -214,8 +214,9 @@ estimated net = today's logged snapshot kcal - estimated burned
   manual entries. No database or Hasura permission change is needed.
 
 Surfaces: native Nutrition Overview, today's nutrition day, Energy list and
-current-day detail; web today's daily log and Energy list/current-day detail;
-watch app Energy; and the medium iPhone Energy Balance widget. Energy pages
+current-day detail; web Today (Balance card, beside yesterday's actual balance),
+today's daily log and Energy list/current-day detail; watch app Energy; and the
+medium iPhone Energy Balance widget. Energy pages
 fetch nutrition as well as energy to calculate today's estimated net. Historical
 day/detail screens and charts retain recorded values only. The compact **watch
 complication remains unchanged**, including its actual-burn/net math and reload
