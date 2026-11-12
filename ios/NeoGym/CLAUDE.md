@@ -759,6 +759,11 @@ intact instead of inventing one-off styles.
   resting baseline survives eligible local provisional updates, but is ignored
   by complication display/reload identity; the watch complication stays actuals-only.
   Both widget snapshot additions are optional for old-snapshot compatibility.
+  The medium iPhone widget gives Net a softly tinted panel, with green cutlery
+  and red flame icons beside neutral consumed/burned values. Estimates sit below
+  their recorded metrics; the 7-day average and sync time share a quiet footer.
+  Keep shared kcal units in the header, no calculation prose, and full labels,
+  units, captions and estimates in VoiceOver. Retain large-total and text-size previews.
   The medium iPhone widget uses the host-tested live-refresh orchestrator's
   `timeline` plan: estimates expire in a scheduled next-local-midnight entry
   while recorded values remain available, even without another provider run.

@@ -242,10 +242,17 @@ Health reading replaces today's partial totals. It retains the same owner/date
 and manual-row gates as existing snapshots; old snapshots without that baseline
 still decode and show actual values only. Baseline-only changes do not request
 complication reloads. The iPhone widget snapshot adds optional formatted estimate
-strings; old snapshots still decode. Its compact layout owns its content margins
-and shows estimated burned/net as secondary lines, with the forecast limitation
-also available to VoiceOver. Widget estimates are shown only when the snapshot's
-date matches the timeline entry's local date. For live and cached estimates,
+strings; old snapshots still decode. Its compact layout owns its content margins:
+a softly tinted Net panel uses a prominent signed value beside green cutlery
+(consumed) and red flame (burned) icons with neutral rounded numerals. Estimates
+remain secondary lines beneath their recorded metrics. A shared kcal unit sits
+in the header; the 7-day average net and last-sync time share a quiet footer.
+Repeated units, per-metric timestamps, the active/resting breakdown and balance
+arrows are not visible. VoiceOver retains full labels, units, captions and both
+estimates, including the forecast limitation.
+The empty state uses only a sign-in title and open-app sync prompt. Widget
+estimates are shown only when the snapshot's date matches the timeline entry's
+local date. For live and cached estimates,
 `EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` also schedules an estimate-free
 entry at the next local midnight using calendar-day arithmetic (including DST).
 That entry retains recorded snapshot values and the last-synced caption without
