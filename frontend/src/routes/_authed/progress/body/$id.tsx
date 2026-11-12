@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
 import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,10 @@ function BodyMeasurementDetailRoute() {
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
-              <p className="text-[13px] font-semibold text-muted-foreground">Measurement</p>
+              <p className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+                Measurement
+                {isHealthImport(m.notes) ? <HealthSourceTag /> : null}
+              </p>
               <CardTitle className="text-2xl tabular-nums tracking-tight">
                 {formatDateLong(m.measuredOn)}
               </CardTitle>
@@ -81,7 +85,7 @@ function BodyMeasurementDetailRoute() {
               }
             />
           </dl>
-          {m.notes ? (
+          {visibleNotes(m.notes) ? (
             <div className="space-y-1.5">
               <p className="text-[13px] font-semibold text-muted-foreground">Notes</p>
               <p className="whitespace-pre-wrap text-sm">{m.notes}</p>

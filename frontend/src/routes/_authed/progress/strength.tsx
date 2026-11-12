@@ -145,7 +145,7 @@ function StrengthRoute() {
           description="Log strength sets to see weekly volume and estimated maxes here."
         >
           <Button asChild>
-            <Link to="/workouts">Start a session</Link>
+            <Link to="/train/workouts">Start a session</Link>
           </Button>
         </EmptyState>
       ) : null}
@@ -256,7 +256,7 @@ function RecentLift({ exercise }: { exercise: { id: string; name: string; points
   return (
     <li>
       <Link
-        to="/exercises/$exerciseId"
+        to="/train/exercises/$exerciseId"
         params={{ exerciseId: exercise.id }}
         className="flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
       >

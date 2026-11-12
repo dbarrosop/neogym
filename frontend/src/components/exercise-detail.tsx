@@ -391,7 +391,7 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
               <tr key={entry.id} className="border-t">
                 <td className="py-2.5 pr-3 pl-4">
                   <Link
-                    to="/sessions/$sessionId"
+                    to="/train/sessions/$sessionId"
                     params={{ sessionId: entry.workoutSession.id }}
                     className="flex flex-col font-medium hover:text-link"
                   >
@@ -936,7 +936,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
             return (
               <li key={entry.id}>
                 <Link
-                  to="/sessions/$sessionId"
+                  to="/train/sessions/$sessionId"
                   params={{ sessionId: entry.workoutSession.id }}
                   className="group block"
                 >

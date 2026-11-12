@@ -103,7 +103,7 @@ The user-role insert permission columns deliberately exclude the discriminator c
 - `exercise.kind === 'cardio'` → render the `CardioExerciseLog` row (uses `workout_session_cardio_entries`, reading the per-exercise schema from `exercise.cardio.metricsSchema`).
 - Otherwise → render the strength `ExerciseLog` row (uses `workout_session_strength_sets`, reading `exercise.strength?.doubleWeight` for the per-side multiplier).
 
-This branch is in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
+This branch is in `frontend/src/routes/_authed/train/sessions/_split/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
 
 ### Why `workout_session_exercises.exercise_id` is immutable for the user role
 

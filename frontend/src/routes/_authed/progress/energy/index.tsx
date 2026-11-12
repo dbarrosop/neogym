@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { DailyEnergyChart, type DailyEnergyPoint } from "@/components/daily-energy-chart";
+import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { QuickDailyEnergyForm } from "@/components/progress/quick-entry-forms";
@@ -181,14 +182,17 @@ function DailyEnergyRoute() {
                 return (
                   <tr key={entry.id} className="border-t text-right hover:bg-muted/40">
                     <td className="py-2.5 pl-4 text-left">
-                      <Link
-                        to="/progress/energy/$id"
-                        params={{ id: entry.id }}
-                        className="font-medium hover:text-link"
-                        title={entry.notes ?? undefined}
-                      >
-                        {formatDateShort(entry.energyOn)}
-                      </Link>
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        <Link
+                          to="/progress/energy/$id"
+                          params={{ id: entry.id }}
+                          className="font-medium hover:text-link"
+                          title={visibleNotes(entry.notes) || undefined}
+                        >
+                          {formatDateShort(entry.energyOn)}
+                        </Link>
+                        {isHealthImport(entry.notes) ? <HealthSourceTag /> : null}
+                      </span>
                     </td>
                     <td>{resting === null ? "—" : Math.round(resting).toLocaleString()}</td>
                     <td>{active === null ? "—" : Math.round(active).toLocaleString()}</td>

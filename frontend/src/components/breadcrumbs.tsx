@@ -12,41 +12,18 @@ type RouteDef = { label: string; parent: string | null };
 // must use the same pattern keys; param names are inherited from the deepest
 // match (parents are URL prefixes of children).
 const ROUTES: Record<string, RouteDef> = {
-  "/exercises": { label: "Exercises", parent: null },
-  "/exercises/$exerciseId": { label: "Exercise", parent: "/exercises" },
-  "/workouts": { label: "Workouts", parent: null },
-  "/workouts/new": { label: "New", parent: "/workouts" },
-  "/workouts/$workoutId": { label: "Workout", parent: "/workouts" },
-  "/workouts/$workoutId/edit": { label: "Edit", parent: "/workouts/$workoutId" },
-  "/workouts/$workoutId/exercises/$exerciseId": {
-    label: "Exercise",
-    parent: "/workouts/$workoutId",
-  },
-  "/sessions": { label: "Sessions", parent: null },
-  "/sessions/$sessionId": { label: "Session", parent: "/sessions" },
-  "/sessions/$sessionId/exercises/$exerciseId": {
-    label: "Exercise",
-    parent: "/sessions/$sessionId",
-  },
   "/today": { label: "Today", parent: null },
-  "/progress": { label: "Progress", parent: null },
-  "/progress/muscles": { label: "Muscles", parent: "/progress" },
-  "/progress/strength": { label: "Strength", parent: "/progress" },
-  "/progress/body": { label: "Body", parent: "/progress" },
-  "/progress/body/new": { label: "New", parent: "/progress/body" },
-  "/progress/body/$id": { label: "Measurement", parent: "/progress/body" },
-  "/progress/body/$id/edit": { label: "Edit", parent: "/progress/body/$id" },
-  "/progress/energy": { label: "Energy", parent: "/progress" },
-  "/progress/energy/new": { label: "New", parent: "/progress/energy" },
-  "/progress/energy/$id": { label: "Day", parent: "/progress/energy" },
-  "/progress/energy/$id/edit": { label: "Edit", parent: "/progress/energy/$id" },
-  "/journal": { label: "Journal", parent: null },
-  "/journal/new": { label: "New", parent: "/journal" },
-  "/journal/$id": { label: "Entry", parent: "/journal" },
-  "/journal/$id/edit": { label: "Edit", parent: "/journal/$id" },
+  "/train": { label: "Train", parent: null },
+  "/train/sessions": { label: "Sessions", parent: "/train" },
+  "/train/sessions/$sessionId": { label: "Session", parent: "/train/sessions" },
+  "/train/workouts": { label: "Workouts", parent: "/train" },
+  "/train/workouts/new": { label: "New", parent: "/train/workouts" },
+  "/train/workouts/$workoutId": { label: "Workout", parent: "/train/workouts" },
+  "/train/workouts/$workoutId/edit": { label: "Edit", parent: "/train/workouts/$workoutId" },
+  "/train/exercises": { label: "Exercises", parent: "/train" },
+  "/train/exercises/$exerciseId": { label: "Exercise", parent: "/train/exercises" },
   "/nutrition": { label: "Nutrition", parent: null },
-  "/nutrition/days": { label: "Days", parent: "/nutrition" },
-  "/nutrition/days/$date": { label: "Day", parent: "/nutrition/days" },
+  "/nutrition/log/$date": { label: "Log", parent: "/nutrition" },
   "/nutrition/foods": { label: "Foods", parent: "/nutrition" },
   "/nutrition/foods/new": { label: "New", parent: "/nutrition/foods" },
   "/nutrition/foods/$foodId": { label: "Food", parent: "/nutrition/foods" },
@@ -68,14 +45,30 @@ const ROUTES: Record<string, RouteDef> = {
     label: "Edit",
     parent: "/nutrition/plans/$planId",
   },
-  "/profile": { label: "Account", parent: null },
+  "/progress": { label: "Progress", parent: null },
+  "/progress/muscles": { label: "Muscles", parent: "/progress" },
+  "/progress/strength": { label: "Strength", parent: "/progress" },
+  "/progress/body": { label: "Body", parent: "/progress" },
+  "/progress/body/new": { label: "New", parent: "/progress/body" },
+  "/progress/body/$id": { label: "Measurement", parent: "/progress/body" },
+  "/progress/body/$id/edit": { label: "Edit", parent: "/progress/body/$id" },
+  "/progress/energy": { label: "Energy", parent: "/progress" },
+  "/progress/energy/new": { label: "New", parent: "/progress/energy" },
+  "/progress/energy/$id": { label: "Day", parent: "/progress/energy" },
+  "/progress/energy/$id/edit": { label: "Edit", parent: "/progress/energy/$id" },
+  "/me": { label: "Me", parent: null },
+  "/me/journal": { label: "Journal", parent: "/me" },
+  "/me/journal/new": { label: "New", parent: "/me/journal" },
+  "/me/journal/$id": { label: "Entry", parent: "/me/journal" },
+  "/me/journal/$id/edit": { label: "Edit", parent: "/me/journal/$id" },
+  "/me/account": { label: "Account", parent: "/me" },
 };
 
 type Match = { pattern: string; params: Record<string, string> };
 
 // Picks the most-specific match (fewest $param segments) so that ordering of
-// keys in ROUTES doesn't matter — e.g. `/workouts/new` always beats
-// `/workouts/$workoutId` regardless of which is declared first.
+// keys in ROUTES doesn't matter — e.g. `/train/workouts/new` always beats
+// `/train/workouts/$workoutId` regardless of which is declared first.
 function matchPattern(pathname: string): Match | null {
   const pathParts = pathname.split("/");
   let best: { match: Match; paramCount: number } | null = null;
@@ -177,28 +170,22 @@ export function Breadcrumbs({ minDepth = 1 }: { minDepth?: number } = {}) {
 }
 
 const CRUMB_LABEL_RENDERERS: Record<string, (crumb: Crumb) => ReactNode> = {
-  "/workouts/$workoutId": (crumb) => (
+  "/train/workouts/$workoutId": (crumb) => (
     <WorkoutName id={crumb.params["workoutId"] ?? ""} fallback={crumb.label} />
   ),
-  "/sessions/$sessionId": (crumb) => (
+  "/train/sessions/$sessionId": (crumb) => (
     <SessionLabel id={crumb.params["sessionId"] ?? ""} fallback={crumb.label} />
   ),
-  "/exercises/$exerciseId": (crumb) => (
-    <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
-  ),
-  "/workouts/$workoutId/exercises/$exerciseId": (crumb) => (
-    <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
-  ),
-  "/sessions/$sessionId/exercises/$exerciseId": (crumb) => (
+  "/train/exercises/$exerciseId": (crumb) => (
     <ExerciseName id={crumb.params["exerciseId"] ?? ""} fallback={crumb.label} />
   ),
   "/progress/body/$id": (crumb) => (
     <BodyMeasurementLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
   ),
-  "/journal/$id": (crumb) => (
+  "/me/journal/$id": (crumb) => (
     <JournalEntryLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
   ),
-  "/nutrition/days/$date": (crumb) => formatDateShort(crumb.params["date"] ?? ""),
+  "/nutrition/log/$date": (crumb) => formatDateShort(crumb.params["date"] ?? ""),
   "/nutrition/foods/$foodId": (crumb) => (
     <FoodName id={crumb.params["foodId"] ?? ""} fallback={crumb.label} />
   ),

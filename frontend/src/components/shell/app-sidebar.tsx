@@ -48,7 +48,7 @@ export function AppSidebar({ footer }: { footer?: ReactNode }) {
       <div className="flex-1" />
       {footer}
       <Link
-        to="/profile"
+        to="/me/account"
         className="flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60"
       >
         <span className="grid size-[30px] shrink-0 place-items-center rounded-full bg-accent-soft text-[13px] font-bold text-accent-soft-foreground">

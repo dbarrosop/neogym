@@ -60,13 +60,13 @@ export function useStartSession() {
       }
       const id = res.insertWorkoutSession?.id;
       if (id) {
-        navigate({ to: "/sessions/$sessionId", params: { sessionId: id } });
+        navigate({ to: "/train/sessions/$sessionId", params: { sessionId: id } });
       } else {
         toast.error("Session created but the server didn't return an id");
         // Originating page (/workouts/$workoutId, /exercises/$exerciseId) is a
         // durable detail page — keep it on the Back stack per CLAUDE.md's
         // navigation convention. No `replace` here.
-        navigate({ to: "/sessions" });
+        navigate({ to: "/train/sessions" });
       }
     },
     onError: (e) => {

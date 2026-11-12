@@ -8,5 +8,5 @@ export const Route = createFileRoute("/_authed/nutrition/")({
 // Nutrition opens on today's log. The date is resolved on the client so it
 // follows the user's local calendar day, not the server's.
 function NutritionIndexRoute() {
-  return <Navigate to="/nutrition/days/$date" params={{ date: todayLocalISO() }} replace />;
+  return <Navigate to="/nutrition/log/$date" params={{ date: todayLocalISO() }} replace />;
 }

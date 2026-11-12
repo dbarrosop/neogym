@@ -12,7 +12,7 @@ function NutritionLayoutRoute() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   // The day log (timeline + summary rail) and the foods table use the full width.
   const wide =
-    pathname.startsWith("/nutrition/days/") ||
+    pathname.startsWith("/nutrition/log/") ||
     pathname.replace(TRAILING_SLASH, "") === "/nutrition/foods";
   return (
     <PageShell maxWidth={wide ? "6xl" : "4xl"}>

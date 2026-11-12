@@ -263,7 +263,7 @@ workout_session_cardio_entries (
 )
 ```
 
-The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/sessions/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
+The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/train/sessions/_split/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
 
 Multiple entries per session are a real use case — see the seeded "4×400m intervals" session, which logs the same `workout_session_exercise` four times.
 

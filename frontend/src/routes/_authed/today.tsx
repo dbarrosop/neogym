@@ -223,12 +223,12 @@ function TodayRoute() {
         actions={
           <>
             <Button asChild variant="outline">
-              <Link to="/nutrition/days/$date" params={{ date: today }}>
+              <Link to="/nutrition/log/$date" params={{ date: today }}>
                 Log food
               </Link>
             </Button>
             <Button asChild>
-              <Link to="/workouts">
+              <Link to="/train/workouts">
                 <Play />
                 Start session
               </Link>
@@ -314,11 +314,11 @@ function TrainingCard({ data }: { data: Overview }) {
 
   if (data.todaySessions.length === 0) {
     return (
-      <SectionCard title="Training" link={{ label: "Sessions", to: "/sessions" }}>
+      <SectionCard title="Training" link={{ label: "Sessions", to: "/train/sessions" }}>
         <p className="text-sm text-muted-foreground">No session logged yet today.</p>
         {latest ? (
           <Link
-            to="/sessions/$sessionId"
+            to="/train/sessions/$sessionId"
             params={{ sessionId: latest.id }}
             className="flex items-center justify-between gap-3 rounded-lg bg-surface-inset px-3 py-2.5 text-sm hover:bg-muted"
           >
@@ -348,7 +348,7 @@ function TrainingCard({ data }: { data: Overview }) {
   }
 
   return (
-    <SectionCard title="Training" link={{ label: "Sessions", to: "/sessions" }}>
+    <SectionCard title="Training" link={{ label: "Sessions", to: "/train/sessions" }}>
       {data.todaySessions.map((session) => {
         const totals = sessionTotals(session);
         const name = sessionDisplayName({
@@ -358,7 +358,7 @@ function TrainingCard({ data }: { data: Overview }) {
         return (
           <div key={session.id} className="flex flex-col gap-4">
             <Link
-              to="/sessions/$sessionId"
+              to="/train/sessions/$sessionId"
               params={{ sessionId: session.id }}
               className="group flex items-center gap-3"
             >
@@ -432,7 +432,7 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
           ) : null}
         </>
       }
-      link={{ label: "Open log", to: "/nutrition/days/$date", params: { date: today } }}
+      link={{ label: "Open log", to: "/nutrition/log/$date", params: { date: today } }}
     >
       <div className="flex flex-wrap items-center gap-6">
         <RingMeter
@@ -479,7 +479,7 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
       </div>
       {nextSlot ? (
         <Link
-          to="/nutrition/days/$date"
+          to="/nutrition/log/$date"
           params={{ date: today }}
           className="flex items-center gap-3 rounded-lg bg-surface-inset px-3 py-2.5 hover:bg-muted"
         >

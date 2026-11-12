@@ -145,7 +145,7 @@ function MusclesRoute() {
           description="Log a strength set with reps to see sets by muscle here."
         >
           <Button asChild>
-            <Link to="/workouts">Start a session</Link>
+            <Link to="/train/workouts">Start a session</Link>
           </Button>
         </EmptyState>
       ) : null}

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Check, ChevronLeft, ChevronRight, Pencil, Trash2, X } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import { type FocusEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -9,6 +9,7 @@ import {
   type LogPlanFoodSlot,
   type LogPlanSlot,
 } from "@/components/log-intake-dialog";
+import { DayNavigator } from "@/components/nutrition-day-navigator";
 import { MeterBar } from "@/components/patterns/metrics";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
@@ -34,7 +35,6 @@ import { useAuth } from "@/lib/nhost/auth-provider";
 import {
   type AdHocLogEntryUpdateSet,
   type AdHocNutritionDraft,
-  addLocalDateDays,
   adHocNutritionDraftTotals,
   buildAdHocLogEntryUpdateSet,
   buildPlanLogInputs,
@@ -46,7 +46,6 @@ import {
   groupIntakeByTimeSlot,
   groupPlanEntriesByTimeSlot,
   type IntakeTimeSlot,
-  localDateToDate,
   loggedEntryMacroTotals,
   loggedMacroTotals,
   type MacroTotals,
@@ -61,7 +60,6 @@ import {
   timeToInputValue,
 } from "@/lib/nutrition";
 import { logSelectedPlanMaterialization } from "@/lib/nutrition-plan-log";
-import { useLocalToday } from "@/lib/use-local-today";
 import { cn } from "@/lib/utils";
 
 const DailyIntakeLogQuery = graphql(`
@@ -335,7 +333,6 @@ interface DailyIntakeLogProps {
 export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Keep the date prefix for mutation invalidation, but never reuse another owner's day.
   const queryKey = ["nutrition", "days", date, user?.id];
@@ -424,7 +421,6 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days"] });
       toast.success("Day log cleared");
-      navigate({ to: "/nutrition/days", replace: true });
     },
     onError: (error) => {
       toast.error(`Failed to clear day: ${error.message}`);
@@ -488,7 +484,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <DayToolbar date={date}>
+      <DayNavigator date={date}>
         <LogIntakeDialog
           ensureDay={ensureDay}
           date={date}
@@ -501,7 +497,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
           triggerLabel="Log food"
           triggerVariant="default"
         />
-      </DayToolbar>
+      </DayNavigator>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
         <section aria-label="Timeline" className="flex min-w-0 flex-col gap-3">
@@ -629,46 +625,6 @@ function ClearDayButton({
 type TimelineItem =
   | { kind: "logged"; sortKey: string; slot: IntakeTimeSlot<DailyEntry> }
   | { kind: "planned"; sortKey: string; slot: DailyPlanTimeSlot };
-
-function DayToolbar({ date, children }: { date: string; children: ReactNode }) {
-  const today = useLocalToday();
-  const parsed = localDateToDate(date);
-  const label = parsed
-    ? parsed.toLocaleDateString(undefined, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-        ...(parsed.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
-      })
-    : date;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-1.5">
-        <Button asChild size="icon" variant="outline" aria-label="Previous day">
-          <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, -1) }}>
-            <ChevronLeft />
-          </Link>
-        </Button>
-        <h2 className="min-w-[8.5rem] px-1 text-center text-[15px] font-semibold tabular-nums">
-          {date === today ? `Today · ${label}` : label}
-        </h2>
-        <Button asChild size="icon" variant="outline" aria-label="Next day">
-          <Link to="/nutrition/days/$date" params={{ date: addLocalDateDays(date, 1) }}>
-            <ChevronRight />
-          </Link>
-        </Button>
-        {date === today ? null : (
-          <Button asChild size="sm" variant="ghost">
-            <Link to="/nutrition/days/$date" params={{ date: today }}>
-              Go to today
-            </Link>
-          </Button>
-        )}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 

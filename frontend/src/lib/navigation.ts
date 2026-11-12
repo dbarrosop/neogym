@@ -29,13 +29,13 @@ export const AREAS: readonly Area[] = [
   {
     id: "train",
     label: "Train",
-    to: "/sessions",
+    to: "/train/sessions",
     Icon: Dumbbell,
-    match: ["/sessions", "/workouts", "/exercises"],
+    match: ["/train"],
     sections: [
-      { label: "Sessions", to: "/sessions", match: ["/sessions"] },
-      { label: "Workouts", to: "/workouts", match: ["/workouts"] },
-      { label: "Exercises", to: "/exercises", match: ["/exercises"] },
+      { label: "Sessions", to: "/train/sessions", match: ["/train/sessions"] },
+      { label: "Workouts", to: "/train/workouts", match: ["/train/workouts"] },
+      { label: "Exercises", to: "/train/exercises", match: ["/train/exercises"] },
     ],
   },
   {
@@ -45,7 +45,7 @@ export const AREAS: readonly Area[] = [
     Icon: Utensils,
     match: ["/nutrition"],
     sections: [
-      { label: "Log", to: "/nutrition/days", match: ["/nutrition/days"] },
+      { label: "Log", to: "/nutrition", match: ["/nutrition/log"] },
       { label: "Plans", to: "/nutrition/plans", match: ["/nutrition/plans"] },
       { label: "Foods", to: "/nutrition/foods", match: ["/nutrition/foods"] },
       { label: "Meals", to: "/nutrition/meals", match: ["/nutrition/meals"] },
@@ -67,12 +67,12 @@ export const AREAS: readonly Area[] = [
   {
     id: "me",
     label: "Me",
-    to: "/journal",
+    to: "/me/journal",
     Icon: UserRound,
-    match: ["/journal", "/profile"],
+    match: ["/me"],
     sections: [
-      { label: "Journal", to: "/journal", match: ["/journal"] },
-      { label: "Account", to: "/profile", match: ["/profile"] },
+      { label: "Journal", to: "/me/journal", match: ["/me/journal"] },
+      { label: "Account", to: "/me/account", match: ["/me/account"] },
     ],
   },
 ];
@@ -98,7 +98,7 @@ export function isSectionActive(section: AreaSection, pathname: string): boolean
 }
 
 const TRAILING_SLASH = /\/$/;
-const DAY_LOG_PATH = /^\/nutrition\/days\/[^/]+$/;
+const DAY_LOG_PATH = /^\/nutrition\/log\/[^/]+$/;
 
 /**
  * True on a page reached straight from an area tab (e.g. /nutrition/foods or

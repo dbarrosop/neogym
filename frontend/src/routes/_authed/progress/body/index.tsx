@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { BodyMetricsChart, type BodyMetricsPoint } from "@/components/body-metrics-chart";
+import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { Segmented } from "@/components/patterns/segmented";
@@ -229,13 +230,16 @@ function MeasurementsTable({ measurements }: { measurements: Measurement[] }) {
           {visible.map((m) => (
             <tr key={m.id} className="border-t hover:bg-muted/40">
               <td className="py-2.5 pl-4">
-                <Link
-                  to="/progress/body/$id"
-                  params={{ id: m.id }}
-                  className="font-medium hover:text-link"
-                >
-                  {formatDateShort(m.measuredOn)}
-                </Link>
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <Link
+                    to="/progress/body/$id"
+                    params={{ id: m.id }}
+                    className="font-medium hover:text-link"
+                  >
+                    {formatDateShort(m.measuredOn)}
+                  </Link>
+                  {isHealthImport(m.notes) ? <HealthSourceTag /> : null}
+                </span>
               </td>
               <td className="text-right">
                 {m.weightKg === null || m.weightKg === undefined
@@ -248,7 +252,7 @@ function MeasurementsTable({ measurements }: { measurements: Measurement[] }) {
                   : `${Number(m.bodyFatPct).toFixed(1)} %`}
               </td>
               <td className="hidden max-w-0 truncate pr-4 pl-6 text-muted-foreground sm:table-cell">
-                {m.notes ?? ""}
+                {visibleNotes(m.notes)}
               </td>
             </tr>
           ))}
