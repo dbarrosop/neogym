@@ -14,7 +14,7 @@ struct PlansListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
                 search
                 if viewModel.isFiltered, !viewModel.filteredPlans.isEmpty {
@@ -29,10 +29,9 @@ struct PlansListView: View {
                 }
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task { if case .idle = viewModel.state { await viewModel.load() } }
@@ -42,68 +41,45 @@ struct PlansListView: View {
 
 
     private var search: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(NeoGymTheme.textSecondary)
-            TextField("Search plans or meals…", text: $viewModel.searchText)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-            if !viewModel.searchText.isEmpty {
-                Button { viewModel.clearSearch() } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundColor(NeoGymTheme.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
-            }
-        }
-        .padding(10)
-        .insetCard(cornerRadius: 12)
+        SearchField(placeholder: "Search plans or meals", text: $viewModel.searchText, onClear: { viewModel.clearSearch() })
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading plans") { AppLoadingStateView(title: "Loading plans") }
+            AppLoadingStateView(title: "Loading plans")
         case .loading where viewModel.plans.isEmpty:
-            SectionShell(title: "Loading plans") { AppLoadingStateView(title: "Loading plans") }
+            AppLoadingStateView(title: "Loading plans")
         case let .failed(message, _) where viewModel.plans.isEmpty:
-            SectionShell(title: "Plans") {
-                AppErrorStateView(title: "Failed to load plans", message: message) { Task { await viewModel.load() } }
-            }
+            AppErrorStateView(title: "Couldn't load plans", message: message) { Task { await viewModel.load() } }
+                .cardSurface()
         default:
             if viewModel.filteredPlans.isEmpty {
-                SectionShell(title: viewModel.isFiltered ? "No matching plans" : "No plans") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: viewModel.isFiltered ? "No plans match this search." : "No daily plans yet.",
-                            message: viewModel.isFiltered
-                                ? "Clear the search or try another meal or food name."
-                                : "Create a reusable day template from meals and foods.",
-                            systemImage: "list.bullet.rectangle"
-                        )
-                        if viewModel.isFiltered {
-                            Button("Clear search") { viewModel.clearSearch() }
-                                .buttonStyle(NeoGymSecondaryButtonStyle())
-                        } else {
-                            NavigationLink(value: NutritionRoute.planCreate) {
-                                Label("Create your first plan", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
+                VStack(spacing: NeoGymTheme.spacingMD) {
+                    AppEmptyStateView(
+                        title: viewModel.isFiltered ? "No plans match this search" : "No plans yet",
+                        message: viewModel.isFiltered ? "Clear the search or try another meal or food name." : "Create a reusable day template with the + button.",
+                        systemImage: "fork.knife"
+                    )
+                    if viewModel.isFiltered {
+                        Button("Clear") { viewModel.clearSearch() }
+                            .buttonStyle(NeoGymSecondaryButtonStyle())
                     }
                 }
+                .padding(.bottom, NeoGymTheme.spacingMD)
+                .cardSurface()
             } else {
-                SectionShell(title: "Plans", subtitle: viewModel.isFiltered ? "Filtered" : "Newest updated first") {
-                    VStack(spacing: 0) {
-                        ForEach(viewModel.filteredPlans) { plan in
-                            NavigationLink(value: NutritionRoute.planDetail(plan.id)) {
-                                PlanListRow(plan: plan)
-                            }
-                            if plan.id != viewModel.filteredPlans.last?.id { Divider() }
+                VStack(spacing: 0) {
+                    ForEach(viewModel.filteredPlans) { plan in
+                        NavigationLink(value: NutritionRoute.planDetail(plan.id)) {
+                            PlanListRow(item: plan)
                         }
+                        .buttonStyle(.plain)
+                        if plan.id != viewModel.filteredPlans.last?.id { RowSeparator() }
                     }
                 }
+                .cardSurface()
             }
         }
     }
@@ -111,42 +87,17 @@ struct PlansListView: View {
 }
 
 private struct PlanListRow: View {
-    let plan: NutritionPlan
+    let item: NutritionPlan
 
     var body: some View {
-        let sortedEntries = plan.sortedEntries
-        let firstEntry = sortedEntries.first
-        let firstEntrySummary = firstEntry.map { entry in
-            "\(IntakeGrouping.formatTimeOfDay(entry.slotTime)) · \(entry.displayLabel)"
-        } ?? "No entries yet"
-        HStack(spacing: 12) {
-            Image(systemName: "list.bullet.rectangle")
-                .font(.title3)
-                .foregroundStyle(NeoGymTheme.accentText)
-                .frame(width: 44, height: 44)
-                .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            VStack(alignment: .leading, spacing: 5) {
-                Text(plan.name)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NeoGymTheme.text)
-                    .lineLimit(1)
-                Text("\(sortedEntries.count) entr\(sortedEntries.count == 1 ? "y" : "ies") · \(firstEntrySummary) · "
-                    + NutritionMath.macroTotalsSummary(plan.macroTotals))
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                    .lineLimit(2)
-                if let description = plan.description, !description.isEmpty {
-                    Text(description)
-                        .font(.caption2)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-        }
-        .padding(.vertical, 11)
+        let totals = item.macroTotals
+        let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(item.sortedEntries).count
+        ListRow(
+            title: item.name,
+            subtitle: "\(slots) slot\(slots == 1 ? "" : "s") · P \(MetricFormat.whole(totals.protein)) · "
+                + "C \(MetricFormat.whole(totals.carbs)) · F \(MetricFormat.whole(totals.fat)) g",
+            trailingValue: MetricFormat.whole(totals.kcal),
+            trailingCaption: "kcal"
+        )
     }
 }

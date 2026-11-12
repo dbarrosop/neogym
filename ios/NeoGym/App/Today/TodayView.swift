@@ -156,6 +156,7 @@ struct TodayView: View {
                 Label("Quick log", systemImage: "plus")
                     .labelStyle(.iconOnly)
             }
+            .tint(NeoGymTheme.text)
             .accessibilityLabel("Quick log")
         }
     }

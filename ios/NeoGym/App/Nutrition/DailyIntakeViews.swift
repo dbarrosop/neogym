@@ -1,17 +1,24 @@
 import NeoGymKit
 import SwiftUI
+import WidgetKit
 
+/// Nutrition › Log: a week strip and date picker, the day summary, and a
+/// time-slot timeline where logged slots are solid and the selected plan's
+/// remaining slots are dashed with one Log action each.
 struct DailyIntakeView: View {
-    let repository: any NutritionFoodMealRepositoryProtocol
     let reloadToken: Int
     let onMutated: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
+    @StateObject private var weekModel: NutritionCalorieHistoryViewModel
     @State private var logRequest: LogIntakeSheetRequest?
     @State private var editingEntry: EditingEntrySheetItem?
     @State private var editingGroup: EditingGroupSheetItem?
-    @State private var selectedPlanSectionExpanded = true
     @State private var confirmingDayDelete = false
+    @State private var isPickingDate = false
+    @State private var expandedOverrides: [String: Bool] = [:]
+    @State private var loggingSlotKey: String?
+    @State private var loadedWeek: ChartHistoryRange?
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
@@ -19,317 +26,376 @@ struct DailyIntakeView: View {
         reloadToken: Int = 0,
         onMutated: @escaping () -> Void
     ) {
-        self.repository = repository
         self.reloadToken = reloadToken
         self.onMutated = onMutated
         _viewModel = StateObject(wrappedValue: DailyIntakeViewModel(date: date, repository: repository))
+        _weekModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
     }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
-                dayNavigator
-                header
+                NutritionWeekStripView(
+                    days: NutritionWeekStrip.days(containing: viewModel.date),
+                    selected: viewModel.date,
+                    today: IntakeGrouping.formatLocalDate(),
+                    kcalByDate: NutritionWeekStrip.kcalByDate(weekModel.history),
+                    onSelect: select
+                )
                 content
-                if isLoaded, viewModel.day != nil {
-                    FormDeleteButton(
-                        title: "Clear day log",
-                        isDisabled: viewModel.isMutating,
-                        action: { confirmingDayDelete = true }
-                    )
-                    .padding(.top, NeoGymTheme.spacingSM)
-                }
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
-        .task { await viewModel.load() }
-        .onChange(of: reloadToken) { Task { await viewModel.load() } }
-        .refreshable { await viewModel.load() }
+        .task {
+            await viewModel.load()
+            await loadWeek(force: true)
+        }
+        .onChange(of: reloadToken) { Task { await reload() } }
+        .refreshable { await reload() }
+        .toolbar { toolbar }
         .sheet(item: $logRequest) { request in
-            LogIntakeSheet(viewModel: viewModel, request: request, onMutated: onMutated)
+            LogIntakeSheet(viewModel: viewModel, request: request, onMutated: mutated)
         }
         .sheet(item: $editingEntry) { item in
-            EditLogEntrySheet(viewModel: viewModel, item: item, onMutated: onMutated)
+            EditLogEntrySheet(viewModel: viewModel, item: item, onMutated: mutated)
         }
         .sheet(item: $editingGroup) { item in
-            EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: onMutated)
+            EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: mutated)
         }
-        .toolbar { dailyIntakeLogToolbar }
+        .sheet(isPresented: $isPickingDate) {
+            NutritionDatePickerSheet(date: viewModel.date, onPick: select)
+        }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
                 Task {
-                    if await viewModel.deleteDay() {
-                        onMutated()
-                    }
+                    if await viewModel.deleteDay() { mutated() }
                 }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Logged meal groups and entries cascade and cannot be recovered.")
-        }
-    }
-
-    private var header: some View {
-        SectionShell(title: IntakeGrouping.formatLocalDateLabel(viewModel.date), subtitle: "Daily log") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Totals use logged snapshot nutrition, so later food or template edits do not rewrite this day.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                if let message = viewModel.mutationState.errorMessage {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(NeoGymTheme.destructive)
-                }
-            }
+            Text("Everything logged on \(IntakeGrouping.formatLocalDateLabel(viewModel.date)) is deleted, including meal groups. This can't be undone.")
         }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
-        case .idle, .loading:
-            SectionShell(title: "Loading", subtitle: nil) {
-                AppLoadingStateView(message: "Opening daily intake…")
+        case .idle, .loading(previous: nil):
+            AppLoadingStateView(title: "Opening day")
+        case let .failed(message, previous) where previous == nil:
+            AppErrorStateView(title: "Couldn't load this day", message: message) {
+                Task { await viewModel.load() }
             }
-        case let .failed(message, _):
-            SectionShell(title: "Daily log", subtitle: nil) {
-                AppErrorStateView(title: "Failed to load day", message: message) {
-                    Task { await viewModel.load() }
-                }
-            }
-        case .loaded:
-            totalsSection
-            intakeSection
-            selectedPlanSuggestionsSection
+            .cardSurface()
+        default:
+            loaded
         }
     }
 
-    private var totalsSection: some View {
-        SectionShell(title: "Logged totals", subtitle: "Snapshot totals with an optional plan target") {
-            VStack(alignment: .leading, spacing: 14) {
-                MacroSummaryView(
-                    totals: viewModel.payload?.loggedTotals ?? .empty,
-                    title: "Logged",
-                    description: viewModel.selectedPlan == nil
-                        ? "Choose a plan to compare this day with its target totals."
-                        : "Compared with \(viewModel.selectedPlan?.name ?? "selected plan").",
-                    targetTotals: viewModel.payload?.targetTotals
+    @ViewBuilder
+    private var loaded: some View {
+        let payload = viewModel.payload
+        NutritionDaySummaryCard(
+            date: viewModel.date,
+            totals: payload?.loggedTotals ?? .empty,
+            targetTotals: payload?.targetTotals,
+            plans: payload?.nutritionPlans ?? [],
+            selectedPlanId: viewModel.day?.nutritionPlanId,
+            balance: viewModel.calorieBalance,
+            projection: payload?.energyProjection(date: viewModel.date),
+            isMutating: viewModel.isMutating,
+            onPlanChange: changePlan
+        )
+        if let message = viewModel.mutationState.errorMessage {
+            FeedbackBanner(message: message)
+        }
+        timeline
+        if viewModel.day != nil {
+            FormDeleteButton(
+                title: "Clear day log",
+                isDisabled: viewModel.isMutating,
+                action: { confirmingDayDelete = true }
+            )
+            .padding(.top, NeoGymTheme.spacingXS)
+        }
+        Text("Totals use the values saved when food was logged, so later edits to foods or plans don't change this day.")
+            .font(.caption)
+            .foregroundStyle(NeoGymTheme.textTertiary)
+            .padding(.horizontal, NeoGymTheme.spacingXXS)
+    }
+
+    @ViewBuilder
+    private var timeline: some View {
+        let items = NutritionTimeline.items(day: viewModel.day, selectedPlan: viewModel.selectedPlan)
+        let defaults = NutritionTimeline.defaultExpandedIds(items)
+        let nextPlannedId = items.first { !$0.isLogged }?.id
+        if items.isEmpty {
+            AppEmptyStateView(
+                title: "Nothing logged yet",
+                message: viewModel.selectedPlan == nil
+                    ? "Use + to log what you ate, or pick a plan to see its time slots here."
+                    : "This plan has no time slots yet. Use + to log what you ate.",
+                systemImage: "fork.knife"
+            )
+            .cardSurface()
+        }
+        ForEach(items) { item in
+            let isExpanded = expandedOverrides[item.id] ?? defaults.contains(item.id)
+            let toggle = { expandedOverrides[item.id] = !isExpanded }
+            switch item {
+            case let .logged(slot):
+                LoggedSlotCard(
+                    slot: slot,
+                    day: viewModel.day,
+                    isExpanded: isExpanded,
+                    toggle: toggle,
+                    editEntry: { editingEntry = $0 },
+                    editGroup: { editingGroup = $0 }
                 )
-                CalorieBalanceView(balance: viewModel.calorieBalance)
-                if let projection = viewModel.payload?.energyProjection(date: viewModel.date) {
-                    DailyEnergyProjectionView(projection: projection)
-                }
-            }
-        }
-    }
-
-    private var planPicker: some View {
-        HStack(spacing: 10) {
-            Picker("Plan", selection: Binding(
-                get: { viewModel.day?.nutritionPlanId ?? "" },
-                set: { value in
-                    let nextPlanId = value.isEmpty ? nil : value
-                    guard nextPlanId != viewModel.day?.nutritionPlanId else { return }
-                    Task {
-                        if await viewModel.updatePlan(nutritionPlanId: nextPlanId) {
-                            onMutated()
-                        }
-                    }
-                }
-            )) {
-                Text("No plan").tag("")
-                ForEach(viewModel.payload?.nutritionPlans ?? []) { plan in
-                    Text(plan.name).tag(plan.id)
-                }
-            }
-            .pickerStyle(.menu)
-            .disabled(viewModel.isMutating)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var intakeSection: some View {
-        SectionShell(title: "Intake", subtitle: "Foods and logged meal groups") {
-            VStack(alignment: .leading, spacing: 14) {
-                if viewModel.intakeSlots.isEmpty {
-                    AppEmptyStateView(
-                        title: "No food logged",
-                        message: "Log a standalone food or materialize a meal template into editable entries.",
-                        systemImage: "fork.knife"
-                    )
-                } else {
-                    ForEach(viewModel.intakeSlots, id: \.key) { slot in
-                        TimeSlotCard(
-                            slot: slot,
-                            day: viewModel.day,
-                            editEntry: { editingEntry = $0 },
-                            editGroup: { editingGroup = $0 }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    private var selectedPlanSuggestionsSection: some View {
-        let slots = viewModel.selectedPlan.map { NutritionPlanGrouping.groupPlanEntriesByTimeSlot($0.sortedEntries) } ?? []
-        return SectionShell(title: "Selected plan", subtitle: viewModel.selectedPlan?.name ?? "Optional template") {
-            VStack(alignment: .leading, spacing: 14) {
-                Button {
-                    withAnimation { selectedPlanSectionExpanded.toggle() }
-                } label: {
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "checklist")
-                            .foregroundStyle(NeoGymTheme.accentText)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(viewModel.selectedPlan?.name ?? "No plan selected")
-                                .font(.subheadline.weight(.semibold))
-                            Text(viewModel.selectedPlan == nil ? "Choose a plan to show its time slots." : "Log one planned time slot at a time.")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: selectedPlanSectionExpanded ? "chevron.up" : "chevron.down")
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-
-                if selectedPlanSectionExpanded {
-                    planPicker
-
-                    if viewModel.selectedPlan == nil {
-                        AppEmptyStateView(
-                            title: "No plan selected",
-                            message: "Select a plan above to log its time slots.",
-                            systemImage: "checklist"
-                        )
-                    } else if slots.isEmpty {
-                        AppEmptyStateView(
-                            title: "No plan entries",
-                            message: "This selected plan does not have meal or food entries yet.",
-                            systemImage: "checklist"
-                        )
-                    } else {
-                        ForEach(slots, id: \.key) { slot in
-                            PlanSuggestionSlotCard(
-                                slot: slot,
-                                disabled: viewModel.isMutating,
-                                logSlot: { slot in
-                                    Task {
-                                        if await viewModel.logSelectedPlanSlot(slot) {
-                                            onMutated()
-                                        }
-                                    }
-                                }
-                            )
-                        }
-                    }
-                }
+            case let .planned(slot):
+                PlannedSlotCard(
+                    slot: slot,
+                    isExpanded: isExpanded,
+                    isNext: item.id == nextPlannedId,
+                    isLogging: loggingSlotKey == slot.key,
+                    isDisabled: viewModel.isMutating,
+                    toggle: toggle,
+                    log: { logSlot(slot) }
+                )
             }
         }
     }
 
     @ToolbarContentBuilder
-    private var dailyIntakeLogToolbar: some ToolbarContent {
+    private var toolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                isPickingDate = true
+            } label: {
+                Label("Pick a date", systemImage: "calendar")
+                    .labelStyle(.iconOnly)
+            }
+            .tint(NeoGymTheme.text)
+            .accessibilityLabel("Pick a date")
+        }
         AreaPrimaryAction(title: "Log food") {
-            if isLoaded, !viewModel.isMutating { logRequest = .adHocFood }
+            if !viewModel.isMutating, viewModel.payload != nil { logRequest = .adHocFood }
         }
     }
 
-    private var dayNavigator: some View {
-        HStack(spacing: NeoGymTheme.spacingXS) {
-            Button {
-                Task { await viewModel.moveDate(days: -1) }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .frame(width: NeoGymTheme.minimumTapTarget, height: NeoGymTheme.minimumTapTarget)
-            }
-            .accessibilityLabel("Previous day")
-            Spacer(minLength: 0)
-            Text(IntakeGrouping.formatLocalDateLabel(viewModel.date))
-                .font(.headline)
-                .monospacedDigit()
-            Spacer(minLength: 0)
-            Button {
-                Task { await viewModel.moveDate(days: 1) }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .frame(width: NeoGymTheme.minimumTapTarget, height: NeoGymTheme.minimumTapTarget)
-            }
-            .accessibilityLabel("Next day")
+    // MARK: - Actions
+
+    private func select(_ date: String) {
+        guard date != viewModel.date else { return }
+        expandedOverrides = [:]
+        Task {
+            await viewModel.setDate(date)
+            await loadWeek(force: false)
         }
-        .disabled(viewModel.isMutating)
-        .cardSurface()
     }
 
-    private var isLoaded: Bool {
-        if case .loaded = viewModel.state { return true }
-        return false
+    private func reload() async {
+        await viewModel.load()
+        await loadWeek(force: true)
     }
 
+    private func loadWeek(force: Bool) async {
+        let range = NutritionWeekStrip.range(containing: viewModel.date)
+        guard force || range != loadedWeek else { return }
+        loadedWeek = range
+        await weekModel.load(range: range)
+    }
+
+    private func mutated() {
+        onMutated()
+        Task { await loadWeek(force: true) }
+    }
+
+    private func changePlan(_ planId: String?) {
+        guard planId != viewModel.day?.nutritionPlanId else { return }
+        Task {
+            if await viewModel.updatePlan(nutritionPlanId: planId) { mutated() }
+        }
+    }
+
+    private func logSlot(_ slot: NutritionPlanTimeSlot<NutritionPlanEntry>) {
+        guard loggingSlotKey == nil else { return }
+        loggingSlotKey = slot.key
+        Task {
+            defer { loggingSlotKey = nil }
+            if await viewModel.logSelectedPlanSlot(slot) {
+                expandedOverrides["logged-\(slot.key)"] = true
+                mutated()
+            }
+        }
+    }
 }
 
-private struct CalorieBalanceView: View {
+/// Totals against the selected plan, macro bars and energy out.
+struct NutritionDaySummaryCard: View {
+    let date: String
+    let totals: MacroTotals
+    let targetTotals: MacroTotals?
+    let plans: [NutritionPlan]
+    let selectedPlanId: String?
     let balance: DailyCalorieBalance
+    let projection: DailyEnergyProjection?
+    let isMutating: Bool
+    let onPlanChange: (String?) -> Void
+    @Environment(\.locale) private var locale
+
+    private var isToday: Bool { date == IntakeGrouping.formatLocalDate() }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Calories in / out")
-                    .font(.subheadline.weight(.semibold))
-                Text("Intake uses logged nutrition snapshots. Output uses the matching daily energy row.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                balanceTile(
-                    label: "In",
-                    value: NutritionMath.formatMacro(balance.caloriesIn, unit: "kcal")
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .firstTextBaseline) {
+                MetricValueText(
+                    value: MetricFormat.whole(totals.kcal),
+                    unit: targetTotals.map { "/ \(MetricFormat.whole($0.kcal)) kcal" } ?? "kcal"
                 )
-                if let caloriesOut = balance.caloriesOut {
-                    balanceTile(label: "Out", value: NutritionMath.formatMacro(caloriesOut, unit: "kcal"))
-                } else {
-                    balanceTile(label: "Out", value: "No energy logged", muted: true)
-                }
-                if let net = balance.net {
-                    balanceTile(label: netLabel, value: NutritionMath.formatMacro(abs(net), unit: "kcal"))
-                } else {
-                    balanceTile(label: "Net", value: "Intake only", muted: true)
-                }
+                .accessibilityLabel(kcalAccessibilityLabel)
+                Spacer(minLength: 0)
+                planMenu
+            }
+            if let target = targetTotals {
+                MeterTrack(fraction: target.kcal > 0 ? totals.kcal / target.kcal : nil, color: NeoGymTheme.accent, height: 8)
+            }
+            AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .top) {
+                macroColumn("Protein", totals.protein, targetTotals?.protein, NeoGymTheme.accent)
+                macroColumn("Carbs", totals.carbs, targetTotals?.carbs, NeoGymTheme.series2)
+                macroColumn("Fat", totals.fat, targetTotals?.fat, NeoGymTheme.textSecondary)
+            }
+            Text("Fiber \(grams(totals.fiber, targetTotals?.fiber)) · Sugar \(grams(totals.sugar, targetTotals?.sugar))")
+                .font(.footnote)
+                .monospacedDigit()
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            Divider().overlay(NeoGymTheme.separator)
+            energyRow(isToday ? "Energy out so far" : "Energy out", value: balance.caloriesOut.map { "\(MetricFormat.whole($0)) kcal" } ?? "No energy logged")
+            if let net = balance.net {
+                energyRow("Balance", value: "\(MetricFormat.signedWhole(net)) kcal")
+            }
+            if let projection {
+                energyRow("Estimated today", value: "Burned \(projection.burnedValue(locale: locale)) · Net \(projection.netValue(locale: locale))")
             }
         }
-        .padding(14)
-        .insetCard(cornerRadius: 16, fill: NeoGymTheme.inset)
+        .padding(NeoGymTheme.spacingMD)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Day summary")
     }
 
-    private var netLabel: String {
-        switch balance.state {
-        case .deficit: "Deficit"
-        case .surplus: "Surplus"
-        case .balanced: "Balance"
-        case .intakeOnly: "Net"
+    private var planMenu: some View {
+        Menu {
+            Picker("Plan", selection: Binding(
+                get: { selectedPlanId ?? "" },
+                set: { onPlanChange($0.isEmpty ? nil : $0) }
+            )) {
+                Text("No plan").tag("")
+                ForEach(plans) { plan in
+                    Text(plan.name).tag(plan.id)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(plans.first { $0.id == selectedPlanId }.map { "Plan: \($0.name)" } ?? "No plan")
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(NeoGymTheme.text)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 32)
+            .background(Capsule().fill(NeoGymTheme.fill))
+            .frame(minHeight: NeoGymTheme.minimumTapTarget)
         }
+        .disabled(isMutating)
+        .accessibilityLabel("Selected nutrition plan")
+        .accessibilityValue(plans.first { $0.id == selectedPlanId }?.name ?? "No plan")
     }
 
-    private func balanceTile(label: String, value: String, muted: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func macroColumn(_ label: String, _ value: Double, _ target: Double?, _ color: Color) -> some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
             Text(label)
-                .font(.caption2)
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Text(value)
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            Text(grams(value, target))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(muted ? NeoGymTheme.textSecondary : .primary)
+                .foregroundStyle(NeoGymTheme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            MeterTrack(fraction: target.flatMap { $0 > 0 ? value / $0 : nil }, color: color)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .insetCard(cornerRadius: 12)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(grams(value, target))
+    }
+
+    private func energyRow(_ label: String, value: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            Spacer(minLength: NeoGymTheme.spacingXS)
+            Text(value)
+                .font(.footnote.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(NeoGymTheme.text)
+                .multilineTextAlignment(.trailing)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func grams(_ value: Double, _ target: Double?) -> String {
+        target.map { "\(MetricFormat.whole(value)) / \(MetricFormat.whole($0)) g" } ?? "\(MetricFormat.whole(value)) g"
+    }
+
+    private var kcalAccessibilityLabel: String {
+        if let target = targetTotals {
+            return "\(MetricFormat.whole(totals.kcal)) of \(MetricFormat.whole(target.kcal)) planned kilocalories"
+        }
+        return "\(MetricFormat.whole(totals.kcal)) kilocalories logged"
+    }
+}
+
+/// Graphical date picker for jumping to any day, plus Today.
+struct NutritionDatePickerSheet: View {
+    let date: String
+    let onPick: (String) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var selection = Date()
+
+    var body: some View {
+        NavigationStack {
+            DatePicker("Day", selection: $selection, displayedComponents: .date)
+                .datePickerStyle(.graphical)
+                .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
+                .frame(maxHeight: .infinity, alignment: .top)
+                .navigationTitle("Choose a day")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Today") {
+                            onPick(IntakeGrouping.formatLocalDate())
+                            dismiss()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            onPick(IntakeGrouping.formatLocalDate(selection))
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.medium, .large])
+        .onAppear { selection = IntakeGrouping.localDateToDate(date) ?? Date() }
     }
 }

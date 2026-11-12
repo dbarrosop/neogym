@@ -16,15 +16,14 @@ struct FoodsListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
                 filters
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -37,49 +36,14 @@ struct FoodsListView: View {
     }
 
 
-    private func visibilityBackground(for visibility: FoodVisibilityFilter) -> Color {
-        viewModel.visibility == visibility ? NeoGymTheme.accentSoft : NeoGymTheme.inset
-    }
-
     private var filters: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                TextField("Search foods…", text: $viewModel.searchText)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                if !viewModel.searchText.isEmpty {
-                    Button { viewModel.searchText = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Clear search")
-                }
-            }
-            .padding(10)
-            .insetCard(cornerRadius: 12)
-
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            SearchField(placeholder: "Search foods", text: $viewModel.searchText)
+            HStack(spacing: NeoGymTheme.spacingXS) {
                 ForEach(FoodVisibilityFilter.allCases, id: \.self) { visibility in
-                    Button {
+                    FilterChip(title: visibility.title, isSelected: viewModel.visibility == visibility) {
                         viewModel.toggleVisibility(visibility)
-                    } label: {
-                        Label(visibility.title, systemImage: visibility == .mine ? "person.fill" : "globe")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .foregroundColor(viewModel.visibility == visibility ? .accentColor : NeoGymTheme.textSecondary)
-                            .background(visibilityBackground(for: visibility), in: Capsule())
-                            .overlay(Capsule().stroke(NeoGymTheme.separator))
                     }
-                    .buttonStyle(.plain)
-                }
-                Spacer()
-                if viewModel.isFiltered {
-                    Button("Clear") { viewModel.clearFilters() }
-                        .font(.caption.weight(.semibold))
                 }
             }
         }
@@ -89,53 +53,38 @@ struct FoodsListView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading foods") { AppLoadingStateView(title: "Loading foods") }
+            AppLoadingStateView(title: "Loading foods")
         case .loading where viewModel.foods.isEmpty:
-            SectionShell(title: "Loading foods") { AppLoadingStateView(title: "Loading foods") }
+            AppLoadingStateView(title: "Loading foods")
         case let .failed(message, _) where viewModel.foods.isEmpty:
-            SectionShell(title: "Foods") {
-                AppErrorStateView(title: "Failed to load foods", message: message) {
-                    Task { await viewModel.load() }
-                }
-            }
+            AppErrorStateView(title: "Couldn't load foods", message: message) { Task { await viewModel.load() } }
+                .cardSurface()
         default:
             if viewModel.filteredFoods.isEmpty {
-                SectionShell(title: viewModel.isFiltered ? "No matching foods" : "No foods") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: viewModel.isFiltered ? "No foods match these filters." : "No foods yet.",
-                            message: viewModel.isFiltered
-                                ? "Clear a filter or try a different search."
-                                : "Create a private food to use in meal templates.",
-                            systemImage: "apple.logo"
-                        )
-                        if viewModel.isFiltered {
-                            Button("Clear filters") { viewModel.clearFilters() }
-                                .buttonStyle(NeoGymSecondaryButtonStyle())
-                        } else {
-                            NavigationLink(value: NutritionRoute.foodCreate) {
-                                Label("Create your first food", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
+                VStack(spacing: NeoGymTheme.spacingMD) {
+                    AppEmptyStateView(
+                        title: viewModel.isFiltered ? "No foods match these filters" : "No foods yet",
+                        message: viewModel.isFiltered ? "Clear a filter or try a different search." : "Create a private food with the + button.",
+                        systemImage: "fork.knife"
+                    )
+                    if viewModel.isFiltered {
+                        Button("Clear") { viewModel.clearFilters() }
+                            .buttonStyle(NeoGymSecondaryButtonStyle())
                     }
                 }
+                .padding(.bottom, NeoGymTheme.spacingMD)
+                .cardSurface()
             } else {
-                SectionShell(
-                    title: "Foods",
-                    subtitle: viewModel.isFiltered
-                        ? "\(viewModel.filteredFoods.count) matches"
-                        : "Private and public catalog"
-                ) {
-                    VStack(spacing: 0) {
-                        ForEach(viewModel.filteredFoods) { food in
-                            NavigationLink(value: NutritionRoute.foodDetail(food.id)) {
-                                FoodListRow(food: food)
-                            }
-                            if food.id != viewModel.filteredFoods.last?.id { Divider() }
+                VStack(spacing: 0) {
+                    ForEach(viewModel.filteredFoods) { food in
+                        NavigationLink(value: NutritionRoute.foodDetail(food.id)) {
+                            FoodListRow(item: food)
                         }
+                        .buttonStyle(.plain)
+                        if food.id != viewModel.filteredFoods.last?.id { RowSeparator() }
                     }
                 }
+                .cardSurface()
             }
         }
     }
@@ -143,33 +92,18 @@ struct FoodsListView: View {
 }
 
 private struct FoodListRow: View {
-    let food: Food
+    let item: Food
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "apple.logo")
-                .font(.title3)
-                .foregroundStyle(NeoGymTheme.accentText)
-                .frame(width: 44, height: 44)
-                .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Text(food.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NeoGymTheme.text)
-                        .lineLimit(1)
-                    FoodVisibilityBadge(isPublic: food.isPublic)
-                }
-                Text(NutritionMath.macroSummary(food.macroFields) + " per 100g")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                    .lineLimit(2)
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-        }
-        .padding(.vertical, 11)
+        let fields = item.macroFields
+        ListRow(
+            title: item.name,
+            subtitle: "P \(MetricFormat.whole(NutritionMath.normalizeNumeric(fields.proteinPer100g))) · "
+                + "C \(MetricFormat.whole(NutritionMath.normalizeNumeric(fields.carbsPer100g))) · "
+                + "F \(MetricFormat.whole(NutritionMath.normalizeNumeric(fields.fatPer100g))) g"
+                + (item.isPublic ? " · Public" : ""),
+            trailingValue: MetricFormat.whole(NutritionMath.normalizeNumeric(fields.kcalPer100g)),
+            trailingCaption: "kcal/100 g"
+        )
     }
 }
