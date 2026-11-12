@@ -89,6 +89,7 @@ function EditDailyEnergyRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
     },
     onError: (e) => {
@@ -101,6 +102,7 @@ function EditDailyEnergyRoute() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       navigate({ to: "/progress/energy", replace: true });
     },
     onError: (e) => {

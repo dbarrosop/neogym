@@ -38,6 +38,7 @@ function NewBodyMeasurementRoute() {
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       const id = res.insertBodyMeasurement?.id;
       if (id) {
         navigate({ to: "/progress/body/$id", params: { id }, replace: true });

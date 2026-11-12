@@ -74,6 +74,10 @@ latest seven logged rows (or all rows if fewer), counting a missing component as
 zero. The separate Active and Resting summaries average only rows where that
 component is present.
 
+Web Body and Energy writes invalidate the Today overview as well as their own
+list queries, for both desktop quick entry and full-page create, edit and delete.
+Energy writes also invalidate the nutrition energy-projection queries.
+
 The native iPhone app exposes Energy as a Nutrition subsection alongside
 Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and

@@ -92,6 +92,7 @@ function EditBodyMeasurementRoute() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       navigate({ to: "/progress/body/$id", params: { id }, replace: true });
     },
     onError: (e) => {
@@ -103,6 +104,7 @@ function EditBodyMeasurementRoute() {
     mutationFn: () => gqlRequest(DeleteBodyMeasurementMutation, { id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       navigate({ to: "/progress/body", replace: true });
     },
     onError: (e) => {

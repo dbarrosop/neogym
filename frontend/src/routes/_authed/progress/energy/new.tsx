@@ -45,6 +45,7 @@ function NewDailyEnergyRoute() {
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
+      queryClient.invalidateQueries({ queryKey: ["today"] });
       const id = res.insertDailyEnergyEntry?.id;
       if (id) {
         navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
