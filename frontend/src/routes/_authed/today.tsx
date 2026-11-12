@@ -328,6 +328,7 @@ function timeLabel(iso: string) {
 
 function TrainingCard({ data }: { data: Overview }) {
   const recentCount = data.recentSessions.aggregate?.count ?? 0;
+  const recentCountLabel = `${recentCount} ${recentCount === 1 ? "session" : "sessions"}`;
   const latest = data.latestSession[0];
 
   if (data.todaySessions.length === 0) {
@@ -359,7 +360,7 @@ function TrainingCard({ data }: { data: Overview }) {
           </Link>
         ) : null}
         <div className="grid grid-cols-2 gap-2.5">
-          <StatTile label="Last 7 days" value={`${recentCount} sessions`} />
+          <StatTile label="Last 7 days" value={recentCountLabel} />
         </div>
       </SectionCard>
     );
@@ -384,7 +385,7 @@ function TrainingCard({ data }: { data: Overview }) {
                 <strong className="block truncate text-[15px] font-semibold">{name}</strong>
                 <span className="text-[13px] text-muted-foreground tabular-nums">
                   {timeLabel(session.startedAt)} · {session.workoutSessionExercises.length}{" "}
-                  exercises
+                  {session.workoutSessionExercises.length === 1 ? "exercise" : "exercises"}
                 </span>
               </span>
               <ChevronRight className="size-4 text-chart-muted transition-colors group-hover:text-foreground" />
@@ -393,7 +394,7 @@ function TrainingCard({ data }: { data: Overview }) {
               <StatTile label="Sets" value={totals.sets} />
               <StatTile label="Reps" value={totals.reps} />
               <StatTile label="Volume" value={`${kcalFormat.format(totals.volume)} kg`} />
-              <StatTile label="Last 7 days" value={`${recentCount} sessions`} />
+              <StatTile label="Last 7 days" value={recentCountLabel} />
             </div>
             <ul className="flex flex-col">
               {session.workoutSessionExercises.map((row) => (

@@ -197,10 +197,61 @@ try {
   await waitFor(() => !!container.querySelector('[aria-label="0 kilocalories logged"]'));
   assert(!container.textContent?.includes("Couldn't load today"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
+
+  // Count labels use singular only for one, in both Training card branches.
+  for (const [exerciseCount, recentCount, recentLabel, exerciseLabel] of [
+    [null, 0, "0 sessions", null],
+    [null, 1, "1 session", null],
+    [null, 2, "2 sessions", null],
+    [0, 0, "0 sessions", "0 exercises"],
+    [1, 1, "1 session", "1 exercise"],
+    [2, 2, "2 sessions", "2 exercises"],
+  ] as const) {
+    const data: TodayOverviewQuery = {
+      ...initial,
+      recentSessions: { aggregate: { count: recentCount } },
+      todaySessions:
+        exerciseCount === null
+          ? []
+          : [
+              {
+                id: "today-session",
+                startedAt: "2026-06-01T10:00:00Z",
+                workout: { id: "workout", name: "Today's workout" },
+                workoutSessionExercises: Array.from({ length: exerciseCount }, (_, index) => ({
+                  id: `session-exercise-${index}`,
+                  exercise: {
+                    id: `exercise-${index}`,
+                    name: `Exercise ${index + 1}`,
+                    kind: "strength",
+                    strength: { doubleWeight: false },
+                  },
+                  workoutSessionStrengthSets: [],
+                  workoutSessionCardioEntries_aggregate: { aggregate: { count: 0 } },
+                })),
+              },
+            ],
+    };
+    // biome-ignore lint/performance/noAwaitInLoops: Each case must render before checking its copy.
+    await settle(() => client.setQueryData(overviewKey, data));
+    const training = card("Training");
+    const recentTile = [...training.querySelectorAll("span")].find(
+      (element) => element.textContent === "Last 7 days",
+    );
+    assert.equal(recentTile?.nextElementSibling?.textContent, recentLabel);
+    if (exerciseLabel === null) {
+      assert(training.textContent?.includes("No session logged yet today."));
+    } else {
+      const subtitle = training.querySelector("a strong")?.nextElementSibling?.textContent;
+      assert.equal(subtitle?.split(" · ").at(-1), exerciseLabel);
+    }
+  }
 } finally {
   act(() => root.unmount());
   client.clear();
   setSystemTime();
   await dom.happyDOM.close();
 }
-console.info("Today revalidates cached cards and recovers from initial and background errors.");
+console.info(
+  "Today revalidates cached cards, recovers from errors and pluralizes training counts.",
+);
