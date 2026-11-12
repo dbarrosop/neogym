@@ -30,6 +30,8 @@ const ROUTES: Record<string, RouteDef> = {
   },
   "/today": { label: "Today", parent: null },
   "/progress": { label: "Progress", parent: null },
+  "/progress/muscles": { label: "Muscles", parent: "/progress" },
+  "/progress/strength": { label: "Strength", parent: "/progress" },
   "/progress/body": { label: "Body", parent: "/progress" },
   "/progress/body/new": { label: "New", parent: "/progress/body" },
   "/progress/body/$id": { label: "Measurement", parent: "/progress/body" },

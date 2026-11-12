@@ -58,6 +58,8 @@ export const AREAS: readonly Area[] = [
     Icon: ChartLine,
     match: ["/progress"],
     sections: [
+      { label: "Muscles", to: "/progress/muscles", match: ["/progress/muscles"] },
+      { label: "Strength", to: "/progress/strength", match: ["/progress/strength"] },
       { label: "Body", to: "/progress/body", match: ["/progress/body"] },
       { label: "Energy", to: "/progress/energy", match: ["/progress/energy"] },
     ],
