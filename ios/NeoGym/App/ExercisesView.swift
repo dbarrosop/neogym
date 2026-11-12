@@ -3,21 +3,13 @@ import SwiftUI
 
 struct ExercisesListView: View {
     @StateObject private var viewModel: ExercisesListViewModel
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
     let reloadToken: Int
-    var onSessionStarted: (String) -> Void
 
     init(
         repository: any ExercisesRepositoryProtocol,
-        storageBaseURL: URL,
-        reloadToken: Int,
-        onSessionStarted: @escaping (String) -> Void
+        reloadToken: Int
     ) {
-        self.repository = repository
-        self.storageBaseURL = storageBaseURL
         self.reloadToken = reloadToken
-        self.onSessionStarted = onSessionStarted
         _viewModel = StateObject(wrappedValue: ExercisesListViewModel(repository: repository))
     }
 
@@ -158,21 +150,11 @@ struct ExercisesListView: View {
             } else if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack(spacing: NeoGymTheme.spacingMD) {
                     ForEach(viewModel.groupedExercises) { group in
-                        ExerciseGroupCard(
-                            group: group,
-                            repository: repository,
-                            storageBaseURL: storageBaseURL,
-                            onSessionStarted: onSessionStarted
-                        )
+                        ExerciseGroupCard(group: group)
                     }
                 }
             } else {
-                ExerciseFlatResultsCard(
-                    exercises: viewModel.filteredExercises,
-                    repository: repository,
-                    storageBaseURL: storageBaseURL,
-                    onSessionStarted: onSessionStarted
-                )
+                ExerciseFlatResultsCard(exercises: viewModel.filteredExercises)
             }
         }
     }
@@ -180,10 +162,6 @@ struct ExercisesListView: View {
 
 private struct ExerciseGroupCard: View {
     let group: ExerciseMuscleGroup
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
-
     var body: some View {
         ExerciseRowsGroup(
             title: ExerciseFormatters.enumValue(group.muscle),
@@ -196,10 +174,6 @@ private struct ExerciseGroupCard: View {
 
 private struct ExerciseFlatResultsCard: View {
     let exercises: [ExerciseListItem]
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
-
     var body: some View {
         ExerciseRowsGroup(title: "Matches", detail: "\(exercises.count)", exercises: exercises, showMuscle: true)
     }

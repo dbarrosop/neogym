@@ -57,19 +57,11 @@ struct TrainNavigationView: View {
         case .workouts:
             WorkoutsListView(
                 workoutsRepository: workoutsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                currentUserId: currentUserId,
                 reloadToken: reloadToken,
                 onSessionStarted: openSession
             )
         case .exercises:
-            ExercisesListView(
-                repository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
-                reloadToken: reloadToken,
-                onSessionStarted: openSession
-            )
+            ExercisesListView(repository: exercisesRepository, reloadToken: reloadToken)
         }
     }
 

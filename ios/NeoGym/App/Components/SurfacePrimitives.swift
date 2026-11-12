@@ -50,32 +50,6 @@ struct SurfaceCard<Content: View>: View {
     }
 }
 
-/// Compact titled group drawn on the inset token, for nesting inside cards and sheets.
-struct InsetSection<Content: View>: View {
-    let title: String?
-    @ViewBuilder let content: Content
-
-    init(_ title: String? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-            if let title {
-                Text(title)
-                    .font(.footnote.weight(.semibold))
-                    .textCase(.uppercase)
-                    .foregroundStyle(NeoGymTheme.textSecondary)
-            }
-            content
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(NeoGymTheme.spacingMD)
-        .insetCard(cornerRadius: NeoGymTheme.radiusLG)
-    }
-}
-
 extension View {
     /// Fills the view's background with a token colour in a continuous rounded shape.
     func cardSurface(

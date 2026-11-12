@@ -11,22 +11,72 @@ struct ProfileView: View {
 
     @State private var isShowingChangeEmail = false
     @State private var isShowingWatchSignIn = false
+    @State private var isShowingAgentAccess = false
+    @State private var isConfirmingSignOut = false
     @AppStorage(AppAppearance.storageKey) private var appearanceRawValue = AppAppearance.defaultValue.rawValue
     @AppStorage(RestTimerPreference.storageKey) private var restSeconds = RestTimerPreference.defaultSeconds
 
     var body: some View {
         ScrollView {
-            VStack(spacing: NeoGymTheme.spacingXL) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
-                accountHeader
-                profileCard
-                preferencesCard
-                settingsCard
+                profileHeader
+                group("Account") {
+                    SettingsRow(title: "Change email", systemImage: "envelope", value: profile?.emailDisplay) {
+                        isShowingChangeEmail = true
+                    }
+                    .disabled(changeEmailModel == nil)
+                    RowSeparator(leadingInset: 60)
+                    SettingsRow(title: "Member since", systemImage: "calendar", value: profile?.memberSince)
+                }
+                group("Connections") {
+                    SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.destructive, value: "Workouts, Body")
+                    RowSeparator(leadingInset: 60)
+                    SettingsRow(title: "Apple Watch", systemImage: "applewatch", value: watchStatus) {
+                        phoneConnectivity.clearPresentedSuccess()
+                        isShowingWatchSignIn = true
+                    }
+                    .disabled(isSigningOut)
+                    RowSeparator(leadingInset: 60)
+                    SettingsRow(title: "Connect an agent (MCP)", systemImage: "point.3.connected.trianglepath.dotted") {
+                        isShowingAgentAccess = true
+                    }
+                }
+                Text("Apple Health access is read-only. NeoGym imports workouts and body measurements on this iPhone; your Apple Watch imports energy.")
+                    .font(.caption)
+                    .foregroundStyle(NeoGymTheme.textTertiary)
+                    .padding(.horizontal, NeoGymTheme.spacingXXS)
+                group("Appearance") {
+                    Picker("Appearance", selection: $appearanceRawValue) {
+                        ForEach(AppAppearance.allCases) { appearance in
+                            Text(appearance.title).tag(appearance.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(NeoGymTheme.spacingSM)
+                }
+                group("Default rest", footer: "Starts after each logged set.") {
+                    Picker("Default rest", selection: $restSeconds) {
+                        ForEach(RestTimerPreference.presets, id: \.self) { seconds in
+                            Text(RestTimerPreference.title(seconds: seconds)).tag(seconds)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(NeoGymTheme.spacingSM)
+                }
+                signOutButton
+                    .padding(.top, NeoGymTheme.spacingXS)
+                if let profile {
+                    Text("User ID \(profile.id)")
+                        .font(.caption.monospaced())
+                        .foregroundStyle(NeoGymTheme.textTertiary)
+                        .textSelection(.enabled)
+                        .padding(.horizontal, NeoGymTheme.spacingXXS)
+                }
             }
-            .frame(maxWidth: 640)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .sheet(isPresented: $isShowingChangeEmail) {
@@ -43,213 +93,185 @@ struct ProfileView: View {
         }) {
             PhoneWatchSignInSheet(connectivity: phoneConnectivity)
         }
+        .sheet(isPresented: $isShowingAgentAccess) {
+            AgentAccessSheet(url: AgentAccess.productionMCPURL)
+        }
+        .confirmationDialog("Sign out of NeoGym?", isPresented: $isConfirmingSignOut, titleVisibility: .visible) {
+            Button("Sign out", role: .destructive, action: signOut)
+            Button("Cancel", role: .cancel) {}
+        }
         .onAppear { phoneConnectivity.expireAttempt() }
-    }
-
-    private var accountHeader: some View {
-        HStack(alignment: .center, spacing: NeoGymTheme.spacingMD) {
-            if let profile {
-                avatar(profile: profile)
-
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                    Text("Account")
-                        .font(.caption.weight(.bold))
-                        .tracking(1.4)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                    Text(profile.displayName)
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                        .tracking(-0.4)
-                    Text(profile.emailDisplay)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                        .lineLimit(2)
-                }
-            } else {
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                    Text("Account")
-                        .font(.caption.weight(.bold))
-                        .tracking(1.4)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                    Text("Signed in")
-                        .font(.system(.title2, design: .rounded).weight(.bold))
-                }
-            }
-            Spacer(minLength: 0)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var profileCard: some View {
-        SurfaceCard(
-            cornerRadius: NeoGymTheme.radiusXL,
-            fill: NeoGymTheme.surface,
-            contentPadding: EdgeInsets(
-                top: NeoGymTheme.spacingXL,
-                leading: NeoGymTheme.spacingXL,
-                bottom: NeoGymTheme.spacingXL,
-                trailing: NeoGymTheme.spacingXL
-            )
-        ) {
-            VStack(alignment: .leading, spacing: 18) {
-                if let profile {
-                    HStack(alignment: .center, spacing: NeoGymTheme.spacingSM) {
-                        Label("Profile details", systemImage: "person.text.rectangle.fill")
-                            .font(.headline)
-                        Spacer(minLength: 0)
-                        Button {
-                            isShowingChangeEmail = true
-                        } label: {
-                            Label("Change email", systemImage: "pencil")
-                                .font(.caption.weight(.semibold))
-                                .labelStyle(.titleAndIcon)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .cardSurface(
-                                    cornerRadius: NeoGymTheme.radiusPill,
-                                    fill: NeoGymTheme.inset
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(NeoGymTheme.text)
-                        .frame(minHeight: 44)
-                        .accessibilityLabel("Change email")
-                        .disabled(changeEmailModel == nil)
-                    }
-
-                    Divider()
-
-                    DetailRow(label: "Email") { Text(profile.emailDisplay) }
-                    DetailRow(label: "Locale") { Text(profile.locale) }
-                    DetailRow(label: "Default role") { Text(profile.defaultRole) }
-                    DetailRow(label: "User ID") {
-                        Text(profile.id)
-                            .font(.caption.monospaced())
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusSM,
-                                fill: NeoGymTheme.inset
-                            )
-                    }
-                    DetailRow(label: "Member since") { Text(profile.memberSince) }
-                } else {
-                    FeedbackBanner(
-                        message: "Your session is active, but the profile payload is missing. "
-                            + "Sign out and sign in again if this persists.",
-                        tone: .info
-                    )
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var preferencesCard: some View {
-        SurfaceCard {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                Text("Preferences")
-                    .font(.headline)
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-                    Text("Appearance")
-                        .font(.subheadline.weight(.semibold))
-                    Picker("Appearance", selection: $appearanceRawValue) {
-                        ForEach(AppAppearance.allCases) { appearance in
-                            Text(appearance.title).tag(appearance.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-                    Text("Default rest")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Starts after each logged set")
-                        .font(.footnote)
-                        .foregroundStyle(NeoGymTheme.textSecondary)
-                    Picker("Default rest", selection: $restSeconds) {
-                        ForEach(RestTimerPreference.presets, id: \.self) { seconds in
-                            Text(RestTimerPreference.title(seconds: seconds)).tag(seconds)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-        }
-    }
-
-    private var settingsCard: some View {
-        SurfaceCard(
-            cornerRadius: NeoGymTheme.radiusXL,
-            fill: NeoGymTheme.surface,
-            contentPadding: EdgeInsets(
-                top: NeoGymTheme.spacingXL,
-                leading: NeoGymTheme.spacingXL,
-                bottom: NeoGymTheme.spacingXL,
-                trailing: NeoGymTheme.spacingXL
-            )
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Settings")
-                    .font(.headline)
-                Divider()
-                Button {
-                    phoneConnectivity.clearPresentedSuccess()
-                    isShowingWatchSignIn = true
-                } label: {
-                    Label(phoneConnectivity.pending == nil ? "Connect Apple Watch" : "Finish watch connection",
-                          systemImage: "applewatch")
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSigningOut)
-                Button {
-                    signOut()
-                } label: {
-                    if isSigningOut {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Signing out")
-                        }
-                    } else {
-                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
-                    }
-                }
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isSigningOut)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     private var profile: UserProfile? {
         session.user.map { UserProfile(user: $0) }
     }
 
-    private func avatar(profile: UserProfile) -> some View {
-        ZStack {
-            Circle()
-                .fill(NeoGymTheme.accentSoft)
-            Text(profile.initials)
-                .font(.title3.bold())
-                .foregroundStyle(NeoGymTheme.text)
+    private var watchStatus: String {
+        if phoneConnectivity.connected { return "Connected" }
+        if phoneConnectivity.pending != nil { return "Request waiting" }
+        return "Connect"
+    }
+
+    private var profileHeader: some View {
+        HStack(spacing: 14) {
+            Text(profile?.initials ?? "?")
+                .font(.title2.weight(.bold))
+                .foregroundStyle(NeoGymTheme.accentText)
+                .frame(width: 56, height: 56)
+                .background(Circle().fill(NeoGymTheme.accentSoft))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(profile?.displayName ?? "Signed in")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(NeoGymTheme.text)
+                Text(profile.map { "\($0.emailDisplay) · signs in with an email code" } ?? "Signs in with an email code")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+            }
+            Spacer(minLength: 0)
         }
-        .frame(width: 64, height: 64)
-        .overlay(Circle().stroke(NeoGymTheme.separator))
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var signOutButton: some View {
+        Button {
+            isConfirmingSignOut = true
+        } label: {
+            Group {
+                if isSigningOut {
+                    HStack(spacing: NeoGymTheme.spacingXS) {
+                        ProgressView()
+                        Text("Signing out")
+                    }
+                } else {
+                    Text("Sign out")
+                }
+            }
+            .font(.body)
+            .foregroundStyle(NeoGymTheme.destructive)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(RoundedRectangle(cornerRadius: NeoGymTheme.radiusLG, style: .continuous).fill(NeoGymTheme.surface))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSigningOut)
+    }
+
+    private func group<Content: View>(
+        _ title: String,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .padding(.horizontal, NeoGymTheme.spacingXXS)
+                .padding(.top, NeoGymTheme.spacingXS)
+                .accessibilityAddTraits(.isHeader)
+            VStack(spacing: 0) { content() }
+                .cardSurface()
+            if let footer {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(NeoGymTheme.textTertiary)
+                    .padding(.horizontal, NeoGymTheme.spacingXXS)
+            }
+        }
     }
 }
 
-private struct DetailRow<Content: View>: View {
-    let label: String
-    @ViewBuilder let content: Content
+/// Settings-style row: icon tile, title, trailing value and a chevron when it acts.
+private struct SettingsRow: View {
+    let title: String
+    let systemImage: String
+    var iconTint: Color = NeoGymTheme.accentText
+    var value: String?
+    var action: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Spacer(minLength: 12)
-            content
-                .font(.subheadline.weight(.medium))
-                .multilineTextAlignment(.trailing)
+        if let action {
+            Button(action: action) { label(showsChevron: true) }
+                .buttonStyle(.plain)
+        } else {
+            label(showsChevron: false)
         }
+    }
+
+    private func label(showsChevron: Bool) -> some View {
+        HStack(spacing: NeoGymTheme.spacingSM) {
+            Image(systemName: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(iconTint)
+                .frame(width: 32, height: 32)
+                .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(NeoGymTheme.fill))
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.body)
+                .foregroundStyle(NeoGymTheme.text)
+            Spacer(minLength: NeoGymTheme.spacingXS)
+            if let value {
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.textTertiary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(.horizontal, NeoGymTheme.spacingSM)
+        .frame(minHeight: 52)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The MCP endpoint, with copy, for Claude, Cursor or any MCP client.
+private struct AgentAccessSheet: View {
+    let url: String
+    @Environment(\.dismiss) private var dismiss
+    @State private var copied = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
+                Text("Point Claude, Cursor or any MCP client at this URL to log workouts and query your data.")
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                Text(url)
+                    .font(.footnote.monospaced())
+                    .foregroundStyle(NeoGymTheme.text)
+                    .textSelection(.enabled)
+                    .padding(NeoGymTheme.spacingSM)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .cardSurface(cornerRadius: NeoGymTheme.radiusSM, fill: NeoGymTheme.fill)
+                Button {
+                    UIPasteboard.general.string = url
+                    copied = true
+                } label: {
+                    Label(copied ? "Copied" : "Copy URL", systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(NeoGymPrimaryButtonStyle())
+                .accessibilityLabel(copied ? "MCP URL copied" : "Copy MCP URL")
+                Spacer()
+            }
+            .padding(NeoGymTheme.screenHorizontalPadding)
+            .navigationTitle("Agent access (MCP)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

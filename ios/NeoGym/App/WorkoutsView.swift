@@ -4,25 +4,16 @@ import SwiftUI
 struct WorkoutsListView: View {
     @StateObject private var viewModel: WorkoutsListViewModel
     let workoutsRepository: any WorkoutsRepositoryProtocol
-    let exercisesRepository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    let currentUserId: String?
     let reloadToken: Int
     var onSessionStarted: (String) -> Void
 
     init(
         workoutsRepository: any WorkoutsRepositoryProtocol,
-        exercisesRepository: any ExercisesRepositoryProtocol,
-        storageBaseURL: URL,
-        currentUserId: String?,
         reloadToken: Int,
         onSessionStarted: @escaping (String) -> Void
     ) {
         _viewModel = StateObject(wrappedValue: WorkoutsListViewModel(repository: workoutsRepository))
         self.workoutsRepository = workoutsRepository
-        self.exercisesRepository = exercisesRepository
-        self.storageBaseURL = storageBaseURL
-        self.currentUserId = currentUserId
         self.reloadToken = reloadToken
         self.onSessionStarted = onSessionStarted
     }
@@ -269,9 +260,6 @@ struct FlowRow: Layout {
         NavigationStack {
             WorkoutsListView(
                 workoutsRepository: PreviewWorkoutsRepository(),
-                exercisesRepository: PreviewExercisesRepository(),
-                storageBaseURL: URL(string: "https://storage.example.test")!,
-                currentUserId: "user-1",
                 reloadToken: 0,
                 onSessionStarted: { _ in }
             )

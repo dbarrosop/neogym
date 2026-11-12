@@ -69,36 +69,6 @@ struct AppEmptyStateView: View {
     }
 }
 
-struct ConfirmationPanel: View {
-    let title: String
-    let message: String
-    var confirmTitle: String = "Confirm"
-    var cancelTitle: String = "Cancel"
-    let confirm: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-            Text(title)
-                .font(.headline)
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                HStack(spacing: NeoGymTheme.spacingSM) {
-                    Button(cancelTitle, action: cancel)
-                        .buttonStyle(NeoGymSecondaryButtonStyle())
-                    Button(confirmTitle, action: confirm)
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(NeoGymTheme.spacingMD)
-        .cardSurface()
-    }
-}
-
 struct SectionShell<Content: View>: View {
     let title: String
     var subtitle: String?

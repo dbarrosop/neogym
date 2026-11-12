@@ -102,7 +102,7 @@ A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
 The watch signs in **only** through the signed-in iPhone. Tap **Connect using
-iPhone** on the watch, then **Me → Profile → Connect Apple Watch → Connect watch**
+iPhone** on the watch, then **Me › Account › Apple Watch → Connect watch**
 on the phone with both apps open and reachable. The phone creates a 90-day
 app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
 The watch keeps the PAT in a separate device-only Keychain item, calls
@@ -482,7 +482,7 @@ After reset:
 
 ## Apple Health body imports
 
-Opening Body or Nutrition Overview requests read-only Apple Health access for
+Opening Today or Progress › Body requests read-only Apple Health access for
 body mass and body-fat percentage. The first import scans historical samples;
 subsequent visits use per-type HealthKit anchors to check additions and reported
 deletions, then re-read affected local dates to keep the latest sample per
@@ -504,13 +504,13 @@ remains. Older dates are not rechecked for deletions, and deleting every sample
 for a day does not remove its imported Body row.
 
 The iPhone no longer reads active/resting energy from HealthKit. Opening or
-refreshing Nutrition Overview and Energy fetches `daily_energy` from the
+refreshing Today and Progress › Energy fetches `daily_energy` from the
 backend; manual Energy logging still works. The watch app is the only HealthKit
 energy uploader for now, so without a synced watch, energy must be entered
 manually. The iPhone Energy Balance widget also reads the backend, never
 HealthKit.
 
-Opening the Workouts area (and pulling to refresh its hub) also reads HealthKit
+Opening the Train tab (and pulling to refresh Sessions) also reads HealthKit
 workouts into private `health_workouts` raw JSON snapshots. It requests workout
 read permission only, recording activity type, start/end time, active calories
 burned when available, and other workout-level metadata/events/statistics. It

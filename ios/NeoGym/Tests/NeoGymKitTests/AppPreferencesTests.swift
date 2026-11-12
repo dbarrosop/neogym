@@ -38,3 +38,11 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(extended.sessionId, "s1")
     }
 }
+
+final class AgentAccessTests: XCTestCase {
+    func testMCPURLMatchesBackend() {
+        XCTAssertEqual(AgentAccess.mcpURL(for: .production), "https://tcruocjehgxmkwzpnshv-3000.svc.eu-central-1.nhost.run")
+        XCTAssertEqual(AgentAccess.mcpURL(for: .local), "http://localhost:3000")
+        XCTAssertEqual(AgentAccess.productionMCPURL, AgentAccess.mcpURL(for: NhostConfig.production))
+    }
+}

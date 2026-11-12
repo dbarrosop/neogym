@@ -56,3 +56,14 @@ public enum NhostSessionConfig {
         )
     }
 }
+
+/// The MCP endpoint users point Claude, Cursor or other MCP clients at,
+/// matching the web app's `VITE_MCP_URL` for each backend.
+public enum AgentAccess {
+    public static let productionMCPURL = "https://tcruocjehgxmkwzpnshv-3000.svc.eu-central-1.nhost.run"
+    public static let localMCPURL = "http://localhost:3000"
+
+    public static func mcpURL(for config: NhostConfig) -> String {
+        config == .production ? productionMCPURL : localMCPURL
+    }
+}

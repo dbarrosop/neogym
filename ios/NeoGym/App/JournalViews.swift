@@ -14,15 +14,14 @@ struct JournalListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
                 filters
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -38,46 +37,19 @@ struct JournalListView: View {
     @ViewBuilder
     private var filters: some View {
         if !viewModel.labels.isEmpty {
-            SurfaceCard(
-                cornerRadius: NeoGymTheme.radiusXL,
-                fill: NeoGymTheme.inset,
-                contentPadding: EdgeInsets(
-                    top: NeoGymTheme.spacingMD,
-                    leading: NeoGymTheme.spacingMD,
-                    bottom: NeoGymTheme.spacingMD,
-                    trailing: NeoGymTheme.spacingMD
-                )
-            ) {
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                    HStack(spacing: NeoGymTheme.spacingXS) {
-                        Text("Filter")
-                            .font(.caption.weight(.bold))
-                            .textCase(.uppercase)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                        if viewModel.isFiltered {
-                            Button("Clear") {
-                                Task { await viewModel.clearFilters() }
-                            }
-                            .font(.caption.weight(.semibold))
-                        }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    FilterChip(title: "All", isSelected: !viewModel.isFiltered) {
+                        Task { await viewModel.clearFilters() }
                     }
-                    JournalLabelFlowLayout(spacing: NeoGymTheme.spacingXS) {
-                        ForEach(viewModel.labels) { label in
-                            Button {
-                                Task { await viewModel.toggleLabel(label.id) }
-                            } label: {
-                                JournalLabelChip(
-                                    name: label.name,
-                                    systemImage: "tag.fill",
-                                    selected: viewModel.selectedLabelSet.contains(label.id)
-                                )
-                            }
-                            .buttonStyle(.plain)
+                    ForEach(viewModel.labels) { label in
+                        FilterChip(title: label.name, isSelected: viewModel.selectedLabelSet.contains(label.id)) {
+                            Task { await viewModel.toggleLabel(label.id) }
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .accessibilityLabel("Filter by label")
         }
     }
 
@@ -85,162 +57,90 @@ struct JournalListView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading entries") {
-                AppLoadingStateView(title: "Loading journal entries")
-            }
+            AppLoadingStateView(title: "Loading journal entries")
         case .loading where viewModel.entries.isEmpty:
-            SectionShell(title: "Loading entries") {
-                AppLoadingStateView(title: "Loading journal entries")
-            }
+            AppLoadingStateView(title: "Loading journal entries")
         case let .failed(message, _) where viewModel.entries.isEmpty:
-            SectionShell(title: "Journal") {
-                AppErrorStateView(title: "Failed to load journal entries", message: message) {
-                    Task { await viewModel.load() }
-                }
+            AppErrorStateView(title: "Couldn't load journal entries", message: message) {
+                Task { await viewModel.load() }
             }
+            .cardSurface()
         default:
             if viewModel.entries.isEmpty {
-                SectionShell(title: viewModel.isFiltered ? "No matching entries" : "No entries") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: viewModel.isFiltered
-                                ? "No entries match the selected labels."
-                                : "No journal entries yet.",
-                            message: viewModel.isFiltered
-                                ? "Clear a filter or choose another label combination."
-                                : "Write your first entry to capture notes and reflections.",
-                            systemImage: "book.closed"
-                        )
-                        if !viewModel.isFiltered {
-                            NavigationLink(value: MeRoute.journalEntryCreate) {
-                                Label("Write your first entry", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
-                    }
-                }
+                AppEmptyStateView(
+                    title: viewModel.isFiltered ? "No entries match these labels" : "No journal entries yet",
+                    message: viewModel.isFiltered
+                        ? "Clear a filter or choose another label combination."
+                        : "Write your first entry with the + button.",
+                    systemImage: "book.closed"
+                )
+                .cardSurface()
             } else {
-                SectionShell(
-                    title: "Entries",
-                    subtitle: viewModel.isFiltered ? "Filtered by selected labels" : "Newest first"
-                ) {
-                    VStack(spacing: 0) {
-                        ForEach(viewModel.entries) { entry in
-                            NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
-                                JournalEntryListRow(entry: entry)
-                            }
-                            if entry.id != viewModel.entries.last?.id { Divider() }
-                        }
-                        if viewModel.hasMore {
-                            Divider()
-                            Button {
-                                Task { await viewModel.loadMore() }
-                            } label: {
-                                if viewModel.isLoadingMore {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity)
-                                } else {
-                                    Text("Load more")
-                                        .frame(maxWidth: .infinity)
-                                }
-                            }
-                            .buttonStyle(NeoGymSecondaryButtonStyle())
-                            .padding(.top, 12)
-                        }
-                        if let message = viewModel.loadMoreErrorMessage {
-                            Text(message)
-                                .font(.caption)
-                                .foregroundStyle(NeoGymTheme.destructive)
-                                .padding(.top, 8)
-                        }
+                ForEach(viewModel.entries) { entry in
+                    NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
+                        JournalEntryCard(entry: entry)
                     }
+                    .buttonStyle(.plain)
+                }
+                if viewModel.hasMore {
+                    Button {
+                        Task { await viewModel.loadMore() }
+                    } label: {
+                        Group {
+                            if viewModel.isLoadingMore { ProgressView() } else { Text("Load more") }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(NeoGymSecondaryButtonStyle())
+                }
+                if let message = viewModel.loadMoreErrorMessage {
+                    FeedbackBanner(message: message)
                 }
             }
         }
     }
-
 }
 
-private struct JournalEntryListRow: View {
+private struct JournalEntryCard: View {
     let entry: JournalEntry
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            JournalDateBadge(entryDate: entry.entryDate)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(DateOnly.formatLong(entry.entryDate))
-                        .font(.caption.weight(.semibold))
-                        .textCase(.uppercase)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                    if let title = entry.title, !title.isEmpty {
-                        Text(title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(NeoGymTheme.text)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if !entry.previewText.isEmpty {
-                    Text(entry.previewText)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                }
-                if !entry.journalEntryLabels.isEmpty {
-                    JournalLabelFlowLayout(spacing: 4) {
-                        ForEach(entry.journalEntryLabels) { link in
-                            JournalLabelChip(name: link.label.name, systemImage: "tag.fill", selected: true)
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(DateOnly.parse(entry.entryDate)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? entry.entryDate)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            if let title = entry.title, !title.isEmpty {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(NeoGymTheme.text)
+                    .multilineTextAlignment(.leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-                .padding(.top, 4)
+            if !entry.previewText.isEmpty {
+                Text(entry.previewText)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            if !entry.journalEntryLabels.isEmpty {
+                FlowRow(spacing: 6) {
+                    ForEach(entry.journalEntryLabels) { link in
+                        Text(link.label.name)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(NeoGymTheme.accentText)
+                            .padding(.horizontal, NeoGymTheme.spacingXS)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(NeoGymTheme.accentSoft))
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(.vertical, 12)
-    }
-}
-
-private struct JournalDateBadge: View {
-    let entryDate: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(month)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Text(day)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(NeoGymTheme.text)
-        }
-        .frame(width: 52, height: 52)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: NeoGymTheme.inset
-        )
-    }
-
-    private var date: Date? { DateOnly.parse(entryDate) }
-
-    private var month: String {
-        guard let date else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    private var day: String {
-        guard let date else { return "—" }
-        return String(Calendar.current.component(.day, from: date))
+        .padding(NeoGymTheme.spacingMD)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
