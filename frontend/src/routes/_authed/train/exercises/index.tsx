@@ -45,7 +45,11 @@ const exercisesSearchSchema = z.object({
 
 const RecentExercisesQuery = graphql(`
   query RecentlyLoggedExercises {
-    workoutSessionExercises(order_by: { workoutSession: { startedAt: desc } }, limit: 80) {
+    workoutSessionExercises(
+      where: { _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }] }
+      order_by: { workoutSession: { startedAt: desc } }
+      limit: 80
+    ) {
       id
       exerciseId
       workoutSession {

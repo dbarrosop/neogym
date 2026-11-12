@@ -25,6 +25,10 @@ This document covers the catalog shape, the strength/cardio `kind` discriminator
 - Hasura metadata: `backend/nhost/metadata/databases/default/tables/public_exercises.yaml`, `public_exercises_strength.yaml`, `public_exercises_cardio.yaml`.
 - Frontend schema/format library: `frontend/src/lib/cardio-schema.ts` (with `cardio-schema.test.ts`).
 
+## Web catalog recency
+
+Train › Exercises derives its **Recently logged** group and per-row **last …** labels from session-exercises with at least one strength set or cardio entry. The server excludes empty/skipped session-exercises before sorting by session start time and limiting to the 80 most recent qualifying rows. Starting a templated session alone does not mark its exercises as logged; skipped exercises remain in the catalog without gaining a new recency label.
+
 ## The `category` and `kind` fields
 
 `exercises.category` is a text column referencing `public.exercise_categories(value)`. It carries the rich taxonomy: `cardio`, `strength`, `stretching`, `powerlifting`, `plyometrics`, `olympic_weightlifting`, `strongman`. It's catalog metadata — used by the UI for badges/filters and as the input to the kind discriminator below.
