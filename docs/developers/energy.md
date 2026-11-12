@@ -74,6 +74,14 @@ latest seven logged rows (or all rows if fewer), counting a missing component as
 zero. The separate Active and Resting summaries average only rows where that
 component is present.
 
+The web Energy trend uses an orange (`chart-2`) active-energy area and an accent
+(`chart-1`) resting-energy line, matching Today's energy mapping. Orange stays
+fill-only: the active area has a contrasting neutral outline and a light tint so
+the resting line stays legible even when active energy is higher. The area starts
+at zero; legend and tooltip text use neutral foreground colours in both themes.
+The resting legend key sets its accent border colour explicitly: text colour alone
+cannot override the global separator-coloured border default.
+
 Web Body and Energy writes invalidate the Today overview as well as their own
 list queries, for both desktop quick entry and full-page create, edit and delete.
 Energy writes also invalidate the nutrition energy-projection queries.
