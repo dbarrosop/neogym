@@ -544,13 +544,13 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
 | Top-level areas | `TabView`, 5 tabs, each with its own `NavigationStack(path:)` | Left sidebar, 232 px, 5 items | Bottom tab bar, 5 items, no horizontal scroll |
 | Sections in an area | Segmented `Picker` under the large title on the area root | Segmented tabs in the page header | Same tabs, full width |
 | Primary create/log | Glass `+` toolbar button, top trailing | Primary button, header right | Icon button, header right |
-| Live session + rest timer | `.tabViewBottomAccessory`, visible on every tab while a session is open or a rest timer runs | Sidebar card above the account row | Pill pinned above the tab bar |
+| Live session + rest timer | `.tabViewBottomAccessory`, visible on every tab while a session is open or a rest timer runs | Rest timer card above the account row while running | Rest timer pill pinned above the tab bar while running |
 | Detail | Push in the tab's stack | List + detail split from 1100 px; full page below | Full page with back link |
 | Create / edit | Sheet, large detent; Cancel leading, Save trailing | Full page; Cancel + Save in a sticky header | Full page; sticky Save |
 | Quick entry (set, food, cardio entry) | Inline row, or sheet at medium detent | Inline row, or dialog | Inline row, or bottom sheet |
 | Delete | Destructive button at the end of content + confirmation dialog | Same + alert dialog | Same |
 
-- The rest timer stays shell-owned (one `RestTimerController` on iOS, one provider on the web) so it survives tab/area switches. Logging a set starts it; the accessory/card offers +30 s and Skip, and tapping it opens the session.
+- The rest timer stays shell-owned (one `RestTimerController` on iOS, one provider on the web) so it survives tab/area switches. Logging a set starts it; the accessory/card/pill offers +30 s and Skip. The iOS target accessory also shows the live session and opens it on tap. Web sessions have `startedAt` but no open/finished state, so the web shell shows only a running rest timer, not a separate live-session indicator. Linking the web timer back to its session remains outstanding (see **Migration status**).
 - Each iOS tab keeps its own navigation path when you switch tabs. Deep links (e.g. a pending session id) select the Train tab and push the session.
 - The web `replace: true` rule for spent forms/pickers (see Conventions) still applies.
 
@@ -605,11 +605,12 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
 
 ### Migration status
 
-- **Web: migrated** (all five areas). Where things live:
+- **Web: all five areas migrated; shell/form migration incomplete.** Where things live and remaining gaps:
   - Navigation model: `src/lib/navigation.ts` (`AREAS`, sections, `isSectionLanding`). The shell is `src/components/shell/` — `AppFrame` (sidebar ≥ 768 px, `MobileTabBar` below, breadcrumbs only on pages deeper than an area tab), `AreaTabs` for the header section tabs.
   - Tokens: `src/styles.css` (dark default via `.dark`, light in `:root`); `DEFAULT_THEME = "dark"` in `src/lib/theme/theme-provider.tsx`. Appearance and the default rest length are set under Me › Account.
   - Split views (Sessions, Workouts, Journal): a pathless `_split` layout (e.g. `routes/_authed/train/workouts/_split.tsx`) renders the list and an `<Outlet />`, declares `staticData: { splitView: true }`, and its index route opens the first item from 1100 px (`useIsSplit`). Detail routes live in `_split/`; create/edit pages sit beside `_split` (`train/workouts/new.tsx`, `train/workouts/$workoutId/edit.tsx`) so they render full page. Index panes must not auto-select stale list data while revalidation is fetching, paused, or failed, since it can still contain deleted records. Fresh cached lists and idle lists whose last fetch succeeded remain usable, even after `staleTime` passes; aging alone must not hide the empty state or prevent auto-selection after widening.
-  - Rest timer: `src/lib/rest-timer.tsx` (`RestTimerProvider`, mounted by `AppFrame`), shown by `RestTimerCard` (sidebar) and `RestTimerPill` (mobile). Logging a set starts it.
+  - Rest timer: `src/lib/rest-timer.tsx` (`RestTimerProvider`, mounted by `AppFrame`), shown by `RestTimerCard` (sidebar) and `RestTimerPill` (mobile). Logging a set starts it. **Outstanding:** neither card nor pill opens the originating session; `RestTimerState` stores only `endsAt`, `duration`, and a free-text `label`, with no session id. There is no separate web live-session indicator because sessions have no open/finished state.
+  - **Outstanding form migration:** no create/edit page has the target sticky Cancel/Save header (≥ 768 px) or sticky Save (< 768 px); Cancel/Save sit at the bottom of the form. Journal, Body and Energy pages use `FormCardShell` with the shared `FormActions`; Workouts, Foods, Meals and Plans pages use a plain `Card` and render their own Cancel/Save buttons in `workout-form.tsx`, `food-form.tsx`, `meal-form.tsx` and `nutrition-plan-form.tsx`, so making `FormActions` sticky alone will not migrate them. The Journal, Body and Energy create pages also retain the legacy “Tracking” eyebrow (e.g. `routes/_authed/me/journal/new.tsx`).
   - Shared presentation: `src/components/patterns/metrics.tsx` (`SectionCard`, `StatTile`, `MeterBar`, `RingMeter`, `Sparkline`), `patterns/segmented.tsx`, and `patterns/query-states.tsx`.
   - Today revalidates its aggregate overview on every mount, even within the app-wide 30-second query freshness window; cached cards remain visible while the request runs. This keeps return visits fresh without relying solely on writer-side invalidations.
   - Progress › Muscles and Strength read the `muscleSetProgress` / `strengthProgress` roots with the browser time zone.
