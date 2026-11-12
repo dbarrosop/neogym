@@ -32,8 +32,7 @@ struct NutritionPlanDetailView: View {
         .navigationTitle("Plan")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let plan = viewModel.plan {
                     NavigationLink {
                         NutritionPlanEditView(
@@ -49,8 +48,9 @@ struct NutritionPlanDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit plan", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit plan")
                 }
             }
         }

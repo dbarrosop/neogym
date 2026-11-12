@@ -35,8 +35,7 @@ struct FoodDetailView: View {
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let food = viewModel.food, food.canEdit(currentUserId: currentUserId) {
                     NavigationLink {
                         FoodEditView(
@@ -53,8 +52,9 @@ struct FoodDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit food", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit food")
                 }
             }
         }

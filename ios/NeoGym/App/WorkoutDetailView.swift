@@ -51,7 +51,7 @@ struct WorkoutDetailView: View {
 
     @ToolbarContentBuilder
     private var bottomActionToolbar: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
+        ToolbarItem(placement: .topBarTrailing) {
             if viewModel.workout?.canEdit(currentUserId: currentUserId) == true {
                 NavigationLink {
                     WorkoutEditView(
@@ -66,21 +66,19 @@ struct WorkoutDetailView: View {
                         }
                     )
                 } label: {
-                    Label("Edit workout", systemImage: "pencil")
+                    Text("Edit")
                 }
-            }
-            Spacer()
-            if viewModel.workout != nil {
-                Button(action: startSession) {
-                    Label(
-                        viewModel.startState.isLoading ? "Starting…" : "Start session",
-                        systemImage: "play.fill"
-                    )
-                }
-                .fontWeight(.semibold)
-                .disabled(viewModel.startState.isLoading)
+                .accessibilityLabel("Edit workout")
             }
         }
+    }
+
+    private var startSessionButton: some View {
+        Button(action: startSession) {
+            Label(viewModel.startState.isLoading ? "Starting…" : "Start session", systemImage: "play.fill")
+        }
+        .buttonStyle(NeoGymPrimaryButtonStyle())
+        .disabled(viewModel.startState.isLoading)
     }
 
     @ViewBuilder
@@ -130,6 +128,7 @@ struct WorkoutDetailView: View {
                         }
                     }
                 }
+                startSessionButton
                 SectionShell(title: "Exercises") {
                     if workout.workoutExercises.isEmpty {
                         AppEmptyStateView(

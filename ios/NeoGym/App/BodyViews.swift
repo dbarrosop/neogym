@@ -229,8 +229,7 @@ struct BodyMeasurementDetailView: View {
         .navigationTitle("Measurement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let measurement = viewModel.measurement {
                     NavigationLink {
                         BodyMeasurementEditView(
@@ -246,8 +245,9 @@ struct BodyMeasurementDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit measurement", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit measurement")
                 }
             }
         }

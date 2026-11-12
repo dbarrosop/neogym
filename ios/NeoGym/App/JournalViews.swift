@@ -275,8 +275,7 @@ struct JournalEntryDetailView: View {
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let entry = viewModel.entry {
                     NavigationLink {
                         JournalEntryEditView(
@@ -292,8 +291,9 @@ struct JournalEntryDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit entry", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit entry")
                 }
             }
         }

@@ -51,8 +51,6 @@ struct TrainNavigationView: View {
         case .sessions:
             SessionsListView(
                 sessionsRepository: sessionsRepository,
-                exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
                 reloadToken: reloadToken,
                 onRefresh: { await syncHealthWorkouts(waitForCurrent: true) }
             )
