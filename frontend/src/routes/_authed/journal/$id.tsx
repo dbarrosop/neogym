@@ -1,12 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Pencil, Tag } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Markdown } from "@/components/markdown";
-import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { formatDateLong } from "@/lib/dates";
@@ -53,42 +51,43 @@ function JournalEntryDetailRoute() {
     }
     const entry = data.journalEntry;
     return (
-      <Card className="border-border/60">
-        <CardHeader className="space-y-3 pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1">
-              <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
-                {formatDateLong(entry.entryDate)}
-              </p>
-              <CardTitle className="text-2xl tracking-tight">
-                {entry.title ?? "Untitled entry"}
-              </CardTitle>
-            </div>
-            <Button asChild size="icon" variant="ghost" aria-label="Edit entry">
-              <Link to="/journal/$id/edit" params={{ id: entry.id }}>
-                <Pencil className="h-4 w-4" />
-              </Link>
-            </Button>
+      <article className="flex flex-col gap-4 rounded-xl border bg-card p-5 md:p-6">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-1">
+            <p className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+              {formatDateLong(entry.entryDate)}
+            </p>
+            <h2 className="text-[22px] font-bold tracking-tight">
+              {entry.title ?? "Untitled entry"}
+            </h2>
+            {entry.journalEntryLabels.length > 0 ? (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {entry.journalEntryLabels.map((jel) => (
+                  <span
+                    key={jel.labelId}
+                    className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-soft-foreground"
+                  >
+                    {jel.label.name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
-          {entry.journalEntryLabels.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {entry.journalEntryLabels.map((jel) => (
-                <Badge key={jel.labelId} variant="primary">
-                  <Tag className="h-3 w-3" />
-                  {jel.label.name}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          <Markdown>{entry.body}</Markdown>
-        </CardContent>
-      </Card>
+          <Button asChild variant="outline">
+            <Link to="/journal/$id/edit" params={{ id: entry.id }}>
+              <Pencil />
+              Edit
+            </Link>
+          </Button>
+        </header>
+        <div className="max-w-prose">
+          <Markdown className="text-[15px] text-foreground/90">{entry.body}</Markdown>
+        </div>
+      </article>
     );
   }
 
-  return <PageShell maxWidth="2xl">{renderContent()}</PageShell>;
+  return renderContent();
 }
 
 function DetailSkeleton() {

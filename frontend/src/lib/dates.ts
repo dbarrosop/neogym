@@ -40,3 +40,12 @@ export function formatDateShort(iso: string): string {
     day: "numeric",
   });
 }
+
+/** The browser's IANA time zone, used by server-side day bucketing. */
+export function localTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}

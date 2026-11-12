@@ -6,7 +6,7 @@ import { z } from "zod";
 import { BodyMetricsChart, type BodyMetricsPoint } from "@/components/body-metrics-chart";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
-import { PeriodTabs } from "@/components/progress/period-tabs";
+import { Segmented } from "@/components/patterns/segmented";
 import { QuickBodyMeasurementForm } from "@/components/progress/quick-entry-forms";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ function BodyRoute() {
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <BodyStats measurements={measurements} today={today} />
-            <PeriodTabs
+            <Segmented
               label="Chart period"
               options={PERIODS}
               value={days}

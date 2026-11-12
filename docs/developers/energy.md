@@ -66,10 +66,9 @@ measurements and nutrition nutrient columns when parsing `activeKcal` and
 
 ## Web and iOS UI contract
 
-The web `/energy` route provides body-style list, trend, create, detail, edit,
-and delete flows. The primary navbar includes Energy as its own top-level item;
-the mobile tab bar is horizontally scrollable to accommodate all eight top-level
-items.
+The web `/progress/energy` route (Progress › Energy; the old `/energy` URLs
+redirect) provides the list, trend, inline create on desktop, and detail, edit
+and delete flows.
 
 The native iPhone app exposes Energy as a Nutrition subsection alongside
 Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable

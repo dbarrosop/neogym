@@ -25,7 +25,7 @@ const InsertJournalEntryMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/journal/new")({
+export const Route = createFileRoute("/_authed/journal_/new")({
   component: NewJournalEntryRoute,
 });
 

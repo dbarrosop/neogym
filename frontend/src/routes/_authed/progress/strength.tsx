@@ -5,12 +5,13 @@ import { z } from "zod";
 import { Sparkline } from "@/components/patterns/metrics";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
-import { localTimeZone, PeriodTabs } from "@/components/progress/period-tabs";
+import { Segmented } from "@/components/patterns/segmented";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { WebStrengthProgressQuery } from "@/gql/graphql";
+import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { addLocalDateDays } from "@/lib/nutrition";
@@ -211,7 +212,7 @@ function WeeklyVolume({
             </p>
           ) : null}
         </div>
-        <PeriodTabs label="Period" options={PERIODS} value={period} onChange={onPeriodChange} />
+        <Segmented label="Period" options={PERIODS} value={period} onChange={onPeriodChange} />
       </div>
       <ol
         className="flex h-40 items-end gap-1 sm:gap-1.5"

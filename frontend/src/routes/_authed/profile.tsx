@@ -1,18 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { generatePKCEPair } from "@nhost/nhost-js/auth";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Loader2, LogOut, Pencil } from "lucide-react";
+import { Loader2, LogOut } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { McpConnectCard } from "@/components/mcp-connect-card";
-import { PageHeader } from "@/components/patterns/page-shell";
+import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { Segmented } from "@/components/patterns/segmented";
 import { AreaTabs } from "@/components/shell/area-tabs";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeSegmented } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,9 +31,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { PKCE_VERIFIER_STORAGE_KEY } from "@/lib/nhost/pkce";
+import { formatRestPreset, REST_PRESETS, useRestTimer } from "@/lib/rest-timer";
 
 const changeEmailSchema = z.object({
   newEmail: z.string().email("Enter a valid email address"),
@@ -73,63 +73,115 @@ function ProfileRoute() {
     .toUpperCase();
 
   return (
-    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
-      <div className="mx-auto max-w-[900px] space-y-6">
-        <PageHeader title="Me" tabs={<AreaTabs area="me" />} />
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-4 pb-2">
-            <Avatar className="h-16 w-16 border border-border">
-              <AvatarImage src={user.avatarUrl ?? undefined} alt={user.displayName ?? user.email} />
-              <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
-            <div className="space-y-1">
-              <CardTitle className="text-2xl tracking-tight">
-                {user.displayName || "Athlete"}
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Separator />
-            <DetailRow label="Email">
-              <span>{user.email}</span>
-              <ChangeEmailDialog currentEmail={user.email} />
-            </DetailRow>
-            <DetailRow label="Locale">{user.locale ?? "—"}</DetailRow>
-            <DetailRow label="Default role">{user.defaultRole ?? "—"}</DetailRow>
-            <DetailRow label="User ID">
-              <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{user.id}</code>
-            </DetailRow>
-            <DetailRow label="Member since">
-              {new Date(user.createdAt).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
-            </DetailRow>
-          </CardContent>
-        </Card>
+    <PageShell maxWidth="3xl">
+      <PageHeader title="Me" tabs={<AreaTabs area="me" />} />
+      <section
+        aria-label="Profile"
+        className="flex items-center gap-4 rounded-xl border bg-card p-5"
+      >
+        <Avatar className="size-14">
+          <AvatarImage src={user.avatarUrl || undefined} alt="" />
+          <AvatarFallback className="bg-accent-soft text-xl font-bold text-accent-soft-foreground">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="truncate text-xl font-semibold">{user.displayName || "Athlete"}</h2>
+          <p className="truncate text-sm text-muted-foreground">
+            {user.email} · signs in with an email code
+          </p>
+        </div>
+      </section>
 
-        <McpConnectCard />
+      <SettingsGroup title="Account">
+        <SettingsRow label="Email">
+          <span className="truncate">{user.email}</span>
+          <ChangeEmailDialog currentEmail={user.email} />
+        </SettingsRow>
+        <SettingsRow label="Member since">
+          {new Date(user.createdAt).toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          })}
+        </SettingsRow>
+        <SettingsRow label="Language">{user.locale ?? "—"}</SettingsRow>
+      </SettingsGroup>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg tracking-tight">Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Separator />
-            <DetailRow label="Theme">
-              <ThemeToggle />
-            </DetailRow>
-            <Separator />
-            <Button type="button" onClick={handleSignOut} variant="outline" className="w-full">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </Button>
-          </CardContent>
-        </Card>
+      <SettingsGroup title="Preferences">
+        <SettingsRow label="Appearance">
+          <ThemeSegmented />
+        </SettingsRow>
+        <SettingsRow label="Rest timer" hint="Starts after each logged set">
+          <RestDefaultSegmented />
+        </SettingsRow>
+      </SettingsGroup>
+
+      <McpConnectCard />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button
+          type="button"
+          onClick={handleSignOut}
+          variant="ghost"
+          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <LogOut />
+          Sign out
+        </Button>
+        <p className="text-[12px] text-muted-foreground">
+          User ID <code className="font-mono">{user.id}</code>
+        </p>
       </div>
+    </PageShell>
+  );
+}
+
+function RestDefaultSegmented() {
+  const { defaultSeconds, setDefaultSeconds } = useRestTimer();
+  return (
+    <Segmented
+      label="Default rest"
+      options={REST_PRESETS.map((seconds) => ({
+        value: seconds,
+        label: formatRestPreset(seconds),
+      }))}
+      value={defaultSeconds}
+      onChange={setDefaultSeconds}
+    />
+  );
+}
+
+function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section aria-labelledby={`settings-${title}`} className="flex flex-col gap-2">
+      <h2 id={`settings-${title}`} className="px-1 text-[13px] font-semibold text-muted-foreground">
+        {title}
+      </h2>
+      <div className="divide-y rounded-xl border bg-card">{children}</div>
     </section>
+  );
+}
+
+function SettingsRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
+      <div className="flex flex-col">
+        <span className="text-sm font-medium">{label}</span>
+        {hint ? <span className="text-[12px] text-muted-foreground">{hint}</span> : null}
+      </div>
+      <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -179,14 +231,8 @@ function ChangeEmailDialog({ currentEmail }: { currentEmail: string | undefined 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-          aria-label="Change email"
-        >
-          <Pencil className="h-3.5 w-3.5" />
+        <Button type="button" variant="outline" size="sm">
+          Change
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -244,14 +290,5 @@ function ChangeEmailDialog({ currentEmail }: { currentEmail: string | undefined 
         )}
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="flex items-center gap-2 font-medium text-foreground">{children}</span>
-    </div>
   );
 }

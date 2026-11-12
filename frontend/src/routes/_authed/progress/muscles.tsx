@@ -15,11 +15,12 @@ import {
 import { z } from "zod";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
-import { localTimeZone, PeriodTabs } from "@/components/progress/period-tabs";
+import { Segmented } from "@/components/patterns/segmented";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { addLocalDateDays, localDateToDate } from "@/lib/nutrition";
@@ -161,7 +162,7 @@ function MusclesRoute() {
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">{muscleName(selected.group)}</h2>
-              <PeriodTabs
+              <Segmented
                 label="History period"
                 options={PERIODS}
                 value={days}

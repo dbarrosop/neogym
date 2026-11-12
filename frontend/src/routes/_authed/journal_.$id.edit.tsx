@@ -70,7 +70,7 @@ const DeleteJournalEntryMutation = graphql(`
   }
 `);
 
-export const Route = createFileRoute("/_authed/journal/$id_/edit")({
+export const Route = createFileRoute("/_authed/journal_/$id/edit")({
   component: EditJournalEntryRoute,
 });
 

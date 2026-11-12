@@ -48,9 +48,9 @@ Try the flow:
 
 1. Visit `http://localhost:5173`, click **Get started**
 2. Fill in display name + email — you'll see "Check your inbox"
-3. Open MailHog, copy the 6-digit code, paste it into the OTP field → you land on `/profile`
-4. From `/profile`, request an email change — open MailHog, click the verification link → you land on `/verify` → the new email is confirmed and you're redirected back to `/profile`
-5. Sign out from the navbar, sign back in via `/signin` (email → 6-digit code)
+3. Open MailHog, copy the 6-digit code, paste it into the OTP field → you land on `/today`
+4. From Me › Account (`/profile`), request an email change — open MailHog, click the verification link → you land on `/verify` → the new email is confirmed and you're redirected back to `/profile`
+5. Sign out from Me › Account, sign back in via `/signin` (email → 6-digit code)
 
 ## Available commands
 
@@ -127,10 +127,14 @@ CLI does not hot-reload `nhost.toml`.
 │   │   │   ├── signup.tsx
 │   │   │   ├── verify.tsx     # PKCE token exchange (email-change verification)
 │   │   │   ├── _authed.tsx    # Protected layout (redirects unauth users)
-│   │   │   └── _authed/profile.tsx
+│   │   │   └── _authed/       # Signed-in areas: today, sessions/workouts/exercises (Train),
+│   │   │                      # nutrition/*, progress/{muscles,strength,body,energy}, journal, profile
 │   │   ├── components/
-│   │   │   ├── navbar.tsx, auth-card.tsx
+│   │   │   ├── shell/         # Sidebar, mobile tab bar, area tabs, rest timer
+│   │   │   ├── patterns/      # Page shell, metrics, segmented control, query states
+│   │   │   ├── auth-card.tsx
 │   │   │   └── ui/            # shadcn primitives (hand-written)
+│   │   ├── lib/navigation.ts  # Five areas and their sections (shared IA with iOS)
 │   │   ├── lib/nhost/         # Client + AuthProvider
 │   │   ├── lib/utils.ts       # cn() helper
 │   │   ├── styles.css         # Tailwind v4 theme + design tokens

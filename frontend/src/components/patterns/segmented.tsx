@@ -1,18 +1,18 @@
 import { cn } from "@/lib/utils";
 
-export interface PeriodOption<T extends string | number> {
+export interface SegmentedOption<T extends string | number> {
   value: T;
   label: string;
 }
 
-/** Small segmented control for chart ranges (30 d / 60 d / …). */
-export function PeriodTabs<T extends string | number>({
+/** Small segmented control, e.g. chart ranges (30 d / 60 d) or appearance. */
+export function Segmented<T extends string | number>({
   options,
   value,
   onChange,
   label,
 }: {
-  options: readonly PeriodOption<T>[];
+  options: readonly SegmentedOption<T>[];
   value: T;
   onChange: (value: T) => void;
   label: string;
@@ -36,13 +36,4 @@ export function PeriodTabs<T extends string | number>({
       ))}
     </fieldset>
   );
-}
-
-/** The browser's IANA time zone, used by server-side day bucketing. */
-export function localTimeZone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
 }
