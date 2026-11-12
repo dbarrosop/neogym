@@ -291,7 +291,6 @@ function SessionDetailRoute() {
   const queryClient = useQueryClient();
 
   const queryKey = ["sessions", "detail", sessionId];
-
   const { data, isLoading, error } = useQuery({
     queryKey,
     queryFn: () => gqlRequest(SessionDetailQuery, { id: sessionId }),
@@ -420,6 +419,7 @@ function SessionDetailRoute() {
   return (
     <div className="flex flex-col gap-4">
       <SessionHeader
+        sessionId={sessionId}
         name={name}
         startedAt={session.startedAt}
         workout={session.workout ?? null}
@@ -436,6 +436,7 @@ function SessionDetailRoute() {
             <ExerciseRow
               key={we.id}
               we={we}
+              sessionId={sessionId}
               expanded={expanded}
               onToggle={() =>
                 setExpandedOverrides((current) => ({ ...current, [we.id]: !expanded }))
@@ -604,6 +605,7 @@ function defaultActiveExerciseId(
 }
 
 function SessionHeader({
+  sessionId,
   name,
   startedAt,
   workout,
@@ -611,6 +613,7 @@ function SessionHeader({
   onAddExercise,
   isAdding,
 }: {
+  sessionId: string;
   name: string;
   startedAt: string;
   workout: { id: string; name: string } | null;
@@ -658,7 +661,7 @@ function SessionHeader({
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <StartRestButton />
+        <StartRestButton sessionId={sessionId} />
         <Button type="button" variant="outline" onClick={onAddExercise} disabled={isAdding}>
           <Plus />
           Add exercise
@@ -719,6 +722,7 @@ type SessionExerciseRow = NonNullable<
 
 interface ExerciseRowProps {
   we: SessionExerciseRow;
+  sessionId: string;
   expanded: boolean;
   onToggle: () => void;
   priorSessionsByExercise: Map<string, PriorEntry[]>;
@@ -741,6 +745,7 @@ function pluralChild(noun: "set" | "entry", count: number): string {
 
 function ExerciseRow({
   we,
+  sessionId,
   expanded,
   onToggle,
   priorSessionsByExercise,
@@ -817,6 +822,7 @@ function ExerciseRow({
   return (
     <ExerciseLog
       {...header}
+      sessionId={sessionId}
       workoutSessionExerciseId={we.id}
       expanded={expanded}
       onToggle={onToggle}
@@ -977,6 +983,7 @@ function parseReps(value: string): number | null {
 }
 
 interface ExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | "onCollapse"> {
+  sessionId: string;
   workoutSessionExerciseId: string;
   expanded: boolean;
   onToggle: () => void;
@@ -1004,6 +1011,7 @@ function exerciseStatus(count: number, referenceCount = 0): ExerciseStatus {
 }
 
 function ExerciseLog({
+  sessionId,
   workoutSessionExerciseId,
   expanded,
   onToggle,
@@ -1033,7 +1041,7 @@ function ExerciseLog({
       }),
     onSuccess: (_result, vars) => {
       onMutated();
-      restTimer.start({ label: `${exerciseName} · set ${vars.setNumber + 1} next` });
+      restTimer.start({ sessionId, label: `${exerciseName} · set ${vars.setNumber + 1} next` });
     },
     onError: (e) => toast.error(`Failed: ${e.message}`),
   });

@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import { Timer, X } from "lucide-react";
+import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   formatRestClock,
@@ -7,6 +9,34 @@ import {
   useRestTimer,
 } from "@/lib/rest-timer";
 import { cn } from "@/lib/utils";
+
+/** Timers restored from older storage may not have a session to open. */
+function RestTimerContent({
+  sessionId,
+  className,
+  children,
+}: {
+  sessionId: string | null;
+  className: string;
+  children: ReactNode;
+}) {
+  if (!sessionId) {
+    return <div className={className}>{children}</div>;
+  }
+  return (
+    <Link
+      to="/train/sessions/$sessionId"
+      params={{ sessionId }}
+      className={cn(
+        "rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+    >
+      <span className="sr-only">Open session: </span>
+      {children}
+    </Link>
+  );
+}
 
 /** Sidebar card shown while a rest is running (desktop shell). */
 export function RestTimerCard() {
@@ -21,22 +51,24 @@ export function RestTimerCard() {
       aria-label="Rest timer"
       className="mb-2 flex flex-col gap-2.5 rounded-xl border bg-card p-3.5"
     >
-      <div className="flex items-center gap-2">
-        <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-primary" />
-        <strong className="flex-1 text-sm font-semibold">Rest</strong>
-        <span className="text-xl font-semibold tabular-nums" role="timer" aria-live="off">
-          {formatRestClock(remaining)}
-        </span>
-      </div>
-      <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-        <div
-          className="h-full rounded-full bg-primary transition-[width] duration-300"
-          style={{ width: `${Math.min(100, progress * 100)}%` }}
-        />
-      </div>
-      {timer.label ? (
-        <span className="line-clamp-2 text-[13px] text-muted-foreground">{timer.label}</span>
-      ) : null}
+      <RestTimerContent sessionId={timer.sessionId} className="flex min-h-11 flex-col gap-2.5">
+        <div className="flex items-center gap-2">
+          <span aria-hidden="true" className="size-2 animate-pulse rounded-full bg-primary" />
+          <strong className="flex-1 text-sm font-semibold">Rest</strong>
+          <span className="text-xl font-semibold tabular-nums" role="timer" aria-live="off">
+            {formatRestClock(remaining)}
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-300"
+            style={{ width: `${Math.min(100, progress * 100)}%` }}
+          />
+        </div>
+        {timer.label ? (
+          <span className="line-clamp-2 text-[13px] text-muted-foreground">{timer.label}</span>
+        ) : null}
+      </RestTimerContent>
       <div className="grid grid-cols-2 gap-2">
         <Button type="button" variant="outline" size="sm" onClick={() => extend(30)}>
           +30 s
@@ -61,10 +93,12 @@ export function RestTimerPill() {
       aria-label="Rest timer"
       className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] z-40 flex items-center gap-1 rounded-full border bg-glass py-1 pr-1 pl-3.5 shadow-lg backdrop-blur-lg md:hidden"
     >
-      <Timer className="size-4 text-link" aria-hidden="true" />
-      <span className="px-1.5 text-base font-semibold tabular-nums" role="timer" aria-live="off">
-        {formatRestClock(remaining)}
-      </span>
+      <RestTimerContent sessionId={timer.sessionId} className="flex min-h-11 items-center gap-1">
+        <Timer className="size-4 text-link" aria-hidden="true" />
+        <span className="px-1.5 text-base font-semibold tabular-nums" role="timer" aria-live="off">
+          {formatRestClock(remaining)}
+        </span>
+      </RestTimerContent>
       <Button
         type="button"
         variant="ghost"
@@ -92,14 +126,20 @@ export function RestTimerPill() {
  * Starts a rest with the default length. Used in session headers so a rest can
  * be started without logging a set.
  */
-export function StartRestButton({ className }: { className?: string }) {
+export function StartRestButton({
+  sessionId,
+  className,
+}: {
+  sessionId: string;
+  className?: string;
+}) {
   const { timer, defaultSeconds, start } = useRestTimer();
   return (
     <Button
       type="button"
       variant="outline"
       className={cn(className)}
-      onClick={() => start()}
+      onClick={() => start({ sessionId })}
       disabled={!!timer}
     >
       <Timer />

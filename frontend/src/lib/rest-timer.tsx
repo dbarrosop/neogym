@@ -23,12 +23,14 @@ export interface RestTimerState {
   duration: number;
   /** Optional context, e.g. "Leg extensions · set 3 next". */
   label: string | null;
+  /** Session that started this rest, or null for timers without session context. */
+  sessionId: string | null;
 }
 
 interface RestTimerContextValue {
   timer: RestTimerState | null;
   defaultSeconds: number;
-  start: (options?: { seconds?: number; label?: string | null }) => void;
+  start: (options?: { seconds?: number; label?: string | null; sessionId?: string | null }) => void;
   extend: (seconds: number) => void;
   clear: () => void;
   setDefaultSeconds: (seconds: number) => void;
@@ -57,12 +59,19 @@ function write(key: string, value: unknown) {
   }
 }
 
-function isTimerState(value: unknown): value is RestTimerState {
+function isTimerState(
+  value: unknown,
+): value is Omit<RestTimerState, "sessionId"> & { sessionId?: string | null } {
   if (!value || typeof value !== "object") {
     return false;
   }
   const candidate = value as Partial<RestTimerState>;
-  return typeof candidate.endsAt === "number" && typeof candidate.duration === "number";
+  return (
+    typeof candidate.endsAt === "number" &&
+    typeof candidate.duration === "number" &&
+    (candidate.sessionId == null ||
+      (typeof candidate.sessionId === "string" && candidate.sessionId.length > 0))
+  );
 }
 
 /**
@@ -77,7 +86,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = readJson<unknown>(STATE_KEY);
     if (isTimerState(stored) && stored.endsAt > Date.now()) {
-      setTimer({ ...stored, label: stored.label ?? null });
+      setTimer({ ...stored, label: stored.label ?? null, sessionId: stored.sessionId ?? null });
     } else if (stored) {
       write(STATE_KEY, null);
     }
@@ -119,6 +128,7 @@ export function RestTimerProvider({ children }: { children: ReactNode }) {
         endsAt: Date.now() + seconds * 1000,
         duration: seconds,
         label: options?.label ?? null,
+        sessionId: options?.sessionId ?? null,
       });
     },
     [defaultSeconds, update],

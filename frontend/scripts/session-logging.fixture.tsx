@@ -206,7 +206,11 @@ const { RestTimerProvider, useRestTimer } = await import("@/lib/rest-timer");
 const { Route } = await import("@/routes/_authed/train/sessions/_split/$sessionId");
 function TimerLabel() {
   const { timer } = useRestTimer();
-  return <output aria-label="Rest label">{timer?.label}</output>;
+  return (
+    <output aria-label="Rest label" data-session-id={timer?.sessionId}>
+      {timer?.label}
+    </output>
+  );
 }
 const client = new QueryClient({
   defaultOptions: {
@@ -410,10 +414,9 @@ async function logSet(name: string, number: number) {
     form.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })),
   );
   await waitFor(() => detailReads > readsBefore && client.isFetching() === 0);
-  assert.equal(
-    container.querySelector('[aria-label="Rest label"]')?.textContent,
-    `${name} · set ${number + 1} next`,
-  );
+  const timer = container.querySelector('[aria-label="Rest label"]');
+  assert.equal(timer?.textContent, `${name} · set ${number + 1} next`);
+  assert.equal(timer?.getAttribute("data-session-id"), "session");
   return { form, weight };
 }
 async function logEntry(name: string, number: number) {
@@ -437,6 +440,11 @@ async function logEntry(name: string, number: number) {
 try {
   // First-ever ad-hoc logging must retain the same next-set controls and focus.
   await openSession([exercise("Squat")]);
+  await settle(() => button("Rest 90 s").click());
+  assert.equal(
+    container.querySelector('[aria-label="Rest label"]')?.getAttribute("data-session-id"),
+    "session",
+  );
   // Controls own their 44 px sizes, including inside the bordered stepper.
   for (const label of [
     "Decrease Weight in kg for set 1",
