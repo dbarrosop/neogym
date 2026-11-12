@@ -110,7 +110,7 @@ struct LabelInputView: View {
                 .fill(NeoGymTheme.accentSoft)
                 .overlay(
                     Capsule(style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
+                        .stroke(NeoGymTheme.accentText.opacity(0.4), lineWidth: NeoGymTheme.hairline)
                 )
         )
     }

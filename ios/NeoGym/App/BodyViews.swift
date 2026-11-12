@@ -25,14 +25,13 @@ struct BodyMeasurementsListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -49,149 +48,125 @@ struct BodyMeasurementsListView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading measurements") {
-                AppLoadingStateView(title: "Loading body measurements")
-            }
+            AppLoadingStateView(title: "Loading body measurements")
         case .loading where viewModel.measurements.isEmpty:
-            SectionShell(title: "Loading measurements") {
-                AppLoadingStateView(title: "Loading body measurements")
-            }
+            AppLoadingStateView(title: "Loading body measurements")
         case let .failed(message, _) where viewModel.measurements.isEmpty:
-            SectionShell(title: "Body") {
-                AppErrorStateView(title: "Failed to load body measurements", message: message) {
-                    Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
-                }
+            AppErrorStateView(title: "Couldn't load body measurements", message: message) {
+                Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
             }
+            .cardSurface()
         default:
+            if viewModel.trendData.shouldShowChart {
+                trendCard
+            }
+            healthSyncStatus
             if viewModel.measurements.isEmpty {
-                VStack(spacing: 14) {
-                    healthSyncStatus
-                    SectionShell(title: "No measurements") {
-                        VStack(spacing: 16) {
-                            AppEmptyStateView(
-                                title: "No measurements yet",
-                                message: "Log your first measurement to start seeing trends.",
-                                systemImage: "heart.text.square"
-                            )
-                            NavigationLink(value: ProgressRoute.bodyMeasurementCreate) {
-                                Label("Log your first measurement", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
-                    }
-                }
+                AppEmptyStateView(
+                    title: "No measurements yet",
+                    message: "Log a measurement with the + button, or allow Apple Health to import weight and body fat.",
+                    systemImage: "scalemass"
+                )
+                .cardSurface()
             } else {
-                VStack(spacing: 14) {
-                    healthSyncStatus
-                    if viewModel.trendData.shouldShowChart {
-                        SectionShell(title: "Weight & body fat over time", subtitle: "Trend") {
-                            BodyTrendChartView(trendData: viewModel.trendData)
+                VStack(spacing: 0) {
+                    ForEach(viewModel.measurements) { measurement in
+                        NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
+                            BodyMeasurementListRow(measurement: measurement)
                         }
-                    }
-                    SectionShell(title: "Measurements", subtitle: "Newest first") {
-                        VStack(spacing: 0) {
-                            ForEach(viewModel.measurements) { measurement in
-                                NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
-                                    BodyMeasurementListRow(measurement: measurement)
-                                }
-                                if measurement.id != viewModel.measurements.last?.id { Divider() }
-                            }
-                        }
+                        .buttonStyle(.plain)
+                        if measurement.id != viewModel.measurements.last?.id { RowSeparator() }
                     }
                 }
+                .cardSurface()
             }
         }
+    }
+
+    private var trendCard: some View {
+        let averages = viewModel.trendData.rollingAverageValues(days: 7)
+        let average = averages.last(where: { $0.averageWeightKg != nil })?.averageWeightKg
+        let fat = viewModel.trendData.points.last(where: { $0.bodyFatPct != nil })?.bodyFatPct
+        return VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            AdaptiveRow(spacing: NeoGymTheme.spacingLG, alignment: .top) {
+                if let average {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Weight · 7-day avg")
+                            .font(.footnote)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                        MetricValueText(value: MetricFormat.decimal(average), unit: "kg")
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+                if let fat {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Body fat")
+                            .font(.footnote)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                        MetricValueText(value: MetricFormat.decimal(fat), unit: "%")
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            BodyTrendChartView(trendData: viewModel.trendData)
+        }
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
     }
 
     @ViewBuilder
     private var healthSyncStatus: some View {
         switch viewModel.healthSyncState {
         case .loading:
-            FeedbackBanner(message: "Syncing Apple Health body measurements…", tone: .info)
+            HealthSyncStatusRow(title: "Apple Health", detail: "Syncing weight and body fat…", isSyncing: true)
         case let .loaded(summary):
-            if summary.importedCount > 0 || summary.updatedCount > 0 {
-                FeedbackBanner(
-                    message: "Apple Health synced: imported \(summary.importedCount), updated \(summary.updatedCount).",
-                    tone: .info
-                )
-            } else {
-                FeedbackBanner(message: "Apple Health checked; no new body measurements to import.", tone: .info)
-            }
+            HealthSyncStatusRow(
+                title: "Apple Health",
+                detail: summary.importedCount > 0 || summary.updatedCount > 0
+                    ? "Weight & body fat · \(summary.importedCount) imported, \(summary.updatedCount) updated"
+                    : "Weight & body fat · up to date"
+            )
         case let .failed(message, _):
             FeedbackBanner(message: message)
         case .idle:
             EmptyView()
         }
     }
-
 }
 
 private struct BodyMeasurementListRow: View {
     let measurement: BodyMeasurement
 
     var body: some View {
-        HStack(spacing: 12) {
-            BodyDateBadge(measuredOn: measurement.measuredOn)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(DateOnly.formatLong(measurement.measuredOn))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NeoGymTheme.text)
-                Text(
-                    BodyMeasurementFormatters.values(
-                        weightKg: measurement.weightKg,
-                        bodyFatPct: measurement.bodyFatPct
-                    )
-                )
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                if let notes = measurement.notes, !notes.isEmpty {
-                    Text(notes)
-                        .lineLimit(1)
-                        .font(.caption2)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                }
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-        }
-        .padding(.vertical, 10)
-    }
-}
-
-private struct BodyDateBadge: View {
-    let measuredOn: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(month)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Text(day)
-                .font(.title3.weight(.bold))
+        HStack(spacing: NeoGymTheme.spacingSM) {
+            Text(DateOnly.parse(measurement.measuredOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? measurement.measuredOn)
+                .font(.subheadline)
                 .foregroundStyle(NeoGymTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let notes = measurement.notes, !notes.isEmpty, !HealthImportMarker.isImported(notes) {
+                Image(systemName: "note.text")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityLabel("Has a note")
+            }
+            Text(measurement.weightKg.map { "\(MetricFormat.decimal($0, digits: 2)) kg" } ?? "—")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.text)
+                .frame(minWidth: 78, alignment: .trailing)
+            Text(measurement.bodyFatPct.map { "\(MetricFormat.decimal($0)) %" } ?? "—")
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .frame(minWidth: 52, alignment: .trailing)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textTertiary)
+                .accessibilityHidden(true)
         }
-        .frame(width: 52, height: 52)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: NeoGymTheme.inset
-        )
-    }
-
-    private var date: Date? { DateOnly.parse(measuredOn) }
-
-    private var month: String {
-        guard let date else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    private var day: String {
-        guard let date else { return "—" }
-        return String(Calendar.current.component(.day, from: date))
+        .monospacedDigit()
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .frame(minHeight: NeoGymTheme.minimumTapTarget)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -630,7 +605,7 @@ struct BodyTrendChartView: View {
             TimeSeriesChartSeries(
                 id: "body-fat",
                 name: "Body fat (%)",
-                color: .red,
+                color: NeoGymTheme.series2,
                 points: trendData.points.compactMap { point in
                     point.bodyFatPct.map {
                         TimeSeriesChartDataPoint(id: "\(point.id)-body-fat", date: point.date, value: $0)

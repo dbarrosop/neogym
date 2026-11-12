@@ -72,7 +72,7 @@ struct ProgressMetricCard: View {
                 if let delta {
                     Text(delta)
                         .font(.caption.monospacedDigit())
-                        .foregroundColor(delta.hasPrefix("+") ? .green : .red)
+                        .foregroundStyle(delta.hasPrefix("+") ? NeoGymTheme.positive : NeoGymTheme.destructive)
                 }
             }
             Text(value)

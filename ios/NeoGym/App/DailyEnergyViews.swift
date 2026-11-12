@@ -17,15 +17,13 @@ struct DailyEnergyListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
-                TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
-                CalorieHistorySection(repository: nutritionRepository, reloadToken: reloadToken)
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -47,76 +45,84 @@ struct DailyEnergyListView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading energy") {
-                AppLoadingStateView(title: "Loading energy entries")
-            }
+            AppLoadingStateView(title: "Loading energy entries")
         case .loading where viewModel.entries.isEmpty:
-            SectionShell(title: "Loading energy") {
-                AppLoadingStateView(title: "Loading energy entries")
-            }
+            AppLoadingStateView(title: "Loading energy entries")
         case let .failed(message, _) where viewModel.entries.isEmpty:
-            SectionShell(title: "Energy") {
-                AppErrorStateView(title: "Failed to load energy entries", message: message) {
-                    Task { await loadAndRefreshWidget() }
-                }
+            AppErrorStateView(title: "Couldn't load energy entries", message: message) {
+                Task { await loadAndRefreshWidget() }
             }
+            .cardSurface()
         default:
+            if viewModel.trendData.shouldShowChart {
+                trendCard
+            }
+            TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
+            CalorieHistorySection(repository: nutritionRepository, reloadToken: reloadToken)
+            HealthSyncStatusRow(title: "Imported by Apple Watch", detail: "The watch refreshes the last 7 days automatically")
             if viewModel.entries.isEmpty {
-                SectionShell(title: "No energy entries") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: "No energy entries yet",
-                            message: "Log active or resting energy to start seeing trends.",
-                            systemImage: "flame"
-                        )
-                        NavigationLink(value: ProgressRoute.energyCreate) {
-                            Label("Log your first energy entry", systemImage: "plus")
-                        }
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
-                    }
-                }
+                AppEmptyStateView(
+                    title: "No energy entries yet",
+                    message: "Log active or resting energy with the + button, or connect your Apple Watch under Me › Account.",
+                    systemImage: "flame"
+                )
+                .cardSurface()
             } else {
-                VStack(spacing: 14) {
-                    if viewModel.trendData.shouldShowChart {
-                        SectionShell(title: "Energy over time", subtitle: "Trend") {
-                            DailyEnergyTrendChartView(trendData: viewModel.trendData)
-                        }
-                    }
-                    SectionShell(title: "Energy", subtitle: "Newest first") {
-                        VStack(spacing: 0) {
-                            ForEach(viewModel.entries) { entry in
-                                NavigationLink(value: ProgressRoute.energyDetail(entry.id)) {
-                                    DailyEnergyListRow(entry: entry)
-                                }
-                                if entry.id != viewModel.entries.last?.id { Divider() }
-                            }
-                            if viewModel.hasMore {
-                                Divider()
-                                Button {
-                                    Task { await viewModel.loadMore() }
-                                } label: {
-                                    if viewModel.isLoadingMore {
-                                        ProgressView()
-                                            .frame(maxWidth: .infinity)
-                                    } else {
-                                        Text("Load more")
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                }
-                                .buttonStyle(NeoGymSecondaryButtonStyle())
-                                .padding(.top, 12)
-                            }
-                            if let message = viewModel.loadMoreErrorMessage {
-                                Text(message)
-                                    .font(.caption)
-                                    .foregroundStyle(NeoGymTheme.destructive)
-                                    .padding(.top, 8)
-                            }
-                        }
-                    }
-                }
+                entryList
             }
         }
+    }
+
+    private var trendCard: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            if let average = DailyEnergyOutAverage(entries: viewModel.entries, today: IntakeGrouping.formatLocalDate()) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Average out · \(average.dayCount) full day\(average.dayCount == 1 ? "" : "s")")
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                    MetricValueText(value: MetricFormat.whole(average.kcalPerDay), unit: "kcal / day")
+                }
+                .accessibilityElement(children: .combine)
+            }
+            DailyEnergyTrendChartView(trendData: viewModel.trendData)
+        }
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
+    }
+
+    private var entryList: some View {
+        VStack(spacing: 0) {
+            ForEach(viewModel.entries) { entry in
+                NavigationLink(value: ProgressRoute.energyDetail(entry.id)) {
+                    DailyEnergyListRow(entry: entry)
+                }
+                .buttonStyle(.plain)
+                if entry.id != viewModel.entries.last?.id { RowSeparator() }
+            }
+            if viewModel.hasMore {
+                RowSeparator(leadingInset: 0)
+                Button {
+                    Task { await viewModel.loadMore() }
+                } label: {
+                    Group {
+                        if viewModel.isLoadingMore {
+                            ProgressView()
+                        } else {
+                            Text("Load more")
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: NeoGymTheme.minimumTapTarget)
+                }
+                .foregroundStyle(NeoGymTheme.accentText)
+            }
+            if let message = viewModel.loadMoreErrorMessage {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.destructive)
+                    .padding(NeoGymTheme.spacingSM)
+            }
+        }
+        .cardSurface()
     }
 }
 
@@ -124,62 +130,34 @@ private struct DailyEnergyListRow: View {
     let entry: DailyEnergy
 
     var body: some View {
-        HStack(spacing: 12) {
-            DailyEnergyDateBadge(energyOn: entry.energyOn)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(DateOnly.formatLong(entry.energyOn))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NeoGymTheme.text)
-                Text(DailyEnergyFormatters.values(activeKcal: entry.activeKcal, restingKcal: entry.restingKcal))
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-                if let notes = entry.notes, !notes.isEmpty {
-                    Text(notes)
-                        .lineLimit(1)
-                        .font(.caption2)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                }
-            }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-        }
-        .padding(.vertical, 10)
-    }
-}
-
-private struct DailyEnergyDateBadge: View {
-    let energyOn: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(month)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Text(day)
-                .font(.title3.weight(.bold))
+        HStack(spacing: NeoGymTheme.spacingSM) {
+            Text(DateOnly.parse(entry.energyOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? entry.energyOn)
+                .font(.subheadline)
                 .foregroundStyle(NeoGymTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let notes = entry.notes, !notes.isEmpty, !HealthImportMarker.isImported(notes) {
+                Image(systemName: "note.text")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityLabel("Has a note")
+            }
+            Text("\(MetricFormat.whole(entry.restingKcal ?? 0)) + \(MetricFormat.whole(entry.activeKcal ?? 0))")
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .accessibilityLabel("Resting \(MetricFormat.whole(entry.restingKcal ?? 0)), active \(MetricFormat.whole(entry.activeKcal ?? 0))")
+            Text(MetricFormat.whole((entry.restingKcal ?? 0) + (entry.activeKcal ?? 0)))
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.text)
+                .frame(minWidth: 52, alignment: .trailing)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textTertiary)
+                .accessibilityHidden(true)
         }
-        .frame(width: 52, height: 52)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: NeoGymTheme.inset
-        )
-    }
-
-    private var date: Date? { DateOnly.parse(energyOn) }
-
-    private var month: String {
-        guard let date else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    private var day: String {
-        guard let date else { return "—" }
-        return String(Calendar.current.component(.day, from: date))
+        .monospacedDigit()
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .frame(minHeight: NeoGymTheme.minimumTapTarget)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }

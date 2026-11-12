@@ -660,7 +660,7 @@ private struct JournalLabelInputView: View {
                             .fill(NeoGymTheme.accentSoft)
                             .overlay(
                                 Capsule(style: .continuous)
-                                    .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
+                                    .stroke(NeoGymTheme.accentText.opacity(0.4), lineWidth: NeoGymTheme.hairline)
                             )
                     )
                 }
@@ -783,7 +783,7 @@ private struct JournalLabelChip: View {
             .minimumScaleFactor(0.85)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .foregroundColor(selected ? .accentColor : NeoGymTheme.textSecondary)
+            .foregroundColor(selected ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
             .background(chipBackground)
             .contentShape(Capsule(style: .continuous))
     }

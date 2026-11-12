@@ -219,7 +219,7 @@ private struct WorkoutVisibilityBadge: View {
             .font(.caption.weight(.bold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .foregroundColor(isPublic ? .accentColor : NeoGymTheme.textSecondary)
+            .foregroundColor(isPublic ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusPill,
                 fill: NeoGymTheme.inset

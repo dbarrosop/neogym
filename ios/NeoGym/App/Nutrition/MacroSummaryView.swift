@@ -82,11 +82,11 @@ struct FoodVisibilityBadge: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .foregroundColor(isPublic ? .accentColor : NeoGymTheme.textSecondary)
+            .foregroundColor(isPublic ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusPill,
                 fill: isPublic ? NeoGymTheme.accentSoft : NeoGymTheme.inset,
-                stroke: isPublic ? Color.accentColor.opacity(0.25) : NeoGymTheme.separator
+                stroke: isPublic ? NeoGymTheme.accentText.opacity(0.4) : NeoGymTheme.separator
             )
     }
 }

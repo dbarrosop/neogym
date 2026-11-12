@@ -95,10 +95,10 @@ struct TimeSeriesChartView: View {
     private var chartGrid: some View {
         VStack {
             ForEach(0..<4, id: \.self) { _ in
-                Divider().background(NeoGymTheme.separator)
+                Rectangle().fill(NeoGymTheme.separator).frame(height: NeoGymTheme.hairline)
                 Spacer()
             }
-            Divider().background(NeoGymTheme.separator)
+            Rectangle().fill(NeoGymTheme.separator).frame(height: NeoGymTheme.hairline)
         }
     }
 
@@ -119,14 +119,12 @@ struct TimeSeriesChartView: View {
     }
 
     private func chartAxes(size: CGSize) -> some View {
+        // No chart border: only the baseline, in the separator colour.
         Path { path in
-            path.move(to: CGPoint(x: 0, y: 0))
-            path.addLine(to: CGPoint(x: 0, y: size.height))
-            path.addLine(to: CGPoint(x: size.width, y: size.height))
-            path.move(to: CGPoint(x: size.width, y: 0))
+            path.move(to: CGPoint(x: 0, y: size.height))
             path.addLine(to: CGPoint(x: size.width, y: size.height))
         }
-        .stroke(NeoGymTheme.textSecondary.opacity(0.65), lineWidth: 1)
+        .stroke(NeoGymTheme.separator, lineWidth: 1)
     }
 
     private func seriesLayer(_ singleSeries: TimeSeriesChartSeries, size: CGSize) -> some View {

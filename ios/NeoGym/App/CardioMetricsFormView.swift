@@ -216,13 +216,13 @@ private struct MetricInputRow: View {
         HStack(alignment: .firstTextBaseline, spacing: NeoGymTheme.spacingSM) {
             Text(label)
                 .font(.subheadline.weight(.semibold))
-                .foregroundColor(isInvalid ? .red : .primary)
+                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
             Spacer(minLength: NeoGymTheme.spacingSM)
             TextField("0", text: scalarBinding)
                 .keyboardType(spec.format == .decimal ? .decimalPad : .numberPad)
                 .numericFieldFocus(.scalar(spec.key), focusedField: focusedField)
                 .multilineTextAlignment(.trailing)
-                .foregroundColor(isInvalid ? .red : .primary)
+                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
         }
         .padding(NeoGymTheme.spacingSM)
         .cardSurface(
@@ -296,7 +296,7 @@ private struct MetricInputRow: View {
             .keyboardType(.numberPad)
             .numericFieldFocus(.duration(spec.key, field), focusedField: focusedField)
             .multilineTextAlignment(.trailing)
-            .foregroundColor(isInvalid ? .red : .primary)
+            .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
             .padding(NeoGymTheme.spacingXS)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusSM,
