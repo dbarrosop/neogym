@@ -189,6 +189,9 @@ struct DailyIntakeView: View {
                     targetTotals: viewModel.payload?.targetTotals
                 )
                 CalorieBalanceView(balance: viewModel.calorieBalance)
+                if let projection = viewModel.payload?.energyProjection(date: viewModel.date) {
+                    DailyEnergyProjectionView(projection: projection)
+                }
             }
         }
     }

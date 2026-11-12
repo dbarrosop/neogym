@@ -169,6 +169,17 @@ private extension WatchHomeView {
                 .minimumScaleFactor(0.75)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(breakdownAccessibilityText)
+                if let snapshot = runtime.snapshot,
+                   snapshot.localDate == DateOnly.todayLocalISO(), let projection = snapshot.projection {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Estimated today").font(.caption.weight(.semibold))
+                        Text("Burned \(projection.burnedValue())")
+                        Text("Net \(projection.netValue())")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .accessibilityElement(children: .combine)
+                }
                 HStack(spacing: 6) {
                     Button { Task { await runtime.refresh(trigger: .manual) } } label: {
                         Image(systemName: "arrow.clockwise")

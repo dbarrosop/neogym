@@ -17,6 +17,14 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public let rowSource: WatchEnergyRowSource?
     /// A locally read estimate awaiting authoritative backend reconciliation.
     public let pendingBackend: Bool?
+    /// Optional for backwards-compatible snapshots. The complication ignores this baseline.
+    public let restingBaseline: DailyRestingEnergyBaseline?
+
+    public var projection: DailyEnergyProjection? {
+        guard burnedKcal != nil, let restingBaseline else { return nil }
+        return DailyEnergyProjection(caloriesIn: consumedKcal, activeKcal: activeKcal,
+                                     restingKcal: restingKcal, baseline: restingBaseline)
+    }
 
     /// Calories in minus calories out. A missing energy row is unknown, not zero.
     public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
@@ -33,7 +41,8 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public init(
         userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?,
         activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date,
-        rowSource: WatchEnergyRowSource? = nil, pendingBackend: Bool? = nil
+        rowSource: WatchEnergyRowSource? = nil, pendingBackend: Bool? = nil,
+        restingBaseline: DailyRestingEnergyBaseline? = nil
     ) {
         self.userID = userID
         self.localDate = localDate
@@ -44,6 +53,7 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
         self.updatedAt = updatedAt
         self.rowSource = rowSource
         self.pendingBackend = pendingBackend
+        self.restingBaseline = restingBaseline
     }
 }
 
@@ -64,7 +74,7 @@ public enum WatchLocalEnergyPolicy {
             userID: ownerID, localDate: today, consumedKcal: snapshot.consumedKcal,
             burnedKcal: (active ?? 0) + (resting ?? 0), activeKcal: active,
             restingKcal: resting, updatedAt: now, rowSource: snapshot.rowSource,
-            pendingBackend: true
+            pendingBackend: true, restingBaseline: snapshot.restingBaseline
         )
     }
 }
@@ -166,18 +176,22 @@ public struct WatchEnergyService: Sendable {
         ) {
             try await graphQL.execute(
                 query: Self.todayQuery,
-                variables: ["date": GraphQLScalars.date(today)],
+                variables: [
+                    "date": GraphQLScalars.date(today),
+                    "since": GraphQLScalars.date(IntakeGrouping.addLocalDateDays(today, days: -7, calendar: calendar))
+                ],
                 operationName: "WatchTodayEnergy"
             )
         }
         let consumed = data.nutritionDays.first?.calories ?? 0
-        let energyEntry = data.dailyEnergyEntries.first
+        let energyEntry = data.dailyEnergyEntries.first { $0.energyOn == today }
         let burned = energyEntry.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
         return WatchEnergySnapshot(
             userID: userID, localDate: today, consumedKcal: consumed, burnedKcal: burned,
             activeKcal: energyEntry?.activeKcal, restingKcal: energyEntry?.restingKcal, updatedAt: now,
             rowSource: energyEntry.map { $0.notes == "Imported from Apple Health" ? .imported : .manual }
-                ?? .missing, pendingBackend: false
+                ?? .missing, pendingBackend: false,
+            restingBaseline: DailyRestingEnergyBaseline(today: today, history: data.dailyEnergyEntries, calendar: calendar)
         )
     }
 
@@ -249,7 +263,7 @@ public struct WatchEnergyService: Sendable {
     }
 
     public static let todayQuery = """
-    query WatchTodayEnergy($date: date!) {
+    query WatchTodayEnergy($date: date!, $since: date!) {
       nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {
         logDate
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
@@ -260,7 +274,7 @@ public struct WatchEnergyService: Sendable {
           nutritionLogEntries { grams snapshotKcalPer100g }
         }
       }
-      dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1) {
+      dailyEnergyEntries(where: { energyOn: { _gte: $since, _lte: $date } }, order_by: { energyOn: desc }) {
         id
         energyOn
         activeKcal

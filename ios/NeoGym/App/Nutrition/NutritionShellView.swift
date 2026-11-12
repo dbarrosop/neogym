@@ -297,6 +297,7 @@ struct NutritionNavigationView: View {
     private func dailyEnergyListDestination() -> some View {
         DailyEnergyListView(
             repository: energyRepository,
+            nutritionRepository: repository,
             reloadToken: reloadToken
         )
         .navigationTitle("Energy")
@@ -314,6 +315,7 @@ struct NutritionNavigationView: View {
         DailyEnergyDetailView(
             entryId: entryId,
             repository: energyRepository,
+            nutritionRepository: repository,
             onDeleted: invalidateLists,
             onMutated: invalidateLists
         )

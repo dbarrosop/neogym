@@ -25,6 +25,8 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
     public let sevenDayState: String?
     public let emptyTitle: String
     public let emptyMessage: String
+    public let estimatedBurnedValue: String?
+    public let estimatedNetValue: String?
 
     public init(
         schemaVersion: Int = 1,
@@ -44,7 +46,9 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
         sevenDayCaption: String,
         sevenDayState: String?,
         emptyTitle: String = "Open NeoGym to sync",
-        emptyMessage: String = "Load the Nutrition overview to refresh your energy balance."
+        emptyMessage: String = "Load the Nutrition overview to refresh your energy balance.",
+        estimatedBurnedValue: String? = nil,
+        estimatedNetValue: String? = nil
     ) {
         self.schemaVersion = schemaVersion
         self.localDate = localDate
@@ -64,6 +68,8 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
         self.sevenDayState = sevenDayState
         self.emptyTitle = emptyTitle
         self.emptyMessage = emptyMessage
+        self.estimatedBurnedValue = estimatedBurnedValue
+        self.estimatedNetValue = estimatedNetValue
     }
 
     public init(
@@ -87,7 +93,9 @@ public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
             netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
             sevenDayValue: summary.sevenDayAverageValue,
             sevenDayCaption: summary.sevenDayAverageCaption,
-            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState)
+            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState),
+            estimatedBurnedValue: summary.projection?.burnedValue(locale: locale),
+            estimatedNetValue: summary.projection?.netValue(locale: locale)
         )
     }
 

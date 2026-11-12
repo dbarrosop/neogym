@@ -99,8 +99,18 @@ public struct EnergyBalanceWidgetLiveRefreshOrchestrator: Sendable {
         )
     }
 
+    public func timeline(
+        date: Date,
+        calendar: Calendar = .current,
+        locale: Locale = .current
+    ) async -> EnergyBalanceWidgetTimeline {
+        let result = await refresh(date: date, calendar: calendar, locale: locale)
+        return EnergyBalanceWidgetTimeline(result: result, date: date, calendar: calendar)
+    }
+
     public func refresh(
         date: Date,
+        calendar: Calendar = .current,
         locale: Locale = .current
     ) async -> EnergyBalanceWidgetLiveRefreshResult {
         let cachedSnapshot = cachedSnapshotProvider()
@@ -109,7 +119,9 @@ public struct EnergyBalanceWidgetLiveRefreshOrchestrator: Sendable {
             let payload = try await liveRefreshClientFactory().fetchOverview()
             let summary = EnergyBalanceOverviewSummary(
                 payload: payload.overview,
-                todayDate: date
+                todayDate: date,
+                calendar: calendar,
+                locale: locale
             )
             let liveSnapshot = EnergyBalanceWidgetSnapshot(
                 summary: summary,

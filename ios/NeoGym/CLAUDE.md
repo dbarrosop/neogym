@@ -744,8 +744,34 @@ intact instead of inventing one-off styles.
   Empty-state text remains naturally accessible. Nutrition totals use
   `MacroSummaryView` grids with monospaced digits and optional target totals;
   the daily intake balance is read-only, with calories in from logged snapshots
-  and calories out from the same date's `daily_energy` row. Do not introduce a
-  new chart or macro tile style unless these primitives cannot express the need.
+  and calories out from the same date's `daily_energy` row. Today-only Overview,
+  Energy list/detail, intake, watch app and medium iPhone widget also show
+  `DailyEnergyProjection`: prior seven local dates' mean positive resting kcal,
+  floored at resting already recorded today, plus today's recorded active kcal;
+  estimated net subtracts this from food already logged. Require today's row and
+  at least one usable historical resting value, and never replace actual values,
+  historical charts or `daily_energy` records. Keep estimate presentation compact:
+  labeled values and units, without calculation prose or history-day counts.
+  Future food/activity are not predicted. Overview reads extra past/current
+  `balanceDays` without hiding future logs from browsing, and its cache key
+  includes today. Daily intake/watch reads fetch today plus seven prior energy
+  dates and explicitly select today by date. The watch snapshot's optional
+  resting baseline survives eligible local provisional updates, but is ignored
+  by complication display/reload identity; the watch complication stays actuals-only.
+  Both widget snapshot additions are optional for old-snapshot compatibility.
+  The medium iPhone widget gives Net a softly tinted panel, with green cutlery
+  and red flame icons beside neutral consumed/burned values. Estimates sit below
+  their recorded metrics; the 7-day average and sync time share a quiet footer.
+  Keep shared kcal units in the header, no calculation prose, and full labels,
+  units, captions and estimates in VoiceOver. Retain large-total and text-size previews.
+  The medium iPhone widget uses the host-tested live-refresh orchestrator's
+  `timeline` plan: estimates expire in a scheduled next-local-midnight entry
+  while recorded values remain available, even without another provider run.
+  Use calendar-day boundaries, not fixed 24-hour intervals, for that entry.
+  Timeline tests inject both calendar and locale; `en_US_POSIX` numeric fixtures
+  use ungrouped values such as `2100 kcal`, unlike `en_US`'s `2,100 kcal`.
+  See `docs/developers/energy.md` from the repo root. Do not introduce a new
+  chart or macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,
   preserve 44-point hit targets for tappable chips/buttons where practical, and
   keep dynamic type in mind. Previews can set `dynamicTypeSize`, color scheme,

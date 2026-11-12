@@ -276,9 +276,9 @@ struct NutritionOverviewView: View {
                             caption: summary.sevenDayAverageCaption
                         )
                     }
-                    Text("Net is logged intake minus active + resting energy. Negative means deficit; positive means surplus.")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                    if let projection = summary.projection {
+                        DailyEnergyProjectionView(projection: projection)
+                    }
                 }
             }
         }

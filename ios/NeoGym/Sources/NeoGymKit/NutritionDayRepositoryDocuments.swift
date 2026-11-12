@@ -2,8 +2,21 @@ import Foundation
 
 public extension NutritionFoodMealRepository {
     static let nutritionDaysIndexQuery = """
-    query NutritionDaysIndex {
+    query NutritionDaysIndex($through: date!) {
       nutritionDays(order_by: [{ logDate: desc }], limit: 14) {
+        ...OverviewDay
+      }
+      balanceDays: nutritionDays(where: { logDate: { _lte: $through } }, order_by: [{ logDate: desc }], limit: 14) {
+        ...OverviewDay
+      }
+      dailyEnergyEntries(where: { energyOn: { _lte: $through } }, order_by: { energyOn: desc }, limit: 14) {
+        id
+        energyOn
+        activeKcal
+        restingKcal
+      }
+    }
+    fragment OverviewDay on nutritionDays {
         id
         logDate
         nutritionPlanId
@@ -100,13 +113,6 @@ public extension NutritionFoodMealRepository {
           snapshotFiberPer100g
           snapshotSugarPer100g
         }
-      }
-      dailyEnergyEntries(order_by: { energyOn: desc }, limit: 14) {
-        id
-        energyOn
-        activeKcal
-        restingKcal
-      }
     }
     """
 
@@ -136,7 +142,7 @@ public extension NutritionFoodMealRepository {
     """
 
     static let dailyIntakeLogQuery = """
-    query DailyIntakeLog($date: date!) {
+    query DailyIntakeLog($date: date!, $since: date!) {
       nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {
         id
         logDate
@@ -189,7 +195,7 @@ public extension NutritionFoodMealRepository {
           snapshotSugarPer100g
         }
       }
-      dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1) {
+      dailyEnergyEntries(where: { energyOn: { _gte: $since, _lte: $date } }, order_by: { energyOn: desc }) {
         id
         energyOn
         activeKcal

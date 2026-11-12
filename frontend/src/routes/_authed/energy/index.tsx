@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { DailyEnergyChart, type DailyEnergyPoint } from "@/components/daily-energy-chart";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -154,9 +155,7 @@ function DailyEnergyRoute() {
   return (
     <PageShell maxWidth="3xl">
       <PageHeader
-        eyebrow="Tracking"
         title="Energy"
-        description="Log active and resting calories over time."
         actions={
           <Button asChild size="sm">
             <Link to="/energy/new">
@@ -168,6 +167,7 @@ function DailyEnergyRoute() {
         }
       />
 
+      <TodayEnergyEstimate />
       {renderContent()}
     </PageShell>
   );

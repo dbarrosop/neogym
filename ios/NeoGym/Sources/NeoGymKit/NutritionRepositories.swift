@@ -536,6 +536,7 @@ public extension NutritionFoodMealRepository {
     func nutritionOverview() async throws -> NutritionOverviewPayload {
         let data: NutritionDaysIndexData = try await graphQL.execute(
             query: Self.nutritionDaysIndexQuery,
+            variables: ["through": GraphQLScalars.date(DateOnly.todayLocalISO())],
             operationName: "NutritionDaysIndex"
         )
         return Self.overviewPayload(from: data)
@@ -545,6 +546,7 @@ public extension NutritionFoodMealRepository {
         graphQL.cachedEmissions(
             NutritionDaysIndexData.self,
             query: Self.nutritionDaysIndexQuery,
+            variables: ["through": GraphQLScalars.date(DateOnly.todayLocalISO())],
             operationName: "NutritionDaysIndex",
             namespace: "nutrition-overview",
             tags: ["nutrition-days", "daily-energy"],
@@ -579,19 +581,24 @@ public extension NutritionFoodMealRepository {
     private static func overviewPayload(from data: NutritionDaysIndexData) -> NutritionOverviewPayload {
         NutritionOverviewPayload(
             days: data.nutritionDays,
-            dailyEnergyEntries: data.dailyEnergyEntries ?? []
+            dailyEnergyEntries: data.dailyEnergyEntries ?? [],
+            balanceDays: data.balanceDays ?? []
         )
     }
 
     func openDailyIntake(date: String) async throws -> DailyIntakePayload {
         let data: DailyIntakeLogData = try await graphQL.execute(
             query: Self.dailyIntakeLogQuery,
-            variables: ["date": GraphQLScalars.date(date)],
+            variables: [
+                "date": GraphQLScalars.date(date),
+                "since": GraphQLScalars.date(IntakeGrouping.addLocalDateDays(date, days: -7))
+            ],
             operationName: "DailyIntakeLog"
         )
         return DailyIntakePayload(
             day: data.nutritionDays.first,
-            dailyEnergy: data.dailyEnergyEntries.first,
+            dailyEnergy: data.dailyEnergyEntries.first { $0.energyOn == date },
+            energyHistory: data.dailyEnergyEntries,
             nutritionPlans: data.nutritionPlans,
             meals: data.meals,
             foods: data.foods
@@ -767,6 +774,7 @@ private struct SaveNutritionPlanData: Decodable, Sendable {
 private struct DeleteNutritionPlanData: Decodable, Sendable { let deleteNutritionPlan: MutationIdPayload? }
 private struct NutritionDaysIndexData: Decodable, Sendable {
     let nutritionDays: [NutritionDay]
+    let balanceDays: [NutritionDay]?
     let dailyEnergyEntries: [DailyEnergy]?
 }
 private struct NutritionCalorieHistoryData: Decodable, Sendable {

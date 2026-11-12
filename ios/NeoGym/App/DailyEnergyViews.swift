@@ -5,8 +5,12 @@ import WidgetKit
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
     let reloadToken: Int
+    let nutritionRepository: any NutritionFoodMealRepositoryProtocol
+    @State private var estimateRefreshToken = 0
 
-    init(repository: any DailyEnergyRepositoryProtocol, reloadToken: Int) {
+    init(repository: any DailyEnergyRepositoryProtocol,
+         nutritionRepository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
+        self.nutritionRepository = nutritionRepository
         _viewModel = StateObject(wrappedValue: DailyEnergyListViewModel(repository: repository))
         self.reloadToken = reloadToken
     }
@@ -14,7 +18,7 @@ struct DailyEnergyListView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                header
+                TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
                 content
             }
             .frame(maxWidth: 760)
@@ -33,19 +37,8 @@ struct DailyEnergyListView: View {
 
     private func loadAndRefreshWidget() async {
         await viewModel.load()
+        estimateRefreshToken += 1
         WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Log active and resting calories burned over time.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
     }
 
     @ViewBuilder

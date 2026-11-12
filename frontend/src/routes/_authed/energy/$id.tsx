@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
 import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -70,6 +71,7 @@ function DailyEnergyDetailRoute() {
             <Stat label="Active" value={formatDailyEnergyValue(entry.activeKcal)} />
             <Stat label="Resting" value={formatDailyEnergyValue(entry.restingKcal)} />
           </dl>
+          <TodayEnergyEstimate date={entry.energyOn} />
           {entry.notes ? (
             <div className="space-y-1.5">
               <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">

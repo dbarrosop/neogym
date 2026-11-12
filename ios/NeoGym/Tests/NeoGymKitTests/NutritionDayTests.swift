@@ -32,7 +32,8 @@ final class NutritionDayRepositoryTests: XCTestCase {
         XCTAssertTrue(request.query.contains("source"))
         XCTAssertEqual(days[0].allLogEntries.map(\.source), [.adHoc, .food])
         XCTAssertTrue(days[0].nutritionLogEntries[0].isAdHoc)
-        XCTAssertTrue(request.query.contains("dailyEnergyEntries(order_by: { energyOn: desc }, limit: 14)"))
+        XCTAssertTrue(request.query.contains("dailyEnergyEntries(where: { energyOn: { _lte: $through } }"))
+        XCTAssertEqual(request.variables?["through"], .string(DateOnly.todayLocalISO()))
     }
 
     func testNutritionOverviewDecodesDailyEnergyAndComputesRollingNetAverage() async throws {
@@ -97,7 +98,8 @@ final class NutritionDayRepositoryTests: XCTestCase {
         let request = try XCTUnwrap(requests.first)
         XCTAssertEqual(request.operationName, "DailyIntakeLog")
         XCTAssertEqual(request.variables?["date"], .string("2026-06-27"))
-        XCTAssertTrue(request.query.contains("dailyEnergyEntries(where: { energyOn: { _eq: $date } }, limit: 1)"))
+        XCTAssertTrue(request.query.contains("dailyEnergyEntries(where: { energyOn: { _gte: $since, _lte: $date } }"))
+        XCTAssertEqual(request.variables?["since"], .string("2026-06-20"))
         XCTAssertTrue(request.query.contains("activeKcal"))
         XCTAssertTrue(request.query.contains("restingKcal"))
     }

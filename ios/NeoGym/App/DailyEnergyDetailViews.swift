@@ -4,6 +4,8 @@ import SwiftUI
 struct DailyEnergyDetailView: View {
     @StateObject private var viewModel: DailyEnergyDetailViewModel
     let repository: any DailyEnergyRepositoryProtocol
+    let nutritionRepository: any NutritionFoodMealRepositoryProtocol
+    @State private var estimateRefreshToken = 0
     var onDeleted: () -> Void
     var onMutated: () -> Void
 
@@ -12,6 +14,7 @@ struct DailyEnergyDetailView: View {
     init(
         entryId: String,
         repository: any DailyEnergyRepositoryProtocol,
+        nutritionRepository: any NutritionFoodMealRepositoryProtocol,
         onDeleted: @escaping () -> Void,
         onMutated: @escaping () -> Void
     ) {
@@ -20,13 +23,19 @@ struct DailyEnergyDetailView: View {
             repository: repository
         ))
         self.repository = repository
+        self.nutritionRepository = nutritionRepository
         self.onDeleted = onDeleted
         self.onMutated = onMutated
     }
 
     var body: some View {
         ScrollView {
-            content
+            VStack(alignment: .leading, spacing: 18) {
+                content
+                if viewModel.entry?.energyOn == DateOnly.todayLocalISO() {
+                    TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
+                }
+            }
                 .frame(maxWidth: 640)
                 .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
                 .padding(.vertical, NeoGymTheme.screenVerticalPadding)
@@ -44,7 +53,7 @@ struct DailyEnergyDetailView: View {
                             repository: repository,
                             onSaved: {
                                 onMutated()
-                                Task { await viewModel.load() }
+                                Task { await load() }
                             },
                             onDeleted: {
                                 onDeleted()
@@ -59,10 +68,15 @@ struct DailyEnergyDetailView: View {
         }
         .task {
             if case .idle = viewModel.state {
-                await viewModel.load()
+                await load()
             }
         }
-        .refreshable { await viewModel.load() }
+        .refreshable { await load() }
+    }
+
+    private func load() async {
+        await viewModel.load()
+        estimateRefreshToken += 1
     }
 
     @ViewBuilder
