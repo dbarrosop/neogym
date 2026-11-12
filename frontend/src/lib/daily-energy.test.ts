@@ -1,10 +1,50 @@
 import { describe, expect, it } from "bun:test";
 import {
   acceptsDailyEnergyNumericInput,
+  averageDailyEnergyBurned,
   calculateDailyEnergyBalance,
   dailyEnergyMutationErrorMessage,
   validateDailyEnergyFormValues,
 } from "./daily-energy";
+
+describe("average recorded daily energy burned", () => {
+  it("averages daily totals when a resting-only day follows six full days", () => {
+    const entries = [
+      ...Array.from({ length: 6 }, () => ({ activeKcal: "500", restingKcal: "1600" })),
+      { activeKcal: null, restingKcal: "1600" },
+    ];
+    expect(averageDailyEnergyBurned(entries)).toBeCloseTo((6 * 2100 + 1600) / 7);
+  });
+
+  it("counts active-only and resting-only rows in the same denominator", () => {
+    const entries = [
+      { activeKcal: "800", restingKcal: null },
+      ...Array.from({ length: 6 }, () => ({ activeKcal: null, restingKcal: "1600" })),
+    ];
+    expect(averageDailyEnergyBurned(entries)).toBeCloseTo((800 + 6 * 1600) / 7);
+  });
+
+  it("normalizes numeric strings and preserves zero-valued days and partial totals", () => {
+    expect(
+      averageDailyEnergyBurned([
+        { activeKcal: "500.25", restingKcal: 1600 },
+        { activeKcal: 800 },
+        { restingKcal: "1600" },
+        { activeKcal: 0, restingKcal: null },
+      ]),
+    ).toBe((2100.25 + 800 + 1600) / 4);
+  });
+
+  it("preserves the average for full rows and returns no average for an empty list", () => {
+    expect(
+      averageDailyEnergyBurned([
+        { activeKcal: 500, restingKcal: 1600 },
+        { activeKcal: 700, restingKcal: 1800 },
+      ]),
+    ).toBe(2300);
+    expect(averageDailyEnergyBurned([])).toBeNull();
+  });
+});
 
 describe("daily energy form helpers", () => {
   it("normalizes valid active-only, resting-only, and combined entries", () => {

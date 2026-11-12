@@ -69,6 +69,10 @@ measurements and nutrition nutrient columns when parsing `activeKcal` and
 The web `/progress/energy` route (Progress › Energy) provides the list, trend,
 inline create on desktop, and detail, edit and delete flows. Rows carrying the
 "Imported from Apple Health" note show an Apple Health tag instead of the note.
+The web Burned summary averages the per-row active-plus-resting totals across the
+latest seven logged rows (or all rows if fewer), counting a missing component as
+zero. The separate Active and Resting summaries average only rows where that
+component is present.
 
 The native iPhone app exposes Energy as a Nutrition subsection alongside
 Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable

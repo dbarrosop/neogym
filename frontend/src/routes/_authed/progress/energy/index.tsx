@@ -12,6 +12,7 @@ import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import { averageDailyEnergyBurned } from "@/lib/daily-energy";
 import { formatDateShort, parseDateOnly } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 
@@ -86,6 +87,7 @@ function DailyEnergyRoute() {
       return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
     };
     return {
+      burned: averageDailyEnergyBurned(recent),
       active: avg((e) => e.activeKcal),
       resting: avg((e) => e.restingKcal),
       days: recent.length,
@@ -126,11 +128,7 @@ function DailyEnergyRoute() {
                 Burned · avg of last {stats.days} logged days
               </dt>
               <dd className="text-[28px] leading-tight font-semibold tabular-nums">
-                {kcal(
-                  stats.active === null && stats.resting === null
-                    ? null
-                    : (stats.active ?? 0) + (stats.resting ?? 0),
-                )}
+                {kcal(stats.burned)}
               </dd>
             </div>
             <div className="flex flex-col gap-0.5">
