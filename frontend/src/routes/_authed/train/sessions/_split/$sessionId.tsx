@@ -332,11 +332,11 @@ function SessionDetailRoute() {
   });
 
   const totals = useMemo(() => sessionTotals(session), [session]);
-  // The exercise you are most likely working on opens by default: the first one
-  // with fewer sets than last time (or no entries yet). Manual toggles win.
+  // Open the first exercise below last time's count. Without a nonempty
+  // reference, keep it open for repeated logging; manual toggles still win.
   const defaultActiveId = useMemo(
-    () => defaultActiveExerciseId(session, priorSessionsByExercise),
-    [session, priorSessionsByExercise],
+    () => defaultActiveExerciseId(session, priorSessionsByExercise, priorCardioByExercise),
+    [session, priorSessionsByExercise, priorCardioByExercise],
   );
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
 
@@ -547,16 +547,17 @@ function sessionTotals(session: SessionDetail | null | undefined) {
 function defaultActiveExerciseId(
   session: SessionDetail | null | undefined,
   priorSessionsByExercise: Map<string, PriorEntry[]>,
+  priorCardioByExercise: Map<string, PriorCardioEntry[]>,
 ): string | null {
   for (const we of session?.workoutSessionExercises ?? []) {
-    if (we.exercise.kind === "cardio") {
-      if (we.workoutSessionCardioEntries.length === 0) {
-        return we.id;
-      }
-      continue;
-    }
-    const lastTimeSets = priorSessionsByExercise.get(we.exercise.id)?.[0]?.sets.length ?? 0;
-    if (we.workoutSessionStrengthSets.length < Math.max(lastTimeSets, 1)) {
+    const isCardio = we.exercise.kind === "cardio";
+    const count = isCardio
+      ? we.workoutSessionCardioEntries.length
+      : we.workoutSessionStrengthSets.length;
+    const referenceCount = isCardio
+      ? priorCardioByExercise.get(we.exercise.id)?.[0]?.entries.length
+      : priorSessionsByExercise.get(we.exercise.id)?.[0]?.sets.length;
+    if (exerciseStatus(count, referenceCount) !== "done") {
       return we.id;
     }
   }
@@ -956,11 +957,11 @@ function strengthSummary(sets: SetRow[], lastTime: PriorEntry | undefined) {
   return "No sets yet";
 }
 
-function strengthStatus(sets: SetRow[], lastTime: PriorEntry | undefined): ExerciseStatus {
-  if (sets.length === 0) {
+function exerciseStatus(count: number, referenceCount = 0): ExerciseStatus {
+  if (count === 0) {
     return "todo";
   }
-  return sets.length >= (lastTime?.sets.length ?? 1) ? "done" : "started";
+  return referenceCount > 0 && count >= referenceCount ? "done" : "started";
 }
 
 function ExerciseLog({
@@ -1028,7 +1029,7 @@ function ExerciseLog({
       <CollapsedExercise
         exerciseName={exerciseName}
         summary={strengthSummary(sets, lastTime)}
-        status={strengthStatus(sets, lastTime)}
+        status={exerciseStatus(sets.length, lastTime?.sets.length)}
         onToggle={onToggle}
       />
     );
@@ -1795,7 +1796,7 @@ function CardioExerciseLog({
       <CollapsedExercise
         exerciseName={exerciseName}
         summary={summary}
-        status={entries.length > 0 ? "done" : "todo"}
+        status={exerciseStatus(entries.length, priorEntries[0]?.entries.length)}
         onToggle={onToggle}
       />
     );
