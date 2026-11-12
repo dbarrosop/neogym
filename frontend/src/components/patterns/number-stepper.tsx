@@ -39,7 +39,7 @@ export function NumberStepper({
   return (
     <div
       className={cn(
-        "flex h-10 items-center rounded-lg border bg-card focus-within:ring-[3px] focus-within:ring-ring/50",
+        "flex min-h-11 items-center rounded-lg border bg-card focus-within:ring-[3px] focus-within:ring-ring/50",
         className,
       )}
     >
@@ -47,7 +47,7 @@ export function NumberStepper({
         type="button"
         onClick={() => bump(-1)}
         aria-label={`Decrease ${label}`}
-        className="grid h-full w-9 shrink-0 place-items-center rounded-l-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        className="grid size-11 shrink-0 place-items-center rounded-l-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       >
         <Minus className="size-4" />
       </button>
@@ -60,7 +60,7 @@ export function NumberStepper({
         onFocus={(event) => event.currentTarget.select()}
         aria-label={label}
         placeholder="0"
-        className="h-full w-14 min-w-0 bg-transparent text-center text-[15px] font-semibold tabular-nums outline-none"
+        className="h-11 w-14 min-w-0 bg-transparent text-center text-[15px] font-semibold tabular-nums outline-none"
       />
       {suffix ? (
         <span aria-hidden="true" className="pr-1 text-[13px] text-muted-foreground">
@@ -71,7 +71,7 @@ export function NumberStepper({
         type="button"
         onClick={() => bump(1)}
         aria-label={`Increase ${label}`}
-        className="grid h-full w-9 shrink-0 place-items-center rounded-r-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+        className="grid size-11 shrink-0 place-items-center rounded-r-lg text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       >
         <Plus className="size-4" />
       </button>

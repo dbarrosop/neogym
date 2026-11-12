@@ -882,7 +882,7 @@ function ExerciseCardHeader({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-8 shrink-0 text-muted-foreground"
+          className="size-11 shrink-0 text-muted-foreground"
           aria-label={`Collapse ${exerciseName}`}
           aria-expanded="true"
           onClick={onCollapse}
@@ -894,7 +894,7 @@ function ExerciseCardHeader({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        className="size-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         aria-label={`Remove ${exerciseName} from session`}
         onClick={onRequestRemove}
       >
@@ -1096,7 +1096,7 @@ function ExerciseLog({
       <div className="flex flex-col gap-2.5 px-4 pt-3 pb-4">
         <PriorSessionsSummary entries={priorSessions} doubleWeight={doubleWeight} />
         <p className="text-[12px] text-muted-foreground">
-          Logging a set starts the rest timer. Use the pencil to fix or delete a set.
+          Logging a set starts the rest timer. Tap a logged set to edit or delete it.
         </p>
       </div>
 
@@ -1211,7 +1211,10 @@ function StrengthSetTable({
             {sets.map((set, index) => {
               const weight = Number(set.weight);
               return (
-                <tr key={set.id} className="border-t">
+                <tr
+                  key={set.id}
+                  className="relative h-12 border-t hover:bg-surface-inset focus-within:bg-surface-inset"
+                >
                   <td className="py-2.5 pl-4 text-muted-foreground">{set.setNumber}</td>
                   <td className="font-medium">{weightLabel(weight)}</td>
                   <td className="font-medium">{set.reps}</td>
@@ -1221,12 +1224,13 @@ function StrengthSetTable({
                   <td className="text-muted-foreground">
                     {formatLastTimeSet(lastTime?.sets[index])}
                   </td>
-                  <td className="pr-2 text-right">
+                  <td className="w-14">
+                    {/* One native button spans the row without replacing its table semantics. */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8 text-muted-foreground"
+                      className="absolute inset-0 size-full justify-end rounded-none px-4 text-muted-foreground hover:bg-transparent dark:hover:bg-transparent"
                       aria-label={`Edit set ${set.setNumber}`}
                       onClick={() => onEdit(set)}
                     >
@@ -1268,7 +1272,7 @@ function StrengthSetTable({
         <span className="hidden text-[13px] text-muted-foreground tabular-nums sm:inline">
           {previewVolume}
         </span>
-        <Button type="submit" className="ml-auto" disabled={isPending}>
+        <Button type="submit" className="ml-auto h-11" disabled={isPending}>
           {isLogging ? <Loader2 className="animate-spin" /> : null}
           Log set
         </Button>

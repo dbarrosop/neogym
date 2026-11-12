@@ -437,6 +437,27 @@ async function logEntry(name: string, number: number) {
 try {
   // First-ever ad-hoc logging must retain the same next-set controls and focus.
   await openSession([exercise("Squat")]);
+  // Controls own their 44 px sizes, including inside the bordered stepper.
+  for (const label of [
+    "Decrease Weight in kg for set 1",
+    "Increase Weight in kg for set 1",
+    "Decrease Reps for set 1",
+    "Increase Reps for set 1",
+    "Collapse Squat",
+    "Remove Squat from session",
+  ]) {
+    assert(button(label).classList.contains("size-11"), `${label} needs a 44 px target`);
+  }
+  assert(button("Log set").classList.contains("h-11"));
+  const firstWeight = card("Squat").querySelector<HTMLInputElement>(
+    'input[aria-label="Weight in kg for set 1"]',
+  );
+  assert(firstWeight);
+  assert(firstWeight.classList.contains("h-11"));
+  await settle(() => button("Increase Weight in kg for set 1").click());
+  assert.equal(firstWeight.value, "2.5");
+  await settle(() => button("Decrease Weight in kg for set 1").click());
+  assert.equal(firstWeight.value, "0");
   for (const number of [1, 2, 3]) {
     // biome-ignore lint/performance/noAwaitInLoops: Exercise consecutive real mutations/refetches.
     const { form, weight } = await logSet("Squat", number);
@@ -444,6 +465,34 @@ try {
     assert.equal(form.getAttribute("aria-label"), `Log set ${number + 1}`);
     assert.equal(document.activeElement, weight);
   }
+  // Each row has one full-row native edit button, not a pencil-only target.
+  for (const number of [1, 2]) {
+    const edit = button(`Edit set ${number}`, card("Squat"));
+    const row = edit.closest("tr");
+    assert(row);
+    assert.equal(row.querySelectorAll("button").length, 1);
+    assert(row.classList.contains("relative"));
+    assert(row.classList.contains("h-12"));
+    assert(edit.classList.contains("absolute"));
+    assert(edit.classList.contains("inset-0"));
+    assert(edit.classList.contains("size-full"));
+    // biome-ignore lint/performance/noAwaitInLoops: Open and dismiss each real set dialog.
+    await settle(() => {
+      edit.focus();
+      assert.equal(document.activeElement, edit);
+      edit.click();
+    });
+    const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
+    assert(dialog);
+    assert(dialog.textContent?.includes(`Edit set ${number}`));
+    assert.equal(dialog.querySelector<HTMLInputElement>("#set-weight")?.value, "50");
+    assert.equal(dialog.querySelector<HTMLInputElement>("#set-reps")?.value, "8");
+    assert(button("Save", dialog));
+    assert(button("Delete", dialog));
+    await settle(() => button("Cancel", dialog).click());
+    assert(!document.querySelector('[role="dialog"]'));
+  }
+  assert(card("Squat").textContent?.includes("Tap a logged set to edit or delete it."));
   await settle(() => button("Collapse Squat").click());
   assert(collapsed("Squat").querySelector('[aria-label="In progress"]'));
   assert(!collapsed("Squat").querySelector('[aria-label="Done"]'));

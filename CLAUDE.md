@@ -61,6 +61,8 @@ nix develop ../ --command bunx <pkg>
 
 **Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix. If XcodeGen is unavailable in the pinned Nixpkgs on a Darwin host, use the documented Homebrew fallback (`brew install xcodegen`) but keep `ios/NeoGym/project.yml` as the source of truth and do not commit generated `.xcodeproj` output.
 
+For native Swift/WebKit validation from the Nix shell, bare `xcrun` can resolve to Nix's older SDK rather than the host Xcode SDK, causing `SwiftShims` or compiler/SDK-version errors. Use `/usr/bin/swift` with an explicit `-sdk` path from `env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun --sdk macosx --show-sdk-path`; unset those overrides for the Swift invocation too.
+
 ## Common commands
 
 From `frontend/` (each prefixed with `nix develop ../ --command` if outside the shell):
