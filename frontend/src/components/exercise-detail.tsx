@@ -381,6 +381,8 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
         </thead>
         <tbody>
           {entries.map((entry) => {
+            const date = new Date(entry.workoutSession.startedAt);
+            const sameYear = date.getFullYear() === new Date().getFullYear();
             const sets = entry.workoutSessionStrengthSets;
             const volume = sets.reduce((acc, s) => acc + s.reps * Number(s.weight) * multiplier, 0);
             const best = sets.reduce(
@@ -395,10 +397,11 @@ function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistor
                     params={{ sessionId: entry.workoutSession.id }}
                     className="flex flex-col font-medium hover:text-link"
                   >
-                    {new Date(entry.workoutSession.startedAt).toLocaleDateString(undefined, {
+                    {date.toLocaleDateString(undefined, {
                       weekday: "short",
                       day: "numeric",
                       month: "short",
+                      ...(sameYear ? {} : { year: "numeric" }),
                     })}
                     <span className="text-[12px] font-normal text-muted-foreground">
                       {entry.workoutSession.workout?.name ?? exerciseName}
