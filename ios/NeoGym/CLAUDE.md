@@ -591,7 +591,14 @@ section records how the iPhone app implements it.
   model-level validation rather than live services; a full app-wide form
   migration is intentionally out of scope unless a view is already being
   refactored.
-- **Inputs**: label fields with `.subheadline.weight(.semibold)`. Use `.words`
+- **Grouped editors**: New/Edit food, Edit meal and Edit plan follow the
+  design's inset grouped rows from `App/Components/FormRows.swift`
+  (`FormSection`, `FormRow`, `FormLabeledTextRow`, `FormNumberRow`/
+  `FormNumberField` wells on the background token, `FormActionRow`,
+  `FormRemoveButton`, `MacroTotalsStrip`, `EntryKindTag`,
+  `FormScrollContainer`). Inputs inside a surface card must use a contrasting
+  fill (`fill`, `inset` or the background well), never the surface token.
+- **Inputs**: label stacked fields with `.subheadline.weight(.semibold)`. Use `.words`
   autocapitalization for names/titles, `.never` plus disabled autocorrection for
   emails, IDs, labels, and numeric text; use `.decimalPad` for weights/grams and
   macro fields, `.numberPad` for integer/cardio duration parts, compact
@@ -623,7 +630,8 @@ section records how the iPhone app implements it.
   and their legend swatches), never a line, because it falls below 3:1 on
   light surfaces; a second line series (Body fat, Est. 1RM, active energy,
   7-day average net) uses `textSecondary`. Day summaries use `MeterBar`/`MeterTrack` (protein
-  accent, carbs series 2, fat secondary text); plan/meal editors still use
+  accent, carbs series 2, fat secondary text); plan/meal editors use the
+  compact `MacroTotalsStrip`, and meal/plan library summaries still use
   `MacroSummaryView` grids;
   the daily intake balance is read-only, with calories in from logged snapshots
   and calories out from the same date's `daily_energy` row. Today, Progress ›

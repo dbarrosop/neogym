@@ -750,6 +750,60 @@ public final class NutritionPlanFormModel: ObservableObject {
         apply(entries: entries)
     }
 
+    /// Moves every entry of the slot at `fromTime` to `toTime`: entries in one
+    /// time slot share its time. Entries joining an existing slot follow that
+    /// slot's entries in their current order. A `fromTime` that is not a valid
+    /// time matches the entries without a valid time.
+    public func setSlotTime(from fromTime: String, to toTime: String) {
+        let source = IntakeGrouping.timeToInputValue(fromTime)
+        let target = IntakeGrouping.timeToInputValue(toTime)
+        guard !target.isEmpty, source != target else { return }
+        let offset = slots.filter { IntakeGrouping.timeToInputValue($0.slotTime) == target }.count
+            + foodSlots.filter { IntakeGrouping.timeToInputValue($0.slotTime) == target }.count
+        slots = slots.map { slot in
+            guard IntakeGrouping.timeToInputValue(slot.slotTime) == source else { return slot }
+            return NutritionPlanSlotFormValues(
+                id: slot.id,
+                clientId: slot.clientId,
+                mealId: slot.mealId,
+                slotTime: target,
+                label: slot.label,
+                position: offset + slot.position
+            )
+        }
+        foodSlots = foodSlots.map { slot in
+            guard IntakeGrouping.timeToInputValue(slot.slotTime) == source else { return slot }
+            return NutritionPlanFoodSlotFormValues(
+                id: slot.id,
+                clientId: slot.clientId,
+                foodId: slot.foodId,
+                grams: slot.grams,
+                slotTime: target,
+                label: slot.label,
+                position: offset + slot.position
+            )
+        }
+        renumber()
+    }
+
+    /// A free time for a new, empty slot: an hour after the latest of
+    /// `existingTimes`, or noon when there are none. Wraps to the first free
+    /// half hour of the day when the next hour would pass midnight.
+    public static func suggestedSlotTime(after existingTimes: [String]) -> String {
+        let taken = Set(existingTimes.compactMap { minutesOfDay(IntakeGrouping.timeToInputValue($0)) })
+        guard let latest = taken.max() else { return "12:00" }
+        var candidates = [latest + 60]
+        candidates += stride(from: 0, to: 24 * 60, by: 30).map { $0 }
+        let free = candidates.first { $0 < 24 * 60 && !taken.contains($0) } ?? latest
+        return String(format: "%02d:%02d", free / 60, free % 60)
+    }
+
+    private static func minutesOfDay(_ value: String) -> Int? {
+        let parts = value.split(separator: ":")
+        guard parts.count == 2, let hours = Int(parts[0]), let minutes = Int(parts[1]) else { return nil }
+        return hours * 60 + minutes
+    }
+
     public func valuesForSubmit(availableMeals: [Meal], availableFoods: [Food] = []) -> NutritionPlanFormValues? {
         switch NutritionPlanFormValidation.validate(
             NutritionPlanFormValues(name: name, description: planDescription, slots: slots, foodSlots: foodSlots),
