@@ -298,13 +298,13 @@ function per100(value: unknown): string {
 }
 
 /**
- * Desktop catalog: every macro per 100 g in aligned columns. From 1100 px
- * (`selectedId` set) a row selects the food for the side panel instead of
- * opening its page.
+ * Catalog from 768 px: secondary macros appear when the table itself has room,
+ * including beside the split panel. From 1100 px (`selectedId` set) a row
+ * selects the food for the side panel instead of opening its page.
  */
 function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string | undefined }) {
   return (
-    <div className="hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
+    <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
       <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="text-right text-[12px] text-muted-foreground">
@@ -320,13 +320,13 @@ function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string 
             <th scope="col" className="font-medium">
               Carbs
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className="pr-4 font-medium @xl:pr-0">
               Fat
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className="hidden font-medium @xl:table-cell">
               Fiber
             </th>
-            <th scope="col" className="pr-4 font-medium">
+            <th scope="col" className="hidden pr-4 font-medium @xl:table-cell">
               Sugar
             </th>
           </tr>
@@ -340,40 +340,42 @@ function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string 
                 food.id === selectedId && "bg-accent-soft/60 hover:bg-accent-soft/60",
               )}
             >
-              <td className="max-w-0 py-2.5 pr-4 pl-4 text-left">
-                <span className="flex min-w-0 items-center gap-2">
-                  {selectedId === undefined ? (
-                    <Link
-                      to="/nutrition/foods/$foodId"
-                      params={{ foodId: food.id }}
-                      className="truncate font-medium hover:text-link"
-                    >
-                      {food.name}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/nutrition/foods"
-                      search={(prev) => ({ ...prev, selected: food.id })}
-                      replace={true}
-                      aria-current={food.id === selectedId ? "true" : undefined}
-                      className="truncate font-medium hover:text-link"
-                    >
-                      {food.name}
-                    </Link>
-                  )}
-                  {food.isPublic ? (
-                    <span className="shrink-0 rounded-full bg-muted px-2 text-[11px] text-muted-foreground">
-                      public
-                    </span>
-                  ) : null}
-                </span>
+              <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
+                {selectedId === undefined ? (
+                  <Link
+                    to="/nutrition/foods/$foodId"
+                    params={{ foodId: food.id }}
+                    className="block wrap-break-word font-medium hover:text-link"
+                  >
+                    {food.name}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/nutrition/foods"
+                    search={(prev) => ({ ...prev, selected: food.id })}
+                    replace={true}
+                    aria-current={food.id === selectedId ? "true" : undefined}
+                    className="block wrap-break-word font-medium hover:text-link"
+                  >
+                    {food.name}
+                  </Link>
+                )}
+                {food.isPublic ? (
+                  <span className="mt-1 inline-block rounded-full bg-muted px-2 text-[11px] text-muted-foreground">
+                    public
+                  </span>
+                ) : null}
               </td>
               <td className="w-16 font-semibold">{per100(food.kcalPer100g)}</td>
               <td className="w-16">{per100(food.proteinPer100g)}</td>
               <td className="w-16">{per100(food.carbsPer100g)}</td>
-              <td className="w-16">{per100(food.fatPer100g)}</td>
-              <td className="w-16 text-muted-foreground">{per100(food.fiberPer100g)}</td>
-              <td className="w-16 pr-4 text-muted-foreground">{per100(food.sugarPer100g)}</td>
+              <td className="w-16 pr-4 @xl:pr-0">{per100(food.fatPer100g)}</td>
+              <td className="hidden w-16 text-muted-foreground @xl:table-cell">
+                {per100(food.fiberPer100g)}
+              </td>
+              <td className="hidden w-16 pr-4 text-muted-foreground @xl:table-cell">
+                {per100(food.sugarPer100g)}
+              </td>
             </tr>
           ))}
         </tbody>

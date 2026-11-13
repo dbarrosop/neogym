@@ -244,19 +244,20 @@ function countLabel(count: number, singular: string, plural: string) {
 }
 
 /**
- * Meals with whole-meal totals in aligned columns from 768 px. From 1100 px
- * (`selectedId` set) a row selects the meal for the side panel.
+ * Meals with whole-meal totals from 768 px; ingredient counts appear only when
+ * the table itself has room. From 1100 px (`selectedId` set) a row selects the
+ * meal for the side panel.
  */
 function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string | undefined }) {
   return (
-    <div className="hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
+    <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
       <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="text-right text-[12px] text-muted-foreground">
             <th scope="col" className="py-2.5 pl-4 text-left font-medium">
               Meal
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className="hidden font-medium @xl:table-cell">
               Ingredients
             </th>
             <th scope="col" className="font-medium">
@@ -285,12 +286,12 @@ function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string 
                   isSelected && "bg-accent-soft/60 hover:bg-accent-soft/60",
                 )}
               >
-                <td className="max-w-0 py-2.5 pr-4 pl-4 text-left">
+                <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
                   {selectedId === undefined ? (
                     <Link
                       to="/nutrition/meals/$mealId"
                       params={{ mealId: meal.id }}
-                      className="block truncate font-medium hover:text-link"
+                      className="block wrap-break-word font-medium hover:text-link"
                     >
                       {meal.name}
                     </Link>
@@ -300,7 +301,7 @@ function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string 
                       search={(prev) => ({ ...prev, selected: meal.id })}
                       replace={true}
                       aria-current={isSelected ? "true" : undefined}
-                      className="block truncate font-medium hover:text-link"
+                      className="block wrap-break-word font-medium hover:text-link"
                     >
                       {meal.name}
                     </Link>
@@ -311,7 +312,7 @@ function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string 
                     </span>
                   ) : null}
                 </td>
-                <td className="w-24">{meal.mealIngredients.length}</td>
+                <td className="hidden w-24 @xl:table-cell">{meal.mealIngredients.length}</td>
                 <td className="w-16 font-semibold">{wholeNumber.format(totals.kcal)}</td>
                 <td className="w-16">{wholeNumber.format(totals.protein)}</td>
                 <td className="w-16">{wholeNumber.format(totals.carbs)}</td>
