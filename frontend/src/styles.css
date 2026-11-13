@@ -26,7 +26,7 @@
   --muted-foreground: #52525b;
   --accent: #ededf0;
   --accent-foreground: #18181b;
-  --destructive: #dc2626;
+  --destructive: #b91c1c;
   --destructive-fill: #dc2626;
   --border: #e4e4e7;
   --input: #d4d4d8;
@@ -39,7 +39,7 @@
   --accent-soft-foreground: #2a50b8;
   --segment-thumb: #ffffff;
   --positive: #15803d;
-  --positive-soft: #dcf3e4;
+  --positive-soft: #e8f7ee;
   --warning-soft: #fdf0e3;
   --warning-soft-foreground: #9a4a0b;
   --glass: rgb(255 255 255 / 0.9);

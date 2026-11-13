@@ -574,11 +574,13 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
 | Accent soft (selected tab pill, tags) | `#1E2A4D` | `#E9EFFD` |
 | Series 2 (carbs, active energy; fills only) | `#F5A35A` | `#EE8A2A` |
 | Positive | `#4ADE80` | `#15803D` |
-| Destructive | `#F87171` (text) / `#DC2626` (fill) | `#DC2626` |
+| Positive soft (web status-pill background) | `#14321F` | `#E8F7EE` |
+| Destructive | `#F87171` (text) / `#DC2626` (fill) | `#B91C1C` (text) / `#DC2626` (fill) |
 
 - **Appearance** is Dark (default) / Light / System on both platforms, under Me › Account. iOS applies it with `.preferredColorScheme`; the web theme provider defaults to `dark`.
 - **Accent** is `#3463E0`, replacing the `#4373F4` AccentColor asset, because white labels on it pass 4.5:1 (5.2:1). On dark surfaces, text-coloured accent uses `#6E93FF` (6.1:1).
 - **Where tokens live.** Web: shadcn CSS variables in `src/styles.css` (`--background`, `--card`, `--primary`, `--muted`, `--muted-foreground`, `--border`, `--chart-1`, `--chart-2`, …) for both `.dark` and light. iOS: asset-catalog colours with Any/Dark variants exposed through `NeoGymTheme`. Never hard-code hex values in views.
+- **Status and destructive contrast (web).** Pair `text-positive` with `bg-positive-soft` for Logged pills and success badges. Destructive text uses `--destructive`, not `--destructive-fill`, which is reserved for filled buttons. `src/styles.test.ts` checks both palettes against 4.5:1, including destructive text on page/card surfaces and their 10% destructive hover tints; checking text on white alone misses the page and hover cases. Carry the separate text/fill values into iOS when its theme migrates.
 - **Retired.** Remove `grid-bg`, `GridBackground`, the aurora gradients and glass-panel content styling as screens migrate.
 
 ### Type, shape, spacing
