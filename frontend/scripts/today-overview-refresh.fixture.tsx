@@ -173,6 +173,7 @@ try {
     ),
   );
   assert(card("Body").textContent?.includes("80.00 kg"));
+  assert(card("Body").textContent?.includes("20.0 %"));
   assert(!container.textContent?.includes("Couldn't load today"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
   assert.equal(requests.length, 3, "One overview request is made per visit or Retry");
@@ -197,6 +198,36 @@ try {
   await waitFor(() => !!container.querySelector('[aria-label="0 kilocalories logged"]'));
   assert(!container.textContent?.includes("Couldn't load today"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
+
+  // Either Body metric can be logged independently, including a valid zero body-fat value.
+  for (const [weightKg, bodyFatPct] of [
+    [null, 18.5],
+    [null, 0],
+    [80, null],
+    [80, 20],
+  ] as const) {
+    // biome-ignore lint/performance/noAwaitInLoops: Render each measurement before checking its card.
+    await settle(() =>
+      client.setQueryData(overviewKey, {
+        ...initial,
+        bodyMeasurements: [{ id: "body", measuredOn: "2026-06-01", weightKg, bodyFatPct }],
+      } satisfies TodayOverviewQuery),
+    );
+    const body = card("Body");
+    assert(!body.textContent?.includes("No measurements in the last three weeks."));
+    assert.equal(body.textContent?.includes("Weight ·"), weightKg !== null);
+    assert.equal(body.textContent?.includes("7-day avg"), weightKg !== null);
+    assert.equal(body.textContent?.includes("Body fat"), bodyFatPct !== null);
+    assert.deepEqual(
+      [...body.querySelectorAll("strong")].map((element) => element.textContent),
+      [
+        ...(weightKg === null ? [] : [`${weightKg.toFixed(2)} kg`]),
+        ...(bodyFatPct === null ? [] : [`${bodyFatPct.toFixed(1)} %`]),
+      ],
+    );
+  }
+  await settle(() => client.setQueryData(overviewKey, initial));
+  assert(card("Body").textContent?.includes("No measurements in the last three weeks."));
 
   // Count labels use singular only for one, in both Training card branches.
   for (const [exerciseCount, recentCount, recentLabel, exerciseLabel] of [

@@ -639,24 +639,26 @@ function BodyCard({ data, today }: { data: Overview; today: string }) {
 
   return (
     <SectionCard title="Body" link={{ label: "Trend", to: "/progress/body" }}>
-      {latestWeight ? (
+      {latestWeight || latestFat ? (
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[13px] text-muted-foreground">
-              Weight · {formatDateShort(latestWeight.date)}
-            </span>
-            <strong className="text-[26px] font-semibold tabular-nums">
-              {latestWeight.value.toFixed(2)} kg
-            </strong>
-            {current === null ? null : (
-              <span className="text-[13px] font-semibold text-positive tabular-nums">
-                7-day avg {current.toFixed(1)}
-                {prior === null
-                  ? ""
-                  : ` · ${current - prior >= 0 ? "+" : "−"}${Math.abs(current - prior).toFixed(1)} vs prior week`}
+          {latestWeight ? (
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[13px] text-muted-foreground">
+                Weight · {formatDateShort(latestWeight.date)}
               </span>
-            )}
-          </div>
+              <strong className="text-[26px] font-semibold tabular-nums">
+                {latestWeight.value.toFixed(2)} kg
+              </strong>
+              {current === null ? null : (
+                <span className="text-[13px] font-semibold text-positive tabular-nums">
+                  7-day avg {current.toFixed(1)}
+                  {prior === null
+                    ? ""
+                    : ` · ${current - prior >= 0 ? "+" : "−"}${Math.abs(current - prior).toFixed(1)} vs prior week`}
+                </span>
+              )}
+            </div>
+          ) : null}
           {latestFat ? (
             <div className="flex flex-col gap-0.5">
               <span className="text-[13px] text-muted-foreground">Body fat</span>
@@ -665,11 +667,13 @@ function BodyCard({ data, today }: { data: Overview; today: string }) {
               </strong>
             </div>
           ) : null}
-          <Sparkline
-            values={rolling}
-            label="Seven-day average weight over the last three weeks"
-            className="ml-auto"
-          />
+          {latestWeight ? (
+            <Sparkline
+              values={rolling}
+              label="Seven-day average weight over the last three weeks"
+              className="ml-auto"
+            />
+          ) : null}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">No measurements in the last three weeks.</p>
