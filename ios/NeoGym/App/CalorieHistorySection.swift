@@ -101,7 +101,7 @@ struct CalorieHistorySection: View {
             TimeSeriesChartSeries(
                 id: "rolling-net",
                 name: "7-day avg net",
-                color: NeoGymTheme.series2,
+                color: NeoGymTheme.textSecondary,
                 axis: .right,
                 centersAxisOnZero: true,
                 points: history.rollingNetChartPoints.map { value in

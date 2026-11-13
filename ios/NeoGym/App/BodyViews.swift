@@ -605,7 +605,7 @@ struct BodyTrendChartView: View {
             TimeSeriesChartSeries(
                 id: "body-fat",
                 name: "Body fat (%)",
-                color: NeoGymTheme.series2,
+                color: NeoGymTheme.textSecondary,
                 points: trendData.points.compactMap { point in
                     point.bodyFatPct.map {
                         TimeSeriesChartDataPoint(id: "\(point.id)-body-fat", date: point.date, value: $0)

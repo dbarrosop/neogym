@@ -142,7 +142,7 @@ struct StrengthProgressView: View {
                 valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
             ),
             TimeSeriesChartSeries(
-                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: NeoGymTheme.series2, axis: .right,
+                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: NeoGymTheme.textSecondary, axis: .right,
                 points: exercise.points.compactMap { point in
                     guard let date = point.date, let estimate = point.estimatedOneRepMax else { return nil }
                     return TimeSeriesChartDataPoint(id: point.id, date: date, value: estimate)

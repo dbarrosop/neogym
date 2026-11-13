@@ -172,7 +172,7 @@ struct StrengthProgressSummary: View {
             TimeSeriesChartSeries(
                 id: "one-rep-max",
                 name: "Est. 1RM",
-                color: NeoGymTheme.series2,
+                color: NeoGymTheme.textSecondary,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-one-rep-max",

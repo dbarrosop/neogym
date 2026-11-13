@@ -618,7 +618,10 @@ section records how the iPhone app implements it.
   chart accessibility values must account for hidden series themselves.
   Empty-state text remains naturally accessible. Charts have no border, grid
   lines use the separator token, series 1 is the accent and series 2 the
-  orange `series2` token. Day summaries use `MeterBar`/`MeterTrack` (protein
+  orange `series2` token. Orange is fill-only (bars, split bars, macro meters
+  and their legend swatches), never a line, because it falls below 3:1 on
+  light surfaces; a second line series (Body fat, Est. 1RM, active energy,
+  7-day average net) uses `textSecondary`. Day summaries use `MeterBar`/`MeterTrack` (protein
   accent, carbs series 2, fat secondary text); plan/meal editors still use
   `MacroSummaryView` grids;
   the daily intake balance is read-only, with calories in from logged snapshots

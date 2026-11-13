@@ -9,7 +9,7 @@ struct DailyEnergyTrendChartView: View {
             TimeSeriesChartSeries(
                 id: "active",
                 name: "Active (kcal)",
-                color: NeoGymTheme.series2,
+                color: NeoGymTheme.textSecondary,
                 points: trendData.points.compactMap { point in
                     point.activeKcal.map {
                         TimeSeriesChartDataPoint(id: "\(point.id)-active", date: point.date, value: $0)
