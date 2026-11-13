@@ -61,12 +61,16 @@ const WorkoutDetailQuery = graphql(`
   }
 `);
 
-// Latest sessions per exercise (Hasura applies `limit` per parent row).
+// Latest logged strength occurrence per exercise (`limit` applies per parent).
 const WorkoutExerciseLastSetsQuery = graphql(`
   query WorkoutExerciseLastSets($exerciseIds: [uuid!]!) {
     exercises(where: { id: { _in: $exerciseIds } }) {
       id
-      workoutSessionExercises(limit: 3, order_by: { workoutSession: { startedAt: desc } }) {
+      workoutSessionExercises(
+        where: { workoutSessionStrengthSets: {} }
+        order_by: { workoutSession: { startedAt: desc } }
+        limit: 1
+      ) {
         id
         workoutSessionStrengthSets {
           id
@@ -297,9 +301,7 @@ function ExerciseTable({ workout }: { workout: Workout }) {
   const lastTop = useMemo(() => {
     const map = new Map<string, string>();
     for (const exercise of data?.exercises ?? []) {
-      const latest = exercise.workoutSessionExercises.find(
-        (row) => row.workoutSessionStrengthSets.length > 0,
-      );
+      const latest = exercise.workoutSessionExercises[0];
       const label = latest ? topSetLabel(latest.workoutSessionStrengthSets) : null;
       if (label) {
         map.set(exercise.id, label);

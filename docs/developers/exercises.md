@@ -29,6 +29,8 @@ This document covers the catalog shape, the strength/cardio `kind` discriminator
 
 Train › Exercises derives its **Recently logged** group and per-row **last …** labels from session-exercises with at least one strength set or cardio entry. The server excludes empty/skipped session-exercises before sorting by session start time and limiting to the 80 most recent qualifying rows. Starting a templated session alone does not mark its exercises as logged; skipped exercises remain in the catalog without gaining a new recency label.
 
+Web workout detail's **Last top set** similarly excludes session-exercises without strength sets on the server before selecting the newest occurrence per exercise across workouts. Any number of newer empty/skipped occurrences cannot hide older logged sets. The label uses the heaviest set in that occurrence, breaking equal-weight ties by reps; no strength history shows “—”, while cardio rows show “Cardio”.
+
 ## The `category` and `kind` fields
 
 `exercises.category` is a text column referencing `public.exercise_categories(value)`. It carries the rich taxonomy: `cardio`, `strength`, `stretching`, `powerlifting`, `plyometrics`, `olympic_weightlifting`, `strongman`. It's catalog metadata — used by the UI for badges/filters and as the input to the kind discriminator below.

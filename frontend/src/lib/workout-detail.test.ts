@@ -58,6 +58,18 @@ describe("workout detail strength history", () => {
     expect(print(WorkoutDetailDocument)).not.toContain("strengthHistory(");
   });
 
+  test("shows the latest logged top set despite three newer empty occurrences, per exercise", () => {
+    const result = Bun.spawnSync(["bun", "scripts/workout-last-sets.fixture.tsx"], {
+      cwd: new URL("../..", import.meta.url).pathname,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 20_000,
+    });
+    expect(new TextDecoder().decode(result.stderr)).toBe("");
+    expect(new TextDecoder().decode(result.stdout)).toContain("workout last sets fixture passed");
+    expect(result.exitCode).toBe(0);
+  }, 25_000);
+
   test("renders only volume-bearing sessions with proportional bars and preserves notes without history", () => {
     const result = Bun.spawnSync(["bun", "scripts/workout-volume.fixture.tsx"], {
       cwd: new URL("../..", import.meta.url).pathname,
