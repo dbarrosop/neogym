@@ -198,6 +198,22 @@ try {
   await checkChart(Energy, [
     `Active energy: 350 kcal on ${dateLabel(start)} to 0 kcal on ${dateLabel(today)}; down 350 kcal overall across 2 observations. Resting energy: 1,800 kcal on ${dateLabel(start)} to 1,750 kcal on ${dateLabel(middle)}; down 50 kcal overall across 2 observations.`,
   ]);
+  const burnedLabel = () =>
+    container.querySelector('section[aria-label="Energy trend"] dt')?.textContent?.trim();
+  assert.equal(burnedLabel(), "Burned · avg of last 3 logged days");
+  await settle(() =>
+    client.setQueryData(["daily_energy"], {
+      pages: [
+        {
+          dailyEnergyEntries: [
+            { id: "energy-1", energyOn: start, activeKcal: 350, restingKcal: 1800 },
+          ],
+        },
+      ],
+      pageParams: [0],
+    }),
+  );
+  assert.equal(burnedLabel(), "Burned · avg of last 1 logged day");
 } finally {
   act(() => root.unmount());
   client.clear();

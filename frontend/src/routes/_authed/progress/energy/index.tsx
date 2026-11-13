@@ -125,7 +125,7 @@ function DailyEnergyRoute() {
           <dl className="flex flex-wrap gap-x-10 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <dt className="text-[13px] text-muted-foreground">
-                Burned · avg of last {stats.days} logged days
+                Burned · avg of last {stats.days} logged {stats.days === 1 ? "day" : "days"}
               </dt>
               <dd className="text-[28px] leading-tight font-semibold tabular-nums">
                 {kcal(stats.burned)}
