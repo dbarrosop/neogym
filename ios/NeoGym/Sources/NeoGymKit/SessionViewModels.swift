@@ -266,6 +266,8 @@ public final class SessionDetailViewModel: ObservableObject {
         do {
             let history = try await repository.priorSessionsPerExercise(
                 exerciseIds: exerciseIds,
+                before: session.startedAtDate ?? Date(),
+                workoutId: session.workout?.id,
                 excludeSessionId: session.id
             )
             priorHistoryState = .loaded(history)

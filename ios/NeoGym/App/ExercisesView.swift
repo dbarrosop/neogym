@@ -113,7 +113,7 @@ struct ExercisesListView: View {
                     .font(.caption2.weight(.bold))
             }
             .font(.subheadline.weight(value == nil ? .regular : .semibold))
-            .foregroundStyle(value == nil ? NeoGymTheme.text : Color.white)
+            .foregroundStyle(value == nil ? NeoGymTheme.text : NeoGymTheme.onFill)
             .padding(.horizontal, 14)
             .frame(minHeight: 36)
             .background(Capsule().fill(value == nil ? NeoGymTheme.fill : NeoGymTheme.accent))

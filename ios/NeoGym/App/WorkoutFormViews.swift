@@ -190,7 +190,7 @@ private struct WorkoutFormScreen: View {
                             .padding(NeoGymTheme.spacingSM)
                             .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.surface
+                                fill: NeoGymTheme.fill
                             )
                     }
                     VStack(alignment: .leading, spacing: 6) {
@@ -201,7 +201,7 @@ private struct WorkoutFormScreen: View {
                             .padding(NeoGymTheme.spacingXS)
                             .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.surface
+                                fill: NeoGymTheme.fill
                             )
                         Text("Markdown supported for headings, lists, and emphasis.")
                             .font(.caption)

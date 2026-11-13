@@ -17,7 +17,7 @@ struct BadgeText: View {
             Text(text)
         }
         .font(.caption.weight(.semibold))
-        .foregroundStyle(prominent ? Color.white : NeoGymTheme.text)
+        .foregroundStyle(prominent ? NeoGymTheme.onFill : NeoGymTheme.text)
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .background(badgeBackground)
@@ -51,7 +51,7 @@ extension View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                fill: NeoGymTheme.surface
+                fill: NeoGymTheme.inset
             )
     }
 }
@@ -84,7 +84,7 @@ struct ProgressMetricCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            fill: NeoGymTheme.surface
+            fill: NeoGymTheme.inset
         )
     }
 }

@@ -44,8 +44,8 @@ final class SessionsRepositoryTests: XCTestCase {
         let repository = SessionsRepository(graphQL: fake)
 
         let history = try await repository.priorSessionsPerExercise(
-            exerciseIds: ["exercise-1"],
-            excludeSessionId: "session-current"
+            exerciseIds: ["exercise-1"], before: Date(timeIntervalSince1970: 1_800_000_000),
+            workoutId: "workout-1", excludeSessionId: "session-current"
         )
 
         let strength = try XCTUnwrap(history.strengthByExercise["exercise-1"]?.first)
@@ -850,7 +850,8 @@ private final class StubSessionsRepository: SessionsRepositoryProtocol, @uncheck
         return detail
     }
 
-    func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory {
+    func priorSessionsPerExercise(exerciseIds: [String], before: Date, workoutId: String?,
+                                  excludeSessionId: String) async throws -> SessionPriorHistory {
         priorHistoryRequests.append((exerciseIds: exerciseIds, excludeSessionId: excludeSessionId))
         if let priorHistoryError { throw priorHistoryError }
         return priorHistory

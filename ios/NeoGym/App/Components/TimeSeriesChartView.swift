@@ -186,7 +186,8 @@ struct TimeSeriesChartView: View {
         .padding(.vertical, 6)
         .cardSurface(
             cornerRadius: NeoGymTheme.radiusSM,
-            fill: NeoGymTheme.surface
+            fill: NeoGymTheme.inset,
+            stroke: NeoGymTheme.separator
         )
         .position(calloutPosition(for: plottedPoint.position, size: size))
     }

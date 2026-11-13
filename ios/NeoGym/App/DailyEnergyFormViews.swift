@@ -215,7 +215,7 @@ private struct DailyEnergyFormScreen: View {
                             .padding(NeoGymTheme.spacingXS)
                             .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.surface
+                                fill: NeoGymTheme.fill
                             )
                         Text("Optional")
                             .font(.caption)
@@ -273,7 +273,7 @@ private struct DailyEnergyFormScreen: View {
                 .padding(NeoGymTheme.spacingSM)
                 .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.surface
+                    fill: NeoGymTheme.fill
                 )
         }
     }

@@ -34,6 +34,8 @@ enum NeoGymTheme {
     static let destructive = Color("ThemeDestructive")
     /// Destructive fills.
     static let destructiveFill = Color("ThemeDestructiveFill")
+    /// Labels and glyphs on accent or destructive fills (white passes 4.5:1).
+    static let onFill = Color.white
 
     // MARK: - Spacing (4 / 8 / 12 / 16 / 20 / 24 / 32)
 

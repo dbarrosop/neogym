@@ -5,7 +5,9 @@ public protocol SessionsRepositoryProtocol: Sendable {
     func sessionListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[SessionListItem], Error>
     func sessionDetailUpdates(id: String) -> AsyncThrowingStream<SessionDetailModel?, Error>
     func sessionDetail(id: String) async throws -> SessionDetailModel?
-    func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory
+    func priorSessionsPerExercise(
+        exerciseIds: [String], before: Date, workoutId: String?, excludeSessionId: String
+    ) async throws -> SessionPriorHistory
     func priorWorkoutSessions(workoutId: String, before: Date, excludeSessionId: String) async throws -> [SessionDetailModel]
     func muscleSetProgressUpdates(
         fromDay: String, throughDay: String, timeZone: String
@@ -119,12 +121,21 @@ public struct SessionsRepository: SessionsRepositoryProtocol {
         return data.workoutSession
     }
 
-    public func priorSessionsPerExercise(exerciseIds: [String], excludeSessionId: String) async throws -> SessionPriorHistory {
+    /// Up to three earlier occurrences per exercise that logged sets or entries,
+    /// strictly before `before`. With a workout, `sameWorkoutSessions` holds the
+    /// same bounded history for that workout, so it cannot be displaced by newer
+    /// history from other workouts.
+    public func priorSessionsPerExercise(
+        exerciseIds: [String], before: Date, workoutId: String?, excludeSessionId: String
+    ) async throws -> SessionPriorHistory {
         guard !exerciseIds.isEmpty else { return SessionPriorHistory() }
         let data: PriorSessionsData = try await graphQL.execute(
             query: Self.priorSessionsPerExerciseQuery,
             variables: [
                 "exerciseIds": .array(exerciseIds.map(GraphQLScalars.uuid)),
+                "before": GraphQLScalars.timestamptz(before),
+                "workoutId": workoutId.map { GraphQLScalars.uuid($0) } ?? .null,
+                "hasWorkout": .bool(workoutId != nil),
                 "excludeSessionId": GraphQLScalars.uuid(excludeSessionId)
             ],
             operationName: "PriorSessionsPerExercise"
@@ -463,14 +474,50 @@ public extension SessionsRepository {
     """
 
     static let priorSessionsPerExerciseQuery = """
-    query PriorSessionsPerExercise($exerciseIds: [uuid!]!, $excludeSessionId: uuid!) {
+    query PriorSessionsPerExercise(
+      $exerciseIds: [uuid!]!
+      $before: timestamptz!
+      $workoutId: uuid
+      $hasWorkout: Boolean!
+      $excludeSessionId: uuid!
+    ) {
       exercises(where: { id: { _in: $exerciseIds } }) {
         id
         workoutSessionExercises(
           limit: 3
           order_by: { workoutSession: { startedAt: desc } }
-          where: { workoutSessionId: { _neq: $excludeSessionId } }
+          where: {
+            workoutSessionId: { _neq: $excludeSessionId }
+            workoutSession: { startedAt: { _lt: $before } }
+            _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }]
+          }
         ) {
+          id
+          workoutSession {
+            id
+            startedAt
+          }
+          workoutSessionStrengthSets(order_by: { setNumber: asc }) {
+            id
+            setNumber
+            reps
+            weight
+          }
+          workoutSessionCardioEntries(order_by: { entryNumber: asc }) {
+            id
+            entryNumber
+            metrics
+          }
+        }
+        sameWorkoutSessions: workoutSessionExercises(
+          limit: 3
+          order_by: { workoutSession: { startedAt: desc } }
+          where: {
+            workoutSessionId: { _neq: $excludeSessionId }
+            workoutSession: { startedAt: { _lt: $before }, workoutId: { _eq: $workoutId } }
+            _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }]
+          }
+        ) @include(if: $hasWorkout) {
           id
           workoutSession {
             id

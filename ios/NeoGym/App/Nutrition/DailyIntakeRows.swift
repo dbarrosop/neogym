@@ -173,7 +173,7 @@ struct PlannedSlotCard: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.capsule)
                 .tint(isNext ? NeoGymTheme.accent : NeoGymTheme.accentSoft)
-                .foregroundStyle(isNext ? Color.white : NeoGymTheme.accentText)
+                .foregroundStyle(isNext ? NeoGymTheme.onFill : NeoGymTheme.accentText)
                 .disabled(isDisabled || slot.entries.isEmpty)
                 .accessibilityLabel("Log \(slot.label) slot")
             }
@@ -255,14 +255,14 @@ struct NutritionWeekStripView: View {
                     .font(.caption2.weight(.semibold))
                 Text(date.formatted(.dateTime.day()))
                     .font(.headline)
-                    .foregroundStyle(isSelected ? Color.white : (day == today ? NeoGymTheme.accentText : NeoGymTheme.text))
+                    .foregroundStyle(isSelected ? NeoGymTheme.onFill : (day == today ? NeoGymTheme.accentText : NeoGymTheme.text))
                 Text(kcal.map { MetricFormat.whole($0) } ?? "–")
                     .font(.caption2)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
             }
             .monospacedDigit()
-            .foregroundStyle(isSelected ? Color.white : NeoGymTheme.textSecondary)
+            .foregroundStyle(isSelected ? NeoGymTheme.onFill : NeoGymTheme.textSecondary)
             .frame(maxWidth: .infinity, minHeight: 58)
             .background(
                 RoundedRectangle(cornerRadius: NeoGymTheme.radiusMD, style: .continuous)

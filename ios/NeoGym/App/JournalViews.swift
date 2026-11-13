@@ -229,7 +229,7 @@ struct JournalEntryDetailView: View {
                         if !entry.journalEntryLabels.isEmpty {
                             JournalLabelFlowLayout(spacing: 6) {
                                 ForEach(entry.journalEntryLabels) { link in
-                                    JournalLabelChip(name: link.label.name, systemImage: "tag.fill", selected: true)
+                                    JournalLabelChip(name: link.label.name)
                                 }
                             }
                         }
@@ -453,7 +453,7 @@ private struct JournalEntryFormScreen: View {
                         .padding(NeoGymTheme.spacingSM)
                         .cardSurface(
                             cornerRadius: NeoGymTheme.radiusMD,
-                            fill: NeoGymTheme.surface
+                            fill: NeoGymTheme.fill
                         )
                     }
 
@@ -465,7 +465,7 @@ private struct JournalEntryFormScreen: View {
                             .padding(NeoGymTheme.spacingXS)
                             .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.surface
+                                fill: NeoGymTheme.fill
                             )
                         Text("Markdown supported — use **bold**, - lists, headings, and more.")
                             .font(.caption)
@@ -580,7 +580,7 @@ private struct JournalLabelInputView: View {
             .padding(NeoGymTheme.spacingSM)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                fill: NeoGymTheme.surface
+                fill: NeoGymTheme.fill
             )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
@@ -671,27 +671,19 @@ private struct JournalMarkdownView: View {
     }
 }
 
+/// A read-only label tag, styled like the Journal list's tags (accent soft).
 private struct JournalLabelChip: View {
     let name: String
-    let systemImage: String
-    let selected: Bool
 
     var body: some View {
-        Label(name, systemImage: systemImage)
+        Text(name)
             .font(.caption.weight(.semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.85)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .foregroundColor(selected ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
-            .background(chipBackground)
-            .contentShape(Capsule(style: .continuous))
-    }
-
-    @ViewBuilder
-    private var chipBackground: some View {
-        Capsule(style: .continuous)
-            .fill(selected ? NeoGymTheme.accent : NeoGymTheme.fill)
+            .foregroundStyle(NeoGymTheme.accentText)
+            .background(Capsule(style: .continuous).fill(NeoGymTheme.accentSoft))
     }
 }
 
@@ -700,11 +692,8 @@ private struct JournalLabelFlowLayout<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 104), spacing: spacing, alignment: .leading)],
-            alignment: .leading,
-            spacing: spacing
-        ) {
+        // Wrap chips at their natural width, like the Journal list's tags.
+        FlowRow(spacing: spacing) {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)

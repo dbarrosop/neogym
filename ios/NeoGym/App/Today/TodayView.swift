@@ -89,6 +89,7 @@ struct TodayView: View {
                     TodayBodyCard(
                         summary: bodyChartModel.state.value.map { TodayBodySummary(points: $0.points, today: today) },
                         errorMessage: bodyChartModel.state.value == nil ? bodyChartModel.state.errorMessage : nil,
+                        cachedThrough: bodyChartModel.cachedThrough,
                         healthStatus: healthStatus,
                         openTrend: { actions.openProgress(.body) }
                     )

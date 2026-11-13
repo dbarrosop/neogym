@@ -359,6 +359,8 @@ struct TodayBalanceCard: View {
 struct TodayBodyCard: View {
     let summary: TodayBodySummary?
     let errorMessage: String?
+    /// Set while an older cached range stands in for the current one.
+    var cachedThrough: String?
     let healthStatus: String?
     let openTrend: () -> Void
 
@@ -367,6 +369,11 @@ struct TodayBodyCard: View {
             CardHeader(title: "Body", linkTitle: "Trend", linkAccessibilityLabel: "Open body trend", action: openTrend)
             if let summary {
                 content(summary)
+                if let cachedThrough {
+                    Text("Saved data through \(Self.dayLabel(cachedThrough)); newer readings may be missing.")
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
             } else if let errorMessage {
                 AppErrorStateView(title: "Couldn't load body measurements", message: errorMessage, retry: nil)
             } else {
@@ -378,6 +385,10 @@ struct TodayBodyCard: View {
                     .foregroundStyle(NeoGymTheme.textTertiary)
             }
         }
+    }
+
+    private static func dayLabel(_ isoDay: String) -> String {
+        DateOnly.parse(isoDay)?.formatted(.dateTime.day().month(.abbreviated)) ?? isoDay
     }
 
     @ViewBuilder

@@ -539,7 +539,8 @@ section records how the iPhone app implements it.
   exposed only through `NeoGymTheme` (`background`, `surface`, `inset`, `fill`,
   `segmentedThumb`, `separator`, `text`, `textSecondary`, `textTertiary`,
   `accent` for fills, `accentText` for text/icons/chart lines, `accentSoft`,
-  `series2`, `positive`, `destructive`, `destructiveFill`). Never hard-code hex
+  `series2`, `positive`, `destructive`, `destructiveFill`, and `onFill` for
+  labels/glyphs on accent or destructive fills). Never hard-code hex
   or system colours in views. `RootView` applies `.preferredColorScheme` from
   the `AppAppearance` `@AppStorage` key (Dark default) and the global
   `.tint(NeoGymTheme.accentText)`; prominent buttons tint with `accent`.

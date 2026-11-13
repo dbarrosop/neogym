@@ -181,7 +181,7 @@ struct FilterChip: View {
         Button(action: action) {
             Text(title)
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .foregroundStyle(isSelected ? Color.white : NeoGymTheme.text)
+                .foregroundStyle(isSelected ? NeoGymTheme.onFill : NeoGymTheme.text)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 36)
                 .background(Capsule().fill(isSelected ? NeoGymTheme.accent : NeoGymTheme.fill))

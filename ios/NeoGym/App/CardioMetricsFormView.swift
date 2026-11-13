@@ -236,7 +236,7 @@ private struct MetricInputRow: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
                 .font(.caption)
-                .foregroundColor(isInvalid ? .red : NeoGymTheme.textSecondary)
+                .foregroundColor(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.textSecondary)
             HStack(spacing: 8) {
                 if CardioMetricsSchemaHelpers.shouldShowHoursInput(maximum: spec.maximum) {
                     durationTextField("h", binding: durationBinding(\.hours), field: .hours)
@@ -300,7 +300,7 @@ private struct MetricInputRow: View {
             .padding(NeoGymTheme.spacingXS)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusSM,
-                fill: NeoGymTheme.surface
+                fill: NeoGymTheme.fill
             )
     }
 }

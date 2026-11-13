@@ -521,7 +521,7 @@ private struct BodyMeasurementFormScreen: View {
                             .padding(NeoGymTheme.spacingXS)
                             .cardSurface(
                                 cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.surface
+                                fill: NeoGymTheme.fill
                             )
                         Text("Optional")
                             .font(.caption)
@@ -579,7 +579,7 @@ private struct BodyMeasurementFormScreen: View {
                 .padding(NeoGymTheme.spacingSM)
                 .cardSurface(
                     cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.surface
+                    fill: NeoGymTheme.fill
                 )
         }
     }
@@ -606,6 +606,8 @@ struct BodyTrendChartView: View {
                 id: "body-fat",
                 name: "Body fat (%)",
                 color: NeoGymTheme.textSecondary,
+                // Own scale: on weight's axis the two ranges flatten each other.
+                axis: .right,
                 points: trendData.points.compactMap { point in
                     point.bodyFatPct.map {
                         TimeSeriesChartDataPoint(id: "\(point.id)-body-fat", date: point.date, value: $0)

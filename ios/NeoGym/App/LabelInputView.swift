@@ -42,7 +42,7 @@ struct LabelInputView: View {
             .padding(NeoGymTheme.spacingSM)
             .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                fill: NeoGymTheme.surface
+                fill: NeoGymTheme.fill
             )
 
             if !filteredSuggestions.isEmpty || canCreateLabel {
