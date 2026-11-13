@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChefHat, Pencil } from "lucide-react";
 import { MacroSummary } from "@/components/macro-summary";
+import { PageShell } from "@/components/patterns/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -69,7 +70,7 @@ function MealDetailRoute() {
     );
 
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
@@ -106,12 +107,12 @@ function MealDetailRoute() {
               </p>
             </div>
             {meal.mealIngredients.length === 0 ? (
-              <p className="rounded-md border border-border/60 border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+              <p className="rounded-md border border-border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
                 This meal does not have ingredients yet.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-md border border-border/60">
-                <ul className="divide-y divide-border/50">
+              <div className="overflow-hidden rounded-md border border-border">
+                <ul className="divide-y divide-border">
                   {meal.mealIngredients.map((ingredient) => {
                     const ingredientTotals = macrosForGrams(ingredient.food, ingredient.grams);
                     return (
@@ -144,7 +145,11 @@ function MealDetailRoute() {
     );
   }
 
-  return <div className="space-y-4">{renderContent()}</div>;
+  return (
+    <PageShell maxWidth="4xl">
+      <div className="space-y-4">{renderContent()}</div>
+    </PageShell>
+  );
 }
 
 function MealDetailSkeleton() {

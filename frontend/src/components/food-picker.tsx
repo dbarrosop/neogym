@@ -103,7 +103,7 @@ export function FoodPicker({ foods, value, onChange, disabled }: FoodPickerProps
       ) : null}
 
       {open && !disabled ? (
-        <Card className="absolute top-full right-0 left-0 z-30 mt-2 border-border/60 bg-popover shadow-lg">
+        <Card className="absolute top-full right-0 left-0 z-30 mt-2 border-border bg-popover shadow-lg">
           <CardContent className="max-h-64 overflow-y-auto p-1">
             {foods.length === 0 ? (
               <div className="space-y-3 px-3 py-5 text-center text-sm text-muted-foreground">
@@ -133,7 +133,7 @@ export function FoodPicker({ foods, value, onChange, disabled }: FoodPickerProps
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => handleSelect(food)}
                       className={cn(
-                        "flex w-full items-start justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-accent/50",
+                        "flex w-full items-start justify-between gap-3 rounded-md px-3 py-2 text-left transition-colors hover:bg-muted/60",
                         isSelected && "bg-primary/10 text-primary hover:bg-primary/15",
                       )}
                     >

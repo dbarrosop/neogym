@@ -1,6 +1,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import type { ComponentProps } from "react";
+import { FormPageBoundary } from "@/lib/form-page-context";
 import { cn } from "@/lib/utils";
 
 function Dialog(props: ComponentProps<typeof DialogPrimitive.Root>) {
@@ -59,7 +60,7 @@ function DialogContent({
         )}
         {...props}
       >
-        {children}
+        <FormPageBoundary>{children}</FormPageBoundary>
         {showClose ? (
           <DialogPrimitive.Close
             className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"

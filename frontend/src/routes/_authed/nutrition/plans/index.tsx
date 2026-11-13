@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { CalendarClock, ChevronRight, Plus, Search, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { MacroSummary } from "@/components/macro-summary";
@@ -12,8 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import {
-  formatTimeOfDay,
-  macroTotalsSummary,
+  groupPlanEntriesByTimeSlot,
   mergePlanEntriesByTime,
   planEntriesMacroTotals,
 } from "@/lib/nutrition";
@@ -185,7 +184,7 @@ function PlansIndexRoute() {
     }
     if (filteredPlans.length === 0) {
       return (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
             <p>
               {search.trim()
@@ -196,7 +195,7 @@ function PlansIndexRoute() {
               <button
                 type="button"
                 onClick={clearSearch}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-medium text-link hover:underline"
               >
                 Clear search
               </button>
@@ -213,15 +212,11 @@ function PlansIndexRoute() {
       );
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardContent className="px-2 py-2">
-          <ul className="divide-y divide-border/50">
-            {filteredPlans.map((plan) => (
-              <PlanRow key={plan.id} plan={plan} />
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {filteredPlans.map((plan) => (
+          <PlanCard key={plan.id} plan={plan} />
+        ))}
+      </ul>
     );
   }
 
@@ -232,37 +227,29 @@ function PlansIndexRoute() {
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Plans</h2>
-          <p className="text-sm text-muted-foreground">
-            Create reusable one-day templates made of timed meals and direct foods. Plans are
-            suggestions only.
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="max-w-prose text-sm text-muted-foreground">
+            Reusable one-day templates made of timed meals and direct foods. Pick one on a day’s log
+            to plan against it; plans never change what you already logged.
           </p>
         </div>
-        <Button asChild size="sm" className="shrink-0">
-          <Link to="/nutrition/plans/new">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New plan</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-        </Button>
       </div>
 
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => setSearchText(event.target.value)}
           placeholder="Search plans or meals…"
-          className="pr-9 pl-9"
+          className="h-11 rounded-xl bg-card pr-10 pl-10"
         />
         {search ? (
           <button
             type="button"
             onClick={() => setSearchText("")}
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
@@ -288,44 +275,47 @@ function PlansIndexRoute() {
   );
 }
 
-function PlanRow({ plan }: { plan: Plan }) {
+const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function PlanCard({ plan }: { plan: Plan }) {
   const entries = mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods);
   const totals = planEntriesMacroTotals(entries);
-  const firstSlot = entries[0];
-  let firstSlotTitle: string | null | undefined = null;
-  if (firstSlot) {
-    firstSlotTitle =
-      firstSlot.kind === "food" ? firstSlot.food?.name : firstSlot.label || firstSlot.meal?.name;
-  }
-  const firstSlotSummary = firstSlot
-    ? `${formatTimeOfDay(firstSlot.slotTime)} · ${firstSlotTitle || "Untitled entry"}`
-    : "No entries yet";
+  const slotCount = groupPlanEntriesByTimeSlot(entries).length;
 
   return (
     <li>
       <Link
         to="/nutrition/plans/$planId"
         params={{ planId: plan.id }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
+        className="flex h-full flex-col gap-3 rounded-xl border border-border bg-card p-[18px] transition-colors hover:bg-muted/40"
       >
-        <span className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-            <CalendarClock className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 space-y-1">
-            <span className="truncate text-sm font-medium">{plan.name}</span>
-            <span className="line-clamp-2 text-xs text-muted-foreground">
-              {entries.length} entr{entries.length === 1 ? "y" : "ies"} · {firstSlotSummary} ·{" "}
-              {macroTotalsSummary(totals)}
-            </span>
-            {plan.description ? (
-              <span className="line-clamp-1 text-xs text-muted-foreground/80">
-                {plan.description}
-              </span>
-            ) : null}
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-[17px] font-semibold">{plan.name}</span>
+          <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums">
+            {countLabel(slotCount, "slot", "slots")} ·{" "}
+            {countLabel(entries.length, "entry", "entries")}
           </span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        {plan.description ? (
+          <span className="line-clamp-2 text-[13px] leading-relaxed text-muted-foreground">
+            {plan.description}
+          </span>
+        ) : null}
+        <span className="mt-auto flex flex-wrap items-baseline justify-between gap-2 tabular-nums">
+          <span className="text-[22px] font-semibold">
+            {wholeNumber.format(totals.kcal)}{" "}
+            <span className="text-[13px] font-medium text-muted-foreground">kcal</span>
+          </span>
+          <span className="text-[13px]">
+            P <strong>{wholeNumber.format(totals.protein)}</strong> · C{" "}
+            <strong>{wholeNumber.format(totals.carbs)}</strong> · F{" "}
+            <strong>{wholeNumber.format(totals.fat)}</strong>
+          </span>
+        </span>
       </Link>
     </li>
   );
@@ -333,19 +323,15 @@ function PlanRow({ plan }: { plan: Plan }) {
 
 function PlansSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardContent className="space-y-3 p-4">
-        {[0, 1, 2].map((item) => (
-          <div key={item} className="flex items-center gap-3">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-full" />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {[0, 1, 2].map((item) => (
+        <div key={item} className="space-y-3 rounded-xl border border-border bg-card p-[18px]">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-6 w-24" />
+        </div>
+      ))}
+    </div>
   );
 }
 

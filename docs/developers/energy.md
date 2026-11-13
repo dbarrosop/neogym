@@ -66,10 +66,25 @@ measurements and nutrition nutrient columns when parsing `activeKcal` and
 
 ## Web and iOS UI contract
 
-The web `/energy` route provides body-style list, trend, create, detail, edit,
-and delete flows. The primary navbar includes Energy as its own top-level item;
-the mobile tab bar is horizontally scrollable to accommodate all eight top-level
-items.
+The web `/progress/energy` route (Progress › Energy) provides the list, trend,
+inline create on desktop, and detail, edit and delete flows. Rows carrying the
+"Imported from Apple Health" note show an Apple Health tag instead of the note.
+The web Burned summary averages the per-row active-plus-resting totals across the
+latest seven logged rows (or all rows if fewer), counting a missing component as
+zero. The separate Active and Resting summaries average only rows where that
+component is present.
+
+The web Energy trend uses an orange (`chart-2`) active-energy area and an accent
+(`chart-1`) resting-energy line, matching Today's energy mapping. Orange stays
+fill-only: the active area has a contrasting neutral outline and a light tint so
+the resting line stays legible even when active energy is higher. The area starts
+at zero; legend and tooltip text use neutral foreground colours in both themes.
+The resting legend key sets its accent border colour explicitly: text colour alone
+cannot override the global separator-coloured border default.
+
+Web Body and Energy writes invalidate the Today overview as well as their own
+list queries, for both desktop quick entry and full-page create, edit and delete.
+Energy writes also invalidate the nutrition energy-projection queries.
 
 The native iPhone app exposes Energy as a Nutrition subsection alongside
 Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
@@ -207,8 +222,9 @@ estimated net = today's logged snapshot kcal - estimated burned
   manual entries. No database or Hasura permission change is needed.
 
 Surfaces: native Nutrition Overview, today's nutrition day, Energy list and
-current-day detail; web today's daily log and Energy list/current-day detail;
-watch app Energy; and the medium iPhone Energy Balance widget. Energy pages
+current-day detail; web Today (Balance card, beside yesterday's actual balance),
+today's daily log and Energy list/current-day detail; watch app Energy; and the
+medium iPhone Energy Balance widget. Energy pages
 fetch nutrition as well as energy to calculate today's estimated net. Historical
 day/detail screens and charts retain recorded values only. The compact **watch
 complication remains unchanged**, including its actual-burn/net math and reload

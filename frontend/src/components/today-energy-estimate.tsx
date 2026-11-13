@@ -1,13 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { graphql } from "@/gql";
 import { calculateDailyEnergyProjection, type DailyEnergyNumericValue } from "@/lib/daily-energy";
-import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { addLocalDateDays, normalizeNumeric } from "@/lib/nutrition";
+import { useLocalToday } from "@/lib/use-local-today";
 
 const TodayEnergyEstimateQuery = graphql(`
   query TodayEnergyEstimate($today: date!, $since: date!) {
@@ -39,30 +38,6 @@ interface Props {
       restingKcal?: DailyEnergyNumericValue;
     } | null;
   };
-}
-
-/** Keep today's identity correct across midnight, foreground returns and DST. */
-function useLocalToday() {
-  const [today, setToday] = useState(todayLocalISO);
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const update = () => {
-      setToday(todayLocalISO());
-      clearTimeout(timer);
-      const midnight = new Date();
-      midnight.setHours(24, 0, 0, 0);
-      timer = setTimeout(update, Math.max(1, midnight.getTime() - Date.now()));
-    };
-    update();
-    window.addEventListener("focus", update);
-    document.addEventListener("visibilitychange", update);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("focus", update);
-      document.removeEventListener("visibilitychange", update);
-    };
-  }, []);
-  return today;
 }
 
 export function TodayEnergyEstimate({ date, balance }: Props) {
@@ -110,7 +85,7 @@ function TodayEstimateContent({ today, balance }: { today: string; balance: Prop
   });
 
   return (
-    <Card className="border-border/60 bg-muted/20">
+    <Card className="bg-surface-inset py-0 shadow-none">
       <CardContent className="space-y-3 p-4">
         <h3 className="text-sm font-medium">Estimated today</h3>
         {query.error ? (

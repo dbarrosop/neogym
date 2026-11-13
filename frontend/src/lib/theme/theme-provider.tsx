@@ -12,6 +12,9 @@ export type Theme = "light" | "dark" | "system";
 
 export const THEME_STORAGE_KEY = "neogym-theme";
 
+/** Dark is the default appearance; Light and System are opt-in under Me › Account. */
+export const DEFAULT_THEME: Theme = "dark";
+
 interface ThemeContextType {
   theme: Theme;
   resolvedTheme: "light" | "dark";
@@ -22,10 +25,10 @@ const ThemeContext = createContext<ThemeContextType | null>(null);
 
 function readStoredTheme(): Theme {
   if (typeof window === "undefined") {
-    return "system";
+    return DEFAULT_THEME;
   }
   const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+  return stored === "light" || stored === "dark" || stored === "system" ? stored : DEFAULT_THEME;
 }
 
 function getSystemTheme(): "light" | "dark" {
@@ -42,8 +45,8 @@ function applyThemeClass(resolved: "light" | "dark") {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("dark");
 
   useEffect(() => {
     const initial = readStoredTheme();

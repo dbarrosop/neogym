@@ -18,8 +18,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
+import { CardioTag } from "@/components/exercise-kind-tag";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
+import { FormActions } from "@/components/patterns/form-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormPageFormId } from "@/lib/form-page-context";
 import { cn, formatMuscle } from "@/lib/utils";
 
 export interface WorkoutFormExercise {
@@ -40,6 +43,7 @@ export interface WorkoutFormExercise {
   rowId: string;
   exerciseId: string;
   name: string;
+  kind: string;
   primaryMuscleGroup: string;
   doubleWeight: boolean;
 }
@@ -72,6 +76,7 @@ export function WorkoutForm({
   labelSuggestions,
   extraActions,
 }: WorkoutFormProps) {
+  const formId = useFormPageFormId();
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [exercises, setExercises] = useState<WorkoutFormExercise[]>(initialValues.exercises);
@@ -130,7 +135,7 @@ export function WorkoutForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor={nameId} className="text-sm font-medium">
@@ -180,7 +185,7 @@ export function WorkoutForm({
         </div>
 
         {exercises.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border/60 bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border bg-surface-inset px-4 py-6 text-center text-sm text-muted-foreground">
             No exercises yet. Add one to get started.
           </div>
         ) : (
@@ -233,17 +238,13 @@ export function WorkoutForm({
         </Dialog>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-        {extraActions ? <div className="border-t border-border/40 pt-3">{extraActions}</div> : null}
-      </div>
+      <FormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        submitDisabled={trimmedName.length === 0}
+        onCancel={onCancel}
+        extraActions={extraActions}
+      />
     </form>
   );
 }
@@ -269,14 +270,14 @@ function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowP
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-border/60 bg-card/80 px-2 py-2 backdrop-blur",
+        "flex items-center gap-2 rounded-md border border-border bg-card/80 px-2 py-2",
         isDragging && "z-10 shadow-lg ring-2 ring-primary/40",
       )}
     >
       <button
         type="button"
         aria-label="Drag to reorder"
-        className="grid h-9 w-7 shrink-0 cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-accent/50 hover:text-foreground active:cursor-grabbing"
+        className="grid h-9 w-7 shrink-0 cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-muted/60 hover:text-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
@@ -292,6 +293,7 @@ function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowP
           {exercise.doubleWeight ? " · two-handed" : ""}
         </p>
       </div>
+      {exercise.kind === "cardio" ? <CardioTag /> : null}
       <button
         type="button"
         onClick={onRemove}

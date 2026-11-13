@@ -1,7 +1,7 @@
 import type { ResultOf } from "@graphql-typed-document-node/core";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { ChevronRight, History, Loader2, Play, TrendingUp } from "lucide-react";
+import { ChevronRight, Loader2, Play } from "lucide-react";
 import { useMemo } from "react";
 import {
   Area,
@@ -13,13 +13,12 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { AlternatingStorageImage } from "@/components/storage-image";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { graphql } from "@/gql";
 import {
   aggregationForFormat,
@@ -125,10 +124,15 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
       return <DetailSkeleton />;
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return <ErrorState title="Couldn't load this exercise" message={error.message} />;
     }
     if (!data?.exercise) {
-      return <p className="text-sm text-muted-foreground">Exercise not found.</p>;
+      return (
+        <EmptyState
+          title="Exercise not found"
+          description="It may have been deleted or is not shared with you."
+        />
+      );
     }
     const exercise = data.exercise;
     const isCardio = exercise.kind === "cardio" && cardioSchema && cardioPrimary;
@@ -171,86 +175,104 @@ export function ExerciseDetail({ exerciseId }: { exerciseId: string }) {
       );
     }
 
+    const chips = [
+      exercise.equipment,
+      exercise.level,
+      exercise.strength?.mechanic,
+      exercise.strength?.force,
+      exercise.kind === "cardio" ? "cardio" : null,
+    ].filter((value): value is string => Boolean(value));
+
     return (
       <>
-        <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-          <CardHeader className="space-y-3 pb-4">
-            <div className="space-y-1">
-              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                {exercise.primaryMuscleGroup}
-              </p>
-              <CardTitle className="text-2xl tracking-tight">{exercise.name}</CardTitle>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              <Badge variant="primary">{exercise.primaryMuscleGroup}</Badge>
-              {exercise.secondaryMuscleGroups.map((s) => (
-                <Badge key={s.muscleGroup}>{s.muscleGroup}</Badge>
-              ))}
-              {exercise.strength?.doubleWeight ? <Badge variant="outline">Two-handed</Badge> : null}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <PageHeader
+          eyebrow={formatEnumValue(exercise.primaryMuscleGroup)}
+          title={exercise.name}
+          description={
+            chips.length > 0 ? (
+              <span className="flex flex-wrap gap-1.5">
+                {chips.map((chip) => (
+                  <span
+                    key={chip}
+                    className="rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-medium text-foreground/85"
+                  >
+                    {formatEnumValue(chip)}
+                  </span>
+                ))}
+              </span>
+            ) : undefined
+          }
+          actions={
             <Button
               type="button"
-              size="lg"
-              className="w-full"
               disabled={startSession.isPending}
               onClick={() => startSession.mutate({ exerciseId: exercise.id })}
             >
-              {startSession.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4 fill-current" />
-              )}
-              Start session
+              {startSession.isPending ? <Loader2 className="animate-spin" /> : <Play />}
+              Start a session with it
             </Button>
-            <Separator />
-            <AlternatingStorageImage
-              fileIds={[exercise.image1FileId, exercise.image2FileId]}
-              alt={exercise.name}
-              className="aspect-video w-full rounded-lg border border-border/60"
-            />
-            <ExerciseAttributes
-              level={exercise.level}
-              category={exercise.category}
-              equipment={exercise.equipment}
-              force={exercise.strength?.force ?? null}
-              mechanic={exercise.strength?.mechanic ?? null}
-            />
-            <ExerciseInstructions instructions={exercise.instructions} />
-
-            {exercise.strength?.doubleWeight ? (
-              <div className="rounded-md border border-border/40 bg-muted/40 p-3 text-xs text-muted-foreground">
-                <strong className="font-medium text-foreground">Two-handed:</strong> the recorded
-                weight is per side; total volume doubles when calculating session totals.
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Tabs defaultValue="progress">
-          <TabsList>
-            <TabsTrigger value="progress">
-              <TrendingUp className="h-3.5 w-3.5" />
-              Progress
-            </TabsTrigger>
-            <TabsTrigger value="history">
-              <History className="h-3.5 w-3.5" />
-              History
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="progress">{renderProgressTab()}</TabsContent>
-
-          <TabsContent value="history">{renderHistoryTab()}</TabsContent>
-        </Tabs>
+          }
+        />
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <DetailSection title="Progress">{renderProgressTab()}</DetailSection>
+            <DetailSection title="History">{renderHistoryTab()}</DetailSection>
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            <section
+              aria-label="Images and muscles"
+              className="flex flex-col gap-4 rounded-xl border bg-card p-4"
+            >
+              <AlternatingStorageImage
+                fileIds={[exercise.image1FileId, exercise.image2FileId]}
+                alt={exercise.name}
+                className="aspect-video w-full rounded-lg bg-muted"
+              />
+              <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
+                <dt className="text-muted-foreground">Primary</dt>
+                <dd className="font-medium">{formatEnumValue(exercise.primaryMuscleGroup)}</dd>
+                {exercise.secondaryMuscleGroups.length > 0 ? (
+                  <>
+                    <dt className="text-muted-foreground">Secondary</dt>
+                    <dd>
+                      {exercise.secondaryMuscleGroups
+                        .map((s) => formatEnumValue(s.muscleGroup))
+                        .join(" · ")}
+                    </dd>
+                  </>
+                ) : null}
+              </dl>
+              <ExerciseAttributes
+                level={exercise.level}
+                category={exercise.category}
+                equipment={exercise.equipment}
+                force={exercise.strength?.force ?? null}
+                mechanic={exercise.strength?.mechanic ?? null}
+              />
+              {exercise.strength?.doubleWeight ? (
+                <p className="rounded-lg bg-surface-inset px-3 py-2.5 text-[13px] text-muted-foreground">
+                  <strong className="font-semibold text-foreground">Weight per side:</strong> the
+                  logged weight is for one side, so session volume counts it twice.
+                </p>
+              ) : null}
+            </section>
+            <DetailSection title="How to">
+              <ExerciseInstructions instructions={exercise.instructions} />
+            </DetailSection>
+          </div>
+        </div>
       </>
     );
   }
 
+  return <PageShell maxWidth="6xl">{renderContent()}</PageShell>;
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="grid-bg min-h-[calc(100vh-3.5rem)] px-4 pt-6 pb-24 md:pb-12">
-      <div className="mx-auto max-w-2xl space-y-6">{renderContent()}</div>
+    <section aria-label={title} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
+      <h2 className="text-base font-semibold">{title}</h2>
+      {children}
     </section>
   );
 }
@@ -287,12 +309,10 @@ function ExerciseAttributes(props: ExerciseAttributesProps) {
   }
 
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-border/40 bg-muted/30 p-3 text-xs sm:grid-cols-3">
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-lg bg-surface-inset p-3 text-sm sm:grid-cols-3">
       {items.map((item) => (
         <div key={item.key} className="flex flex-col gap-0.5">
-          <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/80">
-            {ATTRIBUTE_LABELS[item.key]}
-          </dt>
+          <dt className="text-[12px] text-muted-foreground">{ATTRIBUTE_LABELS[item.key]}</dt>
           <dd className="font-medium">{formatEnumValue(item.value)}</dd>
         </div>
       ))}
@@ -305,7 +325,7 @@ function ExerciseInstructions({ instructions }: { instructions: string[] }) {
     return <p className="text-sm italic text-muted-foreground/60">No instructions yet.</p>;
   }
   return (
-    <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-muted-foreground marker:text-muted-foreground/60">
+    <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-foreground/85 marker:text-muted-foreground">
       {instructions.map((step, i) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: instructions are stable, ordered, and never reordered
         <li key={i}>{step}</li>
@@ -324,84 +344,83 @@ interface ExerciseHistoryProps {
   exerciseName: string;
 }
 
-function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistoryProps) {
-  return (
-    <section className="space-y-3">
-      <p className="text-right text-xs text-muted-foreground">
-        {entries.length} session{entries.length === 1 ? "" : "s"}
-      </p>
+const historyVolumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
-      {entries.length === 0 ? (
-        <Card className="border-border/60 border-dashed">
-          <CardContent className="py-6 text-center text-sm text-muted-foreground">
-            You haven't logged this exercise yet.
-          </CardContent>
-        </Card>
-      ) : (
-        <ul className="space-y-2">
+function compactSets(sets: { reps: number; weight: unknown }[]): string {
+  const weights = sets.map((s) => Number(s.weight));
+  const label = (w: number) => (w === 0 ? "BW" : String(w));
+  if (weights.every((w) => w === weights[0])) {
+    return `${label(weights[0] ?? 0)} × ${sets.map((s) => s.reps).join(" · ")}`;
+  }
+  return sets.map((s) => `${label(Number(s.weight))} × ${s.reps}`).join(" · ");
+}
+
+function ExerciseHistory({ entries, doubleWeight, exerciseName }: ExerciseHistoryProps) {
+  if (entries.length === 0) {
+    return <p className="text-sm text-muted-foreground">You haven't logged this exercise yet.</p>;
+  }
+  const multiplier = doubleWeight ? 2 : 1;
+  return (
+    <div className="-mx-4 overflow-x-auto">
+      <table className="w-full text-sm tabular-nums">
+        <thead>
+          <tr className="text-left text-[12px] text-muted-foreground">
+            <th scope="col" className="py-2 pl-4 font-medium">
+              Session
+            </th>
+            <th scope="col" className="font-medium">
+              Sets{doubleWeight ? " (per side)" : ""}
+            </th>
+            <th scope="col" className="hidden font-medium sm:table-cell">
+              e1RM
+            </th>
+            <th scope="col" className="pr-4 text-right font-medium">
+              Volume
+            </th>
+          </tr>
+        </thead>
+        <tbody>
           {entries.map((entry) => {
             const date = new Date(entry.workoutSession.startedAt);
-            const totalReps = entry.workoutSessionStrengthSets.reduce((acc, s) => acc + s.reps, 0);
-            const topWeight = entry.workoutSessionStrengthSets.reduce(
-              (acc, s) => Math.max(acc, Number(s.weight)),
+            const sameYear = date.getFullYear() === new Date().getFullYear();
+            const sets = entry.workoutSessionStrengthSets;
+            const volume = sets.reduce((acc, s) => acc + s.reps * Number(s.weight) * multiplier, 0);
+            const best = sets.reduce(
+              (acc, s) => Math.max(acc, estimateOneRepMax(Number(s.weight), s.reps)),
               0,
             );
             return (
-              <li key={entry.id}>
-                <Link
-                  to="/sessions/$sessionId"
-                  params={{ sessionId: entry.workoutSession.id }}
-                  className="group block"
-                >
-                  <Card className="border-border/60 backdrop-blur transition-colors group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80">
-                    <CardContent className="space-y-3 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 space-y-0.5">
-                          <p className="text-sm font-medium">
-                            {entry.workoutSession.workout?.name ?? exerciseName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {date.toLocaleDateString(undefined, {
-                              weekday: "short",
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                            {" · "}
-                            {entry.workoutSessionStrengthSets.length} sets · {totalReps} reps
-                            {topWeight > 0
-                              ? ` · top ${topWeight}${doubleWeight ? "/side" : ""} kg`
-                              : ""}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
-                      </div>
-                      {entry.workoutSessionStrengthSets.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {entry.workoutSessionStrengthSets.map((s) => (
-                            <span
-                              key={s.id}
-                              className="inline-flex items-center gap-1 rounded-md border border-border/50 bg-muted/40 px-2 py-1 text-xs tabular-nums"
-                            >
-                              <span className="text-muted-foreground">{s.setNumber}.</span>
-                              <span className="font-medium">
-                                {Number(s.weight) === 0 ? "BW" : `${Number(s.weight)} kg`}
-                              </span>
-                              <span className="text-muted-foreground">×</span>
-                              <span className="font-medium">{s.reps}</span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </CardContent>
-                  </Card>
-                </Link>
-              </li>
+              <tr key={entry.id} className="border-t">
+                <td className="py-2.5 pr-3 pl-4">
+                  <Link
+                    to="/train/sessions/$sessionId"
+                    params={{ sessionId: entry.workoutSession.id }}
+                    className="flex flex-col font-medium hover:text-link"
+                  >
+                    {date.toLocaleDateString(undefined, {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                      ...(sameYear ? {} : { year: "numeric" }),
+                    })}
+                    <span className="text-[12px] font-normal text-muted-foreground">
+                      {entry.workoutSession.workout?.name ?? exerciseName}
+                    </span>
+                  </Link>
+                </td>
+                <td className="pr-3">{sets.length > 0 ? compactSets(sets) : "—"}</td>
+                <td className="hidden pr-3 sm:table-cell">
+                  {best > 0 ? `${best.toFixed(1)} kg` : "—"}
+                </td>
+                <td className="pr-4 text-right whitespace-nowrap">
+                  {historyVolumeFormat.format(volume)} kg
+                </td>
+              </tr>
             );
           })}
-        </ul>
-      )}
-    </section>
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -454,7 +473,7 @@ interface ExerciseProgressProps {
 function ExerciseProgress({ points, doubleWeight }: ExerciseProgressProps) {
   if (points.length === 0) {
     return (
-      <Card className="border-border/60 border-dashed">
+      <Card className="border-border border-dashed">
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
           Log a session to start tracking progress.
         </CardContent>
@@ -486,6 +505,8 @@ function ExerciseProgress({ points, doubleWeight }: ExerciseProgressProps) {
           points={points}
           format={(v) => `${v.toFixed(1)} kg`}
           color="var(--color-chart-2)"
+          // Orange is fill-only: a neutral outline keeps the trend legible in light mode.
+          stroke="var(--color-muted-foreground)"
           gradientId="progress-1rm"
         />
       </div>
@@ -500,18 +521,18 @@ interface ProgressCardProps {
   metricLabel: string;
   points: ProgressPoint[];
   format: (v: number) => string;
+  /** Area fill; also the line colour unless `stroke` is set. */
   color: string;
+  stroke?: string;
   gradientId: string;
 }
 
+/**
+ * Gains are favourable deltas (positive). Declines stay neutral: destructive
+ * text is reserved for delete actions and errors.
+ */
 function deltaToneClass(delta: number | null): string {
-  if (delta === null || delta === 0) {
-    return "text-muted-foreground";
-  }
-  if (delta > 0) {
-    return "text-emerald-500";
-  }
-  return "text-destructive";
+  return delta !== null && delta > 0 ? "text-positive" : "text-muted-foreground";
 }
 
 function ProgressCard({
@@ -522,6 +543,7 @@ function ProgressCard({
   points,
   format,
   color,
+  stroke,
   gradientId,
 }: ProgressCardProps) {
   const last = points.at(-1);
@@ -542,12 +564,10 @@ function ProgressCard({
   const deltaTone = deltaToneClass(delta);
 
   return (
-    <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+    <Card className="gap-3 border-0 bg-surface-inset py-4 shadow-none">
       <CardHeader className="space-y-1 pb-2">
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {title}
-          </p>
+          <p className="text-[13px] font-semibold text-muted-foreground">{title}</p>
           {deltaPct === null ? null : (
             <span className={cn("text-xs tabular-nums", deltaTone)}>
               {deltaPct > 0 ? "+" : ""}
@@ -566,6 +586,7 @@ function ProgressCard({
             metricLabel={metricLabel}
             format={format}
             color={color}
+            stroke={stroke}
             gradientId={gradientId}
           />
         ) : (
@@ -584,10 +605,19 @@ interface TrendChartProps {
   metricLabel: string;
   format: (v: number) => string;
   color: string;
+  stroke?: string | undefined;
   gradientId: string;
 }
 
-function TrendChart({ points, metric, metricLabel, format, color, gradientId }: TrendChartProps) {
+function TrendChart({
+  points,
+  metric,
+  metricLabel,
+  format,
+  color,
+  stroke = color,
+  gradientId,
+}: TrendChartProps) {
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
@@ -617,20 +647,20 @@ function TrendChart({ points, metric, metricLabel, format, color, gradientId }: 
           />
           <YAxis hide domain={["auto", "auto"]} />
           <Tooltip
-            cursor={{ stroke: color, strokeOpacity: 0.5, strokeDasharray: "3 3" }}
+            cursor={{ stroke, strokeOpacity: 0.5, strokeDasharray: "3 3" }}
             content={<TrendTooltip metric={metric} metricLabel={metricLabel} format={format} />}
           />
           <Area
             type="monotone"
             dataKey={metric}
-            stroke={color}
+            stroke={stroke}
             strokeWidth={2}
             fill={`url(#${gradientId})`}
             dot={false}
             activeDot={{
               r: 3.5,
               fill: color,
-              stroke: "var(--color-background)",
+              stroke: stroke === color ? "var(--color-background)" : stroke,
               strokeWidth: 2,
             }}
             isAnimationActive={false}
@@ -658,7 +688,7 @@ function TrendTooltip({ active, payload, metric, metricLabel, format }: TrendToo
   const value = point[metric];
   const date = new Date(point.date);
   return (
-    <div className="rounded-md border border-border/60 bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {date.toLocaleDateString(undefined, {
           weekday: "short",
@@ -733,7 +763,7 @@ function buildCardioProgressPoints(
 
 function CardioSchemaMissingNotice() {
   return (
-    <Card className="border-border/60 border-dashed">
+    <Card className="border-border border-dashed">
       <CardContent className="text-muted-foreground py-6 text-center text-sm">
         This cardio exercise is missing its metrics schema, so there's nothing to show here. An
         admin needs to configure it before sessions can record entries.
@@ -745,7 +775,7 @@ function CardioSchemaMissingNotice() {
 function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: CardioMetricSpec }) {
   if (points.length === 0) {
     return (
-      <Card className="border-border/60 border-dashed">
+      <Card className="border-border border-dashed">
         <CardContent className="text-muted-foreground py-6 text-center text-sm">
           Log a session to start tracking progress.
         </CardContent>
@@ -772,7 +802,7 @@ function CardioProgress({ points, primary }: { points: CardioPoint[]; primary: C
       <p className="text-muted-foreground text-right text-xs">
         {points.length} session{points.length === 1 ? "" : "s"}
       </p>
-      <Card className="border-border/60 supports-[backdrop-filter]:bg-card/80 backdrop-blur">
+      <Card className="border-border/60">
         <CardHeader className="space-y-1 pb-2">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-wider">
@@ -878,7 +908,7 @@ function CardioTrendTooltip({
     return null;
   }
   return (
-    <div className="border-border/60 bg-popover/95 rounded-md border px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="border-border bg-popover/95 rounded-md border px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {new Date(point.date).toLocaleDateString(undefined, {
           weekday: "short",
@@ -909,7 +939,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
         {entries.length} session{entries.length === 1 ? "" : "s"}
       </p>
       {entries.length === 0 ? (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-border border-dashed">
           <CardContent className="text-muted-foreground py-6 text-center text-sm">
             You haven't logged this exercise yet.
           </CardContent>
@@ -922,11 +952,11 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
             return (
               <li key={entry.id}>
                 <Link
-                  to="/sessions/$sessionId"
+                  to="/train/sessions/$sessionId"
                   params={{ sessionId: entry.workoutSession.id }}
                   className="group block"
                 >
-                  <Card className="border-border/60 group-hover:border-primary/40 supports-[backdrop-filter]:bg-card/80 backdrop-blur transition-colors">
+                  <Card className="border-border group-hover:border-foreground/20 transition-colors">
                     <CardContent className="space-y-3 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 space-y-0.5">
@@ -952,7 +982,7 @@ function CardioHistory({ entries, schema, exerciseName }: CardioHistoryProps) {
                           {cardioEntries.map((e) => (
                             <span
                               key={e.id}
-                              className="border-border/50 bg-muted/40 inline-flex items-baseline gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums"
+                              className="border-border bg-surface-inset inline-flex items-baseline gap-1.5 rounded-md border px-2 py-1 text-xs tabular-nums"
                             >
                               <span className="text-muted-foreground">{e.entryNumber}.</span>
                               {specs.map((spec) => {

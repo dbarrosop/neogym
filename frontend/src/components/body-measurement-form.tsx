@@ -2,6 +2,7 @@ import { type ChangeEvent, type ReactNode, type SubmitEvent, useId, useState } f
 import { FormActions, FormSection } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormPageFormId } from "@/lib/form-page-context";
 
 export interface BodyMeasurementFormValues {
   measuredOn: string;
@@ -37,6 +38,7 @@ export function BodyMeasurementForm({
   isSubmitting,
   extraActions,
 }: BodyMeasurementFormProps) {
+  const formId = useFormPageFormId();
   const [measuredOn, setMeasuredOn] = useState(initialValues.measuredOn);
   const [weightKg, setWeightKg] = useState(initialValues.weightKg);
   const [bodyFatPct, setBodyFatPct] = useState(initialValues.bodyFatPct);
@@ -92,7 +94,7 @@ export function BodyMeasurementForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <FormSection>
         <div className="space-y-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">

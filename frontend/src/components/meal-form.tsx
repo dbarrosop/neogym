@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MacroSummary } from "@/components/macro-summary";
+import { FormActions } from "@/components/patterns/form-actions";
 import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { graphql } from "@/gql";
+import { useFormPageFormId } from "@/lib/form-page-context";
 import { gqlRequest } from "@/lib/graphql";
 import {
   DECIMAL_INPUT_PATTERN,
@@ -101,6 +103,7 @@ export function MealForm({
   onCancel,
   extraActions,
 }: MealFormProps) {
+  const formId = useFormPageFormId();
   const nameId = useId();
   const descriptionId = useId();
   const errorId = useId();
@@ -251,7 +254,7 @@ export function MealForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor={nameId} className="text-sm font-medium">
@@ -305,7 +308,7 @@ export function MealForm({
           ) : null}
 
           {!isLoading && ingredients.length === 0 ? (
-            <Card className="border-border/60 border-dashed">
+            <Card className="border-border border-dashed">
               <CardContent className="py-8 text-center text-sm text-muted-foreground">
                 Add at least one food to define this meal template.
               </CardContent>
@@ -354,17 +357,14 @@ export function MealForm({
           ) : null}
         </section>
 
-        <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>{extraActions}</div>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSubmit}>
-              {isSubmitting ? "Saving…" : submitLabel}
-            </Button>
-          </div>
-        </div>
+        <FormActions
+          submitLabel={submitLabel}
+          isSubmitting={isSubmitting}
+          submitDisabled={isLoading}
+          onCancel={onCancel}
+          extraActions={extraActions}
+          className="border-border border-t pt-4"
+        />
       </form>
       {foodDialog ? (
         <QuickFoodDialog
@@ -415,12 +415,10 @@ function IngredientCard({
   const canEditFood = isEditablePrivateFood(selectedFood);
 
   return (
-    <Card className="border-border/60 bg-muted/20">
+    <Card className="border-border bg-surface-inset">
       <CardContent className="space-y-3 p-3">
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            Ingredient {index + 1}
-          </p>
+          <p className="text-[13px] font-semibold text-muted-foreground">Ingredient {index + 1}</p>
           <div className="flex items-center gap-1">
             <Button
               type="button"

@@ -175,6 +175,21 @@ document.body.append(container);
 const root = createRoot(container);
 const intakeKey = (userId: string) => ["nutrition", "days", today, userId];
 const estimateKey = (userId: string) => ["nutrition", "energy-projection", today, userId];
+const todayKey = ["today", "overview", today, "account-b"];
+
+function cacheFreshToday() {
+  // Today is unmounted while logging, but its overview is still fresh for 30 seconds.
+  client.setQueryData(todayKey, { cached: true });
+  assert.equal(client.getQueryState(todayKey)?.isInvalidated, false);
+}
+
+function assertTodayInvalidated() {
+  assert.equal(
+    client.getQueryState(todayKey)?.isInvalidated,
+    true,
+    "Nutrition writes must invalidate the inactive Today overview even while its data is fresh",
+  );
+}
 const aBalance = {
   userId: "account-a",
   caloriesIn: 600,
@@ -330,9 +345,8 @@ async function foodEditsAndEnsureDay() {
   const intakeRequestCount = requests.filter(
     (request) => request.operation === "DailyIntakeLog",
   ).length;
-  await settle(() =>
-    findElement<HTMLButtonElement>('#intake button[aria-expanded="false"]').click(),
-  );
+  cacheFreshToday();
+  // Logged time slots are always expanded, so the entry's grams button is visible directly.
   await settle(() =>
     findElement<HTMLButtonElement>('#intake button[title="Click to edit grams"]').click(),
   );
@@ -353,6 +367,7 @@ async function foodEditsAndEnsureDay() {
   await waitFor(() => estimateText().includes("≈-200 kcal"));
   assertEstimate("#intake", 2000, -200);
   assertEstimate("#standalone", 2000, -1910);
+  assertTodayInvalidated();
   assert.equal(
     requests.filter((request) => request.operation === "TodayEnergyEstimate").length,
     estimateRequestCount,
@@ -364,6 +379,7 @@ async function foodEditsAndEnsureDay() {
     "The date-prefix invalidation must refetch the owner-scoped day after food edits",
   );
 
+  cacheFreshToday();
   const select = findElement<HTMLSelectElement>(
     '#intake select[aria-label="Selected nutrition plan"]',
   );
@@ -374,6 +390,7 @@ async function foodEditsAndEnsureDay() {
   await waitFor(() => requests.some((request) => request.operation === "UpdateNutritionDayPlan"));
   const update = requests.find((request) => request.operation === "UpdateNutritionDayPlan");
   assert.equal(update?.variables["id"], "account-b-day");
+  assertTodayInvalidated();
   assert(!requests.some((request) => request.operation === "CreateNutritionDay"));
   assert.equal(
     client.getQueryData<{ day: { id: string } }>(intakeKey("account-a"))?.day.id,

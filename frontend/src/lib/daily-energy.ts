@@ -195,6 +195,24 @@ export function calculateDailyEnergyBalance({
   return { caloriesIn, caloriesOut, net, state };
 }
 
+/** Average recorded daily totals, counting missing components on an existing row as zero. */
+export function averageDailyEnergyBurned(
+  entries: readonly {
+    activeKcal?: DailyEnergyNumericValue;
+    restingKcal?: DailyEnergyNumericValue;
+  }[],
+): number | null {
+  if (entries.length === 0) {
+    return null;
+  }
+  const total = entries.reduce(
+    (sum, entry) =>
+      sum + normalizeEnergyNumber(entry.activeKcal) + normalizeEnergyNumber(entry.restingKcal),
+    0,
+  );
+  return total / entries.length;
+}
+
 export function dailyEnergyMutationErrorMessage(error: Error, action: "save" | "delete"): string {
   const message = error.message;
   if (message.includes("daily_energy_user_date_key")) {

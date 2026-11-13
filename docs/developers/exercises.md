@@ -25,6 +25,12 @@ This document covers the catalog shape, the strength/cardio `kind` discriminator
 - Hasura metadata: `backend/nhost/metadata/databases/default/tables/public_exercises.yaml`, `public_exercises_strength.yaml`, `public_exercises_cardio.yaml`.
 - Frontend schema/format library: `frontend/src/lib/cardio-schema.ts` (with `cardio-schema.test.ts`).
 
+## Web catalog recency
+
+Train › Exercises derives its **Recently logged** group and per-row **last …** labels from session-exercises with at least one strength set or cardio entry. The server excludes empty/skipped session-exercises before sorting by session start time and limiting to the 80 most recent qualifying rows. Starting a templated session alone does not mark its exercises as logged; skipped exercises remain in the catalog without gaining a new recency label.
+
+Web workout detail's **Last top set** similarly excludes session-exercises without strength sets on the server before selecting the newest occurrence per exercise across workouts. Any number of newer empty/skipped occurrences cannot hide older logged sets. The label uses the heaviest set in that occurrence, breaking equal-weight ties by reps; no strength history shows “—”, while cardio rows show “Cardio”.
+
 ## The `category` and `kind` fields
 
 `exercises.category` is a text column referencing `public.exercise_categories(value)`. It carries the rich taxonomy: `cardio`, `strength`, `stretching`, `powerlifting`, `plyometrics`, `olympic_weightlifting`, `strongman`. It's catalog metadata — used by the UI for badges/filters and as the input to the kind discriminator below.
@@ -152,7 +158,7 @@ The `x-format` value controls:
 
 - Input mode in `cardio-metrics-form.tsx` (`integer`/`numeric` keyboard vs `decimal` keyboard with comma/dot acceptance; `duration_seconds` renders a 3-field h/m/s input; `average` uses the same numeric keyboard as `integer`).
 - Display formatting in `formatMetricValue()` — `integer` and `average` render without decimals with the unit suffix, `decimal` allows up to two fractional digits, `duration_seconds` renders as `m:ss` / `h:mm:ss` with no unit.
-- Aggregation across entries on `/exercises/$id` (the per-session trend chart). `integer`, `decimal`, and `duration_seconds` are **summed** within a session (4×400m intervals total 1.6 km of `distance_km`); `average` is **averaged** (avg HR across the four intervals, not their sum, which would be meaningless). The caption under the headline number flips between "total across entries" and "average across entries" accordingly. See `aggregationForFormat()` in `cardio-schema.ts`.
+- Aggregation across entries on `/train/exercises/$id` (the per-session trend chart). `integer`, `decimal`, and `duration_seconds` are **summed** within a session (4×400m intervals total 1.6 km of `distance_km`); `average` is **averaged** (avg HR across the four intervals, not their sum, which would be meaningless). The caption under the headline number flips between "total across entries" and "average across entries" accordingly. See `aggregationForFormat()` in `cardio-schema.ts`.
 
 The schema also controls `required` (top-level JSON Schema), `minimum`, `maximum`, and `exclusiveMaximum`, all enforced both on the client (zod via `buildZodSchemaFromMetricsSchema`) and on the server (via the `pg_jsonschema` trigger).
 
@@ -263,7 +269,7 @@ workout_session_cardio_entries (
 )
 ```
 
-The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/sessions/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
+The `entry_number` is per-parent (one cardio session can have entries 1..N), determined client-side as `last_seen_entry_number + 1`. This is racy across devices but the UNIQUE constraint makes the second writer fail loudly; in `CardioExerciseLog` (`frontend/src/routes/_authed/train/sessions/_split/$sessionId.tsx`) the failed mutation surfaces as a `toast.error("Failed: …")` and the user reopens the add-entry dialog to retry — `nextEntryNumber` is recomputed from the (now-invalidated) session query, so the second attempt picks up the winning row's number and succeeds. There is no automatic conflict detection; if cross-device collisions ever become common, the fix is to catch Hasura's `constraint-violation` extension on the insert and re-mutate after invalidating.
 
 Multiple entries per session are a real use case — see the seeded "4×400m intervals" session, which logs the same `workout_session_exercise` four times.
 

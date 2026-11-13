@@ -8,11 +8,11 @@
   };
 
   outputs =
-    {
-      self,
-      nixops,
-      nixpkgs,
-      flake-utils,
+    { self
+    , nixops
+    , nixpkgs
+    , flake-utils
+    ,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -49,6 +49,7 @@
             nhost.biome
             hasura-cli
             bun
+            wrangler
           ]
           ++ lib.optionals (stdenv.isDarwin && pkgs ? xcodegen) [
             xcodegen

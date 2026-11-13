@@ -6,8 +6,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 // import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type { ReactNode } from "react";
-import { Navbar } from "@/components/navbar";
 import { PWAUpdatePrompt } from "@/components/pwa-update-prompt";
+import { AppFrame } from "@/components/shell/app-frame";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/lib/nhost/auth-provider";
 import { ThemeProvider } from "@/lib/theme/theme-provider";
@@ -24,8 +24,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "NeoGym" },
-      { name: "description", content: "Modern training, modern stack." },
-      { name: "theme-color", content: "#18181b" },
+      { name: "description", content: "Training, food and body data in one log." },
+      { name: "theme-color", content: "#09090b" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "NeoGym" },
       {
@@ -61,10 +61,7 @@ function RootDocument({ children }: { children: ReactNode }) {
         <QueryClientProvider client={queryClient}>
           <ThemeProvider>
             <AuthProvider>
-              <div className="flex min-h-dvh flex-col">
-                <Navbar />
-                <main className="flex-1">{children}</main>
-              </div>
+              <AppFrame>{children}</AppFrame>
               <Toaster richColors position="top-right" />
               <PWAUpdatePrompt />
             </AuthProvider>

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
 import { Apple, ChevronRight, Globe2, Plus, Search, User, X } from "lucide-react";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { macroSummary } from "@/lib/nutrition";
+import { useIsSplit } from "@/lib/hooks/use-is-split";
+import { macroSummary, normalizeNumeric } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
 const FoodsIndexQuery = graphql(`
@@ -37,6 +38,8 @@ type Visibility = (typeof visibilityValues)[number];
 const foodsSearchSchema = z.object({
   q: z.string().optional(),
   visibility: z.enum(visibilityValues).optional(),
+  /** Food shown in the side panel from 1100 px; defaults to the first row. */
+  selected: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_authed/nutrition/foods/")({
@@ -113,6 +116,10 @@ function FoodsIndexRoute() {
   }, [foods, searchScores, visibility]);
 
   const isFiltered = search.trim() !== "" || visibility !== null;
+  const split = useIsSplit();
+  const selected = split
+    ? (filteredFoods.find((food) => food.id === searchParams.selected) ?? filteredFoods[0])
+    : undefined;
 
   function setSearchText(value: string) {
     navigate({
@@ -141,7 +148,7 @@ function FoodsIndexRoute() {
     }
     if (filteredFoods.length === 0) {
       return (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
             <p>
               {isFiltered
@@ -152,7 +159,7 @@ function FoodsIndexRoute() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-medium text-link hover:underline"
               >
                 Clear filters
               </button>
@@ -169,34 +176,32 @@ function FoodsIndexRoute() {
       );
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardContent className="px-2 py-2">
-          <ul className="divide-y divide-border/50">
-            {filteredFoods.map((food) => (
-              <FoodRow key={food.id} food={food} />
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <>
+        <div className="flex items-start gap-5">
+          <FoodsTable foods={filteredFoods} selectedId={selected?.id} />
+          {selected ? <FoodPanel food={selected} /> : null}
+        </div>
+        <Card className="py-0 md:hidden">
+          <CardContent className="p-2">
+            <ul className="divide-y divide-border">
+              {filteredFoods.map((food) => (
+                <FoodRow key={food.id} food={food} />
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Foods</h2>
-          <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="max-w-prose text-sm text-muted-foreground">
             Search public foods and your private catalog.
           </p>
         </div>
-        <Button asChild size="sm" className="shrink-0">
-          <Link to="/nutrition/foods/new">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New food</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-        </Button>
       </div>
 
       <div className="space-y-3">
@@ -216,7 +221,7 @@ function FoodsIndexRoute() {
             <button
               type="button"
               onClick={clearAll}
-              className="ml-auto text-xs font-medium text-primary hover:underline"
+              className="ml-auto text-xs font-medium text-link hover:underline"
             >
               Clear all
             </button>
@@ -237,18 +242,18 @@ function FoodsIndexRoute() {
 function SearchBar({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search foods…"
-        className="pr-9 pl-9"
+        className="h-11 rounded-xl bg-card pr-10 pl-10"
       />
       {value ? (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+          className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
           aria-label="Clear search"
         >
           <X className="h-4 w-4" />
@@ -276,13 +281,163 @@ function VisibilityPill({
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "border-primary/40 bg-primary/15 text-primary"
-          : "border-border/60 bg-background/50 text-muted-foreground hover:border-primary/30 hover:text-foreground",
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-border text-muted-foreground hover:text-foreground",
       )}
     >
       <Icon className="h-3 w-3" />
       {label}
     </button>
+  );
+}
+
+const per100Format = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+
+function per100(value: unknown): string {
+  return per100Format.format(normalizeNumeric(value));
+}
+
+/**
+ * Catalog from 768 px: secondary macros appear when the table itself has room,
+ * including beside the split panel. From 1100 px (`selectedId` set) a row
+ * selects the food for the side panel instead of opening its page.
+ */
+function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string | undefined }) {
+  return (
+    <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
+      <table className="w-full text-sm tabular-nums">
+        <thead>
+          <tr className="text-right text-[12px] text-muted-foreground">
+            <th scope="col" className="py-2.5 pl-4 text-left font-medium">
+              Name
+            </th>
+            <th scope="col" className="font-medium">
+              kcal
+            </th>
+            <th scope="col" className="font-medium">
+              Protein
+            </th>
+            <th scope="col" className="font-medium">
+              Carbs
+            </th>
+            <th scope="col" className="pr-4 font-medium @xl:pr-0">
+              Fat
+            </th>
+            <th scope="col" className="hidden font-medium @xl:table-cell">
+              Fiber
+            </th>
+            <th scope="col" className="hidden pr-4 font-medium @xl:table-cell">
+              Sugar
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {foods.map((food) => (
+            <tr
+              key={food.id}
+              className={cn(
+                "border-t text-right hover:bg-surface-inset",
+                food.id === selectedId && "bg-accent-soft/60 hover:bg-accent-soft/60",
+              )}
+            >
+              <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
+                {selectedId === undefined ? (
+                  <Link
+                    to="/nutrition/foods/$foodId"
+                    params={{ foodId: food.id }}
+                    className="block wrap-break-word font-medium hover:text-link"
+                  >
+                    {food.name}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/nutrition/foods"
+                    search={(prev) => ({ ...prev, selected: food.id })}
+                    replace={true}
+                    aria-current={food.id === selectedId ? "true" : undefined}
+                    className="block wrap-break-word font-medium hover:text-link"
+                  >
+                    {food.name}
+                  </Link>
+                )}
+                {food.isPublic ? (
+                  <span className="mt-1 inline-block rounded-full bg-muted px-2 text-[11px] text-muted-foreground">
+                    public
+                  </span>
+                ) : null}
+              </td>
+              <td className="w-16 font-semibold">{per100(food.kcalPer100g)}</td>
+              <td className="w-16">{per100(food.proteinPer100g)}</td>
+              <td className="w-16">{per100(food.carbsPer100g)}</td>
+              <td className="w-16 pr-4 @xl:pr-0">{per100(food.fatPer100g)}</td>
+              <td className="hidden w-16 text-muted-foreground @xl:table-cell">
+                {per100(food.fiberPer100g)}
+              </td>
+              <td className="hidden w-16 pr-4 text-muted-foreground @xl:table-cell">
+                {per100(food.sugarPer100g)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="border-t px-4 py-2 text-[12px] text-muted-foreground">Values per 100 g.</p>
+    </div>
+  );
+}
+
+const PANEL_MACROS = [
+  ["Protein", "proteinPer100g"],
+  ["Carbs", "carbsPer100g"],
+  ["Fat", "fatPer100g"],
+  ["Fiber", "fiberPer100g"],
+  ["Sugar", "sugarPer100g"],
+] as const;
+
+/** The selected food beside the table from 1100 px. */
+function FoodPanel({ food }: { food: Food }) {
+  return (
+    <aside
+      aria-label="Selected food"
+      className="sticky top-6 hidden w-[320px] shrink-0 space-y-4 rounded-xl border border-border bg-card p-5 md:block"
+    >
+      <div className="space-y-1">
+        <p className="text-[13px] text-muted-foreground">
+          {food.isPublic ? "Public" : "Mine"} · per 100 g
+        </p>
+        <h2 className="text-[17px] font-semibold leading-snug">{food.name}</h2>
+      </div>
+      <p className="text-[26px] font-semibold tabular-nums">
+        {per100(food.kcalPer100g)}{" "}
+        <span className="text-sm font-medium text-muted-foreground">kcal</span>
+      </p>
+      <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 text-sm tabular-nums">
+        {PANEL_MACROS.map(([label, key]) => (
+          <Fragment key={key}>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-semibold">{per100(food[key])} g</dd>
+          </Fragment>
+        ))}
+      </dl>
+      <div className="flex gap-2">
+        <Button asChild variant="outline" className="min-h-11 flex-1">
+          <Link to="/nutrition/foods/$foodId" params={{ foodId: food.id }}>
+            Details
+          </Link>
+        </Button>
+        {food.isPublic ? null : (
+          <Button asChild variant="outline" className="min-h-11 flex-1">
+            <Link to="/nutrition/foods/$foodId/edit" params={{ foodId: food.id }}>
+              Edit
+            </Link>
+          </Button>
+        )}
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        {food.isPublic
+          ? "Public foods are read-only. Create a private food to change values."
+          : "Editing a food never changes days already logged; they keep their snapshot."}
+      </p>
+    </aside>
   );
 }
 
@@ -292,10 +447,10 @@ function FoodRow({ food }: { food: Food }) {
       <Link
         to="/nutrition/foods/$foodId"
         params={{ foodId: food.id }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
+        className="group flex min-h-16 items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-muted/60"
       >
         <span className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-soft-foreground">
             <Apple className="h-4 w-4" />
           </span>
           <span className="min-w-0 space-y-1">
@@ -324,7 +479,7 @@ function FoodRow({ food }: { food: Food }) {
 
 function FoodsSkeleton() {
   return (
-    <Card className="border-border/60">
+    <Card className="py-0">
       <CardContent className="space-y-3 p-4">
         {[0, 1, 2, 3].map((item) => (
           <div key={item} className="flex items-center gap-3">

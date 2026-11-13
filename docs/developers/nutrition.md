@@ -34,6 +34,10 @@ Template FKs intentionally restrict deletion: a food used by any `meal_ingredien
 
 `nutrition_days` is one private row per `(user_id, log_date)`. `nutrition_plan_id` is nullable and uses `ON DELETE SET NULL`: it records which template was selected as suggestions, not a scheduled assignment or binding contract.
 
+Web daily-log writes invalidate both the nutrition day queries and the `["today"]` overview prefix,
+including selected-plan changes and clearing a day. This keeps Today's intake and selected-plan
+summary fresh on return even within the app-wide 30-second query freshness window.
+
 `nutrition_log_meals` is an optional group/provenance row for a logged meal. It may point at a source `meal` and/or `nutrition_plan_meal`, but both FKs use `ON DELETE SET NULL` so historical logs remain if templates are deleted. `name` is a client-copied display snapshot. `slot_time` is the actual logged time-of-day chosen by the user, defaulting to now; for planned meals it must not be copied blindly from the template slot time.
 
 `nutrition_log_entries` stores the actual consumed food rows. Each row has `source = 'food' | 'ad_hoc'` so the database can distinguish a reusable-food snapshot from a one-off snapshot even after a source food is deleted and `food_id` becomes null. Standalone entries have `nutrition_log_meal_id IS NULL` and their own `slot_time` logged time-of-day, defaulting to now; user-role updates can correct `grams`, `position`, and `slot_time`. Direct plan-food logs are standalone food-backed entries with nullable `nutrition_plan_food_id` provenance; the database rejects combining that provenance with a logged meal group and rejects any row whose `food_id` differs from the referenced plan food. Ad-hoc rows are standalone only (`food_id IS NULL`, `nutrition_plan_food_id IS NULL`, and `nutrition_log_meal_id IS NULL`) and users provide/edit their own snapshot name and per-100g nutrients. Grouped entries use the composite FK `(nutrition_log_meal_id, nutrition_day_id) -> nutrition_log_meals(id, nutrition_day_id) ON DELETE CASCADE`; their display time comes from the parent logged meal group, whose `slot_time` is also user-editable. That FK both cascades group deletes and rejects a child entry whose group belongs to a different day. Day-scoped log ordering indexes lead with `(nutrition_day_id, slot_time, position, id)` for both meal groups and log entries so the database supports the slot-time-first daily intake display.
@@ -116,14 +120,33 @@ Direct individual plan-food logging uses a standalone food-backed `insertNutriti
 Daily plan logging only uses the `nutrition_days.nutrition_plan_id` selected for that day. If no
 plan is selected, clients hide plan-entry logging tabs/segments and suggestions entirely. If a plan
 is selected, clients show its meal and direct-food suggestions grouped by normalized plan time slot.
-The selected-plan section and each time slot are collapsible, and the plan picker lives inside that
-selected-plan section. Clients no longer expose a whole-plan **Log selected plan** action; instead,
-each time slot has its own Log action that materializes every planned meal/food in that slot in one
-combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
+Each time slot keeps its own Log action regardless of existing intake, including unrelated items,
+partial slot logs, or a fully logged slot at the same time. Clients no longer expose a whole-plan
+**Log selected plan** action; each slot action materializes every planned meal/food in that slot in
+one combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
 default to the current time, and every entry in that slot receives the same actual logged time. Empty
 planned meals fail the slot action before sending so the operation stays all-or-nothing from the
 client perspective. Re-running slot logging appends duplicate logged meals/entries, matching existing
 planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
+
+On the web, the day log is an always-expanded timeline: solid **Logged** cards contain actual intake,
+and dashed **Planned** cards retain their **Log slot** action and full entry list. Individual-entry and
+logged-meal delete controls have a non-shrinking 44 px target and require confirmation naming the
+entry or meal; meal confirmations also name the number of entries that cascade with it. Cancelling
+leaves the log unchanged. Confirmations close after a successful delete and stay open on failure for
+retry, preserving the original snapshots until deletion succeeds. The inline grams-edit trigger is
+also at least 44 px tall and wide. A planned card follows the logged card when their
+normalized times match, including legacy no-time slots. In that case its **Log slot** is an outline
+button rather than the primary one, and it asks first: the confirmation says food is already logged at
+that time (or without a time) and how many planned items will be added where; cancelling writes
+nothing. A matching time does not prove the plan was followed, so neither the card nor the dialog
+claims the slot is done. Slots with nothing logged at their time keep the primary one-tap action. The plan
+picker lives in the day summary rail; **No plan** clears the selection. Today's **Next in plan** links
+to the day log and names the first timed selected-plan slot after the current local minute,
+regardless of existing intake. It resamples local time once a minute and on focus/visibility changes;
+it is a clock-based suggestion, not a claim that a slot remains unlogged.
+The legacy iOS day log instead has a collapsible selected-plan section with its picker inside;
+each planned slot is also collapsible and keeps its own Log action.
 
 Metadata footgun: `nutrition_log_entries.nutrition_day_id` participates in both the direct day FK and the composite same-day group FK. Nhost GraphQL/Constellation can choose the wrong FK or generate ambiguous SQL if those relationships are auto-tracked from constraints. The metadata therefore uses manual relationships for `nutritionLogEntry.nutritionDay`, `nutritionLogEntry.nutritionLogMeal`, `nutritionDay.nutritionLogEntries`, and `nutritionLogMeal.nutritionLogEntries`; keep that explicit mapping if you regenerate or edit metadata. The `nutritionLogEntry.nutritionPlanFood` relationship is an additional simple FK relationship and does not replace those manual mappings.
 

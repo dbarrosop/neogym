@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { describeTrend } from "@/lib/chart-trend";
 
 export interface BodyMetricsPoint {
   /** ms since epoch — recharts time-scale axis */
@@ -22,16 +23,32 @@ interface BodyMetricsChartProps {
 }
 
 const WEIGHT_COLOR = "var(--color-chart-1)";
-const FAT_COLOR = "var(--color-chart-2)";
+// Series 2 orange is fill-only. Body fat is a line with its own axis labels, so it
+// uses the neutral series, which meets text and graphics contrast in both themes.
+const FAT_COLOR = "var(--color-chart-3)";
 
 export function BodyMetricsChart({ points }: BodyMetricsChartProps) {
+  const label = [
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.weightKg })),
+      { label: "Weight", unit: "kg" },
+    ),
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.bodyFatPct })),
+      { label: "Body fat", unit: "%" },
+    ),
+  ].join(" ");
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <LineChart
+          data={points}
+          aria-label={label}
+          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+        >
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
           <XAxis
             dataKey="date"
@@ -123,7 +140,7 @@ function MetricsTooltip({ active, payload }: Partial<TooltipContentProps<number,
   }
   const date = new Date(point.date);
   return (
-    <div className="space-y-0.5 rounded-md border border-border/60 bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="space-y-0.5 rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {date.toLocaleDateString(undefined, {
           weekday: "short",
@@ -133,13 +150,13 @@ function MetricsTooltip({ active, payload }: Partial<TooltipContentProps<number,
         })}
       </p>
       {point.weightKg === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: WEIGHT_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Weight: </span>
           {point.weightKg.toFixed(2)} kg
         </p>
       )}
       {point.bodyFatPct === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: FAT_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Body fat: </span>
           {point.bodyFatPct.toFixed(1)} %
         </p>

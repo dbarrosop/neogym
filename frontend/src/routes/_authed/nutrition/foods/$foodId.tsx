@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Apple, Globe2, Pencil, User } from "lucide-react";
+import { PageShell } from "@/components/patterns/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,7 +59,7 @@ function FoodDetailRoute() {
     const macros = normalizeMacros(food);
 
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <Card className="border-border/60">
         <CardHeader className="space-y-3 pb-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
@@ -110,12 +111,16 @@ function FoodDetailRoute() {
     );
   }
 
-  return <div className="space-y-4">{renderContent()}</div>;
+  return (
+    <PageShell maxWidth="4xl">
+      <div className="space-y-4">{renderContent()}</div>
+    </PageShell>
+  );
 }
 
 function MacroTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border/60 bg-muted/20 px-3 py-2">
+    <div className="rounded-md border border-border bg-surface-inset px-3 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="font-medium tabular-nums">{value}</dd>
     </div>

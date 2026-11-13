@@ -50,17 +50,14 @@ export function MacroSummary({
   }
 
   return (
-    <section className="rounded-lg border border-border/60 bg-muted/20 p-4">
+    <section className="rounded-xl border bg-card p-4">
       <div className="space-y-1">
         <h2 className="text-sm font-medium">{title ?? "Totals"}</h2>
         {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
         {MACRO_TILES.map((tile) => (
-          <div
-            key={tile.key}
-            className="rounded-md border border-border/60 bg-background/70 px-3 py-2"
-          >
+          <div key={tile.key} className="rounded-lg bg-surface-inset px-3 py-2">
             <dt className="text-xs text-muted-foreground">{tile.label}</dt>
             <dd className="font-medium tabular-nums">
               {targetTotals

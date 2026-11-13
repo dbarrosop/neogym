@@ -34,7 +34,7 @@ Sessions can be started in two shapes. The same `insertWorkoutSession` mutation 
 
 ### 1. From a workout (templated)
 
-The user picks a workout on `/workouts/$workoutId` and taps **Start session**. `useStartSession` is called with `{ workoutId, exercises: [{exerciseId, position}, ...] }` (the caller copies the workout's `workout_exercises` into `workoutSessionExercises.data` via a nested insert).
+The user picks a workout on `/train/workouts/$workoutId` and taps **Start session**. `useStartSession` is called with `{ workoutId, exercises: [{exerciseId, position}, ...] }` (the caller copies the workout's `workout_exercises` into `workoutSessionExercises.data` via a nested insert).
 
 ```ts
 startSession.mutate({
@@ -50,7 +50,7 @@ The mutation inserts the `workout_sessions` row **and** seeds the session's exer
 
 ### 2. Ad-hoc (no workout)
 
-The user opens an exercise on `/exercises/$exerciseId` (or any cardio detail page) and taps **Start session**. `useStartSession` is called with `{ exerciseId }`:
+The user opens an exercise on `/train/exercises/$exerciseId` (or any cardio detail page) and taps **Start session**. `useStartSession` is called with `{ exerciseId }`:
 
 ```ts
 startSession.mutate({ exerciseId: exercise.id });
@@ -58,7 +58,7 @@ startSession.mutate({ exerciseId: exercise.id });
 
 This produces a session with `workout_id = NULL` and a single `workout_session_exercise` at `position: 0` for that exercise. The user can then add more exercises from the session detail page.
 
-In both cases, `useStartSession` navigates to `/sessions/$sessionId` without `replace`, so back-navigation lands on the originating workout/exercise detail page. The originating page is a legit destination, not a "spent" form/picker, so the CLAUDE.md `replace: true` rule does not apply here.
+In both cases, `useStartSession` navigates to `/train/sessions/$sessionId` without `replace`, so back-navigation lands on the originating workout/exercise detail page. The originating page is a legit destination, not a "spent" form/picker, so the CLAUDE.md `replace: true` rule does not apply here.
 
 ## The workout link is a template, not a contract
 
@@ -74,10 +74,10 @@ Concretely:
 The workout reference is therefore best thought of as a label/seed, used by the UI to:
 
 - Pre-fill the exercise list at session creation.
-- Render the workout's name on `/sessions` and `/sessions/$sessionId` (via `sessionDisplayName()`).
+- Render the workout's name on `/train/sessions` and `/train/sessions/$sessionId` (via `sessionDisplayName()`).
 - Show a "session of X" attribution in exercise history.
 
-It is **not** used to validate the session's contents, suggest sets/reps, or constrain edits.
+It is **not** used to validate the session's contents or constrain edits. The web's logging hints use earlier logged history linked to the same current workout (see “Editing a session” below), not the template's exercise list or prescribed sets/reps.
 
 ### What happens if the workout is deleted
 
@@ -103,13 +103,13 @@ The user-role insert permission columns deliberately exclude the discriminator c
 - `exercise.kind === 'cardio'` → render the `CardioExerciseLog` row (uses `workout_session_cardio_entries`, reading the per-exercise schema from `exercise.cardio.metricsSchema`).
 - Otherwise → render the strength `ExerciseLog` row (uses `workout_session_strength_sets`, reading `exercise.strength?.doubleWeight` for the per-side multiplier).
 
-This branch is in `frontend/src/routes/_authed/sessions/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
+This branch is in `frontend/src/routes/_authed/train/sessions/_split/$sessionId.tsx`'s `ExerciseRow` component. **The database enforces the split symmetrically** via composite FKs to `workout_session_exercises(id, kind)` — strength sets can only attach to strength session-exercises, cardio entries can only attach to cardio ones. Inserting a `workout_session_set` against a cardio session-exercise is an FK violation (`23503`), not a permission error and not a runtime check. See `exercises.md` → "How the strength/cardio split is enforced structurally" for the full pattern.
 
 ### Why `workout_session_exercises.exercise_id` is immutable for the user role
 
 The `update_permissions.columns` list for the `user` role on `workout_session_exercises` is just `position` — `exercise_id` is **not** updatable. Inserts and deletes are allowed; reordering is allowed; re-pointing an existing row at a different exercise is not.
 
-This closes a kind-mismatch loophole. If `exercise_id` were updatable, swapping it would change `kind` (the sync trigger fires on `UPDATE OF exercise_id`), but the children (sets/cardio entries) attached to that session-exercise would still have their old `parent_kind`. The composite FK would then fail the update — not silently bad, but a confusing error path. By keeping `exercise_id` immutable for users, the only way to switch which exercise a row points at is delete + insert, which cascades to the children. This matches the Add/Remove UX in `/sessions/$sessionId`.
+This closes a kind-mismatch loophole. If `exercise_id` were updatable, swapping it would change `kind` (the sync trigger fires on `UPDATE OF exercise_id`), but the children (sets/cardio entries) attached to that session-exercise would still have their old `parent_kind`. The composite FK would then fail the update — not silently bad, but a confusing error path. By keeping `exercise_id` immutable for users, the only way to switch which exercise a row points at is delete + insert, which cascades to the children. This matches the Add/Remove UX in `/train/sessions/$sessionId`.
 
 ## Display names
 
@@ -137,15 +137,19 @@ Migration `1793029694424_strength_progress` adds the tracked `strengthProgress(a
 
 `StrengthProgressBuilder` only groups the server totals into local calendar weeks and selects exercises logged during the last ten local dates (today plus nine preceding dates); their charts retain all loaded history. Empty intervening weeks are zero-filled. The first week may be partial at the requested history boundary and is labeled accordingly. A null load-based e1RM is omitted rather than invented for bodyweight/zero-rep-only entries. Stretching remains included in this ordinary strength report, unlike the Muscle sets exclusion. Both panes share `ProgressHistoryViewModel`'s 180-day default, 366-date cap, bounded default-day SDK cache-only fallback plus exact-key revalidation, prior-day/partial-history labels, cancellation/version guards, and foreground-day refresh behavior; no retired raw-set Progress query or app-owned snapshot returns.
 
+On the web, Progress › Strength uses the same `useLocalToday()` date for the query range, Monday-based weekly buckets, and ten-local-date recent-exercise window. The grouping anchor is parsed as a local date, not UTC, and advances with the query at midnight or on focus/visibility returns without remounting the page.
+
 ### Shared workout and exercise strength reports
 
 Migration `1790000580000_strength_reporting` defines an untracked, non-materialized `strength_set_report_facts` SQL view as the common calculation for reps, volume, and estimated 1RM. **Use the tracked root functions** `workoutStrengthReport(args: {workout_id, from_day, through_day, time_zone})` and `exerciseStrengthReport(args: {exercise_id, from_day, through_day, time_zone})` for app reports (migration `1790000590000`); they work through both local Constellation and Hasura. They return **one row per session currently linked to that workout**, including strength-free sessions with zero totals, or **one row per session containing that strength exercise** (even if logged twice in a session); a strength exercise with no sets gets zero totals and a null estimate. Both return session IDs and timestamps and expose a `workoutSession` relationship. The nested `workouts.strengthHistory(args: {from_at, before_at})` and `exercises.strengthHistory(...)` computed fields delegate to the same calculation. Both checked-in user SDLs (`backend/schemas/schema.hasura.user.graphqls` and the canonical app schema `backend/schemas/schema.nhost.user.graphqls`) include these computed fields and the tracked roots. Their `*_strength_history_rows` tables are empty return shapes, not stored summaries.
+
+The web workout detail uses `workoutStrengthReport` for its volume chart: up to six sessions with positive volume, filtered on the server before the newest-first limit, within the last 366 inclusive local dates, using the browser's IANA time zone. Empty, cardio-only, and zero-load/bodyweight-only sessions do not use the chart's six slots; when no sessions have positive volume the chart is hidden and any workout notes remain visible. Bars share a zero baseline and a common plotting height so their heights are proportional to volume. Value and date captions wrap within shared grid rows at narrow widths without overlapping adjacent captions or changing individual plot heights. Its query key includes the workout, current local date, zone, and user, so crossing midnight or switching accounts cannot reuse a differently scoped report. The chart labels the past-year window. Do not send `strengthHistory(args: {})`: although the computed-field input fields are nullable in the SDL, the SQL arguments have no defaults and both non-null absolute boundaries are required. Omission fails with `Non default arguments cannot be omitted`; explicit nulls fail the SQL range check. Prefer the report roots' required date/zone arguments for app queries.
 
 The `user` role has no insert roots for these return shapes; admin does, but actual inserts fail their `*_no_storage` CHECKs. Hasura reports these CHECK failures as `permission-error` with a `Check constraint violation` message, not `constraint-violation`. Permission tests should first confirm the exact insert root in admin introspection, then assert its absence as `user` and the named CHECK failure on an admin insert; a misspelled root or a catalog-only CHECK lookup does not prove either boundary.
 
 The configured Constellation version is defined in `backend/nhost/nhost.toml`. A pin change does not update an already-running service or establish that the new binary has the same schema. After restarting the authorized local stack with the configured binary, verify the `user` schema exposes the workout/exercise roots, `strengthProgress`, and both nested `strengthHistory` fields before claiming compatibility, then refresh snapshots through the documented `make schema` / `bun run codegen` pipeline as appropriate. Checked-in SDLs and introspection of an older running service confirm only their respective schema contracts, not a fresh boot of the newly configured version.
 
-Each point has `loggedSets` (includes zero-rep sets), `completedSets` (`reps > 0`), `reps` (sum), and `volume` (sum of `reps × recorded weight`, doubled when the exercise has `strength.double_weight`). Only exercise points carry `estimatedOneRepMax`: the **maximum** per-set estimate for that exercise in that session. A one-rep set uses its actual recorded weight; for two or more reps Epley is `weight × (1 + reps / 30)`. Zero-rep and zero-weight/bodyweight sets cannot provide a load-based estimate and leave it null when there is no other eligible set. Double-weight affects volume only; the estimate stays per recorded side. These are descriptive values, not prescriptions or a meaningful workout-wide combined 1RM. Existing web charts and native exercise-detail history charts temporarily compute the same formulas locally until they are migrated to server report fields; the restored Strength Progress charts use server report values.
+Each point has `loggedSets` (includes zero-rep sets), `completedSets` (`reps > 0`), `reps` (sum), and `volume` (sum of `reps × recorded weight`, doubled when the exercise has `strength.double_weight`). Only exercise points carry `estimatedOneRepMax`: the **maximum** per-set estimate for that exercise in that session. A one-rep set uses its actual recorded weight; for two or more reps Epley is `weight × (1 + reps / 30)`. Zero-rep and zero-weight/bodyweight sets cannot provide a load-based estimate and leave it null when there is no other eligible set. Double-weight affects volume only; the estimate stays per recorded side. These are descriptive values, not prescriptions or a meaningful workout-wide combined 1RM. Web and native exercise-detail history charts temporarily compute the same formulas locally until they are migrated to server report fields; the web workout-detail volume chart and restored Strength Progress charts use server report values.
 
 The app-facing root functions require a valid IANA time zone and an inclusive local-day interval of at most 366 dates; they convert those boundaries to an absolute half-open interval so midnight/DST behave correctly while each point retains `started_at`. The nested computed fields instead accept a half-open absolute-time range (`from_at <= started_at < before_at`) up to 367 days. All functions receive `hasura_session` from GraphQL, not the client. They filter `workout_sessions.user_id` in SQL even when the selected workout/exercise is public; the result shapes also have owner-scoped `user` select permissions. The workout grouping uses the **current nullable `workout_id`**, not an immutable creation provenance. Editing or deleting sessions/sets, changing that link, or changing `double_weight` recalculates reports on read. Keep the tracked roots as the app-facing local-day contract; benchmark before nesting computed fields on large workout/exercise lists. Muscle-by-day credits remain in `muscleSetProgress` with different qualifying-set semantics and local-day windows.
 
@@ -158,5 +162,13 @@ The session detail page supports:
 - Adding/updating/removing `workout_session_strength_sets` (strength).
 - Adding/updating/removing `workout_session_cardio_entries` (cardio).
 - Deleting the entire session.
+
+On the web, each exercise's **Last time** uses its most recent logged occurrence strictly before the current session's `startedAt`. Skipped occurrences (no strength sets or cardio entries) are excluded before limiting results. For a templated session, history from the same current workout takes precedence even when several newer sessions from other workouts exist; if none has logged entries, it falls back to earlier exercise history across workouts. Ad-hoc sessions always use that exercise history. Strength comparisons and first-set prefill, strength/cardio status, and automatic expansion/collapse all use this same selected history. The comparison at the end of a templated session also lists only sessions strictly before the current start. Changing the date or workout link re-keys the affected history queries.
+
+Web logged strength sets have one native edit button spanning the full table row, including the visible pencil, so tapping anywhere on a set opens its edit/delete dialog and keyboard users reach it once. Next-set stepper controls, **Log set**, and exercise collapse/remove buttons have touch targets of at least 44 CSS pixels. Stepper buttons and inputs set their own height rather than inheriting it from the bordered wrapper, so the border does not shrink their targets.
+
+Strength insert/update/delete mutations stay pending through the session-detail refetch; inline logging retains the submitted draft until that refetch settles so repeat clicks or Enter cannot submit the stale next-set number while it is loading. The next-set controls remain editable during the pending request; success clears only an unchanged submitted draft, preserving weight or reps prepared for the next set. The rest timer starts immediately after a successful insert, without waiting for the refetch; list, exercise-detail, workout-detail (volume chart and **Last top set**), Today and Progress (Muscles/Strength) invalidations run independently. Session date edits, exercise changes and whole-session deletion also invalidate workout-detail and Progress so returning to a recently cached report revalidates its aggregates. Starting a session invalidates the workout-detail and last-sets caches too, without invalidating the session-independent workouts index.
+
+The session detail opens the first exercise that has not reached this reference's nonzero set/entry count. This is a presentation hint, not a prescribed target or stored completion state. With no logged earlier history or unavailable history, an exercise remains in progress after logging: its next-set row or cardio **Add entry** action stays open for repeated logging until the user manually collapses it. Manual expand/collapse choices take precedence. The same reference-count rule controls both automatic collapse and the collapsed row's status for strength and cardio.
 
 Reordering `workout_session_exercises` is not currently exposed in the UI but is permitted by the schema (`position` is updatable and the `(workout_session_id, position)` uniqueness is `DEFERRABLE INITIALLY DEFERRED`). `position` is the **only** column the user role can update on `workout_session_exercises` — `exercise_id` is immutable post-insert (see "Why `workout_session_exercises.exercise_id` is immutable for the user role" above). To change which exercise a row points at, delete it and add a new one.

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import Fuse from "fuse.js";
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
+import { CardioTag } from "@/components/exercise-kind-tag";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ const ExercisePickerQuery = graphql(`
     exercises(order_by: { name: asc }) {
       id
       name
+      kind
       primaryMuscleGroup
       strength { doubleWeight }
     }
@@ -24,6 +26,7 @@ const ExercisePickerQuery = graphql(`
 export interface PickerSelection {
   exerciseId: string;
   name: string;
+  kind: string;
   primaryMuscleGroup: string;
   doubleWeight: boolean;
 }
@@ -54,6 +57,8 @@ export function ExercisePicker({
       (data?.exercises ?? []).map((ex) => ({
         id: ex.id,
         name: ex.name,
+        // `kind` is a generated column, so the API marks it nullable.
+        kind: ex.kind ?? "strength",
         primaryMuscleGroup: ex.primaryMuscleGroup,
         doubleWeight: ex.strength?.doubleWeight ?? false,
       })),
@@ -90,6 +95,7 @@ export function ExercisePicker({
         next.set(ex.id, {
           exerciseId: ex.id,
           name: ex.name,
+          kind: ex.kind,
           primaryMuscleGroup: ex.primaryMuscleGroup,
           doubleWeight: ex.doubleWeight,
         });
@@ -117,7 +123,7 @@ export function ExercisePicker({
         />
       </div>
 
-      <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border/40">
+      <div className="max-h-[50vh] overflow-y-auto rounded-md border border-border">
         <PickerBody
           isLoading={isLoading}
           errorMessage={error?.message ?? null}
@@ -143,6 +149,7 @@ export function ExercisePicker({
 interface PickerExercise {
   id: string;
   name: string;
+  kind: string;
   primaryMuscleGroup: string;
   doubleWeight: boolean;
 }
@@ -180,7 +187,7 @@ function PickerBody({
     return <p className="p-6 text-center text-sm text-muted-foreground">No matching exercises.</p>;
   }
   return (
-    <ul className="divide-y divide-border/40">
+    <ul className="divide-y divide-border">
       {exercises.map((ex) => {
         const isAlready = alreadySelected.has(ex.id);
         const isPicked = picked.has(ex.id);
@@ -194,7 +201,7 @@ function PickerBody({
                 "flex w-full items-center gap-3 px-3 py-2 text-left transition-colors",
                 isAlready
                   ? "cursor-not-allowed opacity-60"
-                  : "hover:bg-accent/40 focus:bg-accent/40",
+                  : "hover:bg-muted/60 focus:bg-accent/40",
                 isPicked && "bg-primary/10",
               )}
             >
@@ -204,7 +211,7 @@ function PickerBody({
                   isPicked
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/70",
-                  isAlready && "border-border/40",
+                  isAlready && "border-border",
                 )}
               >
                 {isPicked ? "✓" : ""}
@@ -215,6 +222,7 @@ function PickerBody({
                   {formatMuscle(ex.primaryMuscleGroup)}
                 </p>
               </div>
+              {ex.kind === "cardio" ? <CardioTag /> : null}
               {isAlready ? (
                 <Badge variant="outline" className="text-[10px]">
                   Added

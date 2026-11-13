@@ -1,6 +1,7 @@
 import { type SubmitEvent, useId, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { FormActions } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
+import { useFormPageFormId } from "@/lib/form-page-context";
 import {
   DECIMAL_INPUT_PATTERN,
   NUTRIENT_FIELDS,
@@ -39,6 +40,7 @@ export function FoodForm({
   onCancel,
   extraActions,
 }: FoodFormProps) {
+  const formId = useFormPageFormId();
   const nameId = useId();
   const nameErrorId = useId();
   const baseNutrientId = useId();
@@ -103,7 +105,7 @@ export function FoodForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor={nameId} className="text-sm font-medium">
@@ -173,17 +175,14 @@ export function FoodForm({
         </div>
       </div>
 
-      <div className="flex flex-col-reverse gap-2 border-border/60 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>{extraActions}</div>
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-      </div>
+      <FormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        submitDisabled={false}
+        onCancel={onCancel}
+        extraActions={extraActions}
+        className="border-border border-t pt-4"
+      />
     </form>
   );
 }

@@ -1,14 +1,16 @@
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Legend,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   type TooltipContentProps,
   XAxis,
   YAxis,
 } from "recharts";
+import { describeTrend } from "@/lib/chart-trend";
 
 export interface DailyEnergyPoint {
   /** ms since epoch — recharts time-scale axis */
@@ -21,17 +23,31 @@ interface DailyEnergyChartProps {
   points: DailyEnergyPoint[];
 }
 
-const ACTIVE_COLOR = "var(--color-chart-1)";
-const RESTING_COLOR = "var(--color-chart-2)";
+const ACTIVE_COLOR = "var(--color-chart-2)";
+const RESTING_COLOR = "var(--color-chart-1)";
 
 export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
+  const label = [
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.activeKcal })),
+      { label: "Active energy", unit: "kcal" },
+    ),
+    describeTrend(
+      points.map((point) => ({ date: point.date, value: point.restingKcal })),
+      { label: "Resting energy", unit: "kcal" },
+    ),
+  ].join(" ");
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <div className="h-56 w-full">
       <ResponsiveContainer>
-        <LineChart data={points} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+        <ComposedChart
+          data={points}
+          aria-label={label}
+          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+        >
           <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
           <XAxis
             dataKey="date"
@@ -47,7 +63,7 @@ export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
             height={20}
           />
           <YAxis
-            domain={["auto", "auto"]}
+            domain={[0, "auto"]}
             tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
             tickLine={false}
             axisLine={false}
@@ -61,18 +77,21 @@ export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
             }}
             content={<EnergyTooltip />}
           />
-          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} iconType="plainline" />
-          <Line
+          <Legend content={<EnergyLegend />} />
+          <Area
             name="Active (kcal)"
             type="monotone"
             dataKey="activeKcal"
-            stroke={ACTIVE_COLOR}
+            fill={ACTIVE_COLOR}
+            fillOpacity={0.25}
+            // Orange is fill-only: a neutral outline keeps the trend legible in light mode.
+            stroke="var(--color-muted-foreground)"
             strokeWidth={2}
             dot={false}
             activeDot={{
               r: 3.5,
               fill: ACTIVE_COLOR,
-              stroke: "var(--color-background)",
+              stroke: "var(--color-muted-foreground)",
               strokeWidth: 2,
             }}
             connectNulls
@@ -94,9 +113,32 @@ export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
             connectNulls
             isAnimationActive={false}
           />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
+  );
+}
+
+function EnergyLegend() {
+  return (
+    <ul className="flex justify-center gap-3 pt-1 text-[11px] text-foreground">
+      <li className="inline-flex items-center gap-1">
+        <span
+          aria-hidden="true"
+          className="h-2.5 w-3.5 border border-muted-foreground"
+          style={{ backgroundColor: ACTIVE_COLOR }}
+        />
+        Active (kcal)
+      </li>
+      <li className="inline-flex items-center gap-1">
+        <span
+          aria-hidden="true"
+          className="w-3.5 border-t-2"
+          style={{ borderColor: RESTING_COLOR }}
+        />
+        Resting (kcal)
+      </li>
+    </ul>
   );
 }
 
@@ -110,7 +152,7 @@ function EnergyTooltip({ active, payload }: Partial<TooltipContentProps<number, 
   }
   const date = new Date(point.date);
   return (
-    <div className="space-y-0.5 rounded-md border border-border/60 bg-popover/95 px-2.5 py-1.5 text-xs shadow-md backdrop-blur">
+    <div className="space-y-0.5 rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
       <p className="text-muted-foreground">
         {date.toLocaleDateString(undefined, {
           weekday: "short",
@@ -120,13 +162,13 @@ function EnergyTooltip({ active, payload }: Partial<TooltipContentProps<number, 
         })}
       </p>
       {point.activeKcal === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: ACTIVE_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Active: </span>
           {point.activeKcal.toFixed(0)} kcal
         </p>
       )}
       {point.restingKcal === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: RESTING_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Resting: </span>
           {point.restingKcal.toFixed(0)} kcal
         </p>

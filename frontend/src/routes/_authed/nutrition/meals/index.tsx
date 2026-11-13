@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
-import { macroTotalsSummary, mealMacroTotals } from "@/lib/nutrition";
+import { useIsSplit } from "@/lib/hooks/use-is-split";
+import { formatMacro, macroTotalsSummary, mealMacroTotals } from "@/lib/nutrition";
+import { cn } from "@/lib/utils";
 
 const MealsIndexQuery = graphql(`
   query MealsIndex {
@@ -41,6 +43,8 @@ const MealsIndexQuery = graphql(`
 
 const mealsSearchSchema = z.object({
   q: z.string().optional(),
+  /** Meal shown in the side panel from 1100 px; defaults to the first row. */
+  selected: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_authed/nutrition/meals/")({
@@ -98,6 +102,10 @@ function MealsIndexRoute() {
     }
     return fuse.search(trimmed).map((match) => match.item);
   }, [fuse, meals, search]);
+  const split = useIsSplit();
+  const selected = split
+    ? (filteredMeals.find((meal) => meal.id === searchParams.selected) ?? filteredMeals[0])
+    : undefined;
 
   function setSearchText(value: string) {
     navigate({
@@ -119,7 +127,7 @@ function MealsIndexRoute() {
     }
     if (filteredMeals.length === 0) {
       return (
-        <Card className="border-border/60 border-dashed">
+        <Card className="border-dashed">
           <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
             <p>
               {search.trim()
@@ -130,7 +138,7 @@ function MealsIndexRoute() {
               <button
                 type="button"
                 onClick={clearSearch}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-medium text-link hover:underline"
               >
                 Clear search
               </button>
@@ -147,15 +155,21 @@ function MealsIndexRoute() {
       );
     }
     return (
-      <Card className="border-border/60 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <CardContent className="px-2 py-2">
-          <ul className="divide-y divide-border/50">
-            {filteredMeals.map((meal) => (
-              <MealRow key={meal.id} meal={meal} />
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <>
+        <div className="flex items-start gap-5">
+          <MealsTable meals={filteredMeals} selectedId={selected?.id} />
+          {selected ? <MealPanel meal={selected} /> : null}
+        </div>
+        <Card className="py-0 md:hidden">
+          <CardContent className="p-2">
+            <ul className="divide-y divide-border">
+              {filteredMeals.map((meal) => (
+                <MealRow key={meal.id} meal={meal} />
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      </>
     );
   }
 
@@ -169,36 +183,29 @@ function MealsIndexRoute() {
   );
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">Meals</h2>
-          <p className="text-sm text-muted-foreground">
-            Compose reusable private meal templates from your foods and public foods.
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="max-w-prose text-sm text-muted-foreground">
+            Reusable private meal templates from your foods and public foods. Totals are per whole
+            meal, from live food values.
           </p>
         </div>
-        <Button asChild size="sm" className="shrink-0">
-          <Link to="/nutrition/meals/new">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New meal</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-        </Button>
       </div>
 
       <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
           onChange={(event) => setSearchText(event.target.value)}
           placeholder="Search meals or ingredients…"
-          className="pr-9 pl-9"
+          className="h-11 rounded-xl bg-card pr-10 pl-10"
         />
         {search ? (
           <button
             type="button"
             onClick={() => setSearchText("")}
-            className="absolute top-1/2 right-2.5 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
             aria-label="Clear search"
           >
             <X className="h-4 w-4" />
@@ -224,6 +231,160 @@ function MealsIndexRoute() {
   );
 }
 
+const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+
+function mealTotals(meal: Meal) {
+  return mealMacroTotals(
+    meal.mealIngredients.map((ingredient) => ({ grams: ingredient.grams, food: ingredient.food })),
+  );
+}
+
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Meals with whole-meal totals from 768 px; ingredient counts appear only when
+ * the table itself has room. From 1100 px (`selectedId` set) a row selects the
+ * meal for the side panel.
+ */
+function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string | undefined }) {
+  return (
+    <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
+      <table className="w-full text-sm tabular-nums">
+        <thead>
+          <tr className="text-right text-[12px] text-muted-foreground">
+            <th scope="col" className="py-2.5 pl-4 text-left font-medium">
+              Meal
+            </th>
+            <th scope="col" className="hidden font-medium @xl:table-cell">
+              Ingredients
+            </th>
+            <th scope="col" className="font-medium">
+              kcal
+            </th>
+            <th scope="col" className="font-medium">
+              Protein
+            </th>
+            <th scope="col" className="font-medium">
+              Carbs
+            </th>
+            <th scope="col" className="pr-4 font-medium">
+              Fat
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {meals.map((meal) => {
+            const totals = mealTotals(meal);
+            const isSelected = meal.id === selectedId;
+            return (
+              <tr
+                key={meal.id}
+                className={cn(
+                  "border-t text-right hover:bg-surface-inset",
+                  isSelected && "bg-accent-soft/60 hover:bg-accent-soft/60",
+                )}
+              >
+                <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
+                  {selectedId === undefined ? (
+                    <Link
+                      to="/nutrition/meals/$mealId"
+                      params={{ mealId: meal.id }}
+                      className="block wrap-break-word font-medium hover:text-link"
+                    >
+                      {meal.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/nutrition/meals"
+                      search={(prev) => ({ ...prev, selected: meal.id })}
+                      replace={true}
+                      aria-current={isSelected ? "true" : undefined}
+                      className="block wrap-break-word font-medium hover:text-link"
+                    >
+                      {meal.name}
+                    </Link>
+                  )}
+                  {meal.description ? (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {meal.description}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="hidden w-24 @xl:table-cell">{meal.mealIngredients.length}</td>
+                <td className="w-16 font-semibold">{wholeNumber.format(totals.kcal)}</td>
+                <td className="w-16">{wholeNumber.format(totals.protein)}</td>
+                <td className="w-16">{wholeNumber.format(totals.carbs)}</td>
+                <td className="w-16 pr-4">{wholeNumber.format(totals.fat)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="border-t px-4 py-2 text-[12px] text-muted-foreground">Totals per whole meal.</p>
+    </div>
+  );
+}
+
+/** The selected meal beside the table from 1100 px. */
+function MealPanel({ meal }: { meal: Meal }) {
+  const totals = mealTotals(meal);
+  return (
+    <aside
+      aria-label="Selected meal"
+      className="sticky top-6 hidden w-[320px] shrink-0 space-y-4 rounded-xl border border-border bg-card p-5 md:block"
+    >
+      <div className="space-y-1">
+        <p className="text-[13px] text-muted-foreground">
+          Meal · {countLabel(meal.mealIngredients.length, "ingredient", "ingredients")}
+        </p>
+        <h2 className="text-[17px] font-semibold leading-snug">{meal.name}</h2>
+        {meal.description ? (
+          <p className="line-clamp-3 text-[13px] text-muted-foreground">{meal.description}</p>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-baseline justify-between gap-2 tabular-nums">
+        <p className="text-[26px] font-semibold">
+          {wholeNumber.format(totals.kcal)}{" "}
+          <span className="text-sm font-medium text-muted-foreground">kcal</span>
+        </p>
+        <p className="text-[13px]">
+          P <strong>{wholeNumber.format(totals.protein)}</strong> · C{" "}
+          <strong>{wholeNumber.format(totals.carbs)}</strong> · F{" "}
+          <strong>{wholeNumber.format(totals.fat)}</strong>
+        </p>
+      </div>
+      <ul className="divide-y divide-border border-border border-y text-sm">
+        {meal.mealIngredients.map((ingredient) => (
+          <li key={ingredient.id} className="flex justify-between gap-3 py-2">
+            <span className="min-w-0 truncate">{ingredient.food.name}</span>
+            <span className="shrink-0 text-muted-foreground tabular-nums">
+              {formatMacro(ingredient.grams, "g")} ·{" "}
+              {wholeNumber.format(
+                mealMacroTotals([{ grams: ingredient.grams, food: ingredient.food }]).kcal,
+              )}{" "}
+              kcal
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="flex gap-2">
+        <Button asChild variant="outline" className="min-h-11 flex-1">
+          <Link to="/nutrition/meals/$mealId" params={{ mealId: meal.id }}>
+            Details
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="min-h-11 flex-1">
+          <Link to="/nutrition/meals/$mealId/edit" params={{ mealId: meal.id }}>
+            Edit
+          </Link>
+        </Button>
+      </div>
+    </aside>
+  );
+}
+
 function MealRow({ meal }: { meal: Meal }) {
   const totals = mealMacroTotals(
     meal.mealIngredients.map((ingredient) => ({ grams: ingredient.grams, food: ingredient.food })),
@@ -233,10 +394,10 @@ function MealRow({ meal }: { meal: Meal }) {
       <Link
         to="/nutrition/meals/$mealId"
         params={{ mealId: meal.id }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-md px-3 py-3 transition-colors hover:bg-accent/50"
+        className="group flex min-h-16 items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-muted/60"
       >
         <span className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-soft-foreground">
             <ChefHat className="h-4 w-4" />
           </span>
           <span className="min-w-0 space-y-1">
@@ -260,7 +421,7 @@ function MealRow({ meal }: { meal: Meal }) {
 
 function MealsSkeleton() {
   return (
-    <Card className="border-border/60">
+    <Card className="py-0">
       <CardContent className="space-y-3 p-4">
         {[0, 1, 2].map((item) => (
           <div key={item} className="flex items-center gap-3">

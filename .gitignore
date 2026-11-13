@@ -7,6 +7,7 @@ frontend/.output
 frontend/.nitro
 frontend/.tanstack
 frontend/.vinxi
+frontend/.wrangler
 frontend/src/routeTree.gen.ts
 ios/NeoGym/NeoGym.xcodeproj
 ios/NeoGym/.build
@@ -30,5 +31,4 @@ backend/.secrets
 # Nhost local data
 backend/.nhost
 
-/.nhost-code/tmp
-/.nhost-code/review
+/.nhost-code
