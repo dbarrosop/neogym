@@ -527,14 +527,12 @@ interface ProgressCardProps {
   gradientId: string;
 }
 
+/**
+ * Gains are favourable deltas (positive). Declines stay neutral: destructive
+ * text is reserved for delete actions and errors.
+ */
 function deltaToneClass(delta: number | null): string {
-  if (delta === null || delta === 0) {
-    return "text-muted-foreground";
-  }
-  if (delta > 0) {
-    return "text-positive";
-  }
-  return "text-destructive";
+  return delta !== null && delta > 0 ? "text-positive" : "text-muted-foreground";
 }
 
 function ProgressCard({
