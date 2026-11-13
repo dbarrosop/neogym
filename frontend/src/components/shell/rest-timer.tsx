@@ -81,8 +81,8 @@ export function RestTimerCard() {
   );
 }
 
-/** Floating pill above the mobile tab bar while a rest is running. */
-export function RestTimerPill() {
+/** Floating pill above the mobile tab bar, or above a form page's sticky actions. */
+export function RestTimerPill({ raised = false }: { raised?: boolean }) {
   const { timer, extend, clear } = useRestTimer();
   const remaining = useRestRemaining(timer);
   if (!timer) {
@@ -91,7 +91,13 @@ export function RestTimerPill() {
   return (
     <section
       aria-label="Rest timer"
-      className="fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+4.25rem)] z-40 flex items-center gap-1 rounded-full border bg-glass py-1 pr-1 pl-3.5 shadow-lg backdrop-blur-lg md:hidden"
+      className={cn(
+        "fixed right-4 z-40 flex items-center gap-1 rounded-full border bg-glass py-1 pr-1 pl-3.5 shadow-lg backdrop-blur-lg md:hidden",
+        // Clear main's pb-20 + the 4.5rem footer + a gap, even at the end of its sticky container.
+        raised
+          ? "bottom-[calc(env(safe-area-inset-bottom)+10rem)]"
+          : "bottom-[calc(env(safe-area-inset-bottom)+4.25rem)]",
+      )}
     >
       <RestTimerContent sessionId={timer.sessionId} className="flex min-h-11 items-center gap-1">
         <Timer className="size-4 text-link" aria-hidden="true" />

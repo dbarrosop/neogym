@@ -26,7 +26,8 @@ interface FormPageProps {
  * Full-page create and edit layout. The sticky header holds the breadcrumb
  * trail and title. The form inside renders `<FormActions>` as usual; on a form
  * page its Cancel and Save move into that header from 768 px, and into a sticky
- * footer above the tab bar below that.
+ * footer above the tab bar below that. The mobile layout fills the shell's
+ * available height so short forms keep their footer below the raised rest timer.
  */
 export function FormPage({ title, width = "3xl", danger, children }: FormPageProps) {
   const formId = useId();
@@ -37,32 +38,35 @@ export function FormPage({ title, width = "3xl", danger, children }: FormPagePro
 
   return (
     <FormPageSlotsProvider value={slots}>
-      <div className="sticky top-0 z-30 border-border border-b bg-background/90 px-4 py-3 backdrop-blur-lg md:px-10">
-        <div className={cn(inner, "flex min-h-11 items-center justify-between gap-3")}>
-          <div className="flex min-w-0 flex-col gap-1">
-            <Breadcrumbs minDepth={2} />
-            <h1 className="truncate text-xl font-semibold tracking-tight md:text-[22px]">
-              {title}
-            </h1>
+      {/* Account for the shell main's pb-20; let short forms fill the remaining viewport. */}
+      <div className="flex min-h-[calc(100dvh-5rem)] flex-col md:block md:min-h-0">
+        <div className="sticky top-0 z-30 border-border border-b bg-background/90 px-4 py-3 backdrop-blur-lg md:px-10">
+          <div className={cn(inner, "flex min-h-11 items-center justify-between gap-3")}>
+            <div className="flex min-w-0 flex-col gap-1">
+              <Breadcrumbs minDepth={2} />
+              <h1 className="truncate text-xl font-semibold tracking-tight md:text-[22px]">
+                {title}
+              </h1>
+            </div>
+            <div
+              ref={setHeader}
+              data-slot="form-page-actions"
+              className="hidden shrink-0 items-center gap-2 empty:hidden md:flex"
+            />
           </div>
-          <div
-            ref={setHeader}
-            data-slot="form-page-actions"
-            className="hidden shrink-0 items-center gap-2 empty:hidden md:flex"
-          />
         </div>
-      </div>
-      <div className="px-4 pt-6 pb-10 md:px-10 md:pb-16">
-        <div className={cn(inner, "space-y-5")}>
-          <div className="rounded-xl border border-border bg-card p-4 md:p-6">{children}</div>
-          {danger}
+        <div className="flex-1 px-4 pt-6 pb-10 md:px-10 md:pb-16">
+          <div className={cn(inner, "space-y-5")}>
+            <div className="rounded-xl border border-border bg-card p-4 md:p-6">{children}</div>
+            {danger}
+          </div>
         </div>
+        <div
+          ref={setFooter}
+          data-slot="form-page-footer"
+          className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-30 flex gap-2 border-border border-t bg-background/95 px-4 py-3 backdrop-blur-lg empty:hidden md:hidden"
+        />
       </div>
-      <div
-        ref={setFooter}
-        data-slot="form-page-footer"
-        className="sticky bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-30 flex gap-2 border-border border-t bg-background/95 px-4 py-3 backdrop-blur-lg empty:hidden md:hidden"
-      />
     </FormPageSlotsProvider>
   );
 }

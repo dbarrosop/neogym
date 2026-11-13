@@ -57,7 +57,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
           </div>
           <main className="flex-1 pb-20 md:pb-0">{children}</main>
         </div>
-        <RestTimerPill />
+        <RestTimerPill raised={isFormPage(pathname)} />
         <MobileTabBar />
       </div>
     </RestTimerProvider>

@@ -61,6 +61,11 @@ const { createRoot } = await import("react-dom/client");
 const { useRestTimer } = await import("@/lib/rest-timer");
 const { StartRestButton } = await import("@/components/shell/rest-timer");
 const { AppFrame } = await import("@/components/shell/app-frame");
+const { FormPage } = await import("@/components/patterns/form-page");
+const { FormActions } = await import("@/components/patterns/form-actions");
+const { BodyMeasurementForm } = await import("@/components/body-measurement-form");
+const { DailyEnergyForm } = await import("@/components/daily-energy-form");
+const { useFormPageFormId } = await import("@/lib/form-page-context");
 const { useAuth } = await import("@/lib/nhost/auth-provider");
 
 function Shell() {
@@ -91,6 +96,29 @@ function Session() {
     </main>
   );
 }
+let savedFormValue = "";
+function PageForm() {
+  const formId = useFormPageFormId();
+  return (
+    <form
+      id={formId}
+      onSubmit={(event) => {
+        event.preventDefault();
+        savedFormValue = event.currentTarget.querySelector("input")?.value ?? "";
+      }}
+    >
+      <input aria-label="Name" defaultValue="Unsaved workout" />
+      <FormActions submitLabel="Save" isSubmitting={false} onCancel={() => undefined} />
+    </form>
+  );
+}
+function FormRoute() {
+  return (
+    <FormPage title="Workout">
+      <PageForm />
+    </FormPage>
+  );
+}
 const rootRoute = createRootRoute({ component: Shell });
 const todayRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -102,7 +130,58 @@ const sessionRoute = createRoute({
   path: "/train/sessions/$sessionId",
   component: Session,
 });
-const routeTree = rootRoute.addChildren([todayRoute, sessionRoute]);
+const editRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/train/workouts/$workoutId/edit",
+  component: FormRoute,
+});
+const createRouteWithForm = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/progress/body/new",
+  component: () => (
+    <FormPage title="New measurement" width="2xl">
+      <BodyMeasurementForm
+        initialValues={{ measuredOn: "2026-06-01", weightKg: "78.4", bodyFatPct: "", notes: "" }}
+        submitLabel="Save measurement"
+        isSubmitting={false}
+        onSubmit={(values) => {
+          savedFormValue = values.weightKg;
+        }}
+        onCancel={() => undefined}
+      />
+    </FormPage>
+  ),
+});
+const energyFormRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/progress/energy/$id/edit",
+  component: () => (
+    <FormPage title="Edit energy day" width="2xl">
+      <DailyEnergyForm
+        initialValues={{ energyOn: "2026-06-01", activeKcal: "200", restingKcal: "", notes: "" }}
+        submitLabel="Save energy day"
+        isSubmitting={false}
+        onSubmit={(values) => {
+          savedFormValue = values.activeKcal;
+        }}
+        onCancel={() => undefined}
+      />
+    </FormPage>
+  ),
+});
+const loadingFormRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/progress/energy/new",
+  component: () => <p>Loading energy form</p>,
+});
+const routeTree = rootRoute.addChildren([
+  todayRoute,
+  sessionRoute,
+  editRoute,
+  createRouteWithForm,
+  energyFormRoute,
+  loadingFormRoute,
+]);
 const sessionId = "origin-session";
 const sessionPath = `/train/sessions/${sessionId}`;
 const stateKey = "neogym-rest-timer";
@@ -208,6 +287,43 @@ async function verifyActions(index: number) {
   assert.equal(timers().length, 0);
   assert.equal(window.localStorage.getItem(stateKey), null);
 }
+async function verifyFormClearance() {
+  const normalPillClass = timers()[1]?.className;
+  assert(normalPillClass);
+  const timerBefore = storedTimer();
+  await settle(() =>
+    router.navigate({ to: "/train/workouts/$workoutId/edit", params: { workoutId: "template" } }),
+  );
+  const raisedPillClass = timers()[1]?.className;
+  assert(raisedPillClass);
+  assert.notEqual(raisedPillClass, normalPillClass, "Form routes raise the running pill");
+  const footer = container.querySelector('[data-slot="form-page-footer"]');
+  assert(footer);
+  await settle(() => button("+30 s", timers()[1]).click());
+  assert.equal(router.state.location.pathname, "/train/workouts/template/edit");
+  await settle(() => button("Save", footer).click());
+  assert.equal(savedFormValue, "Unsaved workout", "Footer Save still submits the form");
+  assert.equal(storedTimer().endsAt, timerBefore.endsAt + 30_000);
+  await settle(() => router.navigate({ to: "/progress/body/new" }));
+  assert.equal(timers()[1]?.className, raisedPillClass, "Create forms use the same clearance");
+  const bodyFooter = container.querySelector('[data-slot="form-page-footer"]');
+  assert(bodyFooter);
+  await settle(() => button("Save measurement", bodyFooter).click());
+  assert.equal(savedFormValue, "78.4", "Short Body forms keep their portaled Save connected");
+  await settle(() =>
+    router.navigate({ to: "/progress/energy/$id/edit", params: { id: "energy" } }),
+  );
+  assert.equal(timers()[1]?.className, raisedPillClass);
+  const energyFooter = container.querySelector('[data-slot="form-page-footer"]');
+  assert(energyFooter);
+  await settle(() => button("Save energy day", energyFooter).click());
+  assert.equal(savedFormValue, "200", "Short Energy forms keep their portaled Save connected");
+  await settle(() => router.navigate({ to: "/progress/energy/new" }));
+  assert.equal(container.querySelector('[data-slot="form-page-footer"]'), null);
+  assert.equal(timers()[1]?.className, raisedPillClass, "Loading forms retain safe clearance");
+  await goToToday();
+  assert.equal(timers()[1]?.className, normalPillClass, "Leaving forms restores the normal offset");
+}
 async function verifyUnlinkedTimer(timer: object) {
   window.localStorage.setItem(stateKey, JSON.stringify(timer));
   await mount("/today");
@@ -228,6 +344,7 @@ try {
   await startSessionRest();
   assert.equal(timers().length, 2);
   assert.equal(timers()[0]?.querySelector('[role="timer"]')?.textContent, "1:30");
+  await verifyFormClearance();
   // Both the sidebar card and mobile pill navigate through the real router.
   await settle(() => sessionLink(0).click());
   assert.equal(router.state.location.pathname, sessionPath);
