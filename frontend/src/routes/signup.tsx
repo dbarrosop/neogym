@@ -159,7 +159,12 @@ function SignUpRoute() {
               <FormItem>
                 <FormLabel>Display name</FormLabel>
                 <FormControl>
-                  <Input autoComplete="name" placeholder="Alex Rivera" {...field} />
+                  <Input
+                    className="h-11"
+                    autoComplete="name"
+                    placeholder="Alex Rivera"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -173,6 +178,7 @@ function SignUpRoute() {
                 <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input
+                    className="h-11"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
@@ -183,7 +189,11 @@ function SignUpRoute() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full" disabled={requestForm.formState.isSubmitting}>
+          <Button
+            type="submit"
+            className="h-11 w-full"
+            disabled={requestForm.formState.isSubmitting}
+          >
             {requestForm.formState.isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

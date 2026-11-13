@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BrandMark } from "@/components/shell/brand-mark";
 import { Button } from "@/components/ui/button";
 
-/** Minimal chrome for signed-out pages (landing, sign in, sign up, verify). */
+/** Minimal chrome for signed-out pages; sign in and sign up show the brand panel instead. */
 export function PublicTopBar() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-glass backdrop-blur-lg">
@@ -16,7 +16,7 @@ export function PublicTopBar() {
             <Link to="/signin">Sign in</Link>
           </Button>
           <Button asChild size="sm">
-            <Link to="/signup">Get started</Link>
+            <Link to="/signup">Create account</Link>
           </Button>
         </div>
       </div>

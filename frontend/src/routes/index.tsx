@@ -1,18 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { useEffect } from "react";
+import { BRAND_HEADLINE, BRAND_HIGHLIGHTS, BRAND_PLATFORMS } from "@/components/shell/brand-copy";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/nhost/auth-provider";
 
 export const Route = createFileRoute("/")({
   component: HomeRoute,
 });
-
-const HIGHLIGHTS = [
-  "Log sets with last session’s numbers beside them.",
-  "Eat to a plan, slot by slot, with snapshots that never drift.",
-  "See weekly sets per muscle, strength trends, weight and energy.",
-];
 
 function HomeRoute() {
   const { isAuthenticated } = useAuth();
@@ -29,10 +24,10 @@ function HomeRoute() {
     <section className="relative">
       <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-3xl flex-col justify-center gap-8 px-4 py-20">
         <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-          Training, food and body data in one log.
+          {BRAND_HEADLINE}
         </h1>
         <ul className="flex flex-col gap-3 text-lg text-muted-foreground">
-          {HIGHLIGHTS.map((line) => (
+          {BRAND_HIGHLIGHTS.map((line) => (
             <li key={line} className="flex gap-3">
               <span aria-hidden="true" className="text-link">
                 —
@@ -52,7 +47,7 @@ function HomeRoute() {
             <Link to="/signin">Sign in</Link>
           </Button>
         </div>
-        <p className="text-sm text-tertiary-foreground">Web · iPhone · Apple Watch</p>
+        <p className="text-sm text-tertiary-foreground">{BRAND_PLATFORMS}</p>
       </div>
     </section>
   );

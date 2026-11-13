@@ -168,6 +168,7 @@ function SignInRoute() {
                 <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input
+                    className="h-11"
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
@@ -178,7 +179,7 @@ function SignInRoute() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="w-full" disabled={emailForm.formState.isSubmitting}>
+          <Button type="submit" className="h-11 w-full" disabled={emailForm.formState.isSubmitting}>
             {emailForm.formState.isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

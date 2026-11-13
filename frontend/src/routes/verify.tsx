@@ -77,7 +77,7 @@ function VerifyRoute() {
   }, [code, error, errorDescription, nhost, navigate]);
 
   return (
-    <AuthCard title="Verifying" description="Hang tight while we confirm your link.">
+    <AuthCard layout="card" title="Verifying" description="Hang tight while we confirm your link.">
       <div className="flex justify-center py-4">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>

@@ -14,6 +14,14 @@ import { cn } from "@/lib/utils";
  * Signed-in pages get the five-area shell: a sidebar from 768 px and a bottom
  * tab bar below it. Signed-out pages keep a minimal top bar.
  */
+const BRAND_PANEL_PATHS = new Set(["/signin", "/signup"]);
+const TRAILING_SLASH = /\/$/;
+
+/** Sign in and sign up render their own brand panel, so they skip the top bar. */
+function isBrandPanelPage(pathname: string) {
+  return BRAND_PANEL_PATHS.has(pathname.replace(TRAILING_SLASH, ""));
+}
+
 export function AppFrame({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
   // Split-view routes (list + detail) show their own context from 1100 px,
@@ -26,7 +34,7 @@ export function AppFrame({ children }: { children: ReactNode }) {
   if (!isAuthenticated || !user) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <PublicTopBar />
+        {isBrandPanelPage(pathname) ? null : <PublicTopBar />}
         <main className="flex-1">{children}</main>
       </div>
     );

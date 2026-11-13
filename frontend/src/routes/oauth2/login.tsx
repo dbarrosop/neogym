@@ -1,11 +1,10 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthCard } from "@/components/auth-card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -63,7 +62,7 @@ function OAuth2LoginRoute() {
 
   if (isAuthLoading || !isAuthenticated) {
     return (
-      <AuthCard title="Authorizing" description="Checking your session…">
+      <AuthCard layout="card" title="Authorizing" description="Checking your session…">
         <div className="flex items-center justify-center py-6">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
@@ -74,6 +73,7 @@ function OAuth2LoginRoute() {
   if (consent.isPending) {
     return (
       <AuthCard
+        layout="card"
         title="Loading authorization request"
         description="Hang tight while we fetch the details."
       >
@@ -89,6 +89,7 @@ function OAuth2LoginRoute() {
   if (consent.isError || !consent.data) {
     return (
       <AuthCard
+        layout="card"
         title="Authorization request unavailable"
         description="We couldn't load the details for this request. The link may have expired."
         footer={
@@ -108,40 +109,42 @@ function OAuth2LoginRoute() {
 
   return (
     <AuthCard
+      layout="card"
       title="Authorize application"
       description={`${clientId} wants access to your NeoGym account.`}
-      footer={
-        <span>
-          Signed in as <span className="font-medium text-foreground">{user?.email}</span>
-        </span>
-      }
+      footer="Only approve apps you started connecting yourself."
     >
-      <div className="space-y-4 text-sm">
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">Will redirect to</p>
-          <p className="break-all text-muted-foreground">{redirectUri}</p>
-        </div>
+      <div className="space-y-5 text-sm">
+        <p className="flex items-center gap-2.5 rounded-lg bg-surface-inset px-3 py-2.5 text-muted-foreground">
+          <ShieldCheck aria-hidden="true" className="size-5 shrink-0 text-link" />
+          <span className="min-w-0 break-all">
+            Signed in as <span className="font-medium text-foreground">{user?.email}</span>
+          </span>
+        </p>
         <div className="space-y-2">
           <p className="font-medium text-foreground">Requested permissions</p>
           {scopes.length === 0 ? (
             <p className="text-muted-foreground">No specific scopes requested.</p>
           ) : (
-            <ul className="flex flex-wrap gap-2">
+            <ul className="divide-y divide-border rounded-lg border border-border">
               {scopes.map((scope) => (
-                <li key={scope}>
-                  <Badge variant="outline" className="font-mono text-xs">
-                    {scope}
-                  </Badge>
+                <li key={scope} className="flex items-center gap-2.5 px-3 py-2">
+                  <Check aria-hidden="true" className="size-4 shrink-0 text-positive" />
+                  <code className="font-mono text-[13px]">{scope}</code>
                 </li>
               ))}
             </ul>
           )}
         </div>
-        <div className="flex gap-2 pt-2">
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">Will redirect to</p>
+          <p className="break-all font-mono text-[13px] text-muted-foreground">{redirectUri}</p>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
           <Button
             type="button"
             variant="outline"
-            className="flex-1"
+            className="min-h-11 min-w-28"
             disabled={approve.isPending}
             onClick={() => navigate({ to: "/" })}
           >
@@ -149,7 +152,7 @@ function OAuth2LoginRoute() {
           </Button>
           <Button
             type="button"
-            className="flex-1"
+            className="min-h-11 min-w-32"
             disabled={approve.isPending}
             onClick={() => approve.mutate()}
           >
