@@ -1,53 +1,59 @@
 import NeoGymKit
 import SwiftUI
 
+/// Add exercises (design "iOS · Add exercises"): a multi-select checklist with
+/// search, muscle-area chips, recently logged exercises first, and "Add N" in
+/// the top-trailing toolbar. Exercises are added in the order they were ticked.
 struct ExercisePickerView: View {
     let repository: any ExercisesRepositoryProtocol
     let alreadySelected: Set<String>
     var confirmLabel = "Add"
+    /// Where picked exercises go, shown under the lists.
+    var footer: String?
     let onConfirm: ([ExerciseListItem]) -> Void
     let onCancel: () -> Void
 
     @State private var state: Loadable<[ExerciseListItem]> = .idle
+    @State private var recentIds: [String] = []
     @State private var search = ""
-    @State private var currentExerciseId = ""
-    @State private var picked: [String: ExerciseListItem] = [:]
+    @State private var filter: ExercisePickerFilter = .all
+    @State private var picked: [ExerciseListItem] = []
 
-    private var exercises: [ExerciseListItem] { state.value ?? [] }
-
-    private var filteredExercises: [ExerciseListItem] {
-        let available = exercises.filter { exercise in
-            !alreadySelected.contains(exercise.id) && picked[exercise.id] == nil
-        }
-        let trimmed = search.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !trimmed.isEmpty else { return available }
-        return available.filter { $0.name.lowercased().contains(trimmed) }
-    }
-
-    private var currentExercise: ExerciseListItem? {
-        filteredExercises.first { $0.id == currentExerciseId }
-    }
-
-    private var filteredExerciseIds: [String] {
-        filteredExercises.map(\.id)
+    private var sections: ExercisePickerSections {
+        ExercisePickerSections(
+            exercises: state.value ?? [],
+            excluding: alreadySelected,
+            recentIds: recentIds,
+            filter: filter,
+            query: search
+        )
     }
 
     var body: some View {
-        NavigationView {
-            ScreenScaffold {
-                VStack(spacing: NeoGymTheme.spacingMD) {
-                    searchField
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                    SearchField(placeholder: "Search exercises", text: $search)
+                    chips
                     content
-                    footer
                 }
                 .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+                .padding(.vertical, NeoGymTheme.spacingXS)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .screenBackground()
             .navigationTitle("Add exercises")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel", action: onCancel)
+                    Button("Cancel", role: .cancel, action: onCancel)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(picked.isEmpty ? confirmLabel : "\(confirmLabel) \(picked.count)") {
+                        onConfirm(picked)
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(picked.isEmpty)
                 }
             }
             .task {
@@ -56,193 +62,139 @@ struct ExercisePickerView: View {
                 }
             }
         }
-        .navigationViewStyle(.stack)
-        .onChange(of: search) { syncWheelSelection() }
-        .onChange(of: filteredExerciseIds) { syncWheelSelection() }
     }
 
-    private var searchField: some View {
-        HStack(spacing: NeoGymTheme.spacingXS) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(NeoGymTheme.textSecondary)
-            TextField(currentExercise?.name ?? "Filter exercises…", text: $search)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-            if !search.isEmpty {
-                Button {
-                    search = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(NeoGymTheme.textSecondary)
+    private var chips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: NeoGymTheme.spacingXS) {
+                ForEach(ExercisePickerFilter.allCases) { option in
+                    FilterChip(title: option.title, isSelected: filter == option) { filter = option }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear search")
             }
         }
-        .padding(NeoGymTheme.spacingSM)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: NeoGymTheme.surface
-        )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Muscle area")
     }
 
     @ViewBuilder
     private var content: some View {
+        let exercises = state.value ?? []
         switch state {
         case .idle:
             AppLoadingStateView(title: "Loading exercises")
-                .frame(maxHeight: .infinity)
         case .loading where exercises.isEmpty:
             AppLoadingStateView(title: "Loading exercises")
-                .frame(maxHeight: .infinity)
         case let .failed(message, _) where exercises.isEmpty:
-            AppErrorStateView(title: "Failed to load", message: message) {
+            AppErrorStateView(title: "Couldn't load exercises", message: message) {
                 Task { await load() }
             }
-            .frame(maxHeight: .infinity)
         default:
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                if filteredExercises.isEmpty {
-                    AppEmptyStateView(
-                        title: picked.isEmpty ? "No matching exercises" : "No more matching exercises",
-                        message: picked.isEmpty ? "Try a different search." : "Confirm or remove a staged exercise.",
-                        systemImage: "magnifyingglass"
-                    )
-                    .frame(maxHeight: .infinity)
-                } else {
-                    Picker("Exercise", selection: $currentExerciseId) {
-                        ForEach(filteredExercises) { exercise in
-                            ExerciseWheelRow(exercise: exercise)
-                                .tag(exercise.id)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .labelsHidden()
-                    .frame(height: 176)
-                    .clipped()
-
-                    if let currentExercise {
-                        selectedSummary(exercise: currentExercise)
-                    }
-
-                    Button("Stage selected exercise") {
-                        stageCurrentExercise()
-                    }
-                    .buttonStyle(NeoGymSecondaryButtonStyle())
-                    .disabled(currentExercise == nil)
+            let sections = sections
+            if sections.isEmpty {
+                AppEmptyStateView(
+                    title: "No matching exercises",
+                    message: "Try another search or muscle area.",
+                    systemImage: "magnifyingglass"
+                )
+                .padding(.vertical, NeoGymTheme.spacingXL)
+            } else {
+                if !sections.recent.isEmpty {
+                    exerciseList(title: "Recently logged", exercises: sections.recent)
                 }
-
-                if !picked.isEmpty {
-                    stagedExercises
+                if !sections.all.isEmpty {
+                    exerciseList(title: "All exercises", exercises: sections.all)
                 }
             }
-            .frame(maxHeight: .infinity, alignment: .top)
+            if let footer {
+                FormFooter(footer)
+            }
         }
     }
 
-    private func selectedSummary(exercise: ExerciseListItem) -> some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-            HStack(spacing: NeoGymTheme.spacingXS) {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(NeoGymTheme.accentText)
-                Text(exercise.name)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-            }
-            Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var stagedExercises: some View {
-        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-            Text("Staged to add")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(NeoGymTheme.textSecondary)
-            ScrollView {
-                LazyVStack(spacing: NeoGymTheme.spacingXXS) {
-                    ForEach(Array(picked.values).sorted { $0.name < $1.name }) { exercise in
-                        HStack(spacing: NeoGymTheme.spacingXS) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(NeoGymTheme.accentText)
-                            Text(exercise.name)
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(1)
-                            Spacer(minLength: 0)
-                            Button {
-                                picked.removeValue(forKey: exercise.id)
-                                syncWheelSelection()
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(NeoGymTheme.textSecondary)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Remove \(exercise.name)")
-                        }
-                        .padding(.vertical, NeoGymTheme.spacingXXS)
+    private func exerciseList(title: String, exercises: [ExerciseListItem]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .padding(.horizontal, NeoGymTheme.spacingMD)
+                .padding(.top, NeoGymTheme.spacingXS)
+                .accessibilityAddTraits(.isHeader)
+            LazyVStack(spacing: 0) {
+                ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
+                    if index > 0 { RowSeparator(leadingInset: 52) }
+                    ExercisePickerRow(exercise: exercise, isSelected: isPicked(exercise)) {
+                        toggle(exercise)
                     }
                 }
             }
-            .frame(maxHeight: 128)
+            .cardSurface()
         }
     }
 
-    private var footer: some View {
-        HStack {
-            Button("Cancel", action: onCancel)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-            Button("\(confirmLabel)\(picked.isEmpty ? "" : " (\(picked.count))")") {
-                onConfirm(Array(picked.values))
-            }
-            .buttonStyle(NeoGymPrimaryButtonStyle())
-            .disabled(picked.isEmpty)
+    private func isPicked(_ exercise: ExerciseListItem) -> Bool {
+        picked.contains { $0.id == exercise.id }
+    }
+
+    private func toggle(_ exercise: ExerciseListItem) {
+        if let index = picked.firstIndex(where: { $0.id == exercise.id }) {
+            picked.remove(at: index)
+        } else {
+            picked.append(exercise)
         }
-        .padding(NeoGymTheme.spacingSM)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusLG,
-            fill: NeoGymTheme.surface
-        )
     }
 
     private func load() async {
         state = .loading(previous: state.value)
         do {
             state = .loaded(try await repository.exercisePickerExercises())
-            syncWheelSelection()
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
-        }
-    }
-
-    private func stageCurrentExercise() {
-        guard let currentExercise else { return }
-        picked[currentExercise.id] = currentExercise
-        syncWheelSelection()
-    }
-
-    private func syncWheelSelection() {
-        guard let firstVisible = filteredExercises.first else {
-            currentExerciseId = ""
             return
         }
-        if currentExerciseId.isEmpty || !filteredExercises.contains(where: { $0.id == currentExerciseId }) {
-            currentExerciseId = firstVisible.id
-        }
+        // Recent history only orders the list; the picker works without it.
+        recentIds = (try? await repository.recentlyLoggedExerciseIds()) ?? []
     }
 }
 
-private struct ExerciseWheelRow: View {
+private struct ExercisePickerRow: View {
     let exercise: ExerciseListItem
+    let isSelected: Bool
+    let toggle: () -> Void
 
     var body: some View {
-        HStack(spacing: NeoGymTheme.spacingXS) {
-            Image(systemName: "figure.strengthtraining.traditional")
-                .foregroundColor(NeoGymTheme.textSecondary)
-            Text(exercise.name)
-                .font(.body.weight(.semibold))
-                .lineLimit(1)
+        Button(action: toggle) {
+            HStack(spacing: NeoGymTheme.spacingSM) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(isSelected ? NeoGymTheme.accentText : NeoGymTheme.textTertiary)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(exercise.name)
+                        .foregroundStyle(NeoGymTheme.text)
+                        .multilineTextAlignment(.leading)
+                    Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
+                Spacer(minLength: NeoGymTheme.spacingXS)
+                if exercise.isCardioCategory {
+                    Text("CARDIO")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .foregroundStyle(NeoGymTheme.accentText)
+                        .background(Capsule().fill(NeoGymTheme.accentSoft))
+                }
+            }
+            .padding(.horizontal, NeoGymTheme.spacingMD)
+            .padding(.vertical, NeoGymTheme.spacingXS)
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }

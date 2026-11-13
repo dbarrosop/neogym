@@ -241,6 +241,7 @@ private struct WorkoutFormScreen: View {
             ExercisePickerView(
                 repository: exercisesRepository,
                 alreadySelected: form.selectedExerciseIds,
+                footer: "Added to the end of the workout.",
                 onConfirm: { picks in
                     form.addExercises(picks)
                     pickerOpen = false

@@ -6,11 +6,16 @@ public protocol ExercisesRepositoryProtocol: Sendable {
     func exerciseDetailUpdates(id: String) -> AsyncThrowingStream<ExerciseDetailModel?, Error>
     func exerciseDetail(id: String) async throws -> ExerciseDetailModel?
     func exercisePickerExercises() async throws -> [ExerciseListItem]
+    /// Exercise ids from the user's most recent logged session rows, newest
+    /// first (may repeat).
+    func recentlyLoggedExerciseIds() async throws -> [String]
     func priorSessionsPerExercise(exerciseIds: [String]) async throws -> [ExercisePriorSessions]
     func startAdHocSession(exerciseId: String, startedAt: Date) async throws -> String
 }
 
 public extension ExercisesRepositoryProtocol {
+    func recentlyLoggedExerciseIds() async throws -> [String] { [] }
+
     func exerciseListUpdates() -> AsyncThrowingStream<[ExerciseListItem], Error> {
         singleValueUpdates { try await listExercises() }
     }
@@ -65,6 +70,14 @@ public struct ExercisesRepository: ExercisesRepositoryProtocol {
             operationName: "ExerciseDetail"
         )
         return data.exercise
+    }
+
+    public func recentlyLoggedExerciseIds() async throws -> [String] {
+        let data: RecentlyLoggedExercisesData = try await graphQL.execute(
+            query: Self.recentlyLoggedExercisesQuery,
+            operationName: "RecentlyLoggedExercises"
+        )
+        return data.workoutSessionExercises.map(\.exerciseId)
     }
 
     public func exercisePickerExercises() async throws -> [ExerciseListItem] {
@@ -129,6 +142,14 @@ private struct ExerciseDetailData: Decodable, Sendable {
 
 private struct ExercisePickerExercisesData: Decodable, Sendable {
     let exercises: [ExerciseListItem]
+}
+
+private struct RecentlyLoggedExercisesData: Decodable, Sendable {
+    struct Row: Decodable, Sendable {
+        let exerciseId: String
+    }
+
+    let workoutSessionExercises: [Row]
 }
 
 private struct PriorSessionsPerExerciseData: Decodable, Sendable {
@@ -200,6 +221,19 @@ public extension ExercisesRepository {
             metrics
           }
         }
+      }
+    }
+    """
+
+    /// Logged rows only (sets or entries), so empty plan rows don't count.
+    static let recentlyLoggedExercisesQuery = """
+    query RecentlyLoggedExercises {
+      workoutSessionExercises(
+        order_by: [{ workoutSession: { startedAt: desc } }, { position: asc }]
+        limit: 60
+        where: { _or: [{ workoutSessionStrengthSets: {} }, { workoutSessionCardioEntries: {} }] }
+      ) {
+        exerciseId
       }
     }
     """

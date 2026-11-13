@@ -125,7 +125,6 @@ struct TrainNavigationView: View {
                 workoutId: workoutId,
                 workoutsRepository: workoutsRepository,
                 exercisesRepository: exercisesRepository,
-                storageBaseURL: storageBaseURL,
                 currentUserId: currentUserId,
                 onSessionStarted: openSession,
                 onDeleted: invalidateLists

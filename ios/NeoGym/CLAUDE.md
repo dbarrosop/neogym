@@ -610,9 +610,11 @@ section records how the iPhone app implements it.
   helper text where useful. OTP entry uses the custom `OTPCodeField` so paste,
   one-time-code autofill, six-digit filtering, focus, and accessibility stay
   consistent.
-- **Pickers and composite editors**: workouts add exercises through
-  `ExercisePickerView`; nutrition uses searchable wheel `FoodPickerView` and
-  `MealPickerView`; workout labels and journal labels use chip inputs with
+- **Pickers and composite editors**: workouts and sessions add exercises
+  through the multi-select `ExercisePickerView` checklist; meal and plan
+  editors pick foods/meals with the searchable `NutritionSelectionSheet` list
+  (its toolbar pushes a create form in the same sheet), while the log sheets
+  still use the searchable wheel `FoodPickerView` and `MealPickerView`; workout labels and journal labels use chip inputs with
   normalized typed creation and suggestions. Strength set editing intentionally
   uses a sheet with native `Form` + wheel pickers for kg/grams/reps; cardio entry
   editing is schema-driven and highlights the invalid metric row.

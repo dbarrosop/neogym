@@ -9,7 +9,8 @@ extension SessionDetailView {
                 ExercisePickerView(
                     repository: exercisesRepository,
                     alreadySelected: Set(viewModel.session?.workoutSessionExercises.map(\.exercise.id) ?? []),
-                    confirmLabel: "Add"
+                    confirmLabel: "Add",
+                    footer: "Added to the end of the session."
                 ) { exercises in
                     Task {
                         if await viewModel.addExercises(exercises) {

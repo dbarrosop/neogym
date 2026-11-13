@@ -5,7 +5,6 @@ struct WorkoutDetailView: View {
     @StateObject private var viewModel: WorkoutDetailViewModel
     let workoutsRepository: any WorkoutsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
     let currentUserId: String?
     var onSessionStarted: (String) -> Void
     var onDeleted: () -> Void
@@ -16,7 +15,6 @@ struct WorkoutDetailView: View {
         workoutId: String,
         workoutsRepository: any WorkoutsRepositoryProtocol,
         exercisesRepository: any ExercisesRepositoryProtocol,
-        storageBaseURL: URL,
         currentUserId: String?,
         onSessionStarted: @escaping (String) -> Void,
         onDeleted: @escaping () -> Void
@@ -26,7 +24,6 @@ struct WorkoutDetailView: View {
         )
         self.workoutsRepository = workoutsRepository
         self.exercisesRepository = exercisesRepository
-        self.storageBaseURL = storageBaseURL
         self.currentUserId = currentUserId
         self.onSessionStarted = onSessionStarted
         self.onDeleted = onDeleted
@@ -34,23 +31,26 @@ struct WorkoutDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 0) {
                 content
             }
-            .frame(maxWidth: 700)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
+            .padding(.top, NeoGymTheme.spacingXS)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .navigationTitle(viewModel.workout?.name ?? "Workout")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { bottomActionToolbar }
+        // The name is the content's Title 2; keep it for Back labels only.
+        .toolbar(removing: .title)
+        .toolbar { editToolbar }
         .task { await viewModel.load() }
         .refreshable { await viewModel.load() }
     }
 
     @ToolbarContentBuilder
-    private var bottomActionToolbar: some ToolbarContent {
+    private var editToolbar: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             if viewModel.workout?.canEdit(currentUserId: currentUserId) == true {
                 NavigationLink {
@@ -85,76 +85,95 @@ struct WorkoutDetailView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading workout") {
-                AppLoadingStateView(title: "Loading workout")
-            }
+            AppLoadingStateView(title: "Loading workout")
         case .loading where viewModel.workout == nil:
-            SectionShell(title: "Loading workout") {
-                AppLoadingStateView(title: "Loading workout")
-            }
+            AppLoadingStateView(title: "Loading workout")
         case let .failed(message, _) where viewModel.workout == nil:
-            SectionShell(title: "Workout") {
-                AppErrorStateView(title: "Failed to load", message: message) {
-                    Task { await viewModel.load() }
-                }
+            AppErrorStateView(title: "Couldn't load workout", message: message) {
+                Task { await viewModel.load() }
             }
+            .padding(NeoGymTheme.spacingMD)
+            .cardSurface()
         default:
             if let workout = viewModel.workout {
-                SectionShell(title: workout.name) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        WorkoutVisibilityBadge(isPublic: workout.isPublic)
-                        if let description = workout.description, !description.isEmpty {
-                            MarkdownBlocksView(markdown: description)
-                        }
-                        if !workout.workoutLabels.isEmpty {
-                            HStack(spacing: 6) {
-                                ForEach(workout.workoutLabels) { label in
-                                    Label(label.label.name, systemImage: "tag.fill")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(NeoGymTheme.accentText)
-                                }
-                            }
-                        }
-                        Text(
-                            "\(workout.workoutExercises.count) "
-                                + "exercise\(workout.workoutExercises.count == 1 ? "" : "s")"
-                        )
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                        if let error = viewModel.startState.errorMessage {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(NeoGymTheme.destructive)
-                        }
-                    }
-                }
+                header(workout)
                 startSessionButton
-                SectionShell(title: "Exercises") {
-                    if workout.workoutExercises.isEmpty {
-                        AppEmptyStateView(
-                            title: "No exercises yet",
-                            message: "Edit this workout to add exercises.",
-                            systemImage: "dumbbell"
-                        )
-                    } else {
-                        VStack(spacing: 0) {
-                            ForEach(Array(workout.workoutExercises.enumerated()), id: \.element.id) { index, row in
-                                NavigationLink {
-                                    ExerciseDetailView(
-                                        exerciseId: row.exercise.id,
-                                        repository: exercisesRepository,
-                                        storageBaseURL: storageBaseURL,
-                                        onSessionStarted: onSessionStarted
-                                    )
-                                } label: {
-                                    WorkoutExerciseDetailRow(row: row, index: index, storageBaseURL: storageBaseURL)
-                                }
-                                if row.id != workout.workoutExercises.last?.id { Divider() }
-                            }
-                        }
+                    .padding(.top, NeoGymTheme.spacingMD)
+                if let error = viewModel.startState.errorMessage {
+                    FeedbackBanner(message: error)
+                        .padding(.top, NeoGymTheme.spacingXS)
+                }
+                if let bars = viewModel.insights?.volumeBars, !bars.isEmpty {
+                    sectionTitle("Volume by session")
+                    WorkoutVolumeBarsCard(bars: bars)
+                }
+                sectionTitle("Exercises")
+                exercises(workout)
+                if let description = workout.description?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !description.isEmpty {
+                    sectionTitle("Notes")
+                    WorkoutNotesCard(markdown: description)
+                }
+            }
+        }
+    }
+
+    private func header(_ workout: WorkoutDetailModel) -> some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            Text(workout.name)
+                .font(.title2.bold())
+                .foregroundStyle(NeoGymTheme.text)
+                .accessibilityAddTraits(.isHeader)
+            if workout.isPublic || !workout.workoutLabels.isEmpty {
+                FlowRow(spacing: 6) {
+                    if workout.isPublic {
+                        WorkoutTag(text: "Public", isLabel: false)
+                    }
+                    ForEach(workout.workoutLabels) { label in
+                        WorkoutTag(text: label.label.name, isLabel: true)
                     }
                 }
             }
+        }
+        .padding(.horizontal, NeoGymTheme.spacingXXS)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.title3.bold())
+            .foregroundStyle(NeoGymTheme.text)
+            .padding(.horizontal, NeoGymTheme.spacingXXS)
+            .padding(.top, NeoGymTheme.spacingLG)
+            .padding(.bottom, NeoGymTheme.spacingXS)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    @ViewBuilder
+    private func exercises(_ workout: WorkoutDetailModel) -> some View {
+        if workout.workoutExercises.isEmpty {
+            AppEmptyStateView(
+                title: "No exercises yet",
+                message: "Edit this workout to add exercises.",
+                systemImage: "dumbbell"
+            )
+            .padding(NeoGymTheme.spacingMD)
+            .cardSurface()
+        } else {
+            VStack(spacing: 0) {
+                ForEach(Array(workout.workoutExercises.enumerated()), id: \.element.id) { index, row in
+                    if index > 0 { RowSeparator(leadingInset: 52) }
+                    NavigationLink(value: TrainRoute.exerciseDetail(row.exercise.id)) {
+                        WorkoutExerciseDetailRow(
+                            row: row,
+                            index: index,
+                            lastTopSet: viewModel.insights?.lastTopSetByExercise[row.exercise.id]
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .cardSurface()
         }
     }
 
@@ -170,93 +189,182 @@ struct WorkoutDetailView: View {
 private struct WorkoutExerciseDetailRow: View {
     let row: WorkoutExerciseRow
     let index: Int
-    let storageBaseURL: URL
+    let lastTopSet: String?
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack(alignment: .bottomTrailing) {
-                AlternatingStorageImageView(
-                    urls: [
-                        URL.nhostStorageFile(baseURL: storageBaseURL, fileId: row.exercise.image1FileId),
-                        URL.nhostStorageFile(baseURL: storageBaseURL, fileId: row.exercise.image2FileId)
-                    ].compactMap { $0 },
-                    aspectRatio: 1
-                )
-                .frame(width: 54, height: 54)
-                Text("\(index + 1)")
-                    .font(.caption2.bold())
-                    .padding(4)
-                    .cardSurface(
-                        cornerRadius: NeoGymTheme.radiusPill,
-                        fill: NeoGymTheme.surface
-                    )
-            }
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: NeoGymTheme.spacingSM) {
+            Text("\(index + 1)")
+                .font(.footnote.bold())
+                .monospacedDigit()
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(NeoGymTheme.fill))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(row.exercise.name)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(NeoGymTheme.text)
-                Text(
-                    ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup)
-                        + (row.exercise.strength?.doubleWeight == true ? " · two-handed" : "")
-                )
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.textSecondary)
+                    .multilineTextAlignment(.leading)
+                Text(ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup))
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
             }
-            Spacer()
+            Spacer(minLength: NeoGymTheme.spacingXS)
+            if let lastTopSet {
+                Text(lastTopSet)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityLabel("Last top set \(lastTopSet)")
+            }
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.textSecondary)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textTertiary)
+                .accessibilityHidden(true)
         }
+        .padding(.horizontal, NeoGymTheme.spacingMD)
         .padding(.vertical, 10)
+        .frame(minHeight: 48)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
-private struct WorkoutVisibilityBadge: View {
-    let isPublic: Bool
+/// A workout label (accent soft) or the Public marker (neutral).
+private struct WorkoutTag: View {
+    let text: String
+    let isLabel: Bool
 
     var body: some View {
-        Label(isPublic ? "Public" : "Mine", systemImage: isPublic ? "globe" : "person")
-            .font(.caption.weight(.bold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundColor(isPublic ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
-            .cardSurface(
-                cornerRadius: NeoGymTheme.radiusPill,
-                fill: NeoGymTheme.inset
-            )
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, NeoGymTheme.spacingXS)
+            .padding(.vertical, 3)
+            .foregroundStyle(isLabel ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
+            .background(Capsule().fill(isLabel ? NeoGymTheme.accentSoft : NeoGymTheme.fill))
     }
 }
 
-private struct MarkdownBlocksView: View {
-    let markdown: String
+/// Strength volume of the workout's latest sessions; the latest bar is accent.
+private struct WorkoutVolumeBarsCard: View {
+    let bars: [WorkoutVolumeBar]
+
+    private var maxVolume: Double { max(bars.map(\.volume).max() ?? 0, 1) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(MarkdownRendering.parseBlocks(markdown).enumerated()), id: \.offset) { _, block in
-                switch block {
-                case let .heading(level, text):
-                    Text(text)
-                        .font(level <= 2 ? .headline : .subheadline.weight(.semibold))
-                case let .paragraph(text):
-                    Text(text)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                case let .unorderedList(items):
-                    ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                        Label { Text(item) } icon: { Text("•") }
-                            .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.textSecondary)
+        VStack(spacing: NeoGymTheme.spacingXS) {
+            HStack(alignment: .bottom, spacing: 14) {
+                ForEach(Array(bars.enumerated()), id: \.element.id) { index, bar in
+                    VStack(spacing: 6) {
+                        Spacer(minLength: 0)
+                        Text(Self.compact(bar.volume))
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 6, bottomLeadingRadius: 2,
+                            bottomTrailingRadius: 2, topTrailingRadius: 6, style: .continuous
+                        )
+                        .fill(index == bars.count - 1 ? NeoGymTheme.accent : NeoGymTheme.accent.opacity(0.45))
+                        .frame(height: max(8, 72 * bar.volume / maxVolume))
                     }
-                case let .orderedList(items):
-                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("\(index + 1).")
-                            Text(item)
-                        }
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.textSecondary)
-                    }
+                    .frame(maxWidth: .infinity)
                 }
+            }
+            .frame(height: 96)
+            HStack(spacing: 14) {
+                ForEach(bars) { bar in
+                    Text(bar.startedAtDate?.formatted(.dateTime.day().month(.abbreviated)) ?? "—")
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .padding(.vertical, 14)
+        .cardSurface()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilitySummary)
+    }
+
+    private var accessibilitySummary: String {
+        let points = bars.map { bar in
+            let day = bar.startedAtDate?.formatted(.dateTime.day().month(.wide)) ?? "unknown date"
+            return "\(MetricFormat.whole(bar.volume)) kilograms on \(day)"
+        }
+        return "Volume by session, oldest to latest: " + points.joined(separator: ", ")
+    }
+
+    private static func compact(_ volume: Double) -> String {
+        volume >= 1_000
+            ? (volume / 1_000).formatted(.number.precision(.fractionLength(1))) + "k"
+            : MetricFormat.whole(volume)
+    }
+}
+
+/// The workout's markdown description, collapsed to a few lines with Show all.
+private struct WorkoutNotesCard: View {
+    let markdown: String
+    @State private var isExpanded = false
+
+    private var blocks: [MarkdownBlock] { MarkdownRendering.parseBlocks(markdown) }
+    private var isLong: Bool { blocks.count > 2 || markdown.count > 240 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                    blockView(block)
+                }
+            }
+            .lineLimit(isExpanded || !isLong ? nil : 3)
+            .frame(maxHeight: isExpanded || !isLong ? nil : 96, alignment: .top)
+            .clipped()
+            if isLong {
+                Button(isExpanded ? "Show less" : "Show all") {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                }
+                .font(.subheadline)
+                .foregroundStyle(NeoGymTheme.accentText)
+                .frame(minHeight: 32)
+            }
+        }
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+    }
+
+    @ViewBuilder
+    private func blockView(_ block: MarkdownBlock) -> some View {
+        switch block {
+        case let .heading(_, text):
+            Text(text)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.text)
+        case let .paragraph(text):
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(NeoGymTheme.text)
+        case let .unorderedList(items):
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("•")
+                    Text(item)
+                }
+                .font(.subheadline)
+                .foregroundStyle(NeoGymTheme.text)
+            }
+        case let .orderedList(items):
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text("\(index + 1).").monospacedDigit()
+                    Text(item)
+                }
+                .font(.subheadline)
+                .foregroundStyle(NeoGymTheme.text)
             }
         }
     }
