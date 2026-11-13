@@ -172,7 +172,7 @@ VITE_MCP_URL=http://localhost:3000
 
 Production build values live in `frontend/.env.production` (committed) and are picked up automatically by `bun run build`. Override any of them on the command line for ad-hoc builds: `VITE_MCP_URL=https://… bun run build`.
 
-`VITE_NHOST_*` point at the Nhost backend; `VITE_MCP_URL` is the MCP endpoint surfaced on the home page so users can connect their agent.
+`VITE_NHOST_*` point at the Nhost backend; `VITE_MCP_URL` is the MCP endpoint shown in the Agent access (MCP) card under Me › Account so signed-in users can connect their agent.
 
 Auth redirect config is split between local-dev defaults in `backend/nhost/nhost.toml` and production overrides in the project overlay at `backend/nhost/overlays/<project-id>.json`:
 
