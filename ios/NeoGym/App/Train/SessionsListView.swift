@@ -174,7 +174,10 @@ struct SessionMonogram: View {
     }
 
     private var initials: String {
-        let words = name.split { !$0.isLetter && !$0.isNumber }.prefix(2)
+        // Skip tokens that start with a digit so "bulk-002 (lower A)" reads "BL", not "B0".
+        let words = name.split { !$0.isLetter && !$0.isNumber }
+            .filter { $0.first?.isLetter == true }
+            .prefix(2)
         let letters = words.compactMap(\.first).map { String($0).uppercased() }
         return letters.isEmpty ? "S" : letters.joined()
     }
