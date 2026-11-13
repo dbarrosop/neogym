@@ -1186,8 +1186,15 @@ function StrengthSetTable({
       toast.error("Reps must be a whole number ≥ 0");
       return;
     }
+    const submitted = { weight: draftWeight, reps: draftReps };
     onLog(previewWeight, previewReps).then(
-      () => setDraft(null),
+      () =>
+        setDraft((current) =>
+          current === null ||
+          (current.weight === submitted.weight && current.reps === submitted.reps)
+            ? null
+            : current,
+        ),
       () => undefined,
     );
   }

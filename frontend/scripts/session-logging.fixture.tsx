@@ -718,27 +718,57 @@ try {
   assert.equal(delayedForm.getAttribute("aria-label"), "Log set 2");
   assert.equal(delayedWeight.value, "65", "The submitted weight never falls back to the old set");
   assert.equal(delayedReps.value, "10");
+  // Preparing the next weight remains possible while the previous log refetches.
+  await settle(() => button("Increase Weight in kg for set 2", delayedForm).click());
+  assert.equal(delayedWeight.value, "67.5");
   await settle(() => {
     releaseDetail();
     detailGate = null;
   });
   await waitFor(() => client.isFetching() === 0 && client.isMutating() === 0);
   assert.equal(delayedForm.getAttribute("aria-label"), "Log set 3");
-  assert.equal(delayedWeight.value, "65");
+  assert.equal(delayedWeight.value, "67.5", "Refetch completion preserves the next weight");
   assert.equal(delayedReps.value, "10");
   assert.equal(button("Log set", delayedForm).disabled, false);
+
+  // A reps-only text edit must survive too, even when weight has not changed.
+  detailGate = new Promise<void>((resolve) => {
+    releaseDetail = resolve;
+  });
+  const nextReadsBefore = detailReads;
   await settle(() =>
     delayedForm.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })),
   );
+  await waitFor(() => detailReads > nextReadsBefore);
+  assert.equal(button("Log set", delayedForm).disabled, true);
+  await settle(() => fill(delayedReps, "12"));
+  await settle(() => {
+    releaseDetail();
+    detailGate = null;
+  });
   await waitFor(() => client.isFetching() === 0 && client.isMutating() === 0);
   assert.equal(strengthInserts, insertsBefore + 2);
-  assert.deepEqual(
-    session.workoutSessionExercises[0]?.workoutSessionStrengthSets.map((set) => set.setNumber),
-    [1, 2, 3],
-  );
   assert.equal(delayedForm.getAttribute("aria-label"), "Log set 4");
-  assert.equal(delayedWeight.value, "65");
-  assert.equal(delayedReps.value, "10");
+  assert.equal(delayedWeight.value, "67.5");
+  assert.equal(delayedReps.value, "12", "Refetch completion preserves the next reps");
+  await settle(() => button("Log set", delayedForm).click());
+  await waitFor(() => client.isFetching() === 0 && client.isMutating() === 0);
+  assert.equal(strengthInserts, insertsBefore + 3);
+  assert.deepEqual(
+    session.workoutSessionExercises[0]?.workoutSessionStrengthSets.map(
+      ({ setNumber, weight, reps }) => ({ setNumber, weight, reps }),
+    ),
+    [
+      { setNumber: 1, weight: 60, reps: 8 },
+      { setNumber: 2, weight: 65, reps: 10 },
+      { setNumber: 3, weight: 67.5, reps: 10 },
+      { setNumber: 4, weight: 67.5, reps: 12 },
+    ],
+    "Each insert sends the submitted values, including edits prepared during the previous log",
+  );
+  assert.equal(delayedForm.getAttribute("aria-label"), "Log set 5");
+  assert.equal(delayedWeight.value, "67.5");
+  assert.equal(delayedReps.value, "12");
 
   // First-run templates must not jump to the next exercise after one set.
   await openSession([exercise("Squat"), exercise("Lunge", 1)], [], true);
