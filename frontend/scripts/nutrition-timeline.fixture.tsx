@@ -16,6 +16,14 @@ Object.assign(globalThis, {
   navigator: window.navigator,
   HTMLElement: window.HTMLElement,
   Node: window.Node,
+  // The same-time re-log confirmation is a real Radix dialog.
+  HTMLInputElement: window.HTMLInputElement,
+  NodeFilter: window.NodeFilter,
+  Element: window.Element,
+  DocumentFragment: window.DocumentFragment,
+  MutationObserver: window.MutationObserver,
+  CustomEvent: window.CustomEvent,
+  getComputedStyle: window.getComputedStyle.bind(window),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 mock.module("@/lib/nhost/auth-provider", () => ({
@@ -214,6 +222,27 @@ function assertPlanVisible() {
   assert(planned.textContent?.includes("Log slot"));
   assert(!planned.textContent?.includes("Logged"));
   assert(card(null, "planned").textContent?.includes("Log slot"));
+  // Same-time intake demotes the action; a slot with nothing logged keeps the primary button.
+  assert(isPrimary(card("08:00", "planned")), "Unlogged slot keeps the primary Log action");
+  assert(!isPrimary(planned), "Same-time intake demotes the planned Log action");
+  assert(!isPrimary(card(null, "planned")), "Untimed intake demotes the untimed Log action");
+}
+function isPrimary(section: HTMLElement) {
+  const action = section.querySelector<HTMLButtonElement>("button");
+  assert(action);
+  return action.className.includes("bg-primary");
+}
+function dialog() {
+  const element = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(element, "Expected a confirmation dialog");
+  return element;
+}
+function dialogButton(name: string) {
+  const match = [...dialog().querySelectorAll("button")].find(
+    (element) => element.textContent === name,
+  );
+  assert(match, `Missing ${name} button`);
+  return match;
 }
 function nextSlotText() {
   const label = [...container.querySelectorAll("#today span")].find(
@@ -226,10 +255,14 @@ async function logSlot(time: string | null, expectedRows: number) {
   assert(button);
   const requestCount = slotRequests.length;
   await settle(() => button.click());
+  // Every slot under test already has same-time intake, so logging asks first.
+  assert.equal(slotRequests.length, requestCount, "Same-time re-log waits for confirmation");
+  await settle(() => dialogButton("Log slot").click());
   await waitFor(
     () =>
       slotRequests.length === requestCount + 1 &&
       card(time ?? "12:40", "logged").querySelectorAll("li").length === expectedRows &&
+      !document.querySelector('[role="dialog"]') &&
       !button.disabled,
   );
   assert(card(time, "planned").textContent?.includes("Log slot"));
@@ -262,6 +295,18 @@ try {
   });
   await settle(() => client.invalidateQueries({ queryKey: ["nutrition", "days"] }));
   assertPlanVisible();
+  // Cancelling the same-time confirmation writes nothing.
+  await settle(() => card("13:00", "planned").querySelector("button")?.click());
+  assert(dialog().textContent?.includes(`Food is already logged at ${formatTimeOfDay("13:00")}.`));
+  assert(dialog().textContent?.includes(`adds all 2 planned items at ${formatTimeOfDay("13:00")}`));
+  await settle(() => dialogButton("Cancel").click());
+  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(slotRequests.length, 0, "Cancel leaves the log unchanged");
+  await settle(() => card(null, "planned").querySelector("button")?.click());
+  assert(dialog().textContent?.includes("Food without a time is already logged."));
+  assert(dialog().textContent?.includes("at the current time"));
+  await settle(() => dialogButton("Cancel").click());
+  assert.equal(slotRequests.length, 0);
   await logSlot("13:00", 4);
   assertPlanVisible();
   await logSlot("13:00", 6);
@@ -303,5 +348,5 @@ try {
   await dom.happyDOM.close();
 }
 console.info(
-  "Planned slot actions survive same-time intake and re-logging; Today advances with the local clock.",
+  "Planned slot actions survive same-time intake and re-logging behind a confirmation; Today advances with the local clock.",
 );

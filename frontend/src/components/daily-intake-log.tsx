@@ -480,6 +480,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
   const plannedSlots = selectedPlan
     ? (groupPlanEntriesByTimeSlot(selectedPlanEntries as DailyPlanEntry[]) as DailyPlanTimeSlot[])
     : [];
+  const loggedSlotKeys = new Set(intakeSlots.map((slot) => slot.key));
   const timeline: TimelineItem[] = [
     ...intakeSlots.map((slot) => ({ kind: "logged" as const, sortKey: slot.sortKey, slot })),
     ...plannedSlots.map((slot) => ({ kind: "planned" as const, sortKey: slot.sortKey, slot })),
@@ -535,6 +536,7 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
                 date={date}
                 existingMealGroups={loggedMeals}
                 existingStandaloneEntries={standaloneEntries}
+                hasLoggedIntake={loggedSlotKeys.has(item.slot.key)}
                 disabled={isMutating}
               />
             ),
@@ -916,7 +918,12 @@ function formatEntryCount(count: number): string {
 type DailyPlanEntry = (LogPlanSlot & { kind: "meal" }) | (LogPlanFoodSlot & { kind: "food" });
 type DailyPlanTimeSlot = PlanTimeSlot<DailyPlanEntry>;
 
-/** A selected-plan slot; each click appends all its entries, including on re-log. */
+/**
+ * A selected-plan slot; each Log appends all its entries, including on re-log.
+ * When intake is already logged at the same time the action steps back to an
+ * outline button and asks first, so a stray tap cannot duplicate the slot. Matching
+ * times do not prove the plan was followed, so the card never claims it was.
+ */
 function PlannedSlotCard({
   plan,
   slot,
@@ -924,6 +931,7 @@ function PlannedSlotCard({
   date,
   existingMealGroups,
   existingStandaloneEntries,
+  hasLoggedIntake,
   disabled,
 }: {
   plan: DailyPlan;
@@ -932,9 +940,12 @@ function PlannedSlotCard({
   date: string;
   existingMealGroups: DailyLogMeal[];
   existingStandaloneEntries: DailyEntry[];
+  hasLoggedIntake: boolean;
   disabled: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const timed = timeToInputValue(slot.key) !== "";
   const slotMutation = useMutation({
     mutationFn: async () => {
       const dayId = await ensureDay();
@@ -969,6 +980,7 @@ function PlannedSlotCard({
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", date] });
       queryClient.invalidateQueries({ queryKey: ["nutrition", "days", "index"] });
       queryClient.invalidateQueries({ queryKey: ["today"] });
+      setConfirming(false);
       toast.success(`Logged ${slot.label} (${result.mealRows + result.entryRows} items)`);
     },
     onError: (error) => {
@@ -989,7 +1001,8 @@ function PlannedSlotCard({
           <Button
             type="button"
             size="sm"
-            onClick={() => slotMutation.mutate()}
+            variant={hasLoggedIntake ? "outline" : "default"}
+            onClick={() => (hasLoggedIntake ? setConfirming(true) : slotMutation.mutate())}
             disabled={disabled || slotMutation.isPending || slot.entries.length === 0}
           >
             {slotMutation.isPending ? "Logging…" : "Log slot"}
@@ -1001,8 +1014,28 @@ function PlannedSlotCard({
           <PlannedEntryRow key={sourceKeyForDailyPlanEntry(entry)} entry={entry} />
         ))}
       </ul>
+      {confirming ? (
+        <ConfirmActionDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              setConfirming(false);
+            }
+          }}
+          title="Log this planned slot?"
+          description={`${timed ? `Food is already logged at ${slot.label}.` : "Food without a time is already logged."} This adds ${formatPlannedItemCount(slot.entries.length)} ${timed ? `at ${slot.label}` : "at the current time"}; nothing already logged changes.`}
+          confirmLabel="Log slot"
+          pendingLabel="Logging…"
+          onConfirm={() => slotMutation.mutate()}
+          isPending={disabled || slotMutation.isPending}
+        />
+      ) : null}
     </section>
   );
+}
+
+function formatPlannedItemCount(count: number): string {
+  return count === 1 ? "1 planned item" : `all ${count} planned items`;
 }
 
 function PlannedEntryRow({ entry }: { entry: DailyPlanEntry }) {

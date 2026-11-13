@@ -15,6 +15,6 @@ test("nutrition keeps planned actions beside logged intake and advances Today's 
   }).toEqual({
     exitCode: 0,
     output:
-      "Planned slot actions survive same-time intake and re-logging; Today advances with the local clock.\n",
+      "Planned slot actions survive same-time intake and re-logging behind a confirmation; Today advances with the local clock.\n",
   });
 });

@@ -134,7 +134,11 @@ and dashed **Planned** cards retain their **Log slot** action and full entry lis
 controls have a 44 px target and require confirmation naming the meal and the number of entries
 that cascade with it; cancelling leaves the log unchanged. The confirmation closes after a successful
 delete and stays open on failure for retry. A planned card follows the logged card when their
-normalized times match, including legacy no-time slots. The plan
+normalized times match, including legacy no-time slots. In that case its **Log slot** is an outline
+button rather than the primary one, and it asks first: the confirmation says food is already logged at
+that time (or without a time) and how many planned items will be added where; cancelling writes
+nothing. A matching time does not prove the plan was followed, so neither the card nor the dialog
+claims the slot is done. Slots with nothing logged at their time keep the primary one-tap action. The plan
 picker lives in the day summary rail; **No plan** clears the selection. Today's **Next in plan** links
 to the day log and names the first timed selected-plan slot after the current local minute,
 regardless of existing intake. It resamples local time once a minute and on focus/visibility changes;
