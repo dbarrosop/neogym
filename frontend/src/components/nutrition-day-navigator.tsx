@@ -171,7 +171,7 @@ function WeekStrip({ date, today }: { date: string; today: string }) {
               active && "bg-accent-soft text-accent-soft-foreground hover:bg-accent-soft",
             )}
           >
-            <span className="text-[11px] font-semibold uppercase opacity-75">
+            <span className={cn("text-[11px] font-semibold uppercase", !active && "opacity-75")}>
               {dayLabel(day, { weekday: "short" })}
             </span>
             <span

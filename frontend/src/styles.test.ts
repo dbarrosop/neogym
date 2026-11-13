@@ -39,7 +39,7 @@ for (const [theme, pattern] of [
   ["light", LIGHT_PALETTE],
   ["dark", DARK_PALETTE],
 ] as const) {
-  describe(`${theme} status and destructive text contrast`, () => {
+  describe(`${theme} semantic text contrast`, () => {
     const palette = styles.match(pattern)?.[1];
     assert(palette, `Missing ${theme} palette`);
     const tokens = new Map([...palette.matchAll(COLOR_TOKEN)].map((match) => [match[1], match[2]]));
@@ -51,6 +51,12 @@ for (const [theme, pattern] of [
 
     test("Logged pills and success badges meet AA text contrast", () => {
       expect(contrast(color("positive"), color("positive-soft"))).toBeGreaterThanOrEqual(4.5);
+    });
+
+    test("selected-day text meets AA on its accent-soft highlight", () => {
+      expect(
+        contrast(color("accent-soft-foreground"), color("accent-soft")),
+      ).toBeGreaterThanOrEqual(4.5);
     });
 
     for (const surface of ["background", "card"]) {
