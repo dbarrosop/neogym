@@ -18,6 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Plus, X } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
+import { CardioTag } from "@/components/exercise-kind-tag";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
 import { FormActions } from "@/components/patterns/form-actions";
@@ -42,6 +43,7 @@ export interface WorkoutFormExercise {
   rowId: string;
   exerciseId: string;
   name: string;
+  kind: string;
   primaryMuscleGroup: string;
   doubleWeight: boolean;
 }
@@ -291,6 +293,7 @@ function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowP
           {exercise.doubleWeight ? " · two-handed" : ""}
         </p>
       </div>
+      {exercise.kind === "cardio" ? <CardioTag /> : null}
       <button
         type="button"
         onClick={onRemove}

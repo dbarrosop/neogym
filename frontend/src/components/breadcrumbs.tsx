@@ -185,6 +185,9 @@ const CRUMB_LABEL_RENDERERS: Record<string, (crumb: Crumb) => ReactNode> = {
   "/me/journal/$id": (crumb) => (
     <JournalEntryLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
   ),
+  "/progress/energy/$id": (crumb) => (
+    <DailyEnergyLabel id={crumb.params["id"] ?? ""} fallback={crumb.label} />
+  ),
   "/nutrition/log/$date": (crumb) => formatDateShort(crumb.params["date"] ?? ""),
   "/nutrition/foods/$foodId": (crumb) => (
     <FoodName id={crumb.params["foodId"] ?? ""} fallback={crumb.label} />
@@ -302,6 +305,29 @@ const BreadcrumbJournalEntryQuery = graphql(`
     }
   }
 `);
+
+const BreadcrumbDailyEnergyQuery = graphql(`
+  query BreadcrumbDailyEnergy($id: uuid!) {
+    dailyEnergyEntry(id: $id) {
+      id
+      energyOn
+    }
+  }
+`);
+
+function DailyEnergyLabel({ id, fallback }: { id: string; fallback: string }) {
+  const { data } = useQuery({
+    queryKey: ["daily_energy", "breadcrumb", id],
+    queryFn: () => gqlRequest(BreadcrumbDailyEnergyQuery, { id }),
+    enabled: Boolean(id),
+    staleTime: 60_000,
+  });
+  const entry = data?.dailyEnergyEntry;
+  if (!entry) {
+    return <>{fallback}</>;
+  }
+  return <>{formatDateShort(entry.energyOn)}</>;
+}
 
 function JournalEntryLabel({ id, fallback }: { id: string; fallback: string }) {
   const { data } = useQuery({

@@ -35,6 +35,7 @@ const EditWorkoutQuery = graphql(`
         exercise {
           id
           name
+          kind
           primaryMuscleGroup
           strength { doubleWeight }
         }
@@ -145,6 +146,7 @@ function EditWorkoutRoute() {
         rowId: we.id,
         exerciseId: we.exercise.id,
         name: we.exercise.name,
+        kind: we.exercise.kind ?? "strength",
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
         doubleWeight: we.exercise.strength?.doubleWeight ?? false,
       })),
