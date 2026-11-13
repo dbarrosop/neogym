@@ -404,21 +404,26 @@ struct TodayBodyCard: View {
                         .frame(width: 150, height: 56)
                 }
             }
-            if let fat = summary.latestBodyFatPct {
+        }
+        // Weight and body fat render independently: a body-fat-only reading
+        // still shows, and the empty message needs both to be missing.
+        if let fat = summary.latestBodyFatPct {
+            if summary.latestWeightKg != nil {
                 Divider().overlay(NeoGymTheme.separator)
-                HStack {
-                    Text("Body fat")
-                        .font(.footnote)
-                        .foregroundStyle(NeoGymTheme.textSecondary)
-                    Spacer()
-                    Text("\(MetricFormat.decimal(fat)) %")
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(NeoGymTheme.text)
-                }
-                .accessibilityElement(children: .combine)
             }
-        } else {
+            HStack {
+                Text("Body fat")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                Spacer()
+                Text("\(MetricFormat.decimal(fat)) %")
+                    .font(.subheadline.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.text)
+            }
+            .accessibilityElement(children: .combine)
+        }
+        if summary.latestWeightKg == nil, summary.latestBodyFatPct == nil {
             CardMessage(text: "No measurements in the last three weeks.")
         }
     }
