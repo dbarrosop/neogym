@@ -231,7 +231,8 @@ function MuscleBars({
                 aria-label={`${muscleName(row.group)}: ${setsFormat.format(row.weighted)} weighted sets, ${row.direct} direct and ${row.indirect} secondary`}
                 className={cn(
                   "grid min-h-10 w-full grid-cols-[8.5rem_minmax(0,1fr)_2.5rem] items-center gap-3 rounded-lg px-3 text-left text-sm transition-colors hover:bg-muted/60",
-                  active && "bg-accent-soft/60 font-semibold hover:bg-accent-soft/60",
+                  active &&
+                    "bg-accent-soft/60 font-semibold ring-1 ring-primary/40 ring-inset hover:bg-accent-soft/60",
                 )}
               >
                 <span className="truncate">{muscleName(row.group)}</span>

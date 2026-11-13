@@ -144,7 +144,8 @@ function JournalList({ activePath }: { activePath: string }) {
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex flex-col gap-0.5 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60",
-                active && "bg-muted hover:bg-muted",
+                active &&
+                  "bg-accent-soft/60 ring-1 ring-primary/40 ring-inset hover:bg-accent-soft/60",
               )}
             >
               <span className="text-[12px] font-semibold text-muted-foreground tabular-nums">
