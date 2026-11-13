@@ -168,7 +168,7 @@ function WeekStrip({ date, today }: { date: string; today: string }) {
             }`}
             className={cn(
               "flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-center transition-colors hover:bg-muted/60",
-              active && "bg-accent-soft text-accent-soft-foreground hover:bg-accent-soft",
+              active && "bg-primary text-primary-foreground hover:bg-primary",
             )}
           >
             <span className={cn("text-[11px] font-semibold uppercase", !active && "opacity-75")}>
@@ -182,12 +182,7 @@ function WeekStrip({ date, today }: { date: string; today: string }) {
             >
               {localDateToDate(day)?.getDate()}
             </span>
-            <span
-              className={cn(
-                "text-[11px] tabular-nums",
-                active ? "opacity-90" : "text-muted-foreground",
-              )}
-            >
+            <span className={cn("text-[11px] tabular-nums", !active && "text-muted-foreground")}>
               {kcal ? kcalFormat.format(kcal) : "–"}
             </span>
           </Link>

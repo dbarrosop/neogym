@@ -53,10 +53,14 @@ for (const [theme, pattern] of [
       expect(contrast(color("positive"), color("positive-soft"))).toBeGreaterThanOrEqual(4.5);
     });
 
-    test("selected-day text meets AA on its accent-soft highlight", () => {
+    test("accent-soft text meets AA on its accent-soft fill", () => {
       expect(
         contrast(color("accent-soft-foreground"), color("accent-soft")),
       ).toBeGreaterThanOrEqual(4.5);
+    });
+
+    test("selected chip and day text meets AA on the accent fill", () => {
+      expect(contrast(color("primary-foreground"), color("primary"))).toBeGreaterThanOrEqual(4.5);
     });
 
     for (const surface of ["background", "card"]) {
