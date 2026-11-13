@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("session logging refreshes Progress and uses earlier logged same-workout history", () => {
+test("session writes refresh workout reports and Progress and use earlier logged same-workout history", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -15,6 +15,6 @@ test("session logging refreshes Progress and uses earlier logged same-workout hi
   }).toEqual({
     exitCode: 0,
     output:
-      "Session logging refreshes Progress and handles missing history and earlier logged same-workout references.\n",
+      "Session writes refresh workout reports and Progress and handle missing history and earlier logged same-workout references.\n",
   });
 }, 30_000);

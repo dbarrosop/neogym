@@ -46,6 +46,8 @@ export function useStartSession() {
     },
     onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["workouts", "detail"] });
+      queryClient.invalidateQueries({ queryKey: ["workouts", "last-sets"] });
       // Exercise-detail pages render history derived from sessions. From a
       // workout-driven start, every exercise in the workout gains a new entry,
       // but we don't know their ids here — leave their caches alone and let

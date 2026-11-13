@@ -1,5 +1,5 @@
 import type { ResultOf } from "@graphql-typed-document-node/core";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -285,6 +285,14 @@ export const Route = createFileRoute("/_authed/train/sessions/_split/$sessionId"
 
 const volumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
+function invalidateSessionReports(queryClient: QueryClient) {
+  queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
+  queryClient.invalidateQueries({ queryKey: ["workouts", "detail"] });
+  queryClient.invalidateQueries({ queryKey: ["workouts", "last-sets"] });
+  queryClient.invalidateQueries({ queryKey: ["today"] });
+  queryClient.invalidateQueries({ queryKey: ["progress"] });
+}
+
 function SessionDetailRoute() {
   const { sessionId } = Route.useParams();
   const navigate = useNavigate();
@@ -322,9 +330,7 @@ function SessionDetailRoute() {
 
   function invalidateAll() {
     queryClient.invalidateQueries({ queryKey: ["sessions", "index"] });
-    queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
-    queryClient.invalidateQueries({ queryKey: ["today"] });
-    queryClient.invalidateQueries({ queryKey: ["progress"] });
+    invalidateSessionReports(queryClient);
     return queryClient.invalidateQueries({ queryKey });
   }
 
@@ -339,9 +345,7 @@ function SessionDetailRoute() {
     mutationFn: () => gqlRequest(DeleteSessionMutation, { id: sessionId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["exercises", "detail"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
-      queryClient.invalidateQueries({ queryKey: ["progress"] });
+      invalidateSessionReports(queryClient);
       // Replace — the session no longer exists, so back must skip its detail page.
       navigate({ to: "/train/sessions", replace: true });
     },

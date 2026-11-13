@@ -19,6 +19,7 @@ import {
   type PriorSessionsPerExerciseQuery,
   type PriorSessionsPerExerciseQueryVariables,
   type SessionDetailQuery,
+  type StartSessionMutationVariables,
   type UpdateWorkoutSessionStrengthSetMutationVariables,
 } from "@/gql/graphql";
 
@@ -209,6 +210,13 @@ mock.module("@/lib/graphql", () => ({
       case "DeleteWorkoutSession":
         assert.equal(variables["id"], session.id);
         return Promise.resolve({ deleteWorkoutSession: { id: session.id } });
+      case "StartSession": {
+        const { obj } = variables as StartSessionMutationVariables;
+        assert.equal(typeof obj.startedAt, "string");
+        assert(["workout", null].includes(obj.workoutId));
+        assert.deepEqual(obj.workoutSessionExercises?.data, [{ exerciseId: "Squat", position: 0 }]);
+        return Promise.resolve({ insertWorkoutSession: { id: "new-session" } });
+      }
       case "InsertWorkoutSessionCardioEntry": {
         const { obj } = variables as InsertWorkoutSessionCardioEntryMutationVariables;
         const exercise = session.workoutSessionExercises.find(
@@ -232,6 +240,7 @@ mock.module("@/lib/graphql", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+const { useStartSession } = await import("@/lib/hooks/use-start-session");
 const { RestTimerProvider, useRestTimer } = await import("@/lib/rest-timer");
 const { Route } = await import("@/routes/_authed/train/sessions/_split/$sessionId");
 function TimerLabel() {
@@ -240,6 +249,24 @@ function TimerLabel() {
     <output aria-label="Rest label" data-session-id={timer?.sessionId}>
       {timer?.label}
     </output>
+  );
+}
+function StartSessionButton({ templated }: { templated: boolean }) {
+  const startSession = useStartSession();
+  return (
+    <button
+      type="button"
+      disabled={startSession.isPending}
+      onClick={() =>
+        startSession.mutate(
+          templated
+            ? { workoutId: "workout", exercises: [{ exerciseId: "Squat", position: 0 }] }
+            : { exerciseId: "Squat" },
+        )
+      }
+    >
+      Start session
+    </button>
   );
 }
 const client = new QueryClient({
@@ -467,22 +494,33 @@ async function logEntry(name: string, number: number) {
   );
 }
 
-const progressKeys = [
+const workoutReportKeys = [
+  ["workouts", "detail", "workout", "2026-06-01", "UTC", "test-user"],
+  ["workouts", "last-sets", "workout", ["Squat"]],
+];
+const derivedReportKeys = [
   ["progress", "muscles", "2026-06-01", 60, "test-user"],
   ["progress", "strength", "2026-06-01", 12, "test-user"],
+  ...workoutReportKeys,
 ];
-function seedProgressReports() {
-  for (const queryKey of progressKeys) {
+function seedReports(queryKeys = derivedReportKeys) {
+  client.setQueryData(["workouts", "index"], "cached workouts");
+  for (const queryKey of queryKeys) {
     client.setQueryData(queryKey, "cached report");
     assert.equal(client.getQueryState(queryKey)?.isInvalidated, false);
   }
 }
-async function expectProgressRefetch(operation: string) {
-  for (const queryKey of progressKeys) {
+async function expectReportRefetch(operation: string, queryKeys = derivedReportKeys) {
+  assert.equal(
+    client.getQueryState(["workouts", "index"])?.isInvalidated,
+    false,
+    `${operation} does not invalidate the session-independent workouts index`,
+  );
+  for (const queryKey of queryKeys) {
     assert.equal(
       client.getQueryState(queryKey)?.isInvalidated,
       true,
-      `${operation} invalidates ${queryKey[1]}`,
+      `${operation} invalidates ${queryKey.slice(0, 2).join("/")}`,
     );
     let fetches = 0;
     // biome-ignore lint/performance/noAwaitInLoops: Exercise each report's real cache lookup.
@@ -498,14 +536,40 @@ async function expectProgressRefetch(operation: string) {
   }
 }
 
+async function expectStartSessionRefetch(templated: boolean) {
+  await settle(() => root.render(null));
+  client.clear();
+  seedReports(workoutReportKeys);
+  client.setQueryData(["sessions", "index"], "cached sessions");
+  await settle(() =>
+    root.render(
+      <QueryClientProvider client={client}>
+        <StartSessionButton templated={templated} />
+      </QueryClientProvider>,
+    ),
+  );
+  const navigationCount = navigations.length;
+  await settle(() => button("Start session").click());
+  await waitFor(() => navigations.length > navigationCount && client.isMutating() === 0);
+  assert.deepEqual(navigations.at(-1), {
+    to: "/train/sessions/$sessionId",
+    params: { sessionId: "new-session" },
+  });
+  assert.equal(client.getQueryState(["sessions", "index"])?.isInvalidated, true);
+  await expectReportRefetch(
+    templated ? "Start templated session" : "Start ad-hoc session",
+    workoutReportKeys,
+  );
+}
+
 try {
   // Inactive reports must refresh after writes, even within their freshness window.
-  await openSession([exercise("Squat")]);
-  seedProgressReports();
+  await openSession([exercise("Squat")], [], true);
+  seedReports();
   await logSet("Squat", 1);
-  await expectProgressRefetch("Insert set");
+  await expectReportRefetch("Insert set");
 
-  seedProgressReports();
+  seedReports();
   await settle(() => button("Edit set 1", card("Squat")).click());
   const editDialog = document.querySelector<HTMLElement>('[role="dialog"]');
   assert(editDialog);
@@ -515,26 +579,26 @@ try {
   await settle(() => button("Save", editDialog).click());
   await waitFor(() => !document.querySelector('[role="dialog"]') && client.isMutating() === 0);
   assert.equal(session.workoutSessionExercises[0]?.workoutSessionStrengthSets[0]?.reps, 10);
-  await expectProgressRefetch("Update set");
+  await expectReportRefetch("Update set");
 
-  seedProgressReports();
+  seedReports();
   await settle(() => button("Edit set 1", card("Squat")).click());
   const deleteSetDialog = document.querySelector<HTMLElement>('[role="dialog"]');
   assert(deleteSetDialog);
   await settle(() => button("Delete", deleteSetDialog).click());
   await waitFor(() => !document.querySelector('[role="dialog"]') && client.isMutating() === 0);
   assert.equal(session.workoutSessionExercises[0]?.workoutSessionStrengthSets.length, 0);
-  await expectProgressRefetch("Delete set");
+  await expectReportRefetch("Delete set");
 
   // Whole-session deletion has its own success handler rather than onMutated.
   await logSet("Squat", 1);
-  seedProgressReports();
+  seedReports();
   await settle(() => button("Delete session").click());
   const deleteDialog = document.querySelector<HTMLElement>('[role="dialog"]');
   assert(deleteDialog);
   await settle(() => button("Delete session", deleteDialog).click());
   await waitFor(() => navigations.length === 1 && client.isMutating() === 0);
-  await expectProgressRefetch("Delete session");
+  await expectReportRefetch("Delete session");
   assert.deepEqual(navigations[0], { to: "/train/sessions", replace: true });
 
   // First-ever ad-hoc logging must retain the same next-set controls and focus.
@@ -855,6 +919,10 @@ try {
   await logEntry("Intervals", 2);
   assert(collapsed("Intervals").querySelector('[aria-label="Done"]'));
   assert(card("Squat"));
+
+  // Starting from either a workout or an exercise also changes session-derived caches.
+  await expectStartSessionRefetch(true);
+  await expectStartSessionRefetch(false);
   assert.deepEqual(errors, []);
 } finally {
   act(() => root.unmount());
@@ -862,5 +930,5 @@ try {
   await dom.happyDOM.close();
 }
 console.info(
-  "Session logging refreshes Progress and handles missing history and earlier logged same-workout references.",
+  "Session writes refresh workout reports and Progress and handle missing history and earlier logged same-workout references.",
 );
