@@ -23,7 +23,9 @@ interface BodyMetricsChartProps {
 }
 
 const WEIGHT_COLOR = "var(--color-chart-1)";
-const FAT_COLOR = "var(--color-chart-2)";
+// Series 2 orange is fill-only. Body fat is a line with its own axis labels, so it
+// uses the neutral series, which meets text and graphics contrast in both themes.
+const FAT_COLOR = "var(--color-chart-3)";
 
 export function BodyMetricsChart({ points }: BodyMetricsChartProps) {
   const label = [
@@ -148,13 +150,13 @@ function MetricsTooltip({ active, payload }: Partial<TooltipContentProps<number,
         })}
       </p>
       {point.weightKg === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: WEIGHT_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Weight: </span>
           {point.weightKg.toFixed(2)} kg
         </p>
       )}
       {point.bodyFatPct === null ? null : (
-        <p className="font-medium tabular-nums" style={{ color: FAT_COLOR }}>
+        <p className="font-medium text-popover-foreground tabular-nums">
           <span className="text-muted-foreground">Body fat: </span>
           {point.bodyFatPct.toFixed(1)} %
         </p>
