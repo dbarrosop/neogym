@@ -70,10 +70,22 @@ export function RestTimerCard() {
         ) : null}
       </RestTimerContent>
       <div className="grid grid-cols-2 gap-2">
-        <Button type="button" variant="outline" size="sm" onClick={() => extend(30)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-11 min-w-11"
+          onClick={() => extend(30)}
+        >
           +30 s
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={clear}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-11 min-w-11"
+          onClick={clear}
+        >
           Skip
         </Button>
       </div>
@@ -109,7 +121,7 @@ export function RestTimerPill({ raised = false }: { raised?: boolean }) {
         type="button"
         variant="ghost"
         size="sm"
-        className="rounded-full"
+        className="min-h-11 min-w-11 rounded-full"
         onClick={() => extend(30)}
       >
         +30 s
@@ -118,7 +130,7 @@ export function RestTimerPill({ raised = false }: { raised?: boolean }) {
         type="button"
         variant="ghost"
         size="icon"
-        className="size-8 rounded-full"
+        className="size-11 rounded-full"
         aria-label="Skip rest"
         onClick={clear}
       >
