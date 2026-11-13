@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
 import { Apple, ChevronRight, Globe2, Plus, Search, User, X } from "lucide-react";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { useIsSplit } from "@/lib/hooks/use-is-split";
 import { macroSummary, normalizeNumeric } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +38,8 @@ type Visibility = (typeof visibilityValues)[number];
 const foodsSearchSchema = z.object({
   q: z.string().optional(),
   visibility: z.enum(visibilityValues).optional(),
+  /** Food shown in the side panel from 1100 px; defaults to the first row. */
+  selected: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_authed/nutrition/foods/")({
@@ -113,6 +116,10 @@ function FoodsIndexRoute() {
   }, [foods, searchScores, visibility]);
 
   const isFiltered = search.trim() !== "" || visibility !== null;
+  const split = useIsSplit();
+  const selected = split
+    ? (filteredFoods.find((food) => food.id === searchParams.selected) ?? filteredFoods[0])
+    : undefined;
 
   function setSearchText(value: string) {
     navigate({
@@ -170,7 +177,10 @@ function FoodsIndexRoute() {
     }
     return (
       <>
-        <FoodsTable foods={filteredFoods} />
+        <div className="flex items-start gap-5">
+          <FoodsTable foods={filteredFoods} selectedId={selected?.id} />
+          {selected ? <FoodPanel food={selected} /> : null}
+        </div>
         <Card className="py-0 md:hidden">
           <CardContent className="p-2">
             <ul className="divide-y divide-border">
@@ -287,10 +297,14 @@ function per100(value: unknown): string {
   return per100Format.format(normalizeNumeric(value));
 }
 
-/** Desktop catalog: every macro per 100 g in aligned columns. */
-function FoodsTable({ foods }: { foods: Food[] }) {
+/**
+ * Desktop catalog: every macro per 100 g in aligned columns. From 1100 px
+ * (`selectedId` set) a row selects the food for the side panel instead of
+ * opening its page.
+ */
+function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string | undefined }) {
   return (
-    <div className="hidden overflow-hidden rounded-xl border bg-card md:block">
+    <div className="hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
       <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="text-right text-[12px] text-muted-foreground">
@@ -319,16 +333,34 @@ function FoodsTable({ foods }: { foods: Food[] }) {
         </thead>
         <tbody>
           {foods.map((food) => (
-            <tr key={food.id} className="border-t text-right hover:bg-surface-inset">
+            <tr
+              key={food.id}
+              className={cn(
+                "border-t text-right hover:bg-surface-inset",
+                food.id === selectedId && "bg-accent-soft/60 hover:bg-accent-soft/60",
+              )}
+            >
               <td className="max-w-0 py-2.5 pr-4 pl-4 text-left">
                 <span className="flex min-w-0 items-center gap-2">
-                  <Link
-                    to="/nutrition/foods/$foodId"
-                    params={{ foodId: food.id }}
-                    className="truncate font-medium hover:text-link"
-                  >
-                    {food.name}
-                  </Link>
+                  {selectedId === undefined ? (
+                    <Link
+                      to="/nutrition/foods/$foodId"
+                      params={{ foodId: food.id }}
+                      className="truncate font-medium hover:text-link"
+                    >
+                      {food.name}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/nutrition/foods"
+                      search={(prev) => ({ ...prev, selected: food.id })}
+                      replace={true}
+                      aria-current={food.id === selectedId ? "true" : undefined}
+                      className="truncate font-medium hover:text-link"
+                    >
+                      {food.name}
+                    </Link>
+                  )}
                   {food.isPublic ? (
                     <span className="shrink-0 rounded-full bg-muted px-2 text-[11px] text-muted-foreground">
                       public
@@ -348,6 +380,62 @@ function FoodsTable({ foods }: { foods: Food[] }) {
       </table>
       <p className="border-t px-4 py-2 text-[12px] text-muted-foreground">Values per 100 g.</p>
     </div>
+  );
+}
+
+const PANEL_MACROS = [
+  ["Protein", "proteinPer100g"],
+  ["Carbs", "carbsPer100g"],
+  ["Fat", "fatPer100g"],
+  ["Fiber", "fiberPer100g"],
+  ["Sugar", "sugarPer100g"],
+] as const;
+
+/** The selected food beside the table from 1100 px. */
+function FoodPanel({ food }: { food: Food }) {
+  return (
+    <aside
+      aria-label="Selected food"
+      className="sticky top-6 hidden w-[320px] shrink-0 space-y-4 rounded-xl border border-border bg-card p-5 md:block"
+    >
+      <div className="space-y-1">
+        <p className="text-[13px] text-muted-foreground">
+          {food.isPublic ? "Public" : "Mine"} · per 100 g
+        </p>
+        <h2 className="text-[17px] font-semibold leading-snug">{food.name}</h2>
+      </div>
+      <p className="text-[26px] font-semibold tabular-nums">
+        {per100(food.kcalPer100g)}{" "}
+        <span className="text-sm font-medium text-muted-foreground">kcal</span>
+      </p>
+      <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 text-sm tabular-nums">
+        {PANEL_MACROS.map(([label, key]) => (
+          <Fragment key={key}>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-semibold">{per100(food[key])} g</dd>
+          </Fragment>
+        ))}
+      </dl>
+      <div className="flex gap-2">
+        <Button asChild variant="outline" className="min-h-11 flex-1">
+          <Link to="/nutrition/foods/$foodId" params={{ foodId: food.id }}>
+            Details
+          </Link>
+        </Button>
+        {food.isPublic ? null : (
+          <Button asChild variant="outline" className="min-h-11 flex-1">
+            <Link to="/nutrition/foods/$foodId/edit" params={{ foodId: food.id }}>
+              Edit
+            </Link>
+          </Button>
+        )}
+      </div>
+      <p className="text-[13px] leading-relaxed text-muted-foreground">
+        {food.isPublic
+          ? "Public foods are read-only. Create a private food to change values."
+          : "Editing a food never changes days already logged; they keep their snapshot."}
+      </p>
+    </aside>
   );
 }
 
