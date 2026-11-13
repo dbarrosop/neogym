@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
-import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
 import { JournalLabels_Constraint } from "@/gql/graphql";
 import { todayLocalISO } from "@/lib/dates";
@@ -78,22 +78,20 @@ function NewJournalEntryRoute() {
   });
 
   return (
-    <PageShell maxWidth="2xl">
-      <FormCardShell eyebrow="Tracking" title="New entry">
-        <JournalEntryForm
-          initialValues={{
-            entryDate: todayLocalISO(),
-            title: "",
-            body: "",
-            labels: [],
-          }}
-          submitLabel="Save entry"
-          isSubmitting={createMutation.isPending}
-          labelSuggestions={labelsData?.journalLabels ?? []}
-          onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/me/journal", replace: true })}
-        />
-      </FormCardShell>
-    </PageShell>
+    <FormPage title="New entry" width="3xl">
+      <JournalEntryForm
+        initialValues={{
+          entryDate: todayLocalISO(),
+          title: "",
+          body: "",
+          labels: [],
+        }}
+        submitLabel="Save entry"
+        isSubmitting={createMutation.isPending}
+        labelSuggestions={labelsData?.journalLabels ?? []}
+        onSubmit={(values) => createMutation.mutate(values)}
+        onCancel={() => navigate({ to: "/me/journal", replace: true })}
+      />
+    </FormPage>
   );
 }

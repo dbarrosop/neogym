@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { MealForm, type MealFormValues } from "@/components/meal-form";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 
@@ -59,20 +59,14 @@ function NewMealRoute() {
   });
 
   return (
-    <Card className="border-border/60">
-      <CardHeader className="pb-4">
-        <p className="text-[13px] font-semibold text-muted-foreground">Meal templates</p>
-        <CardTitle className="text-2xl tracking-tight">New meal</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <MealForm
-          initialValues={EMPTY_MEAL}
-          submitLabel="Create meal"
-          isSubmitting={createMutation.isPending}
-          onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/nutrition/meals", replace: true })}
-        />
-      </CardContent>
-    </Card>
+    <FormPage title="New meal" width="4xl">
+      <MealForm
+        initialValues={EMPTY_MEAL}
+        submitLabel="Create meal"
+        isSubmitting={createMutation.isPending}
+        onSubmit={(values) => createMutation.mutate(values)}
+        onCancel={() => navigate({ to: "/nutrition/meals", replace: true })}
+      />
+    </FormPage>
   );
 }

@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 import { DailyEnergyForm, type DailyEnergyFormValues } from "@/components/daily-energy-form";
-import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
 import { dailyEnergyMutationErrorMessage } from "@/lib/daily-energy";
 import { parseDateOnly, todayLocalISO } from "@/lib/dates";
@@ -59,21 +59,19 @@ function NewDailyEnergyRoute() {
   });
 
   return (
-    <PageShell maxWidth="2xl">
-      <FormCardShell eyebrow="Tracking" title="New energy day">
-        <DailyEnergyForm
-          initialValues={{
-            energyOn: initialEnergyOn,
-            activeKcal: "",
-            restingKcal: "",
-            notes: "",
-          }}
-          submitLabel="Save energy day"
-          isSubmitting={createMutation.isPending}
-          onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/progress/energy", replace: true })}
-        />
-      </FormCardShell>
-    </PageShell>
+    <FormPage title="New energy day" width="2xl">
+      <DailyEnergyForm
+        initialValues={{
+          energyOn: initialEnergyOn,
+          activeKcal: "",
+          restingKcal: "",
+          notes: "",
+        }}
+        submitLabel="Save energy day"
+        isSubmitting={createMutation.isPending}
+        onSubmit={(values) => createMutation.mutate(values)}
+        onCancel={() => navigate({ to: "/progress/energy", replace: true })}
+      />
+    </FormPage>
   );
 }

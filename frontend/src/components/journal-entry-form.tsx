@@ -3,6 +3,7 @@ import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/compone
 import { FormActions, FormSection } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormPageFormId } from "@/lib/form-page-context";
 
 export interface JournalEntryFormValues {
   entryDate: string;
@@ -30,6 +31,7 @@ export function JournalEntryForm({
   labelSuggestions,
   extraActions,
 }: JournalEntryFormProps) {
+  const formId = useFormPageFormId();
   const [entryDate, setEntryDate] = useState(initialValues.entryDate);
   const [title, setTitle] = useState(initialValues.title);
   const [body, setBody] = useState(initialValues.body);
@@ -54,7 +56,7 @@ export function JournalEntryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <FormSection>
         <div className="space-y-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">

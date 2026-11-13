@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { JournalEntryForm, type JournalEntryFormValues } from "@/components/journal-entry-form";
 import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
-import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { DangerZone, FormPage } from "@/components/patterns/form-page";
+import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
@@ -164,16 +163,40 @@ function EditJournalEntryRoute() {
 
   function renderContent() {
     if (isLoading) {
-      return <EditSkeleton />;
+      return (
+        <PageShell maxWidth="2xl">
+          <EditSkeleton />
+        </PageShell>
+      );
     }
     if (error) {
-      return <ErrorState title="Failed to load entry" message={error.message} />;
+      return (
+        <PageShell maxWidth="2xl">
+          <ErrorState title="Failed to load entry" message={error.message} />
+        </PageShell>
+      );
     }
     if (!entry || !initialValues) {
-      return <EmptyState title="Entry not found." />;
+      return (
+        <PageShell maxWidth="2xl">
+          <EmptyState title="Entry not found." />
+        </PageShell>
+      );
     }
     return (
-      <FormCardShell eyebrow="Edit" title={entry.title ?? "Untitled entry"}>
+      <FormPage
+        title="Edit entry"
+        width="3xl"
+        danger={
+          <DangerZone
+            title="Delete this entry"
+            description="Removes the entry and its label links. Your labels stay available."
+            actionLabel="Delete entry"
+            onAction={() => setConfirmDelete(true)}
+            disabled={deleteMutation.isPending || saveMutation.isPending}
+          />
+        }
+      >
         <JournalEntryForm
           initialValues={initialValues}
           submitLabel="Save changes"
@@ -181,25 +204,13 @@ function EditJournalEntryRoute() {
           labelSuggestions={data?.journalLabels ?? []}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() => navigate({ to: "/me/journal/$id", params: { id }, replace: true })}
-          extraActions={
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-              onClick={() => setConfirmDelete(true)}
-              disabled={deleteMutation.isPending || saveMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete entry
-            </Button>
-          }
         />
-      </FormCardShell>
+      </FormPage>
     );
   }
 
   return (
-    <PageShell maxWidth="2xl">
+    <>
       {renderContent()}
 
       <ConfirmActionDialog
@@ -213,7 +224,7 @@ function EditJournalEntryRoute() {
         isPending={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}
       />
-    </PageShell>
+    </>
   );
 }
 

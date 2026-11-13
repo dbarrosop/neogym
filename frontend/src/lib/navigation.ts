@@ -105,6 +105,13 @@ const DAY_LOG_PATH = /^\/nutrition\/log\/[^/]+$/;
  * a day log). The header tabs already say where you are, so the breadcrumb
  * trail is redundant there.
  */
+const FORM_PAGE_PATH = /\/(new|edit)$/;
+
+/** Create and edit pages render their own sticky header with the breadcrumb trail. */
+export function isFormPage(pathname: string): boolean {
+  return FORM_PAGE_PATH.test(pathname.replace(TRAILING_SLASH, ""));
+}
+
 export function isSectionLanding(pathname: string): boolean {
   const path = pathname.replace(TRAILING_SLASH, "") || "/";
   if (DAY_LOG_PATH.test(path)) {

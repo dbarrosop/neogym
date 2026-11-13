@@ -20,6 +20,7 @@ import { GripVertical, Plus, X } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
+import { FormActions } from "@/components/patterns/form-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useFormPageFormId } from "@/lib/form-page-context";
 import { cn, formatMuscle } from "@/lib/utils";
 
 export interface WorkoutFormExercise {
@@ -72,6 +74,7 @@ export function WorkoutForm({
   labelSuggestions,
   extraActions,
 }: WorkoutFormProps) {
+  const formId = useFormPageFormId();
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
   const [exercises, setExercises] = useState<WorkoutFormExercise[]>(initialValues.exercises);
@@ -130,7 +133,7 @@ export function WorkoutForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-4">
         <div className="space-y-1.5">
           <label htmlFor={nameId} className="text-sm font-medium">
@@ -233,17 +236,13 @@ export function WorkoutForm({
         </Dialog>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={!canSubmit}>
-            {isSubmitting ? "Saving…" : submitLabel}
-          </Button>
-        </div>
-        {extraActions ? <div className="border-t border-border pt-3">{extraActions}</div> : null}
-      </div>
+      <FormActions
+        submitLabel={submitLabel}
+        isSubmitting={isSubmitting}
+        submitDisabled={trimmedName.length === 0}
+        onCancel={onCancel}
+        extraActions={extraActions}
+      />
     </form>
   );
 }

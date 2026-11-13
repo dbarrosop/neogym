@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FormPage } from "@/components/patterns/form-page";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
 import { Labels_Constraint } from "@/gql/graphql";
@@ -87,25 +87,15 @@ function NewWorkoutRoute() {
   });
 
   return (
-    <section className="px-4 pt-6 pb-10 md:px-10 md:pt-7 md:pb-16">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <Card className="border-border/60">
-          <CardHeader className="pb-4">
-            <p className="text-[13px] font-semibold text-muted-foreground">Plans</p>
-            <CardTitle className="text-2xl tracking-tight">New workout</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkoutForm
-              initialValues={{ name: "", description: "", exercises: [], labels: [] }}
-              submitLabel="Create workout"
-              isSubmitting={createMutation.isPending}
-              labelSuggestions={labelsData?.labels ?? []}
-              onSubmit={(values) => createMutation.mutate(values)}
-              onCancel={() => navigate({ to: "/train/workouts", replace: true })}
-            />
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+    <FormPage title="New workout" width="3xl">
+      <WorkoutForm
+        initialValues={{ name: "", description: "", exercises: [], labels: [] }}
+        submitLabel="Create workout"
+        isSubmitting={createMutation.isPending}
+        labelSuggestions={labelsData?.labels ?? []}
+        onSubmit={(values) => createMutation.mutate(values)}
+        onCancel={() => navigate({ to: "/train/workouts", replace: true })}
+      />
+    </FormPage>
   );
 }

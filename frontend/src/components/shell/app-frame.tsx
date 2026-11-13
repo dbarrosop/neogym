@@ -5,7 +5,7 @@ import { AppSidebar } from "@/components/shell/app-sidebar";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
 import { PublicTopBar } from "@/components/shell/public-top-bar";
 import { RestTimerCard, RestTimerPill } from "@/components/shell/rest-timer";
-import { isSectionLanding } from "@/lib/navigation";
+import { isFormPage, isSectionLanding } from "@/lib/navigation";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { RestTimerProvider } from "@/lib/rest-timer";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,9 @@ export function AppFrame({ children }: { children: ReactNode }) {
               splitView && "min-[1100px]:hidden",
             )}
           >
-            {isSectionLanding(pathname) ? null : <Breadcrumbs minDepth={2} />}
+            {isSectionLanding(pathname) || isFormPage(pathname) ? null : (
+              <Breadcrumbs minDepth={2} />
+            )}
           </div>
           <main className="flex-1 pb-20 md:pb-0">{children}</main>
         </div>

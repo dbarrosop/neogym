@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 type PageMaxWidth = "2xl" | "3xl" | "4xl" | "5xl" | "6xl";
@@ -71,43 +70,5 @@ export function PageHeader({
         <p className="basis-full text-sm text-muted-foreground">{description}</p>
       ) : null}
     </header>
-  );
-}
-
-interface FormCardShellProps {
-  title: ReactNode;
-  children: ReactNode;
-  eyebrow?: ReactNode;
-  description?: ReactNode;
-  actions?: ReactNode;
-  className?: string;
-  contentClassName?: string;
-}
-
-export function FormCardShell({
-  title,
-  children,
-  eyebrow,
-  description,
-  actions,
-  className,
-  contentClassName,
-}: FormCardShellProps) {
-  return (
-    <Card className={className}>
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            {eyebrow ? (
-              <p className="text-[13px] font-semibold text-muted-foreground">{eyebrow}</p>
-            ) : null}
-            <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
-            {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-          </div>
-          {actions ? <div className="shrink-0">{actions}</div> : null}
-        </div>
-      </CardHeader>
-      <CardContent className={contentClassName}>{children}</CardContent>
-    </Card>
   );
 }

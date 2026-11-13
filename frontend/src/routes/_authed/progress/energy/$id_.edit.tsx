@@ -1,13 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { DailyEnergyForm, type DailyEnergyFormValues } from "@/components/daily-energy-form";
 import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
-import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { DangerZone, FormPage } from "@/components/patterns/form-page";
+import { PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
@@ -112,41 +111,53 @@ function EditDailyEnergyRoute() {
 
   function renderContent() {
     if (isLoading) {
-      return <EditSkeleton />;
+      return (
+        <PageShell maxWidth="2xl">
+          <EditSkeleton />
+        </PageShell>
+      );
     }
     if (error) {
-      return <ErrorState title="Failed to load energy day" message={error.message} />;
+      return (
+        <PageShell maxWidth="2xl">
+          <ErrorState title="Failed to load energy day" message={error.message} />
+        </PageShell>
+      );
     }
     if (!entry || !initialValues) {
-      return <EmptyState title="Energy day not found." />;
+      return (
+        <PageShell maxWidth="2xl">
+          <EmptyState title="Energy day not found." />
+        </PageShell>
+      );
     }
     return (
-      <FormCardShell eyebrow="Edit" title="Edit energy day">
+      <FormPage
+        title="Edit energy day"
+        width="2xl"
+        danger={
+          <DangerZone
+            title="Delete this energy day"
+            description="Removes it from your energy history and estimates."
+            actionLabel="Delete energy day"
+            onAction={() => setConfirmDelete(true)}
+            disabled={deleteMutation.isPending || saveMutation.isPending}
+          />
+        }
+      >
         <DailyEnergyForm
           initialValues={initialValues}
           submitLabel="Save changes"
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() => navigate({ to: "/progress/energy/$id", params: { id }, replace: true })}
-          extraActions={
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-              onClick={() => setConfirmDelete(true)}
-              disabled={deleteMutation.isPending || saveMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete energy day
-            </Button>
-          }
         />
-      </FormCardShell>
+      </FormPage>
     );
   }
 
   return (
-    <PageShell maxWidth="2xl">
+    <>
       {renderContent()}
 
       <ConfirmActionDialog
@@ -160,7 +171,7 @@ function EditDailyEnergyRoute() {
         isPending={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}
       />
-    </PageShell>
+    </>
   );
 }
 

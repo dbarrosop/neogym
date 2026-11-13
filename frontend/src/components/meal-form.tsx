@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MacroSummary } from "@/components/macro-summary";
+import { FormActions } from "@/components/patterns/form-actions";
 import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { graphql } from "@/gql";
+import { useFormPageFormId } from "@/lib/form-page-context";
 import { gqlRequest } from "@/lib/graphql";
 import {
   DECIMAL_INPUT_PATTERN,
@@ -101,6 +103,7 @@ export function MealForm({
   onCancel,
   extraActions,
 }: MealFormProps) {
+  const formId = useFormPageFormId();
   const nameId = useId();
   const descriptionId = useId();
   const errorId = useId();
@@ -251,7 +254,7 @@ export function MealForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form id={formId} onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
           <div className="space-y-1.5">
             <label htmlFor={nameId} className="text-sm font-medium">
@@ -354,17 +357,14 @@ export function MealForm({
           ) : null}
         </section>
 
-        <div className="flex flex-col-reverse gap-2 border-border border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>{extraActions}</div>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="ghost" onClick={onCancel} disabled={isSubmitting}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!canSubmit}>
-              {isSubmitting ? "Saving…" : submitLabel}
-            </Button>
-          </div>
-        </div>
+        <FormActions
+          submitLabel={submitLabel}
+          isSubmitting={isSubmitting}
+          submitDisabled={isLoading}
+          onCancel={onCancel}
+          extraActions={extraActions}
+          className="border-border border-t pt-4"
+        />
       </form>
       {foodDialog ? (
         <QuickFoodDialog

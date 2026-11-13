@@ -3,7 +3,7 @@ import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { type DocumentNode, getOperationAST } from "graphql";
 import { Window } from "happy-dom";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 
 const dom = new Window({ url: "http://localhost", width: 375, height: 812 });
 const window = dom as unknown as typeof globalThis.window;
@@ -30,6 +30,10 @@ mock.module("@tanstack/react-router", () => ({
     useSearch: () => ({ date: "2026-05-31" }),
   }),
   useNavigate: () => (options: unknown) => navigations.push(options),
+  // Form pages render the breadcrumb trail in their sticky header.
+  useRouterState: ({ select }: { select: (state: unknown) => unknown }) =>
+    select({ location: { pathname: "/progress/body/new" } }),
+  Link: ({ children }: { children: ReactNode }) => <a href="#crumb">{children}</a>,
 }));
 const errors: string[] = [];
 mock.module("sonner", () => ({ toast: { error: (message: string) => errors.push(message) } }));

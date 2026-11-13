@@ -5,7 +5,7 @@ import {
   BodyMeasurementForm,
   type BodyMeasurementFormValues,
 } from "@/components/body-measurement-form";
-import { FormCardShell, PageShell } from "@/components/patterns/page-shell";
+import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
 import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
@@ -52,21 +52,19 @@ function NewBodyMeasurementRoute() {
   });
 
   return (
-    <PageShell maxWidth="2xl">
-      <FormCardShell eyebrow="Tracking" title="New measurement">
-        <BodyMeasurementForm
-          initialValues={{
-            measuredOn: todayLocalISO(),
-            weightKg: "",
-            bodyFatPct: "",
-            notes: "",
-          }}
-          submitLabel="Save measurement"
-          isSubmitting={createMutation.isPending}
-          onSubmit={(values) => createMutation.mutate(values)}
-          onCancel={() => navigate({ to: "/progress/body", replace: true })}
-        />
-      </FormCardShell>
-    </PageShell>
+    <FormPage title="New measurement" width="2xl">
+      <BodyMeasurementForm
+        initialValues={{
+          measuredOn: todayLocalISO(),
+          weightKg: "",
+          bodyFatPct: "",
+          notes: "",
+        }}
+        submitLabel="Save measurement"
+        isSubmitting={createMutation.isPending}
+        onSubmit={(values) => createMutation.mutate(values)}
+        onCancel={() => navigate({ to: "/progress/body", replace: true })}
+      />
+    </FormPage>
   );
 }

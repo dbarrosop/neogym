@@ -7,6 +7,7 @@ import {
   type DailyEnergyFormValues,
   validateDailyEnergyFormValues,
 } from "@/lib/daily-energy";
+import { useFormPageFormId } from "@/lib/form-page-context";
 
 export type { DailyEnergyFormValues } from "@/lib/daily-energy";
 
@@ -27,6 +28,7 @@ export function DailyEnergyForm({
   isSubmitting,
   extraActions,
 }: DailyEnergyFormProps) {
+  const formId = useFormPageFormId();
   const [energyOn, setEnergyOn] = useState(initialValues.energyOn);
   const [activeKcal, setActiveKcal] = useState(initialValues.activeKcal);
   const [restingKcal, setRestingKcal] = useState(initialValues.restingKcal);
@@ -60,7 +62,7 @@ export function DailyEnergyForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
       <FormSection>
         <div className="space-y-1.5">
           <label htmlFor={dateId} className="text-sm font-medium">

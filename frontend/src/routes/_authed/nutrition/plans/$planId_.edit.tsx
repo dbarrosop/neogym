@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -8,8 +7,10 @@ import {
   type NutritionPlanFormEntryValues,
   type NutritionPlanFormValues,
 } from "@/components/nutrition-plan-form";
+import { DangerZone, FormPage } from "@/components/patterns/form-page";
+import { PageShell } from "@/components/patterns/page-shell";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -337,49 +338,55 @@ function EditNutritionPlanRoute() {
 
   function renderContent() {
     if (isLoading) {
-      return <EditNutritionPlanSkeleton />;
+      return (
+        <PageShell maxWidth="3xl">
+          <EditNutritionPlanSkeleton />
+        </PageShell>
+      );
     }
     if (error) {
-      return <p className="text-sm text-destructive">Failed to load: {error.message}</p>;
+      return (
+        <PageShell maxWidth="3xl">
+          <p className="text-sm text-destructive">Failed to load: {error.message}</p>
+        </PageShell>
+      );
     }
     if (!plan || !initialValues) {
-      return <p className="text-sm text-muted-foreground">Plan not found.</p>;
+      return (
+        <PageShell maxWidth="3xl">
+          <p className="text-sm text-muted-foreground">Plan not found.</p>
+        </PageShell>
+      );
     }
     return (
-      <Card className="border-border/60">
-        <CardHeader className="pb-4">
-          <p className="text-[13px] font-semibold text-muted-foreground">Edit plan</p>
-          <CardTitle className="text-2xl tracking-tight">{plan.name}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <NutritionPlanForm
-            initialValues={initialValues}
-            submitLabel="Save changes"
-            isSubmitting={saveMutation.isPending}
-            onSubmit={(values) => saveMutation.mutate(values)}
-            onCancel={() =>
-              navigate({ to: "/nutrition/plans/$planId", params: { planId }, replace: true })
-            }
-            extraActions={
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive sm:w-auto"
-                onClick={() => setConfirmDelete(true)}
-                disabled={deleteMutation.isPending || saveMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete plan
-              </Button>
-            }
+      <FormPage
+        title="Edit plan"
+        width="5xl"
+        danger={
+          <DangerZone
+            title="Delete this plan"
+            description="Food already logged from it keeps its snapshot values."
+            actionLabel="Delete plan"
+            onAction={() => setConfirmDelete(true)}
+            disabled={deleteMutation.isPending || saveMutation.isPending}
           />
-        </CardContent>
-      </Card>
+        }
+      >
+        <NutritionPlanForm
+          initialValues={initialValues}
+          submitLabel="Save changes"
+          isSubmitting={saveMutation.isPending}
+          onSubmit={(values) => saveMutation.mutate(values)}
+          onCancel={() =>
+            navigate({ to: "/nutrition/plans/$planId", params: { planId }, replace: true })
+          }
+        />
+      </FormPage>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <>
       {renderContent()}
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="md:max-w-md">
@@ -412,7 +419,7 @@ function EditNutritionPlanRoute() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
 
