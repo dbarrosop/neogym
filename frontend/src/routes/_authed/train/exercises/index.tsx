@@ -359,12 +359,12 @@ function ExercisesRoute() {
               {activeChips.map((chip) => (
                 <span
                   key={chip.key}
-                  className="inline-flex h-7 items-center gap-1 rounded-full bg-accent-soft pr-1 pl-3 font-medium text-accent-soft-foreground"
+                  className="inline-flex h-7 items-center gap-1 rounded-full bg-primary pr-1 pl-3 font-medium text-primary-foreground"
                 >
                   {chip.label}
                   <button
                     type="button"
-                    className="grid size-5 place-items-center rounded-full hover:bg-primary/20"
+                    className="grid size-5 place-items-center rounded-full hover:bg-primary-foreground/20"
                     aria-label={`Clear ${chip.label} filter`}
                     onClick={() =>
                       chip.key === "visibility"
@@ -648,7 +648,7 @@ function VisibilityPill({
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "border-transparent bg-accent-soft text-accent-soft-foreground"
+          ? "border-primary bg-primary text-primary-foreground"
           : "border-border text-muted-foreground hover:text-foreground",
       )}
     >

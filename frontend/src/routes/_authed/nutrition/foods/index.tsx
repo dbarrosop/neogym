@@ -281,7 +281,7 @@ function VisibilityPill({
       className={cn(
         "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
         active
-          ? "border-transparent bg-accent-soft text-accent-soft-foreground"
+          ? "border-primary bg-primary text-primary-foreground"
           : "border-border text-muted-foreground hover:text-foreground",
       )}
     >

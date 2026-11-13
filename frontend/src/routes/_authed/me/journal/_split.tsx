@@ -103,7 +103,7 @@ function JournalList({ activePath }: { activePath: string }) {
                 className={cn(
                   "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
                   active
-                    ? "border-transparent bg-accent-soft text-accent-soft-foreground"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-border text-muted-foreground hover:text-foreground",
                 )}
               >
