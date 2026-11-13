@@ -240,6 +240,46 @@ try {
   await settle(() => client.setQueryData(overviewKey, initial));
   assert(card("Body").textContent?.includes("No measurements in the last three weeks."));
 
+  // Weight changes have no favourable direction without a goal, even when weight rises.
+  for (const [priorWeight, currentWeight, expectedSummary] of [
+    [80, 81.2, "7-day avg 81.2 · +1.2 vs prior week"],
+    [80, 78.8, "7-day avg 78.8 · −1.2 vs prior week"],
+    [80, 80, "7-day avg 80.0 · +0.0 vs prior week"],
+    [null, 80, "7-day avg 80.0"],
+  ] as const) {
+    // biome-ignore lint/performance/noAwaitInLoops: Each weight summary must render before checking its styling.
+    await settle(() =>
+      client.setQueryData(overviewKey, {
+        ...initial,
+        bodyMeasurements: [
+          ...(priorWeight === null
+            ? []
+            : [
+                {
+                  id: "body-prior-week",
+                  measuredOn: "2026-05-25",
+                  weightKg: priorWeight,
+                  bodyFatPct: null,
+                },
+              ]),
+          {
+            id: "body-current-week",
+            measuredOn: "2026-06-01",
+            weightKg: currentWeight,
+            bodyFatPct: null,
+          },
+        ],
+      } satisfies TodayOverviewQuery),
+    );
+    const summary = [...card("Body").querySelectorAll("span")].find((element) =>
+      element.textContent?.startsWith("7-day avg"),
+    );
+    assert(summary);
+    assert.equal(summary.textContent, expectedSummary);
+    assert(!summary.classList.contains("text-positive"), "Weight changes are not success states");
+    assert(summary.classList.contains("text-muted-foreground"), "Weight summaries stay neutral");
+  }
+
   // Count labels use singular only for one, in both Training card branches.
   for (const [exerciseCount, recentCount, recentLabel, exerciseLabel] of [
     [null, 0, "0 sessions", null],

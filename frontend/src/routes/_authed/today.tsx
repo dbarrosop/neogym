@@ -652,7 +652,7 @@ function BodyCard({ data, today }: { data: Overview; today: string }) {
                 {latestWeight.value.toFixed(2)} kg
               </strong>
               {current === null ? null : (
-                <span className="text-[13px] font-semibold text-positive tabular-nums">
+                <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
                   7-day avg {current.toFixed(1)}
                   {prior === null
                     ? ""
