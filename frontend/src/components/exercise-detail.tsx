@@ -502,6 +502,8 @@ function ExerciseProgress({ points, doubleWeight }: ExerciseProgressProps) {
           points={points}
           format={(v) => `${v.toFixed(1)} kg`}
           color="var(--color-chart-2)"
+          // Orange is fill-only: a neutral outline keeps the trend legible in light mode.
+          stroke="var(--color-muted-foreground)"
           gradientId="progress-1rm"
         />
       </div>
@@ -516,7 +518,9 @@ interface ProgressCardProps {
   metricLabel: string;
   points: ProgressPoint[];
   format: (v: number) => string;
+  /** Area fill; also the line colour unless `stroke` is set. */
   color: string;
+  stroke?: string;
   gradientId: string;
 }
 
@@ -538,6 +542,7 @@ function ProgressCard({
   points,
   format,
   color,
+  stroke,
   gradientId,
 }: ProgressCardProps) {
   const last = points.at(-1);
@@ -580,6 +585,7 @@ function ProgressCard({
             metricLabel={metricLabel}
             format={format}
             color={color}
+            stroke={stroke}
             gradientId={gradientId}
           />
         ) : (
@@ -598,10 +604,19 @@ interface TrendChartProps {
   metricLabel: string;
   format: (v: number) => string;
   color: string;
+  stroke?: string | undefined;
   gradientId: string;
 }
 
-function TrendChart({ points, metric, metricLabel, format, color, gradientId }: TrendChartProps) {
+function TrendChart({
+  points,
+  metric,
+  metricLabel,
+  format,
+  color,
+  stroke = color,
+  gradientId,
+}: TrendChartProps) {
   const formatTick = (value: number) =>
     new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
@@ -631,20 +646,20 @@ function TrendChart({ points, metric, metricLabel, format, color, gradientId }: 
           />
           <YAxis hide domain={["auto", "auto"]} />
           <Tooltip
-            cursor={{ stroke: color, strokeOpacity: 0.5, strokeDasharray: "3 3" }}
+            cursor={{ stroke, strokeOpacity: 0.5, strokeDasharray: "3 3" }}
             content={<TrendTooltip metric={metric} metricLabel={metricLabel} format={format} />}
           />
           <Area
             type="monotone"
             dataKey={metric}
-            stroke={color}
+            stroke={stroke}
             strokeWidth={2}
             fill={`url(#${gradientId})`}
             dot={false}
             activeDot={{
               r: 3.5,
               fill: color,
-              stroke: "var(--color-background)",
+              stroke: stroke === color ? "var(--color-background)" : stroke,
               strokeWidth: 2,
             }}
             isAnimationActive={false}

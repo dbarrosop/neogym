@@ -1,8 +1,9 @@
-// Run in a subprocess so browser globals cannot leak into other tests.
+// Run in a subprocess so browser globals and module mocks cannot leak into other tests.
+import { mock } from "bun:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Window as TestWindow } from "happy-dom";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 
 const dom = new TestWindow({ url: "http://localhost" });
 const window = dom as unknown as typeof globalThis.window;
@@ -18,9 +19,29 @@ Object.assign(globalThis, {
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 
+mock.module("@tanstack/react-router", () => ({
+  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
+    <a href="/" className={className}>
+      {children}
+    </a>
+  ),
+  useNavigate: () => () => undefined,
+}));
+mock.module("@/lib/hooks/use-start-session", () => ({
+  useStartSession: () => ({ isPending: false, mutate: () => undefined }),
+}));
+mock.module("@/components/storage-image", () => ({ AlternatingStorageImage: () => null }));
+mock.module("@/lib/graphql", () => ({
+  gqlRequest: () => {
+    throw new Error("Exercise detail must render the seeded query data");
+  },
+}));
+
 const { createRoot } = await import("react-dom/client");
+const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
 const { ResponsiveContainer } = await import("recharts");
 const { BodyMetricsChart } = await import("@/components/body-metrics-chart");
+const { ExerciseDetail } = await import("@/components/exercise-detail");
 
 // Resolve rendered token references against both checked-in palettes.
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -56,6 +77,9 @@ function palette(theme: "light" | "dark") {
   };
 }
 
+const client = new QueryClient({
+  defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
+});
 const container = document.createElement("div");
 document.body.append(container);
 const root = createRoot(container);
@@ -135,10 +159,70 @@ async function checkBodyChart() {
   }
 }
 
+async function checkExerciseProgress() {
+  const session = (id: string, startedAt: string, weight: number) => ({
+    id: `wse-${id}`,
+    workoutSession: { id, startedAt, workout: null },
+    workoutSessionStrengthSets: [1, 2, 3].map((setNumber) => ({
+      id: `${id}-${setNumber}`,
+      setNumber,
+      reps: 5,
+      weight: String(weight),
+    })),
+    workoutSessionCardioEntries: [],
+  });
+  client.setQueryData(["exercises", "detail", "bench"], {
+    exercise: {
+      id: "bench",
+      name: "Bench press",
+      instructions: [],
+      image1FileId: null,
+      image2FileId: null,
+      level: "intermediate",
+      category: "strength",
+      kind: "strength",
+      equipment: "barbell",
+      primaryMuscleGroup: "chest",
+      strength: { doubleWeight: false, force: "push", mechanic: "compound" },
+      cardio: null,
+      secondaryMuscleGroups: [],
+      workoutSessionExercises: [
+        session("s1", "2026-10-01T07:00:00Z", 80),
+        session("s2", "2026-10-08T07:00:00Z", 85),
+      ],
+    },
+  });
+  await settle(() =>
+    root.render(
+      <QueryClientProvider client={client}>
+        <ResponsiveContainer width={640} height={480}>
+          <ExerciseDetail exerciseId="bench" />
+        </ResponsiveContainer>
+      </QueryClientProvider>,
+    ),
+  );
+  await waitFor(() => all(".recharts-area-curve").length === 2, "exercise progress charts");
+
+  const strokes = all(".recharts-area-curve").map((curve) => curve.getAttribute("stroke"));
+  assert.deepEqual(strokes, ["var(--color-chart-1)", "var(--color-muted-foreground)"]);
+  const oneRmStops = all("#progress-1rm stop").map((stop) => stop.getAttribute("stop-color"));
+  assert.deepEqual(oneRmStops, ["var(--color-chart-2)", "var(--color-chart-2)"]);
+
+  for (const theme of ["light", "dark"] as const) {
+    const color = palette(theme);
+    const surface = color("surface-inset");
+    for (const stroke of strokes) {
+      assert(contrast(color(stroke), surface) >= 3, `${theme}: ${stroke} trend line contrast`);
+    }
+  }
+}
+
 try {
   await checkBodyChart();
+  await checkExerciseProgress();
 } finally {
   act(() => root.unmount());
+  client.clear();
   await dom.happyDOM.close();
 }
-console.info("Orange stays fill-only; Body chart lines and labels pass contrast.");
+console.info("Orange stays fill-only; Body and exercise trend lines and labels pass contrast.");

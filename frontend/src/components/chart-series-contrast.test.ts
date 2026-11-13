@@ -14,6 +14,6 @@ test("Orange stays fill-only and chart lines and labels pass contrast in both th
     output: result.stdout.toString() + result.stderr.toString(),
   }).toEqual({
     exitCode: 0,
-    output: "Orange stays fill-only; Body chart lines and labels pass contrast.\n",
+    output: "Orange stays fill-only; Body and exercise trend lines and labels pass contrast.\n",
   });
 }, 30_000);
