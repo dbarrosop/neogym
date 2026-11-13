@@ -2,7 +2,7 @@
 
 A modern fitness app scaffold built on **TanStack Start** + **Nhost** with **Tailwind v4** and **shadcn/ui**.
 
-The frontend is a fully type-safe React 19 SSR app driven by file-based routing. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun` and `biome` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
+The frontend is a fully type-safe React 19 app driven by file-based routing, deployed as a static SPA on Cloudflare Workers for Platforms. The backend runs on Nhost Cloud (Hasura + Auth + Postgres + Storage + Functions); the Nhost CLI brings up a local Docker mirror of the same stack for development. Tooling — `bun`, `biome`, and `wrangler` — is provisioned through a Nix flake so contributors get a reproducible dev environment.
 
 ## Stack
 
@@ -16,6 +16,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 | Forms | react-hook-form + zod |
 | Lint/Format | Biome |
 | Runtime / pkg manager | Bun |
+| Web deployment | Wrangler + Workers Static Assets in the existing `nhost-app` dispatch namespace |
 | Codegen | graphql-codegen `client-preset` |
 | Backend | Nhost (Hasura, Auth, Storage, Postgres, MailHog) |
 | iOS | SwiftUI app generated with XcodeGen + local `NeoGymKit` SwiftPM package |
@@ -28,7 +29,7 @@ The frontend is a fully type-safe React 19 SSR app driven by file-based routing.
 - Xcode for iOS simulator builds
 - Local Nhost Swift SDK checkout at `/Users/dbarroso/workspace/nhost/nhost/swift/packages/nhost-swift` for the native app
 
-`nhost`, `bun`, `biome`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
+`nhost`, `bun`, `biome`, `wrangler`, and Darwin-available XcodeGen come from the Nix devshell — no host install needed for those tools. If the pinned Nixpkgs ever lacks XcodeGen on Darwin, install `xcodegen` with Homebrew and keep `ios/NeoGym/project.yml` as the committed source of truth.
 
 ## Quick start
 
@@ -61,7 +62,10 @@ All run from `frontend/` and require `nix develop ../ --command` as a prefix unl
 | `bun install` | Install / sync dependencies |
 | `bun run dev` | Start the dev server on `:5173` (HMR + SSR) |
 | `bun run build` | Production build (Vite + Nitro) |
-| `bun run start` | Run the built server (`.output/server/index.mjs`) |
+| `bun run start` | Run the built Node server locally (`.output/server/index.mjs`; not deployed) |
+| `bun run deploy` | Build and publish `neogym` to the `nhost-app` dispatch namespace with Wrangler |
+| `bun run deploy:dry-run` | Build and validate that deployment without publishing |
+| `bun run preview:cloudflare` | Build and serve the static SPA locally with Wrangler |
 | `bun run typecheck` | `tsc --noEmit` |
 | `bun run lint` | `biome check .` (lint + format check) |
 | `bun run format` | `biome format --write .` |
@@ -189,13 +193,62 @@ allowedUrls = ['neogym://verify']
 
 Any subpath of `clientUrl` is accepted as a `redirectTo` target by default — that's how the web email-change flow lands back on `/verify` without any extra configuration. Redirects outside that origin, including the native `neogym://verify` callback, must be listed in `auth.redirections.allowedUrls` in both files. Keep the dev port in `clientUrl` aligned with `frontend/vite.config.ts` and restart the local Nhost stack after redirect-config edits.
 
+## Web deployment (Cloudflare)
+
+Wrangler is provided by `flake.nix` (version pinned by `flake.lock`), not an npm
+dependency. There is no external `/tmp/cf` binary or separate Wrangler/Node.js
+installation to manage. From `frontend/`:
+
+```sh
+nix develop ../ --command bun install --frozen-lockfile
+nix develop ../ --command bun run deploy:dry-run
+
+# Live production deployment — only run when you intend to publish:
+nix develop ../ --command bun run deploy
+```
+
+`make deploy-prod` delegates to `bun run deploy`; `make deploy-dry-run` delegates
+to the safe dry run. Both use `frontend/wrangler.json`, whose native build hook
+removes both the old SPA shell and `sw.js`, runs `bun run build` with the existing
+`.env.production` values, and refuses to publish unless new, non-empty
+`index.html` and `sw.js` files were generated. The hook also syntax-checks the
+worker using the existing Bun CLI (without executing or replacing it) and
+requires its `index.html` precache URL entry, accepting quoted or minified
+unquoted Workbox keys. This catches post-prerender PWA regeneration failures
+even when the build logs an error but exits successfully.
+Only `.output/public` is uploaded, including `index.html`, the hashed JS/CSS bundles, the PWA manifest, `sw.js`, and Workbox assets. The generated Nitro Node server is
+not deployed. Wrangler's SPA fallback serves `index.html` for navigation to deep
+links such as `/train/sessions` and `/verify?code=...`. Vite's prerender preview
+binds explicitly to IPv4 loopback to avoid hitting another localhost service
+when IPv4/IPv6 listeners differ. The PWA precache is regenerated after the SPA
+shell is written, so clean builds include `index.html` as well as hashed assets.
+
+For a live deployment, export `CLOUDFLARE_ACCOUNT_ID` for the production account
+and `CLOUDFLARE_API_TOKEN` with permission to upload user Workers and static assets
+to that account's existing dispatch namespace. Keep these credentials outside
+Git; the dry run and local preview do not require them.
+
+The deployment command deliberately uses `--dispatch-namespace nhost-app`, not
+`--env production`: the Worker must be named exactly `neogym`, not
+`neogym-production`. The Terraform-managed `nhost.app` dispatcher resolves the
+first hostname label to that Worker, preserving `https://neogym.nhost.app`.
+DNS, the wildcard route, the dispatch namespace, and custom-domain mappings stay
+owned by the existing Cloudflare infrastructure; Wrangler does not create or
+replace them. There is no standalone `workers.dev` route or preview URL.
+
+To test Cloudflare's asset serving locally, use
+`nix develop ../ --command bun run preview:cloudflare` (normally port 8787).
+It uses production build values; this is a serving/routing preview, not a
+replacement for the Vite development server. Testing the real web PKCE callback
+still requires an origin allowed by the backend's Auth redirect configuration.
+
 ## What's not in v1 (yet)
 
 - OAuth providers (Google, GitHub, etc.)
 - Password reset / change-password (no passwords — auth is OTP only)
 - Profile display-name and avatar editing
 - SSR-aware auth via Nhost cookie storage
-- CI / deploy preset (will add when the hosting target is known)
+- Automated CI deployment (manual Wrangler deployment is configured above)
 
 ## Further reading
 

@@ -1,8 +1,7 @@
-.PHONY: deploy-prod
+.PHONY: deploy-prod deploy-dry-run
+
 deploy-prod:
-	bun run build
-	/tmp/cf frontend \
-		deploy \
-		--subdomain neogym \
-		--environment production \
-		--assets-dir ./.output/public/
+	bun run deploy
+
+deploy-dry-run:
+	bun run deploy:dry-run

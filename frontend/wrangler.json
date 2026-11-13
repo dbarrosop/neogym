@@ -1,0 +1,14 @@
+{
+  "name": "neogym",
+  "compatibility_date": "2026-03-20",
+  "workers_dev": false,
+  "preview_urls": false,
+  "tsconfig": "./tsconfig.json",
+  "build": {
+    "command": "rm -f .output/public/index.html .output/public/sw.js && bun run build && test -s .output/public/index.html && test -s .output/public/sw.js && bun build .output/public/sw.js --outfile /dev/null && grep -Eq '(^|[,{])[[:space:]]*(url|\"url\")[[:space:]]*:[[:space:]]*\"index\\.html\"[[:space:]]*[,}]' .output/public/sw.js"
+  },
+  "assets": {
+    "directory": "./.output/public",
+    "not_found_handling": "single-page-application"
+  }
+}

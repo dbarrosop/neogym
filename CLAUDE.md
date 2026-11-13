@@ -51,7 +51,7 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, `wrangler`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
@@ -72,6 +72,9 @@ From `frontend/` (each prefixed with `nix develop ../ --command` if outside the 
 | Install deps | `bun install` |
 | Dev server (<http://localhost:5173>, also exposed on LAN) | `bun run dev` |
 | Production build | `bun run build` |
+| Build + deploy to Cloudflare production | `bun run deploy` (or `make deploy-prod`; publishes live) |
+| Build + validate deployment without publishing | `bun run deploy:dry-run` (or `make deploy-dry-run`) |
+| Cloudflare static-SPA preview | `bun run preview:cloudflare` (builds production assets; normally port 8787) |
 | Typecheck | `bun run typecheck` |
 | Lint + format check | `bun run lint` |
 | Typecheck + lint + tests (run after every code change) | `bun run check` |
@@ -644,7 +647,46 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
 - **Nutrition GraphQL/logging shape**: meal logging should use one nested `insertNutritionLogMeal` with child `nutritionLogEntries`, and each child must explicitly include the same `nutritionDayId` as the parent group. Hasura nested inserts populate `nutritionLogMealId` but not the direct day FK used by permissions/composite same-day enforcement. Individual planned-entry log time is user-selected, user-correctable, defaults to now, and must not blindly copy the template slot: planned-meal logging may keep `nutritionPlanMealId` as provenance, and direct plan-food logging should use a standalone food-backed `insertNutritionLogEntry` with matching `foodId` + `nutritionPlanFoodId` (never grouped under `nutritionLogMealId`; deleting the plan/direct-food slot nulls provenance while snapshots remain). Day logging only shows selected-plan tabs/segments, suggestions, and actions when `nutrition_days.nutritionPlanId` resolves to a plan; no selected plan means no plan logging UI. Selected-plan suggestions are grouped by normalized slot time. Clients no longer expose a whole-plan `Log selected plan` action; each selected-plan time slot has its own `Log` action that logs every planned meal/food in that slot in one combined mutation. Normal slots log at their plan slot time, legacy no-time slots default to now, every entry in the slot receives that slot's logged time, empty planned meals fail the slot all-or-nothing before sending, and re-logging appends duplicates just like individual logging. On the web day timeline, every selected-plan slot stays visible with its **Log slot** action even beside same-time logged intake; the plan picker lives in the day summary rail. Today's **Next in plan** is clock-based (updated once a minute and on focus/visibility changes), not a logged/done-state filter. Plan detail and plan editor screens group mixed meal/direct-food plan entries by normalized slot time; move controls are enforced slot-local, and cross-slot moves happen by editing the row time before the existing sorted/renumbered submit shape is saved. Ad-hoc one-off logs use standalone `source: "ad_hoc"` entries with no `foodId`, `nutritionPlanFoodId`, or `nutritionLogMealId`, and must send name plus kcal/fat/carbs/protein/fiber/sugar snapshot fields per 100g. Standalone entries store their own editable `slotTime`; grouped entries display the parent logged meal's editable `slotTime`. Daily nutrition totals and calories-in/out balance should be computed from logged `snapshot*Per100g` columns, not live `foods`; balance output comes from same-date `daily_energy` and remains read-only.
 - **Form/picker navigation must use `replace: true`**: When a form submit, cancel, picker selection, or delete handler redirects away from a "spent" page (e.g., `/train/workouts/$id/edit` → `/train/workouts/$id` after save *or* cancel, `/train/workouts/$id/edit` → `/train/workouts` after delete, `/train/workouts/new` → `/train/workouts` after cancel), pass `replace: true` to `navigate(...)`. Without it, the now-spent form/picker (or the just-deleted record's detail page) stays on the history stack and the back button lands on it instead of the previous screen. A cancelled form is "spent" in the same way a submitted one is — the user explicitly abandoned it. Same rule for redirects out of invalid states (e.g., the non-owner bounce in `train/workouts/$workoutId/edit.tsx`) — the user was never meant to see that page, so don't leave it in history. Auth-flow redirects (`signin`/`signup` → `/`, which opens `/today`) are a separate case and have their own logic.
 - **Primary navigation (web)**: five areas — Today, Train, Nutrition, Progress, Me — in a left sidebar from 768 px and a five-item bottom tab bar below it, with no horizontal scrolling. Sections inside an area (Train: Sessions/Workouts/Exercises; Nutrition: Log/Plans/Foods/Meals; Progress: Muscles/Strength/Body/Energy; Me: Journal/Account) are header tabs, never extra top-level items. See [UI design system](#ui-design-system-web--ios).
-- **PWA build outDir**: `vite-plugin-pwa` (≤1.3.0) reads `viteConfig.build.outDir` from the *root* config, but Vite 8's Environments API means Nitro only sets `outDir = ".output/public"` on its `client` environment — the root `build.outDir` stays at the default `"dist"`. Without the override, `sw.js` and `workbox-*.js` get written to `dist/` while everything else lands in `.output/public/`, *and* the precache glob scans `dist/` so the SW only precaches itself + 7 static icons (the actual hashed JS/CSS bundles never make it into the precache manifest). Both bugs are silent — the build succeeds, but the deployed SW is unreachable and offline mode caches nothing useful. Fix: `vite.config.ts` sets `build: { outDir: ".output/public", emptyOutDir: false }` at the root. After upgrading vite-plugin-pwa / TanStack Start / Nitro, sanity-check that `.output/public/sw.js` exists *and* contains a precache entry for `assets/*.js` (e.g. `grep -c '"url":"assets/' .output/public/sw.js` should be in the dozens). To regenerate icons from `public/logo.svg`, run `bunx pwa-assets-generator` (config in `pwa-assets.config.ts`).
+- **PWA build outDir**: `vite-plugin-pwa` (≤1.3.0) reads `viteConfig.build.outDir` from the *root* config, but Vite 8's Environments API means Nitro only sets `outDir = ".output/public"` on its `client` environment — the root `build.outDir` stays at the default `"dist"`. Without the override, `sw.js` and `workbox-*.js` get written to `dist/` while everything else lands in `.output/public/`, *and* the precache glob scans `dist/` so the SW only precaches itself + 7 static icons (the actual hashed JS/CSS bundles never make it into the precache manifest). Both bugs are silent — the build succeeds, but the deployed SW is unreachable and offline mode caches nothing useful. Fix: `vite.config.ts` sets `build: { outDir: ".output/public", emptyOutDir: false }` at the root. After upgrading vite-plugin-pwa / TanStack Start / Nitro, sanity-check that `.output/public/sw.js` exists *and* contains a precache entry for `assets/*.js` (e.g. `grep -Eo '"?url"?[[:space:]]*:[[:space:]]*"assets/' .output/public/sw.js | wc -l` should be in the dozens; this counts entries, including minified unquoted keys, not lines). To regenerate icons from `public/logo.svg`, run `bunx pwa-assets-generator` (config in `pwa-assets.config.ts`).
+
+## Web deployment
+
+The frontend deploys as a static SPA using `wrangler` from the Nix devshell
+(`flake.nix`, pinned by `flake.lock`), not an npm dependency or the removed
+`/tmp/cf` helper. Do not install Wrangler via npm/Bun or add a separate Node.js
+package for it; the Nix package provides its runtime. `frontend/wrangler.json`
+uses Wrangler's native build hook to remove both the old SPA shell and `sw.js`,
+run `bun run build`, and require newly generated, non-empty
+`.output/public/index.html` and `.output/public/sw.js` before upload. The hook
+also parses the worker with `bun build --outfile /dev/null` (without executing
+or replacing it) and checks for the `index.html` precache URL entry, accepting
+both quoted and minified unquoted Workbox keys. This guards against the current
+TanStack prerelease logging prerender or post-prerender PWA regeneration failure
+but exiting successfully: an `onSuccess` throw alone does not block deployment.
+Only `.output/public` is uploaded, including the PWA service worker and hashed
+bundles; the generated Node server is not deployed. Wrangler's
+`assets.not_found_handling = "single-page-application"` preserves deep-link and
+PKCE callback navigation. `.wrangler/` is generated local state, ignored by Git
+and Biome. The Vite prerender preview binds to `127.0.0.1` so localhost DNS cannot
+send its request to a different IPv4/IPv6 listener. SPA `prerender.onSuccess`
+regenerates the Workbox service worker through the PWA plugin API after
+`index.html` is written: Vite's earlier closeBundle generation alone misses the
+shell on clean builds. Keep both the root PWA outDir override and this final
+precache generation. Validate `sw.js` precaches `index.html` and hashed JS/CSS.
+
+`bun run deploy` invokes `wrangler deploy --dispatch-namespace nhost-app` with the
+unsuffixed Worker name `neogym`; **do not substitute `--env production`**, which
+would normally suffix the Worker name and break the infrastructure dispatcher's
+hostname lookup. The Terraform-managed `nhost.app` wildcard dispatcher routes
+`neogym.nhost.app` to that user Worker. Namespace, DNS, routes, and custom-domain
+KV mappings remain infrastructure-owned; do not add a standalone Worker route,
+custom domain, or dispatcher binding to the frontend config. `workers_dev` and
+`preview_urls` stay disabled. Live publishing requires `CLOUDFLARE_ACCOUNT_ID`
+and `CLOUDFLARE_API_TOKEN` for the production account; never commit credentials.
+Use `bun run deploy:dry-run` for validation without publishing. The local
+`preview:cloudflare` command also builds production assets and does not change
+backend Auth redirect allowlists. Manual deployment is configured; no CI upload
+workflow is installed. See README.md for operator commands.
 
 ## Nhost MCP
 
