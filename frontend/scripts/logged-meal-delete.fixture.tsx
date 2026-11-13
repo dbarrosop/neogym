@@ -89,7 +89,14 @@ const day: DailyIntakeLogQuery["nutritionDays"][number] = {
       nutritionLogEntries: [entry("yogurt", "Yogurt", 150, "snack")],
     },
   ],
-  nutritionLogEntries: [entry("tea", "Tea", 10, null)],
+  nutritionLogEntries: [
+    entry("tea", "Tea", 10, null),
+    {
+      ...entry("custom", "Homemade sauce", 40, null),
+      source: "ad_hoc",
+      foodId: null,
+    },
+  ],
 };
 const daily: DailyIntakeLogQuery = {
   nutritionDays: [day],
@@ -99,7 +106,9 @@ const daily: DailyIntakeLogQuery = {
   foods: [],
 };
 type DeleteResult = { deleteNutritionLogMeal: { id: string } };
+type DeleteEntryResult = { deleteNutritionLogEntry: { id: string } };
 const deleteRequests: string[] = [];
+const entryDeleteRequests: string[] = [];
 let pendingDelete: { resolve: () => void; reject: (error: Error) => void } | undefined;
 mock.module("@/lib/graphql", () => ({
   gqlRequest: (document: DocumentNode, variables: Record<string, unknown>) => {
@@ -119,6 +128,28 @@ mock.module("@/lib/graphql", () => ({
             },
           ],
         });
+      case "DeleteNutritionLogEntry": {
+        const id = variables["id"];
+        assert.equal(typeof id, "string");
+        entryDeleteRequests.push(id as string);
+        const pending = Promise.withResolvers<DeleteEntryResult>();
+        pendingDelete = {
+          reject: pending.reject,
+          resolve: () => {
+            const entries = [
+              day.nutritionLogEntries,
+              ...day.nutritionLogMeals.map((group) => group.nutritionLogEntries),
+            ].find((items) => items.some((item) => item.id === id));
+            assert(entries, "The delete must target an existing entry");
+            entries.splice(
+              entries.findIndex((item) => item.id === id),
+              1,
+            );
+            pending.resolve({ deleteNutritionLogEntry: { id: id as string } });
+          },
+        };
+        return pending.promise;
+      }
       case "DeleteNutritionLogMeal": {
         const id = variables["id"];
         assert.equal(typeof id, "string");
@@ -185,15 +216,68 @@ function dialog() {
   assert(element, "Expected a confirmation dialog");
   return element;
 }
+function weekShows(kcal: number) {
+  const weekDay = container.querySelector('[aria-label="Week"] [aria-current="date"]');
+  return (
+    weekDay
+      ?.getAttribute("aria-label")
+      ?.includes(kcal ? `${kcal} kilocalories logged` : "nothing logged") === true
+  );
+}
 function assertTotals(kcal: number) {
   const total = container.querySelector('[aria-label="Day summary"] strong');
   assert.equal(total?.textContent, String(kcal));
-  const weekDay = container.querySelector('[aria-label="Week"] [aria-current="date"]');
-  assert(weekDay?.getAttribute("aria-label")?.includes(`${kcal} kilocalories logged`));
+  assert(weekShows(kcal));
 }
 function deletion() {
   assert(pendingDelete, "Expected a pending delete request");
   return pendingDelete;
+}
+
+async function deleteEntry(name: string, id: string, totalAfter: number, failFirst = false) {
+  const trigger = button(`Delete ${name}`);
+  assert(trigger.classList.contains("size-11"), "Entry delete targets must remain 44 px square");
+  assert(trigger.classList.contains("shrink-0"), "Entry delete targets must not shrink");
+  const requestsBefore = entryDeleteRequests.length;
+  const snapshotBefore = structuredClone(day);
+  await settle(() => trigger.click());
+  assert(dialog().textContent?.includes(`Delete ${name}?`));
+  assert(dialog().textContent?.includes("This can't be undone."));
+  assert.equal(document.activeElement, button("Cancel", dialog()));
+  assert.equal(entryDeleteRequests.length, requestsBefore);
+  await settle(() => button("Cancel", dialog()).click());
+  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(entryDeleteRequests.length, requestsBefore, "Cancel must not delete an entry");
+  assert.deepEqual(day, snapshotBefore);
+
+  await settle(() => trigger.click());
+  await settle(() => button("Delete entry", dialog()).click());
+  assert.deepEqual(entryDeleteRequests.slice(requestsBefore), [id]);
+  assert(button("Deleting…", dialog()).disabled);
+  assert(button("Cancel", dialog()).disabled);
+  assert(trigger.disabled);
+  await settle(() =>
+    dialog().dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true })),
+  );
+  assert(dialog(), "Pending deletion must keep its confirmation visible");
+  if (failFirst) {
+    await settle(() => deletion().reject(new Error("Connection interrupted")));
+    await waitFor(() => !button("Delete entry", dialog()).disabled);
+    assert.equal(errors.at(-1), "Failed to delete entry: Connection interrupted");
+    assert.deepEqual(day, snapshotBefore, "A failed delete must preserve the original snapshots");
+    await settle(() => button("Delete entry", dialog()).click());
+    assert.deepEqual(entryDeleteRequests.slice(requestsBefore), [id, id]);
+  }
+  await settle(() => deletion().resolve());
+  await waitFor(
+    () =>
+      !document.querySelector('[role="dialog"]') &&
+      !container.textContent?.includes(name) &&
+      weekShows(totalAfter),
+  );
+  assertTotals(totalAfter);
+  assert.equal(client.getQueryState(todayKey)?.isInvalidated, true);
+  assert.equal(successes.at(-1), "Entry deleted");
 }
 
 try {
@@ -209,9 +293,12 @@ try {
       container
         .querySelector('[aria-label="Week"] [aria-current="date"]')
         ?.getAttribute("aria-label")
-        ?.includes("460 kilocalories logged") === true,
+        ?.includes("500 kilocalories logged") === true,
   );
-  assertTotals(460);
+  assertTotals(500);
+  const gramsTrigger = button("100 g", button("Delete Tea").closest("li") as HTMLLIElement);
+  assert(gramsTrigger.classList.contains("h-11"), "The grams trigger must remain 44 px tall");
+  assert(gramsTrigger.classList.contains("min-w-11"), "The grams trigger must remain 44 px wide");
   const trigger = button("Delete Lunch and its entries");
   assert(trigger.classList.contains("size-11"), "The delete target must remain 44 px square");
   assert(trigger.classList.contains("shrink-0"), "A narrow chip must not shrink the delete target");
@@ -225,7 +312,7 @@ try {
   assert.equal(document.querySelector('[role="dialog"]'), null);
   assert.equal(deleteRequests.length, 0);
   assert.equal(day.nutritionLogMeals.length, 2);
-  assertTotals(460);
+  assertTotals(500);
 
   await settle(() => trigger.click());
   await settle(() => button("Delete meal", dialog()).click());
@@ -238,7 +325,7 @@ try {
   await waitFor(() => !button("Delete meal", dialog()).disabled);
   assert.deepEqual(errors, ["Failed to delete logged meal: Connection interrupted"]);
   assert.equal(day.nutritionLogMeals.length, 2);
-  assertTotals(460);
+  assertTotals(500);
 
   await settle(() => button("Delete meal", dialog()).click());
   assert.deepEqual(deleteRequests, ["lunch", "lunch"]);
@@ -246,17 +333,17 @@ try {
   await waitFor(
     () =>
       !document.querySelector('[role="dialog"]') &&
-      container.querySelectorAll('[aria-label="Timeline"] li').length === 2 &&
+      container.querySelectorAll('[aria-label="Timeline"] li').length === 3 &&
       container
         .querySelector('[aria-label="Week"] [aria-current="date"]')
         ?.getAttribute("aria-label")
-        ?.includes("160 kilocalories logged") === true,
+        ?.includes("200 kilocalories logged") === true,
   );
   assert(!container.textContent?.includes("Rice"));
   assert(!container.textContent?.includes("Chicken"));
   assert(container.textContent?.includes("Yogurt"));
   assert(container.textContent?.includes("Tea"));
-  assertTotals(160);
+  assertTotals(200);
   assert.equal(client.getQueryState(todayKey)?.isInvalidated, true);
   assert.deepEqual(successes, ["Logged meal deleted"]);
 
@@ -266,6 +353,14 @@ try {
   assert(dialog().textContent?.includes("its 1 item will be deleted"));
   await settle(() => button("Cancel", dialog()).click());
   assert.deepEqual(deleteRequests, ["lunch", "lunch"]);
+
+  // Grouped food, standalone food, and ad-hoc snapshots share the same confirmed delete path.
+  await deleteEntry("Yogurt", "yogurt", 50);
+  assert.equal(day.nutritionLogMeals[0]?.id, "snack", "Deleting an entry must retain its group");
+  await deleteEntry("Tea", "tea", 40);
+  await deleteEntry("Homemade sauce", "custom", 0, true);
+  assert.deepEqual(entryDeleteRequests, ["yogurt", "tea", "custom", "custom"]);
+  assert.deepEqual(deleteRequests, ["lunch", "lunch"], "Entry deletion must never delete a meal");
 } finally {
   act(() => root.unmount());
   client.clear();
@@ -275,5 +370,5 @@ try {
   mock.restore();
 }
 console.info(
-  "Logged meal deletion requires confirmation, preserves failed deletes, and refreshes totals after success.",
+  "Logged meal and entry deletion requires confirmation, preserves failed deletes, and refreshes totals after success.",
 );

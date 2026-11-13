@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("logged meal deletion confirms the cascade and remains retryable on failure", () => {
+test("logged meal and entry deletion require confirmation and remain retryable on failure", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -15,6 +15,6 @@ test("logged meal deletion confirms the cascade and remains retryable on failure
   }).toEqual({
     exitCode: 0,
     output:
-      "Logged meal deletion requires confirmation, preserves failed deletes, and refreshes totals after success.\n",
+      "Logged meal and entry deletion requires confirmation, preserves failed deletes, and refreshes totals after success.\n",
   });
-});
+}, 25_000);

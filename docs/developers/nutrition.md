@@ -130,10 +130,12 @@ client perspective. Re-running slot logging appends duplicate logged meals/entri
 planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
 
 On the web, the day log is an always-expanded timeline: solid **Logged** cards contain actual intake,
-and dashed **Planned** cards retain their **Log slot** action and full entry list. Logged-meal delete
-controls have a 44 px target and require confirmation naming the meal and the number of entries
-that cascade with it; cancelling leaves the log unchanged. The confirmation closes after a successful
-delete and stays open on failure for retry. A planned card follows the logged card when their
+and dashed **Planned** cards retain their **Log slot** action and full entry list. Individual-entry and
+logged-meal delete controls have a non-shrinking 44 px target and require confirmation naming the
+entry or meal; meal confirmations also name the number of entries that cascade with it. Cancelling
+leaves the log unchanged. Confirmations close after a successful delete and stay open on failure for
+retry, preserving the original snapshots until deletion succeeds. The inline grams-edit trigger is
+also at least 44 px tall and wide. A planned card follows the logged card when their
 normalized times match, including legacy no-time slots. In that case its **Log slot** is an outline
 button rather than the primary one, and it asks first: the confirmation says food is already logged at
 that time (or without a time) and how many planned items will be added where; cancelling writes

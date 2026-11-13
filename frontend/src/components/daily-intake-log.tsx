@@ -521,7 +521,9 @@ export function DailyIntakeLog({ date }: DailyIntakeLogProps) {
                 key={`logged-${item.slot.key}`}
                 slot={item.slot}
                 onUpdateEntry={(entryId, set) => updateEntryMutation.mutate({ id: entryId, set })}
-                onDeleteEntry={(entryId) => deleteEntryMutation.mutate(entryId)}
+                onDeleteEntry={(entryId, onSuccess) =>
+                  deleteEntryMutation.mutate(entryId, { onSuccess })
+                }
                 onDeleteGroup={(groupId, onSuccess) =>
                   deleteGroupMutation.mutate(groupId, { onSuccess })
                 }
@@ -838,10 +840,12 @@ function LoggedSlotCard({
 }: {
   slot: IntakeTimeSlot<DailyEntry>;
   onUpdateEntry: (entryId: string, set: EntryUpdateSet) => void;
-  onDeleteEntry: (entryId: string) => void;
+  onDeleteEntry: (entryId: string, onSuccess: () => void) => void;
   onDeleteGroup: (groupId: string, onSuccess: () => void) => void;
   disabled: boolean;
 }) {
+  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
+  const entryToDelete = slot.entries.find(({ entry }) => entry.id === deleteEntryId)?.entry;
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
   const groupToDelete = slot.mealGroups.find((group) => group.id === deleteGroupId);
 
@@ -883,13 +887,30 @@ function LoggedSlotCard({
               key={slotEntry.entry.id}
               entry={slotEntry.entry}
               onUpdate={(set) => onUpdateEntry(slotEntry.entry.id, set)}
-              onDelete={() => onDeleteEntry(slotEntry.entry.id)}
+              onDelete={() => setDeleteEntryId(slotEntry.entry.id)}
               disabled={disabled}
               provenance={slotEntry.mealName ? `From ${slotEntry.mealName}` : undefined}
             />
           ))}
         </ul>
       )}
+      {entryToDelete ? (
+        <ConfirmActionDialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open && !disabled) {
+              setDeleteEntryId(null);
+            }
+          }}
+          title={`Delete ${entryToDelete.snapshotFoodName}?`}
+          description="This logged entry will be deleted. This can't be undone."
+          confirmLabel="Delete entry"
+          pendingLabel="Deleting…"
+          onConfirm={() => onDeleteEntry(entryToDelete.id, () => setDeleteEntryId(null))}
+          isPending={disabled}
+          destructive={true}
+        />
+      ) : null}
       {groupToDelete ? (
         <ConfirmActionDialog
           open={true}
@@ -1197,7 +1218,7 @@ function EntryRow({
         type="button"
         size="sm"
         variant="ghost"
-        className="tabular-nums"
+        className="h-11 min-w-11 tabular-nums"
         onClick={() => setIsEditingGrams(true)}
         disabled={disabled}
         title="Click to edit grams"
@@ -1229,7 +1250,7 @@ function EntryRow({
         type="button"
         size="icon"
         variant="ghost"
-        className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        className="size-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         onClick={onDelete}
         disabled={disabled}
         aria-label={`Delete ${entry.snapshotFoodName}`}
