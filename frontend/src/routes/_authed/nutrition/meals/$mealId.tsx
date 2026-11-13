@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChefHat, Pencil } from "lucide-react";
 import { MacroSummary } from "@/components/macro-summary";
+import { PageShell } from "@/components/patterns/page-shell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -144,7 +145,11 @@ function MealDetailRoute() {
     );
   }
 
-  return <div className="space-y-4">{renderContent()}</div>;
+  return (
+    <PageShell maxWidth="4xl">
+      <div className="space-y-4">{renderContent()}</div>
+    </PageShell>
+  );
 }
 
 function MealDetailSkeleton() {

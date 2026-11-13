@@ -176,13 +176,6 @@ function MealsIndexRoute() {
             Compose reusable private meal templates from your foods and public foods.
           </p>
         </div>
-        <Button asChild className="shrink-0">
-          <Link to="/nutrition/meals/new">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New meal</span>
-            <span className="sm:hidden">New</span>
-          </Link>
-        </Button>
       </div>
 
       <div className="relative">

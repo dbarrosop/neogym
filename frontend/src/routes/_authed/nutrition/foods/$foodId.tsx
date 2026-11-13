@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Apple, Globe2, Pencil, User } from "lucide-react";
+import { PageShell } from "@/components/patterns/page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,7 +111,11 @@ function FoodDetailRoute() {
     );
   }
 
-  return <div className="space-y-4">{renderContent()}</div>;
+  return (
+    <PageShell maxWidth="4xl">
+      <div className="space-y-4">{renderContent()}</div>
+    </PageShell>
+  );
 }
 
 function MacroTile({ label, value }: { label: string; value: string }) {
