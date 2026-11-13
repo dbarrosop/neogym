@@ -77,7 +77,10 @@ const updated: TodayOverviewQuery = {
     },
   ],
   yesterdayEnergy: [{ id: "yesterday-energy", activeKcal: 300, restingKcal: 1500 }],
-  bodyMeasurements: [{ id: "body", measuredOn: "2026-06-01", weightKg: 80, bodyFatPct: 20 }],
+  bodyMeasurements: [
+    { id: "body-previous", measuredOn: "2026-05-31", weightKg: 82, bodyFatPct: null },
+    { id: "body", measuredOn: "2026-06-01", weightKg: 80, bodyFatPct: 20 },
+  ],
 };
 const container = document.createElement("div");
 document.body.append(container);
@@ -174,6 +177,14 @@ try {
   );
   assert(card("Body").textContent?.includes("80.00 kg"));
   assert(card("Body").textContent?.includes("20.0 %"));
+  const [firstDate, lastDate] = [new Date(2026, 4, 31), new Date(2026, 5, 1)].map((date) =>
+    date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }),
+  );
+  assert.equal(
+    card("Body").querySelector('svg[role="img"]')?.getAttribute("aria-label"),
+    `Seven-day average weight: 82 kg on ${firstDate} to 81 kg on ${lastDate}; down 1 kg overall across 2 observations.`,
+    "The sparkline describes its rolling averages, not the raw weight measurements",
+  );
   assert(!container.textContent?.includes("Couldn't load today"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
   assert.equal(requests.length, 3, "One overview request is made per visit or Retry");

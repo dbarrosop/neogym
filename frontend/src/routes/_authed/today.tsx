@@ -16,12 +16,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { TodayOverviewQuery as TodayOverviewData } from "@/gql/graphql";
+import { describeTrend } from "@/lib/chart-trend";
 import { formatDateShort, parseDateOnly } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import {
   addLocalDateDays,
   groupPlanEntriesByTimeSlot,
+  localDateToDate,
   loggedMacroTotals,
   mergePlanEntriesByTime,
   normalizeNumeric,
@@ -670,7 +672,13 @@ function BodyCard({ data, today }: { data: Overview; today: string }) {
           {latestWeight ? (
             <Sparkline
               values={rolling}
-              label="Seven-day average weight over the last three weeks"
+              label={describeTrend(
+                weights.map((point, index) => ({
+                  date: localDateToDate(point.date)?.getTime() ?? Number.NaN,
+                  value: rolling[index] ?? null,
+                })),
+                { label: "Seven-day average weight", unit: "kg" },
+              )}
               className="ml-auto"
             />
           ) : null}
