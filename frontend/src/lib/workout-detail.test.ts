@@ -50,10 +50,23 @@ describe("workout detail strength history", () => {
           through_day: "2026-11-12",
           time_zone: "America/Los_Angeles",
         },
+        where: { volume: { _gt: 0 } },
         order_by: [{ startedAt: "desc" }],
         limit: 6,
       },
     ]);
     expect(print(WorkoutDetailDocument)).not.toContain("strengthHistory(");
   });
+
+  test("renders only volume-bearing sessions with proportional bars and preserves notes without history", () => {
+    const result = Bun.spawnSync(["bun", "scripts/workout-volume.fixture.tsx"], {
+      cwd: new URL("../..", import.meta.url).pathname,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 20_000,
+    });
+    expect(new TextDecoder().decode(result.stderr)).toBe("");
+    expect(new TextDecoder().decode(result.stdout)).toContain("workout volume fixture passed");
+    expect(result.exitCode).toBe(0);
+  }, 25_000);
 });

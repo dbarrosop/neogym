@@ -50,13 +50,13 @@ const WorkoutDetailQuery = graphql(`
     }
     workoutStrengthReport(
       args: { workout_id: $id, from_day: $from, through_day: $through, time_zone: $timeZone }
+      where: { volume: { _gt: 0 } }
       order_by: { startedAt: desc }
       limit: 6
     ) {
       sessionId
       startedAt
       volume
-      completedSets
     }
   }
 `);
@@ -188,16 +188,14 @@ function VolumeBars({ rows }: { rows: WorkoutDetailData["workoutStrengthReport"]
     volume: Number(row.volume ?? 0),
   }));
   const values = points.map((p) => p.volume);
-  const max = Math.max(...values, 1);
-  const min = Math.min(...values);
-  const span = max - min || max;
+  const max = Math.max(...values, 0) || 1;
   return (
     <div className="flex flex-col gap-3">
       <span className="text-[13px] font-semibold text-muted-foreground">
         Volume by session · past year
       </span>
       <ol
-        className="flex h-36 items-end gap-3"
+        className="grid h-36 auto-cols-[minmax(0,1fr)] grid-flow-col grid-rows-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1.5"
         aria-label={`Volume by session: ${points
           .map(
             (p) =>
@@ -206,30 +204,32 @@ function VolumeBars({ rows }: { rows: WorkoutDetailData["workoutStrengthReport"]
           .join(", ")}`}
       >
         {points.map((point, index) => {
-          const ratio = 0.3 + (0.7 * (point.volume - min)) / span;
+          const ratio = point.volume / max;
           const last = index === points.length - 1;
           return (
             <li
               key={point.id}
-              className="flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+              className="row-span-3 grid min-w-0 grid-rows-subgrid justify-items-center"
             >
-              <span className="text-[12px] font-semibold tabular-nums">
+              <span className="max-w-full min-w-0 text-center text-[12px] font-semibold wrap-anywhere tabular-nums">
                 {point.volume >= 1000
                   ? `${(point.volume / 1000).toFixed(1)}k`
                   : volumeFormat.format(point.volume)}
               </span>
-              <Link
-                to="/train/sessions/$sessionId"
-                params={{ sessionId: point.id }}
-                aria-hidden="true"
-                tabIndex={-1}
-                className={cn(
-                  "w-full max-w-12 rounded-md transition-opacity hover:opacity-80",
-                  last ? "bg-primary" : "bg-primary/40",
-                )}
-                style={{ height: `${Math.round(ratio * 100)}%` }}
-              />
-              <span className="text-[12px] text-muted-foreground tabular-nums">
+              <div className="flex size-full items-end justify-center">
+                <Link
+                  to="/train/sessions/$sessionId"
+                  params={{ sessionId: point.id }}
+                  aria-hidden="true"
+                  tabIndex={-1}
+                  className={cn(
+                    "w-full max-w-12 rounded-md transition-opacity hover:opacity-80",
+                    last ? "bg-primary" : "bg-primary/40",
+                  )}
+                  style={{ height: `${ratio * 100}%` }}
+                />
+              </div>
+              <span className="max-w-full min-w-0 text-center text-[12px] wrap-anywhere text-muted-foreground tabular-nums">
                 {point.date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}
               </span>
             </li>
