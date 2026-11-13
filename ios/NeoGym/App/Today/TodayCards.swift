@@ -390,10 +390,11 @@ struct TodayBodyCard: View {
                         .foregroundStyle(NeoGymTheme.textSecondary)
                     MetricValueText(value: MetricFormat.decimal(weight, digits: 2), unit: "kg")
                     if let average = summary.weekAverageKg {
+                        // Neutral: NeoGym has no weight goal, so neither direction is a success.
                         Text(averageText(average, change: summary.weekChangeKg))
                             .font(.footnote.weight(.semibold))
                             .monospacedDigit()
-                            .foregroundStyle(NeoGymTheme.positive)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
                     }
                 }
                 .accessibilityElement(children: .combine)
