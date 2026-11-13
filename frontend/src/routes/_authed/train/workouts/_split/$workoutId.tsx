@@ -9,13 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { WorkoutDetailQuery as WorkoutDetailData } from "@/gql/graphql";
+import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useStartSession } from "@/lib/hooks/use-start-session";
 import { useAuth } from "@/lib/nhost/auth-provider";
+import { useLocalToday } from "@/lib/use-local-today";
 import { cn, formatMuscle } from "@/lib/utils";
+import { workoutDetailVariables } from "@/lib/workout-detail";
 
 const WorkoutDetailQuery = graphql(`
-  query WorkoutDetail($id: uuid!) {
+  query WorkoutDetail($id: uuid!, $from: date!, $through: date!, $timeZone: String!) {
     workout(id: $id) {
       id
       name
@@ -44,12 +47,16 @@ const WorkoutDetailQuery = graphql(`
           name
         }
       }
-      strengthHistory(args: {}, order_by: { startedAt: desc }, limit: 6) {
-        sessionId
-        startedAt
-        volume
-        completedSets
-      }
+    }
+    workoutStrengthReport(
+      args: { workout_id: $id, from_day: $from, through_day: $through, time_zone: $timeZone }
+      order_by: { startedAt: desc }
+      limit: 6
+    ) {
+      sessionId
+      startedAt
+      volume
+      completedSets
     }
   }
 `);
@@ -82,9 +89,13 @@ const volumeFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0
 function WorkoutDetailRoute() {
   const { workoutId } = Route.useParams();
   const { user } = useAuth();
+  const today = useLocalToday();
+  const timeZone = localTimeZone();
   const { data, isLoading, error } = useQuery({
-    queryKey: ["workouts", "detail", workoutId],
-    queryFn: () => gqlRequest(WorkoutDetailQuery, { id: workoutId }),
+    queryKey: ["workouts", "detail", workoutId, today, timeZone, user?.id],
+    queryFn: () =>
+      gqlRequest(WorkoutDetailQuery, workoutDetailVariables(workoutId, today, timeZone)),
+    enabled: !!user,
   });
   const startSession = useStartSession();
 
@@ -104,7 +115,7 @@ function WorkoutDetailRoute() {
     );
   }
   const canEdit = Boolean(user && workout.userId === user.id && !workout.isPublic);
-  const history = workout.strengthHistory ?? [];
+  const history = data.workoutStrengthReport;
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,7 +181,7 @@ function WorkoutDetailRoute() {
   );
 }
 
-function VolumeBars({ rows }: { rows: NonNullable<Workout["strengthHistory"]> }) {
+function VolumeBars({ rows }: { rows: WorkoutDetailData["workoutStrengthReport"] }) {
   const points = [...rows].reverse().map((row) => ({
     id: row.sessionId,
     date: new Date(row.startedAt),
@@ -182,7 +193,9 @@ function VolumeBars({ rows }: { rows: NonNullable<Workout["strengthHistory"]> })
   const span = max - min || max;
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-[13px] font-semibold text-muted-foreground">Volume by session</span>
+      <span className="text-[13px] font-semibold text-muted-foreground">
+        Volume by session · past year
+      </span>
       <ol
         className="flex h-36 items-end gap-3"
         aria-label={`Volume by session: ${points
