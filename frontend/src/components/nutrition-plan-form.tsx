@@ -763,7 +763,7 @@ function NutritionPlanEntryCard({
 
   return (
     <div className="flex flex-col gap-1.5 border-t py-3">
-      <div className="grid items-center gap-2 sm:grid-cols-[8.75rem_minmax(0,1fr)_7rem_auto]">
+      <div className="grid items-center gap-2 lg:grid-cols-[8.75rem_minmax(0,1fr)_7rem_auto]">
         <div>
           <label htmlFor={timeId} className="sr-only">
             Time of day
