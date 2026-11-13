@@ -70,9 +70,11 @@ struct ProgressMetricCard: View {
                     .foregroundColor(NeoGymTheme.textSecondary)
                 Spacer()
                 if let delta {
+                    // Gains are favourable deltas; declines stay neutral because
+                    // destructive is reserved for deletes, sign-out and errors.
                     Text(delta)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(delta.hasPrefix("+") ? NeoGymTheme.positive : NeoGymTheme.destructive)
+                        .foregroundStyle(delta.hasPrefix("+") ? NeoGymTheme.positive : NeoGymTheme.textSecondary)
                 }
             }
             Text(value)
