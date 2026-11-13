@@ -529,7 +529,7 @@ function deltaToneClass(delta: number | null): string {
     return "text-muted-foreground";
   }
   if (delta > 0) {
-    return "text-emerald-500";
+    return "text-positive";
   }
   return "text-destructive";
 }

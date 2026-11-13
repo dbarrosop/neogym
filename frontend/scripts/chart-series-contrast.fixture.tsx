@@ -207,12 +207,18 @@ async function checkExerciseProgress() {
   assert.deepEqual(strokes, ["var(--color-chart-1)", "var(--color-muted-foreground)"]);
   const oneRmStops = all("#progress-1rm stop").map((stop) => stop.getAttribute("stop-color"));
   assert.deepEqual(oneRmStops, ["var(--color-chart-2)", "var(--color-chart-2)"]);
+  const deltas = all("span.tabular-nums").filter((span) => span.textContent?.startsWith("+"));
+  assert.equal(deltas.length, 2);
 
   for (const theme of ["light", "dark"] as const) {
     const color = palette(theme);
     const surface = color("surface-inset");
     for (const stroke of strokes) {
       assert(contrast(color(stroke), surface) >= 3, `${theme}: ${stroke} trend line contrast`);
+    }
+    for (const delta of deltas) {
+      assert(delta.classList.contains("text-positive"), "Favourable deltas use the positive token");
+      assert(contrast(color("positive"), surface) >= 4.5, `${theme}: delta text contrast`);
     }
   }
 }
