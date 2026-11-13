@@ -163,7 +163,8 @@ struct MuscleSetProgressView: View {
             }
             .padding(.horizontal, NeoGymTheme.spacingMD)
             .frame(minHeight: NeoGymTheme.minimumTapTarget)
-            .background(isSelected ? NeoGymTheme.inset : Color.clear)
+            // Selected rows use the accent-soft highlight, as on the design and the web.
+            .background(isSelected ? NeoGymTheme.accentSoft.opacity(0.6) : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
