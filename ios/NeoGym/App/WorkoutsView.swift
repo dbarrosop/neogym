@@ -101,7 +101,7 @@ struct WorkoutsListView: View {
         Task {
             defer { startingWorkoutId = nil }
             let model = WorkoutDetailViewModel(workoutId: workout.id, repository: workoutsRepository)
-            await model.load()
+            await model.load(includeInsights: false)
             if let sessionId = await model.startSession() {
                 onSessionStarted(sessionId)
             } else {

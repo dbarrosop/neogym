@@ -86,7 +86,8 @@ public final class WorkoutDetailViewModel: ObservableObject {
 
     public var workout: WorkoutDetailModel? { state.value }
 
-    public func load() async {
+    /// List-start callers need only the template, not decorative detail history.
+    public func load(includeInsights: Bool = true) async {
         state = .loading(previous: state.value)
         do {
             var receivedValue = false
@@ -104,7 +105,7 @@ public final class WorkoutDetailViewModel: ObservableObject {
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
         }
-        await loadInsights()
+        if includeInsights { await loadInsights() }
     }
 
     private func loadInsights() async {

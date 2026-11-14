@@ -229,16 +229,64 @@ final class WorkoutsListViewModelTests: XCTestCase {
 
 @MainActor
 final class WorkoutDetailViewModelTests: XCTestCase {
-    func testDetailLoadAppliesCachedThenFreshValues() async {
-        let repository = StubWorkoutsRepository(detailUpdates: [
-            WorkoutDetailModel(id: "workout", name: "Cached", isPublic: false),
-            WorkoutDetailModel(id: "workout", name: "Fresh", isPublic: false)
-        ])
-        let viewModel = WorkoutDetailViewModel(workoutId: "workout", repository: repository)
+    func testDetailLoadAppliesCachedThenFreshValuesAndLoadsInsightsOnce() async throws {
+        let fresh = try JSONDecoder().decode(WorkoutDetailModel.self, from: JSONEncoder().encode(workoutDetailFixture))
+        let expectedInsights = WorkoutDetailInsights(lastTopSetByExercise: ["exercise-1": "100 × 5"])
+        let today = Date(timeIntervalSince1970: 1_800_000_000)
+        let repository = StubWorkoutsRepository(
+            detailUpdates: [WorkoutDetailModel(id: fresh.id, name: "Cached", isPublic: false), fresh],
+            detailInsights: expectedInsights
+        )
+        let viewModel = WorkoutDetailViewModel(workoutId: fresh.id, repository: repository, now: { today })
 
         await viewModel.load()
 
-        XCTAssertEqual(viewModel.workout?.name, "Fresh")
+        XCTAssertEqual(viewModel.workout, fresh)
+        XCTAssertEqual(viewModel.insights, expectedInsights)
+        let requests = await repository.insightRequests
+        XCTAssertEqual(requests.count, 1)
+        XCTAssertEqual(requests.first?.workoutId, fresh.id)
+        XCTAssertEqual(requests.first?.exerciseIds, ["exercise-1", "exercise-2"])
+        XCTAssertEqual(requests.first?.today, today)
+    }
+
+    func testListStartSkipsInsightsAndCopiesFreshTemplate() async throws {
+        let fresh = try JSONDecoder().decode(WorkoutDetailModel.self, from: JSONEncoder().encode(workoutDetailFixture))
+        let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let repository = StubWorkoutsRepository(detailUpdates: [
+            WorkoutDetailModel(id: fresh.id, name: "Cached", isPublic: false), fresh
+        ])
+        let viewModel = WorkoutDetailViewModel(workoutId: fresh.id, repository: repository, now: { startedAt })
+
+        await viewModel.load(includeInsights: false)
+        let sessionId = await viewModel.startSession()
+
+        XCTAssertEqual(sessionId, "session")
+        XCTAssertEqual(viewModel.startState.value, "session")
+        XCTAssertNil(viewModel.insights)
+        let insightRequests = await repository.insightRequests
+        XCTAssertEqual(insightRequests.count, 0)
+        let starts = await repository.sessionStarts
+        XCTAssertEqual(starts.count, 1)
+        XCTAssertEqual(starts.first?.workout, fresh)
+        XCTAssertEqual(starts.first?.startedAt, startedAt)
+    }
+
+    func testListStartDoesNotCopyDeletedCachedTemplate() async {
+        let repository = StubWorkoutsRepository(detailUpdates: [
+            WorkoutDetailModel(id: "workout", name: "Cached", isPublic: false), nil
+        ])
+        let viewModel = WorkoutDetailViewModel(workoutId: "workout", repository: repository)
+
+        await viewModel.load(includeInsights: false)
+        let sessionId = await viewModel.startSession()
+
+        XCTAssertNil(sessionId)
+        XCTAssertEqual(viewModel.state.errorMessage, "Workout not found.")
+        let starts = await repository.sessionStarts
+        let insightRequests = await repository.insightRequests
+        XCTAssertEqual(starts.count, 0)
+        XCTAssertEqual(insightRequests.count, 0)
     }
 
     func testDetailLoadKeepsCachedValueWhenRefreshProducesNoFurtherEmission() async {
@@ -354,21 +402,26 @@ private func labelLink(id: String) -> WorkoutLabelLink {
     WorkoutLabelLink(labelId: id, label: WorkoutLabel(id: id, name: id))
 }
 
-private final class StubWorkoutsRepository: WorkoutsRepositoryProtocol, @unchecked Sendable {
-    var index: WorkoutIndexPayload
+private actor StubWorkoutsRepository: WorkoutsRepositoryProtocol {
+    let index: WorkoutIndexPayload
     let detailUpdates: [WorkoutDetailModel?]
+    let detailInsights: WorkoutDetailInsights
+    private(set) var insightRequests: [(workoutId: String, exerciseIds: [String], today: Date)] = []
+    private(set) var sessionStarts: [(workout: WorkoutDetailModel, startedAt: Date)] = []
 
     init(
         index: WorkoutIndexPayload = WorkoutIndexPayload(workouts: [], labels: []),
-        detailUpdates: [WorkoutDetailModel?] = []
+        detailUpdates: [WorkoutDetailModel?] = [],
+        detailInsights: WorkoutDetailInsights = WorkoutDetailInsights()
     ) {
         self.index = index
         self.detailUpdates = detailUpdates
+        self.detailInsights = detailInsights
     }
 
     func listWorkouts() async throws -> WorkoutIndexPayload { index }
 
-    func workoutDetailUpdates(id: String) -> AsyncThrowingStream<WorkoutDetailModel?, Error> {
+    nonisolated func workoutDetailUpdates(id: String) -> AsyncThrowingStream<WorkoutDetailModel?, Error> {
         let updates = AsyncThrowingStream<WorkoutDetailModel?, Error>.makeStream()
         for detail in detailUpdates {
             updates.continuation.yield(detail)
@@ -383,7 +436,15 @@ private final class StubWorkoutsRepository: WorkoutsRepositoryProtocol, @uncheck
     func createWorkout(_ values: WorkoutFormValues) async throws -> String { "created" }
     func saveWorkout(id: String, initialValues: WorkoutFormValues, values: WorkoutFormValues) async throws {}
     func deleteWorkout(id: String) async throws {}
-    func startSession(from workout: WorkoutDetailModel, startedAt: Date) async throws -> String { "session" }
+    func startSession(from workout: WorkoutDetailModel, startedAt: Date) async throws -> String {
+        sessionStarts.append((workout, startedAt))
+        return "session"
+    }
+
+    func workoutDetailInsights(workoutId: String, exerciseIds: [String], today: Date) async throws -> WorkoutDetailInsights {
+        insightRequests.append((workoutId, exerciseIds, today))
+        return detailInsights
+    }
 }
 
 private extension JSONValue {
