@@ -265,7 +265,7 @@ struct NutritionDaySummaryCard: View {
             }
             AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .top) {
                 macroColumn("Protein", totals.protein, targetTotals?.protein, NeoGymTheme.accent)
-                macroColumn("Carbs", totals.carbs, targetTotals?.carbs, NeoGymTheme.series2)
+                macroColumn("Carbs", totals.carbs, targetTotals?.carbs, NeoGymTheme.carbs)
                 macroColumn("Fat", totals.fat, targetTotals?.fat, NeoGymTheme.textSecondary)
             }
             Text("Fiber \(grams(totals.fiber, targetTotals?.fiber)) · Sugar \(grams(totals.sugar, targetTotals?.sugar))")

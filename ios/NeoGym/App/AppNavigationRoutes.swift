@@ -71,6 +71,7 @@ enum NutritionSection: String, AreaSection {
 }
 
 enum ProgressSection: String, AreaSection {
+    case overview
     case muscles
     case strength
     case body
@@ -78,6 +79,7 @@ enum ProgressSection: String, AreaSection {
 
     var title: String {
         switch self {
+        case .overview: "Overview"
         case .muscles: "Muscles"
         case .strength: "Strength"
         case .body: "Body"

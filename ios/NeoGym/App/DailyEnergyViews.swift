@@ -89,39 +89,34 @@ struct DailyEnergyListView: View {
         .cardSurface()
     }
 
+    /// The latest five entries, a "5 of 41" count and Load more, which reads
+    /// the next server page when the window passes the loaded entries.
     private var entryList: some View {
-        VStack(spacing: 0) {
-            ForEach(viewModel.entries) { entry in
-                NavigationLink(value: ProgressRoute.energyDetail(entry.id)) {
-                    DailyEnergyListRow(entry: entry)
-                }
-                .buttonStyle(.plain)
-                if entry.id != viewModel.entries.last?.id { RowSeparator() }
-            }
-            if viewModel.hasMore {
-                RowSeparator(leadingInset: 0)
-                Button {
-                    Task { await viewModel.loadMore() }
-                } label: {
-                    Group {
-                        if viewModel.isLoadingMore {
-                            ProgressView()
-                        } else {
-                            Text("Load more")
-                        }
+        let shown = viewModel.visibleEntries
+        return VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            EntryListHeader(title: "Entries · resting + active", count: viewModel.countLabel)
+            VStack(spacing: 0) {
+                ForEach(shown) { entry in
+                    NavigationLink(value: ProgressRoute.energyDetail(entry.id)) {
+                        DailyEnergyListRow(entry: entry)
                     }
-                    .frame(maxWidth: .infinity, minHeight: NeoGymTheme.minimumTapTarget)
+                    .buttonStyle(.plain)
+                    if entry.id != shown.last?.id { RowSeparator() }
                 }
-                .foregroundStyle(NeoGymTheme.accentText)
+                if viewModel.canShowMore {
+                    LoadMoreRow(isLoading: viewModel.isLoadingMore) {
+                        Task { await viewModel.showMore() }
+                    }
+                }
+                if let message = viewModel.loadMoreErrorMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.destructive)
+                        .padding(NeoGymTheme.spacingSM)
+                }
             }
-            if let message = viewModel.loadMoreErrorMessage {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(NeoGymTheme.destructive)
-                    .padding(NeoGymTheme.spacingSM)
-            }
+            .cardSurface()
         }
-        .cardSurface()
     }
 }
 

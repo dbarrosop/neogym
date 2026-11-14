@@ -6,6 +6,7 @@ struct BodyMeasurementsListView: View {
     let repository: any BodyMeasurementsRepositoryProtocol
     let healthImporter: (any BodyMeasurementsHealthImporting)?
     let reloadToken: Int
+    @State private var window = EntryHistoryWindow()
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
@@ -57,8 +58,14 @@ struct BodyMeasurementsListView: View {
             }
             .cardSurface()
         default:
-            if viewModel.trendData.shouldShowChart {
-                trendCard
+            // Weight and body fat each get a card with one unit, rather than
+            // one chart with two scales.
+            let summary = BodyTrendSummary(points: viewModel.trendData.points, today: IntakeGrouping.formatLocalDate())
+            if !summary.weight.readings.isEmpty {
+                BodyMetricTrendCard(title: "Weight", metric: summary.weight, unit: "kg", latestDigits: 2, color: NeoGymTheme.chart1)
+            }
+            if !summary.bodyFat.readings.isEmpty {
+                BodyMetricTrendCard(title: "Body fat", metric: summary.bodyFat, unit: "%", latestDigits: 1, color: NeoGymTheme.chart2)
             }
             healthSyncStatus
             if viewModel.measurements.isEmpty {
@@ -68,49 +75,33 @@ struct BodyMeasurementsListView: View {
                     systemImage: "scalemass"
                 )
             } else {
-                VStack(spacing: 0) {
-                    ForEach(viewModel.measurements) { measurement in
-                        NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
-                            BodyMeasurementListRow(measurement: measurement)
-                        }
-                        .buttonStyle(.plain)
-                        if measurement.id != viewModel.measurements.last?.id { RowSeparator() }
-                    }
-                }
-                .cardSurface()
+                entryList
             }
         }
     }
 
-    private var trendCard: some View {
-        let averages = viewModel.trendData.rollingAverageValues(days: 7)
-        let average = averages.last(where: { $0.averageWeightKg != nil })?.averageWeightKg
-        let fat = viewModel.trendData.points.last(where: { $0.bodyFatPct != nil })?.bodyFatPct
-        return VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-            AdaptiveRow(spacing: NeoGymTheme.spacingLG, alignment: .top) {
-                if let average {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Weight · 7-day avg")
-                            .font(.footnote)
-                            .foregroundStyle(NeoGymTheme.textSecondary)
-                        MetricValueText(value: MetricFormat.decimal(average), unit: "kg")
+    /// The latest five entries, a "5 of 32" count and Load more.
+    private var entryList: some View {
+        let shown = window.visible(viewModel.measurements)
+        return VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            EntryListHeader(
+                title: "Entries",
+                count: EntryHistoryWindow.countLabel(shown: shown.count, total: viewModel.measurements.count)
+            )
+            VStack(spacing: 0) {
+                ForEach(shown) { measurement in
+                    NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
+                        BodyMeasurementListRow(measurement: measurement)
                     }
-                    .accessibilityElement(children: .combine)
+                    .buttonStyle(.plain)
+                    if measurement.id != shown.last?.id { RowSeparator() }
                 }
-                if let fat {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Body fat")
-                            .font(.footnote)
-                            .foregroundStyle(NeoGymTheme.textSecondary)
-                        MetricValueText(value: MetricFormat.decimal(fat), unit: "%")
-                    }
-                    .accessibilityElement(children: .combine)
+                if window.canShowMore(loadedCount: viewModel.measurements.count) {
+                    LoadMoreRow { window.showMore() }
                 }
             }
-            BodyTrendChartView(trendData: viewModel.trendData)
+            .cardSurface()
         }
-        .padding(NeoGymTheme.spacingMD)
-        .cardSurface()
     }
 
     @ViewBuilder
@@ -148,7 +139,7 @@ private struct BodyMeasurementListRow: View {
                     .foregroundStyle(NeoGymTheme.textSecondary)
                     .accessibilityLabel("Has a note")
             }
-            Text(measurement.weightKg.map { "\(MetricFormat.decimal($0, digits: 2)) kg" } ?? "—")
+            Text(measurement.weightKg.map { "\(MetricFormat.trimmed($0, digits: 2)) kg" } ?? "—")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(NeoGymTheme.text)
                 .frame(minWidth: 78, alignment: .trailing)
@@ -531,46 +522,82 @@ private struct BodyMeasurementFormScreen: View {
     }
 }
 
-struct BodyTrendChartView: View {
-    let trendData: BodyMeasurementTrendData
+/// One body metric on Progress › Body: its 7-day average, the change against
+/// the prior seven days and the latest reading, above the daily readings
+/// (faint, with dots) and the 7-day average line, both in the metric's colour.
+struct BodyMetricTrendCard: View {
+    let title: String
+    let metric: BodyMetricTrend
+    let unit: String
+    /// Decimals for a recorded reading (weight keeps hundredths).
+    let latestDigits: Int
+    let color: Color
 
-    private var chartSeries: [TimeSeriesChartSeries] {
-        [
+    var body: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(NeoGymTheme.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: NeoGymTheme.spacingXS)
+                if let latest = metric.latest {
+                    Text("Latest \(MetricFormat.trimmed(latest.value, digits: latestDigits)) · \(TodayBodyCard.dayLabel(latest.day))")
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                MetricValueText(value: metric.weekAverage.map { MetricFormat.decimal($0) } ?? "—", unit: "\(unit) · 7-day avg")
+                if let change = changeText {
+                    Text(change)
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            TimeSeriesTrendChartView(
+                series: series,
+                maxRenderedPoints: 120,
+                maxPointMarkers: 45,
+                chartHeight: 220,
+                emptyMessage: "No \(title.lowercased()) readings in this range.",
+                accessibilityLabel: "\(title), daily readings and 7-day average",
+                initialPeriod: .last90Days
+            )
+        }
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
+    }
+
+    /// Weight change stays neutral: NeoGym has no weight goal.
+    private var changeText: String? {
+        if let change = metric.weekChange {
+            return "\(MetricFormat.signedDecimal(change)) vs prior 7 days"
+        }
+        return metric.weekAverage == nil ? "No readings in the last 7 days" : nil
+    }
+
+    private var series: [TimeSeriesChartSeries] {
+        let format: (Double) -> String = { "\(MetricFormat.trimmed($0, digits: latestDigits)) \(unit)" }
+        return [
             TimeSeriesChartSeries(
-                id: "weight",
-                name: "Weight (kg)",
-                color: NeoGymTheme.accentText,
-                points: trendData.points.compactMap { point in
-                    point.weightKg.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-weight", date: point.date, value: $0)
-                    }
-                },
-                valueFormatter: BodyMeasurementFormatters.axisWeight
+                id: "\(title)-daily", name: "Daily", color: color, style: .readings,
+                points: Self.points(metric.readings), valueFormatter: format
             ),
             TimeSeriesChartSeries(
-                id: "body-fat",
-                name: "Body fat (%)",
-                color: NeoGymTheme.textSecondary,
-                // Own scale: on weight's axis the two ranges flatten each other.
-                axis: .right,
-                points: trendData.points.compactMap { point in
-                    point.bodyFatPct.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-body-fat", date: point.date, value: $0)
-                    }
-                },
-                valueFormatter: BodyMeasurementFormatters.axisBodyFat
+                id: "\(title)-average", name: "7-day avg", color: color,
+                points: Self.points(metric.rollingAverage), valueFormatter: format
             )
         ]
     }
 
-    var body: some View {
-        TimeSeriesTrendChartView(
-            series: chartSeries,
-            maxRenderedPoints: 48,
-            emptyMessage: "No body measurements in this range.",
-            accessibilityLabel: "Body weight and body fat trend chart",
-            initialPeriod: .last90Days
-        )
+    static func points(_ readings: [BodyReading]) -> [TimeSeriesChartDataPoint] {
+        readings.compactMap { reading in
+            DateOnly.parse(reading.day).map { TimeSeriesChartDataPoint(id: reading.day, date: $0, value: reading.value) }
+        }
     }
 }
 
@@ -587,14 +614,6 @@ private enum BodyMeasurementFormatters {
 
     static func values(weightKg: Double?, bodyFatPct: Double?) -> String {
         [weight(weightKg), bodyFat(bodyFatPct)].filter { $0 != "—" }.joined(separator: " · ")
-    }
-
-    static func axisWeight(_ value: Double) -> String {
-        String(format: "%.1f", value)
-    }
-
-    static func axisBodyFat(_ value: Double) -> String {
-        String(format: "%.1f", value)
     }
 }
 

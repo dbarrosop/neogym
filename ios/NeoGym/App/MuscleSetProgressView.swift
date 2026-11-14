@@ -89,7 +89,7 @@ struct MuscleSetProgressView: View {
                 series: [TimeSeriesChartSeries(
                     id: current.muscleGroup,
                     name: "Weighted sets",
-                    color: NeoGymTheme.accentText,
+                    color: NeoGymTheme.chart1,
                     includesZero: true,
                     points: rows.filter { $0.muscleGroup == current.muscleGroup }
                         .sorted { $0.day < $1.day }.compactMap { row in

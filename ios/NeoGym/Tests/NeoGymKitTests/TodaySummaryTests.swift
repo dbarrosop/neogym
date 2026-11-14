@@ -231,7 +231,7 @@ final class TodaySummaryTests: XCTestCase {
                 weightKg: weight, bodyFatPct: fat
             )
         }
-        let body = TodayBodySummary(points: points, today: "2026-11-12", calendar: calendar)
+        let body = BodyTrendSummary(points: points, today: "2026-11-12", calendar: calendar)
         XCTAssertEqual(body.latestWeightKg, 70.6)
         XCTAssertEqual(body.latestWeightOn, "2026-11-12")
         XCTAssertEqual(body.latestBodyFatPct, 12.6)
@@ -253,7 +253,7 @@ final class TodaySummaryTests: XCTestCase {
             date: IntakeGrouping.localDateToDate("2026-11-12", calendar: calendar)!,
             weightKg: nil, bodyFatPct: 12.6
         )
-        let body = TodayBodySummary(points: [point], today: "2026-11-12", calendar: calendar)
+        let body = BodyTrendSummary(points: [point], today: "2026-11-12", calendar: calendar)
         XCTAssertNil(body.latestWeightKg)
         XCTAssertEqual(body.latestBodyFatPct, 12.6)
         XCTAssertNil(body.bodyFat.weekChange)
@@ -261,7 +261,7 @@ final class TodaySummaryTests: XCTestCase {
     }
 
     func testBodyTrendWithoutReadingsIsEmpty() {
-        let body = TodayBodySummary(points: [], today: "2026-11-12")
+        let body = BodyTrendSummary(points: [], today: "2026-11-12")
         XCTAssertNil(body.latestWeightKg)
         XCTAssertNil(body.weekChangeKg)
         XCTAssertTrue(body.isEmpty)

@@ -87,6 +87,57 @@ struct ListRow: View {
 }
 
 /// Hairline between rows of a grouped card.
+/// Caps title above an entry history (Body, Energy) with its "5 of 32" count.
+struct EntryListHeader: View {
+    let title: String
+    let count: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .textCase(.uppercase)
+                .accessibilityAddTraits(.isHeader)
+            Spacer(minLength: NeoGymTheme.spacingXS)
+            if let count {
+                Text(count)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .accessibilityLabel("Showing \(count) entries")
+            }
+        }
+        .foregroundStyle(NeoGymTheme.textSecondary)
+        .padding(.horizontal, NeoGymTheme.spacingXXS)
+        .padding(.top, NeoGymTheme.spacingXS)
+    }
+}
+
+/// The last row of a paged list card: a full-width Load more button.
+struct LoadMoreRow: View {
+    var isLoading = false
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            RowSeparator(leadingInset: 0)
+            Button(action: action) {
+                Group {
+                    if isLoading {
+                        ProgressView()
+                    } else {
+                        Text("Load more")
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(NeoGymTheme.accentText)
+            .disabled(isLoading)
+        }
+    }
+}
+
 struct RowSeparator: View {
     var leadingInset: CGFloat = NeoGymTheme.spacingMD
 

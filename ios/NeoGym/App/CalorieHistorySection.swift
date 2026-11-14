@@ -1,7 +1,9 @@
 import NeoGymKit
 import SwiftUI
 
-/// Calories consumed against daily and rolling net balance. Loads the last 14
+/// Calories consumed (blue) above net (orange), each as daily values with a
+/// 7-day average, under one Period menu. Today's partial intake is an open dot
+/// and neither average nor net counts it (`CalorieTrend`). Loads the last 14
 /// local days (plus warm-up days) first, from the SDK cache when available,
 /// and fetches wider or custom ranges on demand.
 struct CalorieHistorySection: View {
@@ -9,7 +11,7 @@ struct CalorieHistorySection: View {
 
     @StateObject private var viewModel: NutritionCalorieHistoryViewModel
     @State private var range = ChartHistoryRange.recentDays(14)
-    @State private var series: [TimeSeriesChartSeries] = []
+    @State private var trend: CalorieTrend?
     @State private var hasRequested = false
 
     init(repository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
@@ -18,7 +20,7 @@ struct CalorieHistorySection: View {
     }
 
     var body: some View {
-        SectionShell(title: "Calories", subtitle: "Consumed, daily net and 7-day average net", isLoading: viewModel.state.isLoading) {
+        SectionShell(title: "Calories", subtitle: "Daily values and 7-day averages", isLoading: viewModel.state.isLoading) {
             content
         }
         .task {
@@ -35,7 +37,7 @@ struct CalorieHistorySection: View {
         .onReceive(viewModel.$state) { state in
             // Loading and failed states keep the last chart, including offline cached emissions.
             if case let .loaded(history) = state {
-                series = Self.makeSeries(history)
+                trend = CalorieTrend(history: history, today: IntakeGrouping.formatLocalDate())
             }
         }
     }
@@ -53,17 +55,21 @@ struct CalorieHistorySection: View {
             }
         case .loading, .loaded, .failed:
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                if let trend {
+                    averages(trend)
+                }
                 TimeSeriesTrendChartView(
-                    series: series,
-                    maxRenderedPoints: 48,
-                    emptyMessage: "No calorie or net data in this range.",
-                    accessibilityLabel: "Calories consumed, net, and rolling average net per day",
+                    panels: trend.map(Self.panels) ?? [],
+                    chartHeight: 200,
                     initialPeriod: .last14Days,
                     onVisibleRangeChange: { start, end in
                         let next = ChartHistoryRange(visibleStart: start, endExclusive: end)
                         if next != range { range = next }
                     }
                 )
+                Text("Today so far is the open dot; averages use full days only.")
+                    .font(.caption)
+                    .foregroundStyle(NeoGymTheme.textTertiary)
                 if let through = viewModel.cachedThrough {
                     Text("Showing saved data through \(through); newer dates may be missing.")
                         .font(.footnote)
@@ -76,47 +82,73 @@ struct CalorieHistorySection: View {
         }
     }
 
-    private static func makeSeries(_ history: NutritionCalorieHistory) -> [TimeSeriesChartSeries] {
-        [
-            TimeSeriesChartSeries(
-                id: "calories",
-                name: "Consumed",
-                color: NeoGymTheme.accentText,
-                points: history.consumedChartPoints.map { day in
-                    TimeSeriesChartDataPoint(id: day.logDate, date: day.date, value: day.value)
-                },
-                valueFormatter: kcalText
+    private func averages(_ trend: CalorieTrend) -> some View {
+        AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .top) {
+            average("Consumed · 7-day avg", trend.latestConsumedAverage.map(MetricFormat.whole))
+            average("Net · 7-day avg", trend.latestNetAverage.map(MetricFormat.signedWhole))
+        }
+    }
+
+    private func average(_ label: String, _ value: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label)
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            MetricValueText(value: value ?? "—", unit: "kcal", size: .title2.weight(.bold))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    static func panels(_ trend: CalorieTrend) -> [TimeSeriesChartPanel] {
+        let consumedDaily = trend.consumed.map(point) + [trend.consumedToday].compactMap { $0 }.map { today in
+            TimeSeriesChartDataPoint(id: today.day, date: today.date, value: today.value, isPartial: true)
+        }
+        return [
+            TimeSeriesChartPanel(
+                id: "consumed",
+                title: "Consumed",
+                series: [
+                    TimeSeriesChartSeries(
+                        id: "consumed-daily", name: "Daily", color: NeoGymTheme.chart1, style: .readings,
+                        points: consumedDaily, valueFormatter: kcalText
+                    ),
+                    TimeSeriesChartSeries(
+                        id: "consumed-average", name: "7-day avg", color: NeoGymTheme.chart1,
+                        points: trend.consumedAverage.map(point), valueFormatter: kcalText
+                    )
+                ],
+                emptyMessage: "No food logged in this range.",
+                accessibilityLabel: "Calories consumed, daily and 7-day average"
             ),
-            TimeSeriesChartSeries(
+            TimeSeriesChartPanel(
                 id: "net",
-                name: "Net",
-                color: NeoGymTheme.textTertiary,
-                axis: .right,
-                includesZero: true,
-                points: history.dailyNetChartPoints.map { value in
-                    TimeSeriesChartDataPoint(id: "net-\(value.logDate)", date: value.date, value: value.value)
-                },
-                valueFormatter: signedKcalText
-            ),
-            TimeSeriesChartSeries(
-                id: "rolling-net",
-                name: "7-day avg net",
-                color: NeoGymTheme.textSecondary,
-                axis: .right,
-                includesZero: true,
-                points: history.rollingNetChartPoints.map { value in
-                    TimeSeriesChartDataPoint(id: "rolling-net-\(value.logDate)", date: value.date, value: value.value)
-                },
-                valueFormatter: signedKcalText
+                title: "Net (consumed − burned)",
+                series: [
+                    TimeSeriesChartSeries(
+                        id: "net-daily", name: "Daily", color: NeoGymTheme.chart2, style: .readings,
+                        includesZero: true, points: trend.net.map(point), valueFormatter: signedKcalText
+                    ),
+                    TimeSeriesChartSeries(
+                        id: "net-average", name: "7-day avg", color: NeoGymTheme.chart2,
+                        includesZero: true, points: trend.netAverage.map(point), valueFormatter: signedKcalText
+                    )
+                ],
+                emptyMessage: "No full days with food and energy in this range.",
+                accessibilityLabel: "Net calories, daily and 7-day average"
             )
         ]
     }
 
-    private static func kcalText(_ value: Double) -> String {
+    static func point(_ point: CalorieTrend.Point) -> TimeSeriesChartDataPoint {
+        TimeSeriesChartDataPoint(id: point.day, date: point.date, value: point.value)
+    }
+
+    static func kcalText(_ value: Double) -> String {
         NutritionMath.formatMacro(value, unit: "kcal")
     }
 
-    private static func signedKcalText(_ value: Double) -> String {
+    static func signedKcalText(_ value: Double) -> String {
         if value < 0 { return "−\(NutritionMath.formatMacro(abs(value), unit: "kcal"))" }
         if value > 0 { return "+\(NutritionMath.formatMacro(value, unit: "kcal"))" }
         return NutritionMath.formatMacro(0, unit: "kcal")

@@ -191,7 +191,7 @@ public struct TodayBalanceSummary: Sendable, Equatable {
 }
 
 /// One dated body reading.
-public struct TodayBodyReading: Sendable, Equatable {
+public struct BodyReading: Sendable, Equatable {
     public let day: String
     public let value: Double
 
@@ -201,23 +201,29 @@ public struct TodayBodyReading: Sendable, Equatable {
     }
 }
 
-/// One body metric on Today: its readings, the latest one, and the
-/// seven-day average against the week before.
-public struct TodayBodyMetric: Sendable, Equatable {
+/// One body metric (weight or body fat): its readings, the latest one, the
+/// trailing seven-day average at each reading, and the average of the last
+/// seven local days against the seven before. Today, Progress › Overview and
+/// Progress › Body all read it.
+public struct BodyMetricTrend: Sendable, Equatable {
     /// Readings in the loaded range, oldest first.
-    public let readings: [TodayBodyReading]
+    public let readings: [BodyReading]
+    /// At each reading, the mean of the readings dated within the seven local
+    /// days ending on it (the line drawn over the daily readings).
+    public let rollingAverage: [BodyReading]
     public let weekAverage: Double?
     public let priorWeekAverage: Double?
 
-    public var latest: TodayBodyReading? { readings.last }
+    public var latest: BodyReading? { readings.last }
 
     public var weekChange: Double? {
         guard let weekAverage, let priorWeekAverage else { return nil }
         return weekAverage - priorWeekAverage
     }
 
-    init(readings: [TodayBodyReading], today: String, calendar: Calendar) {
+    init(readings: [BodyReading], today: String, calendar: Calendar) {
         self.readings = readings
+        rollingAverage = Self.rollingAverage(readings, calendar: calendar)
         let weekStart = IntakeGrouping.addLocalDateDays(today, days: -6, calendar: calendar)
         let priorStart = IntakeGrouping.addLocalDateDays(today, days: -13, calendar: calendar)
         weekAverage = Self.average(readings.filter { $0.day >= weekStart && $0.day <= today }.map(\.value))
@@ -227,14 +233,33 @@ public struct TodayBodyMetric: Sendable, Equatable {
     private static func average(_ values: [Double]) -> Double? {
         values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
     }
+
+    /// A sliding window over the date-sorted readings, so a full history
+    /// stays linear.
+    private static func rollingAverage(_ readings: [BodyReading], calendar: Calendar) -> [BodyReading] {
+        var averages: [BodyReading] = []
+        averages.reserveCapacity(readings.count)
+        var windowStart = 0
+        var sum = 0.0
+        for (index, reading) in readings.enumerated() {
+            sum += reading.value
+            let firstDay = IntakeGrouping.addLocalDateDays(reading.day, days: -6, calendar: calendar)
+            while readings[windowStart].day < firstDay {
+                sum -= readings[windowStart].value
+                windowStart += 1
+            }
+            averages.append(BodyReading(day: reading.day, value: sum / Double(index - windowStart + 1)))
+        }
+        return averages
+    }
 }
 
-/// Weight and body fat for Today's Body card: both series for the chart and,
-/// for each, the latest reading with its seven-day average against the week
-/// before. The two metrics are independent, so a body-fat-only reading shows.
-public struct TodayBodySummary: Sendable, Equatable {
-    public let weight: TodayBodyMetric
-    public let bodyFat: TodayBodyMetric
+/// Weight and body fat: both series for the charts and, for each, the latest
+/// reading with its seven-day average against the week before. The two
+/// metrics are independent, so a body-fat-only reading shows.
+public struct BodyTrendSummary: Sendable, Equatable {
+    public let weight: BodyMetricTrend
+    public let bodyFat: BodyMetricTrend
 
     public var isEmpty: Bool { weight.readings.isEmpty && bodyFat.readings.isEmpty }
 
@@ -247,13 +272,13 @@ public struct TodayBodySummary: Sendable, Equatable {
 
     public init(points: [BodyMeasurementChartPoint], today: String, calendar: Calendar = .current) {
         let sorted = points.sorted { $0.measuredOn < $1.measuredOn }
-        weight = TodayBodyMetric(
-            readings: sorted.compactMap { point in point.weightKg.map { TodayBodyReading(day: point.measuredOn, value: $0) } },
+        weight = BodyMetricTrend(
+            readings: sorted.compactMap { point in point.weightKg.map { BodyReading(day: point.measuredOn, value: $0) } },
             today: today,
             calendar: calendar
         )
-        bodyFat = TodayBodyMetric(
-            readings: sorted.compactMap { point in point.bodyFatPct.map { TodayBodyReading(day: point.measuredOn, value: $0) } },
+        bodyFat = BodyMetricTrend(
+            readings: sorted.compactMap { point in point.bodyFatPct.map { BodyReading(day: point.measuredOn, value: $0) } },
             today: today,
             calendar: calendar
         )

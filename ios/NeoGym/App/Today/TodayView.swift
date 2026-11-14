@@ -87,7 +87,7 @@ struct TodayView: View {
                         openEnergy: { actions.openProgress(.energy) }
                     )
                     TodayBodyCard(
-                        summary: bodyChartModel.state.value.map { TodayBodySummary(points: $0.points, today: today) },
+                        summary: bodyChartModel.state.value.map { BodyTrendSummary(points: $0.points, today: today) },
                         errorMessage: bodyChartModel.state.value == nil ? bodyChartModel.state.errorMessage : nil,
                         cachedThrough: bodyChartModel.cachedThrough,
                         healthStatus: healthStatus,

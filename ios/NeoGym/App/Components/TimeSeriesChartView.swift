@@ -111,7 +111,9 @@ struct TimeSeriesChartView: View {
 
     private func plotArea(size: CGSize) -> some View {
         ZStack(alignment: .topLeading) {
-            chartGrid(size: size)
+            if showsAxes {
+                chartGrid(size: size)
+            }
             ForEach(effectiveVisibleSeries) { singleSeries in
                 seriesLayer(singleSeries, size: size)
             }
@@ -125,9 +127,15 @@ struct TimeSeriesChartView: View {
     }
 
     private func seriesLayer(_ singleSeries: TimeSeriesChartSeries, size: CGSize) -> some View {
-        let plottedPoints = plottedPoints(for: singleSeries, size: size)
-        let segments = lineSegments(plottedPoints, gaps: ChartGaps.intervals(in: singleSeries.points.map(\.date)))
-        let showsMarkers = plottedPoints.count <= maxPointMarkers
+        let plotted = plottedPoints(for: singleSeries, size: size)
+        let partial = plotted.filter(\.point.isPartial)
+        let complete = plotted.filter { !$0.point.isPartial }
+        let segments = lineSegments(
+            complete,
+            gaps: ChartGaps.intervals(in: singleSeries.points.filter { !$0.isPartial }.map(\.date))
+        )
+        let showsMarkers = complete.count <= maxPointMarkers
+        let isReadings = singleSeries.style == .readings
 
         return Path { path in
             for segment in segments {
@@ -138,13 +146,24 @@ struct TimeSeriesChartView: View {
                 }
             }
         }
-        .stroke(singleSeries.color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+        .stroke(
+            singleSeries.color.opacity(isReadings ? 0.5 : 1),
+            style: StrokeStyle(lineWidth: isReadings ? 1.5 : 2.5, lineCap: .round, lineJoin: .round)
+        )
         .overlay {
             // A reading isolated by gaps has no line, so it always gets a dot.
             ForEach(segments.filter { showsMarkers || $0.count == 1 }.flatMap { $0 }) { plottedPoint in
                 Circle()
-                    .fill(singleSeries.color)
-                    .frame(width: 6, height: 6)
+                    .fill(singleSeries.color.opacity(isReadings ? 0.85 : 1))
+                    .frame(width: isReadings ? 5 : 6, height: isReadings ? 5 : 6)
+                    .position(plottedPoint.position)
+            }
+            // A partial value (today so far) is an open dot, off the line.
+            ForEach(partial) { plottedPoint in
+                Circle()
+                    .fill(NeoGymTheme.surface)
+                    .overlay(Circle().stroke(singleSeries.color, lineWidth: 1.5))
+                    .frame(width: 7, height: 7)
                     .position(plottedPoint.position)
             }
         }
@@ -193,9 +212,12 @@ struct TimeSeriesChartView: View {
 
     private func selectedPointCallout(_ plottedPoint: PlottedChartPoint, size: CGSize) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(plottedPoint.seriesName)
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(plottedPoint.color)
+            HStack(spacing: 4) {
+                Circle().fill(plottedPoint.color).frame(width: 6, height: 6)
+                Text(plottedPoint.point.isPartial ? "\(plottedPoint.seriesName) · so far" : plottedPoint.seriesName)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(NeoGymTheme.textSecondary)
+            }
             Text(plottedPoint.formattedValue)
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .foregroundStyle(NeoGymTheme.text)
@@ -368,9 +390,8 @@ struct TimeSeriesChartView: View {
             selectedPoint = nil
         } label: {
             HStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(singleSeries.color.opacity(isEffectivelyVisible ? 1 : 0.35))
-                    .frame(width: 16, height: 3)
+                LegendSwatch(color: singleSeries.color, style: singleSeries.style)
+                    .opacity(isEffectivelyVisible ? 1 : 0.35)
                 Text(singleSeries.name)
                     .lineLimit(1)
             }
@@ -399,4 +420,26 @@ struct TimeSeriesChartView: View {
         return ChartAxisDescriptor(axis: axis, scale: scale)
     }
 
+}
+
+/// A legend key drawn like its series: a solid bar for a line, a faint bar
+/// with a dot for daily readings.
+struct LegendSwatch: View {
+    let color: Color
+    var style: TimeSeriesChartSeriesStyle = .line
+
+    var body: some View {
+        switch style {
+        case .line:
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: 16, height: 3)
+        case .readings:
+            ZStack {
+                Capsule().fill(color.opacity(0.5)).frame(width: 16, height: 2)
+                Circle().fill(color).frame(width: 6, height: 6)
+            }
+            .frame(width: 16, height: 8)
+        }
+    }
 }

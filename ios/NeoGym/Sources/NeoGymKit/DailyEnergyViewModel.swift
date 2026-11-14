@@ -8,6 +8,11 @@ public final class DailyEnergyListViewModel: ObservableObject {
     @Published public private(set) var isLoadingMore = false
     @Published public private(set) var isRefreshing = false
     @Published public private(set) var loadMoreErrorMessage: String?
+    /// All of the user's entries, from the first page's aggregate.
+    @Published public private(set) var totalCount: Int?
+    /// The list shows the latest five, then five more per Load more; server
+    /// pages stay `pageSize` long and load when the window passes them.
+    @Published public private(set) var window = EntryHistoryWindow()
 
     private let repository: any DailyEnergyRepositoryProtocol
     private let calendar: Calendar
@@ -24,6 +29,22 @@ public final class DailyEnergyListViewModel: ObservableObject {
     }
 
     public var entries: [DailyEnergy] { state.value ?? [] }
+    public var visibleEntries: [DailyEnergy] { window.visible(entries) }
+    public var canShowMore: Bool { window.canShowMore(loadedCount: entries.count, hasMoreRemote: hasMore) }
+    /// "5 of 41", once the total is known.
+    public var countLabel: String? {
+        EntryHistoryWindow.countLabel(shown: visibleEntries.count, total: totalCount)
+    }
+
+    /// Shows the next five entries, loading the next server page first when
+    /// the window runs past the loaded ones.
+    public func showMore() async {
+        guard canShowMore else { return }
+        if window.limit + EntryHistoryWindow.pageSize > entries.count, hasMore {
+            await loadMore()
+        }
+        window.showMore()
+    }
     public var trendData: DailyEnergyTrendData {
         DailyEnergyTrendBuilder.make(from: entries, calendar: calendar)
     }
@@ -44,9 +65,10 @@ public final class DailyEnergyListViewModel: ObservableObject {
     }
 
     private func loadEnergyUpdates() async throws {
-        for try await entries in repository.energyListUpdates(limit: pageSize, offset: 0) {
-            hasMore = entries.count == pageSize
-            state = .loaded(entries)
+        for try await page in repository.energyListPageUpdates(limit: pageSize, offset: 0) {
+            hasMore = page.entries.count == pageSize
+            if let total = page.totalCount { totalCount = total }
+            state = .loaded(page.entries)
         }
     }
 
@@ -57,12 +79,13 @@ public final class DailyEnergyListViewModel: ObservableObject {
         defer { isLoadingMore = false }
         let existing = entries
         do {
-            for try await nextEntries in repository.energyListUpdates(
+            for try await page in repository.energyListPageUpdates(
                 limit: pageSize,
                 offset: existing.count
             ) {
-                hasMore = nextEntries.count == pageSize
-                state = .loaded(Self.merging(existing, with: nextEntries))
+                hasMore = page.entries.count == pageSize
+                if let total = page.totalCount { totalCount = total }
+                state = .loaded(Self.merging(existing, with: page.entries))
             }
         } catch where GraphQLDomainError.isCancellation(error) {
             loadMoreErrorMessage = nil

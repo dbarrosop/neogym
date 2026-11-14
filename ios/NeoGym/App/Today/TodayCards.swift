@@ -202,7 +202,7 @@ struct TodayNutritionCard: View {
             }
             VStack(spacing: 10) {
                 macroBar("Protein", summary.eaten.protein, summary.planned?.protein, NeoGymTheme.accent)
-                macroBar("Carbs", summary.eaten.carbs, summary.planned?.carbs, NeoGymTheme.series2)
+                macroBar("Carbs", summary.eaten.carbs, summary.planned?.carbs, NeoGymTheme.carbs)
                 macroBar("Fat", summary.eaten.fat, summary.planned?.fat, NeoGymTheme.textSecondary)
             }
         }
@@ -316,8 +316,8 @@ struct TodayBalanceCard: View {
             if out > 0 {
                 splitBar(resting: summary.restingKcal, active: summary.activeKcal)
                 HStack(spacing: NeoGymTheme.spacingMD) {
-                    LegendItem(color: NeoGymTheme.accent, text: "Resting \(MetricFormat.whole(summary.restingKcal))")
-                    LegendItem(color: NeoGymTheme.series2, text: "Active \(MetricFormat.whole(summary.activeKcal))")
+                    LegendItem(color: NeoGymTheme.chart1, text: "Resting \(MetricFormat.whole(summary.restingKcal))")
+                    LegendItem(color: NeoGymTheme.chart2, text: "Active \(MetricFormat.whole(summary.activeKcal))")
                 }
             }
         } else {
@@ -365,9 +365,9 @@ struct TodayBalanceCard: View {
         GeometryReader { proxy in
             let total = max(resting + active, 1)
             HStack(spacing: 2) {
-                Capsule().fill(NeoGymTheme.accent)
+                Capsule().fill(NeoGymTheme.chart1)
                     .frame(width: max(0, (proxy.size.width - 2) * resting / total))
-                Capsule().fill(NeoGymTheme.series2)
+                Capsule().fill(NeoGymTheme.chart2)
             }
         }
         .frame(height: 10)
@@ -379,7 +379,7 @@ struct TodayBalanceCard: View {
 // MARK: - Body
 
 struct TodayBodyCard: View {
-    let summary: TodayBodySummary?
+    let summary: BodyTrendSummary?
     let errorMessage: String?
     /// Set while an older cached range stands in for the current one.
     var cachedThrough: String?
@@ -414,7 +414,7 @@ struct TodayBodyCard: View {
     }
 
     @ViewBuilder
-    private func content(_ summary: TodayBodySummary) -> some View {
+    private func content(_ summary: BodyTrendSummary) -> some View {
         if summary.isEmpty {
             CardMessage(text: "No measurements in the last three weeks.")
         } else {
@@ -424,17 +424,17 @@ struct TodayBodyCard: View {
             // reading still shows. Both stay neutral: NeoGym has no weight goal.
             AdaptiveRow(spacing: NeoGymTheme.spacingMD, alignment: .top) {
                 if summary.weight.latest != nil {
-                    metricColumn("Weight", summary.weight, unit: "kg", digits: 2, color: NeoGymTheme.accentText)
+                    metricColumn("Weight", summary.weight, unit: "kg", digits: 2, color: NeoGymTheme.chart1)
                 }
                 if summary.bodyFat.latest != nil {
-                    metricColumn("Body fat", summary.bodyFat, unit: "%", digits: 1, color: NeoGymTheme.textSecondary)
+                    metricColumn("Body fat", summary.bodyFat, unit: "%", digits: 1, color: NeoGymTheme.chart2)
                 }
             }
         }
     }
 
     private func metricColumn(
-        _ title: String, _ metric: TodayBodyMetric, unit: String, digits: Int, color: Color
+        _ title: String, _ metric: BodyMetricTrend, unit: String, digits: Int, color: Color
     ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
@@ -462,18 +462,18 @@ struct TodayBodyCard: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func caption(_ title: String, _ metric: TodayBodyMetric) -> String {
+    private func caption(_ title: String, _ metric: BodyMetricTrend) -> String {
         guard let day = metric.latest?.day else { return title }
         return "\(title) · \(Self.dayLabel(day))"
     }
 }
 
-/// Weight (accent) and body fat (neutral) as two lines in their own bands,
+/// Weight (chart 1) and body fat (chart 2) as two lines in their own bands,
 /// broken where readings are missing, with the first and last dates below.
 /// No value axis: the columns underneath carry the numbers.
 private struct TodayBodyChart: View {
-    let weight: [TodayBodyReading]
-    let bodyFat: [TodayBodyReading]
+    let weight: [BodyReading]
+    let bodyFat: [BodyReading]
 
     private var days: [String] { (weight + bodyFat).map(\.day).sorted() }
 
@@ -487,9 +487,9 @@ private struct TodayBodyChart: View {
                     }
                     .stroke(NeoGymTheme.separator, lineWidth: NeoGymTheme.hairline)
                     series(weight, band: band(for: .weight, height: proxy.size.height), width: proxy.size.width,
-                           color: NeoGymTheme.accentText)
+                           color: NeoGymTheme.chart1)
                     series(bodyFat, band: band(for: .bodyFat, height: proxy.size.height), width: proxy.size.width,
-                           color: NeoGymTheme.textSecondary)
+                           color: NeoGymTheme.chart2)
                 }
             }
             .frame(height: 100)
@@ -519,7 +519,7 @@ private struct TodayBodyChart: View {
     }
 
     private func series(
-        _ readings: [TodayBodyReading], band: ClosedRange<CGFloat>, width: CGFloat, color: Color
+        _ readings: [BodyReading], band: ClosedRange<CGFloat>, width: CGFloat, color: Color
     ) -> some View {
         let dated = readings.compactMap { reading in
             IntakeGrouping.localDateToDate(reading.day).map { (date: $0, value: reading.value) }

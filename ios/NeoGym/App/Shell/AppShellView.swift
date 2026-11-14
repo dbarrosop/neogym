@@ -16,7 +16,7 @@ struct AppShellView: View {
     @State private var trainPath: [TrainRoute] = []
     @State private var trainSection: TrainSection = .sessions
     @State private var nutritionSection: NutritionSection = .log
-    @State private var progressSection: ProgressSection = .muscles
+    @State private var progressSection: ProgressSection = .overview
     @State private var meSection: MeSection = .journal
     /// Cross-tab invalidation: bumped after training or nutrition mutations so
     /// Today and Progress revalidate their cached reads.

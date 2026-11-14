@@ -538,8 +538,9 @@ section records how the iPhone app implements it.
   variants (`App/Assets.xcassets/Theme/*`, plus `AccentColor` = `#3463E0`)
   exposed only through `NeoGymTheme` (`background`, `surface`, `inset`, `fill`,
   `segmentedThumb`, `separator`, `text`, `textSecondary`, `textTertiary`,
-  `accent` for fills, `accentText` for text/icons/chart lines, `accentSoft`,
-  `series2`, `positive`, `destructive`, `destructiveFill`, and `onFill` for
+  `accent` for fills, `accentText` for text/icons, `accentSoft`, `chart1`/
+  `chart2` for chart series, `carbs` for the carbs macro, `positive`,
+  `destructive`, `destructiveFill`, and `onFill` for
   labels/glyphs on accent or destructive fills). Never hard-code hex
   or system colours in views. `RootView` applies `.preferredColorScheme` from
   the `AppAppearance` `@AppStorage` key (Dark default) and the global
@@ -566,18 +567,21 @@ section records how the iPhone app implements it.
   plain `AsyncImage` GETs, as on exercise detail.
 - **Nutrition slots**: the Log timeline and plan detail share
   `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
-  grams line with accent/series 2/secondary dots aligned under the title) and
+  grams line with accent/carbs/secondary dots aligned under the title) and
   `NutritionSlotItemRow` (name, MEAL tag for meals, "amount · P · C · F" from
   NeoGymKit `NutritionMacroText`, kcal). Planned (dashed) slots pass `muted`.
 - **Patterns**: session logging, the Nutrition Log timeline, Today, Progress
   and Account follow the root design section. Their rules live in host-tested
   NeoGymKit types (`SessionLogging`, `NextSetDraft`, `SessionWeekGrouping`,
   `NutritionTimeline`, `NutritionWeekStrip`, `TodayTrainingSummary`,
-  `TodayNutritionSummary`, `TodayBalanceSummary`, `TodayBodySummary`,
-  `MuscleSetBar`, `DailyEnergyOutAverage`, `HealthImportMarker`,
-  `AgentAccess`); keep new view logic there with tests rather than in views.
-  Lists show one title, one metadata line and one trailing value, with a
-  chevron only when the row pushes. Health data always shows its source with a
+  `TodayNutritionSummary`, `TodayBalanceSummary`, `BodyTrendSummary`,
+  `MuscleSetBar`, `MuscleSetOverview`, `StrengthWeeklyOverview`,
+  `CalorieTrend`, `EntryHistoryWindow`, `DailyEnergyOutAverage`,
+  `HealthImportMarker`, `AgentAccess`); keep new view logic there with tests
+  rather than in views. Lists show one title, one metadata line and one
+  trailing value, with a chevron only when the row pushes. Body and Energy
+  entry lists show the latest five under an `EntryListHeader` ("5 of 32") and
+  end with `LoadMoreRow` (`App/Components/ListPrimitives.swift`). Health data always shows its source with a
   sync-status row (`HealthSyncStatusRow`).
 - **Loading, empty, and error states**: reuse `AppLoadingStateView`,
   `AppErrorStateView` and `AppEmptyStateView`. The empty state follows the
@@ -655,7 +659,10 @@ section records how the iPhone app implements it.
   fill token on sheets (Add exercises).
 - **Graphs and summaries**: Muscles, Strength, Body, daily-energy and calorie trends use
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
-  date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
+  date pickers, sampled points, axes/legend, and tap/drag callouts. One period
+  menu can drive several stacked `TimeSeriesChartPanel`s (Consumed above Net);
+  `chartHeight` covers each chart and its legend. Overview sparklines are a
+  `TimeSeriesChartView` with `showsAxes: false` (no grid, axes or legend). Non-empty
   custom chart plots collapse decorative drawing, axes, markers, and callouts
   into one VoiceOver element with a domain label plus a summary of visible
   series, point counts, date range, latest values, and min/max values; legends
@@ -669,13 +676,18 @@ section records how the iPhone app implements it.
   net calories) keep 0 on the axis; others hug their data. Lines break across
   missing readings (`ChartGaps`: more than three times the typical spacing and
   at least three days), and a reading isolated by gaps keeps its dot. X-axis
-  dates use the "d MMM" template. Charts have no border, grid
-  lines use the separator token, series 1 is the accent and series 2 the
-  orange `series2` token. Orange is fill-only (bars, split bars, macro meters
-  and their legend swatches), never a line, because it falls below 3:1 on
-  light surfaces; a second line series (Body fat, Est. 1RM, active energy,
-  7-day average net) uses `textSecondary`. Day summaries use `MeterBar`/`MeterTrack` (protein
-  accent, carbs series 2, fat secondary text); plan/meal editors use the
+  dates use the "d MMM" template. Charts have no border and
+  grid lines use the separator token. Series colour follows the metric:
+  `chart1` (blue) for weight, resting energy, consumed, volume and sets,
+  `chart2` (orange) for body fat, active energy, net and Est. 1RM, for lines,
+  bars and split bars alike; no grey series and no `accentText` lines. A
+  `.readings` series (daily values: 1.5 pt line at half opacity with dots)
+  sits under its `.line` 7-day average in the same colour, and one chart holds
+  one unit (Body has a card per metric). A point with `isPartial` (today's
+  intake or energy, this week's volume) is an open dot off the line, and the
+  NeoGymKit averages leave it out. Callouts name the series in
+  `textSecondary` beside a colour dot. Day summaries use `MeterBar`/`MeterTrack` (protein
+  accent, carbs `carbs`, fat secondary text); plan/meal editors use the
   compact `MacroTotalsStrip`, and meal/plan library summaries still use
   `MacroSummaryView` grids;
   the daily intake balance is read-only, with calories in from logged snapshots

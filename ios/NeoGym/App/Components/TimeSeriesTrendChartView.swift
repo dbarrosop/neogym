@@ -36,13 +36,14 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
     }
 }
 
+/// A Period menu above one chart, or above several stacked panels that share
+/// it (Consumed above Net). Changing the period filters every panel.
 struct TimeSeriesTrendChartView: View {
-    let series: [TimeSeriesChartSeries]
+    let panels: [TimeSeriesChartPanel]
     var maxRenderedPoints = 48
     var maxPointMarkers = 28
-    var emptyMessage = "No data in this range."
-    var accessibilityLabel = "Time series chart"
-    var accessibilityValue: String?
+    /// Each panel's chart plus its legend.
+    var chartHeight: CGFloat = 240
     var onVisibleRangeChange: ((Date, Date) -> Void)?
 
     @State private var period: TimeSeriesChartPeriod
@@ -53,6 +54,7 @@ struct TimeSeriesTrendChartView: View {
         series: [TimeSeriesChartSeries],
         maxRenderedPoints: Int = 48,
         maxPointMarkers: Int = 28,
+        chartHeight: CGFloat = 240,
         emptyMessage: String = "No data in this range.",
         accessibilityLabel: String = "Time series chart",
         accessibilityValue: String? = nil,
@@ -61,55 +63,84 @@ struct TimeSeriesTrendChartView: View {
         calendar: Calendar = .current,
         onVisibleRangeChange: ((Date, Date) -> Void)? = nil
     ) {
-        self.series = series
+        self.init(
+            panels: [TimeSeriesChartPanel(
+                id: "chart",
+                series: series,
+                emptyMessage: emptyMessage,
+                accessibilityLabel: accessibilityLabel,
+                accessibilityValue: accessibilityValue
+            )],
+            maxRenderedPoints: maxRenderedPoints,
+            maxPointMarkers: maxPointMarkers,
+            chartHeight: chartHeight,
+            initialPeriod: initialPeriod,
+            now: now,
+            calendar: calendar,
+            onVisibleRangeChange: onVisibleRangeChange
+        )
+    }
+
+    init(
+        panels: [TimeSeriesChartPanel],
+        maxRenderedPoints: Int = 48,
+        maxPointMarkers: Int = 28,
+        chartHeight: CGFloat = 240,
+        initialPeriod: TimeSeriesChartPeriod = .last90Days,
+        now: Date = Date(),
+        calendar: Calendar = .current,
+        onVisibleRangeChange: ((Date, Date) -> Void)? = nil
+    ) {
+        self.panels = panels
         self.maxRenderedPoints = maxRenderedPoints
         self.maxPointMarkers = maxPointMarkers
-        self.emptyMessage = emptyMessage
-        self.accessibilityLabel = accessibilityLabel
-        self.accessibilityValue = accessibilityValue
+        self.chartHeight = chartHeight
         self.onVisibleRangeChange = onVisibleRangeChange
         _period = State(initialValue: initialPeriod)
         _customStart = State(initialValue: calendar.date(byAdding: .day, value: -30, to: now) ?? now)
         _customEnd = State(initialValue: now)
     }
 
-    private var filteredSeries: [TimeSeriesChartSeries] {
+    private func filtered(_ series: [TimeSeriesChartSeries]) -> [TimeSeriesChartSeries] {
         guard let dateRange else { return series }
         return series.map { singleSeries in
-            TimeSeriesChartSeries(
-                id: singleSeries.id,
-                name: singleSeries.name,
-                color: singleSeries.color,
-                axis: singleSeries.axis,
-                includesZero: singleSeries.includesZero,
-                points: singleSeries.points.filter { point in
-                    point.date >= dateRange.start && point.date < dateRange.endExclusive
-                },
-                valueFormatter: singleSeries.valueFormatter
-            )
+            singleSeries.filtered { point in
+                point.date >= dateRange.start && point.date < dateRange.endExclusive
+            }
         }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             periodControls
-            TimeSeriesChartView(
-                series: filteredSeries,
-                maxRenderedPoints: maxRenderedPoints,
-                maxPointMarkers: maxPointMarkers,
-                showsAxes: true,
-                showsLegend: true,
-                emptyMessage: emptyMessage,
-                accessibilityLabel: accessibilityLabel,
-                accessibilityValue: accessibilityValue
-            )
-            .frame(height: 240)
+            ForEach(panels) { panel in
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                    if let title = panel.title {
+                        Text(title)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(NeoGymTheme.text)
+                            .padding(.top, NeoGymTheme.spacingXXS)
+                            .accessibilityAddTraits(.isHeader)
+                    }
+                    TimeSeriesChartView(
+                        series: filtered(panel.series),
+                        maxRenderedPoints: maxRenderedPoints,
+                        maxPointMarkers: maxPointMarkers,
+                        showsAxes: true,
+                        showsLegend: true,
+                        emptyMessage: panel.emptyMessage,
+                        accessibilityLabel: panel.accessibilityLabel,
+                        accessibilityValue: panel.accessibilityValue
+                    )
+                    .frame(height: chartHeight)
+                }
+            }
         }
         .onAppear(perform: notifyVisibleRangeChange)
         .onChange(of: period) { _, _ in notifyVisibleRangeChange() }
         .onChange(of: customStart) { _, _ in notifyVisibleRangeChange() }
         .onChange(of: customEnd) { _, _ in notifyVisibleRangeChange() }
-        // Refresh preset ranges if the Overview remains mounted across a local midnight.
+        // Refresh preset ranges if the view remains mounted across a local midnight.
         .onChange(of: Calendar.current.startOfDay(for: Date())) { _, _ in notifyVisibleRangeChange() }
     }
 

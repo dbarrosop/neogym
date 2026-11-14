@@ -5,6 +5,15 @@ struct TimeSeriesChartDataPoint: Identifiable, Equatable {
     let id: String
     let date: Date
     let value: Double
+    /// Today's (or this week's) value so far: drawn as an open dot, off the line.
+    var isPartial = false
+}
+
+enum TimeSeriesChartSeriesStyle {
+    /// A solid 2.5 pt line (a 7-day average, weekly volume, sets).
+    case line
+    /// Daily readings under their average: a thin half-opacity line with dots.
+    case readings
 }
 
 enum TimeSeriesChartAxis: String, Hashable {
@@ -16,6 +25,7 @@ struct TimeSeriesChartSeries: Identifiable {
     let id: String
     let name: String
     let color: Color
+    let style: TimeSeriesChartSeriesStyle
     let axis: TimeSeriesChartAxis
     /// Keeps zero on the value axis: counts and energy start at 0, and
     /// signed series (net calories) show where they cross it.
@@ -27,6 +37,7 @@ struct TimeSeriesChartSeries: Identifiable {
         id: String,
         name: String,
         color: Color,
+        style: TimeSeriesChartSeriesStyle = .line,
         axis: TimeSeriesChartAxis = .left,
         includesZero: Bool = false,
         points: [TimeSeriesChartDataPoint],
@@ -35,11 +46,30 @@ struct TimeSeriesChartSeries: Identifiable {
         self.id = id
         self.name = name
         self.color = color
+        self.style = style
         self.axis = axis
         self.includesZero = includesZero
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
     }
+
+    /// The same series keeping only the points that pass `isIncluded`.
+    func filtered(_ isIncluded: (TimeSeriesChartDataPoint) -> Bool) -> TimeSeriesChartSeries {
+        TimeSeriesChartSeries(
+            id: id, name: name, color: color, style: style, axis: axis, includesZero: includesZero,
+            points: points.filter(isIncluded), valueFormatter: valueFormatter
+        )
+    }
+}
+
+/// One chart under a shared Period menu, such as Consumed above Net.
+struct TimeSeriesChartPanel: Identifiable {
+    let id: String
+    var title: String?
+    let series: [TimeSeriesChartSeries]
+    var emptyMessage = "No data in this range."
+    var accessibilityLabel = "Time series chart"
+    var accessibilityValue: String?
 }
 
 /// One value axis: which side, and its rounded `ChartAxisScale`. Labels are

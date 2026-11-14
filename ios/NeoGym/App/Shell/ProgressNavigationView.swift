@@ -2,8 +2,9 @@ import NeoGymKit
 import SwiftUI
 import WidgetKit
 
-/// Progress tab: Muscles · Strength · Body · Energy. The Muscles and Strength
-/// view models live here so their loaded history survives section switches.
+/// Progress tab: Overview · Muscles · Strength · Body · Energy. The Muscles and
+/// Strength view models live here so their loaded history survives section
+/// switches, and Overview's cards share them.
 struct ProgressNavigationView: View {
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
@@ -69,6 +70,18 @@ struct ProgressNavigationView: View {
     @ViewBuilder
     private var sectionContent: some View {
         switch section {
+        case .overview:
+            ProgressOverviewView(
+                muscleModel: muscleModel,
+                strengthModel: strengthModel,
+                muscleLoadedToken: $muscleLoadedToken,
+                strengthLoadedToken: $strengthLoadedToken,
+                trainingRevision: trainingRevision,
+                reloadToken: reloadToken,
+                bodyRepository: bodyRepository,
+                nutritionRepository: nutritionRepository,
+                onSeeAll: { section = $0 }
+            )
         case .muscles:
             MuscleSetProgressView(
                 viewModel: muscleModel,
@@ -104,7 +117,7 @@ struct ProgressNavigationView: View {
             AreaPrimaryAction(title: "Log measurement") { path.append(.bodyMeasurementCreate) }
         case .energy:
             AreaPrimaryAction(title: "Log energy") { path.append(.energyCreate) }
-        case .muscles, .strength:
+        case .overview, .muscles, .strength:
             ToolbarItem(placement: .topBarTrailing) { EmptyView() }
         }
     }
@@ -170,10 +183,23 @@ struct ProgressNavigationView: View {
     }
 }
 
-/// Loads a progress pane when it appears. The loaded token lives in the area
-/// root, so returning to a pane revalidates only after a training mutation or
-/// a new local day, not on every section switch.
+/// Loads a progress pane when it appears, plus pull to refresh.
 struct ProgressRefreshModifier<Row: Sendable>: ViewModifier {
+    @ObservedObject var model: ProgressHistoryViewModel<Row>
+    let reloadToken: Int
+    @Binding var loadedToken: Int?
+
+    func body(content: Content) -> some View {
+        content
+            .modifier(ProgressLoadModifier(model: model, reloadToken: reloadToken, loadedToken: $loadedToken))
+            .refreshable { await model.load() }
+    }
+}
+
+/// Loads a progress view model when its pane (or Overview) appears. The
+/// loaded token lives in the area root, so returning revalidates only after a
+/// training mutation or a new local day, not on every section switch.
+struct ProgressLoadModifier<Row: Sendable>: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject var model: ProgressHistoryViewModel<Row>
     let reloadToken: Int
@@ -195,6 +221,5 @@ struct ProgressRefreshModifier<Row: Sendable>: ViewModifier {
                 guard phase == .active else { return }
                 Task { await model.refreshIfNewLocalDay() }
             }
-            .refreshable { await model.load() }
     }
 }

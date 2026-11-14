@@ -1,19 +1,24 @@
 import NeoGymKit
 import SwiftUI
 
+/// Active (orange) and resting (blue) energy per day; today's partial row is
+/// an open dot.
 struct DailyEnergyTrendChartView: View {
     let trendData: DailyEnergyTrendData
+    var today = IntakeGrouping.formatLocalDate()
 
     private var chartSeries: [TimeSeriesChartSeries] {
         [
             TimeSeriesChartSeries(
                 id: "active",
                 name: "Active (kcal)",
-                color: NeoGymTheme.textSecondary,
+                color: NeoGymTheme.chart2,
                 includesZero: true,
                 points: trendData.points.compactMap { point in
                     point.activeKcal.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-active", date: point.date, value: $0)
+                        TimeSeriesChartDataPoint(
+                            id: "\(point.id)-active", date: point.date, value: $0, isPartial: point.energyOn == today
+                        )
                     }
                 },
                 valueFormatter: DailyEnergyFormatters.axisKcal
@@ -21,11 +26,13 @@ struct DailyEnergyTrendChartView: View {
             TimeSeriesChartSeries(
                 id: "resting",
                 name: "Resting (kcal)",
-                color: NeoGymTheme.accentText,
+                color: NeoGymTheme.chart1,
                 includesZero: true,
                 points: trendData.points.compactMap { point in
                     point.restingKcal.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-resting", date: point.date, value: $0)
+                        TimeSeriesChartDataPoint(
+                            id: "\(point.id)-resting", date: point.date, value: $0, isPartial: point.energyOn == today
+                        )
                     }
                 },
                 valueFormatter: DailyEnergyFormatters.axisKcal

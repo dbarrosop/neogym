@@ -159,7 +159,7 @@ struct StrengthProgressSummary: View {
             TimeSeriesChartSeries(
                 id: "volume",
                 name: "Volume",
-                color: NeoGymTheme.accentText,
+                color: NeoGymTheme.chart1,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-volume",
@@ -172,7 +172,7 @@ struct StrengthProgressSummary: View {
             TimeSeriesChartSeries(
                 id: "one-rep-max",
                 name: "Est. 1RM",
-                color: NeoGymTheme.textSecondary,
+                color: NeoGymTheme.chart2,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-one-rep-max",
@@ -231,7 +231,7 @@ struct CardioProgressSummary: View {
             TimeSeriesChartSeries(
                 id: primary.key,
                 name: primary.label,
-                color: NeoGymTheme.accentText,
+                color: NeoGymTheme.chart1,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-\(primary.key)",

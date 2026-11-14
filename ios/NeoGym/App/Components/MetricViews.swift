@@ -176,6 +176,23 @@ enum MetricFormat {
     static func decimal(_ value: Double, digits: Int = 1) -> String {
         value.formatted(.number.precision(.fractionLength(digits)))
     }
+
+    /// Up to `digits` decimals, trailing zeros dropped ("70.85", "70.6").
+    static func trimmed(_ value: Double, digits: Int) -> String {
+        value.formatted(.number.precision(.fractionLength(0 ... digits)))
+    }
+
+    /// "−1.0" / "+0.5": a signed change with a true minus sign.
+    static func signedDecimal(_ value: Double, digits: Int = 1) -> String {
+        let text = decimal(abs(value), digits: digits)
+        if text == decimal(0, digits: digits) { return text }
+        return (value < 0 ? "−" : "+") + text
+    }
+
+    /// "48.6k" from 1,000; whole numbers below.
+    static func compact(_ value: Double) -> String {
+        abs(value) >= 1_000 ? "\(decimal(value / 1_000))k" : whole(value)
+    }
 }
 
 /// Horizontal at normal text sizes, vertical at accessibility sizes, so tiles

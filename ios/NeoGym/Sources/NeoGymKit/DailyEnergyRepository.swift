@@ -4,6 +4,8 @@ public protocol DailyEnergyRepositoryProtocol: Sendable {
     func listEntries() async throws -> [DailyEnergy]
     func listEntries(limit: Int, offset: Int) async throws -> [DailyEnergy]
     func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error>
+    /// One page of entries with the user's total entry count, when known.
+    func energyListPageUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<DailyEnergyListPage, Error>
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy]
     func entryUpdates(id: String) -> AsyncThrowingStream<DailyEnergy?, Error>
     func entry(id: String) async throws -> DailyEnergy?
@@ -22,6 +24,23 @@ public extension DailyEnergyRepositoryProtocol {
 
     func energyListUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<[DailyEnergy], Error> {
         singleValueUpdates { try await listEntries(limit: limit, offset: offset) }
+    }
+
+    func energyListPageUpdates(limit: Int, offset: Int) -> AsyncThrowingStream<DailyEnergyListPage, Error> {
+        let pages = energyListUpdates(limit: limit, offset: offset)
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await entries in pages {
+                        continuation.yield(DailyEnergyListPage(entries: entries, totalCount: nil))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in task.cancel() }
+        }
     }
 
     func listEntriesForHealthRefresh(since energyOn: String) async throws -> [DailyEnergy] {
@@ -65,6 +84,26 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
             namespace: "daily-energy",
             tags: ["daily-energy"],
             transform: \DailyEnergyEntriesData.dailyEnergyEntries
+        )
+    }
+
+    public func energyListPageUpdates(
+        limit: Int,
+        offset: Int
+    ) -> AsyncThrowingStream<DailyEnergyListPage, Error> {
+        graphQL.cachedValues(
+            DailyEnergyEntriesData.self,
+            query: Self.dailyEnergyQuery,
+            variables: Self.listVariables(limit: limit, offset: offset),
+            operationName: "DailyEnergy",
+            namespace: "daily-energy",
+            tags: ["daily-energy"],
+            transform: { data in
+                DailyEnergyListPage(
+                    entries: data.dailyEnergyEntries,
+                    totalCount: data.dailyEnergyEntriesAggregate?.aggregate?.count
+                )
+            }
         )
     }
 
@@ -155,8 +194,22 @@ public struct DailyEnergyRepository: DailyEnergyRepositoryProtocol {
     }
 }
 
+/// A page of the energy list and, from the list query's aggregate, how many
+/// entries the user has in all ("5 of 41").
+public struct DailyEnergyListPage: Sendable, Equatable {
+    public let entries: [DailyEnergy]
+    public let totalCount: Int?
+
+    public init(entries: [DailyEnergy], totalCount: Int?) {
+        self.entries = entries
+        self.totalCount = totalCount
+    }
+}
+
 private struct DailyEnergyEntriesData: Decodable, Sendable {
     let dailyEnergyEntries: [DailyEnergy]
+    /// Selected only by the list query.
+    let dailyEnergyEntriesAggregate: SessionCountAggregate?
 }
 
 private struct DailyEnergyEntryByIdData: Decodable, Sendable {
@@ -194,6 +247,11 @@ public extension DailyEnergyRepository {
         activeKcal
         restingKcal
         notes
+      }
+      dailyEnergyEntriesAggregate {
+        aggregate {
+          count
+        }
       }
     }
     """

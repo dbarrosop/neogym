@@ -60,10 +60,12 @@ struct StrengthProgressView: View {
                     }
                     TimeSeriesTrendChartView(
                         series: [TimeSeriesChartSeries(
-                            id: "weekly-volume", name: "Volume (kg)", color: NeoGymTheme.accentText,
+                            id: "weekly-volume", name: "Volume (kg)", color: NeoGymTheme.chart1,
                             points: progress.weeklyVolume.map { week in
+                                // This week's total so far is an open dot.
                                 TimeSeriesChartDataPoint(
-                                    id: week.weekStart.ISO8601Format(), date: week.weekStart, value: week.volume
+                                    id: week.weekStart.ISO8601Format(), date: week.weekStart, value: week.volume,
+                                    isPartial: week.weekStart == StrengthWeeklyOverview.currentWeekStart()
                                 )
                             },
                             valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
@@ -133,7 +135,7 @@ struct StrengthProgressView: View {
     private func exerciseSeries(_ exercise: StrengthExerciseTrend) -> [TimeSeriesChartSeries] {
         [
             TimeSeriesChartSeries(
-                id: "\(exercise.id)-volume", name: "Volume (kg)", color: NeoGymTheme.accentText,
+                id: "\(exercise.id)-volume", name: "Volume (kg)", color: NeoGymTheme.chart1,
                 points: exercise.points.compactMap { point in
                     guard let date = point.date else { return nil }
                     return TimeSeriesChartDataPoint(id: point.id, date: date, value: point.volume)
@@ -141,7 +143,7 @@ struct StrengthProgressView: View {
                 valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
             ),
             TimeSeriesChartSeries(
-                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: NeoGymTheme.textSecondary, axis: .right,
+                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: NeoGymTheme.chart2, axis: .right,
                 points: exercise.points.compactMap { point in
                     guard let date = point.date, let estimate = point.estimatedOneRepMax else { return nil }
                     return TimeSeriesChartDataPoint(id: point.id, date: date, value: estimate)

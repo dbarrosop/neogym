@@ -114,7 +114,8 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
+| `/progress/overview` (design; not built on the web yet) | Progress › Overview (the tab's first section) | UI 4 | ☑ complete | Native first; the web route is still to build. One card per section with See all: top/least-trained muscles, weekly volume with this week's partial total, weight and body fat 7-day averages, 7-day average net. |
 | `/progress/muscles` | Progress › Muscles | UI 4 | ☑ complete | Server `muscleSetProgress`; stacked direct/½-secondary bars select the history chart. |
 | `/progress/strength` | Progress › Strength | UI 4 | ☑ complete | Server `strengthProgress`; weekly volume with best week, per-exercise e1RM summaries and charts linking to exercise detail. |
-| `/progress/body` | Progress › Body | UI 4 | ☑ complete | 7-day average, body fat, trend, Apple Health sync row, compact rows; create/detail/edit as before. |
-| `/progress/energy` | Progress › Energy | UI 4 | ☑ complete | Average out, trend, today's estimate, calorie history chart, watch import source row, compact rows. |
+| `/progress/body` | Progress › Body | UI 4 | ☑ complete | Weight and body fat cards (7-day average, change vs prior 7 days, latest; daily readings under the average line), Apple Health sync row, latest 5 entries with a count and Load more; create/detail/edit as before. |
+| `/progress/energy` | Progress › Energy | UI 4 | ☑ complete | Average out, trend, today's estimate, Calories card (Consumed and Net charts with 7-day averages), watch import source row, latest 5 entries with a count and Load more. Web has no Calories card yet. |

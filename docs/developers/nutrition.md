@@ -76,8 +76,11 @@ The SDK (not app-owned storage) enforces user scope and cache age. Selected
 longer/custom ranges still request their exact dates and retain in-memory data
 while refreshing; the fallback scan is only for the initial default range.
 The dashboard has no intro/action copy or recent daily-log list. Energy balance summarizes today with logged kcal,
-active+resting energy, and net, and the calories chart overlays consumed kcal,
-daily net (`consumed - energy`), and 7-day average net. Both the Calories consumed
+active+resting energy, and net. On iOS the Calories card (Progress › Energy)
+stacks a Consumed chart and a Net (`consumed - energy`) chart, each with daily
+values and a 7-day average over full days with food logged; today's partial
+intake is an open dot left out of averages and net. The web calories chart
+still overlays consumed kcal, daily net, and 7-day average net. Both the Calories consumed
 and Body composition charts open on the last 14 local calendar days; users can
 choose longer or custom periods. Each chart initially requests its 14 visible
 local dates plus six preceding days for its 7-day rolling averages, and requests

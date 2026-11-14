@@ -179,7 +179,7 @@ private struct PlanTotalsCard: View {
             let width = max(proxy.size.width - 4, 0)
             HStack(spacing: 2) {
                 Capsule().fill(NeoGymTheme.accent).frame(width: width * protein / total)
-                Capsule().fill(NeoGymTheme.series2).frame(width: width * carbs / total)
+                Capsule().fill(NeoGymTheme.carbs).frame(width: width * carbs / total)
                 Capsule().fill(NeoGymTheme.textSecondary)
             }
         }

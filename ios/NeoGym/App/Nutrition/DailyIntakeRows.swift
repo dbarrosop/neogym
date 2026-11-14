@@ -68,7 +68,7 @@ struct NutritionSlotMacroLine: View {
     var body: some View {
         HStack(spacing: 14) {
             macro("P", totals.protein, dot: NeoGymTheme.accent)
-            macro("C", totals.carbs, dot: NeoGymTheme.series2)
+            macro("C", totals.carbs, dot: NeoGymTheme.carbs)
             macro("F", totals.fat, dot: NeoGymTheme.textSecondary)
         }
         .font(.footnote)
