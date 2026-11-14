@@ -26,7 +26,13 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests. For fixed-date watch PAT handoff tests, inject the same clock into
+  tests. Include `TodayNavigationWiringTests` for shell/date changes: its source
+  guards check the SwiftUI shortcut order, selected-date identity and lifecycle
+  refresh hooks that host model tests do not compile.
+  DailyEnergy GraphQL fixtures must include both `activeKcal` and
+  `restingKcal` (use `.null` for an absent metric): their numeric decoders expect
+  the selected nullable keys, just as the real GraphQL response provides them.
+  For fixed-date watch PAT handoff tests, inject the same clock into
   `WatchAssistedSignInModel` and `WatchAccountModel`; both validate credential
   expiry, including account recovery and saved-credential presentation.
   In XCTest, await actor snapshots into a local before passing them to
@@ -93,6 +99,12 @@ that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
 test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
 `AR`, and `LDFLAGS`.
+
+Swift 6 SwiftUI `.onReceive` closures inherit `MainActor` isolation and can trap
+if a publisher emits off the main thread. `NSCalendarDayChanged` is an
+`AsyncMessage`, not main-actor-guaranteed; prefer UIKit's
+`significantTimeChangeNotification` (which includes midnight), or explicitly
+hop with `.receive(on: DispatchQueue.main)` before handling an off-main publisher.
 
 The package now supports watchOS 8 without raising its iOS/macOS floors. Its
 two HealthKit implementations (Body measurements and raw workouts) compile
@@ -413,8 +425,8 @@ changes.
   still fetch fresh backend data. The SDK scopes private cache entries by the
   managed session and purges prior user scopes on sign-out/session replacement.
   The file cache is app-process-only; the widget client has no GraphQL cache because each
-  process must own a distinct SDK cache directory. On a cold Nutrition Overview
-  launch, the default charts read today's exact range and up to seven prior
+  process must own a distinct SDK cache directory. On a cold launch, Today's
+  Body card and the Progress › Energy calorie chart read today's exact range and up to seven prior
   daily ranges through the SDK's age-bounded `.cacheOnly` policy before their
   current-range refresh. Previous-range results are visibly labeled and kept
   on network failure, never copied into app storage; the SDK enforces scope
@@ -423,7 +435,7 @@ changes.
   Energy Balance widget. Energy Balance math, captions, the dependency-free
   token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
   host-testable `NeoGymKit` and use the `group.io.nhost.dbarroso.neogym` App Group. The app
-  writes snapshots only after a fresh backend Nutrition Overview emission (not
+  writes snapshots only after a fresh backend nutrition overview emission on Today (not
   an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
   available. Nutrition mutations and
@@ -460,9 +472,9 @@ changes.
   values/validation, repository, list/detail/editor view models, trend builders,
   `DailyEnergyHealthImporting` and `HealthDailyEnergy`). Keep those host-testable;
   only the watch app requests active/basal HealthKit energy read permission.
-  The iPhone energy list and Nutrition overview read energy from the backend.
+  Progress › Energy and Today read energy from the backend.
 - Do not pin `AuthStore`'s `session.accessToken` to a request: an explicit Authorization header is not replaced by SDK managed refresh, and the bootstrap session may already be expired. For account-bound writes, use `client.refreshSession(marginSeconds:)`, verify the cursor owner's user ID, then pin the returned token for that request.
-- `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions on Workouts-area open/refresh. The user-scoped on-device cursor advances only after backend writes succeed. A hub pull-to-refresh overlapping an import waits for it and runs another anchored pass; cancelled refreshes do not run a follow-up. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
+- `HealthKitWorkoutImporter` is read-only (`toShare: []`) and requests only the workout type. It projects workout-level fields, metadata, events, activities and aggregate statistics into private `health_workouts.raw` JSON, upserts by `(user_id, healthkit_uuid)`, and processes anchored HealthKit deletions when the Train tab opens and on Sessions pull-to-refresh. The user-scoped on-device cursor advances only after backend writes succeed. A Sessions pull-to-refresh overlapping an import waits for it and runs another anchored pass; cancelled refreshes do not run a follow-up. Separate route and heart-rate streams are not imported; erasing the local cursor can leave previously deleted backend rows unreconciled (see `docs/developers/health-workouts.md`). Do not turn imported workouts into NeoGym sessions or exports.
 - The watch's read-only HealthKit energy importer sums active and basal/resting
   energy in bounded, DST-safe local-day buckets (`HKStatisticsCollectionQuery`,
   `.cumulativeSum`, local-midnight anchor, `DateComponents(day: 1)`). The pure
@@ -471,9 +483,9 @@ changes.
   sync creates missing dates and refreshes the last 7 local calendar days only
   for rows still carrying the exact "Imported from Apple Health" note; manual
   or edited rows are not overwritten. The iPhone no longer imports HealthKit
-  energy, even when opening or refreshing the Energy subsection or Nutrition
-  overview. Body measurement HealthKit sync still runs from both the Body
-  subsection and the Nutrition overview on initial load and pull-to-refresh.
+  energy, even when opening or refreshing Progress › Energy or Today. Body
+  measurement HealthKit sync runs from both Progress › Body and Today on initial
+  load and pull-to-refresh (Today also on tab return and foreground).
   It scans history once per app user/timezone, then uses per-type anchored
   changes to re-query added-sample dates or the recent deletion window; cursors
   commit only after successful backend reconciliation. A type whose first read
@@ -486,225 +498,165 @@ changes.
   unreadable type starts from history. It creates missing dates and refreshes
   the last 7 local days only for rows still carrying that note. Reported
   deletions re-read those dates to correct imported rows when a sample remains;
-  older dates and fully emptied days are not cleared. Overview revalidates its
+  older dates and fully emptied days are not cleared. Today revalidates its
   backend queries after sync when Body rows changed or when refresh/Retry was
   requested while sync was pending;
   queued requests keep the dashboard's loading indicator visible.
 
 ## Native iOS design guide
 
-When editing SwiftUI under `App/`, keep the existing native design language
-intact instead of inventing one-off styles.
+The root `CLAUDE.md` section "UI design system (web + iOS)" is the source of
+truth (areas, shell mapping, tokens, type, patterns, accessibility); this
+section records how the iPhone app implements it.
 
-- **App shell and navigation**: the signed-in app has three primary root areas
-  (Workouts, Nutrition, Me). There is NO `TabView`: `AppShellView` hosts the
-  three areas keep-warm as a ZStack of per-area `NavigationStack(path:)` views
-  keyed by `@State selection: AppDestination`. The active area is shown; the
-  others stay mounted but `opacity(0)`, `accessibilityHidden(true)`, and
-  `allowsHitTesting(false)` so each area's typed stack path survives area
-  switches. New pushed flows should use the existing root route enums instead of
-  hidden `NavigationLink` state. Areas are switched with a segmented `Picker`
-  (`.pickerStyle(.segmented)`, 44pt) bound to the shell
-  `selection`; it is shown at each area's stack root only and disappears when a
-  route is pushed. **Workouts (Phase 2a, shipped):** `WorkoutsSectionNavigationView`
-  is now a HUB — its root is a native `List` of glass rows (Sessions / Workouts /
-  Exercises / Progress, each with SF Symbol + title + chevron, ≥44pt, accessibility labels)
-  that PUSH subsection routes (`WorkoutsRoute.sessionsList` /
-  `.workoutsList` / `.exercisesList` / `.progress`) rendered through
-  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
-  area segmented `Picker` lives in the hub's nav-bar **principal** slot (chosen
-  over `.safeAreaInset` so there is exactly one top row: the segmented control
-  replaces the inline title text, while `navigationTitle("Workouts")` still labels
-  the back button on pushed subsections). No area uses
-  `SecondarySectionContentHost` or `SectionTitleMenu` anymore (both types, along
-  with `AppAreaSwitcher` and the interim `.safeAreaInset` switcher, have been
-  deleted). "New workout" lives on
-  the `.workoutsList` route's own `.bottomBar` via `RootPrimaryActionToolbar`.
-  Progress has a native **Muscle sets / Strength** segmented picker, defaulting
-  to Muscle sets; it is local to the pushed Progress page, not a `TabView` or
-  another bottom navigation band. Each pane keeps its chart/scroll state after
-  first opening. Strength mounts lazily; only the selected pane reacts to reload
-  tokens and foreground-day changes, and a revisited pane revalidates after
-  missed mutations. `ProgressRefreshModifier` and the host-testable
-  `ProgressHistoryViewModel` share bounded loading, cancellation, and cache
-  behavior between panes. Muscle sets reads server-calculated muscle sets via
-  `SessionsRepository.muscleSetProgressUpdates` and the user-scoped
-  `muscleSetProgress(args: {from_day, through_day, time_zone})` function; it does
-  not download raw sets. It requests the last 180 local days by default and
-  extends the date range on demand for older chart periods, up to one year.
-  The "Sets by muscle" list shows the latest day's trailing seven-local-day
-  direct, indirect, and weighted set totals. Only strength-style sets with
-  `reps > 0` qualify, excluding `category = 'stretching'`; all other strength-style
-  categories remain eligible. Tapping a muscle selects it for
-  the single weighted-set history chart without navigating; `shoulders` is
-  labeled "Shoulders (unspecified)". The query uses the SDK's `sessions`
-  cache namespace/tag. A cold default-history load probes today's key and up to
-  seven previous local-day 180-date keys, nearest first, with SDK cache-only
-  reads using the live stream's query/variables/namespace/tags. The first eligible
-  hit (including empty rows) renders with its actual displayed range and a
-  cached-through label for prior-day data. Today's exact stream still revalidates;
-  a current-key emission clears that label, while failure retains the fallback.
-  Probe failures are misses, except cancellation; version/cancellation guards
-  prevent a late probe from publishing or starting a superseded stream. An already
-  open Progress view retains and labels yesterday's rows through their date,
-  refreshing on the next foreground return without reloading on same-day returns.
-  Extended/custom history uses only its exact stream key, so a shorter default
-  snapshot is not shown as full history. If visible shorter history is retained while extending,
-  it is labeled partial until refreshed. The SDK enforces user scope and cache
-  age; no app-owned snapshots are stored. Strength restores weekly total volume
-  and session volume/e1RM charts for exercises logged in the last ten local
-  dates, retaining their older loaded points and exercise-detail links. It uses
-  `SessionsRepository.strengthProgressUpdates` and the owner-filtered
-  `strengthProgress` root (migration `1793029694424`), not raw sets. Postgres
-  reuses `strength_set_report_facts` and the existing empty
-  `exercise_strength_history_rows` shape; its new manual `exercise` relationship
-  supplies the current visible name. The client only groups weekly totals and
-  recent exercises. The first week may be partial at the history boundary;
-  null e1RMs are not plotted. Unlike Muscle sets, ordinary strength reporting
-  retains stretching. Strength uses the same 180/366-date sessions cache and
-  prior-day/partial-history labeling described above. The backend also exposes
-  tracked `workoutStrengthReport` and `exerciseStrengthReport` root functions
-  for per-session sets/reps/volume and exercise e1RM reports through the normal
-  Constellation endpoint. Nested `strengthHistory` computed fields appear in
-  both checked-in Hasura and Constellation user SDLs; app queries keep using the
-  tracked roots' local-day contract. After a Constellation pin change, follow
-  the schema-verification guidance in `docs/developers/sessions.md` before
-  asserting compatibility with the newly configured binary. Existing native
-  exercise-detail history charts still build points locally; `StrengthOneRepMax` mirrors
-  the backend's measured-single-rep / Epley-for-2+-reps rule (per recorded side),
-  until these charts migrate to the server fields. `doubleWeight` doubles volume,
-  not estimated 1RM.
-  The `pendingSessionId` deep link is consumed at the `WorkoutsSectionNavigationView`
-  root (`.task` initial check + `.onChange`) calling `openSession(...)`, so a
-  pending session opens regardless of which subsection (if any) is showing;
-  `SessionsListView` no longer takes that binding. **Nutrition (Phase 2b,
-  shipped):** `NutritionNavigationView` mirrors the Workouts hub — its root is a
-  native `List` of the same glass rows (`NutritionHubRow`: Overview / Days /
-  Plans / Foods / Meals / Body / Energy, each SF Symbol + title + chevron, ≥44pt,
-  accessibility labels) that PUSH subsection-list routes (`NutritionRoute.overview` /
-  `.daysList` / `.plansList` / `.foodsList` / `.mealsList` / `.bodyList` /
-  `.energyList`) via `.navigationDestination(for:)`, each with its own inline
-  `navigationTitle`. The area segmented `Picker` lives in the Nutrition hub's
-  nav-bar **principal** slot, matching 2a exactly. New plan / New food / New
-  meal / Log measurement / Log energy live on their subsection list's own
-  `.bottomBar` via `RootPrimaryActionToolbar` (not shell-owned). Energy hosts
-  the daily active/resting kcal CRUD list and trend under the Nutrition hub;
-  it loads energy from the backend only. The Overview screen (a pushed route)
-  is a dashboard: it reads backend energy and auto-syncs Body measurements
-  from HealthKit on load and pull-to-refresh, then shows Energy balance,
-  the Calories consumed chart, and
-  Body composition trends; both charts initially request the last 14 local
-  days plus six warm-up days for rolling averages and fetch wider/custom date
-  ranges only when selected. The calorie chart queries logged snapshots and
-  daily energy separately from the detailed overview; the Body chart uses a
-  date-bounded measurements query. HealthKit reconciliation still checks
-  historical measurements independently. It no longer shows the old intro
-  copy or recent daily-log list. There
-  is no more `selectedDate` handoff, so `NutritionDaysView` no longer takes a
-  `selectedDate` binding. Post-create,
-  the create view pops itself via
-  `dismiss()` (removing the top create route) and the shell's
-  `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
-  runloop tick (e.g. `[.foodsList, .foodCreate]` → `[.foodsList]` →
-  `[.foodsList, .foodDetail(id)]`) so Back returns to the subsection list, not
-  the hub. Do not re-add a `removeLast()` there — the create view's `dismiss()`
-  already removes the create route, so an extra pop would strand Back on the hub.
-  **Me (hub, shipped):** `MeNavigationView` mirrors the Workouts/Nutrition hubs —
-  its root is a native `List` of the same glass rows (`MeHubRow`: Profile /
-  Journal, each SF Symbol + title + chevron, ≥44pt, accessibility labels) that
-  PUSH subsection-list routes (`MeRoute.profile` / `.journalList`) via
-  `.navigationDestination(for:)`, each with its own inline `navigationTitle`. The
-  area segmented `Picker` lives in the Me hub's nav-bar **principal** slot,
-  matching 2a/2b exactly. New entry lives on `.journalList`'s own `.bottomBar`
-  via `RootPrimaryActionToolbar` (not shell-owned). Post-create, the create view pops
-  itself via `dismiss()` (removing the top create route) and the shell's
-  `openRouteAfterCurrentTransition(_:)` appends the detail route on the next
-  runloop tick (e.g. `[.journalList, .journalEntryCreate]` → `[.journalList]` →
-  `[.journalList, .journalEntryDetail(id)]`) so Back returns to the subsection
-  list, not the hub. Do not re-add a `removeLast()` there. Pushed form
-  routes put Cancel in the top-leading `.cancellationAction` and Save in the
-  top-trailing `.confirmationAction`; there is no top-trailing overflow menu.
-  Destructive Delete is a full-width `FormDeleteButton` (bordered, `.destructive`
-  role, `NeoGymTheme.danger` tint) rendered at the bottom of the scroll content,
-  shown only when deletion applies (edit-mode `deleteAction != nil` on forms, or
-  a loaded record on detail routes such as session detail or the nutrition day
-  view's "Clear day log"), and still opens the screen's existing confirm
-  `.alert`/`.confirmationDialog`. In the nutrition day view the logged intake
-  rows (`EntryRow` food entries and `MealGroupRow` logged meal groups in
-  `DailyIntakeRows`) carry no inline Edit/trash buttons — the whole glass row is
-  a `.buttonStyle(.plain)` `Button` (trailing `chevron.right`) that opens the
-  `EditLogEntrySheet` / `EditMealGroupSheet`, and each of those modal editors
-  holds its own Delete as a native destructive `Button(role: .destructive)` in a
-  trailing `Section` (matching `StrengthSetEditorView`, not the scroll-content
-  `FormDeleteButton` used on pushed forms/detail routes) wired to a
-  `.confirmationDialog` that deletes via the view model and dismisses. Detail routes otherwise use native iOS 26
-  bottom toolbar actions (`.bottomBar`, plus confirmation/destructive roles where
-  appropriate). A session detail's single `.bottomBar` holds the rest timer as
-  its **leading** item, a `Spacer()`, then Add exercise trailing — Delete is the
-  in-content `FormDeleteButton`, not a bottom-bar or overflow action. The rest timer is a
-  shell-owned `@StateObject RestTimerController` in `AppShellView` (survives area
-  switches and drill navigation), injected down through
-  `WorkoutsSectionNavigationView` into `SessionDetailView`, which renders
-  `RestTimerToolbarControl(timer:)` in that leading bottom-bar slot. With no
-  `TabView` there is no minimized tab pill, so a leading bottom-bar control
-  cannot be covered — this is why the rest timer now lives in the session
-  `.bottomBar` rather than a tab-view accessory. If the user navigates off the
-  session detail while the timer runs, the on-screen pill disappears but the
-  timer keeps running via its Live Activity + local notification. Every hub's
-  subsection lists own their create/log in the single `.bottomBar` (New workout on
-  `.workoutsList`; New plan/food/meal, Log measurement, and Log energy on
-  Nutrition's `.plansList`/`.foodsList`/`.mealsList`/`.bodyList`/`.energyList`;
-  New entry on Me's `.journalList`). There is exactly
-  one bottom band (create/log + rest timer + detail actions) and no tab bar.
-  Root list
-  pages rely on standard navigation-title spacing and native safe-area insets; do
-  not add custom dock clearance constants or extra bottom padding for custom
-  bottom chrome. Reduce Motion should suppress custom section scaling polish
-  while preserving native navigation structure. Sheet-local `NavigationView`
-  wrappers are still intentional for modal editors/pickers until those sheets are
-  separately revisited. Do not reintroduce a `TabView`,
-  `.tabViewBottomAccessory`, `.tabBarMinimizeBehavior`, `SectionTitleMenu`,
-  `SecondarySectionContentHost`, `AppAreaSwitcher`, the interim `.safeAreaInset`
-  area switcher, older-OS availability branches, UIKit parent-chain tab-bar
-  hiding, the removed `.hidesBottomTabBarWhenPushed()` alias, custom dock chrome,
-  or new hidden-link navigation. Parent lists reload from root invalidation tokens and detail
-  callbacks after create/save/delete/mutation flows.
-- **Screen structure**: list and detail screens are usually `ScrollView` →
-  leading `VStack(spacing: 18)` → max width around `700–760` →
-  `NeoGymTheme.screenHorizontalPadding` and `screenVerticalPadding`. Top-level
-  list headers use an uppercase caption eyebrow plus muted explanatory copy.
-  For all three areas (hub model) the subsection title is the pushed route's own
-  `navigationTitle` and create/log lives on that subsection's `.bottomBar`.
-- **Theme primitives**: use `NeoGymTheme` spacing, radius, palette, and semantic
-  colors. Full-screen/auth surfaces sit inside `ScreenScaffold`/`GridBackground`.
-  Cards and grouped content should use `SectionShell`, `GlassPanel`,
-  `.glassSurface(...)`, or the nutrition-specific `NutritionGlassSection`,
-  `.nutritionGlassCard()`, and `.nutritionGlassField()` helpers rather than
-  hard-coded backgrounds. The nutrition helpers are intentional denser wrappers:
-  they use ultra-thin, shadowless glass with smaller padding/radii for nested
-  nutrition lists, picker shells, macro tiles, and form inputs instead of the
-  broader generic glass defaults.
-  `GlassPanel` honors `cornerRadius`, `material`, `tint`, `shadow`, and
-  `contentPadding`; `.glassSurface(...)` honors `cornerRadius`, `material`,
-  `tint`, `stroke`, and `shadow`. Bare/default glass calls intentionally use the
-  declared glass defaults (regular material, glass fill, subtle stroke, and
-  shadow) rather than preserving the old flat rendering, and the Reduce
-  Transparency fallback keeps the tint and stroke over an opaque fallback fill.
-- **Loading, empty, and error states**: wrap fetch states in `SectionShell` and
-  reuse `AppLoadingStateView`, `AppErrorStateView`, and `AppEmptyStateView`.
-  Preserve stale data while refreshing when the view model exposes a previous
-  value, and wire retry buttons to `Task { await viewModel.load() }`.
-- **Lists and rows**: rows are typically custom `HStack` labels inside
-  `NavigationLink`, grouped in a `VStack(spacing: 0)` with `Divider()` between
-  rows. Use `.subheadline.weight(.semibold)` for primary row text, muted
-  `.caption`/`.caption2` metadata, a trailing chevron for drill-in rows, and
-  compact badges/cards for dates, visibility, labels, or counts.
+- **App shell and navigation**: `App/Shell/AppShellView.swift` hosts a native
+  `TabView` with five `Tab`s (Today, Train, Nutrition, Progress, Me; enum
+  `AppTab` in `App/AppNavigationRoutes.swift`), each with its own
+  `NavigationStack`, so every tab keeps its path across tab switches.
+  `RootView` gives the shell `.id(userId)`, so a different account gets fresh
+  tabs, paths and sync models. Area roots (`TrainNavigationView`,
+  `NutritionNavigationView`, `ProgressNavigationView`, `MeNavigationView`,
+  `TodayView`) use `.areaRoot(title:)` (large title + background token). The
+  section enums (`TrainSection`, `NutritionSection`, `ProgressSection`,
+  `MeSection`) feed `AreaSectionPicker`, a segmented `Picker` injected through
+  the `areaSectionHeader` environment value and rendered by
+  `AreaSectionHeader()` as the first element of each section's scroll content,
+  so it sits under the large title. Section state and the Train, Nutrition and
+  Progress paths live in the shell. Today's explicit section shortcuts clear
+  the destination path before selecting its tab, including when that section
+  is already selected behind a detail; ordinary tab switches preserve history.
+  The shell also owns Nutrition Log's date (`NutritionLogDateSelection`): Today's
+  Log shortcuts always select today. Scene activation and UIKit's main-actor
+  `significantTimeChangeNotification` (midnight and clock/time-zone changes)
+  advance a selection that matched the previous today, but retain deliberately
+  browsed dates. `DailyIntakeView` is
+  keyed by the selected date, giving each date its own day model and sheets;
+  changing dates closes old drafts and reloads the day/week so an old response
+  cannot provide the new date's write target. Cache policies and query ranges
+  are unchanged.
+  Other tabs can also open a session. Each section's
+  create/log action is a top-trailing `+` (`AreaPrimaryAction`); Today's `+` is
+  a quick-log menu. Pushed routes use typed enums (`TrainRoute`,
+  `NutritionRoute`, `ProgressRoute`, `MeRoute`) through
+  `.navigationDestination(for:)` with `.screenBackground()`; do not add hidden
+  `NavigationLink` state. Detail screens put "Edit" in the top-trailing toolbar
+  and start/log actions in the content; there are no `.bottomBar` actions.
+  `openSession` in the shell selects Train and pushes the session (or pops back
+  to it); it serves deep links, Today, the accessory and start-session callbacks
+  from any tab. Post-create, the create view pops itself with `dismiss()` and
+  the area root's `openRouteAfterCurrentTransition(_:)` appends the detail
+  route on the next runloop tick, so Back returns to the section root; do not
+  add a `removeLast()` there. Cross-tab invalidation uses shell revisions
+  (`trainingRevision`, `nutritionRevision`) passed down as reload tokens.
+- **Rest timer and live session**: `NeoGymKit.RestTimerAccountScope` owns one
+  per-owner `RestTimerController` and supplies it to the shell. Only a matching
+  signed-in owner can restore a running rest; ownerless legacy and other-owner
+  schedules are removed. A session without a usable owner ID gets an inert timer
+  while the shell remains usable. The app binds the scope to `AuthStore` and calls
+  `endSession()` from its snapshot-clear handler, clearing persisted state,
+  pending/delivered notifications and Live Activities on sign-out (before the
+  remote request), definitive session loss, auth errors and account switches,
+  even without a mounted shell. Invalidated controllers ignore late old-view
+  callbacks. Same-owner refreshes, relaunches and tab switches retain the rest.
+  The host-testable core uses `Task.sleep(nanoseconds:)` to preserve the package's
+  macOS 12/iOS 15/watchOS 8 floors; the Duration overload requires newer OSes.
+  `RestTimerSystemEffects` (`App/Shell/RestTimerController.swift`) mirrors the
+  schedule into a local notification and a Live Activity (updated, not restarted,
+  on +30 s), guards delayed notification authorization and orders activity cleanup
+  after earlier operations. `RestTimerAccessory` is the `.tabViewBottomAccessory`
+  content, enabled while a session is in the Train stack or a rest runs: it
+  shows the countdown with +30 s and Skip (only Skip in the inline placement)
+  and opens the session on tap. Logging a set starts the default rest
+  (`RestTimerPreference`, set under Me › Account) labelled "<exercise> · set N
+  next". `SessionDetailView` reports its display name with `noteSession`.
+- **Tokens and surfaces**: colours are asset-catalog colour sets with Any/Dark
+  variants (`App/Assets.xcassets/Theme/*`, plus `AccentColor` = `#3463E0`)
+  exposed only through `NeoGymTheme` (`background`, `surface`, `inset`, `fill`,
+  `segmentedThumb`, `separator`, `text`, `textSecondary`, `textTertiary`,
+  `accent` for fills, `accentText` for text/icons, `accentSoft`, `chart1`/
+  `chart2` for chart series, `carbs` for the carbs macro, `positive`,
+  `destructive` (text: light `#B91C1C`, dark `#F87171`), `destructiveFill`
+  (`#DC2626`), `health` (the `#E5484D` Apple Health heart, glyph only), and `onFill` for
+  labels/glyphs on accent or destructive fills). Never hard-code hex
+  or system colours in views. `RootView` applies `.preferredColorScheme` from
+  the `AppAppearance` `@AppStorage` key (Dark default) and the global
+  `.tint(NeoGymTheme.accentText)`; prominent buttons tint with `accent`.
+  Content uses flat surfaces: `SurfaceCard`, `.cardSurface()` (cards, radius
+  22), `.insetCard()` (tiles), `.fieldSurface()` and `SectionShell` (titled
+  card). Glass is only system chrome (tab bar, toolbars, accessory, sheets); do
+  not reintroduce materials, gradients, `GridBackground` or shadows on content.
+  Spacing steps are 4/8/12/16/20/24/32 with a 16 pt screen gutter.
+- **Type and metrics**: Dynamic Type styles only (Large Title from the
+  navigation bar on area roots, Title 2 for detail titles, Headline/Body/
+  Subheadline/Footnote for content). Every metric uses `.monospacedDigit()`.
+  Shared pieces live in `App/Components/MetricViews.swift` (`CardHeader`,
+  `StatTile`, `MeterBar`, `MeterTrack`, `RingMeter`,
+  `LegendItem`, `MetricValueText`, `MetricFormat`, `AdaptiveRow`) and
+  `App/Components/ListPrimitives.swift` (`SearchField`, `ListRow`,
+  `RowSeparator`). `AdaptiveRow` stacks vertically at accessibility text sizes;
+  use it for tiles and paired metrics instead of letting text truncate.
+- **Exercise images**: `ExerciseThumbnail` (`App/Components/StorageImageView.swift`)
+  reads the Storage base URL from the `storageBaseURL` environment value that
+  `AppShellView` sets, so rows need no URL plumbing; list, editor and session
+  queries select `image1FileId` (sessions also `image2FileId` for the open
+  card's alternating `AlternatingStorageImageView`). Storage files load with
+  plain `AsyncImage` GETs, as on exercise detail. Catalog muscle groups and the
+  shared grouped/search row stack are lazy, so thumbnail work follows visible
+  and nearby rows rather than the whole catalog. Keep laziness at the row
+  boundary; making only muscle cards lazy still eagerly loads a large group.
+- **Nutrition slots**: the Log timeline and plan detail share
+  `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
+  grams line with accent/carbs/secondary dots aligned under the title) and
+  `NutritionSlotItemRow` (name, MEAL tag for meals, "amount · P · C · F" from
+  NeoGymKit `NutritionMacroText`, kcal). Expanded logged meals list their child
+  food snapshots beneath the meal row (`NutritionTimeline.loggedMealEntries`
+  matches the logged group ID, not the reusable meal ID). Each food row opens
+  `EditLogEntrySheet` for grams/position edits and single-entry deletion, hiding
+  the time control because grouped foods inherit their meal's time; the meal row
+  still opens `EditMealGroupSheet`. Successful entry changes keep the existing
+  day reload and parent mutation callback, which reloads week-strip kcal and
+  invalidates the other nutrition views. Planned (dashed) slots pass `muted`.
+  Every selected-plan slot stays in the timeline; one sharing its time with a
+  logged slot comes after it (`hasLoggedFood`), keeps the accent-soft Log and
+  asks first through a `confirmationDialog` with the web dialog's wording.
+  Only `NutritionTimeline.nextPlannedId` (the first planned slot with nothing
+  logged at its time) opens by default with the accent Log.
+- **Patterns**: session logging, the Nutrition Log timeline, Today, Progress
+  and Account follow the root design section. Their rules live in host-tested
+  NeoGymKit types (`SessionLogging`, `NextSetDraft`, `SessionWeekGrouping`,
+  `NutritionTimeline`, `NutritionWeekStrip`, `TodayTrainingSummary`,
+  `TodayNutritionSummary`, `TodayBalanceSummary`, `BodyTrendSummary`,
+  `MuscleSetBar`, `MuscleSetOverview`, `StrengthWeeklyOverview`,
+  `CalorieTrend`, `EntryHistoryWindow`, `DailyEnergyOutAverage`,
+  `HealthImportMarker`, `AgentAccess`); keep new view logic there with tests
+  rather than in views. Lists show one title, one metadata line and one
+  trailing value, with a chevron only when the row pushes. Body and Energy
+  entry lists show the latest five under an `EntryListHeader` ("5 of 32") and
+  end with `LoadMoreRow` (`App/Components/ListPrimitives.swift`). Health data always shows its source with a
+  sync-status row (`HealthSyncStatusRow`), and each Body/Energy row whose
+  notes are exactly the import marker shows `HealthImportHeart` (a red heart
+  labelled "Imported from Apple Health") after its date instead of the note.
+- **Loading, empty, and error states**: reuse `AppLoadingStateView`,
+  `AppErrorStateView` and `AppEmptyStateView`. The empty state follows the
+  design's States board: its icon on an accent-soft tile, a Title 2 heading, the
+  message and an optional primary capsule action (`actionTitle`/`action`, e.g.
+  Sessions' "Browse workouts", "Clear filters", a session's "Add exercise"). A
+  section-level empty state sits directly on the page background with no card;
+  only one nested inside an existing card (an exercise's Progress card) takes
+  that card's surface. Preserve stale data while refreshing when the view model
+  exposes a previous value, and wire retry buttons to
+  `Task { await viewModel.load() }`.
 - **Buttons and destructive actions**: primary full-width actions use
-  `NeoGymPrimaryButtonStyle`; secondary/cancel/load-more actions use
-  `NeoGymSecondaryButtonStyle`; header icons must keep a 44×44 touch target and
-  an accessibility label. Destructive deletes should use `role: .destructive`
-  and an `.alert`/`.confirmationDialog` that states what will cascade or be
-  retained.
+  `NeoGymPrimaryButtonStyle`; secondary actions use `NeoGymSecondaryButtonStyle`;
+  icon-only buttons keep a 44×44 target and an accessibility label.
+  Destructive deletes and Sign out are full-width buttons on the surface token
+  with destructive text (`FormDeleteButton`) at the end of the content, opening
+  a `.confirmationDialog` (action sheet, `titleVisibility: .visible`, destructive
+  button then Cancel) that states what will cascade; keep `.alert` for text
+  input such as a plan slot label. Pushed form routes put Cancel in
+  `.cancellationAction` and Save in `.confirmationAction`. Nutrition log edit
+  sheets and the set editor keep their Delete as a destructive `Button` in a
+  trailing `Section`; the cardio entry sheet uses `FormDeleteButton`.
 - **Forms and validation**: non-trivial forms keep field state and validation in
   `NeoGymKit` `ObservableObject` form models (`valuesForSubmit()`, `canSubmit`,
   `errorMessage`) and keep SwiftUI views focused on layout. Representative
@@ -715,7 +667,23 @@ intact instead of inventing one-off styles.
   model-level validation rather than live services; a full app-wide form
   migration is intentionally out of scope unless a view is already being
   refactored.
-- **Inputs**: label fields with `.subheadline.weight(.semibold)`. Use `.words`
+- **Grouped editors**: New/Edit food, Edit meal, Edit plan, New/Edit workout,
+  New/Edit journal entry, New/Edit measurement, New/Edit energy and the cardio
+  entry sheet follow the design's inset grouped rows from
+  `App/Components/FormRows.swift` (`FormSection` with caps header/footer,
+  `FormRow`, `FormLabeledTextRow`, `FormDateRow` for a `YYYY-MM-DD` binding,
+  `FormTextAreaRow` for notes and monospaced markdown bodies, `FormNumberRow`/
+  `FormNumberField` wells on the background token via `formWell(isInvalid:)`,
+  `FormActionRow` with its accent-circle glyph, `FormRemoveButton`,
+  `MacroTotalsStrip`, `EntryKindTag`, `FormScrollContainer`). The navigation
+  bar carries the title; do not repeat it in a `SectionShell` card. Inputs
+  inside a surface card must use a contrasting fill (`fill`, `inset` or the
+  background well), never the surface token. Editable lists (meal ingredients,
+  plan entries, workout exercises) remove rows with the red minus and reorder
+  through a long-press menu mirrored in `accessibilityActions`; the workout
+  design's drag handle is not implemented.
+- **Inputs**: grouped editors use inline row titles; any remaining stacked
+  fields are labelled with `.subheadline.weight(.semibold)`. Use `.words`
   autocapitalization for names/titles, `.never` plus disabled autocorrection for
   emails, IDs, labels, and numeric text; use `.decimalPad` for weights/grams and
   macro fields, `.numberPad` for integer/cardio duration parts, compact
@@ -723,36 +691,83 @@ intact instead of inventing one-off styles.
   `.decimalPad`/`.numberPad` `TextField`s outside OTP should opt in to local
   `@FocusState` plus `KeyboardDoneToolbar`/`numericFieldFocus` so the keyboard
   has a Done dismissal affordance without moving validation into `NeoGymKit`.
-  Multi-line notes/descriptions use `TextEditor` with a minimum height and muted
-  helper text where useful. OTP entry uses the custom `OTPCodeField` so paste,
+  Multi-line notes/descriptions use `FormTextAreaRow` (a vertical `TextField`
+  that grows from a minimum line count, placeholder "Optional" for notes). OTP entry uses the custom `OTPCodeField` so paste,
   one-time-code autofill, six-digit filtering, focus, and accessibility stay
   consistent.
-- **Pickers and composite editors**: workouts add exercises through
-  `ExercisePickerView`; nutrition uses searchable wheel `FoodPickerView` and
-  `MealPickerView`; workout labels and journal labels use chip inputs with
-  normalized typed creation and suggestions. Strength set editing intentionally
-  uses a sheet with native `Form` + wheel pickers for kg/grams/reps; cardio entry
-  editing is schema-driven and highlights the invalid metric row.
-- **Graphs and summaries**: body and daily-energy trends use
+- **Pickers and composite editors**: workouts and sessions add exercises
+  through the multi-select `ExercisePickerView` checklist; meal and plan
+  editors pick foods/meals with the searchable `NutritionSelectionSheet` list
+  (its toolbar pushes a create form in the same sheet), while the log sheets
+  still use the searchable wheel `FoodPickerView` and `MealPickerView`; workout
+  labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):
+  accent-soft chips with a remove button, an inline "Add label" field with
+  normalized typed creation, and matching existing labels shown only while the
+  field is focused. Strength set editing intentionally uses a sheet with native
+  `Form` + wheel pickers for kg/grams/reps; cardio entry editing is
+  schema-driven: the exercise name and "Entry N" form the title, REQUIRED then
+  OPTIONAL groups list each metric with its unit and the schema range as the
+  placeholder, and the invalid metric row is highlighted. Filter-chip rows use
+  `FilterChip`, whose unselected fill is the surface token on the page and the
+  fill token on sheets (Add exercises).
+- **Graphs and summaries**: Muscles, Strength, Body, daily-energy and calorie trends use
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
-  date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
+  date pickers, sampled points, axes/legend, and tap/drag callouts. One period
+  menu can drive several stacked `TimeSeriesChartPanel`s (Consumed above Net);
+  `chartHeight` covers each chart and its legend. Overview's Strength and Energy
+  sparklines and Today's Body chart are a `TimeSeriesChartView` with
+  `showsAxes: false` (no grid, axes or legend); Overview's Body chart keeps
+  both axes but no legend. Body and Energy charts (Calories included) open on
+  `.last30Days`, as do Overview's Body and Energy cards. Non-empty
   custom chart plots collapse decorative drawing, axes, markers, and callouts
-  into one VoiceOver element with a domain label plus a summary of visible
-  series, point counts, date range, latest values, and min/max values; legends
+  into one VoiceOver element with a domain label plus the NeoGymKit
+  `ChartAccessibilitySummary` of the visible series: the complete-period date
+  range, then lowest, highest, average and latest per series (no average for
+  `isRollingAverage` 7-day lines), leaving out a partial point, and a closing
+  "Today so far: …" (or "This week so far: …" for `periodUnit: .week` series
+  such as weekly volume) that names series only when several are partial; legends
   stay separate tappable controls for hiding/showing series. Caller-provided
   chart accessibility values must account for hidden series themselves.
-  Empty-state text remains naturally accessible. Nutrition totals use
-  `MacroSummaryView` grids with monospaced digits and optional target totals;
+  Empty-state text remains naturally accessible. Value axes use NeoGymKit
+  `ChartAxisScale`: three labels (bottom, middle, top) on rounded values, bare
+  compact numbers without units (`12`, `2,000`, `50k`, `+400`/`−1,200` when the
+  axis crosses zero) in `textSecondary` whatever the series colour, with one
+  grid line per label. A series with `axisFormat: .durationSeconds` (cardio
+  exercise detail when the primary metric is a duration) steps in whole
+  minutes and labels m:ss, or h:mm:ss on every label once the axis reaches an
+  hour, matching its `valueFormatter`; seconds are never shown raw. Series with `includesZero` (Muscles sets, daily energy,
+  net calories) keep 0 on the axis; others hug their data. When visible series
+  sit on both axes (Strength and exercise-detail volume + Est. 1RM, the Today
+  and Overview body charts), `ChartAxisScale.startAligned` scales each to its
+  own data with both first values at the same height, so those labels are
+  less round. Lines join across missing days and every point gets a dot,
+  3.6 pt once a series passes `maxPointMarkers` (31); charts render up to
+  `maxRenderedPoints` (64) before sampling. X-axis dates use the "d MMM"
+  template (`showsMiddleDate: false` keeps only the first and last). Charts have no border and
+  grid lines use the separator token. Series colour follows the metric:
+  `chart1` (blue) for weight, resting energy, consumed, volume and sets,
+  `chart2` (orange) for body fat, active energy, net and Est. 1RM, for lines,
+  bars and split bars alike; no grey series and no `accentText` lines. A
+  `.readings` series (daily values: 1.5 pt line at half opacity with dots)
+  sits under its `.line` 7-day average in the same colour, and one chart holds
+  one unit on detail tabs (Body has a card per metric); summary cards may pair
+  weight and body fat on two axes. A point with `isPartial` (today's intake or
+  energy, this week's volume) joins the line with a dashed segment to an open
+  dot, and the NeoGymKit averages leave it out. Callouts name the series in
+  `textSecondary` beside a colour dot. Day summaries use `MeterBar`/`MeterTrack` (protein
+  accent, carbs `carbs`, fat secondary text); plan/meal editors use the
+  compact `MacroTotalsStrip`, and meal/plan library summaries still use
+  `MacroSummaryView` grids;
   the daily intake balance is read-only, with calories in from logged snapshots
-  and calories out from the same date's `daily_energy` row. Today-only Overview,
-  Energy list/detail, intake, watch app and medium iPhone widget also show
+  and calories out from the same date's `daily_energy` row. Today, Progress ›
+  Energy list/detail, the Log, watch app and medium iPhone widget also show
   `DailyEnergyProjection`: prior seven local dates' mean positive resting kcal,
   floored at resting already recorded today, plus today's recorded active kcal;
   estimated net subtracts this from food already logged. Require today's row and
   at least one usable historical resting value, and never replace actual values,
   historical charts or `daily_energy` records. Keep estimate presentation compact:
   labeled values and units, without calculation prose or history-day counts.
-  Future food/activity are not predicted. Overview reads extra past/current
+  Future food/activity are not predicted. The overview read behind Today reads extra past/current
   `balanceDays` without hiding future logs from browsing, and its cache key
   includes today. Daily intake/watch reads fetch today plus seven prior energy
   dates and explicitly select today by date. The watch snapshot's optional

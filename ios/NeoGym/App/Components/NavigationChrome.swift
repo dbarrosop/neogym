@@ -1,22 +1,5 @@
 import SwiftUI
 
-struct RootPrimaryActionToolbar: ToolbarContent {
-    let title: String
-    let systemImage: String
-    let action: () -> Void
-
-    var body: some ToolbarContent {
-        ToolbarItemGroup(placement: .bottomBar) {
-            Spacer()
-            Button(action: action) {
-                Label(title, systemImage: systemImage)
-            }
-            .fontWeight(.semibold)
-            .accessibilityLabel(title)
-        }
-    }
-}
-
 private struct NativeFormActionToolbar: ViewModifier {
     let submitLabel: String
     let isSubmitting: Bool
@@ -55,10 +38,15 @@ struct FormDeleteButton: View {
 
     var body: some View {
         Button(role: .destructive, action: action) {
-            Label(title, systemImage: "trash")
+            Text(title)
+                .font(.body)
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(NeoGymSecondaryButtonStyle())
-        .tint(NeoGymTheme.danger)
+        .buttonStyle(.plain)
+        .foregroundStyle(NeoGymTheme.destructive)
+        .background(RoundedRectangle(cornerRadius: NeoGymTheme.radiusLG, style: .continuous).fill(NeoGymTheme.surface))
+        .opacity(isDisabled ? 0.5 : 1)
         .disabled(isDisabled)
         .accessibilityLabel(title)
     }

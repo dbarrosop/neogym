@@ -32,8 +32,7 @@ struct MealDetailView: View {
         .navigationTitle("Meal")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let meal = viewModel.meal {
                     NavigationLink {
                         MealEditView(
@@ -49,8 +48,9 @@ struct MealDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit meal", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit meal")
                 }
             }
         }
@@ -97,14 +97,14 @@ struct MealDetailView: View {
                     + "logged meal provenance is detached by the database."
             )
             .font(.caption)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             if meal.mealIngredients.isEmpty {
                 Text("This meal does not have ingredients yet.")
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 24)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+                    .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
             } else {
                 VStack(spacing: 0) {
                     ForEach(meal.mealIngredients) { ingredient in
@@ -112,7 +112,7 @@ struct MealDetailView: View {
                         if ingredient.id != meal.mealIngredients.last?.id { Divider() }
                     }
                 }
-                .nutritionGlassField()
+                .fieldSurface()
             }
         }
     }
@@ -131,7 +131,7 @@ private struct IngredientDetailRow: View {
                     .font(.subheadline.weight(.semibold))
                 Text(NutritionMath.formatMacro(ingredient.grams, unit: "g"))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 3) {
@@ -141,7 +141,7 @@ private struct IngredientDetailRow: View {
                     + "\(NutritionMath.formatMacro(totals.carbs, unit: "g")) carbs · "
                     + "\(NutritionMath.formatMacro(totals.fat, unit: "g")) fat")
                     .font(.caption2)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.trailing)
             }
         }

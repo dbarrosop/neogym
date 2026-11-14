@@ -8,13 +8,13 @@ struct AppLoadingStateView: View {
         VStack(spacing: NeoGymTheme.spacingSM) {
             ProgressView()
                 .controlSize(.large)
-                .tint(NeoGymTheme.accent)
+                .tint(NeoGymTheme.accentText)
             Text(title)
                 .font(.headline)
             if let message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
         }
@@ -33,10 +33,10 @@ struct AppErrorStateView: View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
             Label(title, systemImage: "exclamationmark.triangle.fill")
                 .font(.headline)
-                .foregroundColor(NeoGymTheme.danger)
+                .foregroundColor(NeoGymTheme.destructive)
             Text(message)
                 .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             if let retry {
                 Button(retryTitle, action: retry)
                     .buttonStyle(NeoGymSecondaryButtonStyle())
@@ -47,54 +47,52 @@ struct AppErrorStateView: View {
     }
 }
 
+/// The design's empty state: the icon on an accent-soft tile, a title, a
+/// message and an optional primary action. It sits directly on the page
+/// background (no card) when it stands for a whole section; inside a card it
+/// takes the card's surface.
 struct AppEmptyStateView: View {
     let title: String
     let message: String
     var systemImage: String = "tray"
+    var actionTitle: String?
+    var action: (@MainActor () -> Void)?
+
+    @ScaledMetric(relativeTo: .title2) private var tileSize: CGFloat = 64
 
     var body: some View {
         VStack(spacing: NeoGymTheme.spacingSM) {
             Image(systemName: systemImage)
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .font(.title.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.accentText)
+                .frame(width: tileSize, height: tileSize)
+                .background(
+                    RoundedRectangle(cornerRadius: NeoGymTheme.radiusLG, style: .continuous)
+                        .fill(NeoGymTheme.accentSoft)
+                )
+                .accessibilityHidden(true)
             Text(title)
-                .font(.headline)
-            Text(message)
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            Text(message)
+                .font(.body)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.large)
+                    .tint(NeoGymTheme.accent)
+                    .font(.headline)
+                    .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(NeoGymTheme.spacingLG)
-    }
-}
-
-struct ConfirmationPanel: View {
-    let title: String
-    let message: String
-    var confirmTitle: String = "Confirm"
-    var cancelTitle: String = "Cancel"
-    let confirm: () -> Void
-    let cancel: () -> Void
-
-    var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingMD) {
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                HStack(spacing: NeoGymTheme.spacingSM) {
-                    Button(cancelTitle, action: cancel)
-                        .buttonStyle(NeoGymSecondaryButtonStyle())
-                    Button(confirmTitle, action: confirm)
-                        .buttonStyle(NeoGymPrimaryButtonStyle())
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
-            Text(title)
-                .font(.headline)
-        }
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .padding(.vertical, NeoGymTheme.spacingXXL)
     }
 }
 
@@ -105,15 +103,13 @@ struct SectionShell<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        GroupBox {
-            content
-                .frame(maxWidth: .infinity, alignment: .leading)
-        } label: {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
                 HStack(spacing: NeoGymTheme.spacingXS) {
                     Text(title)
-                        .font(.title2.bold())
-                        .tracking(-0.4)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(NeoGymTheme.text)
+                        .accessibilityAddTraits(.isHeader)
                     if isLoading {
                         ProgressView()
                             .controlSize(.small)
@@ -123,10 +119,14 @@ struct SectionShell<Content: View>: View {
                 if let subtitle {
                     Text(subtitle)
                         .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
                 }
             }
+            content
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .groupBoxStyle(.automatic)
+        .padding(NeoGymTheme.spacingMD)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
     }
 }

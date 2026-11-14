@@ -10,7 +10,7 @@ struct CardioEntriesListView: View {
         if entries.isEmpty {
             Text("No entries logged yet.")
                 .font(.caption.italic())
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
         } else {
@@ -21,11 +21,9 @@ struct CardioEntriesListView: View {
                             Text("\(entry.entryNumber)")
                                 .font(.caption.weight(.bold))
                                 .frame(width: 28, height: 28)
-                                .glassSurface(
+                                .cardSurface(
                                     cornerRadius: NeoGymTheme.radiusPill,
-                                    material: .ultraThin,
-                                    tint: NeoGymTheme.glassSubtleFill,
-                                    shadow: false
+                                    fill: NeoGymTheme.inset
                                 )
                             metricSummary(entry)
                             Spacer(minLength: 0)
@@ -37,11 +35,9 @@ struct CardioEntriesListView: View {
                 }
             }
             .padding(.horizontal, NeoGymTheme.spacingXS)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
         }
     }
@@ -53,10 +49,10 @@ struct CardioEntriesListView: View {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(spec.label.uppercased())
                             .font(.caption2.weight(.semibold))
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                         Text(CardioMetricsSchemaHelpers.formatMetricValue(value, spec: spec))
                             .font(.subheadline.monospacedDigit().weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(NeoGymTheme.text)
                     }
                 }
             }

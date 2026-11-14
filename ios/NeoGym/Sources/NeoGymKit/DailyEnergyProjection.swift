@@ -55,13 +55,21 @@ public struct DailyEnergyProjection: Equatable, Sendable {
         estimatedNetKcal = caloriesIn - estimatedBurnedKcal
     }
 
-    public func burnedValue(locale: Locale = .current) -> String {
-        "≈\(NutritionMath.formatMacro(estimatedBurnedKcal, unit: "kcal", locale: locale))"
+    /// "≈2,312 kcal", or "≈2,312" with `includesUnit: false` where a heading
+    /// already carries the unit.
+    public func burnedValue(locale: Locale = .current, includesUnit: Bool = true) -> String {
+        "≈" + Self.kcal(estimatedBurnedKcal, locale: locale, includesUnit: includesUnit)
     }
 
-    public func netValue(locale: Locale = .current) -> String {
+    /// "≈−851 kcal", or "≈−851" with `includesUnit: false`.
+    public func netValue(locale: Locale = .current, includesUnit: Bool = true) -> String {
         let sign = estimatedNetKcal < 0 ? "−" : estimatedNetKcal > 0 ? "+" : ""
-        return "≈\(sign)\(NutritionMath.formatMacro(abs(estimatedNetKcal), unit: "kcal", locale: locale))"
+        return "≈\(sign)" + Self.kcal(abs(estimatedNetKcal), locale: locale, includesUnit: includesUnit)
+    }
+
+    private static func kcal(_ value: Double, locale: Locale, includesUnit: Bool) -> String {
+        let formatted = NutritionMath.formatMacro(value, unit: "kcal", locale: locale)
+        return includesUnit ? formatted : String(formatted.dropLast(" kcal".count))
     }
 }
 

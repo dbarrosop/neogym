@@ -13,15 +13,15 @@ struct MacroSummaryView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.caption.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                 if let description {
                     Text(description)
                         .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
+                        .foregroundColor(NeoGymTheme.textSecondary)
                 }
                 Text(NutritionMath.macroTotalsSummary(totals))
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
@@ -32,7 +32,7 @@ struct MacroSummaryView: View {
                     if let description {
                         Text(description)
                             .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                 }
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -45,7 +45,7 @@ struct MacroSummaryView: View {
                 }
             }
             .padding(14)
-            .nutritionGlassCard(cornerRadius: 16, tint: NeoGymTheme.glassSubtleFill)
+            .insetCard(cornerRadius: 16, fill: NeoGymTheme.inset)
         }
     }
 
@@ -61,16 +61,16 @@ struct MacroSummaryView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption2)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(target.map { "\(formatMacroNumber(value)) / \(formatMacroNumber($0)) \(unit)" }
                 ?? NutritionMath.formatMacro(value, unit: unit))
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .nutritionGlassCard(cornerRadius: 12)
+        .insetCard(cornerRadius: 12)
     }
 }
 
@@ -82,13 +82,11 @@ struct FoodVisibilityBadge: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .foregroundColor(isPublic ? .accentColor : NeoGymTheme.mutedText)
-            .glassSurface(
+            .foregroundColor(isPublic ? NeoGymTheme.accentText : NeoGymTheme.textSecondary)
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusPill,
-                material: .ultraThin,
-                tint: isPublic ? NeoGymTheme.accentMuted : NeoGymTheme.glassSubtleFill,
-                stroke: isPublic ? Color.accentColor.opacity(0.25) : NeoGymTheme.glassStrokeSecondary,
-                shadow: false
+                fill: isPublic ? NeoGymTheme.accentSoft : NeoGymTheme.inset,
+                stroke: isPublic ? NeoGymTheme.accentText.opacity(0.4) : NeoGymTheme.separator
             )
     }
 }

@@ -1,9 +1,20 @@
+import NeoGymKit
 import SwiftUI
 
 struct TimeSeriesChartDataPoint: Identifiable, Equatable {
     let id: String
     let date: Date
     let value: Double
+    /// Today's (or this week's) value so far: an open dot joined to the line
+    /// by a dashed segment.
+    var isPartial = false
+}
+
+enum TimeSeriesChartSeriesStyle {
+    /// A solid 2.5 pt line (a 7-day average, weekly volume, sets).
+    case line
+    /// Daily readings under their average: a thin half-opacity line with dots.
+    case readings
 }
 
 enum TimeSeriesChartAxis: String, Hashable {
@@ -15,56 +26,75 @@ struct TimeSeriesChartSeries: Identifiable {
     let id: String
     let name: String
     let color: Color
+    let style: TimeSeriesChartSeriesStyle
     let axis: TimeSeriesChartAxis
-    let centersAxisOnZero: Bool
+    /// Keeps zero on the value axis: counts and energy start at 0, and
+    /// signed series (net calories) show where they cross it.
+    let includesZero: Bool
     let points: [TimeSeriesChartDataPoint]
+    /// Formats values in callouts and spoken summaries.
     let valueFormatter: (Double) -> String
+    /// The axis labels' notation; durations match `valueFormatter`'s m:ss.
+    let axisFormat: ChartAxisValueFormat
+    /// A day or a week per point; names a partial last point in the spoken
+    /// summary ("Today so far", "This week so far").
+    let periodUnit: ChartAccessibilitySummary.PeriodUnit
+    /// A 7-day average line: the spoken summary gives its lowest, highest and
+    /// latest, not an average of averages.
+    let isRollingAverage: Bool
 
     init(
         id: String,
         name: String,
         color: Color,
+        style: TimeSeriesChartSeriesStyle = .line,
         axis: TimeSeriesChartAxis = .left,
-        centersAxisOnZero: Bool = false,
+        includesZero: Bool = false,
         points: [TimeSeriesChartDataPoint],
-        valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
+        valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) },
+        axisFormat: ChartAxisValueFormat = .number,
+        periodUnit: ChartAccessibilitySummary.PeriodUnit = .day,
+        isRollingAverage: Bool = false
     ) {
         self.id = id
         self.name = name
         self.color = color
+        self.style = style
         self.axis = axis
-        self.centersAxisOnZero = centersAxisOnZero
+        self.includesZero = includesZero
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
+        self.axisFormat = axisFormat
+        self.periodUnit = periodUnit
+        self.isRollingAverage = isRollingAverage
+    }
+
+    /// The same series keeping only the points that pass `isIncluded`.
+    func filtered(_ isIncluded: (TimeSeriesChartDataPoint) -> Bool) -> TimeSeriesChartSeries {
+        TimeSeriesChartSeries(
+            id: id, name: name, color: color, style: style, axis: axis, includesZero: includesZero,
+            points: points.filter(isIncluded), valueFormatter: valueFormatter, axisFormat: axisFormat,
+            periodUnit: periodUnit, isRollingAverage: isRollingAverage
+        )
     }
 }
 
-func timeSeriesChartMetricRange(values: [Double], centersOnZero: Bool = false) -> ChartMetricRange? {
-    guard let minValue = values.min(), let maxValue = values.max() else { return nil }
-    if centersOnZero {
-        let magnitude = max(abs(minValue), abs(maxValue), 1)
-        let paddedMagnitude = magnitude * 1.1
-        return ChartMetricRange(min: -paddedMagnitude, max: paddedMagnitude)
-    }
-    if minValue == maxValue {
-        let padding = max(abs(minValue) * 0.05, 1)
-        return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
-    }
-    let padding = max((maxValue - minValue) * 0.1, 0.5)
-    return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
+/// One chart under a shared Period menu, such as Consumed above Net.
+struct TimeSeriesChartPanel: Identifiable {
+    let id: String
+    var title: String?
+    let series: [TimeSeriesChartSeries]
+    var emptyMessage = "No data in this range."
+    var accessibilityLabel = "Time series chart"
+    var accessibilityValue: String?
 }
 
+/// One value axis: which side, and its rounded `ChartAxisScale`. Labels are
+/// bare numbers (durations in m:ss) in the secondary text colour, whatever
+/// the series colour.
 struct ChartAxisDescriptor {
     let axis: TimeSeriesChartAxis
-    let range: ChartMetricRange
-    let color: Color
-    let formatter: (Double) -> String
-}
-
-struct ChartMetricRange {
-    let min: Double
-    let max: Double
-    var midpoint: Double { (min + max) / 2 }
+    let scale: ChartAxisScale
 }
 
 struct PlottedChartPoint: Identifiable {
@@ -83,9 +113,9 @@ let timeSeriesChartCalloutDateFormatter: DateFormatter = {
     return formatter
 }()
 
-let timeSeriesChartShortDateFormatter: DateFormatter = {
+/// Day and short month ("18 Sep", or the locale's order).
+let timeSeriesChartAxisDateFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .none
+    formatter.setLocalizedDateFormatFromTemplate("d MMM")
     return formatter
 }()

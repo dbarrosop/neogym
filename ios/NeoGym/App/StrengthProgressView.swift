@@ -4,14 +4,12 @@ import SwiftUI
 struct StrengthProgressView: View {
     @ObservedObject var viewModel: StrengthProgressViewModel
     let reloadToken: Int
-    let isActive: Bool
+    @Binding var loadedToken: Int?
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
-                Text("Weekly total volume, plus session volume and estimated one-rep max for exercises logged in the last 10 days. History is available for up to one year.")
-                    .font(.subheadline)
-                    .foregroundStyle(NeoGymTheme.mutedText)
+                AreaSectionHeader()
                 content
             }
             .frame(maxWidth: 760)
@@ -19,20 +17,19 @@ struct StrengthProgressView: View {
             .padding(.vertical, NeoGymTheme.screenVerticalPadding)
             .frame(maxWidth: .infinity)
         }
-        .modifier(ProgressRefreshModifier(model: viewModel, reloadToken: reloadToken, isActive: isActive))
+        .modifier(ProgressRefreshModifier(model: viewModel, reloadToken: reloadToken, loadedToken: $loadedToken))
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .idle, .loading(previous: nil):
-            SectionShell(title: "Strength") { AppLoadingStateView(title: "Loading strength progress") }
+            AppLoadingStateView(title: "Loading strength progress")
         case let .failed(message, _) where viewModel.rows == nil:
-            SectionShell(title: "Strength") {
-                AppErrorStateView(title: "Failed to load progress", message: message) {
-                    Task { await viewModel.load() }
-                }
+            AppErrorStateView(title: "Couldn't load progress", message: message) {
+                Task { await viewModel.load() }
             }
+            .cardSurface()
         default:
             if let progress = viewModel.progress {
                 if let through = viewModel.cachedThrough {
@@ -44,16 +41,35 @@ struct StrengthProgressView: View {
                 if viewModel.isShowingPartialHistory {
                     FeedbackBanner(message: "Showing partial history while the selected range refreshes.", tone: .info)
                 }
-                SectionShell(title: "Weekly total volume", subtitle: "Strength · kg · first week may be partial") {
+                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Weekly volume")
+                            .font(.headline)
+                            .foregroundStyle(NeoGymTheme.text)
+                            .accessibilityAddTraits(.isHeader)
+                        Spacer()
+                        Text("First week may be partial")
+                            .font(.footnote)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                    }
+                    if let best = progress.bestWeek {
+                        MetricValueText(
+                            value: Self.compactVolume(best.volume),
+                            unit: "kg · best week, \(best.weekStart.formatted(.dateTime.day().month(.abbreviated)))"
+                        )
+                    }
                     TimeSeriesTrendChartView(
                         series: [TimeSeriesChartSeries(
-                            id: "weekly-volume", name: "Volume (kg)", color: .accentColor,
+                            id: "weekly-volume", name: "Volume (kg)", color: NeoGymTheme.chart1,
                             points: progress.weeklyVolume.map { week in
+                                // This week's total so far is an open dot.
                                 TimeSeriesChartDataPoint(
-                                    id: week.weekStart.ISO8601Format(), date: week.weekStart, value: week.volume
+                                    id: week.weekStart.ISO8601Format(), date: week.weekStart, value: week.volume,
+                                    isPartial: week.weekStart == StrengthWeeklyOverview.currentWeekStart()
                                 )
                             },
-                            valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
+                            valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" },
+                            periodUnit: .week
                         )],
                         emptyMessage: "No strength sets in this period.",
                         accessibilityLabel: "Weekly strength volume chart",
@@ -61,15 +77,21 @@ struct StrengthProgressView: View {
                         onVisibleRangeChange: { start, _ in Task { await viewModel.extendHistory(to: start) } }
                     )
                 }
+                .padding(NeoGymTheme.spacingMD)
+                .cardSurface()
                 if progress.recentExercises.isEmpty {
-                    SectionShell(title: "Exercise progress") {
-                        AppEmptyStateView(
-                            title: "No recent strength exercises",
-                            message: "Log a strength set to see volume and estimated 1RM here for the next 10 days.",
-                            systemImage: "chart.line.uptrend.xyaxis"
-                        )
-                    }
+                    AppEmptyStateView(
+                        title: "No recent strength exercises",
+                        message: "Log a strength set to see volume and estimated 1RM here for the next 10 days.",
+                        systemImage: "chart.line.uptrend.xyaxis"
+                    )
                 } else {
+                    Text("Logged in the last 10 days")
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(NeoGymTheme.text)
+                        .padding(.horizontal, NeoGymTheme.spacingXXS)
+                        .padding(.top, NeoGymTheme.spacingXS)
+                        .accessibilityAddTraits(.isHeader)
                     ForEach(progress.recentExercises) { exercise in
                         exerciseChart(exercise)
                     }
@@ -82,7 +104,13 @@ struct StrengthProgressView: View {
     }
 
     private func exerciseChart(_ exercise: StrengthExerciseTrend) -> some View {
-        GroupBox {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            NavigationLink(value: ProgressRoute.exerciseDetail(exercise.id)) {
+                ListRow(title: exercise.name, subtitle: oneRepMaxSummary(exercise))
+                    .padding(.horizontal, -NeoGymTheme.spacingMD)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens exercise details")
             TimeSeriesTrendChartView(
                 series: exerciseSeries(exercise),
                 emptyMessage: "No sets in this period.",
@@ -90,33 +118,25 @@ struct StrengthProgressView: View {
                 initialPeriod: .last8Weeks,
                 onVisibleRangeChange: { start, _ in Task { await viewModel.extendHistory(to: start) } }
             )
-        } label: {
-            NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
-                    HStack(spacing: NeoGymTheme.spacingXS) {
-                        Text(exercise.name).font(.title2.bold()).tracking(-0.4)
-                        Spacer(minLength: NeoGymTheme.spacingSM)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(NeoGymTheme.mutedText)
-                    }
-                    Text("Session volume & estimated 1RM · kg")
-                        .font(.subheadline)
-                        .foregroundStyle(NeoGymTheme.mutedText)
-                }
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens exercise details")
         }
-        .groupBoxStyle(.automatic)
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
+    }
+
+    private func oneRepMaxSummary(_ exercise: StrengthExerciseTrend) -> String {
+        guard let latest = exercise.latestEstimatedOneRepMax else { return "Session volume · kg" }
+        let best = exercise.bestEstimatedOneRepMax.map { " · best \(MetricFormat.decimal($0))" } ?? ""
+        return "e1RM \(MetricFormat.decimal(latest)) kg\(best)"
+    }
+
+    private static func compactVolume(_ value: Double) -> String {
+        value >= 1_000 ? "\(MetricFormat.decimal(value / 1_000))k" : MetricFormat.whole(value)
     }
 
     private func exerciseSeries(_ exercise: StrengthExerciseTrend) -> [TimeSeriesChartSeries] {
         [
             TimeSeriesChartSeries(
-                id: "\(exercise.id)-volume", name: "Volume (kg)", color: .accentColor,
+                id: "\(exercise.id)-volume", name: "Volume (kg)", color: NeoGymTheme.chart1,
                 points: exercise.points.compactMap { point in
                     guard let date = point.date else { return nil }
                     return TimeSeriesChartDataPoint(id: point.id, date: date, value: point.volume)
@@ -124,7 +144,7 @@ struct StrengthProgressView: View {
                 valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
             ),
             TimeSeriesChartSeries(
-                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: .orange, axis: .right,
+                id: "\(exercise.id)-one-rep-max", name: "Est. 1RM (kg)", color: NeoGymTheme.chart2, axis: .right,
                 points: exercise.points.compactMap { point in
                     guard let date = point.date, let estimate = point.estimatedOneRepMax else { return nil }
                     return TimeSeriesChartDataPoint(id: point.id, date: date, value: estimate)

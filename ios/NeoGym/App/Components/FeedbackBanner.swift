@@ -8,9 +8,9 @@ struct FeedbackBanner: View {
         var color: Color {
             switch self {
             case .error:
-                return NeoGymTheme.danger
+                return NeoGymTheme.destructive
             case .info:
-                return NeoGymTheme.info
+                return NeoGymTheme.accentText
             }
         }
 
@@ -34,16 +34,14 @@ struct FeedbackBanner: View {
                 .font(.subheadline.weight(.semibold))
             Text(message)
                 .font(.footnote)
-                .foregroundColor(NeoGymTheme.primaryText)
+                .foregroundColor(NeoGymTheme.text)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusSM,
-            material: .ultraThin,
-            tint: tone.color.opacity(0.08),
-            stroke: tone.color.opacity(0.24),
-            shadow: false
+            fill: tone.color.opacity(0.08),
+            stroke: tone.color.opacity(0.24)
         )
     }
 }

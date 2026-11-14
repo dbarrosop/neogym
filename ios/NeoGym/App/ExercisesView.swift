@@ -3,37 +3,26 @@ import SwiftUI
 
 struct ExercisesListView: View {
     @StateObject private var viewModel: ExercisesListViewModel
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
     let reloadToken: Int
-    var onSessionStarted: (String) -> Void
-
-    @State private var expandedFilter: ExerciseFilterKey?
 
     init(
         repository: any ExercisesRepositoryProtocol,
-        storageBaseURL: URL,
-        reloadToken: Int,
-        onSessionStarted: @escaping (String) -> Void
+        reloadToken: Int
     ) {
-        self.repository = repository
-        self.storageBaseURL = storageBaseURL
         self.reloadToken = reloadToken
-        self.onSessionStarted = onSessionStarted
         _viewModel = StateObject(wrappedValue: ExercisesListViewModel(repository: repository))
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                AreaSectionHeader()
                 filterControls
                 results
             }
-            .frame(maxWidth: 700)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -45,240 +34,102 @@ struct ExercisesListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Catalog")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Search by name, or narrow the catalog by muscle, category, equipment, and level.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     private var filterControls: some View {
-        GlassPanel(
-            cornerRadius: NeoGymTheme.radiusXL,
-            material: .thin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false,
-            contentPadding: EdgeInsets(
-                top: NeoGymTheme.spacingMD,
-                leading: NeoGymTheme.spacingMD,
-                bottom: NeoGymTheme.spacingMD,
-                trailing: NeoGymTheme.spacingMD
-            )
-        ) {
-            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                HStack(spacing: NeoGymTheme.spacingXS) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(NeoGymTheme.mutedText)
-                    TextField("Search exercises…", text: $viewModel.searchText)
-                        .textInputAutocapitalization(.never)
-                    if !viewModel.searchText.isEmpty {
-                        Button {
-                            viewModel.searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(NeoGymTheme.mutedText)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Clear search")
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+            HStack(spacing: NeoGymTheme.spacingXS) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityHidden(true)
+                TextField("Search \(viewModel.exercises.count) exercises", text: $viewModel.searchText)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .accessibilityLabel("Search exercises")
+                if !viewModel.searchText.isEmpty {
+                    Button {
+                        viewModel.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                            .frame(width: NeoGymTheme.minimumTapTarget, height: NeoGymTheme.minimumTapTarget)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
-                .padding(NeoGymTheme.spacingSM)
-                .glassSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassFill,
-                    shadow: false
-                )
+            }
+            .padding(.leading, NeoGymTheme.spacingSM)
+            .frame(minHeight: NeoGymTheme.minimumTapTarget)
+            .cardSurface(cornerRadius: NeoGymTheme.radiusMD, fill: NeoGymTheme.fill)
 
+            ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: NeoGymTheme.spacingXS) {
-                    visibilityButton(.mine, title: "Mine", icon: "person")
-                    visibilityButton(.public, title: "Public", icon: "globe")
-                }
-
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: NeoGymTheme.spacingXS), count: 2),
-                    spacing: NeoGymTheme.spacingXS
-                ) {
+                    FilterChip(title: "Mine", isSelected: viewModel.visibility == .mine) { toggleVisibility(.mine) }
+                    FilterChip(title: "Public", isSelected: viewModel.visibility == .public) { toggleVisibility(.public) }
                     ForEach(ExerciseFilterKey.allCases, id: \.self) { key in
-                        filterHeader(key)
+                        filterMenu(key)
                     }
-                }
-
-                if let expandedFilter {
-                    filterOptions(expandedFilter)
-                }
-
-                if viewModel.isFiltered {
-                    HStack {
-                        Text(
-                            "\(viewModel.filteredExercises.count) "
-                                + "match\(viewModel.filteredExercises.count == 1 ? "" : "es")"
-                        )
-                        Spacer()
-                        Button("Clear all") {
-                            withAnimation {
-                                expandedFilter = nil
-                                viewModel.clearAll()
-                            }
-                        }
-                    }
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(NeoGymTheme.mutedText)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
 
-    private func visibilityButton(_ value: ExerciseVisibilityFilter, title: String, icon: String) -> some View {
-        Button {
-            viewModel.visibility = viewModel.visibility == value ? nil : value
-        } label: {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .foregroundColor(viewModel.visibility == value ? .white : NeoGymTheme.primaryText)
-                .background(visibilityPillBackground(isActive: viewModel.visibility == value))
-                .contentShape(Capsule(style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func filterHeader(_ key: ExerciseFilterKey) -> some View {
-        let value = viewModel.filters[key]
-        return HStack(spacing: 6) {
-            Button {
-                withAnimation { expandedFilter = expandedFilter == key ? nil : key }
-            } label: {
+            if viewModel.isFiltered {
                 HStack {
-                    Text(value.map(ExerciseFormatters.enumValue) ?? key.title)
-                        .lineLimit(1)
+                    Text("\(viewModel.filteredExercises.count) match\(viewModel.filteredExercises.count == 1 ? "" : "es")")
+                        .monospacedDigit()
                     Spacer()
-                    Image(systemName: expandedFilter == key ? "chevron.up" : "chevron.down")
-                        .font(.caption2.weight(.bold))
+                    Button("Clear all") { viewModel.clearAll() }
+                        .foregroundStyle(NeoGymTheme.accentText)
+                        .frame(minHeight: NeoGymTheme.minimumTapTarget)
                 }
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
             }
-            .buttonStyle(.plain)
-            if value != nil {
+        }
+    }
+
+    private func toggleVisibility(_ value: ExerciseVisibilityFilter) {
+        viewModel.visibility = viewModel.visibility == value ? nil : value
+    }
+
+    private func filterMenu(_ key: ExerciseFilterKey) -> some View {
+        let value = viewModel.filters[key]
+        return Menu {
+            Button("Any \(key.title.lowercased())") { viewModel.setFilter(key, value: nil) }
+            ForEach(viewModel.options(for: key)) { option in
                 Button {
-                    viewModel.setFilter(key, value: nil)
+                    viewModel.setFilter(key, value: option.value)
                 } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption2.bold())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Clear \(key.title) filter")
-            }
-        }
-        .font(.caption.weight(.semibold))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
-        .foregroundColor(value == nil ? .primary : Color.accentColor)
-        .background(filterHeaderBackground(isSelected: value != nil))
-        .contentShape(RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous))
-    }
-
-    @ViewBuilder
-    private func visibilityPillBackground(isActive: Bool) -> some View {
-        if isActive {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.primaryActionGradient)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
-    }
-
-    @ViewBuilder
-    private func filterHeaderBackground(isSelected: Bool) -> some View {
-        let shape = RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous)
-        if isSelected {
-            shape
-                .fill(NeoGymTheme.accentMuted)
-                .overlay(shape.stroke(Color.accentColor.opacity(0.38), lineWidth: NeoGymTheme.hairline))
-        } else {
-            shape
-                .fill(.ultraThinMaterial)
-                .overlay(shape.fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    shape.stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
-    }
-
-    private func filterOptions(_ key: ExerciseFilterKey) -> some View {
-        let options = viewModel.options(for: key)
-        return VStack(alignment: .leading, spacing: 8) {
-            if options.isEmpty {
-                Text("No options available with the current filters.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-            } else {
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                    ForEach(options) { option in
-                        let selected = viewModel.filters[key] == option.value
-                        Button {
-                            withAnimation {
-                                viewModel.setFilter(key, value: selected ? nil : option.value)
-                                expandedFilter = nil
-                            }
-                        } label: {
-                            HStack {
-                                Text(ExerciseFormatters.enumValue(option.value))
-                                    .lineLimit(1)
-                                Spacer()
-                                Text("\(option.count)")
-                                    .foregroundColor(NeoGymTheme.mutedText)
-                            }
-                            .font(.caption)
-                            .padding(8)
-                            .background(
-                                selected ? Color.accentColor.opacity(0.12) : Color.clear,
-                                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            )
-                        }
-                        .buttonStyle(.plain)
+                    if value == option.value {
+                        Label("\(ExerciseFormatters.enumValue(option.value)) (\(option.count))", systemImage: "checkmark")
+                    } else {
+                        Text("\(ExerciseFormatters.enumValue(option.value)) (\(option.count))")
                     }
                 }
             }
+        } label: {
+            HStack(spacing: 4) {
+                Text(value.map(ExerciseFormatters.enumValue) ?? key.title)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .font(.subheadline.weight(value == nil ? .regular : .semibold))
+            .foregroundStyle(value == nil ? NeoGymTheme.text : NeoGymTheme.onFill)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 36)
+            .background(Capsule().fill(value == nil ? NeoGymTheme.surface : NeoGymTheme.accent))
+            .frame(minHeight: NeoGymTheme.minimumTapTarget)
         }
-        .padding(NeoGymTheme.spacingSM)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
-        )
+        .accessibilityLabel("\(key.title) filter")
+        .accessibilityValue(value.map(ExerciseFormatters.enumValue) ?? "Any")
     }
 
     @ViewBuilder
     private var results: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading catalog") {
-                AppLoadingStateView(title: "Loading exercises")
-            }
+            AppLoadingStateView(title: "Loading exercises")
         case .loading where viewModel.exercises.isEmpty:
-            SectionShell(title: "Loading catalog") {
-                AppLoadingStateView(title: "Loading exercises")
-            }
+            AppLoadingStateView(title: "Loading exercises")
         case let .failed(message, _) where viewModel.exercises.isEmpty:
             SectionShell(title: "Exercises") {
                 AppErrorStateView(title: "Failed to load", message: message) {
@@ -287,33 +138,23 @@ struct ExercisesListView: View {
             }
         default:
             if viewModel.filteredExercises.isEmpty {
-                SectionShell(title: "No matches") {
-                    AppEmptyStateView(
-                        title: "No exercises match these filters",
-                        message: viewModel.isFiltered
-                            ? "Clear filters to see the full catalog."
-                            : "The catalog is empty.",
-                        systemImage: "dumbbell"
-                    )
-                }
+                AppEmptyStateView(
+                    title: viewModel.isFiltered ? "No exercises match these filters" : "No exercises yet",
+                    message: viewModel.isFiltered
+                        ? "Clear filters to see the full catalog."
+                        : "The catalog is empty.",
+                    systemImage: "dumbbell",
+                    actionTitle: viewModel.isFiltered ? "Clear filters" : nil,
+                    action: viewModel.clearAll
+                )
             } else if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                VStack(spacing: 14) {
+                LazyVStack(spacing: NeoGymTheme.spacingMD) {
                     ForEach(viewModel.groupedExercises) { group in
-                        ExerciseGroupCard(
-                            group: group,
-                            repository: repository,
-                            storageBaseURL: storageBaseURL,
-                            onSessionStarted: onSessionStarted
-                        )
+                        ExerciseGroupCard(group: group)
                     }
                 }
             } else {
-                ExerciseFlatResultsCard(
-                    exercises: viewModel.filteredExercises,
-                    repository: repository,
-                    storageBaseURL: storageBaseURL,
-                    onSessionStarted: onSessionStarted
-                )
+                ExerciseFlatResultsCard(exercises: viewModel.filteredExercises)
             }
         }
     }
@@ -321,50 +162,53 @@ struct ExercisesListView: View {
 
 private struct ExerciseGroupCard: View {
     let group: ExerciseMuscleGroup
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
-
     var body: some View {
-        SectionShell(
+        ExerciseRowsGroup(
             title: ExerciseFormatters.enumValue(group.muscle),
-            subtitle: "\(group.exercises.count) exercise\(group.exercises.count == 1 ? "" : "s")"
-        ) {
-            VStack(spacing: 0) {
-                ForEach(group.exercises) { exercise in
-                    ExerciseRowLink(
-                        exercise: exercise,
-                        repository: repository,
-                        storageBaseURL: storageBaseURL,
-                        onSessionStarted: onSessionStarted
-                    )
-                    if exercise.id != group.exercises.last?.id { Divider() }
-                }
-            }
-        }
+            detail: "\(group.exercises.count)",
+            exercises: group.exercises,
+            showMuscle: false
+        )
     }
 }
 
 private struct ExerciseFlatResultsCard: View {
     let exercises: [ExerciseListItem]
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
+    var body: some View {
+        ExerciseRowsGroup(title: "Matches", detail: "\(exercises.count)", exercises: exercises, showMuscle: true)
+    }
+}
+
+private struct ExerciseRowsGroup: View {
+    let title: String
+    let detail: String
+    let exercises: [ExerciseListItem]
+    let showMuscle: Bool
 
     var body: some View {
-        SectionShell(title: "Matches") {
-            VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            HStack {
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer()
+                Text(detail)
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+            }
+            .padding(.horizontal, NeoGymTheme.spacingXXS)
+            LazyVStack(spacing: 0) {
                 ForEach(exercises) { exercise in
-                    ExerciseRowLink(
-                        exercise: exercise,
-                        showMuscle: true,
-                        repository: repository,
-                        storageBaseURL: storageBaseURL,
-                        onSessionStarted: onSessionStarted
-                    )
-                    if exercise.id != exercises.last?.id { Divider() }
+                    ExerciseRowLink(exercise: exercise, showMuscle: showMuscle)
+                    if exercise.id != exercises.last?.id {
+                        Divider().overlay(NeoGymTheme.separator).padding(.leading, 76)
+                    }
                 }
             }
+            .cardSurface()
         }
     }
 }
@@ -372,41 +216,40 @@ private struct ExerciseFlatResultsCard: View {
 private struct ExerciseRowLink: View {
     let exercise: ExerciseListItem
     var showMuscle = false
-    let repository: any ExercisesRepositoryProtocol
-    let storageBaseURL: URL
-    var onSessionStarted: (String) -> Void
 
     var body: some View {
-        NavigationLink(value: WorkoutsRoute.exerciseDetail(exercise.id)) {
-            HStack(spacing: 12) {
-                Image(systemName: "dumbbell")
-                    .foregroundColor(NeoGymTheme.mutedText)
+        NavigationLink(value: TrainRoute.exerciseDetail(exercise.id)) {
+            HStack(spacing: NeoGymTheme.spacingSM) {
+                ExerciseThumbnail(fileId: exercise.image1FileId)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(exercise.name)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
-                        Image(systemName: exercise.isPublic ? "globe" : "person")
-                            .font(.caption2)
-                            .foregroundColor(exercise.isPublic ? .accentColor : NeoGymTheme.mutedText)
-                    }
-                    HStack(spacing: 6) {
-                        if showMuscle {
-                            Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
-                        }
-                        if exercise.strength?.doubleWeight == true {
-                            Text("Two-handed")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    Text(exercise.name)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(NeoGymTheme.text)
+                        .multilineTextAlignment(.leading)
+                    Text(meta)
+                        .font(.footnote)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
                 }
-                Spacer()
+                Spacer(minLength: NeoGymTheme.spacingXS)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(NeoGymTheme.textTertiary)
+                    .accessibilityHidden(true)
             }
+            .padding(.horizontal, NeoGymTheme.spacingMD)
             .padding(.vertical, 10)
+            .frame(minHeight: NeoGymTheme.minimumTapTarget)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+    }
+
+    private var meta: String {
+        var parts: [String] = []
+        if showMuscle { parts.append(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup)) }
+        if let equipment = exercise.equipment { parts.append(ExerciseFormatters.enumValue(equipment)) }
+        if exercise.strength?.doubleWeight == true { parts.append("Per side") }
+        parts.append(exercise.isPublic ? "Public" : "Mine")
+        return parts.joined(separator: " · ")
     }
 }

@@ -9,12 +9,14 @@ enum AuthScreen {
 
 struct RootView: View {
     let appEnvironment: AppEnvironment
+    @ObservedObject var restTimers: RestTimerAccountScope
 
     @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
     @State private var authScreen: AuthScreen = .signIn
     @State private var isSigningOut = false
     @State private var changeEmailModel: ChangeEmailModel?
+    @AppStorage(AppAppearance.storageKey) private var appearanceRawValue = AppAppearance.defaultValue.rawValue
 
     var body: some View {
         ScreenScaffold {
@@ -24,19 +26,28 @@ struct RootView: View {
             case .signedOut:
                 signedOutView
             case let .signedIn(session):
-                AppShellView(
-                    session: session,
-                    environment: appEnvironment,
-                    isSigningOut: isSigningOut,
-                    changeEmailModel: changeEmailModel,
-                    signOut: signOut
-                )
+                if let restTimer = restTimers.timer, restTimer.ownerId == session.user?.id {
+                    AppShellView(
+                        session: session,
+                        environment: appEnvironment,
+                        isSigningOut: isSigningOut,
+                        changeEmailModel: changeEmailModel,
+                        signOut: signOut,
+                        restTimer: restTimer
+                    )
+                    // A different account gets fresh tabs, sync models and paths.
+                    .id(session.user?.id)
+                } else {
+                    LoadingView()
+                }
             case let .error(message):
                 ErrorCard(message: message) {
                     authStore.start()
                 }
             }
         }
+        .tint(NeoGymTheme.accentText)
+        .preferredColorScheme(AppAppearance(storedValue: appearanceRawValue).colorScheme)
         .animation(.easeInOut(duration: 0.2), value: authStore.state.isLoading)
         .onAppear {
             configureChangeEmailModel()
@@ -132,10 +143,9 @@ private struct LoadingView: View {
             title: "Preparing your training space",
             message: "Checking for a saved session and syncing the app shell."
         ) {
-            GlassPanel(
-                cornerRadius: NeoGymTheme.radiusXXL,
-                material: .regular,
-                tint: NeoGymTheme.glassStrongFill,
+            SurfaceCard(
+                cornerRadius: NeoGymTheme.radiusXL,
+                fill: NeoGymTheme.surface,
                 contentPadding: EdgeInsets(
                     top: NeoGymTheme.spacingXL,
                     leading: NeoGymTheme.spacingXL,
@@ -146,13 +156,13 @@ private struct LoadingView: View {
                 HStack(spacing: NeoGymTheme.spacingMD) {
                     ProgressView()
                         .controlSize(.large)
-                        .tint(NeoGymTheme.accent)
+                        .tint(NeoGymTheme.accentText)
                     VStack(alignment: .leading, spacing: NeoGymTheme.spacingXXS) {
                         Text("Loading NeoGym")
                             .font(.headline)
                         Text("Restoring your session…")
                             .font(.subheadline)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                     }
                     Spacer(minLength: 0)
                 }
@@ -172,10 +182,9 @@ private struct ErrorCard: View {
             title: "NeoGym couldn't load your saved session",
             message: "Retry the local session check, or sign in again if the issue persists."
         ) {
-            GlassPanel(
-                cornerRadius: NeoGymTheme.radiusXXL,
-                material: .regular,
-                tint: NeoGymTheme.glassStrongFill,
+            SurfaceCard(
+                cornerRadius: NeoGymTheme.radiusXL,
+                fill: NeoGymTheme.surface,
                 contentPadding: EdgeInsets(
                     top: NeoGymTheme.spacingXL,
                     leading: NeoGymTheme.spacingXL,
@@ -206,34 +215,20 @@ private struct RootStateLayout<ActionPanel: View>: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: NeoGymTheme.spacingXL) {
                     VStack(alignment: .leading, spacing: NeoGymTheme.spacingLG) {
-                        ZStack {
-                            Circle()
-                                .fill(NeoGymTheme.accentSoft)
-                                .frame(width: 108, height: 108)
-                                .blur(radius: 18)
-                                .offset(x: 14, y: 12)
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .frame(width: 86, height: 86)
-                                .overlay(Circle().stroke(NeoGymTheme.glassStrokeSecondary))
-                            Image(systemName: systemImage)
-                                .font(.system(size: 32, weight: .semibold))
-                                .foregroundColor(NeoGymTheme.accent)
-                        }
-                        .accessibilityHidden(true)
+                        IconBadge(systemImage: systemImage, diameter: 86, symbolSize: 32)
 
                         VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                             Text(eyebrow.uppercased())
                                 .font(.caption.weight(.bold))
                                 .tracking(1.6)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                             Text(title)
                                 .font(.system(.largeTitle, design: .rounded).weight(.bold))
                                 .tracking(-0.8)
                                 .fixedSize(horizontal: false, vertical: true)
                             Text(message)
                                 .font(.body)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -252,7 +247,10 @@ private struct RootStateLayout<ActionPanel: View>: View {
 }
 
 #Preview {
-    RootView(appEnvironment: NhostClientFactory.makeEnvironment())
+    RootView(
+        appEnvironment: NhostClientFactory.makeEnvironment(),
+        restTimers: RestTimerAccountScope(effects: RestTimerSystemEffects())
+    )
         .environmentObject(AuthStore(authService: PreviewAuthService(), autoBootstrap: false))
         .environmentObject(AuthCallbackURLRouter())
 }
@@ -279,4 +277,15 @@ private struct PreviewAuthService: AuthServicing {
     func signOut(refreshToken: String?) async throws {}
 
     func clearSession() async throws {}
+}
+
+extension AppAppearance {
+    /// `nil` follows the system setting.
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .dark: .dark
+        case .light: .light
+        case .system: nil
+        }
+    }
 }

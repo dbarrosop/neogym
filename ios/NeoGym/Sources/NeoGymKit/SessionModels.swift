@@ -265,11 +265,39 @@ public struct SessionPriorWorkoutSessionExercise: Decodable, Identifiable, Senda
 
 public struct SessionPriorExerciseHistory: Decodable, Identifiable, Sendable, Equatable {
     public let id: String
+    /// Earlier occurrences with logged sets or entries, newest first.
     public let workoutSessionExercises: [SessionPriorWorkoutSessionExercise]
+    /// The same, limited to the current session's workout (empty for ad-hoc).
+    public let sameWorkoutSessions: [SessionPriorWorkoutSessionExercise]
 
-    public init(id: String, workoutSessionExercises: [SessionPriorWorkoutSessionExercise] = []) {
+    public init(
+        id: String,
+        workoutSessionExercises: [SessionPriorWorkoutSessionExercise] = [],
+        sameWorkoutSessions: [SessionPriorWorkoutSessionExercise] = []
+    ) {
         self.id = id
         self.workoutSessionExercises = workoutSessionExercises
+        self.sameWorkoutSessions = sameWorkoutSessions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, workoutSessionExercises, sameWorkoutSessions
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        workoutSessionExercises = try container.decodeIfPresent(
+            [SessionPriorWorkoutSessionExercise].self, forKey: .workoutSessionExercises
+        ) ?? []
+        sameWorkoutSessions = try container.decodeIfPresent(
+            [SessionPriorWorkoutSessionExercise].self, forKey: .sameWorkoutSessions
+        ) ?? []
+    }
+
+    /// The history to show: the same workout's when it has any, else all.
+    public var preferredOccurrences: [SessionPriorWorkoutSessionExercise] {
+        sameWorkoutSessions.isEmpty ? workoutSessionExercises : sameWorkoutSessions
     }
 }
 
@@ -308,7 +336,7 @@ public struct SessionPriorHistory: Sendable, Equatable {
         Dictionary(uniqueKeysWithValues: exercises.map { exercise in
             (
                 exercise.id,
-                exercise.workoutSessionExercises.map { row in
+                exercise.preferredOccurrences.map { row in
                     SessionPriorStrengthEntry(
                         id: row.id,
                         startedAt: row.workoutSession.startedAt,
@@ -323,7 +351,7 @@ public struct SessionPriorHistory: Sendable, Equatable {
         Dictionary(uniqueKeysWithValues: exercises.map { exercise in
             (
                 exercise.id,
-                exercise.workoutSessionExercises.map { row in
+                exercise.preferredOccurrences.map { row in
                     SessionPriorCardioEntry(
                         id: row.id,
                         startedAt: row.workoutSession.startedAt,

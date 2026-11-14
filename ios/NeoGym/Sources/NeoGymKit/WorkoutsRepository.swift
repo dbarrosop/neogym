@@ -11,9 +11,14 @@ public protocol WorkoutsRepositoryProtocol: Sendable {
     func saveWorkout(id: String, initialValues: WorkoutFormValues, values: WorkoutFormValues) async throws
     func deleteWorkout(id: String) async throws
     func startSession(from workout: WorkoutDetailModel, startedAt: Date) async throws -> String
+    func workoutDetailInsights(workoutId: String, exerciseIds: [String], today: Date) async throws -> WorkoutDetailInsights
 }
 
 public extension WorkoutsRepositoryProtocol {
+    func workoutDetailInsights(workoutId: String, exerciseIds: [String], today: Date) async throws -> WorkoutDetailInsights {
+        WorkoutDetailInsights()
+    }
+
     func workoutListUpdates() -> AsyncThrowingStream<WorkoutIndexPayload, Error> {
         singleValueUpdates { try await listWorkouts() }
     }
@@ -24,7 +29,7 @@ public extension WorkoutsRepositoryProtocol {
 }
 
 public struct WorkoutsRepository: WorkoutsRepositoryProtocol {
-    private let graphQL: any GraphQLServicing
+    let graphQL: any GraphQLServicing
 
     public init(graphQL: any GraphQLServicing) {
         self.graphQL = graphQL
@@ -247,6 +252,7 @@ public extension WorkoutsRepository {
             id
             name
             primaryMuscleGroup
+            image1FileId
             strength { doubleWeight }
           }
         }

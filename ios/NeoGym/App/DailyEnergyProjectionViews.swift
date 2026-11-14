@@ -15,12 +15,12 @@ struct DailyEnergyProjectionView: View {
 
     private func metric(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption).foregroundColor(NeoGymTheme.mutedText)
+            Text(label).font(.caption).foregroundColor(NeoGymTheme.textSecondary)
             Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .nutritionGlassCard(cornerRadius: 12)
+        .insetCard(cornerRadius: 12)
     }
 }
 
@@ -47,7 +47,7 @@ struct TodayEnergyEstimateSection: View {
             } else {
                 Text("Not enough energy data.")
                     .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
             }
         }
         .task(id: refreshToken) { await viewModel.load() }

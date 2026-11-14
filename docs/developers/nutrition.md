@@ -26,7 +26,7 @@ Users can read public foods and their private foods, but can insert/update/delet
   the user role after insert. Changing the source food is delete+insert. Current clients do not
   expose or display direct-food labels; direct food slots use the source food name to avoid extra
   UI labels.
-- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; clients display, edit, and selected-day log them grouped by normalized time slot, and editors write a global `position` within each plan/time slot across both tables. Reorder controls are slot-local; moving an entry to another time slot is done by changing its `slot_time`, which re-groups and re-numbers on save. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
+- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; clients display, edit, and selected-day log them grouped by normalized time slot, and editors write a global `position` within each plan/time slot across both tables. Reorder controls are slot-local; moving an entry to another time slot is done by changing its `slot_time`, which re-groups and re-numbers on save. The native editor appends new entries and single entries moved to a different normalized time after all meals and foods already in that slot; equivalent time representations keep the current order. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
 
 Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed.
 
@@ -57,16 +57,18 @@ totals for "in" and the same date's `daily_energy.active_kcal + daily_energy.res
 for "out". If no `daily_energy` row exists, clients show intake-only rather than treating
 output as zero; a missing component on an existing energy row counts as zero. Hasura `numeric`
 values may arrive in clients as strings, so frontend helpers should normalize before doing
-macro math. The native Nutrition overview is a dashboard, not a shortcut list:
-on initial load and pull-to-refresh it reads energy from the backend and
-starts chart reads alongside the read-only Body Apple Health sync. The initial
-dashboard stops showing section spinners once those reads finish even if a
-first-time HealthKit scan continues. A refresh or balance Retry during that scan
-keeps the section loading indicator visible and queues another backend read;
-after Body sync the overview and charts revalidate if backend Body rows changed
-or a request was queued. The iPhone does not import HealthKit energy;
-only the watch app does.
-On a cold launch after the default range has moved to a new local day, each chart
+macro math. On iOS, Today replaced the native Nutrition overview and keeps its
+duties; the Nutrition area's sections are Log · Plans · Foods · Meals. On open,
+tab return, foreground and pull-to-refresh Today reads the cached nutrition
+overview (energy included) from the backend and starts its Body chart read
+alongside the read-only Body Apple Health sync. Cached data stays visible while
+a first-time HealthKit scan continues. A refresh or Retry during that scan
+keeps the loading indicator visible and queues another backend read; after Body
+sync the overview and Body reads revalidate if backend Body rows changed or a
+request was queued. The iPhone does not import HealthKit energy; only the watch
+app does.
+On a cold launch after the default range has moved to a new local day, each
+iOS chart (Today's Body card and the Progress › Energy Calories chart)
 checks the SDK's protected cache for today's exact range and up to seven earlier
 daily ranges without network calls, shows the newest eligible result marked as
 possibly missing newer dates, then replaces it with the fresh current-range
@@ -75,9 +77,15 @@ stale window; if there is no eligible entry, the chart shows the normal error.
 The SDK (not app-owned storage) enforces user scope and cache age. Selected
 longer/custom ranges still request their exact dates and retain in-memory data
 while refreshing; the fallback scan is only for the initial default range.
-The dashboard has no intro/action copy or recent daily-log list. Energy balance summarizes today with logged kcal,
-active+resting energy, and net, and the calories chart overlays consumed kcal,
-daily net (`consumed - energy`), and 7-day average net. Both the Calories consumed
+Today has no recent daily-log list; Nutrition › Log's week strip and date picker
+replace it. Its Balance card summarizes today so far with logged kcal,
+active+resting energy and net, then the end-of-day estimate (see `energy.md`).
+On iOS the Calories card (Progress › Energy)
+stacks a Consumed chart and a Net (`consumed - energy`) chart, each with daily
+values and a 7-day average over full days with food logged; today's partial
+intake is an open dot after a dashed segment, left out of averages and net,
+and the card opens on the last 30 local days. The web calories chart
+still overlays consumed kcal, daily net, and 7-day average net. On the web both the Calories consumed
 and Body composition charts open on the last 14 local calendar days; users can
 choose longer or custom periods. Each chart initially requests its 14 visible
 local dates plus six preceding days for its 7-day rolling averages, and requests
@@ -120,8 +128,10 @@ Direct individual plan-food logging uses a standalone food-backed `insertNutriti
 Daily plan logging only uses the `nutrition_days.nutrition_plan_id` selected for that day. If no
 plan is selected, clients hide plan-entry logging tabs/segments and suggestions entirely. If a plan
 is selected, clients show its meal and direct-food suggestions grouped by normalized plan time slot.
-Each time slot keeps its own Log action regardless of existing intake, including unrelated items,
-partial slot logs, or a fully logged slot at the same time. Clients no longer expose a whole-plan
+Each time slot keeps its own card and Log action regardless of existing intake, including unrelated
+items, partial slot logs, or a fully logged slot at the same time, on both web and iOS; when food is
+already logged at the slot's normalized time, the action is quieter and asks first (below). Clients
+no longer expose a whole-plan
 **Log selected plan** action; each slot action materializes every planned meal/food in that slot in
 one combined request. Normal slots use their plan slot time as the logged time, legacy no-time slots
 default to the current time, and every entry in that slot receives the same actual logged time. Empty
@@ -145,8 +155,14 @@ picker lives in the day summary rail; **No plan** clears the selection. Today's 
 to the day log and names the first timed selected-plan slot after the current local minute,
 regardless of existing intake. It resamples local time once a minute and on focus/visibility changes;
 it is a clock-based suggestion, not a claim that a slot remains unlogged.
-The legacy iOS day log instead has a collapsible selected-plan section with its picker inside;
-each planned slot is also collapsible and keeps its own Log action.
+The iOS Log has a Monday–Sunday week strip and date picker above a day summary card that holds the
+plan menu, then the same time-slot timeline (`NutritionTimeline.items`): solid logged cards and dashed
+planned cards with one **Log** each; cards collapse. A planned card stays after a logged card at the
+same normalized time, including legacy no-time slots. Its **Log** then drops from the accent fill to
+the quieter accent-soft button and opens a confirmation with the web dialog's wording
+(`NutritionTimeline.plannedSlotConfirmationMessage`); **Cancel** writes nothing. Only the first
+planned slot with nothing logged at its time opens by default and keeps the accent **Log**. The iOS
+Today card's **Next in plan** has its own **Log**, which logs that slot without the confirmation.
 
 Metadata footgun: `nutrition_log_entries.nutrition_day_id` participates in both the direct day FK and the composite same-day group FK. Nhost GraphQL/Constellation can choose the wrong FK or generate ambiguous SQL if those relationships are auto-tracked from constraints. The metadata therefore uses manual relationships for `nutritionLogEntry.nutritionDay`, `nutritionLogEntry.nutritionLogMeal`, `nutritionDay.nutritionLogEntries`, and `nutritionLogMeal.nutritionLogEntries`; keep that explicit mapping if you regenerate or edit metadata. The `nutritionLogEntry.nutritionPlanFood` relationship is an additional simple FK relationship and does not replace those manual mappings.
 

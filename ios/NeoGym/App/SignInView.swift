@@ -44,7 +44,7 @@ struct SignInView: View {
                         Text("New here?")
                         Button("Create an account", action: onSignUp)
                             .font(.footnote.weight(.semibold))
-                            .foregroundColor(.primary)
+                            .foregroundStyle(NeoGymTheme.text)
                             .frame(minHeight: 44)
                     }
                 } else {
@@ -52,7 +52,7 @@ struct SignInView: View {
                         model.reset()
                     }
                     .font(.footnote.weight(.semibold))
-                    .foregroundColor(.primary)
+                    .foregroundStyle(NeoGymTheme.text)
                     .frame(minHeight: 44)
                 }
             }
@@ -137,12 +137,12 @@ struct SignInView: View {
                 .textContentType(contentType)
                 .padding(13)
                 .background(
-                    NeoGymTheme.glassSubtleFill,
+                    NeoGymTheme.inset,
                     in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary)
+                        .stroke(NeoGymTheme.separator)
                 )
         }
     }

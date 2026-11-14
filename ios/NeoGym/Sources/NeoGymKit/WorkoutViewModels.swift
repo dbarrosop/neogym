@@ -67,6 +67,8 @@ public final class WorkoutsListViewModel: ObservableObject {
 public final class WorkoutDetailViewModel: ObservableObject {
     @Published public private(set) var state: Loadable<WorkoutDetailModel> = .idle
     @Published public private(set) var startState: Loadable<String> = .idle
+    /// Volume by session and last top sets; decorative, so failures leave it as is.
+    @Published public private(set) var insights: WorkoutDetailInsights?
 
     public let workoutId: String
     private let repository: any WorkoutsRepositoryProtocol
@@ -84,7 +86,8 @@ public final class WorkoutDetailViewModel: ObservableObject {
 
     public var workout: WorkoutDetailModel? { state.value }
 
-    public func load() async {
+    /// List-start callers need only the template, not decorative detail history.
+    public func load(includeInsights: Bool = true) async {
         state = .loading(previous: state.value)
         do {
             var receivedValue = false
@@ -101,6 +104,17 @@ public final class WorkoutDetailViewModel: ObservableObject {
             state = state.cancellationFallback
         } catch {
             state = .failed(message: GraphQLDomainError.map(error).localizedDescription, previous: state.value)
+        }
+        if includeInsights { await loadInsights() }
+    }
+
+    private func loadInsights() async {
+        guard let workout else { return }
+        let exerciseIds = workout.workoutExercises.map(\.exercise.id)
+        if let loaded = try? await repository.workoutDetailInsights(
+            workoutId: workoutId, exerciseIds: exerciseIds, today: now()
+        ) {
+            insights = loaded
         }
     }
 

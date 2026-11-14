@@ -6,6 +6,7 @@ struct BodyMeasurementsListView: View {
     let repository: any BodyMeasurementsRepositoryProtocol
     let healthImporter: (any BodyMeasurementsHealthImporting)?
     let reloadToken: Int
+    @State private var window = EntryHistoryWindow()
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
@@ -25,14 +26,13 @@ struct BodyMeasurementsListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                AreaSectionHeader()
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -44,73 +44,63 @@ struct BodyMeasurementsListView: View {
         .refreshable { await viewModel.load(shouldSyncHealthMeasurements: true) }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Log your weight and body fat over time.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading measurements") {
-                AppLoadingStateView(title: "Loading body measurements")
-            }
+            AppLoadingStateView(title: "Loading body measurements")
         case .loading where viewModel.measurements.isEmpty:
-            SectionShell(title: "Loading measurements") {
-                AppLoadingStateView(title: "Loading body measurements")
-            }
+            AppLoadingStateView(title: "Loading body measurements")
         case let .failed(message, _) where viewModel.measurements.isEmpty:
-            SectionShell(title: "Body") {
-                AppErrorStateView(title: "Failed to load body measurements", message: message) {
-                    Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
-                }
+            AppErrorStateView(title: "Couldn't load body measurements", message: message) {
+                Task { await viewModel.load(shouldSyncHealthMeasurements: true) }
             }
+            .cardSurface()
         default:
+            // Weight and body fat each get a card with one unit, rather than
+            // one chart with two scales.
+            let summary = BodyTrendSummary(points: viewModel.trendData.points, today: IntakeGrouping.formatLocalDate())
+            if !summary.weight.readings.isEmpty {
+                BodyMetricTrendCard(title: "Weight", metric: summary.weight, unit: "kg", latestDigits: 2, color: NeoGymTheme.chart1)
+            }
+            if !summary.bodyFat.readings.isEmpty {
+                BodyMetricTrendCard(title: "Body fat", metric: summary.bodyFat, unit: "%", latestDigits: 1, color: NeoGymTheme.chart2)
+            }
+            healthSyncStatus
             if viewModel.measurements.isEmpty {
-                VStack(spacing: 14) {
-                    healthSyncStatus
-                    SectionShell(title: "No measurements") {
-                        VStack(spacing: 16) {
-                            AppEmptyStateView(
-                                title: "No measurements yet",
-                                message: "Log your first measurement to start seeing trends.",
-                                systemImage: "heart.text.square"
-                            )
-                            NavigationLink(value: NutritionRoute.bodyMeasurementCreate) {
-                                Label("Log your first measurement", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
-                    }
-                }
+                AppEmptyStateView(
+                    title: "No measurements yet",
+                    message: "Log a measurement with the + button, or allow Apple Health to import weight and body fat.",
+                    systemImage: "scalemass"
+                )
             } else {
-                VStack(spacing: 14) {
-                    healthSyncStatus
-                    if viewModel.trendData.shouldShowChart {
-                        SectionShell(title: "Weight & body fat over time", subtitle: "Trend") {
-                            BodyTrendChartView(trendData: viewModel.trendData)
-                        }
+                entryList
+            }
+        }
+    }
+
+    /// The latest five entries, a "5 of 32" count and Load more.
+    private var entryList: some View {
+        let shown = window.visible(viewModel.measurements)
+        return VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            EntryListHeader(
+                title: "Entries",
+                count: EntryHistoryWindow.countLabel(shown: shown.count, total: viewModel.measurements.count)
+            )
+            VStack(spacing: 0) {
+                ForEach(shown) { measurement in
+                    NavigationLink(value: ProgressRoute.bodyMeasurementDetail(measurement.id)) {
+                        BodyMeasurementListRow(measurement: measurement)
                     }
-                    SectionShell(title: "Measurements", subtitle: "Newest first") {
-                        VStack(spacing: 0) {
-                            ForEach(viewModel.measurements) { measurement in
-                                NavigationLink(value: NutritionRoute.bodyMeasurementDetail(measurement.id)) {
-                                    BodyMeasurementListRow(measurement: measurement)
-                                }
-                                if measurement.id != viewModel.measurements.last?.id { Divider() }
-                            }
-                        }
-                    }
+                    .buttonStyle(.plain)
+                    if measurement.id != shown.last?.id { RowSeparator() }
+                }
+                if window.canShowMore(loadedCount: viewModel.measurements.count) {
+                    LoadMoreRow { window.showMore() }
                 }
             }
+            .cardSurface()
         }
     }
 
@@ -118,93 +108,60 @@ struct BodyMeasurementsListView: View {
     private var healthSyncStatus: some View {
         switch viewModel.healthSyncState {
         case .loading:
-            FeedbackBanner(message: "Syncing Apple Health body measurements…", tone: .info)
+            HealthSyncStatusRow(title: "Apple Health", detail: "Syncing weight and body fat…", isSyncing: true)
         case let .loaded(summary):
-            if summary.importedCount > 0 || summary.updatedCount > 0 {
-                FeedbackBanner(
-                    message: "Apple Health synced: imported \(summary.importedCount), updated \(summary.updatedCount).",
-                    tone: .info
-                )
-            } else {
-                FeedbackBanner(message: "Apple Health checked; no new body measurements to import.", tone: .info)
-            }
+            HealthSyncStatusRow(
+                title: "Apple Health",
+                detail: summary.importedCount > 0 || summary.updatedCount > 0
+                    ? "Weight & body fat · \(summary.importedCount) imported, \(summary.updatedCount) updated"
+                    : "Weight & body fat · up to date"
+            )
         case let .failed(message, _):
             FeedbackBanner(message: message)
         case .idle:
             EmptyView()
         }
     }
-
 }
 
 private struct BodyMeasurementListRow: View {
     let measurement: BodyMeasurement
 
     var body: some View {
-        HStack(spacing: 12) {
-            BodyDateBadge(measuredOn: measurement.measuredOn)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(DateOnly.formatLong(measurement.measuredOn))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(.primary)
-                Text(
-                    BodyMeasurementFormatters.values(
-                        weightKg: measurement.weightKg,
-                        bodyFatPct: measurement.bodyFatPct
-                    )
-                )
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                if let notes = measurement.notes, !notes.isEmpty {
-                    Text(notes)
-                        .lineLimit(1)
-                        .font(.caption2)
-                        .foregroundColor(NeoGymTheme.mutedText)
+        HStack(spacing: NeoGymTheme.spacingSM) {
+            HStack(spacing: 6) {
+                Text(DateOnly.parse(measurement.measuredOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? measurement.measuredOn)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.text)
+                if HealthImportMarker.isImported(measurement.notes) {
+                    HealthImportHeart()
                 }
             }
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if let notes = measurement.notes, !notes.isEmpty, !HealthImportMarker.isImported(notes) {
+                Image(systemName: "note.text")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .accessibilityLabel("Has a note")
+            }
+            Text(measurement.weightKg.map { "\(MetricFormat.trimmed($0, digits: 2)) kg" } ?? "—")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.text)
+                .frame(minWidth: 78, alignment: .trailing)
+            Text(measurement.bodyFatPct.map { "\(MetricFormat.decimal($0)) %" } ?? "—")
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .frame(minWidth: 52, alignment: .trailing)
             Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textTertiary)
+                .accessibilityHidden(true)
         }
-        .padding(.vertical, 10)
-    }
-}
-
-private struct BodyDateBadge: View {
-    let measuredOn: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(month)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text(day)
-                .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
-        }
-        .frame(width: 52, height: 52)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
-    }
-
-    private var date: Date? { DateOnly.parse(measuredOn) }
-
-    private var month: String {
-        guard let date else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    private var day: String {
-        guard let date else { return "—" }
-        return String(Calendar.current.component(.day, from: date))
+        .monospacedDigit()
+        .padding(.horizontal, NeoGymTheme.spacingMD)
+        .frame(minHeight: NeoGymTheme.minimumTapTarget)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -242,8 +199,7 @@ struct BodyMeasurementDetailView: View {
         .navigationTitle("Measurement")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let measurement = viewModel.measurement {
                     NavigationLink {
                         BodyMeasurementEditView(
@@ -259,8 +215,9 @@ struct BodyMeasurementDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit measurement", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit measurement")
                 }
             }
         }
@@ -308,7 +265,7 @@ struct BodyMeasurementDetailView: View {
                                 Text("Notes")
                                     .font(.caption.weight(.bold))
                                     .textCase(.uppercase)
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                                    .foregroundColor(NeoGymTheme.textSecondary)
                                 Text(notes)
                                     .font(.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,19 +287,17 @@ private struct BodyMeasurementStatCard: View {
             Text(label)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(value)
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(NeoGymTheme.spacingMD)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 }
@@ -373,8 +328,7 @@ struct BodyMeasurementCreateView: View {
 
     var body: some View {
         BodyMeasurementFormScreen(
-            title: "New measurement",
-            submitLabel: "Save measurement",
+            submitLabel: "Save",
             form: form,
             isSubmitting: editor.saveState.isLoading,
             errorMessage: form.errorMessage ?? editor.saveState.errorMessage,
@@ -444,7 +398,6 @@ struct BodyMeasurementEditView: View {
             default:
                 if let form {
                     BodyMeasurementFormScreen(
-                        title: "Edit measurement",
                         submitLabel: "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
@@ -467,9 +420,9 @@ struct BodyMeasurementEditView: View {
                 await loadAndPrepareForm()
             }
         }
-        .alert("Delete this measurement?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this measurement?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete measurement", role: .destructive) { deleteMeasurement() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This entry will be removed from your body history.")
         }
@@ -511,7 +464,6 @@ private struct BodyMeasurementFormScreen: View {
         case bodyFat
     }
 
-    let title: String
     let submitLabel: String
     @ObservedObject var form: BodyMeasurementFormModel
     let isSubmitting: Bool
@@ -523,70 +475,46 @@ private struct BodyMeasurementFormScreen: View {
     @FocusState private var focusedField: FocusedField?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Date",
-                        selection: Binding(
-                            get: { DateOnly.parse(form.measuredOn) ?? Date() },
-                            set: { form.measuredOn = DateOnly.formatLocalISO($0) }
-                        ),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-
-                    HStack(spacing: 12) {
-                        decimalField(
-                            title: "Weight",
-                            unit: "kg",
-                            placeholder: "78.4",
-                            text: $form.weightKg,
-                            field: .weight
-                        )
-                        decimalField(
-                            title: "Body fat",
-                            unit: "%",
-                            placeholder: "18.5",
-                            text: $form.bodyFatPct,
-                            field: .bodyFat
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Notes")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.notes)
-                            .frame(minHeight: 110)
-                            .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
-                            )
-                        Text("Optional")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete measurement",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
-                }
+        FormScrollContainer {
+            FormSection {
+                FormDateRow(isoDate: $form.measuredOn)
+                RowSeparator()
+                FormNumberRow(
+                    title: "Weight",
+                    text: $form.weightKg,
+                    unit: "kg",
+                    placeholder: "",
+                    field: FocusedField.weight,
+                    focusedField: $focusedField
+                )
+                RowSeparator()
+                FormNumberRow(
+                    title: "Body fat",
+                    text: $form.bodyFatPct,
+                    unit: "%",
+                    placeholder: "",
+                    field: FocusedField.bodyFat,
+                    focusedField: $focusedField
+                )
             }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(
+                header: "Notes",
+                footer: "One entry per date with at least one value. "
+                    + "Entries imported from Apple Health show a heart in the list."
+            ) {
+                FormTextAreaRow(placeholder: "Optional", text: $form.notes, accessibilityLabel: "Notes")
+            }
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete measurement",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
         .nativeFormActionToolbar(
@@ -597,77 +525,84 @@ private struct BodyMeasurementFormScreen: View {
             onSubmit: onSubmit
         )
     }
-
-    private func decimalField(
-        title: String,
-        unit: String,
-        placeholder: String,
-        text: Binding<String>,
-        field: FocusedField
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            TextField(placeholder, text: text)
-                .keyboardType(.decimalPad)
-                .numericFieldFocus(field, focusedField: $focusedField)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .padding(NeoGymTheme.spacingSM)
-                .glassSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassFill,
-                    shadow: false
-                )
-        }
-    }
-
 }
 
-struct BodyTrendChartView: View {
-    let trendData: BodyMeasurementTrendData
+/// One body metric on Progress › Body: its 7-day average, the change against
+/// the prior seven days and the latest reading, above the daily readings
+/// (faint, with dots) and the 7-day average line, both in the metric's colour.
+struct BodyMetricTrendCard: View {
+    let title: String
+    let metric: BodyMetricTrend
+    let unit: String
+    /// Decimals for a recorded reading (weight keeps hundredths).
+    let latestDigits: Int
+    let color: Color
 
-    private var chartSeries: [TimeSeriesChartSeries] {
-        [
+    var body: some View {
+        VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(NeoGymTheme.text)
+                    .accessibilityAddTraits(.isHeader)
+                Spacer(minLength: NeoGymTheme.spacingXS)
+                if let latest = metric.latest {
+                    Text("Latest \(MetricFormat.trimmed(latest.value, digits: latestDigits)) · \(TodayBodyCard.dayLabel(latest.day))")
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                MetricValueText(value: metric.weekAverage.map { MetricFormat.decimal($0) } ?? "—", unit: "\(unit) · 7-day avg")
+                if let change = changeText {
+                    Text(change)
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            TimeSeriesTrendChartView(
+                series: series,
+                maxRenderedPoints: 120,
+                chartHeight: 220,
+                emptyMessage: "No \(title.lowercased()) readings in this range.",
+                accessibilityLabel: "\(title), daily readings and 7-day average",
+                initialPeriod: .last30Days
+            )
+        }
+        .padding(NeoGymTheme.spacingMD)
+        .cardSurface()
+    }
+
+    /// Weight change stays neutral: NeoGym has no weight goal.
+    private var changeText: String? {
+        if let change = metric.weekChange {
+            return "\(MetricFormat.signedDecimal(change)) vs prior 7 days"
+        }
+        return metric.weekAverage == nil ? "No readings in the last 7 days" : nil
+    }
+
+    private var series: [TimeSeriesChartSeries] {
+        let format: (Double) -> String = { "\(MetricFormat.trimmed($0, digits: latestDigits)) \(unit)" }
+        return [
             TimeSeriesChartSeries(
-                id: "weight",
-                name: "Weight (kg)",
-                color: .accentColor,
-                points: trendData.points.compactMap { point in
-                    point.weightKg.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-weight", date: point.date, value: $0)
-                    }
-                },
-                valueFormatter: BodyMeasurementFormatters.axisWeight
+                id: "\(title)-daily", name: "Daily", color: color, style: .readings,
+                points: Self.points(metric.readings), valueFormatter: format
             ),
             TimeSeriesChartSeries(
-                id: "body-fat",
-                name: "Body fat (%)",
-                color: .red,
-                points: trendData.points.compactMap { point in
-                    point.bodyFatPct.map {
-                        TimeSeriesChartDataPoint(id: "\(point.id)-body-fat", date: point.date, value: $0)
-                    }
-                },
-                valueFormatter: BodyMeasurementFormatters.axisBodyFat
+                id: "\(title)-average", name: "7-day avg", color: color,
+                points: Self.points(metric.rollingAverage), valueFormatter: format,
+                isRollingAverage: true
             )
         ]
     }
 
-    var body: some View {
-        TimeSeriesTrendChartView(
-            series: chartSeries,
-            maxRenderedPoints: 48,
-            emptyMessage: "No body measurements in this range.",
-            accessibilityLabel: "Body weight and body fat trend chart",
-            initialPeriod: .last90Days
-        )
+    static func points(_ readings: [BodyReading]) -> [TimeSeriesChartDataPoint] {
+        readings.compactMap { reading in
+            DateOnly.parse(reading.day).map { TimeSeriesChartDataPoint(id: reading.day, date: $0, value: reading.value) }
+        }
     }
 }
 
@@ -684,14 +619,6 @@ private enum BodyMeasurementFormatters {
 
     static func values(weightKg: Double?, bodyFatPct: Double?) -> String {
         [weight(weightKg), bodyFat(bodyFatPct)].filter { $0 != "—" }.joined(separator: " · ")
-    }
-
-    static func axisWeight(_ value: Double) -> String {
-        String(format: "%.1f", value)
-    }
-
-    static func axisBodyFat(_ value: Double) -> String {
-        String(format: "%.1f", value)
     }
 }
 

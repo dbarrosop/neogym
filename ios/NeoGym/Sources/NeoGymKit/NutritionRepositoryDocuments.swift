@@ -149,6 +149,12 @@ public extension NutritionFoodMealRepository {
           grams
           position
         }
+        nutritionPlanMeals {
+          nutritionPlan {
+            id
+            name
+          }
+        }
       }
     }
     """

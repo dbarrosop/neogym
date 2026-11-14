@@ -26,6 +26,8 @@ public struct Meal: Decodable, Identifiable, Sendable, Equatable {
     public let createdAt: String?
     public let updatedAt: String?
     public let mealIngredients: [MealIngredient]
+    /// Plan slots that use this meal; only the edit query selects them.
+    public let nutritionPlanMeals: [MealPlanReference]?
 
     public init(
         id: String,
@@ -33,7 +35,8 @@ public struct Meal: Decodable, Identifiable, Sendable, Equatable {
         description: String? = nil,
         createdAt: String? = nil,
         updatedAt: String? = nil,
-        mealIngredients: [MealIngredient] = []
+        mealIngredients: [MealIngredient] = [],
+        nutritionPlanMeals: [MealPlanReference]? = nil
     ) {
         self.id = id
         self.name = name
@@ -41,6 +44,26 @@ public struct Meal: Decodable, Identifiable, Sendable, Equatable {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.mealIngredients = mealIngredients
+        self.nutritionPlanMeals = nutritionPlanMeals
+    }
+
+    /// Names of the plans that reference this meal, each once, sorted.
+    public var usedInPlanNames: [String] {
+        let byId = Dictionary(
+            (nutritionPlanMeals ?? []).map { ($0.nutritionPlan.id, $0.nutritionPlan.name) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        return byId.values.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// Why Delete is unavailable: plan slots restrict meal deletion
+    /// (`nutrition_plan_meals.meal_id` is `ON DELETE RESTRICT`).
+    public var deleteBlockedReason: String? {
+        let names = usedInPlanNames
+        guard !names.isEmpty else { return nil }
+        let count = names.count == 1 ? "1 plan" : "\(names.count) plans"
+        let suffix = names.count == 1 ? "that plan" : "those plans"
+        return "Used in \(count) (\(names.joined(separator: ", "))). Remove it from \(suffix) before deleting."
     }
 
     public var macroTotals: MacroTotals {
@@ -55,6 +78,24 @@ public struct MealIndexPayload: Sendable, Equatable {
 
     public init(meals: [Meal]) {
         self.meals = meals
+    }
+}
+
+public struct MealPlanReference: Decodable, Sendable, Equatable {
+    public struct Plan: Decodable, Sendable, Equatable {
+        public let id: String
+        public let name: String
+
+        public init(id: String, name: String) {
+            self.id = id
+            self.name = name
+        }
+    }
+
+    public let nutritionPlan: Plan
+
+    public init(nutritionPlan: Plan) {
+        self.nutritionPlan = nutritionPlan
     }
 }
 

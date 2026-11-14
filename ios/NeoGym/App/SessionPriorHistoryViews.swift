@@ -8,83 +8,13 @@ struct CardioMissingSchemaNotice: View {
                 + "An admin needs to configure it before this exercise can be used."
         )
             .font(.caption)
-            .foregroundColor(NeoGymTheme.mutedText)
+            .foregroundColor(NeoGymTheme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
-    }
-}
-
-struct SessionPriorWorkoutSummary: View {
-    let sessions: [SessionDetailModel]
-    let state: Loadable<[SessionDetailModel]>
-
-    var body: some View {
-        if !sessions.isEmpty {
-            SectionShell(title: "Recent", subtitle: "Previous sessions of this workout") {
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(sessions) { session in
-                        let totals = session.strengthTotals
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(session.startedAtDate?.formatted(date: .abbreviated, time: .omitted) ?? "—")
-                                .font(.caption.weight(.semibold))
-                            Spacer(minLength: 0)
-                            Text("\(totals.sets) sets · \(totals.reps) reps · \(Int(totals.volume.rounded()).formatted()) kg")
-                                .font(.caption.monospacedDigit())
-                                .foregroundColor(NeoGymTheme.mutedText)
-                        }
-                        if session.id != sessions.last?.id { Divider() }
-                    }
-                }
-            }
-        } else if case let .failed(message, _) = state {
-            FeedbackBanner(message: "Could not load previous workout sessions: \(message)")
-        }
-    }
-}
-
-struct StrengthPriorSummary: View {
-    let entries: [SessionPriorStrengthEntry]
-    let doubleWeight: Bool
-
-    var body: some View {
-        if entries.isEmpty == false {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("Recent", systemImage: "clock.arrow.circlepath")
-                    .font(.caption2.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                ForEach(entries) { entry in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                        Text(shortPriorDate(entry.startedAt))
-                            .font(.caption2)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                            .frame(width: 54, alignment: .leading)
-                        Text(Self.setSummary(entry.sets, doubleWeight: doubleWeight))
-                            .font(.caption.monospacedDigit())
-                            .foregroundColor(NeoGymTheme.mutedText)
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                }
-            }
-            .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
-                cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
-            )
-        }
-    }
-
-    private static func setSummary(_ sets: [SessionStrengthSet], doubleWeight: Bool) -> String {
-        StrengthSetFormatting.recentSummary(sets, doubleWeight: doubleWeight)
     }
 }
 
@@ -100,27 +30,25 @@ struct CardioPriorSummary: View {
                 Label("Recent", systemImage: "clock.arrow.circlepath")
                     .font(.caption2.weight(.bold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 ForEach(filtered) { entry in
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
                         Text(shortPriorDate(entry.startedAt))
                             .font(.caption2)
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .frame(width: 54, alignment: .leading)
                         Text(Self.cardioSummary(entry.entries, primary: primary))
                             .font(.caption.monospacedDigit())
-                            .foregroundColor(NeoGymTheme.mutedText)
+                            .foregroundColor(NeoGymTheme.textSecondary)
                             .lineLimit(1)
                         Spacer(minLength: 0)
                     }
                 }
             }
             .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
         }
     }

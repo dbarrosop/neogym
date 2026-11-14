@@ -17,7 +17,7 @@ struct BadgeText: View {
             Text(text)
         }
         .font(.caption.weight(.semibold))
-        .foregroundColor(prominent ? .white : .primary)
+        .foregroundStyle(prominent ? NeoGymTheme.onFill : NeoGymTheme.text)
         .padding(.horizontal, 9)
         .padding(.vertical, 5)
         .background(badgeBackground)
@@ -25,22 +25,8 @@ struct BadgeText: View {
 
     @ViewBuilder
     private var badgeBackground: some View {
-        if prominent {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.primaryActionGradient)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.white.opacity(0.32), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
+        Capsule(style: .continuous)
+            .fill(prominent ? NeoGymTheme.accent : NeoGymTheme.fill)
     }
 }
 
@@ -63,11 +49,9 @@ extension View {
     func historyRowStyle() -> some View {
         padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassSurface(
+            .cardSurface(
                 cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
+                fill: NeoGymTheme.inset
             )
     }
 }
@@ -83,12 +67,14 @@ struct ProgressMetricCard: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 Spacer()
                 if let delta {
+                    // Gains are favourable deltas; declines stay neutral because
+                    // destructive is reserved for deletes, sign-out and errors.
                     Text(delta)
                         .font(.caption.monospacedDigit())
-                        .foregroundColor(delta.hasPrefix("+") ? .green : .red)
+                        .foregroundStyle(delta.hasPrefix("+") ? NeoGymTheme.positive : NeoGymTheme.textSecondary)
                 }
             }
             Text(value)
@@ -96,11 +82,9 @@ struct ProgressMetricCard: View {
         }
         .padding(NeoGymTheme.spacingSM)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 }

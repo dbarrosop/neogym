@@ -1,0 +1,83 @@
+import Foundation
+import XCTest
+
+/// Navigation lives in the SwiftUI app, not the host package. Guard its wiring
+/// without moving app navigation into NeoGymKit or requiring a live backend.
+final class TodayNavigationWiringTests: XCTestCase {
+    private func shellSource(_ name: String) throws -> String {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        return try String(contentsOf: packageRoot.appendingPathComponent("App/Shell/\(name).swift"), encoding: .utf8)
+    }
+
+    func testTodayShortcutsClearTheDestinationBeforeSelectingItsTab() throws {
+        let shell = try shellSource("AppShellView")
+        let nutritionAction = #"openNutritionLog:\s*\{\s*nutritionLogDate\.showToday\(\)\s*nutritionSection = \.log\s*nutritionPath = \[\]\s*selection = \.nutrition\s*\}"#
+        let progressAction = #"openProgress:\s*\{ section in\s*progressSection = section\s*progressPath = \[\]\s*selection = \.progress\s*\}"#
+
+        XCTAssertNotNil(shell.range(of: nutritionAction, options: .regularExpression))
+        XCTAssertNotNil(shell.range(of: progressAction, options: .regularExpression))
+        // Clear on the explicit request, even if the target section is already
+        // selected underneath a pushed detail; not on ordinary tab selection.
+        XCTAssertTrue(shell.contains("TabView(selection: $selection)"))
+        for area in ["nutrition", "progress"] {
+            XCTAssertEqual(shell.components(separatedBy: "\(area)Path = []").count - 1, 1)
+        }
+    }
+
+    func testDestinationStacksUseTheShellOwnedPaths() throws {
+        let shell = try shellSource("AppShellView")
+        for (area, route) in [("nutrition", "Nutrition"), ("progress", "Progress")] {
+            XCTAssertTrue(shell.contains("@State private var \(area)Path: [\(route)Route] = []"))
+            XCTAssertTrue(shell.contains("path: $\(area)Path"))
+            let destination = try shellSource("\(route)NavigationView")
+            XCTAssertTrue(destination.contains("@Binding var path: [\(route)Route]"))
+            XCTAssertTrue(destination.contains("NavigationStack(path: $path)"))
+            XCTAssertFalse(destination.contains("@State private var path:"))
+        }
+        let progress = try shellSource("ProgressNavigationView")
+        XCTAssertTrue(progress.contains("path: Binding<[ProgressRoute]>"))
+        XCTAssertTrue(progress.contains("_path = path"))
+    }
+
+    func testNutritionLogUsesTheShellSelectedDateForItsDayViewIdentity() throws {
+        let shell = try shellSource("AppShellView")
+        XCTAssertTrue(shell.contains("@State private var nutritionLogDate = NutritionLogDateSelection()"))
+        XCTAssertTrue(shell.contains("logDate: $nutritionLogDate"))
+        let nutrition = try shellSource("NutritionNavigationView")
+        XCTAssertTrue(nutrition.contains("@Binding var logDate: NutritionLogDateSelection"))
+        let keyedDay = #"case \.log:\s*DailyIntakeView\(\s*repository: repository,\s*date: logDate\.date,"#
+            + #"\s*reloadToken: [^\n]+,\s*onDateSelected: \{ logDate\.select\(\$0\) \},"#
+            + #"\s*onMutated: invalidateLists\s*\)\s*(?://[^\n]*\s*)*\.id\(logDate\.date\)"#
+        XCTAssertNotNil(
+            nutrition.range(of: keyedDay, options: .regularExpression),
+            "Date selection must replace the day model, not retarget a loaded model's write target"
+        )
+    }
+
+    func testNutritionLogRefreshesTodayOnForegroundAndSignificantTimeChanges() throws {
+        let shell = try shellSource("AppShellView")
+        XCTAssertTrue(shell.contains(#"@Environment(\.scenePhase) private var scenePhase"#))
+        let foregroundRefresh = #"\.onChange\(of: scenePhase\) \{ _, phase in\s*"#
+            + #"if phase == \.active \{ nutritionLogDate\.refreshToday\(\) \}\s*\}"#
+        XCTAssertNotNil(shell.range(of: foregroundRefresh, options: .regularExpression))
+        let timeRefresh = #"\.onReceive\(NotificationCenter\.default\.publisher\(for: "#
+            + #"UIApplication\.significantTimeChangeNotification\)\) \{ _ in\s*"#
+            + #"nutritionLogDate\.refreshToday\(\)\s*\}"#
+        XCTAssertNotNil(shell.range(of: timeRefresh, options: .regularExpression))
+        XCTAssertFalse(
+            shell.contains("NSCalendarDayChanged"),
+            "Use UIKit's main-actor significant-time notification for midnight, not an off-main calendar publisher"
+        )
+    }
+
+    func testCreateToDetailStillAppendsAfterTheCreateViewDismisses() throws {
+        for area in ["Nutrition", "Progress"] {
+            let source = try shellSource("\(area)NavigationView")
+            let deferredAppend = #"(?s)private func openRouteAfterCurrentTransition\(_ route: "# + area
+                + #"Route\)\s*\{.*?DispatchQueue\.main\.async\s*\{\s*path\.append\(route\)\s*\}"#
+            XCTAssertNotNil(source.range(of: deferredAppend, options: .regularExpression))
+            XCTAssertFalse(source.contains("path.removeLast()"), "The create view already dismisses its own route")
+        }
+    }
+}

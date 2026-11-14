@@ -31,21 +31,6 @@ struct ExerciseDetailView: View {
         }
         .navigationTitle(viewModel.exercise?.name ?? "Exercise")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
-                if viewModel.exercise != nil {
-                    Button(action: startSession) {
-                        Label(
-                            viewModel.startState.isLoading ? "Starting…" : "Start session",
-                            systemImage: "play.fill"
-                        )
-                    }
-                    .fontWeight(.semibold)
-                    .disabled(viewModel.startState.isLoading)
-                }
-            }
-        }
         .task {
             if case .idle = viewModel.state {
                 await viewModel.load()
@@ -78,24 +63,20 @@ struct ExerciseDetailView: View {
                     storageBaseURL: storageBaseURL,
                     startError: viewModel.startState.errorMessage
                 )
-                GlassPanel(
-                    cornerRadius: NeoGymTheme.radiusLG,
-                    material: .thin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false,
-                    contentPadding: EdgeInsets(
-                        top: NeoGymTheme.spacingSM,
-                        leading: NeoGymTheme.spacingSM,
-                        bottom: NeoGymTheme.spacingSM,
-                        trailing: NeoGymTheme.spacingSM
+                Button(action: startSession) {
+                    Label(
+                        viewModel.startState.isLoading ? "Starting…" : "Start a session with it",
+                        systemImage: "play.fill"
                     )
-                ) {
-                    Picker("Detail", selection: $selectedTab) {
-                        Text("Progress").tag(ExerciseDetailTab.progress)
-                        Text("History").tag(ExerciseDetailTab.history)
-                    }
-                    .pickerStyle(.segmented)
                 }
+                .buttonStyle(NeoGymPrimaryButtonStyle())
+                .disabled(viewModel.startState.isLoading)
+                Picker("Detail", selection: $selectedTab) {
+                    Text("Progress").tag(ExerciseDetailTab.progress)
+                    Text("History").tag(ExerciseDetailTab.history)
+                }
+                .pickerStyle(.segmented)
+                .controlSize(.large)
                 detailTab
             }
         }

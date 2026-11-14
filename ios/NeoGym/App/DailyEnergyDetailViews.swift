@@ -44,8 +44,7 @@ struct DailyEnergyDetailView: View {
         .navigationTitle("Energy")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let entry = viewModel.entry {
                     NavigationLink {
                         DailyEnergyEditView(
@@ -61,8 +60,9 @@ struct DailyEnergyDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit energy", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit energy")
                 }
             }
         }
@@ -115,7 +115,7 @@ struct DailyEnergyDetailView: View {
                                 Text("Notes")
                                     .font(.caption.weight(.bold))
                                     .textCase(.uppercase)
-                                    .foregroundColor(NeoGymTheme.mutedText)
+                                    .foregroundColor(NeoGymTheme.textSecondary)
                                 Text(notes)
                                     .font(.body)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,19 +137,17 @@ private struct DailyEnergyStatCard: View {
             Text(label)
                 .font(.caption2.weight(.bold))
                 .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
             Text(value)
                 .font(.title3.weight(.semibold))
                 .monospacedDigit()
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(NeoGymTheme.spacingMD)
-        .glassSurface(
+        .cardSurface(
             cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
+            fill: NeoGymTheme.inset
         )
     }
 }

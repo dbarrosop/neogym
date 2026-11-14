@@ -14,15 +14,14 @@ struct JournalListView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                header
+            VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
+                AreaSectionHeader()
                 filters
                 content
             }
-            .frame(maxWidth: 760)
+            .frame(maxWidth: NeoGymTheme.contentMaxWidth)
             .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
+            .padding(.bottom, NeoGymTheme.spacingXL)
             .frame(maxWidth: .infinity)
         }
         .task {
@@ -34,63 +33,23 @@ struct JournalListView: View {
         .refreshable { await viewModel.load() }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Tracking")
-                .font(.caption.weight(.semibold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text("Notes, reflections, and anything else worth remembering.")
-                .font(.subheadline)
-                .foregroundColor(NeoGymTheme.mutedText)
-        }
-    }
 
     @ViewBuilder
     private var filters: some View {
         if !viewModel.labels.isEmpty {
-            GlassPanel(
-                cornerRadius: NeoGymTheme.radiusXL,
-                material: .thin,
-                tint: NeoGymTheme.glassSubtleFill,
-                shadow: false,
-                contentPadding: EdgeInsets(
-                    top: NeoGymTheme.spacingMD,
-                    leading: NeoGymTheme.spacingMD,
-                    bottom: NeoGymTheme.spacingMD,
-                    trailing: NeoGymTheme.spacingMD
-                )
-            ) {
-                VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
-                    HStack(spacing: NeoGymTheme.spacingXS) {
-                        Text("Filter")
-                            .font(.caption.weight(.bold))
-                            .textCase(.uppercase)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                        if viewModel.isFiltered {
-                            Button("Clear") {
-                                Task { await viewModel.clearFilters() }
-                            }
-                            .font(.caption.weight(.semibold))
-                        }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: NeoGymTheme.spacingXS) {
+                    FilterChip(title: "All", isSelected: !viewModel.isFiltered) {
+                        Task { await viewModel.clearFilters() }
                     }
-                    JournalLabelFlowLayout(spacing: NeoGymTheme.spacingXS) {
-                        ForEach(viewModel.labels) { label in
-                            Button {
-                                Task { await viewModel.toggleLabel(label.id) }
-                            } label: {
-                                JournalLabelChip(
-                                    name: label.name,
-                                    systemImage: "tag.fill",
-                                    selected: viewModel.selectedLabelSet.contains(label.id)
-                                )
-                            }
-                            .buttonStyle(.plain)
+                    ForEach(viewModel.labels) { label in
+                        FilterChip(title: label.name, isSelected: viewModel.selectedLabelSet.contains(label.id)) {
+                            Task { await viewModel.toggleLabel(label.id) }
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .accessibilityLabel("Filter by label")
         }
     }
 
@@ -98,164 +57,91 @@ struct JournalListView: View {
     private var content: some View {
         switch viewModel.state {
         case .idle:
-            SectionShell(title: "Loading entries") {
-                AppLoadingStateView(title: "Loading journal entries")
-            }
+            AppLoadingStateView(title: "Loading journal entries")
         case .loading where viewModel.entries.isEmpty:
-            SectionShell(title: "Loading entries") {
-                AppLoadingStateView(title: "Loading journal entries")
-            }
+            AppLoadingStateView(title: "Loading journal entries")
         case let .failed(message, _) where viewModel.entries.isEmpty:
-            SectionShell(title: "Journal") {
-                AppErrorStateView(title: "Failed to load journal entries", message: message) {
-                    Task { await viewModel.load() }
-                }
+            AppErrorStateView(title: "Couldn't load journal entries", message: message) {
+                Task { await viewModel.load() }
             }
+            .cardSurface()
         default:
             if viewModel.entries.isEmpty {
-                SectionShell(title: viewModel.isFiltered ? "No matching entries" : "No entries") {
-                    VStack(spacing: 16) {
-                        AppEmptyStateView(
-                            title: viewModel.isFiltered
-                                ? "No entries match the selected labels."
-                                : "No journal entries yet.",
-                            message: viewModel.isFiltered
-                                ? "Clear a filter or choose another label combination."
-                                : "Write your first entry to capture notes and reflections.",
-                            systemImage: "book.closed"
-                        )
-                        if !viewModel.isFiltered {
-                            NavigationLink(value: MeRoute.journalEntryCreate) {
-                                Label("Write your first entry", systemImage: "plus")
-                            }
-                            .buttonStyle(NeoGymPrimaryButtonStyle())
-                        }
-                    }
-                }
+                AppEmptyStateView(
+                    title: viewModel.isFiltered ? "No entries match these labels" : "No journal entries yet",
+                    message: viewModel.isFiltered
+                        ? "Clear a filter or choose another label combination."
+                        : "Write your first entry with the + button.",
+                    systemImage: "book.closed",
+                    actionTitle: viewModel.isFiltered ? "Clear filters" : nil,
+                    action: { Task { await viewModel.clearFilters() } }
+                )
             } else {
-                SectionShell(
-                    title: "Entries",
-                    subtitle: viewModel.isFiltered ? "Filtered by selected labels" : "Newest first"
-                ) {
-                    VStack(spacing: 0) {
-                        ForEach(viewModel.entries) { entry in
-                            NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
-                                JournalEntryListRow(entry: entry)
-                            }
-                            if entry.id != viewModel.entries.last?.id { Divider() }
-                        }
-                        if viewModel.hasMore {
-                            Divider()
-                            Button {
-                                Task { await viewModel.loadMore() }
-                            } label: {
-                                if viewModel.isLoadingMore {
-                                    ProgressView()
-                                        .frame(maxWidth: .infinity)
-                                } else {
-                                    Text("Load more")
-                                        .frame(maxWidth: .infinity)
-                                }
-                            }
-                            .buttonStyle(NeoGymSecondaryButtonStyle())
-                            .padding(.top, 12)
-                        }
-                        if let message = viewModel.loadMoreErrorMessage {
-                            Text(message)
-                                .font(.caption)
-                                .foregroundColor(.red)
-                                .padding(.top, 8)
-                        }
+                ForEach(viewModel.entries) { entry in
+                    NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
+                        JournalEntryCard(entry: entry)
                     }
+                    .buttonStyle(.plain)
+                }
+                if viewModel.hasMore {
+                    Button {
+                        Task { await viewModel.loadMore() }
+                    } label: {
+                        Group {
+                            if viewModel.isLoadingMore { ProgressView() } else { Text("Load more") }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(NeoGymSecondaryButtonStyle())
+                }
+                if let message = viewModel.loadMoreErrorMessage {
+                    FeedbackBanner(message: message)
                 }
             }
         }
     }
-
 }
 
-private struct JournalEntryListRow: View {
+private struct JournalEntryCard: View {
     let entry: JournalEntry
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            JournalDateBadge(entryDate: entry.entryDate)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(DateOnly.formatLong(entry.entryDate))
-                        .font(.caption.weight(.semibold))
-                        .textCase(.uppercase)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                    if let title = entry.title, !title.isEmpty {
-                        Text(title)
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                if !entry.previewText.isEmpty {
-                    Text(entry.previewText)
-                        .font(.subheadline)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                }
-                if !entry.journalEntryLabels.isEmpty {
-                    JournalLabelFlowLayout(spacing: 4) {
-                        ForEach(entry.journalEntryLabels) { link in
-                            JournalLabelChip(name: link.label.name, systemImage: "tag.fill", selected: true)
-                        }
-                    }
-                }
+        VStack(alignment: .leading, spacing: 6) {
+            Text(DateOnly.parse(entry.entryDate)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? entry.entryDate)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            if let title = entry.title, !title.isEmpty {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(NeoGymTheme.text)
+                    .multilineTextAlignment(.leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.bold))
-                .foregroundColor(NeoGymTheme.mutedText)
-                .padding(.top, 4)
+            if !entry.previewText.isEmpty {
+                Text(entry.previewText)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+            }
+            if !entry.journalEntryLabels.isEmpty {
+                FlowRow(spacing: 6) {
+                    ForEach(entry.journalEntryLabels) { link in
+                        Text(link.label.name)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(NeoGymTheme.accentText)
+                            .padding(.horizontal, NeoGymTheme.spacingXS)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(NeoGymTheme.accentSoft))
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(.vertical, 12)
-    }
-}
-
-private struct JournalDateBadge: View {
-    let entryDate: String
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Text(month)
-                .font(.caption2.weight(.bold))
-                .textCase(.uppercase)
-                .foregroundColor(NeoGymTheme.mutedText)
-            Text(day)
-                .font(.title3.weight(.bold))
-                .foregroundColor(.primary)
-        }
-        .frame(width: 52, height: 52)
-        .glassSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            material: .ultraThin,
-            tint: NeoGymTheme.glassSubtleFill,
-            shadow: false
-        )
-    }
-
-    private var date: Date? { DateOnly.parse(entryDate) }
-
-    private var month: String {
-        guard let date else { return "—" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    private var day: String {
-        guard let date else { return "—" }
-        return String(Calendar.current.component(.day, from: date))
+        .padding(NeoGymTheme.spacingMD)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardSurface()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -290,8 +176,7 @@ struct JournalEntryDetailView: View {
         .navigationTitle("Entry")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let entry = viewModel.entry {
                     NavigationLink {
                         JournalEntryEditView(
@@ -307,8 +192,9 @@ struct JournalEntryDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit entry", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit entry")
                 }
             }
         }
@@ -344,7 +230,7 @@ struct JournalEntryDetailView: View {
                         if !entry.journalEntryLabels.isEmpty {
                             JournalLabelFlowLayout(spacing: 6) {
                                 ForEach(entry.journalEntryLabels) { link in
-                                    JournalLabelChip(name: link.label.name, systemImage: "tag.fill", selected: true)
+                                    JournalLabelChip(name: link.label.name)
                                 }
                             }
                         }
@@ -391,7 +277,6 @@ struct JournalEntryCreateView: View {
             default:
                 if let form {
                     JournalEntryFormScreen(
-                        title: "New entry",
                         submitLabel: "Save entry",
                         form: form,
                         suggestions: editor.labels,
@@ -468,7 +353,6 @@ struct JournalEntryEditView: View {
             default:
                 if let form {
                     JournalEntryFormScreen(
-                        title: "Edit entry",
                         submitLabel: "Save changes",
                         form: form,
                         suggestions: editor.labels,
@@ -495,9 +379,9 @@ struct JournalEntryEditView: View {
                 }
             }
         }
-        .alert("Delete this entry?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete entry", role: .destructive) { deleteEntry() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(
                 "The entry and its label associations will be removed. "
@@ -527,7 +411,6 @@ struct JournalEntryEditView: View {
 }
 
 private struct JournalEntryFormScreen: View {
-    let title: String
     let submitLabel: String
     @ObservedObject var form: JournalEntryFormModel
     let suggestions: [JournalLabel]
@@ -538,78 +421,52 @@ private struct JournalEntryFormScreen: View {
     var deleteAction: (() -> Void)?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Date",
-                        selection: Binding(
-                            get: { DateOnly.parse(form.entryDate) ?? Date() },
-                            set: { form.entryDate = DateOnly.formatLocalISO($0) }
-                        ),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 4) {
-                            Text("Title")
-                                .font(.subheadline.weight(.semibold))
-                            Text("Optional")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
-                        }
-                        TextField("A short headline for this entry", text: Binding(
-                            get: { form.title },
-                            set: { form.title = String($0.prefix(journalEntryTitleMaxLength)) }
-                        ))
-                        .textInputAutocapitalization(.sentences)
-                        .disableAutocorrection(false)
-                        .padding(NeoGymTheme.spacingSM)
-                        .glassSurface(
-                            cornerRadius: NeoGymTheme.radiusMD,
-                            material: .ultraThin,
-                            tint: NeoGymTheme.glassFill,
-                            shadow: false
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Entry")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.body)
-                            .frame(minHeight: 220)
-                            .padding(NeoGymTheme.spacingXS)
-                            .glassSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                material: .ultraThin,
-                                tint: NeoGymTheme.glassFill,
-                                shadow: false
-                            )
-                        Text("Markdown supported — use **bold**, - lists, headings, and more.")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.mutedText)
-                    }
-
-                    JournalLabelInputView(form: form, suggestions: suggestions, disabled: isSubmitting)
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete entry",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
+        FormScrollContainer {
+            FormSection {
+                FormDateRow(isoDate: $form.entryDate)
+                RowSeparator()
+                FormRow {
+                    TextField("Title (optional)", text: Binding(
+                        get: { form.title },
+                        set: { form.title = String($0.prefix(journalEntryTitleMaxLength)) }
+                    ))
+                    .textInputAutocapitalization(.sentences)
+                    .accessibilityLabel("Title")
                 }
             }
-            .frame(maxWidth: 680)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(header: "Entry · Markdown") {
+                FormTextAreaRow(
+                    placeholder: "Write your entry",
+                    text: $form.body,
+                    accessibilityLabel: "Entry, markdown",
+                    minLines: 12,
+                    monospaced: true
+                )
+            }
+            LabelChipsEditor(
+                selected: form.labels.map(\.name),
+                available: suggestions.map(\.name),
+                maxLength: journalLabelMaxLength,
+                normalize: JournalLabelNormalizer.normalize,
+                isDisabled: isSubmitting,
+                onRemove: { form.removeLabel(name: $0) },
+                onPick: { name in
+                    guard let label = suggestions.first(where: { $0.name == name }) else { return }
+                    form.addLabel(JournalLabelSelection(id: label.id, name: label.name))
+                },
+                onCommit: { form.commitLabel($0, suggestions: suggestions) }
+            )
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete entry",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .nativeFormActionToolbar(
             submitLabel: submitLabel,
@@ -618,127 +475,6 @@ private struct JournalEntryFormScreen: View {
             onCancel: onCancel,
             onSubmit: onSubmit
         )
-    }
-}
-
-private struct JournalLabelInputView: View {
-    @ObservedObject var form: JournalEntryFormModel
-    let suggestions: [JournalLabel]
-    var disabled = false
-
-    @State private var input = ""
-
-    private var normalizedInput: String {
-        JournalLabelNormalizer.normalize(input)
-    }
-
-    private var filteredSuggestions: [JournalLabel] {
-        let selected = Set(form.labels.map(\.name))
-        return suggestions
-            .filter { !selected.contains($0.name) }
-            .filter { normalizedInput.isEmpty ? true : $0.name.contains(normalizedInput) }
-            .prefix(8)
-            .map { $0 }
-    }
-
-    private var canCreateLabel: Bool {
-        !normalizedInput.isEmpty
-            && normalizedInput.count <= journalLabelMaxLength
-            && !form.labels.contains { $0.name == normalizedInput }
-            && !filteredSuggestions.contains { $0.name == normalizedInput }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                Text("Labels")
-                    .font(.subheadline.weight(.semibold))
-                Text("Optional")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            JournalLabelFlowLayout(spacing: 6) {
-                ForEach(form.labels, id: \.stableId) { label in
-                    HStack(spacing: 4) {
-                        Image(systemName: "tag.fill")
-                        Text(label.name)
-                        Button {
-                            form.removeLabel(name: label.name)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove label \(label.name)")
-                    }
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .foregroundColor(.accentColor)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(NeoGymTheme.accentMuted)
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
-                            )
-                    )
-                }
-            }
-            HStack(spacing: 8) {
-                TextField("Add a label", text: Binding(
-                    get: { input },
-                    set: { input = String($0.prefix(journalLabelMaxLength)) }
-                ))
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .disabled(disabled)
-                .onSubmit { commitTyped() }
-                Button("Add") { commitTyped() }
-                    .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > journalLabelMaxLength)
-            }
-            .padding(NeoGymTheme.spacingSM)
-            .glassSurface(
-                cornerRadius: NeoGymTheme.radiusMD,
-                material: .ultraThin,
-                tint: NeoGymTheme.glassFill,
-                shadow: false
-            )
-
-            if !filteredSuggestions.isEmpty || canCreateLabel {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(filteredSuggestions) { suggestion in
-                        Button {
-                            form.addLabel(JournalLabelSelection(id: suggestion.id, name: suggestion.name))
-                            input = ""
-                        } label: {
-                            Label(suggestion.name, systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if canCreateLabel {
-                        Button { commitTyped() } label: {
-                            Label("Create \"\(normalizedInput)\"", systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(NeoGymTheme.spacingSM)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    material: .ultraThin,
-                    tint: NeoGymTheme.glassSubtleFill,
-                    shadow: false
-                )
-            }
-        }
-    }
-
-    private func commitTyped() {
-        form.commitLabel(input, suggestions: suggestions)
-        input = ""
     }
 }
 
@@ -760,12 +496,12 @@ private struct JournalMarkdownView: View {
         case let .heading(level, text):
             Text(text)
                 .font(level <= 1 ? .title3.weight(.semibold) : .headline)
-                .foregroundColor(.primary)
+                .foregroundStyle(NeoGymTheme.text)
                 .padding(.top, level <= 2 ? 4 : 2)
         case let .paragraph(text):
             Text(text)
                 .font(.body)
-                .foregroundColor(NeoGymTheme.mutedText)
+                .foregroundColor(NeoGymTheme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
         case let .unorderedList(items):
             VStack(alignment: .leading, spacing: 6) {
@@ -775,7 +511,7 @@ private struct JournalMarkdownView: View {
                         Text(item)
                     }
                     .font(.body)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
         case let .orderedList(items):
@@ -787,48 +523,26 @@ private struct JournalMarkdownView: View {
                         Text(item)
                     }
                     .font(.body)
-                    .foregroundColor(NeoGymTheme.mutedText)
+                    .foregroundColor(NeoGymTheme.textSecondary)
                 }
             }
         }
     }
 }
 
+/// A read-only label tag, styled like the Journal list's tags (accent soft).
 private struct JournalLabelChip: View {
     let name: String
-    let systemImage: String
-    let selected: Bool
 
     var body: some View {
-        Label(name, systemImage: systemImage)
+        Text(name)
             .font(.caption.weight(.semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.85)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
-            .foregroundColor(selected ? .accentColor : NeoGymTheme.mutedText)
-            .background(chipBackground)
-            .contentShape(Capsule(style: .continuous))
-    }
-
-    @ViewBuilder
-    private var chipBackground: some View {
-        if selected {
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.accentMuted)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(Color.accentColor.opacity(0.28), lineWidth: NeoGymTheme.hairline)
-                )
-        } else {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(Capsule(style: .continuous).fill(NeoGymTheme.glassSubtleFill))
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.glassStrokeSecondary, lineWidth: NeoGymTheme.hairline)
-                )
-        }
+            .foregroundStyle(NeoGymTheme.accentText)
+            .background(Capsule(style: .continuous).fill(NeoGymTheme.accentSoft))
     }
 }
 
@@ -837,11 +551,8 @@ private struct JournalLabelFlowLayout<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 104), spacing: spacing, alignment: .leading)],
-            alignment: .leading,
-            spacing: spacing
-        ) {
+        // Wrap chips at their natural width, like the Journal list's tags.
+        FlowRow(spacing: spacing) {
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)

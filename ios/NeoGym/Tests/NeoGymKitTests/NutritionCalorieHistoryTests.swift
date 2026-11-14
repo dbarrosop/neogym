@@ -68,6 +68,86 @@ final class NutritionCalorieHistoryTests: XCTestCase {
     }
 
     @MainActor
+    func testSameRangeRefreshUpdatesConsumedNetAndBothAverages() async throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let now = try XCTUnwrap(DateOnly.parse("2026-06-20", calendar: calendar))
+        let ranges = [
+            ChartHistoryRange.recentDays(30, now: now, calendar: calendar),
+            ChartHistoryRange(from: "2026-04-25", through: "2026-06-19")
+        ]
+        for range in ranges {
+            let fake = FakeGraphQLService(replies: [
+                .json(Self.refreshHistoryReply(consumed: [200, 400], burned: [200, 200])),
+                .json(Self.refreshHistoryReply(consumed: [500, 700], burned: [300, 500]))
+            ])
+            let model = NutritionCalorieHistoryViewModel(repository: NutritionFoodMealRepository(graphQL: fake))
+            await model.load(range: range)
+            let before = CalorieTrend(history: try XCTUnwrap(model.history), today: "2026-06-20", calendar: calendar)
+            XCTAssertEqual(before.latestConsumedAverage, 300)
+            XCTAssertEqual(before.latestNetAverage, 100)
+
+            // Reuse the selected (possibly custom) range, as Energy's refresh does.
+            await model.load(range: range)
+
+            let after = CalorieTrend(history: try XCTUnwrap(model.history), today: "2026-06-20", calendar: calendar)
+            XCTAssertEqual(after.consumed.map(\.value), [500, 700])
+            XCTAssertEqual(after.net.map(\.value), [200, 200])
+            XCTAssertEqual(after.latestConsumedAverage, 600)
+            XCTAssertEqual(after.latestNetAverage, 200)
+            XCTAssertNil(model.state.errorMessage)
+            let requests = await fake.requestsSnapshot()
+            XCTAssertEqual(requests.count, 2)
+            XCTAssertTrue(requests.allSatisfy {
+                $0.operationName == "NutritionCalorieHistory"
+                    && $0.variables == ["from": .string(range.from), "through": .string(range.through)]
+            })
+            let cachedReads = await fake.cachedRequestsSnapshot()
+            XCTAssertEqual(cachedReads.count, 2)
+            XCTAssertTrue(cachedReads.allSatisfy { $0.namespace == "nutrition-calorie-history" })
+        }
+    }
+
+    @MainActor
+    func testSameRangeRefreshFailureKeepsConsumedNetAndAverages() async throws {
+        let fake = FakeGraphQLService(replies: [
+            .json(Self.refreshHistoryReply(consumed: [200, 400], burned: [200, 200])),
+            .failure(GraphQLDomainError.transport("offline"))
+        ])
+        let model = NutritionCalorieHistoryViewModel(repository: NutritionFoodMealRepository(graphQL: fake))
+        let range = ChartHistoryRange(from: "2026-05-16", through: "2026-06-20")
+        await model.load(range: range)
+        let before = CalorieTrend(history: try XCTUnwrap(model.history), today: "2026-06-20")
+
+        await model.load(range: range)
+
+        let after = CalorieTrend(history: try XCTUnwrap(model.history), today: "2026-06-20")
+        XCTAssertEqual(after, before)
+        XCTAssertNotNil(model.state.errorMessage)
+    }
+
+    private static func refreshHistoryReply(consumed: [Double], burned: [Double]) -> JSONValue {
+        let dates = ["2026-06-18", "2026-06-19"]
+        return .object([
+            "nutritionDays": .array(zip(dates, consumed).map { day, kcal in
+                .object([
+                    "logDate": .string(day),
+                    "nutritionLogEntries": .array([.object([
+                        "grams": .number(100), "snapshotKcalPer100g": .number(kcal)
+                    ])]),
+                    "nutritionLogMeals": .array([])
+                ])
+            }),
+            "dailyEnergyEntries": .array(zip(dates, burned).map { day, kcal in
+                .object([
+                    "id": .string("energy-\(day)"), "energyOn": .string(day),
+                    "activeKcal": .number(kcal), "restingKcal": .null
+                ])
+            })
+        ])
+    }
+
+    @MainActor
     func testChartKeepsPreviousRangeWhenRevalidationFails() async {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["nutritionDays": .array([]), "dailyEnergyEntries": .array([])])),

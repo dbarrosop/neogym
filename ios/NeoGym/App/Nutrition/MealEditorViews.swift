@@ -80,7 +80,6 @@ struct MealCreateView: View {
             default:
                 if let form {
                     MealFormScreen(
-                        title: formTitle,
                         submitLabel: submitLabel,
                         form: form,
                         foods: editor.foods,
@@ -137,7 +136,6 @@ struct MealEditView: View {
             default:
                 if let form {
                     MealFormScreen(
-                        title: "Edit meal",
                         submitLabel: "Save changes",
                         form: form,
                         foods: editor.foods,
@@ -149,7 +147,8 @@ struct MealEditView: View {
                             ?? editor.deleteState.errorMessage,
                         onSubmit: submit,
                         onCancel: { presentationMode.wrappedValue.dismiss() },
-                        deleteAction: { confirmDelete = true }
+                        deleteAction: { confirmDelete = true },
+                        deleteBlockedReason: editor.meal?.deleteBlockedReason
                     )
                 } else {
                     AppLoadingStateView(title: "Preparing form")
@@ -166,14 +165,11 @@ struct MealEditView: View {
                 }
             }
         }
-        .alert("Delete this meal?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete meal", role: .destructive) { deleteMeal() }
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text(
-                "Meal deletion is blocked while a nutrition plan slot references it. "
-                    + "Historical logged meals detach their template provenance."
-            )
+            Text("Logged meals keep their foods; they just stop linking to this template.")
         }
     }
 
@@ -198,7 +194,6 @@ struct MealEditView: View {
 }
 
 struct MealFormScreen: View {
-    let title: String
     let submitLabel: String
     @ObservedObject var form: MealFormModel
     let foods: [Food]
@@ -209,39 +204,53 @@ struct MealFormScreen: View {
     let onSubmit: () -> Void
     let onCancel: () -> Void
     var deleteAction: (() -> Void)?
+    /// Set when plans still reference the meal, which blocks deletion.
+    var deleteBlockedReason: String?
 
     @FocusState private var focusedIngredientId: String?
+    @State private var picker: IngredientPickerRequest?
     @State private var quickFood: QuickFoodSheetRequest?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title, subtitle: "Meal templates") {
-                VStack(alignment: .leading, spacing: 18) {
-                    textFields
-                    MacroSummaryView(
-                        totals: form.macroTotals(availableFoods: foods),
-                        title: "Live meal totals",
-                        description: "Computed from current food nutrition values and ingredient grams."
+        FormScrollContainer {
+            FormSection {
+                FormLabeledTextRow(
+                    label: "Name",
+                    placeholder: "Breakfast bowl",
+                    text: Binding(get: { form.name }, set: { form.name = String($0.prefix(160)) }),
+                    capitalization: .words
+                )
+                RowSeparator()
+                FormLabeledTextRow(
+                    label: "Description",
+                    placeholder: "Optional",
+                    text: Binding(
+                        get: { form.mealDescription },
+                        set: { form.mealDescription = String($0.prefix(1_000)) }
+                    ),
+                    multiline: true
+                )
+            }
+            MacroTotalsStrip(totals: form.macroTotals(availableFoods: foods))
+            ingredients
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                VStack(alignment: .leading, spacing: 6) {
+                    FormDeleteButton(
+                        title: "Delete meal",
+                        isDisabled: isSubmitting || deleteBlockedReason != nil,
+                        action: deleteAction
                     )
-                    ingredients
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete meal",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
+                    if let deleteBlockedReason {
+                        FormFooter(deleteBlockedReason)
                     }
                 }
+                .padding(.top, NeoGymTheme.spacingXS)
             }
-            .frame(maxWidth: 680)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
         }
+        .keyboardDoneToolbar(focusedField: $focusedIngredientId)
         .nativeFormActionToolbar(
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
@@ -249,174 +258,145 @@ struct MealFormScreen: View {
             onCancel: onCancel,
             onSubmit: onSubmit
         )
-        .sheet(item: $quickFood) { request in
-            NavigationView {
-                QuickFoodEditorSheet(
-                    repository: repository,
-                    foodId: request.foodId,
-                    onSaved: { id in
+        .sheet(item: $picker) { request in
+            NutritionSelectionSheet(
+                title: request.replacingStableId == nil ? "Add ingredient" : "Change food",
+                searchPrompt: "Search foods",
+                items: foods,
+                name: \.name,
+                caption: NutritionSelectionCaption.food,
+                newItemTitle: "New food",
+                onSelect: { food in apply(request, foodId: food.id) },
+                newItemForm: {
+                    QuickFoodEditorSheet(repository: repository, foodId: nil) { id in
+                        picker = nil
                         Task {
                             await reloadOptions()
-                            if let stableId = request.ingredientStableId {
-                                form.updateIngredient(stableId: stableId, foodId: id)
-                            }
+                            apply(request, foodId: id)
                         }
                     }
-                )
-            }
-            .navigationViewStyle(.stack)
+                }
+            )
         }
-    }
-
-    private var textFields: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Meal name").font(.subheadline.weight(.semibold))
-                TextField("e.g. Breakfast bowl", text: Binding(
-                    get: { form.name },
-                    set: { form.name = String($0.prefix(160)) }
-                ))
-                .textInputAutocapitalization(.words)
-                .disableAutocorrection(false)
-                .padding(12)
-                .nutritionGlassField()
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Description")
-                    .font(.subheadline.weight(.semibold))
-                TextEditor(text: Binding(
-                    get: { form.mealDescription },
-                    set: { form.mealDescription = String($0.prefix(1_000)) }
-                ))
-                .frame(minHeight: 90)
-                .padding(8)
-                .nutritionGlassField()
-                Text("Optional prep notes or serving ideas.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
+        .sheet(item: $quickFood) { request in
+            NavigationStack {
+                QuickFoodEditorSheet(repository: repository, foodId: request.foodId) { _ in
+                    Task { await reloadOptions() }
+                }
             }
         }
     }
 
     private var ingredients: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Ingredients")
-                    .font(.subheadline.weight(.semibold))
-                Text("Pick from your private foods and public foods. Use arrows to keep a stable order.")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            if form.ingredients.isEmpty {
-                Text("Add at least one food to define this meal template.")
-                    .font(.subheadline)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
-            }
+        FormSection(
+            header: "Ingredients",
+            footer: form.ingredients.isEmpty
+                ? "Add at least one food. Totals use each food's current values."
+                : "Totals use each food's current values. Long-press a row to reorder."
+        ) {
             ForEach(Array(form.ingredients.enumerated()), id: \.element.stableId) { index, ingredient in
-                MealIngredientEditorRow(
+                if index > 0 { RowSeparator() }
+                MealIngredientRow(
                     index: index,
                     ingredient: ingredient,
-                    foods: foods,
+                    food: foods.first { $0.id == ingredient.foodId },
                     isSubmitting: isSubmitting,
                     form: form,
                     focusedIngredientId: $focusedIngredientId,
-                    createFood: { quickFood = QuickFoodSheetRequest(ingredientStableId: ingredient.stableId) },
-                    editFood: { foodId in quickFood = QuickFoodSheetRequest(foodId: foodId, ingredientStableId: ingredient.stableId) }
+                    changeFood: { picker = IngredientPickerRequest(replacingStableId: ingredient.stableId) },
+                    editFood: { foodId in quickFood = QuickFoodSheetRequest(foodId: foodId) }
                 )
             }
-            Button {
-                form.addIngredient()
-            } label: {
-                Label("Add food", systemImage: "plus")
-                    .frame(maxWidth: .infinity)
+            if !form.ingredients.isEmpty { RowSeparator() }
+            FormActionRow(title: "Add ingredient", isDisabled: isSubmitting) {
+                picker = IngredientPickerRequest(replacingStableId: nil)
             }
-            .buttonStyle(NeoGymSecondaryButtonStyle())
-            .disabled(isSubmitting)
+        }
+    }
+
+    private func apply(_ request: IngredientPickerRequest, foodId: String) {
+        if let stableId = request.replacingStableId {
+            form.updateIngredient(stableId: stableId, foodId: foodId)
+        } else {
+            form.addIngredient(foodId: foodId)
         }
     }
 }
 
-private struct MealIngredientEditorRow: View {
+private struct IngredientPickerRequest: Identifiable {
+    let id = UUID()
+    /// The ingredient whose food changes; `nil` adds a new ingredient.
+    let replacingStableId: String?
+}
+
+private struct MealIngredientRow: View {
     let index: Int
     let ingredient: MealIngredientFormValues
-    let foods: [Food]
+    let food: Food?
     let isSubmitting: Bool
     @ObservedObject var form: MealFormModel
     let focusedIngredientId: FocusState<String?>.Binding
-    let createFood: () -> Void
+    let changeFood: () -> Void
     let editFood: (String) -> Void
 
-    private var selectedFood: Food? { foods.first { $0.id == ingredient.foodId } }
+    private var displayName: String { food?.name ?? "Choose a food" }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Ingredient \(index + 1)")
-                    .font(.caption.weight(.bold))
-                    .textCase(.uppercase)
-                    .foregroundColor(NeoGymTheme.mutedText)
-                Spacer()
-                Button { form.moveIngredient(stableId: ingredient.stableId, direction: -1) } label: {
-                    Image(systemName: "arrow.up")
-                }
-                .accessibilityLabel("Move ingredient up")
-                .disabled(index == 0 || isSubmitting)
-                Button { form.moveIngredient(stableId: ingredient.stableId, direction: 1) } label: {
-                    Image(systemName: "arrow.down")
-                }
-                .accessibilityLabel("Move ingredient down")
-                .disabled(index == form.ingredients.count - 1 || isSubmitting)
-                Button(role: .destructive) { form.removeIngredient(stableId: ingredient.stableId) } label: {
-                    Image(systemName: "trash")
-                }
-                .accessibilityLabel("Remove ingredient")
-                .disabled(isSubmitting)
+        FormRow {
+            FormRemoveButton(accessibilityLabel: "Remove \(displayName)", isDisabled: isSubmitting) {
+                form.removeIngredient(stableId: ingredient.stableId)
             }
-
-            FoodPickerView(
-                foods: foods,
-                foodId: Binding(
-                    get: { ingredient.foodId },
-                    set: { form.updateIngredient(stableId: ingredient.stableId, foodId: $0) }
-                ),
-                disabled: isSubmitting,
-                revealWheelOnDemand: true
-            )
-
-            HStack(spacing: 8) {
-                Button("New food", action: createFood)
-                    .buttonStyle(.bordered)
-                if let selectedFood, !selectedFood.isPublic {
-                    Button("Edit selected", action: { editFood(selectedFood.id) })
-                        .buttonStyle(.bordered)
+            Button(action: changeFood) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(displayName)
+                        .foregroundStyle(food == nil ? NeoGymTheme.accentText : NeoGymTheme.text)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    if let food {
+                        Text(EntryMacroCaption.text(
+                            NutritionMath.macrosForGrams(input: food.macroFields, grams: .string(ingredient.grams))
+                        ))
+                        .font(.footnote)
+                        .monospacedDigit()
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
             .disabled(isSubmitting)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Grams").font(.subheadline.weight(.semibold))
-                HStack {
-                    TextField("100", text: Binding(
-                        get: { ingredient.grams },
-                        set: { form.updateIngredient(stableId: ingredient.stableId, grams: $0) }
-                    ))
-                    .keyboardType(.decimalPad)
-                    .numericFieldFocus(ingredient.stableId, focusedField: focusedIngredientId)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    Text("g")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-                }
-                .padding(12)
-                .nutritionGlassField()
-            }
+            .accessibilityHint("Changes the food")
+            FormNumberField(
+                accessibilityLabel: "\(displayName) grams",
+                text: Binding(
+                    get: { ingredient.grams },
+                    set: { form.updateIngredient(stableId: ingredient.stableId, grams: $0) }
+                ),
+                unit: "g",
+                placeholder: "100",
+                field: ingredient.stableId,
+                focusedField: focusedIngredientId
+            )
         }
-        .padding(12)
-        .nutritionGlassCard(cornerRadius: 14, tint: NeoGymTheme.glassSubtleFill)
+        .contextMenu { menu }
+        .accessibilityActions { menu }
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        Button("Change food", systemImage: "arrow.left.arrow.right", action: changeFood)
+        if let food, !food.isPublic {
+            Button("Edit food", systemImage: "pencil") { editFood(food.id) }
+        }
+        Button("Move up", systemImage: "arrow.up") {
+            form.moveIngredient(stableId: ingredient.stableId, direction: -1)
+        }
+        .disabled(index == 0)
+        Button("Move down", systemImage: "arrow.down") {
+            form.moveIngredient(stableId: ingredient.stableId, direction: 1)
+        }
+        .disabled(index == form.ingredients.count - 1)
     }
 }
 
@@ -460,7 +440,6 @@ struct QuickFoodEditorSheet: View {
             default:
                 if let form {
                     FoodFormScreen(
-                        title: foodId == nil ? "New food" : "Edit food",
                         submitLabel: foodId == nil ? "Create food" : "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading,

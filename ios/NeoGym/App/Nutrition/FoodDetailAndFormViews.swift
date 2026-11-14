@@ -35,8 +35,7 @@ struct FoodDetailView: View {
         .navigationTitle("Food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItemGroup(placement: .bottomBar) {
-                Spacer()
+            ToolbarItemGroup(placement: .topBarTrailing) {
                 if let food = viewModel.food, food.canEdit(currentUserId: currentUserId) {
                     NavigationLink {
                         FoodEditView(
@@ -53,8 +52,9 @@ struct FoodDetailView: View {
                             }
                         )
                     } label: {
-                        Label("Edit food", systemImage: "pencil")
+                        Text("Edit")
                     }
+                    .accessibilityLabel("Edit food")
                 }
             }
         }
@@ -89,7 +89,7 @@ struct FoodDetailView: View {
                                     + "if you need a custom variant."
                             )
                             .font(.caption)
-                                .foregroundColor(NeoGymTheme.mutedText)
+                                .foregroundColor(NeoGymTheme.textSecondary)
                         }
                         MacroPer100gGrid(food: food)
                     }
@@ -120,12 +120,12 @@ private struct MacroPer100gGrid: View {
 
     private func tile(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption2).foregroundColor(NeoGymTheme.mutedText)
+            Text(label).font(.caption2).foregroundColor(NeoGymTheme.textSecondary)
             Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .nutritionGlassCard(cornerRadius: 12, tint: NeoGymTheme.glassSubtleFill)
+        .insetCard(cornerRadius: 12, fill: NeoGymTheme.inset)
     }
 }
 
@@ -149,7 +149,6 @@ struct FoodCreateView: View {
 
     var body: some View {
         FoodFormScreen(
-            title: "New food",
             submitLabel: "Create food",
             form: form,
             isSubmitting: editor.saveState.isLoading,
@@ -222,7 +221,6 @@ struct FoodEditView: View {
                     .padding(20)
                 } else if let form {
                     FoodFormScreen(
-                        title: "Edit food",
                         submitLabel: "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
@@ -248,9 +246,9 @@ struct FoodEditView: View {
                 }
             }
         }
-        .alert("Delete this food?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this food?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete food", role: .destructive) { deleteFood() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(
                 "Food used by meal templates or nutrition plan food entries cannot be deleted "
@@ -282,14 +280,13 @@ struct FoodEditView: View {
 struct FoodFormScreen: View {
     private enum NumericField: Hashable {
         case calories
-        case fat
-        case carbs
         case protein
+        case carbs
+        case fat
         case fiber
         case sugar
     }
 
-    let title: String
     let submitLabel: String
     @ObservedObject var form: FoodFormModel
     let isSubmitting: Bool
@@ -301,52 +298,43 @@ struct FoodFormScreen: View {
     @FocusState private var focusedField: NumericField?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title, subtitle: "Nutrition per 100 g") {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Food name").font(.subheadline.weight(.semibold))
-                        TextField("e.g. Greek yogurt", text: Binding(
-                            get: { form.name },
-                            set: { form.name = String($0.prefix(160)) }
-                        ))
-                        .textInputAutocapitalization(.words)
-                        .disableAutocorrection(false)
-                        .padding(12)
-                        .nutritionGlassField()
-                    }
-
-                    Text("Store nutrients using the canonical per-100g values from the package label.")
-                        .font(.caption)
-                        .foregroundColor(NeoGymTheme.mutedText)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        nutrientField("Calories", unit: "kcal", text: $form.kcalPer100g, field: .calories)
-                        nutrientField("Fat", unit: "g", text: $form.fatPer100g, field: .fat)
-                        nutrientField("Carbs", unit: "g", text: $form.carbsPer100g, field: .carbs)
-                        nutrientField("Protein", unit: "g", text: $form.proteinPer100g, field: .protein)
-                        nutrientField("Fiber", unit: "g", text: $form.fiberPer100g, field: .fiber)
-                        nutrientField("Sugar", unit: "g", text: $form.sugarPer100g, field: .sugar)
-                    }
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete food",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
+        FormScrollContainer {
+            FormSection {
+                FormRow {
+                    TextField("Food name", text: Binding(
+                        get: { form.name },
+                        set: { form.name = String($0.prefix(160)) }
+                    ))
+                    .textInputAutocapitalization(.words)
+                    .accessibilityLabel("Food name")
                 }
             }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 24)
-            .frame(maxWidth: .infinity)
+            FormSection(
+                header: "Per 100 g",
+                footer: "Copy the per-100 g values from the package label. New foods are private; "
+                    + "public foods are read-only, so make a private copy to change one."
+            ) {
+                nutrientRow("Energy", unit: "kcal", text: $form.kcalPer100g, field: .calories)
+                RowSeparator()
+                nutrientRow("Protein", unit: "g", text: $form.proteinPer100g, field: .protein)
+                RowSeparator()
+                nutrientRow("Carbs", unit: "g", text: $form.carbsPer100g, field: .carbs)
+                RowSeparator()
+                nutrientRow("Fat", unit: "g", text: $form.fatPer100g, field: .fat)
+                RowSeparator()
+                nutrientRow("Fiber", unit: "g", text: $form.fiberPer100g, field: .fiber)
+                RowSeparator()
+                nutrientRow("Sugar", unit: "g", text: $form.sugarPer100g, field: .sugar)
+            }
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(title: "Delete food", isDisabled: isSubmitting, action: deleteAction)
+                    .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
+        .keyboardDoneToolbar(focusedField: $focusedField)
         .nativeFormActionToolbar(
             submitLabel: submitLabel,
             isSubmitting: isSubmitting,
@@ -356,27 +344,7 @@ struct FoodFormScreen: View {
         )
     }
 
-    private func nutrientField(
-        _ label: String,
-        unit: String,
-        text: Binding<String>,
-        field: NumericField
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.subheadline.weight(.semibold))
-            HStack {
-                TextField("0", text: text)
-                    .keyboardType(.decimalPad)
-                    .numericFieldFocus(field, focusedField: $focusedField)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.mutedText)
-            }
-            .padding(12)
-            .nutritionGlassCard(cornerRadius: 12)
-        }
+    private func nutrientRow(_ title: String, unit: String, text: Binding<String>, field: NumericField) -> some View {
+        FormNumberRow(title: title, text: text, unit: unit, field: field, focusedField: $focusedField)
     }
-
 }

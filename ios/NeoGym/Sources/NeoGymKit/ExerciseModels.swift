@@ -49,6 +49,8 @@ public struct ExerciseListItem: Decodable, Identifiable, Sendable, Equatable, Ha
     public let level: String?
     public let isPublic: Bool
     public let secondaryMuscleGroups: [ExerciseSecondaryMuscle]
+    /// The first image, shown as the row thumbnail.
+    public let image1FileId: String?
 
     public init(
         id: String,
@@ -59,7 +61,8 @@ public struct ExerciseListItem: Decodable, Identifiable, Sendable, Equatable, Ha
         equipment: String? = nil,
         level: String? = nil,
         isPublic: Bool,
-        secondaryMuscleGroups: [ExerciseSecondaryMuscle] = []
+        secondaryMuscleGroups: [ExerciseSecondaryMuscle] = [],
+        image1FileId: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -70,6 +73,7 @@ public struct ExerciseListItem: Decodable, Identifiable, Sendable, Equatable, Ha
         self.level = level
         self.isPublic = isPublic
         self.secondaryMuscleGroups = secondaryMuscleGroups
+        self.image1FileId = image1FileId
     }
 }
 

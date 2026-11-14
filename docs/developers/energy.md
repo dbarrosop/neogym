@@ -86,15 +86,27 @@ Web Body and Energy writes invalidate the Today overview as well as their own
 list queries, for both desktop quick entry and full-page create, edit and delete.
 Energy writes also invalidate the nutrition energy-projection queries.
 
-The native iPhone app exposes Energy as a Nutrition subsection alongside
-Overview, Days, Plans, Foods, Meals, and Body. `NeoGymKit` owns the host-testable
+The native iPhone app exposes Energy as a Progress section alongside Overview,
+Muscles, Strength, and Body. Progress › Energy draws active (Chart 2, orange)
+and resting (Chart 1, blue) energy with today's partial row dashed to open dots, then
+the Calories card: a Consumed chart above a Net (consumed − out) chart, each
+with daily values and a trailing 7-day average. Today's partial intake is an
+open dot; the averages and net use full days with food logged only
+(`CalorieTrend`). Its entry list shows the latest five rows with a "5 of N"
+count from the list query's `dailyEnergyEntriesAggregate` and Load more (the
+first page holds 30 rows for the default 30-day chart, and the next page loads
+when the window passes the loaded rows). Progress ›
+Overview's Energy card repeats the 7-day average net with consumed and burned
+per day over the last 30 days. Energy charts open on the last 30 days. Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
 pure HealthKit grouping helpers shared with the watch; SwiftUI views under
 `ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
 active or resting HealthKit energy** or upload imported energy. Opening and
-pull-refreshing Energy loads the backend list; opening and refreshing Nutrition
-Overview reads backend energy for the balance and calorie chart. Manual energy
-CRUD remains available on iPhone. The watch app is the only automatic HealthKit
+pull-refreshing Energy loads the backend list and its calorie chart. Pull-to-refresh
+awaits both reads in parallel and keeps the selected calorie period, including its
+six warm-up days for rolling averages; a failed chart refresh retains its previous
+data with an error. Opening and refreshing Today reads backend energy for the balance
+card. Manual energy CRUD remains available on iPhone. The watch app is the only automatic HealthKit
 energy uploader for now, so users without a synced watch need manual entries.
 
 ## One-way watch HealthKit import
@@ -165,7 +177,7 @@ contract for today plus the 7-day average net. `NeoGymKit` owns the shared
 summary math, captions, snapshot DTO/store, and live-fetch/fallback orchestration;
 `ios/NeoGym/Sources/NeoGymKit/EnergyBalanceWidgetSnapshot.swift` stores only
 aggregate, preformatted snapshot fields in the App Group and never stores auth
-tokens. The app writes snapshots after successful Nutrition Overview loads,
+tokens. The app writes snapshots after successful fresh nutrition overview loads on Today,
 clears them on sign-out/signed-out bootstrap/auth errors/user switches, and asks
 WidgetKit to reload timelines. Nutrition mutations and Energy-list loads also ask
 WidgetKit to reload timelines so the widget can try a live server refresh after
@@ -221,7 +233,7 @@ estimated net = today's logged snapshot kcal - estimated burned
   feed them into historical charts/rolling actual net averages, or overwrite
   manual entries. No database or Hasura permission change is needed.
 
-Surfaces: native Nutrition Overview, today's nutrition day, Energy list and
+Surfaces: native Today, today's Nutrition › Log, Progress › Energy list and
 current-day detail; web Today (Balance card, beside yesterday's actual balance),
 today's daily log and Energy list/current-day detail; watch app Energy; and the
 medium iPhone Energy Balance widget. Energy pages
@@ -231,7 +243,7 @@ complication remains unchanged**, including its actual-burn/net math and reload
 identity.
 
 Native daily intake and watch reads include seven previous energy dates plus
-today. Native Overview keeps future-dated nutrition logs in its browsing list
+today. The native overview read behind Today keeps future-dated nutrition logs in its browsing list
 but separately selects recent past/current `balanceDays`, and excludes future
 energy rows from the bounded newest-first history, so future records cannot
 crowd today or its resting history out of the summary. The overview cache key
