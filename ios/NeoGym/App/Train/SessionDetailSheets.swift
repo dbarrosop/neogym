@@ -95,22 +95,21 @@ extension SessionDetailView {
                 didSave = await viewModel.addStrengthSet(
                     workoutSessionExerciseId: workoutSessionExerciseId,
                     reps: reps,
-                    weight: weight
+                    weight: weight,
+                    onInserted: {
+                        restTimer.start(
+                            label: "\(state.exerciseName) · set \(state.nextSetNumber + 1) next",
+                            sessionId: viewModel.sessionId
+                        )
+                        onMutated()
+                    }
                 )
-                if didSave {
-                    drafts[workoutSessionExerciseId] = nil
-                    restTimer.start(
-                        label: "\(state.exerciseName) · set \(state.nextSetNumber + 1) next",
-                        sessionId: viewModel.sessionId
-                    )
-                }
+                if didSave { drafts[workoutSessionExerciseId] = nil }
             case let .edit(set):
                 didSave = await viewModel.updateStrengthSet(id: set.id, reps: reps, weight: weight)
+                if didSave { onMutated() }
             }
-            if didSave {
-                editingSet = nil
-                onMutated()
-            }
+            if didSave { editingSet = nil }
         }
     }
 

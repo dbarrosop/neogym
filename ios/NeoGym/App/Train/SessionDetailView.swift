@@ -262,10 +262,17 @@ extension SessionDetailView {
         loggingRowId = row.id
         Task {
             defer { loggingRowId = nil }
-            if await viewModel.addStrengthSet(workoutSessionExerciseId: row.id, reps: draft.reps, weight: draft.weight) {
+            let didSave = await viewModel.addStrengthSet(
+                workoutSessionExerciseId: row.id,
+                reps: draft.reps,
+                weight: draft.weight,
+                onInserted: {
+                    restTimer.start(label: "\(row.exercise.name) · set \(nextNumber + 1) next", sessionId: viewModel.sessionId)
+                    onMutated()
+                }
+            )
+            if didSave {
                 drafts[row.id] = NextSetDraft.remainingAfterLogging(current: drafts[row.id], submitted: submittedDraft)
-                restTimer.start(label: "\(row.exercise.name) · set \(nextNumber + 1) next", sessionId: viewModel.sessionId)
-                onMutated()
             }
         }
     }
