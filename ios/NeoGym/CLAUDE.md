@@ -512,8 +512,11 @@ section records how the iPhone app implements it.
   `MeSection`) feed `AreaSectionPicker`, a segmented `Picker` injected through
   the `areaSectionHeader` environment value and rendered by
   `AreaSectionHeader()` as the first element of each section's scroll content,
-  so it sits under the large title. Section and Train path state live in the
-  shell so other tabs can switch sections or open a session. Each section's
+  so it sits under the large title. Section state and the Train, Nutrition and
+  Progress paths live in the shell. Today's explicit section shortcuts clear
+  the destination path before selecting its tab, including when that section
+  is already selected behind a detail; ordinary tab switches preserve history.
+  Other tabs can also open a session. Each section's
   create/log action is a top-trailing `+` (`AreaPrimaryAction`); Today's `+` is
   a quick-log menu. Pushed routes use typed enums (`TrainRoute`,
   `NutritionRoute`, `ProgressRoute`, `MeRoute`) through

@@ -16,12 +16,12 @@ struct ProgressNavigationView: View {
     let currentUserId: String?
     /// Bumped by the shell after training mutations elsewhere.
     let trainingRevision: Int
+    @Binding var path: [ProgressRoute]
     @Binding var section: ProgressSection
     let onSessionStarted: (String) -> Void
 
     @StateObject private var muscleModel: MuscleSetProgressViewModel
     @StateObject private var strengthModel: StrengthProgressViewModel
-    @State private var path: [ProgressRoute] = []
     @State private var reloadToken = 0
     @State private var muscleLoadedToken: Int?
     @State private var strengthLoadedToken: Int?
@@ -36,6 +36,7 @@ struct ProgressNavigationView: View {
         nutritionRepository: any NutritionFoodMealRepositoryProtocol,
         currentUserId: String?,
         trainingRevision: Int,
+        path: Binding<[ProgressRoute]>,
         section: Binding<ProgressSection>,
         onSessionStarted: @escaping (String) -> Void
     ) {
@@ -48,6 +49,7 @@ struct ProgressNavigationView: View {
         self.nutritionRepository = nutritionRepository
         self.currentUserId = currentUserId
         self.trainingRevision = trainingRevision
+        _path = path
         _section = section
         self.onSessionStarted = onSessionStarted
         _muscleModel = StateObject(wrappedValue: MuscleSetProgressViewModel(repository: sessionsRepository))

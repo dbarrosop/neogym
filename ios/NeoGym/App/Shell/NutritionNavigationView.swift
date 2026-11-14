@@ -7,12 +7,12 @@ import WidgetKit
 struct NutritionNavigationView: View {
     let repository: any NutritionFoodMealRepositoryProtocol
     let currentUserId: String?
+    @Binding var path: [NutritionRoute]
     @Binding var section: NutritionSection
     /// Bumped by the shell when another tab logged nutrition.
     let nutritionRevision: Int
     let onNutritionMutated: () -> Void
 
-    @State private var path: [NutritionRoute] = []
     @State private var reloadToken = 0
 
     var body: some View {

@@ -14,6 +14,8 @@ struct AppShellView: View {
 
     @State private var selection: AppTab = .today
     @State private var trainPath: [TrainRoute] = []
+    @State private var nutritionPath: [NutritionRoute] = []
+    @State private var progressPath: [ProgressRoute] = []
     @State private var trainSection: TrainSection = .sessions
     @State private var nutritionSection: NutritionSection = .log
     @State private var progressSection: ProgressSection = .overview
@@ -36,6 +38,7 @@ struct AppShellView: View {
                 NutritionNavigationView(
                     repository: nutritionRepository,
                     currentUserId: userId,
+                    path: $nutritionPath,
                     section: $nutritionSection,
                     nutritionRevision: nutritionRevision,
                     onNutritionMutated: { nutritionRevision += 1 }
@@ -79,10 +82,12 @@ struct AppShellView: View {
                 },
                 openNutritionLog: {
                     nutritionSection = .log
+                    nutritionPath = []
                     selection = .nutrition
                 },
                 openProgress: { section in
                     progressSection = section
+                    progressPath = []
                     selection = .progress
                 },
                 nutritionLogged: { nutritionRevision += 1 }
@@ -118,6 +123,7 @@ struct AppShellView: View {
             nutritionRepository: nutritionRepository,
             currentUserId: userId,
             trainingRevision: trainingRevision,
+            path: $progressPath,
             section: $progressSection,
             onSessionStarted: openSession
         )
