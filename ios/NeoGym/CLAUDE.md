@@ -548,11 +548,22 @@ section records how the iPhone app implements it.
   route on the next runloop tick, so Back returns to the section root; do not
   add a `removeLast()` there. Cross-tab invalidation uses shell revisions
   (`trainingRevision`, `nutritionRevision`) passed down as reload tokens.
-- **Rest timer and live session**: one shell-owned `RestTimerController`
-  (`App/Shell/RestTimerController.swift`) holds a NeoGymKit
-  `RestTimerSchedule`, mirrors it into the rest Live Activity (updated, not
-  restarted, on +30 s) and a local notification, and restores a still-running
-  rest after relaunch. `RestTimerAccessory` is the `.tabViewBottomAccessory`
+- **Rest timer and live session**: `NeoGymKit.RestTimerAccountScope` owns one
+  per-owner `RestTimerController` and supplies it to the shell. Only a matching
+  signed-in owner can restore a running rest; ownerless legacy and other-owner
+  schedules are removed. A session without a usable owner ID gets an inert timer
+  while the shell remains usable. The app binds the scope to `AuthStore` and calls
+  `endSession()` from its snapshot-clear handler, clearing persisted state,
+  pending/delivered notifications and Live Activities on sign-out (before the
+  remote request), definitive session loss, auth errors and account switches,
+  even without a mounted shell. Invalidated controllers ignore late old-view
+  callbacks. Same-owner refreshes, relaunches and tab switches retain the rest.
+  The host-testable core uses `Task.sleep(nanoseconds:)` to preserve the package's
+  macOS 12/iOS 15/watchOS 8 floors; the Duration overload requires newer OSes.
+  `RestTimerSystemEffects` (`App/Shell/RestTimerController.swift`) mirrors the
+  schedule into a local notification and a Live Activity (updated, not restarted,
+  on +30 s), guards delayed notification authorization and orders activity cleanup
+  after earlier operations. `RestTimerAccessory` is the `.tabViewBottomAccessory`
   content, enabled while a session is in the Train stack or a rest runs: it
   shows the countdown with +30 s and Skip (only Skip in the inline placement)
   and opens the session on tap. Logging a set starts the default rest

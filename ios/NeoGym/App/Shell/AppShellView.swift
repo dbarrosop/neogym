@@ -26,7 +26,7 @@ struct AppShellView: View {
     /// Today and Progress revalidate their cached reads.
     @State private var trainingRevision = 0
     @State private var nutritionRevision = 0
-    @StateObject private var restTimer = RestTimerController()
+    @ObservedObject var restTimer: RestTimerController
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -211,7 +211,8 @@ struct AppShellView: View {
         environment: NhostClientFactory.makeEnvironment(),
         isSigningOut: false,
         changeEmailModel: nil,
-        signOut: {}
+        signOut: {},
+        restTimer: RestTimerController(ownerId: "preview", effects: RestTimerSystemEffects())
     )
     .environmentObject(AuthStore(authService: NeoGymPreviewAuthService(), autoBootstrap: false))
     .environmentObject(PhoneAccountConnectivity(patService: NhostWatchPATService(client: NhostClientFactory.makeClient())))

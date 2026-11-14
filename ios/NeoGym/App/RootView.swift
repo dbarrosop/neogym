@@ -9,6 +9,7 @@ enum AuthScreen {
 
 struct RootView: View {
     let appEnvironment: AppEnvironment
+    @ObservedObject var restTimers: RestTimerAccountScope
 
     @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
@@ -25,15 +26,20 @@ struct RootView: View {
             case .signedOut:
                 signedOutView
             case let .signedIn(session):
-                AppShellView(
-                    session: session,
-                    environment: appEnvironment,
-                    isSigningOut: isSigningOut,
-                    changeEmailModel: changeEmailModel,
-                    signOut: signOut
-                )
-                // A different account gets fresh tabs, sync models and paths.
-                .id(session.user?.id)
+                if let restTimer = restTimers.timer, restTimer.ownerId == session.user?.id {
+                    AppShellView(
+                        session: session,
+                        environment: appEnvironment,
+                        isSigningOut: isSigningOut,
+                        changeEmailModel: changeEmailModel,
+                        signOut: signOut,
+                        restTimer: restTimer
+                    )
+                    // A different account gets fresh tabs, sync models and paths.
+                    .id(session.user?.id)
+                } else {
+                    LoadingView()
+                }
             case let .error(message):
                 ErrorCard(message: message) {
                     authStore.start()
@@ -241,7 +247,10 @@ private struct RootStateLayout<ActionPanel: View>: View {
 }
 
 #Preview {
-    RootView(appEnvironment: NhostClientFactory.makeEnvironment())
+    RootView(
+        appEnvironment: NhostClientFactory.makeEnvironment(),
+        restTimers: RestTimerAccountScope(effects: RestTimerSystemEffects())
+    )
         .environmentObject(AuthStore(authService: PreviewAuthService(), autoBootstrap: false))
         .environmentObject(AuthCallbackURLRouter())
 }

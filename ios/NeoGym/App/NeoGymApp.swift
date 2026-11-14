@@ -8,6 +8,7 @@ struct NeoGymApp: App {
     private let appEnvironment: AppEnvironment
     private let notificationDelegate: NeoGymNotificationDelegate
     @StateObject private var authStore: AuthStore
+    @StateObject private var restTimers: RestTimerAccountScope
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
     @StateObject private var phoneConnectivity: PhoneAccountConnectivity
     @Environment(\.scenePhase) private var scenePhase
@@ -17,10 +18,16 @@ struct NeoGymApp: App {
         let notificationDelegate = NeoGymNotificationDelegate()
         self.appEnvironment = appEnvironment
         self.notificationDelegate = notificationDelegate
+        let restTimers = RestTimerAccountScope(effects: RestTimerSystemEffects())
         let authStore = AuthStore(
             authService: appEnvironment.authService,
-            snapshotClearHandler: { _ in Self.clearEnergyBalanceWidgetSnapshot() }
+            snapshotClearHandler: { _ in
+                restTimers.endSession()
+                Self.clearEnergyBalanceWidgetSnapshot()
+            }
         )
+        restTimers.bind(to: authStore)
+        _restTimers = StateObject(wrappedValue: restTimers)
         let phoneConnectivity = PhoneAccountConnectivity(patService: NhostWatchPATService(client: appEnvironment.client))
         _authStore = StateObject(wrappedValue: authStore)
         _phoneConnectivity = StateObject(wrappedValue: phoneConnectivity)
@@ -36,7 +43,7 @@ struct NeoGymApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(appEnvironment: appEnvironment)
+            RootView(appEnvironment: appEnvironment, restTimers: restTimers)
                 .environmentObject(authStore)
                 .environmentObject(authCallbackURLRouter)
                 .environmentObject(phoneConnectivity)
