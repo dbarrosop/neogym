@@ -243,7 +243,7 @@ private struct WorkoutFormScreen: View {
                     moveUp: { form.moveExerciseUp(rowId: exercise.rowId) },
                     moveDown: { form.moveExerciseDown(rowId: exercise.rowId) }
                 )
-                RowSeparator(leadingInset: 52)
+                RowSeparator(leadingInset: 112)
             }
             FormActionRow(title: "Add exercise", isDisabled: isSubmitting) {
                 pickerOpen = true
@@ -266,6 +266,7 @@ private struct WorkoutFormExerciseRowView: View {
     var body: some View {
         FormRow {
             FormRemoveButton(accessibilityLabel: "Remove \(exercise.name)", isDisabled: isDisabled, action: remove)
+            ExerciseThumbnail(fileId: exercise.image1FileId)
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name)
                     .lineLimit(2)

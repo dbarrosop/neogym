@@ -179,6 +179,8 @@ public struct WorkoutFormExerciseRow: Identifiable, Sendable, Equatable, Hashabl
     public let name: String
     public let primaryMuscleGroup: String
     public let doubleWeight: Bool
+    /// The exercise's first image, for the editor row thumbnail.
+    public let image1FileId: String?
 
     public var id: String { rowId }
 
@@ -187,13 +189,15 @@ public struct WorkoutFormExerciseRow: Identifiable, Sendable, Equatable, Hashabl
         exerciseId: String,
         name: String,
         primaryMuscleGroup: String,
-        doubleWeight: Bool
+        doubleWeight: Bool,
+        image1FileId: String? = nil
     ) {
         self.rowId = rowId
         self.exerciseId = exerciseId
         self.name = name
         self.primaryMuscleGroup = primaryMuscleGroup
         self.doubleWeight = doubleWeight
+        self.image1FileId = image1FileId
     }
 }
 
@@ -243,7 +247,8 @@ public extension WorkoutFormExerciseRow {
             exerciseId: row.exercise.id,
             name: row.exercise.name,
             primaryMuscleGroup: row.exercise.primaryMuscleGroup,
-            doubleWeight: row.exercise.strength?.doubleWeight ?? false
+            doubleWeight: row.exercise.strength?.doubleWeight ?? false,
+            image1FileId: row.exercise.image1FileId
         )
     }
 
@@ -253,7 +258,8 @@ public extension WorkoutFormExerciseRow {
             exerciseId: pickerExercise.id,
             name: pickerExercise.name,
             primaryMuscleGroup: pickerExercise.primaryMuscleGroup,
-            doubleWeight: pickerExercise.strength?.doubleWeight ?? false
+            doubleWeight: pickerExercise.strength?.doubleWeight ?? false,
+            image1FileId: pickerExercise.image1FileId
         )
     }
 }

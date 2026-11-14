@@ -77,12 +77,34 @@ public enum SessionLogging {
 
     /// Compact "last 135 × 10 · 9 · 8" for the trailing side of a collapsed card.
     public static func lastTimeTrailing(_ lastTime: SessionPriorStrengthEntry?) -> String? {
-        guard let sets = lastTime?.sets, let first = sets.first else { return nil }
+        guard let lastTime, let summary = setsSummary(lastTime.sets) else { return nil }
+        return "last " + summary
+    }
+
+    /// "95 × 12 · 11 · 10" (or "95 × 12 · 90 × 10" when the weight changes),
+    /// without units, for "last time" and the current exercise's Recent list.
+    public static func setsSummary(_ sets: [SessionStrengthSet]) -> String? {
+        let ordered = sets.sorted { $0.setNumber < $1.setNumber }
+        guard let first = ordered.first else { return nil }
         let weight = first.weight == 0 ? "BW" : StrengthSetFormatting.formatWeight(first.weight)
-        if sets.allSatisfy({ $0.weight == first.weight }) {
-            return "last \(weight) × " + sets.map { String($0.reps) }.joined(separator: " · ")
+        if ordered.allSatisfy({ $0.weight == first.weight }) {
+            return "\(weight) × " + ordered.map { String($0.reps) }.joined(separator: " · ")
         }
-        return "last " + sets.map(StrengthSetFormatting.lastTimeCell).joined(separator: " · ")
+        return ordered.map(StrengthSetFormatting.lastTimeCell).joined(separator: " · ")
+    }
+
+    /// The current exercise's three most recent earlier sessions with sets,
+    /// newest first (the same-workout history when there is one).
+    public static func recentSessions(_ history: [SessionPriorStrengthEntry], limit: Int = 3) -> [SessionPriorStrengthEntry] {
+        Array(
+            history
+                .filter { !$0.sets.isEmpty }
+                .sorted {
+                    (ExerciseDateParser.parseTimestamp($0.startedAt) ?? .distantPast)
+                        > (ExerciseDateParser.parseTimestamp($1.startedAt) ?? .distantPast)
+                }
+                .prefix(limit)
+        )
     }
 
     /// Last time's set at the same position, for the per-set comparison column.

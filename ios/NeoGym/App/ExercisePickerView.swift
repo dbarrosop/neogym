@@ -123,7 +123,7 @@ struct ExercisePickerView: View {
                 .accessibilityAddTraits(.isHeader)
             LazyVStack(spacing: 0) {
                 ForEach(Array(exercises.enumerated()), id: \.element.id) { index, exercise in
-                    if index > 0 { RowSeparator(leadingInset: 52) }
+                    if index > 0 { RowSeparator(leadingInset: 112) }
                     ExercisePickerRow(exercise: exercise, isSelected: isPicked(exercise)) {
                         toggle(exercise)
                     }
@@ -166,16 +166,25 @@ private struct ExercisePickerRow: View {
     var body: some View {
         Button(action: toggle) {
             HStack(spacing: NeoGymTheme.spacingSM) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title2)
-                    .foregroundStyle(isSelected ? NeoGymTheme.accentText : NeoGymTheme.textTertiary)
-                    .frame(width: 24)
-                    .accessibilityHidden(true)
+                Group {
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(NeoGymTheme.onFill, NeoGymTheme.accent)
+                    } else {
+                        Image(systemName: "circle")
+                            .foregroundStyle(NeoGymTheme.textTertiary)
+                    }
+                }
+                .font(.title2)
+                .frame(width: 24)
+                .accessibilityHidden(true)
+                ExerciseThumbnail(fileId: exercise.image1FileId)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
                         .foregroundStyle(NeoGymTheme.text)
                         .multilineTextAlignment(.leading)
-                    Text(ExerciseFormatters.enumValue(exercise.primaryMuscleGroup))
+                    Text(caption)
                         .font(.footnote)
                         .foregroundStyle(NeoGymTheme.textSecondary)
                 }
@@ -197,5 +206,11 @@ private struct ExercisePickerRow: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+    }
+
+    /// Primary muscle, marked "Mine" for the user's private exercises.
+    private var caption: String {
+        let muscle = ExerciseFormatters.enumValue(exercise.primaryMuscleGroup)
+        return exercise.isPublic ? muscle : "\(muscle) · Mine"
     }
 }

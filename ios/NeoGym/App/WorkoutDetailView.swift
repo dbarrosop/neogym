@@ -160,11 +160,10 @@ struct WorkoutDetailView: View {
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(workout.workoutExercises.enumerated()), id: \.element.id) { index, row in
-                    if index > 0 { RowSeparator(leadingInset: 52) }
+                    if index > 0 { RowSeparator(leadingInset: 76) }
                     NavigationLink(value: TrainRoute.exerciseDetail(row.exercise.id)) {
                         WorkoutExerciseDetailRow(
                             row: row,
-                            index: index,
                             lastTopSet: viewModel.insights?.lastTopSetByExercise[row.exercise.id]
                         )
                     }
@@ -186,18 +185,11 @@ struct WorkoutDetailView: View {
 
 private struct WorkoutExerciseDetailRow: View {
     let row: WorkoutExerciseRow
-    let index: Int
     let lastTopSet: String?
 
     var body: some View {
         HStack(spacing: NeoGymTheme.spacingSM) {
-            Text("\(index + 1)")
-                .font(.footnote.bold())
-                .monospacedDigit()
-                .foregroundStyle(NeoGymTheme.textSecondary)
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(NeoGymTheme.fill))
-                .accessibilityHidden(true)
+            ExerciseThumbnail(fileId: row.exercise.image1FileId)
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.exercise.name)
                     .font(.body.weight(.semibold))

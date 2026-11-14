@@ -58,6 +58,7 @@ struct AppShellView: View {
         .tabViewBottomAccessory(isEnabled: showsAccessory) {
             RestTimerAccessory(timer: restTimer, openSessionId: openSessionId, onOpenSession: openSession)
         }
+        .environment(\.storageBaseURL, environment.client.serviceURLs.storage)
     }
 
     private var todayTab: some View {

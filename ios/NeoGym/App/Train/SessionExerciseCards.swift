@@ -13,6 +13,8 @@ struct StrengthExerciseCard: View {
     let index: Int
     let isExpanded: Bool
     let lastTime: SessionPriorStrengthEntry?
+    /// Up to three earlier sessions with sets, newest first, for the open card.
+    let recent: [SessionPriorStrengthEntry]
     @Binding var draft: NextSetDraft
     let isLogging: Bool
     let isMutating: Bool
@@ -40,6 +42,7 @@ struct StrengthExerciseCard: View {
                 actions: actions
             )
             if isExpanded {
+                SessionExerciseMedia(exercise: row.exercise, recent: recent)
                 ForEach(Array(sets.enumerated()), id: \.element.id) { offset, set in
                     loggedSetRow(set, lastTimeSet: SessionLogging.lastTimeSet(at: offset, lastTime: lastTime))
                 }
@@ -248,7 +251,8 @@ struct CardioExerciseCard: View {
     }
 }
 
-/// Status, name, muscle chip, and the expand and options controls.
+/// Thumbnail (collapsed only), name over muscle, the status badge, and the
+/// options menu. The open card drops the thumbnail for its larger image.
 struct ExerciseCardHeader: View {
     let row: SessionExerciseRow
     let index: Int
@@ -260,20 +264,21 @@ struct ExerciseCardHeader: View {
     var body: some View {
         HStack(spacing: 10) {
             Button(action: actions.toggle) {
-                HStack(spacing: 10) {
+                HStack(spacing: 12) {
+                    if !isExpanded {
+                        ExerciseThumbnail(fileId: row.exercise.image1FileId)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.exercise.name)
+                            .font(.headline)
+                            .foregroundStyle(NeoGymTheme.text)
+                            .multilineTextAlignment(.leading)
+                        Text(ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup))
+                            .font(.footnote)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     ExerciseStatusBadge(status: status, number: index + 1, isActive: isExpanded)
-                    Text(row.exercise.name)
-                        .font(.headline)
-                        .foregroundStyle(NeoGymTheme.text)
-                        .multilineTextAlignment(.leading)
-                    Spacer(minLength: NeoGymTheme.spacingXXS)
-                    Text(ExerciseFormatters.enumValue(row.exercise.primaryMuscleGroup))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(NeoGymTheme.textSecondary)
-                        .padding(.horizontal, NeoGymTheme.spacingXS)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(NeoGymTheme.fill))
-                        .lineLimit(1)
                 }
                 .contentShape(Rectangle())
             }
@@ -344,6 +349,76 @@ struct ExerciseStatusBadge: View {
         }
         .frame(width: 24, height: 24)
         .accessibilityHidden(true)
+    }
+}
+
+/// The open exercise's larger image, alternating between its frames, beside
+/// its three most recent earlier sessions. Either side is left out when the
+/// exercise has no images or no history.
+struct SessionExerciseMedia: View {
+    let exercise: SessionExerciseDetail
+    let recent: [SessionPriorStrengthEntry]
+
+    @Environment(\.storageBaseURL) private var storageBaseURL
+
+    private var imageURLs: [URL] {
+        guard let storageBaseURL else { return [] }
+        return [exercise.image1FileId, exercise.image2FileId].compactMap {
+            URL.nhostStorageFile(baseURL: storageBaseURL, fileId: $0)
+        }
+    }
+
+    var body: some View {
+        if !imageURLs.isEmpty || !recent.isEmpty {
+            AdaptiveRow(spacing: 10, alignment: .top) {
+                if !imageURLs.isEmpty {
+                    AlternatingStorageImageView(urls: imageURLs, aspectRatio: 1, cornerRadius: NeoGymTheme.radiusSM)
+                        .frame(width: 128, height: 128)
+                        .accessibilityHidden(true)
+                }
+                if !recent.isEmpty {
+                    recentBox
+                        .frame(minHeight: imageURLs.isEmpty ? nil : 128)
+                }
+            }
+        }
+    }
+
+    private var recentBox: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Recent", systemImage: "clock.arrow.circlepath")
+                .font(.caption2.weight(.bold))
+                .textCase(.uppercase)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+            Spacer(minLength: 0)
+            ForEach(recent) { entry in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(dateLabel(entry))
+                        .font(.caption)
+                        .foregroundStyle(NeoGymTheme.textSecondary)
+                        .frame(minWidth: 42, alignment: .leading)
+                    Text(SessionLogging.setsSummary(entry.sets) ?? "")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(NeoGymTheme.text)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            Spacer(minLength: 0)
+        }
+        .monospacedDigit()
+        .padding(.horizontal, NeoGymTheme.spacingSM)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .insetCard(cornerRadius: NeoGymTheme.radiusSM)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Recent sessions")
+    }
+
+    private func dateLabel(_ entry: SessionPriorStrengthEntry) -> String {
+        guard let date = ExerciseDateParser.parseTimestamp(entry.startedAt) else { return "" }
+        return date.formatted(.dateTime.day().month(.abbreviated))
     }
 }
 

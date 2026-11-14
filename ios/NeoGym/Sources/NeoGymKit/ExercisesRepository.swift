@@ -177,6 +177,7 @@ public extension ExercisesRepository {
         level
         isPublic
         secondaryMuscleGroups { muscleGroup }
+        image1FileId
       }
     }
     """
@@ -250,6 +251,7 @@ public extension ExercisesRepository {
         level
         isPublic
         secondaryMuscleGroups { muscleGroup }
+        image1FileId
       }
     }
     """

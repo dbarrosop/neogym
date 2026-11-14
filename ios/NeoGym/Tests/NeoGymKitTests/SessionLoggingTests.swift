@@ -84,6 +84,22 @@ final class SessionLoggingTests: XCTestCase {
         XCTAssertNil(SessionLogging.lastTimeSet(at: 3, lastTime: last))
     }
 
+    func testRecentSessionsKeepThreeNewestWithSets() {
+        let history = [
+            SessionPriorStrengthEntry(id: "a", startedAt: "2026-10-13T06:00:00Z", sets: [set(1, 12, 90), set(2, 12, 90), set(3, 11, 90)]),
+            SessionPriorStrengthEntry(id: "b", startedAt: "2026-10-28T06:00:00Z", sets: [set(2, 11, 95), set(1, 12, 95), set(3, 10, 95)]),
+            SessionPriorStrengthEntry(id: "c", startedAt: "2026-11-02T06:00:00Z", sets: []),
+            SessionPriorStrengthEntry(id: "d", startedAt: "2026-10-21T06:00:00Z", sets: [set(1, 11, 95), set(2, 10, 95), set(3, 10, 95)]),
+            SessionPriorStrengthEntry(id: "e", startedAt: "2026-10-06T06:00:00Z", sets: [set(1, 10, 90)])
+        ]
+        let recent = SessionLogging.recentSessions(history)
+        XCTAssertEqual(recent.map(\.id), ["b", "d", "a"])
+        XCTAssertEqual(SessionLogging.setsSummary(recent[0].sets), "95 × 12 · 11 · 10")
+        XCTAssertEqual(SessionLogging.setsSummary([set(1, 12, 95), set(2, 10, 90)]), "95 × 12 · 90 × 10")
+        XCTAssertEqual(SessionLogging.setsSummary([set(1, 20, 0), set(2, 15, 0)]), "BW × 20 · 15")
+        XCTAssertNil(SessionLogging.setsSummary([]))
+    }
+
     func testNextSetDraftPrefillsAndSteps() {
         let last = SessionPriorStrengthEntry(id: "l", startedAt: "", sets: [set(1, 12, 95)])
         var draft = NextSetDraft.suggested(currentSets: [], lastTime: last)

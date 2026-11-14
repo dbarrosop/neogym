@@ -252,6 +252,7 @@ public extension WorkoutsRepository {
             id
             name
             primaryMuscleGroup
+            image1FileId
             strength { doubleWeight }
           }
         }

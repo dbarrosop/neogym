@@ -558,6 +558,12 @@ section records how the iPhone app implements it.
   `App/Components/ListPrimitives.swift` (`SearchField`, `ListRow`,
   `RowSeparator`). `AdaptiveRow` stacks vertically at accessibility text sizes;
   use it for tiles and paired metrics instead of letting text truncate.
+- **Exercise images**: `ExerciseThumbnail` (`App/Components/StorageImageView.swift`)
+  reads the Storage base URL from the `storageBaseURL` environment value that
+  `AppShellView` sets, so rows need no URL plumbing; list, editor and session
+  queries select `image1FileId` (sessions also `image2FileId` for the open
+  card's alternating `AlternatingStorageImageView`). Storage files load with
+  plain `AsyncImage` GETs, as on exercise detail.
 - **Nutrition slots**: the Log timeline and plan detail share
   `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
   grams line with accent/series 2/secondary dots aligned under the title) and

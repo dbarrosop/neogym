@@ -204,7 +204,7 @@ private struct ExerciseRowsGroup: View {
                 ForEach(exercises) { exercise in
                     ExerciseRowLink(exercise: exercise, showMuscle: showMuscle)
                     if exercise.id != exercises.last?.id {
-                        Divider().overlay(NeoGymTheme.separator).padding(.leading, 68)
+                        Divider().overlay(NeoGymTheme.separator).padding(.leading, 76)
                     }
                 }
             }
@@ -220,12 +220,7 @@ private struct ExerciseRowLink: View {
     var body: some View {
         NavigationLink(value: TrainRoute.exerciseDetail(exercise.id)) {
             HStack(spacing: NeoGymTheme.spacingSM) {
-                Image(systemName: exercise.category == "cardio" ? "figure.run" : "dumbbell")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(NeoGymTheme.textSecondary)
-                    .frame(width: 40, height: 40)
-                    .background(RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM).fill(NeoGymTheme.fill))
-                    .accessibilityHidden(true)
+                ExerciseThumbnail(fileId: exercise.image1FileId)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(exercise.name)
                         .font(.body.weight(.semibold))

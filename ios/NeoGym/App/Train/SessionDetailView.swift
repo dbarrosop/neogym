@@ -194,6 +194,7 @@ struct SessionDetailView: View {
                 index: index,
                 isExpanded: isExpanded,
                 lastTime: lastTime,
+                recent: SessionLogging.recentSessions(viewModel.priorStrengthByExercise[row.exercise.id] ?? []),
                 draft: draftBinding(for: row, lastTime: lastTime),
                 isLogging: loggingRowId == row.id,
                 isMutating: viewModel.mutationState.isLoading,

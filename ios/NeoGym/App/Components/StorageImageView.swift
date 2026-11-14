@@ -1,8 +1,15 @@
 import SwiftUI
 
+extension EnvironmentValues {
+    /// Nhost Storage base URL for exercise images, set once by the app shell
+    /// so rows, pickers and editors can show thumbnails.
+    @Entry var storageBaseURL: URL?
+}
+
 struct StorageImageView: View {
     let url: URL?
     var aspectRatio: CGFloat = 16 / 9
+    var cornerRadius: CGFloat = 18
 
     var body: some View {
         Group {
@@ -10,7 +17,11 @@ struct StorageImageView: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        AppLoadingStateView(title: "Loading image")
+                        ZStack {
+                            NeoGymTheme.fill
+                            ProgressView()
+                                .accessibilityLabel("Loading image")
+                        }
                     case let .success(image):
                         image
                             .resizable()
@@ -26,9 +37,9 @@ struct StorageImageView: View {
             }
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .stroke(NeoGymTheme.separator)
         )
     }
@@ -37,6 +48,7 @@ struct StorageImageView: View {
 struct AlternatingStorageImageView: View {
     let urls: [URL]
     var aspectRatio: CGFloat = 16 / 9
+    var cornerRadius: CGFloat = 18
     var interval: TimeInterval = 2
 
     @State private var activeIndex = 0
@@ -46,17 +58,17 @@ struct AlternatingStorageImageView: View {
             if urls.isEmpty {
                 StorageImagePlaceholderView()
             } else if urls.count == 1 {
-                StorageImageView(url: urls[0], aspectRatio: aspectRatio)
+                StorageImageView(url: urls[0], aspectRatio: aspectRatio, cornerRadius: cornerRadius)
             } else {
                 TabView(selection: $activeIndex) {
                     ForEach(Array(urls.enumerated()), id: \.offset) { index, url in
-                        StorageImageView(url: url, aspectRatio: aspectRatio)
+                        StorageImageView(url: url, aspectRatio: aspectRatio, cornerRadius: cornerRadius)
                             .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .aspectRatio(aspectRatio, contentMode: .fit)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                 .overlay(alignment: .bottom) {
                     imagePageIndicator
                         .padding(.bottom, 6)
@@ -93,6 +105,48 @@ struct StorageImagePlaceholderView: View {
             }
             .foregroundColor(NeoGymTheme.textSecondary)
         }
+    }
+}
+
+/// The design's exercise row thumbnail: the exercise's first image cropped
+/// to fill a 48 pt square with radius 12, or the photo glyph on a well when
+/// there is none. Decorative: the row names the exercise.
+struct ExerciseThumbnail: View {
+    let fileId: String?
+    var size: CGFloat = 48
+
+    @Environment(\.storageBaseURL) private var storageBaseURL
+
+    private var url: URL? {
+        storageBaseURL.flatMap { URL.nhostStorageFile(baseURL: $0, fileId: fileId) }
+    }
+
+    var body: some View {
+        ZStack {
+            NeoGymTheme.background
+            if let url {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        glyph
+                    }
+                }
+            } else {
+                glyph
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: NeoGymTheme.radiusSM, style: .continuous))
+        .accessibilityHidden(true)
+    }
+
+    private var glyph: some View {
+        Image(systemName: "photo")
+            .font(.title3)
+            .foregroundStyle(NeoGymTheme.textTertiary)
     }
 }
 
