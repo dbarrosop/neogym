@@ -1,5 +1,6 @@
-import { Tag, X } from "lucide-react";
-import { useId, useMemo, useState } from "react";
+import { Tag as TagIcon } from "lucide-react";
+import { type ReactNode, useId, useMemo, useState } from "react";
+import { Tag } from "@/components/patterns/tag";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,10 @@ export interface LabelSuggestion {
   name: string;
 }
 
+/** The caption under the labels field (Web-JournalEditor). */
+export const LABEL_INPUT_HINT =
+  "Press Enter to add. Labels you already use are suggested as you type.";
+
 interface LabelInputProps {
   value: LabelSelection[];
   onChange: (labels: LabelSelection[]) => void;
@@ -32,6 +37,12 @@ interface LabelInputProps {
   suggestions: LabelSuggestion[];
   disabled?: boolean;
   placeholder?: string;
+  /** Field label; the boards say just "Labels". */
+  label?: string;
+  /** Show the secondary "Optional" suffix after the label (default true). */
+  optional?: boolean;
+  /** Caption under the field, linked as its description; `null` hides it. */
+  hint?: ReactNode;
 }
 
 export function LabelInput({
@@ -39,11 +50,15 @@ export function LabelInput({
   onChange,
   suggestions,
   disabled,
-  placeholder = "Add a label and press Enter",
+  placeholder = "Add label",
+  label = "Labels",
+  optional = true,
+  hint = LABEL_INPUT_HINT,
 }: LabelInputProps) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const inputId = useId();
+  const hintId = useId();
 
   const selectedNames = useMemo(() => new Set(value.map((l) => l.name)), [value]);
   const trimmedInput = normalizeLabel(input);
@@ -111,34 +126,28 @@ export function LabelInput({
     !filteredSuggestions.some((s) => s.name.toLowerCase() === trimmedInput.toLowerCase());
 
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={inputId} className="text-sm font-medium">
-        Labels
-        <span className="ml-2 text-xs font-normal text-muted-foreground">Optional</span>
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={inputId} className="text-[13px] font-semibold text-soft-foreground">
+        {label}
+        {optional ? (
+          <span className="ml-1.5 font-medium text-muted-foreground">Optional</span>
+        ) : null}
       </label>
       <div className="relative">
         <div
           className={cn(
-            "flex flex-wrap items-center gap-1.5 rounded-md border border-input bg-transparent px-2 py-1.5 text-sm shadow-xs transition focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
+            "flex min-h-11 flex-wrap items-center gap-1.5 rounded-[9px] border border-input bg-card px-2 py-1.5 transition focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
             disabled && "pointer-events-none opacity-50",
           )}
         >
-          {value.map((label) => (
-            <span
-              key={label.name}
-              className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+          {value.map((selection) => (
+            <Tag
+              key={selection.name}
+              onRemove={() => remove(selection.name)}
+              removeLabel={`Remove label ${selection.name}`}
             >
-              <Tag className="h-3 w-3" />
-              {label.name}
-              <button
-                type="button"
-                onClick={() => remove(label.name)}
-                aria-label={`Remove label ${label.name}`}
-                className="grid h-4 w-4 place-items-center rounded-full text-primary/70 hover:bg-primary/15 hover:text-primary"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
+              {selection.name}
+            </Tag>
           ))}
           <Input
             id={inputId}
@@ -147,10 +156,12 @@ export function LabelInput({
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 120)}
             onKeyDown={handleKeyDown}
-            placeholder={value.length === 0 ? placeholder : ""}
+            placeholder={placeholder}
+            aria-describedby={hint ? hintId : undefined}
             maxLength={LABEL_MAX_LEN}
             disabled={disabled}
-            className="h-7 min-w-[10ch] flex-1 border-0 bg-transparent px-1 py-0 shadow-none focus-visible:ring-0"
+            // 16 px below 768 px, like Input, so iOS Safari does not zoom in.
+            className="h-[30px] min-w-[120px] flex-1 border-0 bg-transparent px-1 py-0 text-base focus-visible:ring-0 md:text-sm"
           />
         </div>
         {(showSuggestions || showCreateHint) && (
@@ -165,7 +176,7 @@ export function LabelInput({
                   }}
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-accent"
                 >
-                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  <TagIcon className="h-3 w-3 text-muted-foreground" />
                   <span>{s.name}</span>
                 </button>
               </li>
@@ -180,7 +191,7 @@ export function LabelInput({
                   }}
                   className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-accent"
                 >
-                  <Tag className="h-3 w-3 text-muted-foreground" />
+                  <TagIcon className="h-3 w-3 text-muted-foreground" />
                   <span>
                     Create <span className="font-medium">"{trimmedInput}"</span>
                   </span>
@@ -190,6 +201,11 @@ export function LabelInput({
           </ul>
         )}
       </div>
+      {hint ? (
+        <p id={hintId} className="text-[13px] text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,16 +13,23 @@ import {
 interface ConfirmActionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** e.g. "Delete Lower A?" */
   title: ReactNode;
+  /** Consequences; end with "This can't be undone." when true. */
   description?: ReactNode;
   confirmLabel: ReactNode;
   onConfirm: () => void;
   isPending: boolean;
   cancelLabel?: ReactNode;
   pendingLabel?: ReactNode;
+  /** Filled red confirm button (deletes, removals); otherwise the primary fill. */
   destructive?: boolean;
 }
 
+/**
+ * Confirmation alert dialog (Web · Dialogs): no close button and no dismissal
+ * by clicking outside, focus starts on Cancel, Escape still cancels.
+ */
 export function ConfirmActionDialog({
   open,
   onOpenChange,
@@ -35,15 +42,27 @@ export function ConfirmActionDialog({
   pendingLabel = "Working…",
   destructive = false,
 }: ConfirmActionDialogProps) {
+  const cancelRef = useRef<HTMLButtonElement>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="md:max-w-md">
+      <DialogContent
+        role="alertdialog"
+        showClose={false}
+        className="max-w-[420px]"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          cancelRef.current?.focus();
+        }}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button
+            ref={cancelRef}
             type="button"
             variant="ghost"
             onClick={() => onOpenChange(false)}
@@ -59,7 +78,7 @@ export function ConfirmActionDialog({
           >
             {isPending ? (
               <>
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <Loader2 className="animate-spin" />
                 {pendingLabel}
               </>
             ) : (

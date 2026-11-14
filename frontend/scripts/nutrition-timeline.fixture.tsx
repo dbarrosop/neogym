@@ -121,8 +121,7 @@ function overview(): TodayOverviewQuery {
         ],
       },
     ],
-    yesterdayNutrition: [],
-    yesterdayEnergy: [],
+    todayEnergy: [],
     bodyMeasurements: [],
   };
 }
@@ -233,8 +232,8 @@ function isPrimary(section: HTMLElement) {
   return action.className.includes("bg-primary");
 }
 function dialog() {
-  const element = document.querySelector<HTMLElement>('[role="dialog"]');
-  assert(element, "Expected a confirmation dialog");
+  const element = document.querySelector<HTMLElement>('[role="alertdialog"]');
+  assert(element, "Expected a confirmation alert dialog");
   return element;
 }
 function dialogButton(name: string) {
@@ -262,7 +261,7 @@ async function logSlot(time: string | null, expectedRows: number) {
     () =>
       slotRequests.length === requestCount + 1 &&
       card(time ?? "12:40", "logged").querySelectorAll("li").length === expectedRows &&
-      !document.querySelector('[role="dialog"]') &&
+      !document.querySelector('[role="dialog"], [role="alertdialog"]') &&
       !button.disabled,
   );
   assert(card(time, "planned").textContent?.includes("Log slot"));
@@ -282,6 +281,15 @@ try {
   await waitFor(() => !!container.querySelector('[aria-label="Timeline"] > section'));
   // Unrelated intake sharing HH:MM (even with different seconds) must not hide the plan.
   assertPlanVisible();
+  // Each slot has its P · C · F line; each food row its own P | C | F and kcal cells.
+  const breakfast = card("08:00", "planned");
+  assert(breakfast.className.includes("border-dashed"), "Planned slots are dashed");
+  assert(breakfast.textContent?.includes("Protein 13 grams, carbs 1 grams, fat 10 grams"));
+  const eggsRow = breakfast.querySelector("li")?.textContent ?? "";
+  for (const cell of ["100 g", "protein 13 grams", "carbs 1 grams", "fat 10 grams", "150 kcal"]) {
+    assert(eggsRow.includes(cell), `Planned row is missing ${cell}: ${eggsRow}`);
+  }
+  assert(card("13:00", "logged").textContent?.includes("Protein 13 grams"));
 
   // A partial meal log must not hide the remaining food or remove the slot action.
   day.nutritionLogMeals.push({
@@ -298,9 +306,10 @@ try {
   // Cancelling the same-time confirmation writes nothing.
   await settle(() => card("13:00", "planned").querySelector("button")?.click());
   assert(dialog().textContent?.includes(`Food is already logged at ${formatTimeOfDay("13:00")}.`));
-  assert(dialog().textContent?.includes(`adds all 2 planned items at ${formatTimeOfDay("13:00")}`));
+  assert(dialog().textContent?.includes(`adds 2 planned items at ${formatTimeOfDay("13:00")}`));
+  assert(!dialog().textContent?.includes("all 2"), "The confirmation never says all");
   await settle(() => dialogButton("Cancel").click());
-  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(document.querySelector('[role="dialog"], [role="alertdialog"]'), null);
   assert.equal(slotRequests.length, 0, "Cancel leaves the log unchanged");
   await settle(() => card(null, "planned").querySelector("button")?.click());
   assert(dialog().textContent?.includes("Food without a time is already logged."));

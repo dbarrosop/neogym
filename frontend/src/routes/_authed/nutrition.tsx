@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { isFormPage, isSectionLanding } from "@/lib/navigation";
@@ -44,7 +44,7 @@ function NutritionLayoutRoute() {
             <Button asChild>
               <Link to={action.to}>
                 <Plus />
-                {action.label}
+                <ActionLabel>{action.label}</ActionLabel>
               </Link>
             </Button>
           ) : undefined

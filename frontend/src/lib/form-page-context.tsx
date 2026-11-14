@@ -6,6 +6,8 @@ export interface FormPageSlots {
   formId: string;
   header: HTMLElement | null;
   footer: HTMLElement | null;
+  /** Sticky side column (from 1024 px) that `FormPageAside` portals into. */
+  aside?: HTMLElement | null;
 }
 
 const FormPageContext = createContext<FormPageSlots | null>(null);

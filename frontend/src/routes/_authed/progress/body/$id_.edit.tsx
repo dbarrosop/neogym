@@ -1,11 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  BodyMeasurementForm,
-  type BodyMeasurementFormValues,
-} from "@/components/body-measurement-form";
+import { BodyMeasurementForm } from "@/components/body-measurement-form";
 import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
@@ -13,7 +10,13 @@ import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/que
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
+import {
+  type BodyMeasurementFormValues,
+  bodyMeasurementInput,
+  bodyMeasurementMutationError,
+} from "@/lib/body-measurements";
 import { gqlRequest } from "@/lib/graphql";
+import { useInvalidateBodyMeasurements } from "@/lib/hooks/use-progress-entry-invalidation";
 
 const EditBodyMeasurementQuery = graphql(`
   query EditBodyMeasurement($id: uuid!) {
@@ -50,10 +53,10 @@ export const Route = createFileRoute("/_authed/progress/body/$id_/edit")({
 function EditBodyMeasurementRoute() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateBodyMeasurements();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["body_measurements", id, "edit"],
     queryFn: () => gqlRequest(EditBodyMeasurementQuery, { id }),
   });
@@ -80,55 +83,47 @@ function EditBodyMeasurementRoute() {
 
   const saveMutation = useMutation({
     mutationFn: (values: BodyMeasurementFormValues) =>
-      gqlRequest(UpdateBodyMeasurementMutation, {
-        id,
-        set: {
-          measuredOn: values.measuredOn,
-          weightKg: values.weightKg ? values.weightKg : null,
-          bodyFatPct: values.bodyFatPct ? values.bodyFatPct : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+      gqlRequest(UpdateBodyMeasurementMutation, { id, set: bodyMeasurementInput(values) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       navigate({ to: "/progress/body/$id", params: { id }, replace: true });
-    },
-    onError: (e) => {
-      toast.error(`Failed to save: ${e.message}`);
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => gqlRequest(DeleteBodyMeasurementMutation, { id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       navigate({ to: "/progress/body", replace: true });
     },
     onError: (e) => {
-      toast.error(`Failed to delete: ${e.message}`);
+      toast.error(bodyMeasurementMutationError(e, "delete").message);
     },
   });
 
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="2xl">
+        <PageShell contentClassName="max-w-[760px]">
           <EditSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="2xl">
-          <ErrorState title="Failed to load measurement" message={error.message} />
+        <PageShell contentClassName="max-w-[760px]">
+          <ErrorState
+            title="Couldn't load this measurement"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!measurement || !initialValues) {
       return (
-        <PageShell maxWidth="2xl">
+        <PageShell contentClassName="max-w-[760px]">
           <EmptyState title="Measurement not found." />
         </PageShell>
       );
@@ -136,11 +131,12 @@ function EditBodyMeasurementRoute() {
     return (
       <FormPage
         title="Edit measurement"
-        width="2xl"
+        width="form"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this measurement"
-            description="Removes it from your body history and Today."
+            description="Removes it from the Body trend and Today."
             actionLabel="Delete measurement"
             onAction={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending || saveMutation.isPending}
@@ -149,8 +145,16 @@ function EditBodyMeasurementRoute() {
       >
         <BodyMeasurementForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
+          serverError={
+            saveMutation.error ? bodyMeasurementMutationError(saveMutation.error, "save") : null
+          }
+          onEdit={() => {
+            if (saveMutation.isError) {
+              saveMutation.reset();
+            }
+          }}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() => navigate({ to: "/progress/body/$id", params: { id }, replace: true })}
         />
@@ -166,7 +170,7 @@ function EditBodyMeasurementRoute() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Delete this measurement?"
-        description="This entry will be removed from your body history."
+        description="It will be removed from the Body trend and Today. This can't be undone."
         confirmLabel="Delete measurement"
         pendingLabel="Deleting…"
         destructive

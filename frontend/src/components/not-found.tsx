@@ -1,27 +1,30 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/nhost/auth-provider";
 
 export function NotFound() {
+  const { isAuthenticated } = useAuth();
   return (
-    <section className="relative">
-      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-2xl flex-col items-center justify-center px-4 py-24 text-center">
-        <p className="text-sm font-medium uppercase tracking-widest text-muted-foreground">404</p>
-        <h1 className="mt-4 text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-          Page not found
-        </h1>
-        <p className="mt-6 max-w-md text-balance text-lg text-muted-foreground">
-          The page you're looking for doesn't exist or has moved.
-        </p>
-        <div className="mt-10">
-          <Button asChild size="lg">
-            <Link to="/">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to home
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <section className="mx-auto flex min-h-[calc(100dvh-4rem)] max-w-2xl flex-col items-center justify-center gap-3.5 px-4 py-24 text-center">
+      <p className="text-[13px] font-semibold tracking-[0.14em] text-muted-foreground">404</p>
+      <h1 className="text-balance text-[34px] font-bold tracking-[-0.02em]">Page not found</h1>
+      <p className="max-w-[380px] text-balance text-base leading-normal text-muted-foreground">
+        The page you’re looking for doesn’t exist or has moved.
+      </p>
+      <Button asChild className="mt-2 h-11">
+        {isAuthenticated ? (
+          <Link to="/today">
+            <ArrowLeft />
+            Back to Today
+          </Link>
+        ) : (
+          <Link to="/">
+            <ArrowLeft />
+            Back to home
+          </Link>
+        )}
+      </Button>
     </section>
   );
 }

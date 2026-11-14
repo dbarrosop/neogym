@@ -15,11 +15,18 @@ import { cn } from "@/lib/utils";
  * tab bar below it. Signed-out pages keep a minimal top bar.
  */
 const BRAND_PANEL_PATHS = new Set(["/signin", "/signup"]);
+/** Public flows that keep the brand bar alone, even for a signed-in visitor. */
+const BARE_PATHS = new Set(["/oauth2/login", "/verify"]);
 const TRAILING_SLASH = /\/$/;
 
 /** Sign in and sign up render their own brand panel, so they skip the top bar. */
 function isBrandPanelPage(pathname: string) {
   return BRAND_PANEL_PATHS.has(pathname.replace(TRAILING_SLASH, ""));
+}
+
+/** The MCP authorize page and the email-change callback never show the app shell. */
+export function isBarePublicPage(pathname: string) {
+  return BARE_PATHS.has(pathname.replace(TRAILING_SLASH, ""));
 }
 
 export function AppFrame({ children }: { children: ReactNode }) {
@@ -31,15 +38,17 @@ export function AppFrame({ children }: { children: ReactNode }) {
     select: (matches) => matches.some((match) => match.staticData?.splitView),
   });
 
-  if (!isAuthenticated || !user) {
+  if (!isAuthenticated || !user || isBarePublicPage(pathname)) {
     return (
       <div className="flex min-h-dvh flex-col">
         {isBrandPanelPage(pathname) ? null : <PublicTopBar />}
-        <main className="flex-1">{children}</main>
+        {/* A flex column so public pages and auth cards can centre in the remaining height. */}
+        <main className="flex flex-1 flex-col">{children}</main>
       </div>
     );
   }
 
+  const formPage = isFormPage(pathname);
   return (
     <RestTimerProvider key={user.id} userId={user.id}>
       <div className="flex min-h-dvh">
@@ -51,13 +60,25 @@ export function AppFrame({ children }: { children: ReactNode }) {
               splitView && "min-[1100px]:hidden",
             )}
           >
-            {isSectionLanding(pathname) || isFormPage(pathname) ? null : (
-              <Breadcrumbs minDepth={2} />
-            )}
+            {isSectionLanding(pathname) || formPage ? null : <Breadcrumbs minDepth={2} />}
           </div>
-          <main className="flex-1 pb-20 md:pb-0">{children}</main>
+          {/*
+           * Below 768 px, clear the 4rem tab bar plus the rest timer pill above it.
+           * Form pages clear only the tab bar: their sticky footer sits on it and
+           * the form page leaves room for the raised pill itself.
+           */}
+          <main
+            className={cn(
+              "flex-1 md:pb-0",
+              formPage
+                ? "pb-[calc(env(safe-area-inset-bottom)+4rem)]"
+                : "pb-[calc(env(safe-area-inset-bottom)+8.5rem)]",
+            )}
+          >
+            {children}
+          </main>
         </div>
-        <RestTimerPill raised={isFormPage(pathname)} />
+        <RestTimerPill raised={formPage} />
         <MobileTabBar />
       </div>
     </RestTimerProvider>

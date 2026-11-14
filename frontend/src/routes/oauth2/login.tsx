@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Check, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Loader2, Shield } from "lucide-react";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -64,7 +64,7 @@ function OAuth2LoginRoute() {
     return (
       <AuthCard layout="card" title="Authorizing" description="Checking your session…">
         <div className="flex items-center justify-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <Loader2 aria-hidden="true" className="size-5 animate-spin text-muted-foreground" />
         </div>
       </AuthCard>
     );
@@ -80,7 +80,7 @@ function OAuth2LoginRoute() {
         <div className="space-y-3">
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-11 w-full" />
         </div>
       </AuthCard>
     );
@@ -93,12 +93,15 @@ function OAuth2LoginRoute() {
         title="Authorization request unavailable"
         description="We couldn't load the details for this request. The link may have expired."
         footer={
-          <Link to="/" className="font-medium text-foreground hover:underline">
+          <Link
+            to="/"
+            className="rounded-sm font-semibold text-link underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          >
             Back home
           </Link>
         }
       >
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground">
           {consent.error instanceof Error ? consent.error.message : "Unknown error"}
         </p>
       </AuthCard>
@@ -114,58 +117,64 @@ function OAuth2LoginRoute() {
       description={`${clientId} wants access to your NeoGym account.`}
       footer="Only approve apps you started connecting yourself."
     >
-      <div className="space-y-5 text-sm">
-        <p className="flex items-center gap-2.5 rounded-lg bg-surface-inset px-3 py-2.5 text-muted-foreground">
-          <ShieldCheck aria-hidden="true" className="size-5 shrink-0 text-link" />
-          <span className="min-w-0 break-all">
-            Signed in as <span className="font-medium text-foreground">{user?.email}</span>
-          </span>
-        </p>
-        <div className="space-y-2">
-          <p className="font-medium text-foreground">Requested permissions</p>
-          {scopes.length === 0 ? (
-            <p className="text-muted-foreground">No specific scopes requested.</p>
+      <p className="flex items-center gap-2.5 rounded-[10px] bg-surface-inset px-3 py-2.5 text-muted-foreground">
+        <Shield aria-hidden="true" className="size-5 shrink-0 text-link" />
+        <span className="min-w-0 break-all">
+          Signed in as <strong className="font-medium text-foreground">{user?.email}</strong>
+        </span>
+      </p>
+      <div className="flex flex-col gap-2">
+        <p className="font-medium text-foreground">Requested permissions</p>
+        {scopes.length === 0 ? (
+          <p className="text-muted-foreground">No specific scopes requested.</p>
+        ) : (
+          <ul className="divide-y divide-border rounded-[10px] border border-border">
+            {scopes.map((scope) => (
+              <li key={scope} className="flex min-h-[38px] items-center gap-2.5 px-3 py-1.5">
+                <Check
+                  aria-hidden="true"
+                  strokeWidth={2.4}
+                  className="size-4 shrink-0 text-positive"
+                />
+                <code className="break-all font-medium font-mono text-[13px] text-foreground">
+                  {scope}
+                </code>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="flex flex-col gap-1">
+        <p className="font-medium text-foreground">Will redirect to</p>
+        <code className="break-all font-medium font-mono text-[13px] text-muted-foreground">
+          {redirectUri}
+        </code>
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 min-w-28 font-semibold"
+          disabled={approve.isPending}
+          onClick={() => navigate({ to: "/today", replace: true })}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          className="h-11 min-w-32 font-semibold"
+          disabled={approve.isPending}
+          onClick={() => approve.mutate()}
+        >
+          {approve.isPending ? (
+            <>
+              <Loader2 className="animate-spin" aria-hidden="true" />
+              Authorizing
+            </>
           ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {scopes.map((scope) => (
-                <li key={scope} className="flex items-center gap-2.5 px-3 py-2">
-                  <Check aria-hidden="true" className="size-4 shrink-0 text-positive" />
-                  <code className="font-mono text-[13px]">{scope}</code>
-                </li>
-              ))}
-            </ul>
+            "Authorize"
           )}
-        </div>
-        <div className="space-y-1">
-          <p className="font-medium text-foreground">Will redirect to</p>
-          <p className="break-all font-mono text-[13px] text-muted-foreground">{redirectUri}</p>
-        </div>
-        <div className="flex flex-wrap justify-end gap-2 pt-1">
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11 min-w-28"
-            disabled={approve.isPending}
-            onClick={() => navigate({ to: "/" })}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="min-h-11 min-w-32"
-            disabled={approve.isPending}
-            onClick={() => approve.mutate()}
-          >
-            {approve.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Authorizing
-              </>
-            ) : (
-              "Authorize"
-            )}
-          </Button>
-        </div>
+        </Button>
       </div>
     </AuthCard>
   );

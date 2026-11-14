@@ -1,18 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { ChefHat, ChevronRight, Plus, Search, X } from "lucide-react";
+import { ChefHat, ChevronRight, Plus, SearchX } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
-import { MacroSummary } from "@/components/macro-summary";
+import {
+  ingredientCountLabel,
+  LibrarySearchField,
+  LibrarySkeleton,
+  MealSummary,
+  summaryMealTotals,
+} from "@/components/nutrition-library";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import { useIsSplit } from "@/lib/hooks/use-is-split";
-import { formatMacro, macroTotalsSummary, mealMacroTotals } from "@/lib/nutrition";
+import { formatKcalNumber, formatNumber } from "@/lib/metric-format";
+import { macroLineLabel } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
 const MealsIndexQuery = graphql(`
@@ -78,7 +83,7 @@ function MealsIndexRoute() {
   const navigate = Route.useNavigate();
   const search = searchParams.q ?? "";
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["nutrition", "meals", "index"],
     queryFn: () => gqlRequest(MealsIndexQuery),
   });
@@ -95,13 +100,11 @@ function MealsIndexRoute() {
     [meals],
   );
 
-  const filteredMeals = useMemo(() => {
-    const trimmed = search.trim();
-    if (!trimmed) {
-      return meals;
-    }
-    return fuse.search(trimmed).map((match) => match.item);
-  }, [fuse, meals, search]);
+  const trimmedSearch = search.trim();
+  const filteredMeals = useMemo(
+    () => (trimmedSearch ? fuse.search(trimmedSearch).map((match) => match.item) : meals),
+    [fuse, meals, trimmedSearch],
+  );
   const split = useIsSplit();
   const selected = split
     ? (filteredMeals.find((meal) => meal.id === searchParams.selected) ?? filteredMeals[0])
@@ -120,128 +123,89 @@ function MealsIndexRoute() {
 
   function renderContent() {
     if (isLoading) {
-      return <MealsSkeleton />;
+      return <LibrarySkeleton rows={5} />;
     }
-    if (error) {
-      return <ErrorCard message={error.message} />;
+    if (!data) {
+      return null;
     }
     if (filteredMeals.length === 0) {
-      return (
-        <Card className="border-dashed">
-          <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
-            <p>
-              {search.trim()
-                ? "No meals match this search."
-                : "You do not have any meal templates yet."}
-            </p>
-            {search.trim() ? (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="text-xs font-medium text-link hover:underline"
-              >
-                Clear search
-              </button>
-            ) : (
-              <Button asChild size="sm">
-                <Link to="/nutrition/meals/new">
-                  <Plus className="h-4 w-4" />
-                  Create your first meal
-                </Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      return trimmedSearch ? (
+        <EmptyState
+          icon={SearchX}
+          title="No meals match"
+          description={`No meal name, description or ingredient matches “${trimmedSearch}”.`}
+          actions={
+            <Button type="button" variant="outline" onClick={clearSearch}>
+              Clear search
+            </Button>
+          }
+        />
+      ) : (
+        <EmptyState
+          icon={ChefHat}
+          title="No meals yet"
+          description="Build a reusable meal from your foods and public foods."
+          actions={
+            <Button asChild>
+              <Link to="/nutrition/meals/new">
+                <Plus />
+                New meal
+              </Link>
+            </Button>
+          }
+        />
       );
     }
     return (
       <>
-        <div className="flex items-start gap-5">
+        <div className="hidden items-start gap-5 md:flex">
           <MealsTable meals={filteredMeals} selectedId={selected?.id} />
-          {selected ? <MealPanel meal={selected} /> : null}
+          {selected ? (
+            <aside
+              aria-label="Selected meal"
+              className="sticky top-6 hidden w-[320px] shrink-0 flex-col gap-3.5 rounded-xl border bg-card p-5 md:flex"
+            >
+              <MealSummary meal={selected} variant="panel" />
+            </aside>
+          ) : null}
         </div>
-        <Card className="py-0 md:hidden">
-          <CardContent className="p-2">
-            <ul className="divide-y divide-border">
-              {filteredMeals.map((meal) => (
-                <MealRow key={meal.id} meal={meal} />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card md:hidden">
+          {filteredMeals.map((meal) => (
+            <MealRow key={meal.id} meal={meal} />
+          ))}
+        </ul>
       </>
     );
   }
 
-  const allTotals = mealMacroTotals(
-    filteredMeals.flatMap((meal) =>
-      meal.mealIngredients.map((ingredient) => ({
-        grams: ingredient.grams,
-        food: ingredient.food,
-      })),
-    ),
-  );
-
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Reusable private meal templates from your foods and public foods. Totals are per whole
-            meal, from live food values.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-5">
+      <p className="max-w-[760px] text-sm leading-normal text-muted-foreground">
+        Reusable private meal templates from your foods and public foods. Totals are per whole meal,
+        from live food values.
+      </p>
 
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(event) => setSearchText(event.target.value)}
-          placeholder="Search meals or ingredients…"
-          className="h-11 rounded-xl bg-card pr-10 pl-10"
-        />
-        {search ? (
-          <button
-            type="button"
-            onClick={() => setSearchText("")}
-            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-            aria-label="Clear search"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
-      </div>
+      <LibrarySearchField
+        label="Search meals or ingredients"
+        placeholder="Search meals or ingredients…"
+        value={search}
+        onChange={setSearchText}
+      />
 
-      {search.trim() && filteredMeals.length > 0 ? (
-        <MacroSummary
-          totals={allTotals}
-          title="Filtered meal totals"
-          description={
-            filteredMeals.length === 1
-              ? "Totals for the single matching meal."
-              : `Combined totals across all ${filteredMeals.length} matching meals.`
-          }
-          compact
+      {error ? (
+        <ErrorState
+          title="Couldn’t load meals"
+          message={error.message}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
         />
       ) : null}
-
       {renderContent()}
     </div>
   );
 }
 
-const wholeNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-
-function mealTotals(meal: Meal) {
-  return mealMacroTotals(
-    meal.mealIngredients.map((ingredient) => ({ grams: ingredient.grams, food: ingredient.food })),
-  );
-}
-
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
+const TH = "px-3 py-2.5 font-semibold whitespace-nowrap";
 
 /**
  * Meals with whole-meal totals from 768 px; ingredient counts appear only when
@@ -253,196 +217,110 @@ function MealsTable({ meals, selectedId }: { meals: Meal[]; selectedId?: string 
     <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
       <table className="w-full text-sm tabular-nums">
         <thead>
-          <tr className="text-right text-[12px] text-muted-foreground">
-            <th scope="col" className="py-2.5 pl-4 text-left font-medium">
+          <tr className="border-b text-right text-xs text-muted-foreground">
+            <th scope="col" className={cn(TH, "pl-4 text-left")}>
               Meal
             </th>
-            <th scope="col" className="hidden font-medium @xl:table-cell">
+            <th scope="col" className={cn(TH, "hidden @xl:table-cell")}>
               Ingredients
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               kcal
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               Protein
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               Carbs
             </th>
-            <th scope="col" className="pr-4 font-medium">
+            <th scope="col" className={cn(TH, "pr-4")}>
               Fat
             </th>
           </tr>
         </thead>
         <tbody>
           {meals.map((meal) => {
-            const totals = mealTotals(meal);
+            const totals = summaryMealTotals(meal);
             const isSelected = meal.id === selectedId;
             return (
               <tr
                 key={meal.id}
                 className={cn(
-                  "border-t text-right hover:bg-surface-inset",
+                  "border-b text-right hover:bg-surface-inset",
                   isSelected && "bg-accent-soft/60 hover:bg-accent-soft/60",
                 )}
               >
-                <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
-                  {selectedId === undefined ? (
-                    <Link
-                      to="/nutrition/meals/$mealId"
-                      params={{ mealId: meal.id }}
-                      className="block wrap-break-word font-medium hover:text-link"
-                    >
-                      {meal.name}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/nutrition/meals"
-                      search={(prev) => ({ ...prev, selected: meal.id })}
-                      replace={true}
-                      aria-current={isSelected ? "true" : undefined}
-                      className="block wrap-break-word font-medium hover:text-link"
-                    >
-                      {meal.name}
-                    </Link>
-                  )}
+                <td className="h-[46px] min-w-40 max-w-0 py-2 pr-3 pl-4 text-left">
+                  <MealNameLink meal={meal} selectedId={selectedId} />
                   {meal.description ? (
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <span className="block wrap-break-word text-[13px] text-muted-foreground">
                       {meal.description}
                     </span>
                   ) : null}
                 </td>
-                <td className="hidden w-24 @xl:table-cell">{meal.mealIngredients.length}</td>
-                <td className="w-16 font-semibold">{wholeNumber.format(totals.kcal)}</td>
-                <td className="w-16">{wholeNumber.format(totals.protein)}</td>
-                <td className="w-16">{wholeNumber.format(totals.carbs)}</td>
-                <td className="w-16 pr-4">{wholeNumber.format(totals.fat)}</td>
+                <td className="hidden w-24 px-3 @xl:table-cell">{meal.mealIngredients.length}</td>
+                <td className="w-16 px-3 font-semibold">{formatKcalNumber(totals.kcal)}</td>
+                <td className="w-16 px-3">{formatNumber(totals.protein)}</td>
+                <td className="w-16 px-3">{formatNumber(totals.carbs)}</td>
+                <td className="w-16 pr-4 pl-3">{formatNumber(totals.fat)}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
-      <p className="border-t px-4 py-2 text-[12px] text-muted-foreground">Totals per whole meal.</p>
+      <p className="px-4 py-3 text-[13px] text-muted-foreground">Totals per whole meal.</p>
     </div>
   );
 }
 
-/** The selected meal beside the table from 1100 px. */
-function MealPanel({ meal }: { meal: Meal }) {
-  const totals = mealTotals(meal);
+function MealNameLink({ meal, selectedId }: { meal: Meal; selectedId: string | undefined }) {
+  const className = "block wrap-break-word font-medium hover:text-link";
+  if (selectedId === undefined) {
+    return (
+      <Link to="/nutrition/meals/$mealId" params={{ mealId: meal.id }} className={className}>
+        {meal.name}
+      </Link>
+    );
+  }
   return (
-    <aside
-      aria-label="Selected meal"
-      className="sticky top-6 hidden w-[320px] shrink-0 space-y-4 rounded-xl border border-border bg-card p-5 md:block"
+    <Link
+      to="/nutrition/meals"
+      search={(prev) => ({ ...prev, selected: meal.id })}
+      replace={true}
+      aria-current={meal.id === selectedId ? "true" : undefined}
+      className={className}
     >
-      <div className="space-y-1">
-        <p className="text-[13px] text-muted-foreground">
-          Meal · {countLabel(meal.mealIngredients.length, "ingredient", "ingredients")}
-        </p>
-        <h2 className="text-[17px] font-semibold leading-snug">{meal.name}</h2>
-        {meal.description ? (
-          <p className="line-clamp-3 text-[13px] text-muted-foreground">{meal.description}</p>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap items-baseline justify-between gap-2 tabular-nums">
-        <p className="text-[26px] font-semibold">
-          {wholeNumber.format(totals.kcal)}{" "}
-          <span className="text-sm font-medium text-muted-foreground">kcal</span>
-        </p>
-        <p className="text-[13px]">
-          P <strong>{wholeNumber.format(totals.protein)}</strong> · C{" "}
-          <strong>{wholeNumber.format(totals.carbs)}</strong> · F{" "}
-          <strong>{wholeNumber.format(totals.fat)}</strong>
-        </p>
-      </div>
-      <ul className="divide-y divide-border border-border border-y text-sm">
-        {meal.mealIngredients.map((ingredient) => (
-          <li key={ingredient.id} className="flex justify-between gap-3 py-2">
-            <span className="min-w-0 truncate">{ingredient.food.name}</span>
-            <span className="shrink-0 text-muted-foreground tabular-nums">
-              {formatMacro(ingredient.grams, "g")} ·{" "}
-              {wholeNumber.format(
-                mealMacroTotals([{ grams: ingredient.grams, food: ingredient.food }]).kcal,
-              )}{" "}
-              kcal
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="flex gap-2">
-        <Button asChild variant="outline" className="min-h-11 flex-1">
-          <Link to="/nutrition/meals/$mealId" params={{ mealId: meal.id }}>
-            Details
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="min-h-11 flex-1">
-          <Link to="/nutrition/meals/$mealId/edit" params={{ mealId: meal.id }}>
-            Edit
-          </Link>
-        </Button>
-      </div>
-    </aside>
+      {meal.name}
+    </Link>
   );
 }
 
+/** Below 768 px: one title, one count + P · C · F line, whole-meal kcal trailing. */
 function MealRow({ meal }: { meal: Meal }) {
-  const totals = mealMacroTotals(
-    meal.mealIngredients.map((ingredient) => ({ grams: ingredient.grams, food: ingredient.food })),
-  );
+  const totals = summaryMealTotals(meal);
+  const count = ingredientCountLabel(meal.mealIngredients.length);
   return (
     <li>
       <Link
         to="/nutrition/meals/$mealId"
         params={{ mealId: meal.id }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-muted/60"
+        className="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
       >
-        <span className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-soft-foreground">
-            <ChefHat className="h-4 w-4" />
-          </span>
-          <span className="min-w-0 space-y-1">
-            <span className="truncate text-sm font-medium">{meal.name}</span>
-            <span className="line-clamp-2 text-xs text-muted-foreground">
-              {meal.mealIngredients.length} ingredient{meal.mealIngredients.length === 1 ? "" : "s"}{" "}
-              · {macroTotalsSummary(totals)}
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="wrap-break-word text-[15px] font-semibold">{meal.name}</span>
+          <span className="text-[13px] text-muted-foreground tabular-nums">
+            <span className="sr-only">{`${count}, ${macroLineLabel(totals)}`}</span>
+            <span aria-hidden="true">
+              {`${count} · P ${formatNumber(totals.protein)} · C ${formatNumber(totals.carbs)} · F ${formatNumber(totals.fat)} g`}
             </span>
-            {meal.description ? (
-              <span className="line-clamp-1 text-xs text-muted-foreground/80">
-                {meal.description}
-              </span>
-            ) : null}
           </span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        <span className="flex shrink-0 flex-col items-end tabular-nums">
+          <span className="text-[15px] font-semibold">{formatKcalNumber(totals.kcal)}</span>
+          <span className="text-xs text-muted-foreground">kcal</span>
+        </span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>
-  );
-}
-
-function MealsSkeleton() {
-  return (
-    <Card className="py-0">
-      <CardContent className="space-y-3 p-4">
-        {[0, 1, 2].map((item) => (
-          <div key={item} className="flex items-center gap-3">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-full" />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <Card className="border-destructive/30 bg-destructive/5">
-      <CardContent className="py-4">
-        <p className="text-sm text-destructive">Failed to load: {message}</p>
-      </CardContent>
-    </Card>
   );
 }

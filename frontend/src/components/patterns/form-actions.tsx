@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { useFormPageSlots } from "@/lib/form-page-context";
@@ -8,10 +8,44 @@ interface FormSectionProps {
   children: ReactNode;
   title?: ReactNode;
   description?: ReactNode;
+  /**
+   * Render as its own section card (15 px heading, 13 px caption, 20 px padding)
+   * for `<FormPage layout="sections">`; the titled card is labelled by its heading.
+   */
+  card?: boolean;
   className?: string;
 }
 
-export function FormSection({ children, title, description, className }: FormSectionProps) {
+export function FormSection({
+  children,
+  title,
+  description,
+  card = false,
+  className,
+}: FormSectionProps) {
+  const titleId = useId();
+  if (card) {
+    return (
+      <section
+        aria-labelledby={title ? titleId : undefined}
+        className={cn("flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5", className)}
+      >
+        {title || description ? (
+          <div className="flex flex-col gap-1">
+            {title ? (
+              <h2 id={titleId} className="text-[15px] font-semibold">
+                {title}
+              </h2>
+            ) : null}
+            {description ? (
+              <p className="text-[13px] text-muted-foreground">{description}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {children}
+      </section>
+    );
+  }
   return (
     <section className={cn("space-y-4", className)}>
       {title || description ? (
@@ -104,7 +138,7 @@ function PageFormButtons({
   submitDisabled,
   stretch,
 }: PageFormButtonsProps) {
-  const size = stretch ? "min-h-11 flex-1" : undefined;
+  const size = stretch ? "h-[46px] flex-1" : undefined;
   return (
     <>
       <Button

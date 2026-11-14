@@ -27,12 +27,6 @@ const stamp = (day: string) => {
   assert(date);
   return date.getTime();
 };
-const dateLabel = (day: string) =>
-  new Date(stamp(day)).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 
 mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({
@@ -67,12 +61,22 @@ const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query
 const { ResponsiveContainer } = await import("recharts");
 const { Route: Muscles } = await import("@/routes/_authed/progress/muscles");
 const { Route: Strength } = await import("@/routes/_authed/progress/strength");
+const { Route: Overview } = await import("@/routes/_authed/progress/overview");
+const { formatChartDate, metricFormat } = await import("@/lib/metric-format");
+const { weekStartOf, weeklyVolumeLabel } = await import("@/lib/strength-progress");
+const { chartWindow } = await import("@/lib/rolling-average");
+const { calorieHistoryQueryKey } = await import("@/lib/hooks/use-calorie-history");
 const { Route: Body } = await import("@/routes/_authed/progress/body/index");
 const { Route: Energy } = await import("@/routes/_authed/progress/energy/index");
+const { bodyMeasurementsQueryKey } = await import("@/lib/hooks/use-body-measurements");
+const { dailyEnergyListQueryKey, dailyEnergyRangeQueryKey } = await import(
+  "@/lib/hooks/use-daily-energy"
+);
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
 });
-client.setQueryData(["progress", "muscles", today, 60, "test-user"], {
+// Muscles and Strength (and Overview) read their default 8-week periods.
+client.setQueryData(["progress", "muscles", today, 56, "test-user"], {
   muscleSetProgress: [
     {
       day: start,
@@ -90,7 +94,7 @@ client.setQueryData(["progress", "muscles", today, 60, "test-user"], {
     },
   ],
 });
-client.setQueryData(["progress", "strength", today, 12, "test-user"], {
+client.setQueryData(["progress", "strength", today, 8, "test-user"], {
   strengthProgress: [
     ...[92.5, 100, null].map((estimatedOneRepMax, index) => ({
       exerciseId: "bench",
@@ -110,24 +114,44 @@ client.setQueryData(["progress", "strength", today, 12, "test-user"], {
     })),
   ],
 });
-client.setQueryData(["body_measurements"], {
+// Body and Energy: every measurement, the energy list (with its count), the
+// energy-out chart's 30-day range and the Calories card's 30-day history.
+client.setQueryData(bodyMeasurementsQueryKey("test-user"), {
   bodyMeasurements: [
     { id: "body-3", measuredOn: today, weightKg: 80.9, bodyFatPct: 17.5 },
     { id: "body-2", measuredOn: middle, weightKg: 81.7, bodyFatPct: 18.2 },
     { id: "body-1", measuredOn: start, weightKg: 82.4, bodyFatPct: null },
   ],
 });
-client.setQueryData(["daily_energy"], {
+const energyRows = [
+  { id: "energy-1", energyOn: start, activeKcal: 350, restingKcal: 1800 },
+  { id: "energy-2", energyOn: middle, activeKcal: null, restingKcal: 1750 },
+  { id: "energy-3", energyOn: today, activeKcal: 0, restingKcal: null },
+];
+client.setQueryData(dailyEnergyListQueryKey("test-user"), {
   pages: [
     {
-      dailyEnergyEntries: [
-        { id: "energy-3", energyOn: today, activeKcal: 0, restingKcal: null },
-        { id: "energy-2", energyOn: middle, activeKcal: null, restingKcal: 1750 },
-        { id: "energy-1", energyOn: start, activeKcal: 350, restingKcal: 1800 },
-      ],
+      dailyEnergyEntries: [...energyRows].reverse().map((row) => ({ ...row, notes: null })),
+      dailyEnergyEntriesAggregate: { aggregate: { count: energyRows.length } },
     },
   ],
   pageParams: [0],
+});
+const energyRange = chartWindow(30, today);
+client.setQueryData(dailyEnergyRangeQueryKey(energyRange.start, today, "test-user"), {
+  dailyEnergyEntries: energyRows,
+});
+client.setQueryData(calorieHistoryQueryKey(energyRange.fetchFrom, today, "test-user"), {
+  nutritionDays: [
+    [start, 1000, 200],
+    [middle, 1000, 250],
+    [today, 400, 200],
+  ].map(([logDate, grams, snapshotKcalPer100g]) => ({
+    id: `day-${logDate}`,
+    logDate,
+    nutritionLogEntries: [{ id: `log-${logDate}`, grams, snapshotKcalPer100g }],
+  })),
+  dailyEnergyEntries: energyRows,
 });
 
 const container = document.createElement("div");
@@ -139,7 +163,7 @@ async function settle(action: () => unknown = () => undefined) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
 }
-type ChartRoute = typeof Muscles | typeof Strength | typeof Body | typeof Energy;
+type ChartRoute = typeof Muscles | typeof Strength | typeof Overview | typeof Body | typeof Energy;
 async function checkChart(route: ChartRoute, labels: string[], keyboard = true) {
   const Component = route.options.component;
   assert(Component);
@@ -180,43 +204,124 @@ async function checkChart(route: ChartRoute, labels: string[], keyboard = true) 
   }
 }
 
+// Muscles, Strength and Overview: spoken summaries (lowest, highest, average,
+// latest; rolling averages skip their average; partial weeks named last).
+const chartDate = (day: string) => formatChartDate(day);
+/** The seeded strength volume by Monday week: this week partial, an earlier week complete. */
+function weeklyVolumeSummary() {
+  const volumes = new Map<string, number>();
+  const sessions: [string, number][] = [
+    [start, 500],
+    [middle, 500],
+    [today, 500],
+    [start, 0],
+    [today, 100],
+  ];
+  for (const [day, volume] of sessions) {
+    const week = weekStartOf(day);
+    volumes.set(week, (volumes.get(week) ?? 0) + volume);
+  }
+  const thisWeek = weekStartOf(today);
+  const partial = `This week so far: ${weeklyVolumeLabel(volumes.get(thisWeek) ?? 0)}.`;
+  const lastWeek = [...volumes.keys()].find((week) => week < thisWeek);
+  if (!lastWeek) {
+    return `Weekly strength volume. ${partial}`;
+  }
+  const week = chartDate(lastWeek);
+  const value = weeklyVolumeLabel(volumes.get(lastWeek) ?? 0);
+  return `Weekly strength volume, week of ${week}: latest ${value} in the week of ${week}. ${partial}`;
+}
+const bothAxes = "on the right; both lines start at the same height.";
+
 try {
   await checkChart(Muscles, [
-    `Chest weighted sets per rolling week: 8 sets on ${dateLabel(start)} to 12.5 sets on ${dateLabel(today)}; up 4.5 sets overall across 2 observations.`,
+    `Chest trailing seven-day weighted sets, ${chartDate(start)} to ${chartDate(today)}: lowest 8 sets, highest 12.5 sets, average ${metricFormat.sets(10.25)} sets, latest 12.5 sets on ${chartDate(today)}.`,
   ]);
-  await checkChart(
-    Strength,
-    [
-      "Bench Press estimated one-rep max: 92.5 kg to 100 kg; up 7.5 kg overall across 2 observations.",
-      "Row volume: 0 kg to 100 kg; up 100 kg overall across 2 observations.",
-    ],
-    false,
-  );
+  await checkChart(Strength, [
+    weeklyVolumeSummary(),
+    `Bench Press volume and estimated one-rep max, ${chartDate(start)} to ${chartDate(today)}. Volume: lowest 500 kg, highest 500 kg, average 500 kg, latest 500 kg on ${chartDate(today)}. Est. 1RM: lowest 92.5 kg, highest 100 kg, average ${metricFormat.estimatedOneRepMax(96.25)}, latest 100 kg on ${chartDate(middle)}. Volume on the left axis, Est. 1RM ${bothAxes}`,
+    `Row volume, ${chartDate(start)} to ${chartDate(today)}: lowest 0 kg, highest 100 kg, average 50 kg, latest 100 kg on ${chartDate(today)}.`,
+  ]);
+  // Body: one chart per metric, daily readings under the 7-day average.
+  const { weight, weightAverage, bodyFat: fat, kcal } = metricFormat;
+  const weightMean = (82.4 + 81.7 + 80.9) / 3;
+  const fatMean = (18.2 + 17.5) / 2;
   await checkChart(Body, [
-    `Weight: 82.4 kg on ${dateLabel(start)} to 80.9 kg on ${dateLabel(today)}; down 1.5 kg overall across 3 observations. Body fat: 18.2 % on ${dateLabel(middle)} to 17.5 % on ${dateLabel(today)}; down 0.7 % overall across 2 observations.`,
+    `Weight, daily readings and 7-day average, ${chartDate(start)} to ${chartDate(today)}. Daily: lowest 80.9 kg, highest 82.4 kg, average ${weight(weightMean)}, latest 80.9 kg on ${chartDate(today)}. 7-day avg: lowest ${weightAverage(weightMean)}, highest 82.4 kg, latest ${weightAverage(weightMean)} on ${chartDate(today)}.`,
+    `Body fat, daily readings and 7-day average, ${chartDate(middle)} to ${chartDate(today)}. Daily: lowest 17.5 %, highest 18.2 %, average ${fat(fatMean)}, latest 17.5 % on ${chartDate(today)}. 7-day avg: lowest ${fat(fatMean)}, highest 18.2 %, latest ${fat(fatMean)} on ${chartDate(today)}.`,
   ]);
+  // Energy: today's partial row closes the energy-out summary; Calories
+  // consumed adds today's intake so far, net uses full days only.
+  const signed = metricFormat.netKcal;
   await checkChart(Energy, [
-    `Active energy: 350 kcal on ${dateLabel(start)} to 0 kcal on ${dateLabel(today)}; down 350 kcal overall across 2 observations. Resting energy: 1,800 kcal on ${dateLabel(start)} to 1,750 kcal on ${dateLabel(middle)}; down 50 kcal overall across 2 observations.`,
+    `Active and resting energy per day, ${chartDate(start)} to ${chartDate(middle)}. Active: latest 350 kcal on ${chartDate(start)}. Resting: lowest 1,750 kcal, highest 1,800 kcal, average 1,775 kcal, latest 1,750 kcal on ${chartDate(middle)}. Today so far: 0 kcal.`,
+    `Calories consumed per day and 7-day average, ${chartDate(start)} to ${chartDate(middle)}. Daily: lowest ${kcal(2000)}, highest ${kcal(2500)}, average ${kcal(2250)}, latest ${kcal(2500)} on ${chartDate(middle)}. 7-day avg: lowest ${kcal(2000)}, highest ${kcal(2250)}, latest ${kcal(2250)} on ${chartDate(middle)}. Today so far: ${kcal(800)}.`,
+    `Net calories, daily and 7-day average, ${chartDate(start)} to ${chartDate(middle)}. Daily: lowest ${signed(-150)}, highest ${signed(750)}, average ${signed(300)}, latest ${signed(750)} on ${chartDate(middle)}. 7-day avg: lowest ${signed(-150)}, highest ${signed(300)}, latest ${signed(300)} on ${chartDate(middle)}.`,
   ]);
-  const burnedLabel = () =>
+  // "Average out" covers the full days in the chart's window, never today.
+  const averageOut = () =>
     container.querySelector('section[aria-label="Energy trend"] dt')?.textContent?.trim();
-  assert.equal(burnedLabel(), "Burned · avg of last 3 logged days");
+  assert.equal(averageOut(), "Average out · 2 full days");
   await settle(() =>
-    client.setQueryData(["daily_energy"], {
-      pages: [
-        {
-          dailyEnergyEntries: [
-            { id: "energy-1", energyOn: start, activeKcal: 350, restingKcal: 1800 },
-          ],
-        },
-      ],
-      pageParams: [0],
+    client.setQueryData(dailyEnergyRangeQueryKey(energyRange.start, today, "test-user"), {
+      dailyEnergyEntries: energyRows.slice(0, 1),
     }),
   );
-  assert.equal(burnedLabel(), "Burned · avg of last 1 logged day");
+  assert.equal(averageOut(), "Average out · 1 full day");
+  assert.equal(
+    container.querySelector('section[aria-label="Energy days"] [aria-live]')?.textContent,
+    "3 of 3 days",
+  );
+
+  // Overview: every card shares its section's cache (Muscles and Strength at
+  // 8 weeks, Body's measurement list, Energy's 30-day calorie history);
+  // Body and Energy are re-seeded here so the expectations below stay local.
+  const overviewRange = chartWindow(30, today);
+  client.setQueryData(bodyMeasurementsQueryKey("test-user"), {
+    bodyMeasurements: [
+      { id: "body-3", measuredOn: today, weightKg: 80.9, bodyFatPct: 17.5 },
+      { id: "body-2", measuredOn: middle, weightKg: 81.7, bodyFatPct: 18.2 },
+      { id: "body-1", measuredOn: start, weightKg: 82.4, bodyFatPct: null },
+    ],
+  });
+  client.setQueryData(calorieHistoryQueryKey(overviewRange.fetchFrom, today, "test-user"), {
+    nutritionDays: [
+      {
+        id: "day-1",
+        logDate: start,
+        nutritionLogEntries: [{ id: "log-1", grams: 1000, snapshotKcalPer100g: 200 }],
+      },
+      {
+        id: "day-2",
+        logDate: middle,
+        nutritionLogEntries: [{ id: "log-2", grams: 1000, snapshotKcalPer100g: 250 }],
+      },
+      {
+        id: "day-3",
+        logDate: today,
+        nutritionLogEntries: [{ id: "log-3", grams: 400, snapshotKcalPer100g: 200 }],
+      },
+    ],
+    dailyEnergyEntries: [
+      { id: "overview-energy-1", energyOn: start, activeKcal: 350, restingKcal: 1800 },
+      { id: "overview-energy-2", energyOn: middle, activeKcal: 500, restingKcal: 1750 },
+    ],
+  });
+  const weights = [82.4, (82.4 + 81.7) / 2, (82.4 + 81.7 + 80.9) / 3];
+  const bodyFat = [18.2, (18.2 + 17.5) / 2];
+  const net = metricFormat.netKcal;
+  await checkChart(Overview, [
+    weeklyVolumeSummary(),
+    `Weight and body fat 7-day averages, ${chartDate(start)} to ${chartDate(today)}. Weight: lowest ${metricFormat.weightAverage(Math.min(...weights))}, highest ${metricFormat.weightAverage(Math.max(...weights))}, latest ${metricFormat.weightAverage(weights[2] ?? 0)} on ${chartDate(today)}. Body fat: lowest ${metricFormat.bodyFat(bodyFat[1] ?? 0)}, highest 18.2 %, latest ${metricFormat.bodyFat(bodyFat[1] ?? 0)} on ${chartDate(today)}. Weight on the left axis, Body fat ${bothAxes}`,
+    `Net calories, daily and 7-day average, ${chartDate(start)} to ${chartDate(middle)}. Daily: lowest ${net(-150)}, highest ${net(250)}, average ${net(50)}, latest ${net(250)} on ${chartDate(middle)}. 7-day avg: lowest ${net(-150)}, highest ${net(50)}, latest ${net(50)} on ${chartDate(middle)}.`,
+  ]);
+  assert.equal(
+    container.querySelector('[role="img"][aria-label^="Most trained"]')?.getAttribute("aria-label"),
+    "Most trained muscles over the last 7 days: Chest 12.5",
+  );
 } finally {
   act(() => root.unmount());
   client.clear();
   await dom.happyDOM.close();
 }
-console.info("All four Progress sections expose endpoint trends and retain chart keyboard access.");
+console.info("Progress charts announce their trends and retain chart keyboard access.");

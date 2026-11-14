@@ -66,25 +66,35 @@ measurements and nutrition nutrient columns when parsing `activeKcal` and
 
 ## Web and iOS UI contract
 
-The web `/progress/energy` route (Progress › Energy) provides the list, trend,
-inline create on desktop, and detail, edit and delete flows. Rows carrying the
-"Imported from Apple Health" note show an Apple Health tag instead of the note.
-The web Burned summary averages the per-row active-plus-resting totals across the
-latest seven logged rows (or all rows if fewer), counting a missing component as
-zero. The separate Active and Resting summaries average only rows where that
-component is present.
+The web `/progress/energy` route (Progress › Energy) shows the energy trend,
+the Calories card and the day list, with today's estimate and a quick Log
+energy card beside them once the page is wide enough (below them otherwise),
+plus detail, edit and delete pages. Rows carrying the "Imported from Apple
+Health" note show an Apple Health tag instead of the note. The web **Average
+out** summary ("Average out · 29 full days") averages active-plus-resting
+totals over the full days (before today) that have a row in the chart's window,
+counting a missing component as zero; Resting and Active average the same
+days, so they add up to it. The trend reads its own date-bounded range
+(30 d · 90 d · 1 y, default 30), independent of the list, which shows seven
+days at a time with a "7 of 41 days" count from `dailyEnergyEntriesAggregate`
+and Load more over 30-row pages.
 
-The web Energy trend uses an orange (`chart-2`) active-energy area and an accent
-(`chart-1`) resting-energy line, matching Today's energy mapping. Orange stays
-fill-only: the active area has a contrasting neutral outline and a light tint so
-the resting line stays legible even when active energy is higher. The area starts
-at zero; legend and tooltip text use neutral foreground colours in both themes.
-The resting legend key sets its accent border colour explicitly: text colour alone
-cannot override the global separator-coloured border default.
+The web Energy trend draws active (Chart 2, orange) and resting (Chart 1, blue)
+lines with a dot per day from zero, today's partial row dashed to open dots, as
+on iOS. The Calories card (its own period, default 30 days) draws Consumed
+(Chart 1) and Net, consumed − burned (Chart 2), each daily with a 7-day average,
+through `useCalorieHistory` / `buildCalorieTrend` (mirroring `CalorieTrend`):
+today's intake so far is an open dot, and net and both averages use full days
+with food logged (net also needs that day's energy row).
 
-Web Body and Energy writes invalidate the Today overview as well as their own
-list queries, for both desktop quick entry and full-page create, edit and delete.
-Energy writes also invalidate the nutrition energy-projection queries.
+Web Body and Energy writes (quick entry and full-page create, edit and delete)
+invalidate the Today overview and every query under their own prefix
+(`["body_measurements"]`, `["daily_energy"]`). Energy writes also invalidate the
+nutrition energy-projection queries and the calorie history
+(`CALORIE_HISTORY_QUERY_KEY`) behind the Calories and Overview net charts. The
+web Today overview reads today's energy row (`todayEnergy`, with `updatedAt`)
+for its Balance card. A save on a date that already has an entry shows the
+error under the form's Date field instead of a toast.
 
 The native iPhone app exposes Energy as a Progress section alongside Overview,
 Muscles, Strength, and Body. Progress › Energy draws active (Chart 2, orange)
@@ -97,7 +107,7 @@ count from the list query's `dailyEnergyEntriesAggregate` and Load more (the
 first page holds 30 rows for the default 30-day chart, and the next page loads
 when the window passes the loaded rows). Progress ›
 Overview's Energy card repeats the 7-day average net with consumed and burned
-per day over the last 30 days. Energy charts open on the last 30 days. Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
+per day over the last 30 days. Energy charts open on the last 30 days. On both platforms, Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
 pure HealthKit grouping helpers shared with the watch; SwiftUI views under
 `ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
@@ -199,8 +209,11 @@ cadence.
 
 ## Today's energy estimate
 
-Today-only summaries add **Estimated burned today** and **Estimated net today**
-alongside the recorded figures. The calculation is shared by `NeoGymKit`'s
+Today-only summaries add an estimated end-of-day burn and net alongside the
+recorded figures: **Estimated burned today** and **Estimated net today** on the
+daily log and Energy (the web Energy panel also lists the logged intake), and
+on Today "By end of day, estimated" with Burned ≈ / Net ≈ and the note that net
+counts only food logged so far. The calculation is shared by `NeoGymKit`'s
 `DailyRestingEnergyBaseline` / `DailyEnergyProjection` and mirrored by the web
 `calculateDailyEnergyProjection` helper:
 
@@ -240,9 +253,9 @@ estimated net = today's logged snapshot kcal - estimated burned
   manual entries. No database or Hasura permission change is needed.
 
 Surfaces: native Today, today's Nutrition › Log, Progress › Energy list and
-current-day detail; web Today (Balance card, beside yesterday's actual balance),
-today's daily log and Energy list/current-day detail; the watch app's End of day
-page; and the small and medium iPhone Balance widgets ("End of day ≈ −851").
+current-day detail; web Today (Balance card: today so far, then the end-of-day
+estimate), today's daily log and Energy list/current-day detail; the watch app's
+End of day page; and the small and medium iPhone Balance widgets ("End of day ≈ −851").
 Energy pages fetch nutrition as well as energy to calculate today's estimated
 net. Historical day/detail screens and charts retain recorded values only. The
 **watch complication** and the iPhone **Lock Screen** widgets show actual

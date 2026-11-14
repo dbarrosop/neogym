@@ -74,7 +74,7 @@ function NewNutritionPlanRoute() {
   });
 
   return (
-    <FormPage title="New plan" width="5xl">
+    <FormPage title="New plan" width="wide" layout="sections">
       <NutritionPlanForm
         initialValues={EMPTY_PLAN}
         submitLabel="Create plan"

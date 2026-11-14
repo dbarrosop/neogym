@@ -1,4 +1,3 @@
-import { Check, Copy, Plug } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -22,14 +21,13 @@ export function McpConnectCard() {
   return (
     <section
       aria-labelledby="mcp-heading"
-      className="grid gap-x-8 gap-y-3 rounded-xl border bg-card p-5 md:grid-cols-2 md:p-6"
+      className="grid gap-x-8 gap-y-3 rounded-xl border bg-card px-5 py-5 md:grid-cols-2 md:px-6"
     >
-      <div className="space-y-1">
-        <h2 id="mcp-heading" className="flex items-center gap-2 text-[15px] font-semibold">
-          <Plug className="size-4 text-link" />
+      <div className="flex flex-col gap-1">
+        <h2 id="mcp-heading" className="text-[15px] font-semibold">
           Agent access (MCP)
         </h2>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="text-[13px] leading-normal text-muted-foreground">
           Point Claude, Cursor or any{" "}
           <a
             href="https://modelcontextprotocol.io"
@@ -43,13 +41,16 @@ export function McpConnectCard() {
         </p>
       </div>
       <div className="flex min-w-0 items-center gap-2 self-start">
-        <code className="flex h-10 min-w-0 flex-1 items-center truncate rounded-lg border bg-surface-inset px-3 font-mono text-[12.5px]">
-          {MCP_URL}
+        <code className="flex h-10 min-w-0 flex-1 items-center rounded-[9px] border border-muted bg-surface-inset px-3 font-mono text-[12.5px] font-medium text-foreground/90">
+          <span className="min-w-0 truncate">{MCP_URL}</span>
         </code>
-        <Button type="button" variant="outline" onClick={copyMcpUrl} aria-label="Copy MCP URL">
-          {copied ? <Check /> : <Copy />}
+        <Button type="button" variant="outline" onClick={copyMcpUrl}>
           {copied ? "Copied" : "Copy"}
+          <span className="sr-only"> MCP URL</span>
         </Button>
+        <span role="status" className="sr-only">
+          {copied ? "MCP URL copied" : ""}
+        </span>
       </div>
     </section>
   );

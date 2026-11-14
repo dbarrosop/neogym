@@ -4,14 +4,16 @@ import {
   asCardioMetricsSchema,
   buildZodSchemaFromMetricsSchema,
   type CardioMetricsSchema,
-  durationPartsToSeconds,
+  durationInputNotation,
+  formatDurationInput,
   formatMetricValue,
   formatSecondsAsDuration,
   iterateMetrics,
+  orderMetricsForForm,
   parseDecimalInput,
+  parseDurationInput,
   parseField,
   parseIntegerInput,
-  secondsToDurationParts,
   seedFieldStates,
   shouldShowHoursInput,
 } from "./cardio-schema";
@@ -184,18 +186,69 @@ describe("parseIntegerInput", () => {
   });
 });
 
-describe("durationPartsToSeconds + secondsToDurationParts", () => {
-  it("rounds-trips", () => {
-    expect(durationPartsToSeconds({ h: "1", m: "2", s: "3" })).toBe(3723);
-    expect(secondsToDurationParts(3723)).toEqual({ h: 1, m: 2, s: 3 });
+describe("parseDurationInput", () => {
+  it("reads m:ss and h:mm:ss", () => {
+    expect(parseDurationInput("9:48")).toBe(588);
+    expect(parseDurationInput("09:05")).toBe(545);
+    expect(parseDurationInput("1:02:03")).toBe(3723);
+    expect(parseDurationInput(" 60:00 ")).toBe(3600);
   });
 
-  it("treats empty as zero", () => {
-    expect(durationPartsToSeconds({ h: "", m: "5", s: "" })).toBe(300);
+  it("reads a bare number as whole minutes", () => {
+    expect(parseDurationInput("45")).toBe(2700);
+    expect(parseDurationInput("0")).toBe(0);
   });
 
-  it("returns null for invalid", () => {
-    expect(durationPartsToSeconds({ h: "1", m: "abc", s: "0" })).toBeNull();
+  it("rejects seconds or minutes past 59 and anything that is not digits and colons", () => {
+    expect(parseDurationInput("9:75")).toBeNull();
+    expect(parseDurationInput("1:60:00")).toBeNull();
+    expect(parseDurationInput("9:4.5")).toBeNull();
+    expect(parseDurationInput("-1:00")).toBeNull();
+    expect(parseDurationInput("1:2:3:4")).toBeNull();
+    expect(parseDurationInput("9:")).toBeNull();
+    expect(parseDurationInput("abc")).toBeNull();
+  });
+});
+
+describe("formatDurationInput", () => {
+  it("writes h:mm:ss when hours are allowed and m:ss below an hour", () => {
+    expect(formatDurationInput(3723, {})).toBe("1:02:03");
+    expect(formatDurationInput(588, {})).toBe("9:48");
+  });
+
+  it("keeps minutes past 59 when the cap hides hours", () => {
+    expect(formatDurationInput(3600, { maximum: 3600 })).toBe("60:00");
+    expect(formatDurationInput(4000, { maximum: 3599 })).toBe("66:40");
+  });
+
+  it("leaves zero or invalid values empty", () => {
+    expect(formatDurationInput(0, {})).toBe("");
+    expect(formatDurationInput(Number.NaN, {})).toBe("");
+  });
+
+  it("round-trips through parseDurationInput", () => {
+    for (const seconds of [1, 59, 60, 588, 3599, 3600, 3723, 86_399]) {
+      expect(parseDurationInput(formatDurationInput(seconds, {}))).toBe(seconds);
+      expect(parseDurationInput(formatDurationInput(seconds, { maximum: 3600 }))).toBe(seconds);
+    }
+  });
+});
+
+describe("durationInputNotation", () => {
+  it("names the hours segment only when the cap exceeds an hour", () => {
+    expect(durationInputNotation({ maximum: 3600 })).toBe("mm:ss");
+    expect(durationInputNotation({ maximum: 3601 })).toBe("h:mm:ss");
+    expect(durationInputNotation({})).toBe("h:mm:ss");
+  });
+});
+
+describe("orderMetricsForForm", () => {
+  it("puts required fields first and keeps schema order within each group", () => {
+    expect(orderMetricsForForm(iterateMetrics(runningSchema)).map((spec) => spec.key)).toEqual([
+      "duration_s",
+      "distance_km",
+      "avg_hr_bpm",
+    ]);
   });
 });
 
@@ -237,7 +290,7 @@ describe("seedFieldStates", () => {
     const specs = iterateMetrics(runningSchema);
     const state = seedFieldStates(specs, null);
     expect(state["distance_km"]).toBe("");
-    expect(state["duration_s"]).toEqual({ h: "", m: "", s: "" });
+    expect(state["duration_s"]).toBe("");
     expect(state["avg_hr_bpm"]).toBe("");
   });
 
@@ -250,24 +303,22 @@ describe("seedFieldStates", () => {
     });
     expect(state["distance_km"]).toBe("5.42");
     expect(state["avg_hr_bpm"]).toBe("165");
-    expect(state["duration_s"]).toEqual({ h: "1", m: "2", s: "3" });
+    expect(state["duration_s"]).toBe("1:02:03");
   });
 
-  it("folds the h component into m when the duration spec hides hours", () => {
+  it("folds hours into minutes when the duration spec hides hours", () => {
     const specs = iterateMetrics(shortDurationSchema);
-    // 4000s would otherwise split into 1h6m40s; with the hours input hidden
-    // the value is preserved as m=66, s=40 (instead of silently truncating to
-    // 6m40s, which would corrupt the stored value on a no-op edit). A value
-    // that overshoots the cap is then surfaced by zod validation on save.
+    // 4000s would otherwise read 1:06:40; without an hours segment the value
+    // is preserved as 66:40 (instead of silently truncating to 6:40, which
+    // would corrupt the stored value on a no-op edit). A value that
+    // overshoots the cap is then surfaced by zod validation on save.
     const state = seedFieldStates(specs, { duration_s: 4000 });
-    expect(state["duration_s"]).toEqual({ h: "", m: "66", s: "40" });
+    expect(state["duration_s"]).toBe("66:40");
   });
 
-  it("hides the h component at the maximum: 3600 boundary (matches MetricInput)", () => {
+  it("writes mm:ss at the maximum: 3600 boundary (matches MetricInput)", () => {
     // The interval template caps duration at 3600s exactly; the form's input
-    // shows only m/s in that case, so the seeder must agree — otherwise a
-    // stored 3600s value would populate a hidden hours field and subsequent
-    // edits could silently overshoot the cap.
+    // reads mm:ss in that case, so the seeder must agree.
     const boundarySchema: CardioMetricsSchema = {
       type: "object",
       additionalProperties: false,
@@ -283,7 +334,7 @@ describe("seedFieldStates", () => {
     };
     const specs = iterateMetrics(boundarySchema);
     const state = seedFieldStates(specs, { duration_s: 3600 });
-    expect(state["duration_s"]).toEqual({ h: "", m: "60", s: "" });
+    expect(state["duration_s"]).toBe("60:00");
   });
 });
 
@@ -303,9 +354,13 @@ describe("parseField", () => {
     expect(parseField(distance, "   ")).toBe("empty");
   });
 
-  it("returns 'empty' when every duration component is blank", () => {
-    expect(parseField(duration, { h: "", m: "", s: "" })).toBe("empty");
+  it("returns 'empty' for a blank duration", () => {
+    expect(parseField(duration, "")).toBe("empty");
     expect(parseField(duration, undefined)).toBe("empty");
+  });
+
+  it("returns 'invalid' for a malformed duration", () => {
+    expect(parseField(duration, "9:75")).toBe("invalid");
   });
 
   it("returns 'invalid' for a non-integer in an integer-like field", () => {
@@ -316,16 +371,16 @@ describe("parseField", () => {
     expect(parseField(distance, "5,42")).toBe(5.42);
   });
 
-  it("honours only m/s when the h component is empty (maximum < 3600 case)", () => {
+  it("parses mm:ss when the cap hides hours", () => {
     const shortSpec = iterateMetrics(shortDurationSchema)[0];
     if (!shortSpec) {
       throw new Error("missing short-duration spec");
     }
-    expect(parseField(shortSpec, { h: "", m: "2", s: "5" })).toBe(125);
+    expect(parseField(shortSpec, "2:05")).toBe(125);
   });
 
-  it("parses a full h/m/s duration to total seconds", () => {
-    expect(parseField(duration, { h: "1", m: "2", s: "3" })).toBe(3723);
+  it("parses h:mm:ss to total seconds", () => {
+    expect(parseField(duration, "1:02:03")).toBe(3723);
   });
 });
 

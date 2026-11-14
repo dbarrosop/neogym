@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { type DocumentNode, getOperationAST } from "graphql";
 import { Window as TestWindow } from "happy-dom";
 import { act, type ReactNode } from "react";
+import type { TrendChartProps } from "@/components/charts/trend-chart";
 import type { TodayOverviewQuery } from "@/gql/graphql";
 
 setSystemTime(new Date(2026, 5, 1, 12, 40));
@@ -24,8 +25,33 @@ mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (options: unknown) => ({ options }),
   Link: ({ children }: { children: ReactNode }) => <a href="#test">{children}</a>,
 }));
-// The estimate has its own query; this fixture exercises only the overview consumer.
-mock.module("@/components/today-energy-estimate", () => ({ TodayEnergyEstimate: () => null }));
+// The estimate has its own query; this fixture checks only what Today hands it.
+const estimateProps: Record<string, unknown>[] = [];
+mock.module("@/components/today-energy-estimate", () => ({
+  TodayEnergyEstimate: (props: Record<string, unknown>) => {
+    estimateProps.push(props);
+    return null;
+  },
+}));
+// Recharts needs layout Happy DOM lacks; record the series and spoken summary instead.
+const { buildTrendChartModel } = await import("@/components/charts/trend-chart-model");
+mock.module("@/components/charts/trend-chart", () => ({
+  TrendChart: (props: TrendChartProps) => (
+    <div
+      className="trend-chart-stub"
+      role="img"
+      aria-label={buildTrendChartModel(props).label}
+      data-series={JSON.stringify(
+        props.series.map((series) => ({
+          name: series.name,
+          color: series.color,
+          axis: series.axis ?? "left",
+          points: series.points,
+        })),
+      )}
+    />
+  ),
+}));
 
 const requests: ReturnType<typeof Promise.withResolvers<TodayOverviewQuery>>[] = [];
 mock.module("@/lib/graphql", () => ({
@@ -52,10 +78,10 @@ const initial: TodayOverviewQuery = {
   latestSession: [],
   recentSessions: { aggregate: { count: 0 } },
   todayNutrition: [],
-  yesterdayNutrition: [],
-  yesterdayEnergy: [],
+  todayEnergy: [],
   bodyMeasurements: [],
 };
+const energyUpdatedAt = "2026-06-01T10:15:00Z";
 const updated: TodayOverviewQuery = {
   ...initial,
   todayNutrition: [
@@ -76,7 +102,9 @@ const updated: TodayOverviewQuery = {
       ],
     },
   ],
-  yesterdayEnergy: [{ id: "yesterday-energy", activeKcal: 300, restingKcal: 1500 }],
+  todayEnergy: [
+    { id: "today-energy", activeKcal: 300, restingKcal: 1500, updatedAt: energyUpdatedAt },
+  ],
   bodyMeasurements: [
     { id: "body-previous", measuredOn: "2026-05-31", weightKg: 82, bodyFatPct: null },
     { id: "body", measuredOn: "2026-06-01", weightKg: 80, bodyFatPct: 20 },
@@ -122,6 +150,22 @@ function card(title: string) {
   assert(heading?.parentElement?.parentElement, `Missing ${title} card`);
   return heading.parentElement.parentElement;
 }
+function bodyChart() {
+  const chart = card("Body").querySelector(".trend-chart-stub");
+  assert(chart, "The Body card draws its chart");
+  return {
+    label: chart.getAttribute("aria-label") ?? "",
+    series: JSON.parse(chart.getAttribute("data-series") ?? "[]") as {
+      name: string;
+      color: string;
+      axis: string;
+      points: { date: string; value: number }[];
+    }[],
+  };
+}
+const kcal = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
+const shortDate = (date: Date) =>
+  date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
 
 try {
   await settle(() => renderToday(true));
@@ -152,8 +196,16 @@ try {
   await settle(() => renderToday(true));
   await waitFor(() => requests.length === 3);
   assert(container.querySelector('[aria-label="0 kilocalories logged"]'));
-  assert(card("Balance").textContent?.includes("No energy logged for yesterday."));
+  // No energy row yet today: intake only, no out or net, and never yesterday's balance.
+  assert(card("Balance").textContent?.includes("No energy recorded yet today."));
+  assert(card("Balance").textContent?.includes("In 0 kcal so far"));
+  assert(!card("Balance").querySelector('[role="img"]'));
+  assert.deepEqual(estimateProps.at(-1), {
+    variant: "today",
+    balance: { userId: "test-user", caloriesIn: 0, dailyEnergy: null },
+  });
   assert(card("Body").textContent?.includes("No measurements in the last three weeks."));
+  assert(!card("Body").querySelector(".trend-chart-stub"));
 
   await settle(() => requests[2]?.resolve(updated));
   await waitFor(() => !!container.querySelector('[aria-label="250 kilocalories logged"]'));
@@ -169,21 +221,66 @@ try {
     );
     assert(meter?.parentElement?.textContent?.includes(value));
   }
-  const format = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-  assert(
-    card("Balance").querySelector(
-      `[aria-label="Energy out: resting ${format.format(1500)}, active ${format.format(300)} kilocalories"]`,
-    ),
+  // Balance: today so far (250 in, 1,800 out recorded so far), stamped with the row's last write.
+  const balance = card("Balance");
+  const updatedTime = new Date(energyUpdatedAt).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  assert(balance.textContent?.includes(`Today so far · ${updatedTime}`));
+  assert.equal(balance.querySelector("strong")?.textContent, `−${kcal.format(1550)} kcal`);
+  assert(balance.textContent?.includes(`In 250 · Out ${kcal.format(1800)}`));
+  const split = balance.querySelector(
+    `[aria-label="Energy out so far: resting ${kcal.format(1500)}, active 300 kilocalories"]`,
   );
-  assert(card("Body").textContent?.includes("80.00 kg"));
+  assert(split, "The resting/active split names both components");
+  assert.deepEqual(
+    [...split.children].map((segment) => segment.className),
+    ["bg-chart-1", "bg-chart-2"],
+    "Resting is Chart 1 and active Chart 2",
+  );
+  assert(balance.textContent?.includes(`Resting ${kcal.format(1500)}`));
+  assert(balance.textContent?.includes("Active 300"));
+  assert(!container.textContent?.toLowerCase().includes("yesterday"));
+  assert.deepEqual(estimateProps.at(-1), {
+    variant: "today",
+    balance: {
+      userId: "test-user",
+      caloriesIn: 250,
+      dailyEnergy: updated.todayEnergy[0],
+    },
+  });
+
+  // Body: raw readings (not averages), weight on Chart 1 and body fat on Chart 2 on its own axis.
+  const chart = bodyChart();
+  assert.deepEqual(chart.series, [
+    {
+      name: "Weight",
+      color: "chart-1",
+      axis: "left",
+      points: [
+        { date: "2026-05-31", value: 82 },
+        { date: "2026-06-01", value: 80 },
+      ],
+    },
+    {
+      name: "Body fat",
+      color: "chart-2",
+      axis: "right",
+      points: [{ date: "2026-06-01", value: 20 }],
+    },
+  ]);
+  assert(chart.label.startsWith("Weight and body fat, "), chart.label);
+  assert(chart.label.includes("both lines start at the same height"), chart.label);
+  assert(card("Body").textContent?.includes(`Weight · ${shortDate(new Date(2026, 5, 1))}`));
+  assert(card("Body").textContent?.includes(`Body fat · ${shortDate(new Date(2026, 5, 1))}`));
+  assert(card("Body").textContent?.includes("80 kg"));
   assert(card("Body").textContent?.includes("20.0 %"));
-  const [firstDate, lastDate] = [new Date(2026, 4, 31), new Date(2026, 5, 1)].map((date) =>
-    date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }),
-  );
-  assert.equal(
-    card("Body").querySelector('svg[role="img"]')?.getAttribute("aria-label"),
-    `Seven-day average weight: 82 kg on ${firstDate} to 81 kg on ${lastDate}; down 1 kg overall across 2 observations.`,
-    "The sparkline describes its rolling averages, not the raw weight measurements",
+  const range = card("Body").querySelector('[aria-hidden="true"].justify-between');
+  assert.deepEqual(
+    [...(range?.children ?? [])].map((element) => element.textContent),
+    [shortDate(new Date(2026, 4, 31)), shortDate(new Date(2026, 5, 1))],
+    "The first and last plotted dates sit under the chart",
   );
   assert(!container.textContent?.includes("Couldn't load today"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
@@ -198,7 +295,7 @@ try {
     card(title);
   }
   assert(container.querySelector('[aria-label="250 kilocalories logged"]'));
-  assert(card("Body").textContent?.includes("80.00 kg"));
+  assert(card("Body").textContent?.includes("80 kg"));
   assert.equal(container.querySelectorAll(".animate-pulse").length, 0);
 
   await settle(() => retryButton().click());
@@ -227,13 +324,31 @@ try {
     const body = card("Body");
     assert(!body.textContent?.includes("No measurements in the last three weeks."));
     assert.equal(body.textContent?.includes("Weight ·"), weightKg !== null);
-    assert.equal(body.textContent?.includes("7-day avg"), weightKg !== null);
-    assert.equal(body.textContent?.includes("Body fat"), bodyFatPct !== null);
+    assert.equal(body.textContent?.includes("Body fat ·"), bodyFatPct !== null);
     assert.deepEqual(
       [...body.querySelectorAll("strong")].map((element) => element.textContent),
       [
-        ...(weightKg === null ? [] : [`${weightKg.toFixed(2)} kg`]),
+        ...(weightKg === null ? [] : [`${weightKg} kg`]),
         ...(bodyFatPct === null ? [] : [`${bodyFatPct.toFixed(1)} %`]),
+      ],
+    );
+    // Each metric has its own 7-day average; one series alone stays on the left axis.
+    assert.deepEqual(
+      [...body.querySelectorAll("span")]
+        .filter((element) => element.textContent?.startsWith("7-day avg"))
+        .map((element) => element.textContent),
+      [
+        ...(weightKg === null ? [] : [`7-day avg ${weightKg.toFixed(1)}`]),
+        ...(bodyFatPct === null ? [] : [`7-day avg ${bodyFatPct.toFixed(1)}`]),
+      ],
+    );
+    assert.deepEqual(
+      bodyChart().series.map((series) => [series.name, series.color, series.axis]),
+      [
+        ...(weightKg === null ? [] : [["Weight", "chart-1", "left"]]),
+        ...(bodyFatPct === null
+          ? []
+          : [["Body fat", "chart-2", weightKg === null ? "left" : "right"]]),
       ],
     );
   }
@@ -244,7 +359,7 @@ try {
   for (const [priorWeight, currentWeight, expectedSummary] of [
     [80, 81.2, "7-day avg 81.2 · +1.2 vs prior week"],
     [80, 78.8, "7-day avg 78.8 · −1.2 vs prior week"],
-    [80, 80, "7-day avg 80.0 · +0.0 vs prior week"],
+    [80, 80, "7-day avg 80.0 · 0.0 vs prior week"],
     [null, 80, "7-day avg 80.0"],
   ] as const) {
     // biome-ignore lint/performance/noAwaitInLoops: Each weight summary must render before checking its styling.

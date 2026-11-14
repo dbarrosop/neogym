@@ -1,25 +1,42 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { type ReactNode, type SubmitEvent, useId, useMemo, useState } from "react";
-import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
-import { MacroSummary } from "@/components/macro-summary";
-import { MealPicker, type MealPickerOption } from "@/components/meal-picker";
+import { Plus } from "lucide-react";
+import { type ReactNode, type SubmitEvent, useCallback, useId, useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { FoodPickerOption } from "@/components/food-picker";
+import type { MealPickerOption } from "@/components/meal-picker";
+import {
+  type PlanEntryDraft,
+  type PlanSlotActions,
+  PlanSlotsEditor,
+  type PlanSlotView,
+} from "@/components/nutrition-plan-slots";
 import { FormActions } from "@/components/patterns/form-actions";
-import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
+import { ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { QuickFoodDialog } from "@/components/quick-food-dialog";
 import { QuickMealDialog } from "@/components/quick-meal-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { graphql } from "@/gql";
 import { useFormPageFormId } from "@/lib/form-page-context";
 import { gqlRequest } from "@/lib/graphql";
+import { formatKcal } from "@/lib/metric-format";
 import {
-  DECIMAL_INPUT_PATTERN,
   EMPTY_MACRO_TOTALS,
+  formatTimeOfDay,
+  formatWholeGrams,
   groupPlanDraftEntriesByTimeSlot,
-  macroTotalsSummary,
+  type MacroTotals,
   movePlanDraftEntryWithinSlot,
   type PlanEntry,
   parseMacroInput,
@@ -28,6 +45,13 @@ import {
   sortAndRenumberPlanEntriesByTime,
   timeToInputValue,
 } from "@/lib/nutrition";
+import {
+  movePlanDraftEntryToTime,
+  planSlotTimeKey,
+  reorderPlanDraftEntryWithinSlot,
+  retimePlanDraftSlot,
+  suggestedPlanSlotTime,
+} from "@/lib/nutrition-plan-draft";
 
 const NutritionPlanFormPickersQuery = graphql(`
   query NutritionPlanFormPickers {
@@ -100,25 +124,6 @@ interface NutritionPlanFormProps {
   extraActions?: ReactNode;
 }
 
-type EntryDraft =
-  | {
-      clientId: string;
-      kind: "meal";
-      id?: string;
-      mealId: string;
-      slotTime: string;
-      label: string;
-    }
-  | {
-      clientId: string;
-      kind: "food";
-      id?: string;
-      foodId: string;
-      grams: string;
-      slotTime: string;
-      label: string;
-    };
-
 type FoodDialogState =
   | { kind: "create"; clientId: string }
   | { kind: "edit"; clientId: string; food: FoodPickerOption };
@@ -127,105 +132,244 @@ type MealDialogState =
   | { kind: "create"; clientId: string }
   | { kind: "edit"; clientId: string; meal: MealPickerOption };
 
-let nextEntryId = 0;
-
-function createClientId() {
-  nextEntryId += 1;
-  return `plan-entry-${Date.now()}-${nextEntryId}`;
+/** A one-field prompt for "Move to another time…" and "Edit label…". */
+interface PromptRequest {
+  title: string;
+  description: string;
+  field: string;
+  type: "time" | "text";
+  initialValue: string;
+  confirmLabel: string;
+  onConfirm: (value: string) => void;
 }
 
-function sortInitialEntries(entries: NutritionPlanFormEntryValues[]) {
-  return sortAndRenumberPlanEntriesByTime(entries);
+interface PendingSlot {
+  id: string;
+  time: string;
 }
 
-function mergeFoodOptions(baseFoods: FoodPickerOption[], localFoods: FoodPickerOption[]) {
-  const byId = new Map<string, FoodPickerOption>();
-  for (const food of baseFoods) {
-    byId.set(food.id, food);
-  }
-  for (const food of localFoods) {
-    byId.set(food.id, food);
-  }
-  return Array.from(byId.values()).toSorted(
-    (left, right) =>
-      Number(left.isPublic) - Number(right.isPublic) || left.name.localeCompare(right.name),
-  );
+let nextClientId = 0;
+
+function createClientId(prefix = "plan-entry") {
+  nextClientId += 1;
+  return `${prefix}-${Date.now()}-${nextClientId}`;
 }
 
-function mergeMealOptions(baseMeals: MealPickerOption[], localMeals: MealPickerOption[]) {
-  const byId = new Map<string, MealPickerOption>();
-  for (const meal of baseMeals) {
-    byId.set(meal.id, meal);
+function mergeById<TOption extends { id: string; name: string }>(
+  base: TOption[],
+  local: TOption[],
+  compare: (left: TOption, right: TOption) => number,
+) {
+  const byId = new Map<string, TOption>();
+  for (const option of [...base, ...local]) {
+    byId.set(option.id, option);
   }
-  for (const meal of localMeals) {
-    byId.set(meal.id, meal);
-  }
-  return Array.from(byId.values()).toSorted((left, right) => left.name.localeCompare(right.name));
+  return Array.from(byId.values()).toSorted(compare);
 }
 
-function createDraftFromInitialEntry(entry: NutritionPlanFormEntryValues): EntryDraft {
+const compareFoods = (left: FoodPickerOption, right: FoodPickerOption) =>
+  Number(left.isPublic) - Number(right.isPublic) || left.name.localeCompare(right.name);
+const compareMeals = (left: MealPickerOption, right: MealPickerOption) =>
+  left.name.localeCompare(right.name);
+
+function createDraftFromInitialEntry(entry: NutritionPlanFormEntryValues): PlanEntryDraft {
+  const common = {
+    slotTime: timeToInputValue(entry.slotTime),
+    ...(entry.id ? { id: entry.id } : {}),
+  };
   if (entry.kind === "meal") {
-    const draft: EntryDraft = {
+    return {
       clientId: `meal:${entry.id ?? createClientId()}`,
       kind: "meal",
       mealId: entry.mealId,
-      slotTime: timeToInputValue(entry.slotTime),
       label: entry.label,
+      ...common,
     };
-    if (entry.id) {
-      draft.id = entry.id;
-    }
-    return draft;
   }
-
-  const draft: EntryDraft = {
+  return {
     clientId: `food:${entry.id ?? createClientId()}`,
     kind: "food",
     foodId: entry.foodId,
     grams: String(entry.grams),
-    slotTime: timeToInputValue(entry.slotTime),
     label: "",
+    ...common,
   };
-  if (entry.id) {
-    draft.id = entry.id;
-  }
-  return draft;
 }
 
 function draftEntriesToFormValues(
-  entries: Array<EntryDraft & { position: number }>,
+  entries: Array<PlanEntryDraft & { position: number }>,
 ): NutritionPlanFormEntryValues[] {
   return entries.map((entry) => {
     const common = {
       slotTime: entry.slotTime,
       position: entry.position,
+      ...(entry.id ? { id: entry.id } : {}),
     };
-
     if (entry.kind === "meal") {
-      const values: NutritionPlanFormEntryValues = {
-        kind: "meal",
-        mealId: entry.mealId,
-        label: entry.label.trim(),
-        ...common,
-      };
-      if (entry.id) {
-        values.id = entry.id;
-      }
-      return values;
+      return { kind: "meal", mealId: entry.mealId, label: entry.label.trim(), ...common };
     }
-
-    const values: NutritionPlanFormEntryValues = {
+    return {
       kind: "food",
       foodId: entry.foodId,
       grams: parseMacroInput(entry.grams) ?? 0,
       label: "",
       ...common,
     };
-    if (entry.id) {
-      values.id = entry.id;
-    }
-    return values;
   });
+}
+
+/** The draft entries plus empty slots added with "Add time slot" (not saved until filled). */
+function usePlanDraft(initialEntries: NutritionPlanFormEntryValues[]) {
+  const [entries, setEntries] = useState<PlanEntryDraft[]>(() =>
+    sortAndRenumberPlanEntriesByTime(initialEntries).map(createDraftFromInitialEntry),
+  );
+  const [pendingSlots, setPendingSlots] = useState<PendingSlot[]>([]);
+  const [openPickerFor, setOpenPickerFor] = useState<string | null>(null);
+
+  const idOf = (entry: PlanEntryDraft) => entry.clientId;
+  const announceMerge = (time: string) => toast.info(`Joined the ${formatTimeOfDay(time)} slot`);
+  const clearOpenPicker = useCallback(() => setOpenPickerFor(null), []);
+
+  function removePendingSlot(id: string) {
+    setPendingSlots((current) => current.filter((slot) => slot.id !== id));
+  }
+
+  function updateEntry(clientId: string, patch: Partial<PlanEntryDraft>) {
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.clientId === clientId ? ({ ...entry, ...patch } as PlanEntryDraft) : entry,
+      ),
+    );
+  }
+
+  function addSlot(existingTimes: string[]) {
+    const time = suggestedPlanSlotTime([
+      ...existingTimes,
+      ...pendingSlots.map((slot) => slot.time),
+    ]);
+    setPendingSlots((current) => [...current, { id: createClientId("slot"), time }]);
+  }
+
+  function retimeSlot(slot: PlanSlotView, time: string) {
+    const pendingId = slot.pendingId;
+    if (pendingId) {
+      setPendingSlots((current) =>
+        current.map((item) => (item.id === pendingId ? { id: pendingId, time } : item)),
+      );
+      return;
+    }
+    const result = retimePlanDraftSlot(entries, slot.time, time);
+    setEntries(result.entries);
+    if (result.merged) {
+      announceMerge(time);
+    }
+  }
+
+  function addEntry(slot: PlanSlotView, kind: PlanEntryDraft["kind"]) {
+    const clientId = createClientId();
+    const common = { clientId, slotTime: slot.time, label: "" };
+    const entry: PlanEntryDraft =
+      kind === "meal"
+        ? { ...common, kind, mealId: "" }
+        : { ...common, kind, foodId: "", grams: "100" };
+    setEntries((current) => [...current, entry]);
+    if (slot.pendingId) {
+      removePendingSlot(slot.pendingId);
+    }
+    setOpenPickerFor(clientId);
+  }
+
+  function moveEntryToTime(clientId: string, time: string) {
+    const result = movePlanDraftEntryToTime(entries, clientId, time, idOf);
+    setEntries(result.entries);
+    if (result.merged) {
+      announceMerge(time);
+    }
+  }
+
+  return {
+    entries,
+    pendingSlots,
+    openPickerFor,
+    clearOpenPicker,
+    addSlot,
+    removePendingSlot,
+    retimeSlot,
+    addEntry,
+    updateEntry,
+    removeEntry: (clientId: string) =>
+      setEntries((current) => current.filter((entry) => entry.clientId !== clientId)),
+    moveEntry: (clientId: string, direction: -1 | 1) =>
+      setEntries((current) => movePlanDraftEntryWithinSlot(current, clientId, direction, idOf)),
+    reorderEntry: (activeId: string, overId: string) =>
+      setEntries((current) => reorderPlanDraftEntryWithinSlot(current, activeId, overId, idOf)),
+    moveEntryToTime,
+  };
+}
+
+function buildSlotViews(
+  entries: PlanEntryDraft[],
+  pendingSlots: PendingSlot[],
+  entryTotals: (entry: PlanEntryDraft) => MacroTotals | null,
+): PlanSlotView[] {
+  const saved = groupPlanDraftEntriesByTimeSlot(entries, {
+    getEntryTotals: (entry) => entryTotals(entry) ?? EMPTY_MACRO_TOTALS,
+  }).map((slot) => ({
+    key: slot.key,
+    time: planSlotTimeKey(slot.entries[0]?.slotTime),
+    label: slot.label,
+    pendingId: null,
+    entries: slot.entries,
+    totals: slot.totals,
+    sortKey: slot.sortKey,
+  }));
+  const savedTimes = new Set(saved.map((slot) => slot.time));
+  const pending = pendingSlots
+    .filter((slot) => !savedTimes.has(slot.time))
+    .map((slot) => ({
+      key: `pending:${slot.id}`,
+      time: slot.time,
+      label: formatTimeOfDay(slot.time),
+      pendingId: slot.id,
+      entries: [],
+      totals: EMPTY_MACRO_TOTALS,
+      sortKey: slot.time,
+    }));
+  return [...saved, ...pending]
+    .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey))
+    .map(({ sortKey: _sortKey, ...slot }) => slot);
+}
+
+function validationError(
+  entries: PlanEntryDraft[],
+  name: string,
+  foodsById: Map<string, FoodPickerOption>,
+  mealsById: Map<string, MealPickerOption>,
+): string | null {
+  if (name.length === 0) {
+    return "Name is required.";
+  }
+  if (entries.length === 0) {
+    return "Add at least one meal or food to this plan.";
+  }
+  if (entries.some((entry) => entry.kind === "meal" && !mealsById.has(entry.mealId))) {
+    return "Every meal entry needs a selected meal.";
+  }
+  if (entries.some((entry) => entry.kind === "food" && !foodsById.has(entry.foodId))) {
+    return "Every food entry needs a selected food.";
+  }
+  if (
+    entries.some((entry) => {
+      const grams = entry.kind === "food" ? parseMacroInput(entry.grams) : 1;
+      return grams === null || grams <= 0;
+    })
+  ) {
+    return "Every food entry needs grams greater than zero.";
+  }
+  if (entries.some((entry) => planSlotTimeKey(entry.slotTime) === "")) {
+    return "Every time slot needs a time of day.";
+  }
+  return null;
 }
 
 export function NutritionPlanForm({
@@ -237,234 +381,159 @@ export function NutritionPlanForm({
   extraActions,
 }: NutritionPlanFormProps) {
   const formId = useFormPageFormId();
-  const nameId = useId();
-  const descriptionId = useId();
   const errorId = useId();
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
-  const [entries, setEntries] = useState<EntryDraft[]>(() =>
-    sortInitialEntries(initialValues.entries).map(createDraftFromInitialEntry),
-  );
+  const draft = usePlanDraft(initialValues.entries);
   const [submitted, setSubmitted] = useState(false);
   const [localFoods, setLocalFoods] = useState<FoodPickerOption[]>([]);
   const [localMeals, setLocalMeals] = useState<MealPickerOption[]>([]);
   const [foodDialog, setFoodDialog] = useState<FoodDialogState | null>(null);
   const [mealDialog, setMealDialog] = useState<MealDialogState | null>(null);
+  const [prompt, setPrompt] = useState<PromptRequest | null>(null);
 
-  const { data, isLoading, error } = useQuery({
+  const pickers = useQuery({
     queryKey: ["nutrition", "plan-form", "pickers"],
     queryFn: () => gqlRequest(NutritionPlanFormPickersQuery),
   });
-
-  const meals = useMemo<MealPickerOption[]>(
-    () => mergeMealOptions(data?.meals ?? [], localMeals),
-    [data, localMeals],
+  const meals = useMemo(
+    () => mergeById<MealPickerOption>(pickers.data?.meals ?? [], localMeals, compareMeals),
+    [pickers.data, localMeals],
   );
-  const foods = useMemo<FoodPickerOption[]>(
-    () => mergeFoodOptions(data?.foods ?? [], localFoods),
-    [data, localFoods],
+  const foods = useMemo(
+    () => mergeById<FoodPickerOption>(pickers.data?.foods ?? [], localFoods, compareFoods),
+    [pickers.data, localFoods],
   );
   const mealsById = useMemo(() => new Map(meals.map((meal) => [meal.id, meal])), [meals]);
   const foodsById = useMemo(() => new Map(foods.map((food) => [food.id, food])), [foods]);
 
-  const sortedEntries = useMemo(() => sortAndRenumberPlanEntriesByTime(entries), [entries]);
+  const entryTotals = (entry: PlanEntryDraft): MacroTotals | null => {
+    const planEntry = toPlanEntry(entry, foodsById, mealsById);
+    return planEntry ? planEntryMacroTotals(planEntry) : null;
+  };
+  const totals = planEntriesMacroTotals(
+    draft.entries.flatMap((entry) => toPlanEntry(entry, foodsById, mealsById) ?? []),
+  );
+  const slots = buildSlotViews(draft.entries, draft.pendingSlots, entryTotals);
+  const error = validationError(draft.entries, name.trim(), foodsById, mealsById);
+  const formError = submitted ? error : null;
 
-  const planEntries = useMemo(
-    () =>
-      sortedEntries.map((entry) => {
-        if (entry.kind === "meal") {
-          return {
-            kind: "meal" as const,
-            id: entry.id ?? entry.clientId,
-            slotTime: entry.slotTime,
-            label: entry.label,
-            position: entry.position,
-            meal: mealsById.get(entry.mealId) ?? null,
-          };
-        }
-
-        return {
-          kind: "food" as const,
-          id: entry.id ?? entry.clientId,
-          slotTime: entry.slotTime,
-          label: "",
-          position: entry.position,
-          grams: parseMacroInput(entry.grams) ?? 0,
-          food: foodsById.get(entry.foodId) ?? null,
-        };
+  const actions: PlanSlotActions = {
+    ...draft,
+    moveEntryToTime: (entry, entryName) =>
+      setPrompt({
+        title: `Move ${entryName}`,
+        description: "Pick a time. If a slot already uses it, the entry joins that slot.",
+        field: "Time",
+        type: "time",
+        initialValue: planSlotTimeKey(entry.slotTime),
+        confirmLabel: "Move",
+        onConfirm: (time) => draft.moveEntryToTime(entry.clientId, time),
       }),
-    [foodsById, mealsById, sortedEntries],
-  );
-
-  const totals = useMemo(() => planEntriesMacroTotals(planEntries), [planEntries]);
-
-  const trimmedName = name.trim();
-  const hasMissingMeal = entries.some(
-    (entry) => entry.kind === "meal" && (!entry.mealId || !mealsById.has(entry.mealId)),
-  );
-  const hasMissingFood = entries.some(
-    (entry) => entry.kind === "food" && (!entry.foodId || !foodsById.has(entry.foodId)),
-  );
-  const hasInvalidGrams = entries.some((entry) => {
-    if (entry.kind !== "food") {
-      return false;
-    }
-    const grams = parseMacroInput(entry.grams);
-    return grams === null || grams <= 0;
-  });
-  const hasMissingTime = entries.some((entry) => entry.slotTime.trim() === "");
-  const nameError = submitted && trimmedName.length === 0 ? "Name is required." : null;
-  const entriesError =
-    submitted && entries.length === 0 ? "Add at least one meal or food entry to this plan." : null;
-  const mealError = submitted && hasMissingMeal ? "Every meal entry needs a selected meal." : null;
-  const foodError = submitted && hasMissingFood ? "Every food entry needs a selected food." : null;
-  const gramsError =
-    submitted && hasInvalidGrams ? "Every food entry needs grams greater than zero." : null;
-  const timeError = submitted && hasMissingTime ? "Every entry needs a time of day." : null;
-  const formError =
-    nameError ?? entriesError ?? mealError ?? foodError ?? gramsError ?? timeError ?? null;
-  const canSubmit = !isSubmitting && !isLoading;
-
-  function addMealEntry() {
-    setEntries((current) => [
-      ...current,
-      {
-        clientId: createClientId(),
-        kind: "meal",
-        mealId: "",
-        slotTime: "12:00",
-        label: "",
-      },
-    ]);
-  }
-
-  function addFoodEntry() {
-    setEntries((current) => [
-      ...current,
-      {
-        clientId: createClientId(),
-        kind: "food",
-        foodId: "",
-        grams: "100",
-        slotTime: "12:00",
-        label: "",
-      },
-    ]);
-  }
-
-  function updateEntry(clientId: string, patch: Partial<EntryDraft>) {
-    setEntries((current) =>
-      current.map((entry) =>
-        entry.clientId === clientId ? ({ ...entry, ...patch } as EntryDraft) : entry,
-      ),
-    );
-  }
-
-  function removeEntry(clientId: string) {
-    setEntries((current) => current.filter((entry) => entry.clientId !== clientId));
-  }
-
-  function moveEntry(clientId: string, direction: -1 | 1) {
-    setEntries((current) =>
-      movePlanDraftEntryWithinSlot(current, clientId, direction, (entry) => entry.clientId),
-    );
-  }
-
-  function rememberFood(food: FoodPickerOption) {
-    setLocalFoods((current) => mergeFoodOptions(current, [food]));
-  }
-
-  function rememberMeal(meal: MealPickerOption) {
-    setLocalMeals((current) => mergeMealOptions(current, [meal]));
-  }
-
-  function handleQuickFoodSaved(food: FoodPickerOption) {
-    rememberFood(food);
-    if (foodDialog?.kind === "create") {
-      updateEntry(foodDialog.clientId, { foodId: food.id });
-    }
-  }
-
-  function handleQuickMealSaved(meal: MealPickerOption) {
-    rememberMeal(meal);
-    if (mealDialog?.kind === "create") {
-      updateEntry(mealDialog.clientId, { mealId: meal.id });
-    }
-  }
+    editLabel: (entry, entryName) =>
+      setPrompt({
+        title: `Label for ${entryName}`,
+        description: "Optional. The meal's name shows when it is empty.",
+        field: "Label",
+        type: "text",
+        initialValue: entry.label,
+        confirmLabel: "Save",
+        onConfirm: (label) => draft.updateEntry(entry.clientId, { label: label.slice(0, 160) }),
+      }),
+    createFood: (clientId) => setFoodDialog({ kind: "create", clientId }),
+    editFood: (clientId, food) => setFoodDialog({ kind: "edit", clientId, food }),
+    createMeal: (clientId) => setMealDialog({ kind: "create", clientId }),
+    editMeal: (clientId, meal) => setMealDialog({ kind: "edit", clientId, meal }),
+  };
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (!canSubmit || trimmedName.length === 0 || entries.length === 0) {
+    if (isSubmitting || pickers.isLoading || error) {
       return;
     }
-    if (hasMissingMeal || hasMissingFood || hasInvalidGrams || hasMissingTime) {
-      return;
-    }
-
     onSubmit({
-      name: trimmedName,
+      name: name.trim(),
       description: description.trim(),
-      entries: draftEntriesToFormValues(sortedEntries),
+      entries: draftEntriesToFormValues(sortAndRenumberPlanEntriesByTime(draft.entries)),
     });
   }
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} className="space-y-6">
-        <NutritionPlanDetailsFields
-          description={description}
-          descriptionId={descriptionId}
-          errorId={errorId}
-          formError={formError}
+      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <PlanDetailsCard
           name={name}
-          nameError={nameError}
-          nameId={nameId}
-          onDescriptionChange={setDescription}
-          onNameChange={setName}
-        />
-
-        <MacroSummary
+          description={description}
           totals={totals}
-          title="Daily planned totals"
-          description="Computed from each selected meal and direct food's current nutrition values."
+          nameInvalid={submitted && name.trim().length === 0}
+          errorId={formError ? errorId : undefined}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
         />
-
-        <NutritionPlanEntriesSection
-          entries={entries}
-          error={error}
-          errorId={errorId}
+        {pickers.isLoading ? <PlanSlotsSkeleton /> : null}
+        {pickers.error ? (
+          <ErrorState
+            title="Couldn't load your foods and meals"
+            message={pickers.error.message}
+            onRetry={() => pickers.refetch()}
+            isRetrying={pickers.isFetching}
+          />
+        ) : null}
+        {!pickers.isLoading && slots.length === 0 ? (
+          <p className="rounded-[14px] border-[1.5px] border-border-strong border-dashed px-5 py-8 text-center text-sm text-muted-foreground">
+            Add a time slot, then the foods and meals you plan to eat at that time.
+          </p>
+        ) : null}
+        <PlanSlotsEditor
+          slots={slots}
           foods={foods}
-          formError={formError}
-          isLoading={isLoading}
-          isSubmitting={isSubmitting}
           meals={meals}
-          planEntries={planEntries}
-          onAddFood={addFoodEntry}
-          onAddMeal={addMealEntry}
-          onMove={moveEntry}
-          onRemove={removeEntry}
-          onUpdate={updateEntry}
-          onCreateFood={(clientId) => setFoodDialog({ kind: "create", clientId })}
-          onEditFood={(clientId, food) => setFoodDialog({ kind: "edit", clientId, food })}
-          onCreateMeal={(clientId) => setMealDialog({ kind: "create", clientId })}
-          onEditMeal={(clientId, meal) => setMealDialog({ kind: "edit", clientId, meal })}
+          entryTotals={entryTotals}
+          disabled={isSubmitting}
+          openPickerFor={draft.openPickerFor}
+          onPickerOpened={draft.clearOpenPicker}
+          actions={actions}
         />
-
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          onClick={() => draft.addSlot(slots.map((slot) => slot.time))}
+          disabled={isSubmitting || pickers.isLoading}
+        >
+          <Plus />
+          Add time slot
+        </Button>
+        {formError ? (
+          <p id={errorId} role="alert" className="text-sm text-destructive">
+            {formError}
+          </p>
+        ) : null}
         <FormActions
           submitLabel={submitLabel}
           isSubmitting={isSubmitting}
-          submitDisabled={isLoading}
+          submitDisabled={pickers.isLoading}
           onCancel={onCancel}
           extraActions={extraActions}
-          className="border-border border-t pt-4"
         />
       </form>
+      <PlanPromptDialog request={prompt} onClose={() => setPrompt(null)} />
       <NutritionPlanInlineDialogs
         foodDialog={foodDialog}
         mealDialog={mealDialog}
-        onFoodSaved={handleQuickFoodSaved}
-        onMealSaved={handleQuickMealSaved}
+        onFoodSaved={(food) => {
+          setLocalFoods((current) => mergeById(current, [food], compareFoods));
+          if (foodDialog?.kind === "create") {
+            draft.updateEntry(foodDialog.clientId, { foodId: food.id });
+          }
+        }}
+        onMealSaved={(meal) => {
+          setLocalMeals((current) => mergeById(current, [meal], compareMeals));
+          if (mealDialog?.kind === "create") {
+            draft.updateEntry(mealDialog.clientId, { mealId: meal.id });
+          }
+        }}
         onCloseFood={() => setFoodDialog(null)}
         onCloseMeal={() => setMealDialog(null)}
       />
@@ -472,60 +541,144 @@ export function NutritionPlanForm({
   );
 }
 
-function NutritionPlanDetailsFields({
-  description,
-  descriptionId,
-  errorId,
-  formError,
+function toPlanEntry(
+  entry: PlanEntryDraft,
+  foodsById: Map<string, FoodPickerOption>,
+  mealsById: Map<string, MealPickerOption>,
+): PlanEntry | null {
+  const common = { id: entry.clientId, slotTime: entry.slotTime, label: entry.label, position: 0 };
+  if (entry.kind === "meal") {
+    const meal = mealsById.get(entry.mealId);
+    return meal ? { ...common, kind: "meal", meal } : null;
+  }
+  const food = foodsById.get(entry.foodId);
+  return food ? { ...common, kind: "food", food, grams: parseMacroInput(entry.grams) ?? 0 } : null;
+}
+
+/** Name, the live planned total and the Markdown description (Web · Plan editor). */
+function PlanDetailsCard({
   name,
-  nameError,
-  nameId,
-  onDescriptionChange,
+  description,
+  totals,
+  nameInvalid,
+  errorId,
   onNameChange,
+  onDescriptionChange,
 }: {
-  description: string;
-  descriptionId: string;
-  errorId: string;
-  formError: string | null;
   name: string;
-  nameError: string | null;
-  nameId: string;
-  onDescriptionChange: (description: string) => void;
+  description: string;
+  totals: MacroTotals;
+  nameInvalid: boolean;
+  errorId: string | undefined;
   onNameChange: (name: string) => void;
+  onDescriptionChange: (description: string) => void;
 }) {
+  const nameId = useId();
+  const descriptionId = useId();
   return (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <label htmlFor={nameId} className="text-sm font-medium">
-          Plan name
-        </label>
+    <section
+      aria-label="Plan details"
+      className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-4 rounded-[14px] border bg-card p-5"
+    >
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={nameId}>Name</Label>
         <Input
           id={nameId}
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           placeholder="e.g. Training day"
           maxLength={160}
-          aria-invalid={Boolean(nameError)}
-          aria-describedby={formError ? errorId : undefined}
+          aria-invalid={nameInvalid}
+          aria-describedby={errorId}
           autoFocus
           required
         />
       </div>
-
-      <div className="space-y-1.5">
-        <label htmlFor={descriptionId} className="text-sm font-medium">
-          Description <span className="font-normal text-muted-foreground">(optional)</span>
-        </label>
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-1 tabular-nums">
+        <div className="flex flex-col">
+          <span className="text-[13px] text-muted-foreground">Planned total</span>
+          <strong className="text-[22px] font-bold">{formatKcal(totals.kcal)}</strong>
+        </div>
+        <span className="pb-1 text-sm">
+          P <strong>{formatWholeGrams(totals.protein)}</strong> · C{" "}
+          <strong>{formatWholeGrams(totals.carbs)}</strong> · F{" "}
+          <strong>{formatWholeGrams(totals.fat)}</strong> g
+        </span>
+      </div>
+      <div className="col-span-full flex flex-col gap-1.5">
+        <Label htmlFor={descriptionId}>
+          Description <span className="font-medium text-muted-foreground">· Markdown</span>
+        </Label>
         <Textarea
           id={descriptionId}
           value={description}
           onChange={(event) => onDescriptionChange(event.target.value)}
-          placeholder="When you use this one-day template or any prep notes."
+          placeholder="When you use this one-day template, or any prep notes."
           maxLength={1000}
           rows={3}
         />
       </div>
-    </div>
+    </section>
+  );
+}
+
+function PlanPromptDialog({
+  request,
+  onClose,
+}: {
+  request: PromptRequest | null;
+  onClose: () => void;
+}) {
+  const fieldId = useId();
+  const [value, setValue] = useState("");
+  const [shown, setShown] = useState<PromptRequest | null>(null);
+  if (request !== shown) {
+    setShown(request);
+    setValue(request?.initialValue ?? "");
+  }
+  const invalid = request?.type === "time" && planSlotTimeKey(value) === "";
+
+  return (
+    <Dialog open={request !== null} onOpenChange={(open) => (open ? undefined : onClose())}>
+      <DialogContent className="md:max-w-[420px]">
+        <form
+          className="flex flex-col gap-[18px]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (request && !invalid) {
+              request.onConfirm(value);
+              onClose();
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{request?.title}</DialogTitle>
+            <DialogDescription>{request?.description}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={fieldId}>{request?.field}</Label>
+            <Input
+              id={fieldId}
+              type={request?.type ?? "text"}
+              value={value}
+              onChange={(event) => setValue(event.target.value)}
+              maxLength={request?.type === "text" ? 160 : undefined}
+              className="tabular-nums"
+              required={request?.type === "time"}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={invalid}>
+              {request?.confirmLabel}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -582,364 +735,12 @@ function NutritionPlanInlineDialogs({
   );
 }
 
-function NutritionPlanEntriesSection({
-  entries,
-  error,
-  errorId,
-  foods,
-  formError,
-  isLoading,
-  isSubmitting,
-  meals,
-  planEntries,
-  onAddFood,
-  onAddMeal,
-  onMove,
-  onRemove,
-  onUpdate,
-  onCreateFood,
-  onEditFood,
-  onCreateMeal,
-  onEditMeal,
-}: {
-  entries: EntryDraft[];
-  error: Error | null;
-  errorId: string;
-  foods: FoodPickerOption[];
-  formError: string | null;
-  isLoading: boolean;
-  isSubmitting: boolean;
-  meals: MealPickerOption[];
-  planEntries: PlanEntry[];
-  onAddFood: () => void;
-  onAddMeal: () => void;
-  onMove: (clientId: string, direction: -1 | 1) => void;
-  onRemove: (clientId: string) => void;
-  onUpdate: (clientId: string, patch: Partial<EntryDraft>) => void;
-  onCreateFood: (clientId: string) => void;
-  onEditFood: (clientId: string, food: FoodPickerOption) => void;
-  onCreateMeal: (clientId: string) => void;
-  onEditMeal: (clientId: string, meal: MealPickerOption) => void;
-}) {
-  const planEntriesById = useMemo(
-    () => new Map(planEntries.map((entry) => [entry.id, entry])),
-    [planEntries],
-  );
-  const slotGroups = useMemo(
-    () =>
-      groupPlanDraftEntriesByTimeSlot(entries, {
-        getEntryTotals: (entry) => {
-          const matchingPlanEntry = planEntriesById.get(entry.id ?? entry.clientId);
-          return matchingPlanEntry ? planEntryMacroTotals(matchingPlanEntry) : EMPTY_MACRO_TOTALS;
-        },
-      }),
-    [entries, planEntriesById],
-  );
-
+function PlanSlotsSkeleton() {
   return (
-    <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
-      <div>
-        <h2 className="text-sm font-medium">Plan entries</h2>
-        <p className="text-[13px] text-muted-foreground">
-          Add meals or foods at a time of day. Entries with the same time form one slot.
-        </p>
-      </div>
-
-      {isLoading ? <NutritionPlanFormSkeleton /> : null}
-      {error ? (
-        <p className="text-sm text-destructive">Failed to load meals and foods: {error.message}</p>
-      ) : null}
-
-      {!isLoading && entries.length === 0 ? (
-        <Card className="border-border border-dashed">
-          <CardContent className="py-8 text-center text-sm text-muted-foreground">
-            Add at least one timed meal or food entry to define this reusable daily template.
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <div className="space-y-4">
-        {slotGroups.map((slot) => (
-          <Card key={slot.key} className="gap-0 py-0">
-            <CardContent className="p-4 pb-1">
-              <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 pb-2">
-                <h3 className="text-[15px] font-semibold tabular-nums">{slot.label}</h3>
-                <p className="text-[13px] text-muted-foreground tabular-nums">
-                  {Math.round(slot.totals.kcal).toLocaleString()} kcal · P{" "}
-                  {Math.round(slot.totals.protein)} · C {Math.round(slot.totals.carbs)} · F{" "}
-                  {Math.round(slot.totals.fat)}
-                </p>
-              </div>
-              <div>
-                {slot.entries.map((entry, index) => {
-                  const matchingPlanEntry = planEntriesById.get(entry.id ?? entry.clientId);
-                  return (
-                    <NutritionPlanEntryCard
-                      key={entry.clientId}
-                      entry={entry}
-                      index={index}
-                      entryCount={slot.entries.length}
-                      meals={meals}
-                      foods={foods}
-                      isSubmitting={isSubmitting}
-                      entryTotals={
-                        matchingPlanEntry ? planEntryMacroTotals(matchingPlanEntry) : null
-                      }
-                      onMove={onMove}
-                      onRemove={onRemove}
-                      onUpdate={onUpdate}
-                      onCreateFood={onCreateFood}
-                      onEditFood={onEditFood}
-                      onCreateMeal={onCreateMeal}
-                      onEditMeal={onEditMeal}
-                    />
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="outline" onClick={onAddMeal} disabled={isLoading}>
-          <Plus className="h-4 w-4" />
-          Add meal entry
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={onAddFood} disabled={isLoading}>
-          <Plus className="h-4 w-4" />
-          Add food entry
-        </Button>
-      </div>
-
-      {formError ? (
-        <p id={errorId} className="text-sm text-destructive">
-          {formError}
-        </p>
-      ) : null}
-    </section>
-  );
-}
-
-function NutritionPlanEntryCard({
-  entry,
-  index,
-  entryCount,
-  meals,
-  foods,
-  isSubmitting,
-  entryTotals,
-  onMove,
-  onRemove,
-  onUpdate,
-  onCreateFood,
-  onEditFood,
-  onCreateMeal,
-  onEditMeal,
-}: {
-  entry: EntryDraft;
-  index: number;
-  entryCount: number;
-  meals: MealPickerOption[];
-  foods: FoodPickerOption[];
-  isSubmitting: boolean;
-  entryTotals: ReturnType<typeof planEntryMacroTotals> | null;
-  onMove: (clientId: string, direction: -1 | 1) => void;
-  onRemove: (clientId: string) => void;
-  onUpdate: (clientId: string, patch: Partial<EntryDraft>) => void;
-  onCreateFood: (clientId: string) => void;
-  onEditFood: (clientId: string, food: FoodPickerOption) => void;
-  onCreateMeal: (clientId: string) => void;
-  onEditMeal: (clientId: string, meal: MealPickerOption) => void;
-}) {
-  const timeId = `${entry.clientId}-time`;
-  const labelId = entry.kind === "meal" ? `${entry.clientId}-label` : undefined;
-  const gramsId = `${entry.clientId}-grams`;
-  const selectedMeal =
-    entry.kind === "meal" ? (meals.find((meal) => meal.id === entry.mealId) ?? null) : null;
-  const selectedFood =
-    entry.kind === "food" ? (foods.find((food) => food.id === entry.foodId) ?? null) : null;
-  const canEditFood = isEditablePrivateFood(selectedFood);
-
-  return (
-    <div className="flex flex-col gap-1.5 border-t py-3">
-      <div className="grid items-center gap-2 lg:grid-cols-[8.75rem_minmax(0,1fr)_7rem_auto]">
-        <div>
-          <label htmlFor={timeId} className="sr-only">
-            Time of day
-          </label>
-          <Input
-            id={timeId}
-            type="time"
-            value={entry.slotTime}
-            onChange={(event) => onUpdate(entry.clientId, { slotTime: event.target.value })}
-            disabled={isSubmitting}
-            required
-            className="h-9 tabular-nums"
-          />
-        </div>
-        <div className="min-w-0">
-          {entry.kind === "meal" ? (
-            <MealPicker
-              meals={meals}
-              value={entry.mealId}
-              onChange={(mealId) => onUpdate(entry.clientId, { mealId })}
-              disabled={isSubmitting}
-            />
-          ) : (
-            <FoodPicker
-              foods={foods}
-              value={entry.foodId}
-              onChange={(foodId) => onUpdate(entry.clientId, { foodId })}
-              disabled={isSubmitting}
-            />
-          )}
-        </div>
-        {entry.kind === "meal" ? (
-          <div>
-            <label htmlFor={labelId} className="sr-only">
-              Label (optional)
-            </label>
-            <Input
-              id={labelId}
-              value={entry.label}
-              onChange={(event) => onUpdate(entry.clientId, { label: event.target.value })}
-              placeholder="Label"
-              maxLength={160}
-              disabled={isSubmitting}
-              className="h-9"
-            />
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5">
-            <label htmlFor={gramsId} className="sr-only">
-              Grams
-            </label>
-            <Input
-              id={gramsId}
-              type="text"
-              inputMode="decimal"
-              pattern={DECIMAL_INPUT_PATTERN}
-              value={entry.grams}
-              onChange={(event) => onUpdate(entry.clientId, { grams: event.target.value })}
-              placeholder="100"
-              disabled={isSubmitting}
-              className="h-9 text-right tabular-nums"
-            />
-            <span className="text-[13px] text-muted-foreground">g</span>
-          </div>
-        )}
-        <div className="flex items-center justify-end gap-0.5">
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8 text-muted-foreground"
-            onClick={() => onMove(entry.clientId, -1)}
-            disabled={index === 0 || isSubmitting}
-            aria-label="Move entry up"
-          >
-            <ArrowUp />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8 text-muted-foreground"
-            onClick={() => onMove(entry.clientId, 1)}
-            disabled={index === entryCount - 1 || isSubmitting}
-            aria-label="Move entry down"
-          >
-            <ArrowDown />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="ghost"
-            className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            onClick={() => onRemove(entry.clientId)}
-            disabled={isSubmitting}
-            aria-label="Remove entry"
-          >
-            <Trash2 />
-          </Button>
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground">
-        <span
-          className={
-            entry.kind === "meal"
-              ? "rounded bg-accent-soft px-1.5 py-px text-[11px] font-semibold text-accent-soft-foreground"
-              : "rounded bg-muted px-1.5 py-px text-[11px] font-semibold text-foreground/80"
-          }
-        >
-          {entry.kind === "meal" ? "MEAL" : "FOOD"}
-        </span>
-        {entryTotals ? (
-          <span className="tabular-nums">{macroTotalsSummary(entryTotals)}</span>
-        ) : null}
-        <span className="flex-1" />
-        {entry.kind === "meal" ? (
-          <>
-            {selectedMeal ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
-                onClick={() => onEditMeal(entry.clientId, selectedMeal)}
-                disabled={isSubmitting}
-              >
-                <Pencil className="size-3" />
-                Edit meal
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
-              onClick={() => onCreateMeal(entry.clientId)}
-              disabled={isSubmitting}
-            >
-              <Plus className="size-3" />
-              New meal
-            </button>
-          </>
-        ) : (
-          <>
-            {selectedFood?.isPublic ? <span>Public food · read-only</span> : null}
-            {canEditFood && selectedFood ? (
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
-                onClick={() => onEditFood(entry.clientId, selectedFood)}
-                disabled={isSubmitting}
-              >
-                <Pencil className="size-3" />
-                Edit food
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="inline-flex items-center gap-1 font-medium text-link hover:underline disabled:opacity-50"
-              onClick={() => onCreateFood(entry.clientId)}
-              disabled={isSubmitting}
-            >
-              <Plus className="size-3" />
-              New private food
-            </button>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function NutritionPlanFormSkeleton() {
-  return (
-    <Card className="border-border/60">
-      <CardContent className="space-y-3 p-3">
-        <Skeleton className="h-4 w-24" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-28 w-full" />
-      </CardContent>
-    </Card>
+    <SkeletonState className="flex flex-col gap-3 rounded-[14px] border bg-card p-4">
+      <Skeleton className="h-10 w-40" />
+      <Skeleton className="h-[52px] w-full" />
+      <Skeleton className="h-[52px] w-full" />
+    </SkeletonState>
   );
 }

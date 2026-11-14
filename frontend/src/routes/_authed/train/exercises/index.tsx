@@ -1,12 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { Check, ChevronDown, ChevronRight, Dumbbell, Globe2, Search, User, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Globe2, Search, User, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
+import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
+import { ActiveFilterChip, FilterChip } from "@/components/patterns/filter-chip";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { AreaTabs } from "@/components/shell/area-tabs";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
@@ -18,6 +21,7 @@ const ExercisesIndexQuery = graphql(`
     exercises(order_by: { name: asc }) {
       id
       name
+      image1FileId
       strength { doubleWeight }
       primaryMuscleGroup
       category
@@ -68,6 +72,7 @@ export const Route = createFileRoute("/_authed/train/exercises/")({
 type Exercise = {
   id: string;
   name: string;
+  image1FileId?: string | null;
   strength?: { doubleWeight: boolean } | null;
   primaryMuscleGroup: string;
   category?: string | null;
@@ -188,7 +193,7 @@ function ExercisesRoute() {
   const visibility: Visibility | null = searchParams.visibility ?? null;
   const search = searchParams.q ?? "";
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["exercises", "index"],
     queryFn: () => gqlRequest(ExercisesIndexQuery),
   });
@@ -288,24 +293,37 @@ function ExercisesRoute() {
       return <ExercisesSkeleton />;
     }
     if (error) {
-      return <ErrorState title="Couldn't load exercises" message={error.message} />;
+      return (
+        <ErrorState
+          title="Couldn't load exercises"
+          message={error.message}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      );
     }
     if (filteredExercises.length === 0) {
+      const hasSearch = search.trim() !== "";
       return (
         <EmptyState
-          title="No exercises match"
-          description="Try a different search or remove a filter."
-        >
-          {isFiltered ? (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-sm font-medium text-link hover:underline"
-            >
-              Clear filters
-            </button>
-          ) : null}
-        </EmptyState>
+          title={hasSearch ? `No exercises match “${search.trim()}”` : "No exercises match"}
+          description={
+            hasSearch
+              ? "Check the spelling or search for fewer words."
+              : "Remove a filter to see more."
+          }
+          actions={
+            isFiltered ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={hasSearch ? () => setSearchText("") : clearAll}
+              >
+                {hasSearch ? "Clear search" : "Clear filters"}
+              </Button>
+            ) : null
+          }
+        />
       );
     }
     if (search.trim() !== "") {
@@ -328,7 +346,7 @@ function ExercisesRoute() {
   return (
     <PageShell maxWidth="6xl">
       <PageHeader title="Train" tabs={<AreaTabs area="train" />} />
-      <div className="grid items-start gap-6 min-[1100px]:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="grid items-start gap-5 min-[1100px]:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="hidden min-[1100px]:sticky min-[1100px]:top-6 min-[1100px]:block">
           <FilterRail
             filters={filters}
@@ -339,7 +357,7 @@ function ExercisesRoute() {
             searchMatchIds={searchMatchIds}
           />
         </aside>
-        <section aria-label="Results" className="flex min-w-0 flex-col gap-3">
+        <section aria-label="Results" className="flex min-w-0 flex-col gap-3.5">
           <SearchBar value={search} onChange={setSearchText} count={exercises.length} />
           <div className="min-[1100px]:hidden">
             <FilterStrip
@@ -357,24 +375,17 @@ function ExercisesRoute() {
           {isFiltered ? (
             <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
               {activeChips.map((chip) => (
-                <span
+                <ActiveFilterChip
                   key={chip.key}
-                  className="inline-flex h-7 items-center gap-1 rounded-full bg-primary pr-1 pl-3 font-medium text-primary-foreground"
+                  removeLabel={`Clear ${chip.label} filter`}
+                  onRemove={() =>
+                    chip.key === "visibility"
+                      ? setVisibility(null)
+                      : setFilter(chip.key as FilterKey, null)
+                  }
                 >
                   {chip.label}
-                  <button
-                    type="button"
-                    className="grid size-5 place-items-center rounded-full hover:bg-primary-foreground/20"
-                    aria-label={`Clear ${chip.label} filter`}
-                    onClick={() =>
-                      chip.key === "visibility"
-                        ? setVisibility(null)
-                        : setFilter(chip.key as FilterKey, null)
-                    }
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </span>
+                </ActiveFilterChip>
               ))}
               <span className="tabular-nums">
                 {filteredExercises.length} match{filteredExercises.length === 1 ? "" : "es"}
@@ -410,9 +421,9 @@ function SearchBar({
       <Input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={count > 0 ? `Search ${count} exercises` : "Search exercises"}
+        placeholder={count > 0 ? `Search ${count.toLocaleString()} exercises` : "Search exercises"}
         aria-label="Search exercises"
-        className="h-11 rounded-xl bg-card pr-10 pl-10"
+        className="h-[42px] rounded-[10px] border-border bg-card pr-10 pl-10"
       />
       {value ? (
         <button
@@ -449,7 +460,7 @@ function FilterRail({
   return (
     <nav
       aria-label="Exercise filters"
-      className="flex flex-col gap-5 rounded-xl border bg-card p-4"
+      className="flex flex-col rounded-xl border bg-card px-4 pt-2 pb-3 [&>*+*]:border-t"
     >
       <RailGroup title="Show">
         <RailOption selected={visibility === null} onClick={() => onVisibilityChange(null)}>
@@ -477,8 +488,10 @@ function FilterRail({
 
 function RailGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <h3 className="px-2 pb-1 text-[13px] font-semibold text-muted-foreground">{title}</h3>
+    <div className="flex flex-col gap-0.5 py-3">
+      <h3 className="pb-1.5 text-[12px] font-semibold tracking-[0.04em] text-muted-foreground uppercase">
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -501,7 +514,7 @@ function RailOption({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "flex min-h-8 items-center gap-2 rounded-md px-2 text-left text-sm transition-colors hover:bg-muted/60",
+        "-mx-2 flex min-h-8 items-center gap-2.5 rounded-md px-2 text-left text-sm text-foreground/90 transition-colors hover:bg-muted/60",
         selected && "font-semibold text-foreground",
       )}
     >
@@ -561,7 +574,7 @@ function RailFacet({
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="self-start px-2 pt-1 text-[13px] font-medium text-link hover:underline"
+          className="self-start pt-1 text-[13px] font-medium text-link hover:underline"
         >
           {showAll ? "Show fewer" : `Show all ${options.length}`}
         </button>
@@ -639,22 +652,10 @@ function VisibilityPill({
   active: boolean;
   onClick: () => void;
 }) {
-  const label = value === "mine" ? "Mine" : "Public";
-  const Icon = value === "mine" ? User : Globe2;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {label}
-    </button>
+    <FilterChip selected={active} onClick={onClick} icon={value === "mine" ? User : Globe2}>
+      {value === "mine" ? "Mine" : "Public"}
+    </FilterChip>
   );
 }
 
@@ -832,16 +833,18 @@ function ResultGroup({
   children: React.ReactNode;
 }) {
   return (
-    <section aria-label={title} className="rounded-xl border bg-card p-2">
-      <div className="flex items-baseline justify-between gap-2 px-2.5 pt-2 pb-1.5">
+    <section aria-label={title} className="rounded-xl border bg-card px-2 py-3">
+      <div className="flex items-baseline justify-between gap-2 px-2 pt-1 pb-1.5">
         <h2 className="text-[15px] font-semibold">{title}</h2>
         {count === null ? null : (
-          <span className="text-[13px] text-muted-foreground tabular-nums">
+          <span className="text-[12px] text-muted-foreground tabular-nums">
             {count} exercise{count === 1 ? "" : "s"}
           </span>
         )}
       </div>
-      <ul className="grid gap-0.5 sm:grid-cols-2">{children}</ul>
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-x-3 gap-y-0.5">
+        {children}
+      </ul>
     </section>
   );
 }
@@ -882,27 +885,28 @@ function ExerciseRow({
       <Link
         to="/train/exercises/$exerciseId"
         params={{ exerciseId: exercise.id }}
-        className="group flex min-h-14 items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/60"
+        className="group flex min-h-[60px] items-center gap-3 rounded-[10px] px-2 py-1 transition-colors hover:bg-muted/60"
       >
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-surface-inset text-muted-foreground">
-          <Dumbbell className="size-[18px]" />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
+        <ExerciseThumbnail fileId={exercise.image1FileId} />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-semibold">{exercise.name}</span>
             <VisibilityIcon
-              className={cn(
-                "size-3 shrink-0",
-                exercise.isPublic ? "text-link/70" : "text-muted-foreground/70",
-              )}
+              role="img"
+              className="size-3 shrink-0 text-tertiary-foreground"
               aria-label={exercise.isPublic ? "Public" : "Mine"}
             />
           </span>
           {meta.length > 0 ? (
-            <span className="truncate text-[13px] text-muted-foreground">{meta.join(" · ")}</span>
+            <span className="truncate text-[12px] text-muted-foreground tabular-nums">
+              {meta.join(" · ")}
+            </span>
           ) : null}
         </span>
-        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        <ChevronRight
+          aria-hidden="true"
+          className="size-3.5 shrink-0 text-tertiary-foreground transition-colors group-hover:text-foreground"
+        />
       </Link>
     </li>
   );

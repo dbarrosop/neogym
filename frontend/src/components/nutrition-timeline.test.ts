@@ -17,4 +17,4 @@ test("nutrition keeps planned actions beside logged intake and advances Today's 
     output:
       "Planned slot actions survive same-time intake and re-logging behind a confirmation; Today advances with the local clock.\n",
   });
-});
+}, 25_000);

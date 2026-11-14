@@ -16,6 +16,24 @@ describe("area navigation", () => {
     expect(log && isSectionActive(log, "/nutrition/log/2026-11-12")).toBe(true);
   });
 
+  it("opens Progress on Overview, its first section", () => {
+    const progress = getArea("progress");
+    expect(progress.to).toBe("/progress/overview");
+    expect(progress.sections.map((section) => section.label)).toEqual([
+      "Overview",
+      "Muscles",
+      "Strength",
+      "Body",
+      "Energy",
+    ]);
+    expect(progress.sections[0]?.to).toBe(progress.to);
+    const overview = progress.sections[0];
+    expect(overview && isSectionActive(overview, "/progress/overview")).toBe(true);
+    expect(overview && isSectionActive(overview, "/progress/muscles")).toBe(false);
+    expect(areaForPath("/progress/overview")?.id).toBe("progress");
+    expect(isSectionLanding("/progress/overview")).toBe(true);
+  });
+
   it("treats tab destinations and day logs as section landings", () => {
     expect(isSectionLanding("/train/workouts")).toBe(true);
     expect(isSectionLanding("/nutrition/log/2026-11-12")).toBe(true);

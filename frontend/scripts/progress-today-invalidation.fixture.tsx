@@ -92,31 +92,67 @@ mock.module("@/lib/graphql", () => ({
 
 // Keep the production forms, confirmation dialog, query client and mutation handlers.
 const { createRoot } = await import("react-dom/client");
+const { CALORIE_HISTORY_QUERY_KEY } = await import("@/lib/hooks/use-calorie-history");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
 const { Route: NewBody } = await import("@/routes/_authed/progress/body/new");
 const { Route: EditBody } = await import("@/routes/_authed/progress/body/$id_.edit");
 const { Route: NewEnergy } = await import("@/routes/_authed/progress/energy/new");
 const { Route: EditEnergy } = await import("@/routes/_authed/progress/energy/$id_.edit");
+// Creates fail on a date that already has an entry (shown under the Date field),
+// edits on a dropped connection (the form's error slot), deletes in a toast.
 const cases = [
-  { route: NewBody, operation: "InsertBodyMeasurement", area: "body", action: "Save measurement" },
-  { route: EditBody, operation: "UpdateBodyMeasurement", area: "body", action: "Save changes" },
+  {
+    route: NewBody,
+    operation: "InsertBodyMeasurement",
+    area: "body",
+    action: "Create measurement",
+    failure: 'duplicate key value violates unique constraint "body_measurements_user_date_key"',
+    inlineError: "You already have a measurement for this date.",
+  },
+  {
+    route: EditBody,
+    operation: "UpdateBodyMeasurement",
+    area: "body",
+    action: "Save",
+    failure: "Connection interrupted",
+    inlineError: "Failed to save: Connection interrupted",
+  },
   {
     route: EditBody,
     operation: "DeleteBodyMeasurement",
     area: "body",
     action: "Delete measurement",
+    failure: "Connection interrupted",
+    inlineError: null,
   },
-  { route: NewEnergy, operation: "InsertDailyEnergy", area: "energy", action: "Save energy day" },
-  { route: EditEnergy, operation: "UpdateDailyEnergy", area: "energy", action: "Save changes" },
+  {
+    route: NewEnergy,
+    operation: "InsertDailyEnergy",
+    area: "energy",
+    action: "Create energy day",
+    failure: 'duplicate key value violates unique constraint "daily_energy_user_date_key"',
+    inlineError: "You already have an energy entry for this date.",
+  },
+  {
+    route: EditEnergy,
+    operation: "UpdateDailyEnergy",
+    area: "energy",
+    action: "Save",
+    failure: "Connection interrupted",
+    inlineError: "Failed to save: Connection interrupted",
+  },
   {
     route: EditEnergy,
     operation: "DeleteDailyEnergy",
     area: "energy",
     action: "Delete energy day",
+    failure: "Connection interrupted",
+    inlineError: null,
   },
 ] as const;
 const todayKey = ["today", "overview", "2026-06-01", "test-user"];
 const projectionKey = ["nutrition", "energy-projection", "test-user", "2026-06-01"];
+const calorieKey = [...CALORIE_HISTORY_QUERY_KEY, "2026-05-03", "2026-06-01", "test-user"];
 
 async function settle(action: () => unknown = () => undefined) {
   await act(async () => {
@@ -147,7 +183,12 @@ function mutation() {
   return pendingMutation;
 }
 
-async function checkCase({ route, operation, area, action }: (typeof cases)[number]) {
+function inlineAlerts(within: ParentNode) {
+  return [...within.querySelectorAll('form [role="alert"]')].map((item) => item.textContent);
+}
+
+async function checkCase(testCase: (typeof cases)[number]) {
+  const { route, operation, area, action, failure, inlineError } = testCase;
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false, refetchOnWindowFocus: false, staleTime: 30_000 },
@@ -158,6 +199,7 @@ async function checkCase({ route, operation, area, action }: (typeof cases)[numb
   client.setQueryData(todayKey, "cached overview");
   client.setQueryData(listKey, []);
   client.setQueryData(projectionKey, {});
+  client.setQueryData(calorieKey, {});
   let overviewFetches = 0;
   const overviewQuery = {
     queryKey: todayKey,
@@ -201,7 +243,7 @@ async function checkCase({ route, operation, area, action }: (typeof cases)[numb
     if (operation.startsWith("Delete")) {
       await settle(() => button(action, container).click());
     }
-    const actionScope = document.querySelector('[role="dialog"]') ?? container;
+    const actionScope = document.querySelector('[role="alertdialog"]') ?? container;
     await settle(() => button(action, actionScope).click());
     await waitFor(() => pendingMutation !== undefined);
     assert.equal(mutation().operation, operation);
@@ -210,8 +252,22 @@ async function checkCase({ route, operation, area, action }: (typeof cases)[numb
       false,
       "Pending writes keep Today fresh",
     );
-    await settle(() => mutation().reject(new Error("Connection interrupted")));
-    await waitFor(() => errors.length === 1 && !button(action, actionScope).disabled);
+    await settle(() => mutation().reject(new Error(failure)));
+    if (inlineError) {
+      await waitFor(
+        () => inlineAlerts(container).includes(inlineError) && !button(action, container).disabled,
+      );
+      assert.equal(errors.length, 0, "Save failures stay in the form, not a toast");
+      const date = container.querySelector<HTMLInputElement>('input[type="date"]');
+      assert.equal(
+        date?.getAttribute("aria-invalid") === "true",
+        failure.includes("_user_date_key"),
+        "Only a date that already has an entry marks the Date field",
+      );
+    } else {
+      await waitFor(() => errors.length === 1 && !button(action, actionScope).disabled);
+      assert.equal(errors[0], "Failed to delete: Connection interrupted");
+    }
     assert.equal(
       client.getQueryState(todayKey)?.isInvalidated,
       false,
@@ -230,9 +286,12 @@ async function checkCase({ route, operation, area, action }: (typeof cases)[numb
       `${operation} invalidates Today`,
     );
     assert.equal(client.getQueryState(listKey)?.isInvalidated, true);
-    if (area === "energy") {
-      assert.equal(client.getQueryState(projectionKey)?.isInvalidated, true);
-    }
+    assert.equal(client.getQueryState(projectionKey)?.isInvalidated, area === "energy");
+    assert.equal(
+      client.getQueryState(calorieKey)?.isInvalidated,
+      area === "energy",
+      "Energy writes refresh the calorie history behind the net charts",
+    );
     assert.deepEqual(navigations[0], {
       to: `/progress/${area}${operation.startsWith("Delete") ? "" : "/$id"}`,
       ...(operation.startsWith("Delete") ? {} : { params: { id: "record" } }),

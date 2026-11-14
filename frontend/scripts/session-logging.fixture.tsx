@@ -314,6 +314,15 @@ function collapsed(name: string) {
   assert(element, `Missing collapsed card: ${name}`);
   return element;
 }
+function recentDate(day: string) {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+function recentPanel(name: string) {
+  return card(name).querySelector("dl")?.textContent;
+}
 function fill(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
   assert(setter);
@@ -446,7 +455,19 @@ async function openSession(
       </QueryClientProvider>,
     ),
   );
-  await waitFor(() => client.isFetching() === 0);
+  // The history query starts only after the detail query renders, so idle
+  // fetching alone can be observed before it begins.
+  await waitFor(
+    () =>
+      client.isFetching() === 0 &&
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["sessions", "prior-per-exercise"] })
+        .some((query) => query.state.status !== "pending"),
+  );
+  // The cache can settle a tick before React renders the history-backed
+  // prefill and Recent panel, so flush once more before asserting on them.
+  await settle();
   if (!historyUnavailable) {
     for (const query of client.getQueryCache().findAll()) {
       assert.equal(query.state.error, null, `Failed fixture query: ${query.queryHash}`);
@@ -481,11 +502,16 @@ async function logEntry(name: string, number: number) {
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
   assert(dialog);
   assert(dialog.textContent?.includes(`Add entry ${number}`));
-  const duration = dialog.querySelector<HTMLInputElement>('input[aria-label="Duration seconds"]');
+  // Durations are one "mm:ss" field, labelled by its visible label.
+  const duration = dialog.querySelector<HTMLInputElement>("#metric-duration_s");
   assert(duration);
-  await settle(() => fill(duration, "60"));
+  assert.equal(
+    dialog.querySelector('label[for="metric-duration_s"]')?.textContent,
+    "Durationh:mm:ss",
+  );
+  await settle(() => fill(duration, "1:00"));
   const readsBefore = detailReads;
-  await settle(() => button("Log entry", dialog).click());
+  await settle(() => button("Add entry", dialog).click());
   await waitFor(
     () =>
       detailReads > readsBefore &&
@@ -594,7 +620,7 @@ try {
   await logSet("Squat", 1);
   seedReports();
   await settle(() => button("Delete session").click());
-  const deleteDialog = document.querySelector<HTMLElement>('[role="dialog"]');
+  const deleteDialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
   assert(deleteDialog);
   await settle(() => button("Delete session", deleteDialog).click());
   await waitFor(() => navigations.length === 1 && client.isMutating() === 0);
@@ -643,7 +669,7 @@ try {
     assert(row);
     assert.equal(row.querySelectorAll("button").length, 1);
     assert(row.classList.contains("relative"));
-    assert(row.classList.contains("h-12"));
+    assert(row.classList.contains("h-11"));
     assert(edit.classList.contains("absolute"));
     assert(edit.classList.contains("inset-0"));
     assert(edit.classList.contains("size-full"));
@@ -840,14 +866,15 @@ try {
       ?.value,
     "60",
   );
-  assert(card("Squat").textContent?.includes("Last time 60 × 8"));
+  // The open card's Recent panel replaces per-set "last" captions.
+  assert.equal(recentPanel("Squat"), `${recentDate("2026-05-20")}60 × 8 · 8 · 8`);
+  assert(!card("Squat").textContent?.includes("Last time"));
   const earlierSection = container.querySelector('section[aria-label="Earlier Workout sessions"]');
   assert(earlierSection);
-  assert.equal(earlierSection.querySelectorAll("li").length, 5);
+  assert.equal(earlierSection.querySelectorAll("li").length, 3);
   assert(!earlierSection.textContent?.includes("4 sets"));
-  assert(earlierSection.textContent?.includes("3 sets"));
   await logSet("Squat", 1);
-  assert(card("Squat").querySelector("tbody tr")?.textContent?.includes("60 × 8"));
+  assert.equal(card("Squat").querySelector("tbody tr")?.textContent, "150 kg8400 kg");
   assert(card("Squat").querySelector('form[aria-label="Log set 2"]'));
   await logSet("Squat", 2);
   await logSet("Squat", 3);
@@ -863,6 +890,8 @@ try {
   ).workoutSessionStrengthSets;
   await openSession([completed, exercise("Lunge", 1)], [], true, historyOptions);
   assert(collapsed("Squat").querySelector('[aria-label="Done"]'));
+  // Collapsed: this session's sets, then last time's reference.
+  assert(collapsed("Squat").textContent?.includes("50 kg × 8 · 8 · 8last 60 × 8 · 8 · 8"));
   assert(card("Lunge"));
 
   // With no logged same-workout history, fall back to earlier exercise history.
@@ -877,7 +906,10 @@ try {
   await openSession([exercise("Lunge"), exercise("Squat", 1)], [], true, fallbackOptions);
   assert(collapsed("Squat").textContent?.includes("Last time 90 kg × 8 · 8 · 8 · 8"));
   await settle(() => collapsed("Squat").click());
-  assert(card("Squat").textContent?.includes("Last time 90 × 8"));
+  assert.equal(
+    recentPanel("Squat"),
+    [27, 26, 25].map((day) => `${recentDate(`2026-05-${day}`)}90 × 8 · 8 · 8 · 8`).join(""),
+  );
 
   // Ad-hoc sessions use the newest earlier logged exercise occurrence, not a workout preference.
   await openSession([exercise("Squat")], [], false, historyOptions);

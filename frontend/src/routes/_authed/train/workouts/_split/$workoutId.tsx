@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Loader2, Pencil, Play } from "lucide-react";
+import { Loader2, Play } from "lucide-react";
 import { useMemo, useState } from "react";
+import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
 import { Markdown } from "@/components/markdown";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
-import { AlternatingStorageImage } from "@/components/storage-image";
+import { Tag } from "@/components/patterns/tag";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
@@ -13,6 +14,7 @@ import { localTimeZone } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
 import { useStartSession } from "@/lib/hooks/use-start-session";
 import { useAuth } from "@/lib/nhost/auth-provider";
+import { formatTopSet } from "@/lib/set-summary";
 import { useLocalToday } from "@/lib/use-local-today";
 import { cn, formatMuscle } from "@/lib/utils";
 import { workoutDetailVariables } from "@/lib/workout-detail";
@@ -95,7 +97,7 @@ function WorkoutDetailRoute() {
   const { user } = useAuth();
   const today = useLocalToday();
   const timeZone = localTimeZone();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["workouts", "detail", workoutId, today, timeZone, user?.id],
     queryFn: () =>
       gqlRequest(WorkoutDetailQuery, workoutDetailVariables(workoutId, today, timeZone)),
@@ -107,7 +109,14 @@ function WorkoutDetailRoute() {
     return <DetailSkeleton />;
   }
   if (error) {
-    return <ErrorState title="Couldn't load this workout" message={error.message} />;
+    return (
+      <ErrorState
+        title="Couldn't load this workout"
+        message={error.message}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
+    );
   }
   const workout = data?.workout;
   if (!workout) {
@@ -123,29 +132,23 @@ function WorkoutDetailRoute() {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="flex flex-col gap-5 rounded-xl border bg-card p-5">
+      <section className="flex flex-col gap-3.5 rounded-xl border bg-card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-col gap-2">
-            <h2 className="text-[22px] font-bold tracking-tight">{workout.name}</h2>
-            <div className="flex flex-wrap gap-1.5">
-              <span className="rounded-full bg-muted px-2.5 py-0.5 text-[12px] font-medium text-muted-foreground">
-                {workout.isPublic ? "Public" : "Mine"}
-              </span>
-              {workout.workoutLabels.map((wl) => (
-                <span
-                  key={wl.labelId}
-                  className="rounded-full bg-accent-soft px-2.5 py-0.5 text-[12px] font-medium text-accent-soft-foreground"
-                >
-                  {wl.label.name}
-                </span>
-              ))}
-            </div>
+            <h2 className="text-[22px] font-bold tracking-[-0.01em]">{workout.name}</h2>
+            {workout.isPublic || workout.workoutLabels.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {workout.isPublic ? <Tag>public</Tag> : null}
+                {workout.workoutLabels.map((wl) => (
+                  <Tag key={wl.labelId}>{wl.label.name}</Tag>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit ? (
               <Button asChild variant="outline">
                 <Link to="/train/workouts/$workoutId/edit" params={{ workoutId: workout.id }}>
-                  <Pencil />
                   Edit
                 </Link>
               </Button>
@@ -169,12 +172,7 @@ function WorkoutDetailRoute() {
           </div>
         </div>
         {history.length > 0 || workout.description ? (
-          <div
-            className={cn(
-              "grid gap-5",
-              history.length > 0 && workout.description && "md:grid-cols-2",
-            )}
-          >
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(240px,100%),1fr))] gap-5">
             {history.length > 0 ? <VolumeBars rows={history} /> : null}
             {workout.description ? <Notes text={workout.description} /> : null}
           </div>
@@ -194,7 +192,7 @@ function VolumeBars({ rows }: { rows: WorkoutDetailData["workoutStrengthReport"]
   const values = points.map((p) => p.volume);
   const max = Math.max(...values, 0) || 1;
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       <span className="text-[13px] font-semibold text-muted-foreground">
         Volume by session · past year
       </span>
@@ -228,7 +226,7 @@ function VolumeBars({ rows }: { rows: WorkoutDetailData["workoutStrengthReport"]
                   tabIndex={-1}
                   className={cn(
                     "w-full max-w-12 rounded-md transition-opacity hover:opacity-80",
-                    last ? "bg-primary" : "bg-primary/40",
+                    last ? "bg-primary" : "bg-primary/50",
                   )}
                   style={{ height: `${ratio * 100}%` }}
                 />
@@ -274,20 +272,6 @@ function Notes({ text }: { text: string }) {
   );
 }
 
-function topSetLabel(sets: { reps: number; weight: unknown }[]): string | null {
-  let best: { reps: number; weight: number } | null = null;
-  for (const set of sets) {
-    const weight = Number(set.weight);
-    if (!best || weight > best.weight || (weight === best.weight && set.reps > best.reps)) {
-      best = { reps: set.reps, weight };
-    }
-  }
-  if (!best) {
-    return null;
-  }
-  return `${best.weight === 0 ? "BW" : `${best.weight} kg`} × ${best.reps}`;
-}
-
 function ExerciseTable({ workout }: { workout: Workout }) {
   const exerciseIds = useMemo(
     () => workout.workoutExercises.map((we) => we.exercise.id),
@@ -302,7 +286,7 @@ function ExerciseTable({ workout }: { workout: Workout }) {
     const map = new Map<string, string>();
     for (const exercise of data?.exercises ?? []) {
       const latest = exercise.workoutSessionExercises[0];
-      const label = latest ? topSetLabel(latest.workoutSessionStrengthSets) : null;
+      const label = latest ? formatTopSet(latest.workoutSessionStrengthSets) : null;
       if (label) {
         map.set(exercise.id, label);
       }
@@ -316,53 +300,46 @@ function ExerciseTable({ workout }: { workout: Workout }) {
 
   return (
     <section aria-label="Exercises" className="overflow-hidden rounded-xl border bg-card">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm tabular-nums">
         <thead>
           <tr className="text-left text-[12px] text-muted-foreground">
-            <th scope="col" className="w-10 py-2.5 pl-4 font-medium">
-              #
+            <th scope="col" className="w-12 py-3 pl-4 font-semibold">
+              <span className="sr-only">Image</span>
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className="px-3 font-semibold">
               Exercise
             </th>
-            <th scope="col" className="hidden font-medium sm:table-cell">
+            <th scope="col" className="hidden px-2 font-semibold sm:table-cell">
               Primary
             </th>
-            <th scope="col" className="pr-4 text-right font-medium sm:text-left">
+            <th scope="col" className="pr-4 text-right font-semibold">
               Last top set
             </th>
           </tr>
         </thead>
         <tbody>
-          {workout.workoutExercises.map((we, index) => (
-            <tr key={we.id} className="border-t">
-              <td className="py-2.5 pl-4 text-muted-foreground tabular-nums">{index + 1}</td>
-              <td className="py-2 pr-3">
+          {workout.workoutExercises.map((we) => (
+            <tr key={we.id} className="h-16 border-t">
+              <td className="py-2 pl-4">
+                <ExerciseThumbnail fileId={we.exercise.image1FileId} />
+              </td>
+              <td className="px-3 py-2">
                 <Link
                   to="/train/exercises/$exerciseId"
                   params={{ exerciseId: we.exercise.id }}
-                  className="flex items-center gap-3 font-medium hover:text-link"
+                  className="flex min-w-0 flex-col font-medium hover:text-link"
                 >
-                  <span className="block size-9 shrink-0 overflow-hidden rounded-md bg-muted">
-                    <AlternatingStorageImage
-                      fileIds={[we.exercise.image1FileId, we.exercise.image2FileId]}
-                      alt=""
-                      className="h-full w-full"
-                    />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate">{we.exercise.name}</span>
-                    <span className="block text-[12px] font-normal text-muted-foreground sm:hidden">
-                      {formatMuscle(we.exercise.primaryMuscleGroup)}
-                    </span>
+                  <span className="wrap-anywhere">{we.exercise.name}</span>
+                  <span className="text-[12px] font-normal text-muted-foreground sm:hidden">
+                    {formatMuscle(we.exercise.primaryMuscleGroup)}
                   </span>
                 </Link>
               </td>
-              <td className="hidden text-muted-foreground sm:table-cell">
+              <td className="hidden px-2 text-muted-foreground sm:table-cell">
                 {formatMuscle(we.exercise.primaryMuscleGroup)}
                 {we.exercise.strength?.doubleWeight ? " · per side" : ""}
               </td>
-              <td className="pr-4 text-right whitespace-nowrap text-muted-foreground tabular-nums sm:text-left">
+              <td className="pr-4 text-right font-semibold whitespace-nowrap">
                 {we.exercise.kind === "cardio" ? "Cardio" : (lastTop.get(we.exercise.id) ?? "—")}
               </td>
             </tr>

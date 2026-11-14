@@ -2,20 +2,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { FoodForm, type FoodFormValues } from "@/components/food-form";
+import { EDIT_FOOD_CAPTION, FoodForm, type FoodFormValues } from "@/components/food-form";
+import { LibraryDetailSkeleton } from "@/components/nutrition-library";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import { useAuth } from "@/lib/nhost/auth-provider";
@@ -65,7 +57,7 @@ function EditFoodRoute() {
   const { user } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["nutrition", "foods", "edit", foodId],
     queryFn: () => gqlRequest(EditFoodQuery, { id: foodId }),
   });
@@ -118,6 +110,7 @@ function EditFoodRoute() {
       navigate({ to: "/nutrition/foods", replace: true });
     },
     onError: (error) => {
+      setConfirmDelete(false);
       const message = isFoodInUseError(error)
         ? "This food is used by a meal template or nutrition plan. Remove those references before deleting it."
         : `Failed to delete food: ${error.message}`;
@@ -128,22 +121,27 @@ function EditFoodRoute() {
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="3xl">
-          <EditFoodSkeleton />
+        <PageShell maxWidth="2xl">
+          <LibraryDetailSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-destructive">Failed to load: {error.message}</p>
+        <PageShell maxWidth="2xl">
+          <ErrorState
+            title="Couldn’t load this food"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!food || !initialValues) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-muted-foreground">Food not found.</p>
+        <PageShell maxWidth="2xl">
+          <EmptyState title="Food not found" description="It may have been deleted." />
         </PageShell>
       );
     }
@@ -153,7 +151,8 @@ function EditFoodRoute() {
     return (
       <FormPage
         title="Edit food"
-        width="2xl"
+        width="form"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this food"
@@ -166,7 +165,8 @@ function EditFoodRoute() {
       >
         <FoodForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
+          nameCaption={EDIT_FOOD_CAPTION}
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() =>
@@ -180,57 +180,17 @@ function EditFoodRoute() {
   return (
     <>
       {renderContent()}
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this food?</DialogTitle>
-            <DialogDescription>
-              {food?.name
-                ? `"${food.name}" will be removed from your private food catalog.`
-                : "This food will be removed from your private food catalog."}{" "}
-              Food used by meal templates or nutrition plans cannot be deleted until those
-              references are removed.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete food"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={food ? `Delete ${food.name}?` : "Delete this food?"}
+        description="This private food will be deleted. Days already logged keep their snapshot. This can't be undone."
+        confirmLabel="Delete food"
+        pendingLabel="Deleting…"
+        onConfirm={() => deleteMutation.mutate()}
+        isPending={deleteMutation.isPending}
+        destructive={true}
+      />
     </>
-  );
-}
-
-function EditFoodSkeleton() {
-  return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Skeleton className="h-9 w-full" />
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[0, 1, 2, 3, 4, 5].map((item) => (
-            <Skeleton key={item} className="h-16 w-full" />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   );
 }

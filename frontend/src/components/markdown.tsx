@@ -5,6 +5,11 @@ import { cn } from "@/lib/utils";
 interface MarkdownProps {
   children: string;
   className?: string;
+  /**
+   * "default": 14 px body for workout and plan notes. "reading": 15 px body
+   * with looser leading for journal entries (Web-Journal).
+   */
+  size?: "default" | "reading";
 }
 
 export function stripMarkdown(text: string): string {
@@ -23,16 +28,19 @@ export function stripMarkdown(text: string): string {
     .trim();
 }
 
-export function Markdown({ children, className }: MarkdownProps) {
+export function Markdown({ children, className, size = "default" }: MarkdownProps) {
   return (
     <div
       className={cn(
-        "text-sm leading-relaxed text-muted-foreground",
+        // Body copy reads in near-foreground on every board (#E4E4E7 in dark).
+        "text-foreground/90",
+        size === "reading" ? "text-[15px] leading-[1.65]" : "text-sm leading-[1.55]",
         "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
         "[&_p]:my-3",
         "[&_h1]:mt-5 [&_h1]:mb-2 [&_h1]:text-lg [&_h1]:font-semibold [&_h1]:tracking-tight [&_h1]:text-foreground",
         "[&_h2]:mt-5 [&_h2]:mb-2 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:tracking-tight [&_h2]:text-foreground",
-        "[&_h3]:mt-4 [&_h3]:mb-1.5 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-foreground",
+        // Section labels inside an entry: small uppercase secondary text (Web-Journal).
+        "[&_h3]:mt-5 [&_h3]:mb-2 [&_h3]:text-xs [&_h3]:font-bold [&_h3]:tracking-[0.05em] [&_h3]:text-muted-foreground [&_h3]:uppercase",
         "[&_h4]:mt-4 [&_h4]:mb-1.5 [&_h4]:text-sm [&_h4]:font-medium [&_h4]:text-foreground",
         "[&_strong]:font-semibold [&_strong]:text-foreground",
         "[&_em]:italic",
@@ -44,8 +52,8 @@ export function Markdown({ children, className }: MarkdownProps) {
         "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:italic",
         "[&_hr]:my-4 [&_hr]:border-border/60",
         "[&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em] [&_code]:text-foreground",
-        "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:border [&_pre]:border-border [&_pre]:bg-muted/50 [&_pre]:p-3 [&_pre]:text-xs",
-        "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-foreground/90",
+        "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-[10px] [&_pre]:border [&_pre]:border-border [&_pre]:bg-surface-inset [&_pre]:px-4 [&_pre]:py-3.5 [&_pre]:font-mono [&_pre]:text-[13px] [&_pre]:leading-[1.6] [&_pre]:font-medium",
+        "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-[length:inherit] [&_pre_code]:text-foreground/90",
         "[&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs",
         "[&_th]:border [&_th]:border-border [&_th]:bg-surface-inset [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-medium [&_th]:text-foreground",
         "[&_td]:border [&_td]:border-border [&_td]:px-2 [&_td]:py-1",

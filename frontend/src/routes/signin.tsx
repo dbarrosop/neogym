@@ -1,11 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { AuthCard } from "@/components/auth-card";
+import {
+  AUTH_INPUT_CLASS,
+  AUTH_SUBMIT_CLASS,
+  AuthCard,
+  AuthFooterLink,
+} from "@/components/auth-card";
+import { OtpCodeStep } from "@/components/otp-code-step";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,7 +22,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import { isSafeInternalRedirect } from "@/lib/redirect";
 
@@ -35,112 +40,118 @@ export const Route = createFileRoute("/signin")({
   component: SignInRoute,
 });
 
+const signUpPrompt = (
+  <>
+    New to NeoGym? <AuthFooterLink to="/signup">Create an account</AuthFooterLink>
+  </>
+);
+
+function errorDescription(err: unknown) {
+  return err instanceof Error ? err.message : "Unexpected error";
+}
+
 function SignInRoute() {
   const { nhost, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [otp, setOtp] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
+  const leftRef = useRef(false);
+  const focusEmailRef = useRef(false);
 
   const emailForm = useForm<EmailValues>({
     resolver: zodResolver(emailSchema),
     defaultValues: { email: "" },
   });
 
-  useEffect(() => {
-    if (!isAuthenticated) {
+  // Signed in (by the code below, or already): continue to a safe internal
+  // redirect such as the OAuth consent page, else home (which opens Today).
+  const leave = useCallback(() => {
+    if (leftRef.current) {
       return;
     }
+    leftRef.current = true;
     if (redirect && isSafeInternalRedirect(redirect)) {
       window.location.assign(redirect);
       return;
     }
     navigate({ to: "/" });
-  }, [isAuthenticated, navigate, redirect]);
+  }, [navigate, redirect]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      leave();
+    }
+  }, [isAuthenticated, leave]);
+
+  // "Change" returns to the email step with the address still filled in.
+  useEffect(() => {
+    if (sentTo === null && focusEmailRef.current) {
+      focusEmailRef.current = false;
+      emailForm.setFocus("email");
+    }
+  }, [sentTo, emailForm]);
 
   async function onRequestCode(values: EmailValues) {
     try {
       await nhost.auth.signInOTPEmail({ email: values.email });
       setSentTo(values.email);
     } catch (err) {
-      toast.error("Couldn't send code", {
-        description: err instanceof Error ? err.message : "Unexpected error",
-      });
+      toast.error("Couldn't send code", { description: errorDescription(err) });
     }
   }
 
-  async function onVerifyCode(code: string) {
+  async function verifyCode(code: string) {
     if (!sentTo) {
-      return;
+      return false;
     }
-    setIsVerifying(true);
     try {
-      const response = await nhost.auth.verifySignInOTPEmail({
-        email: sentTo,
-        otp: code,
-      });
+      const response = await nhost.auth.verifySignInOTPEmail({ email: sentTo, otp: code });
       if (response.body?.session) {
-        navigate({ to: "/" });
-      } else {
-        toast.error("Sign in failed", {
-          description: "We couldn't verify that code. Try again.",
-        });
-        setOtp("");
+        leave();
+        return true;
       }
-    } catch (err) {
       toast.error("Sign in failed", {
-        description: err instanceof Error ? err.message : "Unexpected error",
+        description: "We couldn't verify that code. Try again.",
       });
-      setOtp("");
-    } finally {
-      setIsVerifying(false);
+    } catch (err) {
+      toast.error("Sign in failed", { description: errorDescription(err) });
+    }
+    return false;
+  }
+
+  async function resendCode() {
+    if (!sentTo) {
+      return false;
+    }
+    try {
+      await nhost.auth.signInOTPEmail({ email: sentTo });
+      // Same wording whether or not the account exists.
+      toast.success("Code requested", {
+        description: "If an account exists for this email, a new code is on its way.",
+      });
+      return true;
+    } catch (err) {
+      toast.error("Couldn't send code", { description: errorDescription(err) });
+      return false;
     }
   }
 
   if (sentTo) {
     return (
       <AuthCard
-        title="Enter your code"
-        description={`If an account exists for ${sentTo}, you'll receive a 6-digit code shortly.`}
-        footer={
-          <button
-            type="button"
-            onClick={() => {
-              setSentTo(null);
-              setOtp("");
-            }}
-            className="font-medium text-foreground hover:underline"
-          >
-            Use a different email
-          </button>
-        }
+        title="Sign in"
+        description="If an account exists for this email, we sent it a 6-digit code."
+        footer={signUpPrompt}
       >
-        <div className="flex flex-col items-center gap-4">
-          <InputOTP
-            maxLength={6}
-            autoFocus
-            value={otp}
-            onChange={setOtp}
-            onComplete={onVerifyCode}
-            disabled={isVerifying}
-          >
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
-          {isVerifying && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Verifying
-            </div>
-          )}
-        </div>
+        <OtpCodeStep
+          email={sentTo}
+          onChangeEmail={() => {
+            focusEmailRef.current = true;
+            setSentTo(null);
+          }}
+          onVerify={verifyCode}
+          onResend={resendCode}
+        />
       </AuthCard>
     );
   }
@@ -148,18 +159,11 @@ function SignInRoute() {
   return (
     <AuthCard
       title="Welcome back"
-      description="Enter your email and we'll send you a one-time code."
-      footer={
-        <>
-          New here?{" "}
-          <Link to="/signup" className="font-medium text-foreground hover:underline">
-            Create an account
-          </Link>
-        </>
-      }
+      description="Enter your email and we’ll send you a one-time code."
+      footer={signUpPrompt}
     >
       <Form {...emailForm}>
-        <form onSubmit={emailForm.handleSubmit(onRequestCode)} className="space-y-4">
+        <form onSubmit={emailForm.handleSubmit(onRequestCode)} className="flex flex-col gap-4">
           <FormField
             control={emailForm.control}
             name="email"
@@ -168,7 +172,7 @@ function SignInRoute() {
                 <FormLabel>Email</FormLabel>
                 <FormControl>
                   <Input
-                    className="h-11"
+                    className={AUTH_INPUT_CLASS}
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
@@ -179,10 +183,14 @@ function SignInRoute() {
               </FormItem>
             )}
           />
-          <Button type="submit" className="h-11 w-full" disabled={emailForm.formState.isSubmitting}>
+          <Button
+            type="submit"
+            className={AUTH_SUBMIT_CLASS}
+            disabled={emailForm.formState.isSubmitting}
+          >
             {emailForm.formState.isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="animate-spin" aria-hidden="true" />
                 Sending code
               </>
             ) : (

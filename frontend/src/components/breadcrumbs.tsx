@@ -46,6 +46,7 @@ const ROUTES: Record<string, RouteDef> = {
     parent: "/nutrition/plans/$planId",
   },
   "/progress": { label: "Progress", parent: null },
+  "/progress/overview": { label: "Overview", parent: "/progress" },
   "/progress/muscles": { label: "Muscles", parent: "/progress" },
   "/progress/strength": { label: "Strength", parent: "/progress" },
   "/progress/body": { label: "Body", parent: "/progress" },

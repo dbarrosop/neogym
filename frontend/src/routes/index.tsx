@@ -9,8 +9,10 @@ export const Route = createFileRoute("/")({
   component: HomeRoute,
 });
 
+const CTA_CLASS = "h-[46px] px-5 font-semibold text-[15px] has-[>svg]:px-5";
+
 function HomeRoute() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   // Signed-in visitors land on Today; the marketing page is for signed-out users.
@@ -20,13 +22,19 @@ function HomeRoute() {
     }
   }, [isAuthenticated, navigate]);
 
+  // Render nothing until the session is known, and while a signed-in visitor
+  // is redirected, so they never see the pitch flash first.
+  if (isLoading || isAuthenticated) {
+    return null;
+  }
+
   return (
-    <section className="relative">
-      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] max-w-3xl flex-col justify-center gap-8 px-4 py-20">
-        <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
+    <div className="flex w-full flex-1 items-center px-6 py-16">
+      <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8">
+        <h1 className="text-balance font-bold text-[40px] leading-[1.05] tracking-[-0.03em] sm:text-[52px]">
           {BRAND_HEADLINE}
         </h1>
-        <ul className="flex flex-col gap-3 text-lg text-muted-foreground">
+        <ul className="flex flex-col gap-3.5 text-lg text-soft-foreground leading-normal">
           {BRAND_HIGHLIGHTS.map((line) => (
             <li key={line} className="flex gap-3">
               <span aria-hidden="true" className="text-link">
@@ -37,18 +45,18 @@ function HomeRoute() {
           ))}
         </ul>
         <div className="flex flex-wrap items-center gap-3">
-          <Button asChild size="lg">
+          <Button asChild className={CTA_CLASS}>
             <Link to="/signup">
               Create your account
-              <ArrowRight />
+              <ArrowRight aria-hidden="true" />
             </Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
+          <Button asChild variant="outline" className={CTA_CLASS}>
             <Link to="/signin">Sign in</Link>
           </Button>
         </div>
-        <p className="text-sm text-tertiary-foreground">{BRAND_PLATFORMS}</p>
+        <p className="text-sm text-tertiary-foreground">{BRAND_PLATFORMS}.</p>
       </div>
-    </section>
+    </div>
   );
 }

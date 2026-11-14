@@ -2,7 +2,11 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { AREAS, areaForPath } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-/** Mobile primary navigation (< 768 px): five areas, never scrolls sideways. */
+/**
+ * Mobile primary navigation (< 768 px): five areas, never scrolls sideways.
+ * Dark uses the fill colour at 94 %; light keeps the white glass so the
+ * accent label stays above 4.5:1.
+ */
 export function MobileTabBar() {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const activeArea = areaForPath(pathname);
@@ -10,9 +14,9 @@ export function MobileTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-glass pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-glass pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden dark:bg-muted/94"
     >
-      <ul className="mx-auto flex max-w-lg items-stretch justify-around">
+      <ul className="mx-auto flex h-16 max-w-lg items-center justify-around">
         {AREAS.map(({ id, label, to, Icon }) => {
           const active = activeArea?.id === id;
           return (
@@ -21,7 +25,7 @@ export function MobileTabBar() {
                 to={to}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-muted-foreground transition-colors",
+                  "flex min-h-11 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold text-soft-foreground transition-colors",
                   active && "text-link",
                 )}
               >

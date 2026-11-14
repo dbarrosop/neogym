@@ -211,9 +211,11 @@ function button(label: string, within: ParentNode = document.body) {
   assert(element, `Missing button: ${label}`);
   return element;
 }
+// Closed checks must also match the alert dialog, or they pass vacuously.
+const OPEN_DIALOG = '[role="dialog"], [role="alertdialog"]';
 function dialog() {
-  const element = document.querySelector<HTMLElement>('[role="dialog"]');
-  assert(element, "Expected a confirmation dialog");
+  const element = document.querySelector<HTMLElement>('[role="alertdialog"]');
+  assert(element, "Expected a confirmation alert dialog");
   return element;
 }
 function weekShows(kcal: number) {
@@ -246,7 +248,7 @@ async function deleteEntry(name: string, id: string, totalAfter: number, failFir
   assert.equal(document.activeElement, button("Cancel", dialog()));
   assert.equal(entryDeleteRequests.length, requestsBefore);
   await settle(() => button("Cancel", dialog()).click());
-  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(document.querySelector(OPEN_DIALOG), null);
   assert.equal(entryDeleteRequests.length, requestsBefore, "Cancel must not delete an entry");
   assert.deepEqual(day, snapshotBefore);
 
@@ -271,7 +273,7 @@ async function deleteEntry(name: string, id: string, totalAfter: number, failFir
   await settle(() => deletion().resolve());
   await waitFor(
     () =>
-      !document.querySelector('[role="dialog"]') &&
+      !document.querySelector(OPEN_DIALOG) &&
       !container.textContent?.includes(name) &&
       weekShows(totalAfter),
   );
@@ -296,7 +298,11 @@ try {
         ?.includes("500 kilocalories logged") === true,
   );
   assertTotals(500);
-  const gramsTrigger = button("100 g", button("Delete Tea").closest("li") as HTMLLIElement);
+  // The grams cell is the edit trigger; its name keeps the visible grams first.
+  const gramsTrigger = button(
+    "100 g, edit grams for Tea",
+    button("Delete Tea").closest("li") as HTMLLIElement,
+  );
   assert(gramsTrigger.classList.contains("h-11"), "The grams trigger must remain 44 px tall");
   assert(gramsTrigger.classList.contains("min-w-11"), "The grams trigger must remain 44 px wide");
   const trigger = button("Delete Lunch and its entries");
@@ -309,7 +315,7 @@ try {
   assert.equal(document.activeElement, button("Cancel", dialog()));
   assert.equal(deleteRequests.length, 0, "Opening confirmation must not delete anything");
   await settle(() => button("Cancel", dialog()).click());
-  assert.equal(document.querySelector('[role="dialog"]'), null);
+  assert.equal(document.querySelector(OPEN_DIALOG), null);
   assert.equal(deleteRequests.length, 0);
   assert.equal(day.nutritionLogMeals.length, 2);
   assertTotals(500);
@@ -332,7 +338,7 @@ try {
   await settle(() => deletion().resolve());
   await waitFor(
     () =>
-      !document.querySelector('[role="dialog"]') &&
+      !document.querySelector(OPEN_DIALOG) &&
       container.querySelectorAll('[aria-label="Timeline"] li').length === 3 &&
       container
         .querySelector('[aria-label="Week"] [aria-current="date"]')

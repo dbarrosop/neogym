@@ -26,9 +26,9 @@ Users can read public foods and their private foods, but can insert/update/delet
   the user role after insert. Changing the source food is delete+insert. Current clients do not
   expose or display direct-food labels; direct food slots use the source food name to avoid extra
   UI labels.
-- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; clients display, edit, and selected-day log them grouped by normalized time slot, and editors write a global `position` within each plan/time slot across both tables. Reorder controls are slot-local; moving an entry to another time slot is done by changing its `slot_time`, which re-groups and re-numbers on save. The native editor appends new entries and single entries moved to a different normalized time after all meals and foods already in that slot; equivalent time representations keep the current order. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
+- Sort children stably by `(position, id)` for meal ingredients. Mixed plan entries sort by `(slot_time, position, kind, id)` after merging `nutrition_plan_meals` and `nutrition_plan_foods`; clients display, edit, and selected-day log them grouped by normalized time slot, and editors write a global `position` within each plan/time slot across both tables. Reorder controls are slot-local; moving entries to another time changes their `slot_time`, which re-groups and re-numbers on save. In both editors a slot's single Time control retimes all of its entries (a time another slot already uses merges the two), and "Move to another time" moves one entry. Both editors append new entries and entries moved to a different normalized time after all meals and foods already in that slot (web helpers in `frontend/src/lib/nutrition-plan-draft.ts`); equivalent time representations keep the current order. There are no unique position constraints, so reorder swaps do not need deferred uniqueness tricks.
 
-Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed.
+Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed. Both the web and iOS meal editors read the referencing plans and disable Delete up front, naming them; the FK error remains the fallback.
 
 ## Daily logs
 
@@ -80,20 +80,18 @@ while refreshing; the fallback scan is only for the initial default range.
 Today has no recent daily-log list; Nutrition › Log's week strip and date picker
 replace it. Its Balance card summarizes today so far with logged kcal,
 active+resting energy and net, then the end-of-day estimate (see `energy.md`).
-On iOS the Calories card (Progress › Energy)
+On iOS and the web the Calories card (Progress › Energy)
 stacks a Consumed chart and a Net (`consumed - energy`) chart, each with daily
 values and a 7-day average over full days with food logged; today's partial
 intake is an open dot after a dashed segment, left out of averages and net,
-and the card opens on the last 30 local days. The web calories chart
-still overlays consumed kcal, daily net, and 7-day average net. On the web both the Calories consumed
-and Body composition charts open on the last 14 local calendar days; users can
-choose longer or custom periods. Each chart initially requests its 14 visible
-local dates plus six preceding days for its 7-day rolling averages, and requests
-the new date range when its period or custom dates change. The dashboard/day-list
-query remains limited to 14 recent rows with full plan and meal details; the
-Calories consumed chart uses a separate, date-bounded user-scoped snapshot
-kcal/grams + daily-energy query, and Body composition has its own date-bounded
-measurements query. Longer chart periods load on demand without fetching plans.
+and the card opens on the last 30 local days. On the web its period is
+30 d · 90 d · 1 y; each window requests its visible local dates plus six
+preceding days for the rolling averages through a separate, date-bounded,
+user-scoped snapshot kcal/grams + daily-energy query (`useCalorieHistory`), so
+longer periods load on demand without fetching plans, and Progress › Overview's
+Energy card shares the 30-day cache entry. Web Progress › Body reads the user's
+measurement list once and charts 30 d · 90 d · 1 y · All windows from it
+(default 30).
 Body HealthKit reconciliation scans historical samples once per app user and
 local timezone, then saves per-type HealthKit anchors only after backend writes
 succeed. A metric whose first read is empty keeps a nil anchor and retries its
@@ -114,10 +112,10 @@ the duplicate dashboard revalidation. Watch energy sync covers seven local
 dates and is independent of the iPhone chart period.
 The 7-day rolling net average is computed from calendar days in the window
 that have both a nutrition log day and a `daily_energy` row, so missing
-energy/intake data is not silently treated as a zero-output day. The
-body composition chart overlays weight, body-fat percentage, and independent
-7-day rolling averages for both metrics; each rolling body point uses available
-measurements from that point's date plus the previous 6 local calendar days.
+energy/intake data is not silently treated as a zero-output day. Body
+charts draw each metric's readings with an independent 7-day rolling average;
+each rolling body point uses available measurements from that point's date plus
+the previous 6 local calendar days.
 
 ## Logging from templates
 
@@ -140,7 +138,10 @@ client perspective. Re-running slot logging appends duplicate logged meals/entri
 planned-entry logging; v1 intentionally performs no duplicate detection or skip behavior.
 
 On the web, the day log is an always-expanded timeline: solid **Logged** cards contain actual intake,
-and dashed **Planned** cards retain their **Log slot** action and full entry list. Individual-entry and
+and dashed **Planned** cards (a strong dashed border, solid row separators) retain their **Log slot**
+action and full entry list. Each card shows its P · C · F grams under the header, and each row its own
+P | C | F columns from 760 px wide (one decimal below 10 g). **Clear day log** sits at the end of the
+timeline and confirms in an alert dialog. Individual-entry and
 logged-meal delete controls have a non-shrinking 44 px target and require confirmation naming the
 entry or meal; meal confirmations also name the number of entries that cascade with it. Cancelling
 leaves the log unchanged. Confirmations close after a successful delete and stay open on failure for
@@ -148,7 +149,8 @@ retry, preserving the original snapshots until deletion succeeds. The inline gra
 also at least 44 px tall and wide. A planned card follows the logged card when their
 normalized times match, including legacy no-time slots. In that case its **Log slot** is an outline
 button rather than the primary one, and it asks first: the confirmation says food is already logged at
-that time (or without a time) and how many planned items will be added where; cancelling writes
+that time (or without a time) and how many planned items will be added where ("This adds 3 planned
+items at 07:15; nothing already logged changes."); cancelling writes
 nothing. A matching time does not prove the plan was followed, so neither the card nor the dialog
 claims the slot is done. Slots with nothing logged at their time keep the primary one-tap action. The plan
 picker lives in the day summary rail; **No plan** clears the selection. Today's **Next in plan** links

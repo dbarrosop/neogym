@@ -1,255 +1,295 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { DailyEnergyChart, type DailyEnergyPoint } from "@/components/daily-energy-chart";
+import { Flame, Plus } from "lucide-react";
+import { type ReactNode, useMemo, useState } from "react";
+import { z } from "zod";
+import { CaloriesCard } from "@/components/calories-card";
+import { EnergyTrendSummary } from "@/components/daily-energy-chart";
 import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
-import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { ListFooter } from "@/components/patterns/list-footer";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { Segmented } from "@/components/patterns/segmented";
 import { QuickDailyEnergyForm } from "@/components/progress/quick-entry-forms";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { graphql } from "@/gql";
-import { averageDailyEnergyBurned } from "@/lib/daily-energy";
-import { formatDateShort, parseDateOnly } from "@/lib/dates";
-import { gqlRequest } from "@/lib/graphql";
+import { formatDateShort } from "@/lib/dates";
+import { buildEnergyTrend } from "@/lib/energy-trend";
+import { useDailyEnergyList, useDailyEnergyRange } from "@/lib/hooks/use-daily-energy";
+import { formatKcalNumber } from "@/lib/metric-format";
+import {
+  ENTRY_HISTORY_PAGE_SIZE,
+  entryHistoryWindow,
+  needsEntryHistoryPage,
+  nextEntryHistoryLimit,
+} from "@/lib/progress-entries";
+import { chartWindow, numericOrNull } from "@/lib/rolling-average";
+import { useLocalToday } from "@/lib/use-local-today";
 
-const DAILY_ENERGY_PAGE_SIZE = 50;
+const PERIODS = [
+  { value: 30, label: "30 d" },
+  { value: 90, label: "90 d" },
+  { value: 365, label: "1 y" },
+] as const;
+type PeriodDays = (typeof PERIODS)[number]["value"];
+const period = z.union([z.literal(30), z.literal(90), z.literal(365)]).optional();
 
-const DailyEnergyQuery = graphql(`
-  query DailyEnergy($limit: Int!, $offset: Int!) {
-    dailyEnergyEntries(order_by: { energyOn: desc }, limit: $limit, offset: $offset) {
-      id
-      energyOn
-      activeKcal
-      restingKcal
-      notes
-    }
-  }
-`);
+const searchSchema = z.object({ days: period, calories: period });
 
 export const Route = createFileRoute("/_authed/progress/energy/")({
+  validateSearch: searchSchema,
   component: DailyEnergyRoute,
 });
 
-function DailyEnergyRoute() {
-  const { data, isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useInfiniteQuery({
-      queryKey: ["daily_energy"],
-      initialPageParam: 0,
-      queryFn: ({ pageParam }) =>
-        gqlRequest(DailyEnergyQuery, { limit: DAILY_ENERGY_PAGE_SIZE, offset: pageParam }),
-      getNextPageParam: (lastPage, allPages) =>
-        lastPage.dailyEnergyEntries.length === DAILY_ENERGY_PAGE_SIZE
-          ? allPages.length * DAILY_ENERGY_PAGE_SIZE
-          : undefined,
-    });
+// The side column (estimate and "Log energy") sits beside the content once
+// the page has room for both (560 + 20 + 280 px, as on the board); below that
+// it follows the content and the header carries the Log action instead.
+const SIDE_BY_SIDE = "@min-[860px]:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]";
+// Wrapped below the content, the column keeps its board width (340 px) unless
+// the page is phone-narrow.
+const SIDE_COLUMN = "min-w-0 @min-[560px]:max-w-[340px] @min-[860px]:max-w-none";
 
-  const entries = useMemo(
-    () => data?.pages.flatMap((page) => page.dailyEnergyEntries) ?? [],
-    [data],
+function DailyEnergyRoute() {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const list = useDailyEnergyList();
+  const periodControl = (key: "days" | "calories", label: string) => (
+    <Segmented
+      label={label}
+      options={PERIODS}
+      value={search[key] ?? 30}
+      onChange={(value: PeriodDays) =>
+        navigate({ search: (prev) => ({ ...prev, [key]: value }), replace: true })
+      }
+    />
   );
 
-  const chartPoints = useMemo<DailyEnergyPoint[]>(() => {
-    return [...entries]
-      .map((entry) => {
-        const date = parseDateOnly(entry.energyOn);
-        return date ? { entry, time: date.getTime() } : null;
-      })
-      .filter((x): x is { entry: (typeof entries)[number]; time: number } => x !== null)
-      .sort((a, b) => a.time - b.time)
-      .map(({ entry, time }) => ({
-        date: time,
-        activeKcal:
-          entry.activeKcal !== null && entry.activeKcal !== undefined
-            ? Number(entry.activeKcal)
-            : null,
-        restingKcal:
-          entry.restingKcal !== null && entry.restingKcal !== undefined
-            ? Number(entry.restingKcal)
-            : null,
-      }));
-  }, [entries]);
+  const calories = (
+    <CaloriesCard
+      days={search.calories ?? 30}
+      periodControl={periodControl("calories", "Calories period")}
+    />
+  );
 
-  const activeCount = chartPoints.filter((p) => p.activeKcal !== null).length;
-  const restingCount = chartPoints.filter((p) => p.restingKcal !== null).length;
-
-  const [limit, setLimit] = useState(20);
-  const stats = useMemo(() => {
-    const recent = entries.slice(0, 7);
-    const avg = (pick: (e: (typeof entries)[number]) => unknown) => {
-      const values = recent
-        .map(pick)
-        .filter((v) => v !== null && v !== undefined)
-        .map(Number);
-      return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
-    };
-    return {
-      burned: averageDailyEnergyBurned(recent),
-      active: avg((e) => e.activeKcal),
-      resting: avg((e) => e.restingKcal),
-      days: recent.length,
-    };
-  }, [entries]);
-
-  function renderContent() {
-    if (isLoading) {
+  // Board order: energy trend, Calories, then the day list.
+  function renderMain() {
+    if (list.isPending) {
       return (
-        <div className="flex flex-col gap-5">
-          <Skeleton className="h-80 w-full rounded-xl" />
+        <SkeletonState className="flex flex-col gap-5">
+          <Skeleton className="h-[380px] w-full rounded-xl" />
           <Skeleton className="h-60 w-full rounded-xl" />
-        </div>
+        </SkeletonState>
       );
     }
-    if (error) {
-      return <ErrorState title="Couldn't load energy days" message={error.message} />;
-    }
-    if (entries.length === 0) {
+    if (list.error) {
       return (
-        <EmptyState
-          title="No energy days yet"
-          description="Log active and resting kilocalories to see what you burn."
-        />
+        <>
+          <ErrorState
+            title="Couldn't load energy days"
+            message={list.error.message}
+            onRetry={() => list.refetch()}
+            isRetrying={list.isFetching}
+          />
+          {calories}
+        </>
       );
     }
-    const kcal = (value: number | null) =>
-      value === null ? "—" : `${Math.round(value).toLocaleString()} kcal`;
+    const rows = list.data.pages.flatMap((page) => page.dailyEnergyEntries);
+    const total = list.data.pages.at(-1)?.dailyEnergyEntriesAggregate.aggregate?.count ?? 0;
+    if (Math.max(total, rows.length) === 0) {
+      return (
+        <>
+          <EmptyState
+            icon={Flame}
+            title="No energy days yet"
+            description="Log active and resting kilocalories to see what you burn. The NeoGym Apple Watch app imports them from Apple Health."
+          />
+          {calories}
+        </>
+      );
+    }
     return (
-      <div className="flex flex-col gap-5">
-        <section
-          aria-label="Energy trend"
-          className="flex flex-col gap-4 rounded-xl border bg-card p-5"
-        >
-          <dl className="flex flex-wrap gap-x-10 gap-y-3">
-            <div className="flex flex-col gap-0.5">
-              <dt className="text-[13px] text-muted-foreground">
-                Burned · avg of last {stats.days} logged {stats.days === 1 ? "day" : "days"}
-              </dt>
-              <dd className="text-[28px] leading-tight font-semibold tabular-nums">
-                {kcal(stats.burned)}
-              </dd>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <dt className="text-[13px] text-muted-foreground">Resting</dt>
-              <dd className="text-lg font-semibold tabular-nums">{kcal(stats.resting)}</dd>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <dt className="text-[13px] text-muted-foreground">Active</dt>
-              <dd className="text-lg font-semibold tabular-nums">{kcal(stats.active)}</dd>
-            </div>
-          </dl>
-          {activeCount >= 2 || restingCount >= 2 ? (
-            <DailyEnergyChart points={chartPoints} />
-          ) : (
-            <p className="rounded-lg bg-surface-inset px-3 py-8 text-center text-sm text-muted-foreground">
-              Log a few more days to draw a trend.
-            </p>
-          )}
-        </section>
-
-        <section aria-label="Energy days" className="overflow-hidden rounded-xl border bg-card">
-          <table className="w-full text-sm tabular-nums">
-            <thead>
-              <tr className="text-right text-[12px] text-muted-foreground">
-                <th scope="col" className="py-2.5 pl-4 text-left font-medium">
-                  Date
-                </th>
-                <th scope="col" className="font-medium">
-                  Resting
-                </th>
-                <th scope="col" className="font-medium">
-                  Active
-                </th>
-                <th scope="col" className="pr-4 font-medium">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.slice(0, limit).map((entry) => {
-                const resting =
-                  entry.restingKcal === null || entry.restingKcal === undefined
-                    ? null
-                    : Number(entry.restingKcal);
-                const active =
-                  entry.activeKcal === null || entry.activeKcal === undefined
-                    ? null
-                    : Number(entry.activeKcal);
-                return (
-                  <tr key={entry.id} className="border-t text-right hover:bg-muted/40">
-                    <td className="py-2.5 pl-4 text-left">
-                      <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <Link
-                          to="/progress/energy/$id"
-                          params={{ id: entry.id }}
-                          className="font-medium hover:text-link"
-                          title={visibleNotes(entry.notes) || undefined}
-                        >
-                          {formatDateShort(entry.energyOn)}
-                        </Link>
-                        {isHealthImport(entry.notes) ? <HealthSourceTag /> : null}
-                      </span>
-                    </td>
-                    <td>{resting === null ? "—" : Math.round(resting).toLocaleString()}</td>
-                    <td>{active === null ? "—" : Math.round(active).toLocaleString()}</td>
-                    <td className="pr-4 font-semibold">
-                      {resting === null && active === null
-                        ? "—"
-                        : Math.round((resting ?? 0) + (active ?? 0)).toLocaleString()}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {hasNextPage || entries.length > limit ? (
-            <div className="border-t px-4 py-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setLimit((value) => value + 40);
-                  if (entries.length <= limit + 40 && hasNextPage) {
-                    fetchNextPage();
-                  }
-                }}
-                disabled={isFetchingNextPage}
-              >
-                {isFetchingNextPage ? "Loading…" : "Show more"}
-              </Button>
-            </div>
-          ) : null}
-        </section>
-      </div>
+      <>
+        <EnergyTrendCard days={search.days ?? 30} periodControl={periodControl("days", "Period")} />
+        {calories}
+        <EnergyHistory
+          rows={rows}
+          total={total}
+          hasMoreRemote={list.hasNextPage}
+          isFetchingMore={list.isFetchingNextPage}
+          fetchMore={() => list.fetchNextPage()}
+        />
+      </>
     );
   }
 
   return (
-    <PageShell maxWidth="6xl">
+    <PageShell maxWidth="6xl" contentClassName="@container">
       <PageHeader
         title="Progress"
         tabs={<AreaTabs area="progress" />}
         actions={
-          <Button asChild className="lg:hidden">
+          <Button asChild className="@min-[860px]:hidden">
             <Link to="/progress/energy/new">
               <Plus />
-              Log energy
+              <ActionLabel>Log energy</ActionLabel>
             </Link>
           </Button>
         }
       />
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {renderContent()}
-        <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-          <TodayEnergyEstimate />
-          <div className="hidden lg:block">
-            <QuickDailyEnergyForm />
-          </div>
-        </aside>
+      <div className={`grid items-start gap-5 ${SIDE_BY_SIDE}`}>
+        <div className="flex min-w-0 flex-col gap-5">{renderMain()}</div>
+        <div className={`flex flex-col gap-4 ${SIDE_COLUMN}`}>
+          <TodayEnergyEstimate variant="energy" />
+          <QuickDailyEnergyForm />
+        </div>
       </div>
     </PageShell>
+  );
+}
+
+function EnergyTrendCard({ days, periodControl }: { days: number; periodControl: ReactNode }) {
+  const today = useLocalToday();
+  const range = chartWindow(days, today);
+  const query = useDailyEnergyRange(range.start, range.end);
+  const trend = useMemo(
+    () =>
+      query.data
+        ? buildEnergyTrend(query.data.dailyEnergyEntries, {
+            today,
+            start: range.start,
+            end: range.end,
+          })
+        : null,
+    [query.data, today, range.start, range.end],
+  );
+  let body: ReactNode;
+  if (trend) {
+    body = <EnergyTrendSummary trend={trend} domain={range} periodControl={periodControl} />;
+  } else {
+    body = (
+      <>
+        <div className="flex justify-end">{periodControl}</div>
+        {query.error ? (
+          <ErrorState
+            title="Couldn't load the energy trend"
+            message={query.error.message}
+            onRetry={() => query.refetch()}
+            isRetrying={query.isFetching}
+          />
+        ) : (
+          <SkeletonState>
+            <Skeleton className="h-[300px] w-full rounded-lg" />
+          </SkeletonState>
+        )}
+      </>
+    );
+  }
+  return (
+    <section
+      aria-label="Energy trend"
+      className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5"
+    >
+      {body}
+    </section>
+  );
+}
+
+type EnergyRow = {
+  id: string;
+  energyOn: string;
+  activeKcal?: unknown;
+  restingKcal?: unknown;
+  notes?: string | null;
+};
+
+function kcalCell(value: number | null) {
+  return value === null ? "—" : formatKcalNumber(value);
+}
+
+function EnergyHistory({
+  rows,
+  total,
+  hasMoreRemote,
+  isFetchingMore,
+  fetchMore,
+}: {
+  rows: EnergyRow[];
+  total: number;
+  hasMoreRemote: boolean;
+  isFetchingMore: boolean;
+  fetchMore: () => void;
+}) {
+  const [limit, setLimit] = useState(ENTRY_HISTORY_PAGE_SIZE);
+  const history = entryHistoryWindow(rows, limit, total);
+  function loadMore() {
+    const next = nextEntryHistoryLimit(limit);
+    setLimit(next);
+    if (needsEntryHistoryPage({ limit: next, loaded: rows.length, hasMoreRemote })) {
+      fetchMore();
+    }
+  }
+  return (
+    <section aria-label="Energy days" className="overflow-hidden rounded-xl border bg-card">
+      <table className="w-full text-sm tabular-nums">
+        <thead>
+          <tr className="border-b text-right text-xs text-muted-foreground">
+            <th scope="col" className="px-4 py-2.5 text-left font-semibold">
+              Date
+            </th>
+            <th scope="col" className="px-4 py-2.5 font-semibold">
+              Resting
+            </th>
+            <th scope="col" className="px-4 py-2.5 font-semibold">
+              Active
+            </th>
+            <th scope="col" className="px-4 py-2.5 font-semibold">
+              Total
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {history.visible.map((entry) => {
+            const resting = numericOrNull(entry.restingKcal);
+            const active = numericOrNull(entry.activeKcal);
+            return (
+              <tr
+                key={entry.id}
+                className="h-[46px] border-b text-right last:border-b-0 hover:bg-muted/40"
+              >
+                <td className="px-4 py-2 text-left">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <Link
+                      to="/progress/energy/$id"
+                      params={{ id: entry.id }}
+                      className="font-medium whitespace-nowrap hover:text-link"
+                      title={visibleNotes(entry.notes) || undefined}
+                    >
+                      {formatDateShort(entry.energyOn)}
+                    </Link>
+                    {isHealthImport(entry.notes) ? <HealthSourceTag /> : null}
+                  </span>
+                </td>
+                <td className="px-4">{kcalCell(resting)}</td>
+                <td className="px-4">{kcalCell(active)}</td>
+                <td className="px-4 font-semibold">
+                  {resting === null && active === null
+                    ? "—"
+                    : formatKcalNumber((resting ?? 0) + (active ?? 0))}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <ListFooter
+        shown={history.shown}
+        total={history.total}
+        noun="days"
+        onLoadMore={loadMore}
+        isLoading={isFetchingMore}
+      />
+    </section>
   );
 }

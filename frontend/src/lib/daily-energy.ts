@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addLocalDateDays } from "./nutrition";
+import type { EntryFormError } from "./progress-entries";
 
 export interface DailyEnergyFormValues {
   energyOn: string;
@@ -153,27 +154,6 @@ export function validateDailyEnergyFormValues(
   };
 }
 
-export function formatDailyEnergyValue(value: DailyEnergyNumericValue): string {
-  if (value === null || value === undefined) {
-    return "—";
-  }
-  return `${Number(value).toFixed(0)} kcal`;
-}
-
-export function formatDailyEnergyValues(
-  activeKcal: DailyEnergyNumericValue,
-  restingKcal: DailyEnergyNumericValue,
-): string {
-  const parts: string[] = [];
-  if (activeKcal !== null && activeKcal !== undefined) {
-    parts.push(`Active ${Number(activeKcal).toFixed(0)} kcal`);
-  }
-  if (restingKcal !== null && restingKcal !== undefined) {
-    parts.push(`Resting ${Number(restingKcal).toFixed(0)} kcal`);
-  }
-  return parts.join(" · ");
-}
-
 export function calculateDailyEnergyBalance({
   caloriesIn,
   activeKcal,
@@ -195,39 +175,43 @@ export function calculateDailyEnergyBalance({
   return { caloriesIn, caloriesOut, net, state };
 }
 
-/** Average recorded daily totals, counting missing components on an existing row as zero. */
-export function averageDailyEnergyBurned(
-  entries: readonly {
-    activeKcal?: DailyEnergyNumericValue;
-    restingKcal?: DailyEnergyNumericValue;
-  }[],
-): number | null {
-  if (entries.length === 0) {
-    return null;
-  }
-  const total = entries.reduce(
-    (sum, entry) =>
-      sum + normalizeEnergyNumber(entry.activeKcal) + normalizeEnergyNumber(entry.restingKcal),
-    0,
-  );
-  return total / entries.length;
+/** GraphQL insert/update columns: empty values are null. */
+export function dailyEnergyInput(values: DailyEnergyFormValues) {
+  return {
+    energyOn: values.energyOn,
+    activeKcal: values.activeKcal ? values.activeKcal : null,
+    restingKcal: values.restingKcal ? values.restingKcal : null,
+    notes: values.notes ? values.notes : null,
+  };
 }
 
-export function dailyEnergyMutationErrorMessage(error: Error, action: "save" | "delete"): string {
+/**
+ * A failed write in the user's terms. A date that already has an entry (the
+ * per-user date UNIQUE key) belongs under the Date field, so the form shows it
+ * inline instead of overwriting the other entry.
+ */
+export function dailyEnergyMutationError(error: Error, action: "save" | "delete"): EntryFormError {
   const message = error.message;
   if (message.includes("daily_energy_user_date_key")) {
-    return "You already have an energy entry for this date.";
+    return { message: "You already have an energy entry for this date.", field: "date" };
   }
   if (message.includes("daily_energy_at_least_one_value_check")) {
-    return "Enter active energy, resting energy, or both.";
+    return { message: "Enter active energy, resting energy, or both.", field: null };
   }
   if (
     message.includes("daily_energy_active_kcal_range_check") ||
     message.includes("daily_energy_resting_kcal_range_check")
   ) {
-    return `Energy must be at least ${DAILY_ENERGY_KCAL_MIN} and less than ${DAILY_ENERGY_KCAL_MAX} kcal.`;
+    return {
+      message: `Energy must be at least ${DAILY_ENERGY_KCAL_MIN} and less than ${DAILY_ENERGY_KCAL_MAX} kcal.`,
+      field: null,
+    };
   }
-  return `Failed to ${action}: ${message}`;
+  return { message: `Failed to ${action}: ${message}`, field: null };
+}
+
+export function dailyEnergyMutationErrorMessage(error: Error, action: "save" | "delete"): string {
+  return dailyEnergyMutationError(error, action).message;
 }
 
 function normalizeKcalInput(value: string): string {

@@ -1,8 +1,10 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
+import { ListChecks, Plus } from "lucide-react";
 import { useMemo } from "react";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { FilterChip } from "@/components/patterns/filter-chip";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { Tag } from "@/components/patterns/tag";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,7 +38,7 @@ function WorkoutsLayout() {
             <Button asChild>
               <Link to="/train/workouts/new">
                 <Plus />
-                New workout
+                <ActionLabel>New workout</ActionLabel>
               </Link>
             </Button>
           }
@@ -59,36 +61,10 @@ function WorkoutsLayout() {
   );
 }
 
-function Chip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:text-foreground",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function WorkoutList({ activePath }: { activePath: string }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data, isLoading, error } = useWorkoutsIndex();
+  const { data, isLoading, error, refetch, isFetching } = useWorkoutsIndex();
   const activeLabels = useMemo(() => new Set(search.labels ?? []), [search.labels]);
   const workouts = useMemo(() => filterWorkouts(data?.workouts ?? [], search), [data, search]);
   const isFiltered = search.visibility !== undefined || activeLabels.size > 0;
@@ -114,30 +90,44 @@ function WorkoutList({ activePath }: { activePath: string }) {
   }
 
   if (error) {
-    return <ErrorState title="Couldn't load workouts" message={error.message} />;
+    return (
+      <ErrorState
+        title="Couldn't load workouts"
+        message={error.message}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
+    );
   }
+  const clearFilters = () => navigate({ search: {}, replace: true });
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border bg-card p-2">
-      <fieldset className="m-0 flex min-w-0 flex-wrap gap-1.5 border-0 p-1.5">
+    <div className="flex flex-col gap-1 rounded-xl border bg-card p-2">
+      <fieldset className="m-0 flex min-w-0 flex-wrap gap-1.5 border-0 px-1.5 pt-1.5 pb-2.5">
         <legend className="sr-only">Filter workouts</legend>
-        <Chip active={!isFiltered} onClick={() => navigate({ search: {}, replace: true })}>
+        <FilterChip selected={!isFiltered} onClick={clearFilters}>
           All
-        </Chip>
-        <Chip active={search.visibility === "mine"} onClick={() => toggleVisibility("mine")}>
+        </FilterChip>
+        <FilterChip
+          selected={search.visibility === "mine"}
+          onClick={() => toggleVisibility("mine")}
+        >
           Mine
-        </Chip>
-        <Chip active={search.visibility === "public"} onClick={() => toggleVisibility("public")}>
+        </FilterChip>
+        <FilterChip
+          selected={search.visibility === "public"}
+          onClick={() => toggleVisibility("public")}
+        >
           Public
-        </Chip>
+        </FilterChip>
         {(data?.labels ?? []).map((label) => (
-          <Chip
+          <FilterChip
             key={label.id}
-            active={activeLabels.has(label.id)}
+            selected={activeLabels.has(label.id)}
             onClick={() => toggleLabel(label.id)}
           >
             {label.name}
-          </Chip>
+          </FilterChip>
         ))}
       </fieldset>
       {isLoading ? (
@@ -149,10 +139,25 @@ function WorkoutList({ activePath }: { activePath: string }) {
       ) : null}
       {!isLoading && workouts.length === 0 ? (
         <EmptyState
-          className="border-0 bg-transparent shadow-none"
+          className="border-0 bg-transparent px-3"
+          {...(isFiltered ? {} : { icon: ListChecks })}
           title={isFiltered ? "No workouts match these filters" : "No workouts yet"}
           description={
             isFiltered ? "Clear a filter to see more." : "Create one to start sessions from it."
+          }
+          actions={
+            isFiltered ? (
+              <Button type="button" variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link to="/train/workouts/new">
+                  <Plus />
+                  New workout
+                </Link>
+              </Button>
+            )
           }
         />
       ) : null}
@@ -168,26 +173,19 @@ function WorkoutList({ activePath }: { activePath: string }) {
               search={(prev) => prev}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-col gap-1 rounded-lg px-3 py-2.5 transition-colors hover:bg-muted/60",
+                "flex flex-col gap-1.5 rounded-[10px] px-3.5 py-3 transition-colors hover:bg-muted/60",
                 active &&
                   "bg-accent-soft/60 ring-1 ring-primary/40 ring-inset hover:bg-accent-soft/60",
               )}
             >
               <strong className="truncate text-sm font-semibold">{workout.name}</strong>
-              <span className="flex flex-wrap items-center gap-1.5 text-[13px] text-muted-foreground">
-                <span className="tabular-nums">
+              <span className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[13px] text-muted-foreground tabular-nums">
                   {count} {count === 1 ? "exercise" : "exercises"}
                 </span>
-                {workout.isPublic ? (
-                  <span className="rounded-full bg-muted px-2 text-[12px]">public</span>
-                ) : null}
+                {workout.isPublic ? <Tag>public</Tag> : null}
                 {workout.workoutLabels.map((wl) => (
-                  <span
-                    key={wl.labelId}
-                    className="rounded-full bg-surface-inset px-2 text-[12px] text-foreground/80"
-                  >
-                    {wl.label.name}
-                  </span>
+                  <Tag key={wl.labelId}>{wl.label.name}</Tag>
                 ))}
               </span>
             </Link>

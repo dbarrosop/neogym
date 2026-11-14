@@ -3,21 +3,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { MealForm, type MealFormValues } from "@/components/meal-form";
+import { LibraryDetailSkeleton } from "@/components/nutrition-library";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { buildMealIngredientDiff, mealDeleteBlockedReason } from "@/lib/meal-template";
 import { isMealInUseByPlanError, normalizeNumeric } from "@/lib/nutrition";
 
 const EditMealQuery = graphql(`
@@ -31,6 +24,13 @@ const EditMealQuery = graphql(`
         foodId
         grams
         position
+      }
+      nutritionPlanMeals(order_by: [{ nutritionPlan: { name: asc } }, { id: asc }]) {
+        id
+        nutritionPlan {
+          id
+          name
+        }
       }
     }
   }
@@ -71,18 +71,6 @@ const DeleteMealMutation = graphql(`
   }
 `);
 
-type MealIngredientInsertInput = {
-  mealId: string;
-  foodId: string;
-  grams: number;
-  position: number;
-};
-
-type MealIngredientUpdateInput = {
-  where: { id: { _eq: string } };
-  _set: { grams: number; position: number };
-};
-
 export const Route = createFileRoute("/_authed/nutrition/meals/$mealId_/edit")({
   component: EditMealRoute,
 });
@@ -93,9 +81,11 @@ function EditMealRoute() {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["nutrition", "meals", "edit", mealId],
     queryFn: () => gqlRequest(EditMealQuery, { id: mealId }),
+    // Plan edits don't invalidate meals; re-check the plans that block delete on every visit.
+    refetchOnMount: "always",
   });
 
   const meal = data?.meal ?? null;
@@ -116,52 +106,15 @@ function EditMealRoute() {
   }, [meal]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: MealFormValues) => {
-      const existingById = new Map(
-        (initialValues?.ingredients ?? [])
-          .filter((ingredient) => ingredient.id)
-          .map((ingredient) => [ingredient.id as string, ingredient]),
-      );
-      const preservedIds = new Set<string>();
-      const insertIngredients: MealIngredientInsertInput[] = [];
-      const ingredientUpdates: MealIngredientUpdateInput[] = [];
-
-      for (const ingredient of values.ingredients) {
-        const existing = ingredient.id ? existingById.get(ingredient.id) : null;
-        if (existing?.id && existing.foodId === ingredient.foodId) {
-          preservedIds.add(existing.id);
-          ingredientUpdates.push({
-            where: { id: { _eq: existing.id } },
-            _set: { grams: ingredient.grams, position: ingredient.position },
-          });
-        } else {
-          insertIngredients.push({
-            mealId,
-            foodId: ingredient.foodId,
-            grams: ingredient.grams,
-            position: ingredient.position,
-          });
-        }
-      }
-
-      const deleteIngredientIds = Array.from(existingById.keys()).filter(
-        (id) => !preservedIds.has(id),
-      );
-
-      return gqlRequest(SaveMealMutation, {
+    mutationFn: (values: MealFormValues) =>
+      gqlRequest(SaveMealMutation, {
         id: mealId,
         set: {
           name: values.name,
           description: values.description === "" ? null : values.description,
         },
-        deleteIngredientIds,
-        hasDeleteIngredients: deleteIngredientIds.length > 0,
-        insertIngredients,
-        hasInsertIngredients: insertIngredients.length > 0,
-        ingredientUpdates,
-        hasIngredientUpdates: ingredientUpdates.length > 0,
-      });
-    },
+        ...buildMealIngredientDiff(mealId, initialValues?.ingredients ?? [], values.ingredients),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "meals"] });
       toast.success("Meal saved");
@@ -180,52 +133,66 @@ function EditMealRoute() {
       navigate({ to: "/nutrition/meals", replace: true });
     },
     onError: (error) => {
-      const message = isMealInUseByPlanError(error)
-        ? "This meal is used by a nutrition plan. Remove it from plan slots before deleting it. Logged days do not block deletion."
-        : `Failed to delete meal: ${error.message}`;
-      toast.error(message);
+      setConfirmDelete(false);
+      if (isMealInUseByPlanError(error)) {
+        // A plan started using it since this page loaded: show which one.
+        void refetch();
+        toast.error("This meal is used by a nutrition plan. Remove it there first.");
+        return;
+      }
+      toast.error(`Failed to delete meal: ${error.message}`);
     },
   });
+
+  const deleteBlockedReason = meal ? mealDeleteBlockedReason(meal.nutritionPlanMeals) : null;
 
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="3xl">
-          <EditMealSkeleton />
+        <PageShell maxWidth="2xl">
+          <LibraryDetailSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-destructive">Failed to load: {error.message}</p>
+        <PageShell maxWidth="2xl">
+          <ErrorState
+            title="Couldn’t load this meal"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!meal || !initialValues) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-muted-foreground">Meal not found.</p>
+        <PageShell maxWidth="2xl">
+          <EmptyState title="Meal not found" description="It may have been deleted." />
         </PageShell>
       );
     }
     return (
       <FormPage
         title="Edit meal"
-        width="4xl"
+        width="split"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this meal"
-            description="Meals used by plans can’t be deleted until they’re removed there. Logged days keep their snapshot."
+            description={deleteBlockedReason ?? "Days already logged keep their snapshot."}
             actionLabel="Delete meal"
             onAction={() => setConfirmDelete(true)}
-            disabled={deleteMutation.isPending || saveMutation.isPending}
+            disabled={
+              deleteBlockedReason !== null || deleteMutation.isPending || saveMutation.isPending
+            }
           />
         }
       >
         <MealForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() =>
@@ -239,55 +206,17 @@ function EditMealRoute() {
   return (
     <>
       {renderContent()}
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this meal?</DialogTitle>
-            <DialogDescription>
-              {meal?.name
-                ? `"${meal.name}" will be removed from your private meal templates.`
-                : "This meal will be removed from your private meal templates."}{" "}
-              Meal deletion is blocked while a nutrition plan slot references it. Historical logged
-              meals keep their food snapshots and detach their template provenance instead of
-              blocking deletion.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete meal"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={meal ? `Delete ${meal.name}?` : "Delete this meal?"}
+        description="This meal template will be deleted. Days already logged keep their snapshot. This can't be undone."
+        confirmLabel="Delete meal"
+        pendingLabel="Deleting…"
+        onConfirm={() => deleteMutation.mutate()}
+        isPending={deleteMutation.isPending}
+        destructive={true}
+      />
     </>
-  );
-}
-
-function EditMealSkeleton() {
-  return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </CardContent>
-    </Card>
   );
 }

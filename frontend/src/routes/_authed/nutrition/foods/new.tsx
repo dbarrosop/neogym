@@ -61,7 +61,7 @@ function NewFoodRoute() {
   });
 
   return (
-    <FormPage title="New food" width="2xl">
+    <FormPage title="New food" width="form" layout="sections">
       <FoodForm
         initialValues={EMPTY_FOOD}
         submitLabel="Create food"

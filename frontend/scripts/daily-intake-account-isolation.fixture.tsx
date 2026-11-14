@@ -162,7 +162,9 @@ mock.module("@/lib/graphql", () => ({
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
 const { DailyIntakeLog } = await import("@/components/daily-intake-log");
-const { TodayEnergyEstimate } = await import("@/components/today-energy-estimate");
+const { TodayEnergyEstimate, formatApproxKcal } = await import(
+  "@/components/today-energy-estimate"
+);
 const client = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, refetchOnWindowFocus: false, retry: false },
@@ -222,11 +224,14 @@ function estimateText(selector = "#intake") {
 }
 
 function assertEstimate(selector: string, burned: number, net: number) {
+  // The day log uses the "log" variant ("≈ −1,777 kcal"); the standalone card keeps the default.
   const format = (value: number, signed = false) =>
-    `≈${value.toLocaleString(undefined, {
-      maximumFractionDigits: 0,
-      signDisplay: signed ? "exceptZero" : "auto",
-    })} kcal`;
+    selector === "#intake"
+      ? formatApproxKcal(value, signed)
+      : `≈${value.toLocaleString(undefined, {
+          maximumFractionDigits: 0,
+          signDisplay: signed ? "exceptZero" : "auto",
+        })} kcal`;
   const content = estimateText(selector);
   assert(content.includes(`Estimated burned today${format(burned)}`), content);
   assert(content.includes(`Estimated net today${format(net, true)}`), content);
@@ -347,9 +352,11 @@ async function foodEditsAndEnsureDay() {
   ).length;
   cacheFreshToday();
   // Logged time slots are always expanded, so the entry's grams button is visible directly.
-  await settle(() =>
-    findElement<HTMLButtonElement>('#intake button[title="Click to edit grams"]').click(),
+  const gramsButton = [...container.querySelectorAll<HTMLButtonElement>("#intake button")].find(
+    (button) => button.textContent === "100 g, edit grams for account-b lunch",
   );
+  assert(gramsButton, "Missing the grams edit button");
+  await settle(() => gramsButton.click());
   const input = findElement<HTMLInputElement>(
     '#intake input[aria-label="Grams for account-b lunch"]',
   );
@@ -364,7 +371,7 @@ async function foodEditsAndEnsureDay() {
   );
   assert(save);
   await settle(() => save.click());
-  await waitFor(() => estimateText().includes("≈-200 kcal"));
+  await waitFor(() => estimateText().includes(formatApproxKcal(-200, true)));
   assertEstimate("#intake", 2000, -200);
   assertEstimate("#standalone", 2000, -1910);
   assertTodayInvalidated();

@@ -1,24 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from "lucide-react";
-import { type SubmitEvent, useId, useMemo, useState } from "react";
+import { ChevronDown, ChevronUp, type LucideIcon, Plus, X } from "lucide-react";
+import { type ReactNode, type SubmitEvent, useId, useMemo, useState } from "react";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MacroSummary } from "@/components/macro-summary";
 import { FormActions } from "@/components/patterns/form-actions";
-import { isEditablePrivateFood, QuickFoodDialog } from "@/components/quick-food-dialog";
+import { FormPageAside } from "@/components/patterns/form-page";
+import { ErrorState } from "@/components/patterns/query-states";
+import { QuickFoodDialog } from "@/components/quick-food-dialog";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { graphql } from "@/gql";
-import { useFormPageFormId } from "@/lib/form-page-context";
+import { useFormPageSlots } from "@/lib/form-page-context";
 import { gqlRequest } from "@/lib/graphql";
-import {
-  DECIMAL_INPUT_PATTERN,
-  mealMacroTotals,
-  normalizeNumeric,
-  parseMacroInput,
-} from "@/lib/nutrition";
+import { formatIngredientKcal, placeFoodInRows } from "@/lib/meal-template";
+import { DECIMAL_INPUT_PATTERN, mealMacroTotals, parseMacroInput } from "@/lib/nutrition";
+import { cn } from "@/lib/utils";
 
 const MealFormFoodsQuery = graphql(`
   query MealFormFoods {
@@ -56,7 +55,7 @@ interface MealFormProps {
   isSubmitting: boolean;
   onSubmit: (values: MealFormValues) => void;
   onCancel: () => void;
-  extraActions?: React.ReactNode;
+  extraActions?: ReactNode;
 }
 
 type IngredientDraft = {
@@ -66,10 +65,7 @@ type IngredientDraft = {
   grams: string;
 };
 
-type FoodDialogState =
-  | { kind: "create"; clientId: string }
-  | { kind: "edit"; clientId: string; food: FoodPickerOption };
-
+const DEFAULT_GRAMS = "100";
 let nextIngredientId = 0;
 
 function createClientId() {
@@ -77,8 +73,28 @@ function createClientId() {
   return `ingredient-${Date.now()}-${nextIngredientId}`;
 }
 
+function newIngredient(foodId: string): IngredientDraft {
+  return { clientId: createClientId(), foodId, grams: DEFAULT_GRAMS };
+}
+
 function numberToInput(value: number): string {
   return Number.isFinite(value) ? String(value) : "0";
+}
+
+function initialDrafts(values: MealFormValues): IngredientDraft[] {
+  return values.ingredients
+    .toSorted((a, b) => a.position - b.position)
+    .map((ingredient) => {
+      const draft: IngredientDraft = {
+        clientId: ingredient.id ?? createClientId(),
+        foodId: ingredient.foodId,
+        grams: numberToInput(ingredient.grams),
+      };
+      if (ingredient.id) {
+        draft.id = ingredient.id;
+      }
+      return draft;
+    });
 }
 
 function mergeFoodOptions(baseFoods: FoodPickerOption[], localFoods: FoodPickerOption[]) {
@@ -95,6 +111,52 @@ function mergeFoodOptions(baseFoods: FoodPickerOption[], localFoods: FoodPickerO
   );
 }
 
+/** Ingredient rows in order, with add, edit, move and remove. */
+function useIngredientDrafts(initialValues: MealFormValues) {
+  const [ingredients, setIngredients] = useState<IngredientDraft[]>(() =>
+    initialDrafts(initialValues),
+  );
+
+  function update(clientId: string, patch: Partial<IngredientDraft>) {
+    setIngredients((current) =>
+      current.map((ingredient) =>
+        ingredient.clientId === clientId ? { ...ingredient, ...patch } : ingredient,
+      ),
+    );
+  }
+
+  function move(clientId: string, direction: -1 | 1) {
+    setIngredients((current) => {
+      const index = current.findIndex((ingredient) => ingredient.clientId === clientId);
+      const target = index + direction;
+      const item = current[index];
+      if (!item || target < 0 || target >= current.length) {
+        return current;
+      }
+      const next = current.toSpliced(index, 1);
+      next.splice(target, 0, item);
+      return next;
+    });
+  }
+
+  return {
+    ingredients,
+    add: () => setIngredients((current) => [...current, newIngredient("")]),
+    /** A just-created food fills the first row without a food, or gets a new row. */
+    placeFood: (foodId: string) =>
+      setIngredients((current) => placeFoodInRows(current, foodId, newIngredient)),
+    update,
+    move,
+    remove: (clientId: string) =>
+      setIngredients((current) => current.filter((ingredient) => ingredient.clientId !== clientId)),
+  };
+}
+
+/**
+ * Meal template editor (Web-MealEditor): a details card, the ingredients card
+ * with compact rows, and live totals that a form page shows in its sticky
+ * side column. Inside a dialog everything stacks in place.
+ */
 export function MealForm({
   initialValues,
   submitLabel,
@@ -103,40 +165,25 @@ export function MealForm({
   onCancel,
   extraActions,
 }: MealFormProps) {
-  const formId = useFormPageFormId();
-  const nameId = useId();
-  const descriptionId = useId();
+  const page = useFormPageSlots();
   const errorId = useId();
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
-  const [ingredients, setIngredients] = useState<IngredientDraft[]>(() =>
-    initialValues.ingredients
-      .slice()
-      .sort((a, b) => a.position - b.position)
-      .map((ingredient) => {
-        const draft: IngredientDraft = {
-          clientId: ingredient.id ?? createClientId(),
-          foodId: ingredient.foodId,
-          grams: numberToInput(ingredient.grams),
-        };
-        if (ingredient.id) {
-          draft.id = ingredient.id;
-        }
-        return draft;
-      }),
-  );
+  const drafts = useIngredientDrafts(initialValues);
+  const { ingredients } = drafts;
   const [submitted, setSubmitted] = useState(false);
   const [localFoods, setLocalFoods] = useState<FoodPickerOption[]>([]);
-  const [foodDialog, setFoodDialog] = useState<FoodDialogState | null>(null);
+  const [creatingFood, setCreatingFood] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const foodsQuery = useQuery({
     queryKey: ["nutrition", "foods", "picker"],
     queryFn: () => gqlRequest(MealFormFoodsQuery),
   });
+  const isLoading = foodsQuery.isLoading;
 
   const foods = useMemo<FoodPickerOption[]>(
-    () => mergeFoodOptions(data?.foods ?? [], localFoods),
-    [data, localFoods],
+    () => mergeFoodOptions(foodsQuery.data?.foods ?? [], localFoods),
+    [foodsQuery.data, localFoods],
   );
   const foodsById = useMemo(() => new Map(foods.map((food) => [food.id, food])), [foods]);
 
@@ -151,23 +198,18 @@ export function MealForm({
     [foodsById, ingredients],
   );
 
-  const parsedIngredients = useMemo(
-    () =>
-      ingredients.map((ingredient, index) => ({
-        ...ingredient,
-        parsedGrams: parseMacroInput(ingredient.grams),
-        position: index,
-      })),
-    [ingredients],
-  );
+  const parsedIngredients = ingredients.map((ingredient, index) => ({
+    ...ingredient,
+    parsedGrams: parseMacroInput(ingredient.grams),
+    position: index,
+  }));
 
   const trimmedName = name.trim();
   const hasMissingFood = parsedIngredients.some(
     (ingredient) => !ingredient.foodId || !foodsById.has(ingredient.foodId),
   );
   const hasInvalidGrams = parsedIngredients.some(
-    (ingredient) =>
-      ingredient.parsedGrams === null || normalizeNumeric(ingredient.parsedGrams) <= 0,
+    (ingredient) => ingredient.parsedGrams === null || ingredient.parsedGrams <= 0,
   );
   const nameError = submitted && trimmedName.length === 0 ? "Name is required." : null;
   const ingredientsError =
@@ -178,53 +220,6 @@ export function MealForm({
     submitted && hasInvalidGrams ? "Ingredient grams must be greater than zero." : null;
   const formError = nameError ?? ingredientsError ?? missingFoodError ?? gramsError ?? null;
   const canSubmit = !isSubmitting && !isLoading;
-
-  function addIngredient() {
-    setIngredients((current) => [
-      ...current,
-      { clientId: createClientId(), foodId: "", grams: "100" },
-    ]);
-  }
-
-  function updateIngredient(clientId: string, patch: Partial<IngredientDraft>) {
-    setIngredients((current) =>
-      current.map((ingredient) =>
-        ingredient.clientId === clientId ? { ...ingredient, ...patch } : ingredient,
-      ),
-    );
-  }
-
-  function removeIngredient(clientId: string) {
-    setIngredients((current) => current.filter((ingredient) => ingredient.clientId !== clientId));
-  }
-
-  function moveIngredient(clientId: string, direction: -1 | 1) {
-    setIngredients((current) => {
-      const index = current.findIndex((ingredient) => ingredient.clientId === clientId);
-      const targetIndex = index + direction;
-      if (index < 0 || targetIndex < 0 || targetIndex >= current.length) {
-        return current;
-      }
-      const next = current.slice();
-      const [item] = next.splice(index, 1);
-      if (!item) {
-        return current;
-      }
-      next.splice(targetIndex, 0, item);
-      return next;
-    });
-  }
-
-  function rememberFood(food: FoodPickerOption) {
-    setLocalFoods((current) => mergeFoodOptions(current, [food]));
-  }
-
-  function handleQuickFoodSaved(food: FoodPickerOption) {
-    rememberFood(food);
-    if (foodDialog?.kind === "create") {
-      updateIngredient(foodDialog.clientId, { foodId: food.id });
-    }
-  }
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -254,109 +249,44 @@ export function MealForm({
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} className="space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label htmlFor={nameId} className="text-sm font-medium">
-              Meal name
-            </label>
-            <Input
-              id={nameId}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="e.g. Breakfast bowl"
-              maxLength={160}
-              aria-invalid={Boolean(nameError)}
-              aria-describedby={formError ? errorId : undefined}
-              autoFocus
-              required
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor={descriptionId} className="text-sm font-medium">
-              Description <span className="font-normal text-muted-foreground">(optional)</span>
-            </label>
-            <Textarea
-              id={descriptionId}
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Prep notes, serving idea, or anything useful for reuse."
-              maxLength={1000}
-              rows={3}
-            />
-          </div>
-        </div>
-
-        <MacroSummary
-          totals={totals}
-          title="Live meal totals"
-          description="Computed from current food nutrition values and ingredient grams."
+      <form id={page?.formId} onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <MealDetailsFields
+          onPage={page !== null}
+          name={name}
+          description={description}
+          nameInvalid={Boolean(nameError)}
+          errorId={formError ? errorId : undefined}
+          onNameChange={setName}
+          onDescriptionChange={setDescription}
         />
-
-        <section className="space-y-3" aria-describedby={formError ? errorId : undefined}>
-          <div>
-            <h2 className="text-sm font-medium">Ingredients</h2>
-            <p className="text-xs text-muted-foreground">
-              Pick from your private foods and public foods. Use the arrows to keep stable order.
-            </p>
-          </div>
-
-          {isLoading ? <MealFormSkeleton /> : null}
-          {error ? (
-            <p className="text-sm text-destructive">Failed to load foods: {error.message}</p>
-          ) : null}
-
-          {!isLoading && ingredients.length === 0 ? (
-            <Card className="border-border border-dashed">
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                Add at least one food to define this meal template.
-              </CardContent>
-            </Card>
-          ) : null}
-
-          <div className="space-y-3">
-            {ingredients.map((ingredient, index) => {
-              const selectedFood = foodsById.get(ingredient.foodId) ?? null;
-              return (
-                <IngredientCard
-                  key={ingredient.clientId}
-                  ingredient={ingredient}
-                  index={index}
-                  ingredientCount={ingredients.length}
-                  foods={foods}
-                  selectedFood={selectedFood}
-                  isSubmitting={isSubmitting}
-                  onMove={moveIngredient}
-                  onRemove={removeIngredient}
-                  onUpdate={updateIngredient}
-                  onCreateFood={(clientId) => setFoodDialog({ kind: "create", clientId })}
-                  onEditFood={(clientId, food) => setFoodDialog({ kind: "edit", clientId, food })}
-                />
-              );
-            })}
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addIngredient}
-              disabled={isLoading}
-            >
-              <Plus className="h-4 w-4" />
-              Add food
-            </Button>
-          </div>
-
-          {formError ? (
-            <p id={errorId} className="text-sm text-destructive">
-              {formError}
-            </p>
-          ) : null}
-        </section>
-
+        <IngredientsSection
+          onPage={page !== null}
+          ingredients={ingredients}
+          foods={foods}
+          foodsById={foodsById}
+          foodsState={foodsQuery}
+          isSubmitting={isSubmitting}
+          showErrors={submitted}
+          errorId={formError ? errorId : undefined}
+          onAdd={drafts.add}
+          onNewFood={() => setCreatingFood(true)}
+          onUpdate={drafts.update}
+          onMove={drafts.move}
+          onRemove={drafts.remove}
+        />
+        {formError ? (
+          <p id={errorId} role="alert" className="text-[13px] text-destructive">
+            {formError}
+          </p>
+        ) : null}
+        <FormPageAside>
+          <MacroSummary
+            variant="aside"
+            title="Live meal totals"
+            description="Computed from current food values and ingredient grams."
+            totals={totals}
+          />
+        </FormPageAside>
         <FormActions
           submitLabel={submitLabel}
           isSubmitting={isSubmitting}
@@ -366,167 +296,306 @@ export function MealForm({
           className="border-border border-t pt-4"
         />
       </form>
-      {foodDialog ? (
+      {creatingFood ? (
         <QuickFoodDialog
           open={true}
-          mode={
-            foodDialog.kind === "create"
-              ? { kind: "create" }
-              : { kind: "edit", food: foodDialog.food }
-          }
+          mode={{ kind: "create" }}
           onOpenChange={(open) => {
             if (!open) {
-              setFoodDialog(null);
+              setCreatingFood(false);
             }
           }}
-          onSaved={handleQuickFoodSaved}
+          onSaved={(food) => {
+            setLocalFoods((current) => mergeFoodOptions(current, [food]));
+            drafts.placeFood(food.id);
+          }}
         />
       ) : null}
     </>
   );
 }
 
-function IngredientCard({
-  ingredient,
-  index,
-  ingredientCount,
-  foods,
-  selectedFood,
-  isSubmitting,
-  onMove,
-  onRemove,
-  onUpdate,
-  onCreateFood,
-  onEditFood,
+const CARD = "rounded-xl border bg-card";
+
+function MealDetailsFields({
+  onPage,
+  name,
+  description,
+  nameInvalid,
+  errorId,
+  onNameChange,
+  onDescriptionChange,
 }: {
-  ingredient: IngredientDraft;
-  index: number;
-  ingredientCount: number;
-  foods: FoodPickerOption[];
-  selectedFood: FoodPickerOption | null;
-  isSubmitting: boolean;
-  onMove: (clientId: string, direction: -1 | 1) => void;
-  onRemove: (clientId: string) => void;
-  onUpdate: (clientId: string, patch: Partial<IngredientDraft>) => void;
-  onCreateFood: (clientId: string) => void;
-  onEditFood: (clientId: string, food: FoodPickerOption) => void;
+  onPage: boolean;
+  name: string;
+  description: string;
+  nameInvalid: boolean;
+  errorId: string | undefined;
+  onNameChange: (value: string) => void;
+  onDescriptionChange: (value: string) => void;
 }) {
-  const gramsId = `${ingredient.clientId}-grams`;
-  const canEditFood = isEditablePrivateFood(selectedFood);
-
+  const nameId = useId();
+  const descriptionId = useId();
   return (
-    <Card className="border-border bg-surface-inset">
-      <CardContent className="space-y-3 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[13px] font-semibold text-muted-foreground">Ingredient {index + 1}</p>
-          <div className="flex items-center gap-1">
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onMove(ingredient.clientId, -1)}
-              disabled={index === 0 || isSubmitting}
-              aria-label="Move ingredient up"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              onClick={() => onMove(ingredient.clientId, 1)}
-              disabled={index === ingredientCount - 1 || isSubmitting}
-              aria-label="Move ingredient down"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              onClick={() => onRemove(ingredient.clientId)}
-              disabled={isSubmitting}
-              aria-label="Remove ingredient"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <FoodPicker
-            foods={foods}
-            value={ingredient.foodId}
-            onChange={(foodId) => onUpdate(ingredient.clientId, { foodId })}
-            disabled={isSubmitting}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => onCreateFood(ingredient.clientId)}
-              disabled={isSubmitting}
-            >
-              <Plus className="h-4 w-4" />
-              New private food
-            </Button>
-            {canEditFood && selectedFood ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => onEditFood(ingredient.clientId, selectedFood)}
-                disabled={isSubmitting}
-              >
-                <Pencil className="h-4 w-4" />
-                Edit selected food
-              </Button>
-            ) : null}
-            {selectedFood?.isPublic ? (
-              <p className="self-center text-xs text-muted-foreground">
-                Public foods are read-only in meal composition.
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-1.5 sm:max-w-xs">
-          <label htmlFor={gramsId} className="text-sm font-medium">
-            Grams
-          </label>
-          <div className="relative">
-            <Input
-              id={gramsId}
-              type="text"
-              inputMode="decimal"
-              pattern={DECIMAL_INPUT_PATTERN}
-              value={ingredient.grams}
-              onChange={(event) => onUpdate(ingredient.clientId, { grams: event.target.value })}
-              className="pr-10"
-              required
-            />
-            <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-              g
-            </span>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className={cn("flex flex-col gap-4", onPage && cn(CARD, "p-5"))}>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={nameId}>Meal name</Label>
+        <Input
+          id={nameId}
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+          placeholder="e.g. Breakfast bowl"
+          maxLength={160}
+          aria-invalid={nameInvalid}
+          aria-describedby={nameInvalid ? errorId : undefined}
+          autoFocus
+          required
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={descriptionId} className="gap-1.5">
+          Description
+          <span className="font-medium text-muted-foreground">Optional</span>
+        </Label>
+        <Textarea
+          id={descriptionId}
+          value={description}
+          onChange={(event) => onDescriptionChange(event.target.value)}
+          placeholder="Prep notes, serving idea, or anything useful for reuse."
+          maxLength={1000}
+          rows={2}
+        />
+      </div>
+    </div>
   );
 }
 
-function MealFormSkeleton() {
+interface IngredientsSectionProps {
+  onPage: boolean;
+  ingredients: IngredientDraft[];
+  foods: FoodPickerOption[];
+  foodsById: Map<string, FoodPickerOption>;
+  foodsState: {
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => unknown;
+    isFetching: boolean;
+  };
+  isSubmitting: boolean;
+  showErrors: boolean;
+  errorId: string | undefined;
+  onAdd: () => void;
+  onNewFood: () => void;
+  onUpdate: (clientId: string, patch: Partial<IngredientDraft>) => void;
+  onMove: (clientId: string, direction: -1 | 1) => void;
+  onRemove: (clientId: string) => void;
+}
+
+/** "Ingredients · N": compact rows, then Add food / New private food. */
+function IngredientsSection(props: IngredientsSectionProps) {
+  const { ingredients, foodsState, isSubmitting } = props;
+  const headingId = useId();
+  const Heading = props.onPage ? "h2" : "h3";
   return (
-    <Card className="border-border/60">
-      <CardContent className="space-y-3 p-3">
-        <Skeleton className="h-4 w-28" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-20 w-full" />
-      </CardContent>
-    </Card>
+    <section
+      aria-labelledby={headingId}
+      aria-describedby={props.errorId}
+      className={cn("@container min-w-0", CARD)}
+    >
+      <div className="px-4 py-3.5">
+        <Heading id={headingId} className="text-[15px] font-semibold">
+          Ingredients{" "}
+          <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
+            · {ingredients.length}
+          </span>
+        </Heading>
+      </div>
+      {foodsState.error ? (
+        <div className="border-t p-4">
+          <ErrorState
+            title="Couldn’t load foods"
+            message={foodsState.error.message}
+            onRetry={() => foodsState.refetch()}
+            isRetrying={foodsState.isFetching}
+          />
+        </div>
+      ) : null}
+      {foodsState.isLoading ? <IngredientRowsSkeleton /> : null}
+      {!foodsState.isLoading && ingredients.length === 0 ? (
+        <p className="border-t px-4 py-6 text-center text-sm text-muted-foreground">
+          No ingredients yet. Add a food to build this meal.
+        </p>
+      ) : null}
+      {foodsState.isLoading || ingredients.length === 0 ? null : (
+        <ul>
+          {ingredients.map((ingredient, index) => (
+            <IngredientRow
+              key={ingredient.clientId}
+              ingredient={ingredient}
+              index={index}
+              count={ingredients.length}
+              foods={props.foods}
+              food={props.foodsById.get(ingredient.foodId) ?? null}
+              disabled={isSubmitting}
+              showErrors={props.showErrors}
+              onUpdate={props.onUpdate}
+              onMove={props.onMove}
+              onRemove={props.onRemove}
+            />
+          ))}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={props.onAdd}
+          disabled={foodsState.isLoading || isSubmitting}
+        >
+          <Plus />
+          Add food
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          className="text-link hover:text-link"
+          onClick={props.onNewFood}
+          disabled={isSubmitting}
+        >
+          New private food
+        </Button>
+        <p className="ml-auto text-[13px] text-muted-foreground">
+          Public foods are read-only here.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function IngredientRow({
+  ingredient,
+  index,
+  count,
+  foods,
+  food,
+  disabled,
+  showErrors,
+  onUpdate,
+  onMove,
+  onRemove,
+}: {
+  ingredient: IngredientDraft;
+  index: number;
+  count: number;
+  foods: FoodPickerOption[];
+  food: FoodPickerOption | null;
+  disabled: boolean;
+  showErrors: boolean;
+  onUpdate: (clientId: string, patch: Partial<IngredientDraft>) => void;
+  onMove: (clientId: string, direction: -1 | 1) => void;
+  onRemove: (clientId: string) => void;
+}) {
+  const itemName = food?.name ?? `ingredient ${index + 1}`;
+  const grams = parseMacroInput(ingredient.grams);
+  const { clientId } = ingredient;
+  return (
+    <li
+      className={cn(
+        "grid grid-cols-[120px_minmax(0,1fr)_auto] items-center gap-2.5 border-t py-2.5 pr-3 pl-4",
+        "@xl:min-h-14 @xl:grid-cols-[minmax(0,1fr)_120px_80px_112px] @xl:py-2",
+      )}
+    >
+      <FoodPicker
+        mode="select"
+        aria-label={`Food for ingredient ${index + 1}`}
+        aria-invalid={showErrors && !food}
+        foods={foods}
+        value={ingredient.foodId}
+        onChange={(foodId) => onUpdate(clientId, { foodId })}
+        disabled={disabled}
+        className="col-span-3 @xl:col-span-1"
+      />
+      <div className="flex items-center gap-1.5">
+        <Input
+          type="text"
+          inputMode="decimal"
+          pattern={DECIMAL_INPUT_PATTERN}
+          aria-label={`Grams of ${itemName}`}
+          aria-invalid={showErrors && (grams === null || grams <= 0)}
+          value={ingredient.grams}
+          onChange={(event) => onUpdate(clientId, { grams: event.target.value })}
+          disabled={disabled}
+          className="text-right tabular-nums"
+          required
+        />
+        <span aria-hidden="true" className="text-[13px] text-muted-foreground">
+          g
+        </span>
+      </div>
+      <p className="text-right text-sm font-semibold whitespace-nowrap tabular-nums">
+        {formatIngredientKcal(food, ingredient.grams)}
+      </p>
+      <div className="flex justify-end">
+        <RowIconButton
+          icon={ChevronUp}
+          label={`Move ${itemName} up`}
+          disabled={disabled || index === 0}
+          onClick={() => onMove(clientId, -1)}
+        />
+        <RowIconButton
+          icon={ChevronDown}
+          label={`Move ${itemName} down`}
+          disabled={disabled || index === count - 1}
+          onClick={() => onMove(clientId, 1)}
+        />
+        <RowIconButton
+          icon={X}
+          label={`Remove ${itemName}`}
+          disabled={disabled}
+          onClick={() => onRemove(clientId)}
+        />
+      </div>
+    </li>
+  );
+}
+
+/** Neutral 36 px row action (board `.ic`), named after the ingredient it acts on. */
+function RowIconButton({
+  icon: Icon,
+  label,
+  disabled,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="icon"
+      variant="ghost"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="text-muted-foreground hover:text-foreground"
+    >
+      <Icon />
+    </Button>
+  );
+}
+
+function IngredientRowsSkeleton() {
+  return (
+    <div className="border-t" role="status" aria-busy="true" aria-label="Loading foods">
+      {[0, 1].map((row) => (
+        <div key={row} className="flex items-center gap-2.5 border-b px-4 py-2.5 last:border-b-0">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-[120px]" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
   );
 }

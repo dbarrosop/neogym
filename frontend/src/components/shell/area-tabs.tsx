@@ -2,7 +2,10 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { type AreaId, getArea, isSectionActive } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-/** Segmented section switcher for an area; mirrors the iOS segmented Picker. */
+/**
+ * Segmented section switcher for an area; mirrors the iOS segmented Picker.
+ * Below 640 px the tabs share the full row (five fit in 358 px).
+ */
 export function AreaTabs({ area, className }: { area: AreaId; className?: string }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const definition = getArea(area);
@@ -27,7 +30,7 @@ export function AreaTabs({ area, className }: { area: AreaId; className?: string
             to={section.to}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-[34px] flex-1 items-center justify-center whitespace-nowrap rounded-lg px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:flex-none",
+              "flex h-[34px] min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-lg px-1 text-[13px] font-medium text-soft-foreground transition-colors hover:text-foreground sm:flex-none sm:px-4 sm:text-sm",
               active && "bg-segment-thumb font-semibold text-foreground shadow-sm",
             )}
           >
