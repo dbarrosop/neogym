@@ -26,7 +26,10 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests. For fixed-date watch PAT handoff tests, inject the same clock into
+  tests. DailyEnergy GraphQL fixtures must include both `activeKcal` and
+  `restingKcal` (use `.null` for an absent metric): their numeric decoders expect
+  the selected nullable keys, just as the real GraphQL response provides them.
+  For fixed-date watch PAT handoff tests, inject the same clock into
   `WatchAssistedSignInModel` and `WatchAccountModel`; both validate credential
   expiry, including account recovery and saved-credential presentation.
   In XCTest, await actor snapshots into a local before passing them to

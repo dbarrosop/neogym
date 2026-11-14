@@ -4,6 +4,8 @@ import WidgetKit
 
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
+    @StateObject private var calorieViewModel: NutritionCalorieHistoryViewModel
+    @State private var calorieRange = ChartHistoryRange.recentDays(30)
     let reloadToken: Int
     let nutritionRepository: any NutritionFoodMealRepositoryProtocol
     @State private var estimateRefreshToken = 0
@@ -12,6 +14,7 @@ struct DailyEnergyListView: View {
          nutritionRepository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
         self.nutritionRepository = nutritionRepository
         _viewModel = StateObject(wrappedValue: DailyEnergyListViewModel(repository: repository))
+        _calorieViewModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: nutritionRepository))
         self.reloadToken = reloadToken
     }
 
@@ -28,14 +31,27 @@ struct DailyEnergyListView: View {
         }
         .task {
             if case .idle = viewModel.state {
-                await loadAndRefreshWidget()
+                await loadEnergyAndRefreshWidget()
             }
         }
-        .onChange(of: reloadToken) { Task { await loadAndRefreshWidget() } }
-        .refreshable { await loadAndRefreshWidget() }
+        .task(id: calorieRange) {
+            await calorieViewModel.load(
+                range: calorieRange,
+                cacheCandidates: calorieRange == ChartHistoryRange.recentDays(30)
+                    ? ChartHistoryRange.recentCacheCandidates(30) : []
+            )
+        }
+        .onChange(of: reloadToken) { Task { await refresh() } }
+        .refreshable { await refresh() }
     }
 
-    private func loadAndRefreshWidget() async {
+    private func refresh() async {
+        async let energy: Void = loadEnergyAndRefreshWidget()
+        async let calories: Void = calorieViewModel.load(range: calorieRange)
+        _ = await (energy, calories)
+    }
+
+    private func loadEnergyAndRefreshWidget() async {
         await viewModel.load()
         estimateRefreshToken += 1
         WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
@@ -50,7 +66,7 @@ struct DailyEnergyListView: View {
             AppLoadingStateView(title: "Loading energy entries")
         case let .failed(message, _) where viewModel.entries.isEmpty:
             AppErrorStateView(title: "Couldn't load energy entries", message: message) {
-                Task { await loadAndRefreshWidget() }
+                Task { await refresh() }
             }
             .cardSurface()
         default:
@@ -58,7 +74,7 @@ struct DailyEnergyListView: View {
                 trendCard
             }
             TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
-            CalorieHistorySection(repository: nutritionRepository, reloadToken: reloadToken)
+            CalorieHistorySection(viewModel: calorieViewModel, range: $calorieRange)
             HealthSyncStatusRow(title: "Imported by Apple Watch", detail: "The watch refreshes the last 7 days automatically")
             if viewModel.entries.isEmpty {
                 AppEmptyStateView(

@@ -102,9 +102,11 @@ per day over the last 30 days. Energy charts open on the last 30 days. Today's B
 pure HealthKit grouping helpers shared with the watch; SwiftUI views under
 `ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
 active or resting HealthKit energy** or upload imported energy. Opening and
-pull-refreshing Energy loads the backend list and its calorie chart; opening and
-refreshing Today reads backend energy for the balance card. Manual energy
-CRUD remains available on iPhone. The watch app is the only automatic HealthKit
+pull-refreshing Energy loads the backend list and its calorie chart. Pull-to-refresh
+awaits both reads in parallel and keeps the selected calorie period, including its
+six warm-up days for rolling averages; a failed chart refresh retains its previous
+data with an error. Opening and refreshing Today reads backend energy for the balance
+card. Manual energy CRUD remains available on iPhone. The watch app is the only automatic HealthKit
 energy uploader for now, so users without a synced watch need manual entries.
 
 ## One-way watch HealthKit import

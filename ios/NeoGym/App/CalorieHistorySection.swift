@@ -7,32 +7,15 @@ import SwiftUI
 /// local days (plus warm-up days) first, from the SDK cache when available,
 /// and fetches wider or custom ranges on demand.
 struct CalorieHistorySection: View {
-    let reloadToken: Int
-
-    @StateObject private var viewModel: NutritionCalorieHistoryViewModel
-    @State private var range = ChartHistoryRange.recentDays(30)
+    /// The Energy screen owns initial loads and refreshes so pull-to-refresh
+    /// awaits this chart as well as the energy list without resetting its period.
+    @ObservedObject var viewModel: NutritionCalorieHistoryViewModel
+    @Binding var range: ChartHistoryRange
     @State private var trend: CalorieTrend?
-    @State private var hasRequested = false
-
-    init(repository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
-        self.reloadToken = reloadToken
-        _viewModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
-    }
 
     var body: some View {
         SectionShell(title: "Calories", subtitle: "Daily values and 7-day averages", isLoading: viewModel.state.isLoading) {
             content
-        }
-        .task {
-            guard !hasRequested else { return }
-            await viewModel.load(range: range, cacheCandidates: ChartHistoryRange.recentCacheCandidates(30))
-            hasRequested = true
-        }
-        .task(id: range) {
-            if hasRequested { await viewModel.load(range: range) }
-        }
-        .onChange(of: reloadToken) {
-            Task { await viewModel.load(range: range) }
         }
         .onReceive(viewModel.$state) { state in
             // Loading and failed states keep the last chart, including offline cached emissions.
