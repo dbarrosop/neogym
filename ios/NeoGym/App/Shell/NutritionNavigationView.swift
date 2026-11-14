@@ -9,6 +9,7 @@ struct NutritionNavigationView: View {
     let currentUserId: String?
     @Binding var path: [NutritionRoute]
     @Binding var section: NutritionSection
+    @Binding var logDate: NutritionLogDateSelection
     /// Bumped by the shell when another tab logged nutrition.
     let nutritionRevision: Int
     let onNutritionMutated: () -> Void
@@ -34,10 +35,14 @@ struct NutritionNavigationView: View {
         case .log:
             DailyIntakeView(
                 repository: repository,
-                date: IntakeGrouping.formatLocalDate(),
+                date: logDate.date,
                 reloadToken: reloadToken + nutritionRevision,
+                onDateSelected: { logDate.select($0) },
                 onMutated: invalidateLists
             )
+            // A new day gets its own model and sheets, so an older in-flight
+            // read cannot supply a day ID to the newly selected date's writes.
+            .id(logDate.date)
         case .plans:
             PlansListView(repository: repository, reloadToken: reloadToken)
         case .foods:

@@ -1,6 +1,7 @@
 import NeoGymKit
 import Nhost
 import SwiftUI
+import UIKit
 
 /// Signed-in shell: a native `TabView` with five areas, each with its own
 /// `NavigationStack`. The rest timer and the open session ride in the tab
@@ -18,6 +19,7 @@ struct AppShellView: View {
     @State private var progressPath: [ProgressRoute] = []
     @State private var trainSection: TrainSection = .sessions
     @State private var nutritionSection: NutritionSection = .log
+    @State private var nutritionLogDate = NutritionLogDateSelection()
     @State private var progressSection: ProgressSection = .overview
     @State private var meSection: MeSection = .journal
     /// Cross-tab invalidation: bumped after training or nutrition mutations so
@@ -25,6 +27,7 @@ struct AppShellView: View {
     @State private var trainingRevision = 0
     @State private var nutritionRevision = 0
     @StateObject private var restTimer = RestTimerController()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView(selection: $selection) {
@@ -40,6 +43,7 @@ struct AppShellView: View {
                     currentUserId: userId,
                     path: $nutritionPath,
                     section: $nutritionSection,
+                    logDate: $nutritionLogDate,
                     nutritionRevision: nutritionRevision,
                     onNutritionMutated: { nutritionRevision += 1 }
                 )
@@ -62,6 +66,12 @@ struct AppShellView: View {
             RestTimerAccessory(timer: restTimer, openSessionId: openSessionId, onOpenSession: openSession)
         }
         .environment(\.storageBaseURL, environment.client.serviceURLs.storage)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { nutritionLogDate.refreshToday() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+            nutritionLogDate.refreshToday()
+        }
     }
 
     private var todayTab: some View {
@@ -81,6 +91,7 @@ struct AppShellView: View {
                     selection = .train
                 },
                 openNutritionLog: {
+                    nutritionLogDate.showToday()
                     nutritionSection = .log
                     nutritionPath = []
                     selection = .nutrition

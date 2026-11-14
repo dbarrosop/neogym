@@ -7,6 +7,7 @@ import WidgetKit
 /// remaining slots are dashed with one Log action each.
 struct DailyIntakeView: View {
     let reloadToken: Int
+    let onDateSelected: (String) -> Void
     let onMutated: () -> Void
 
     @StateObject private var viewModel: DailyIntakeViewModel
@@ -18,15 +19,16 @@ struct DailyIntakeView: View {
     @State private var isPickingDate = false
     @State private var expandedOverrides: [String: Bool] = [:]
     @State private var loggingSlotKey: String?
-    @State private var loadedWeek: ChartHistoryRange?
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
         date: String,
         reloadToken: Int = 0,
+        onDateSelected: @escaping (String) -> Void,
         onMutated: @escaping () -> Void
     ) {
         self.reloadToken = reloadToken
+        self.onDateSelected = onDateSelected
         self.onMutated = onMutated
         _viewModel = StateObject(wrappedValue: DailyIntakeViewModel(date: date, repository: repository))
         _weekModel = StateObject(wrappedValue: NutritionCalorieHistoryViewModel(repository: repository))
@@ -41,7 +43,7 @@ struct DailyIntakeView: View {
                     selected: viewModel.date,
                     today: IntakeGrouping.formatLocalDate(),
                     kcalByDate: NutritionWeekStrip.kcalByDate(weekModel.history),
-                    onSelect: select
+                    onSelect: onDateSelected
                 )
                 content
             }
@@ -52,7 +54,7 @@ struct DailyIntakeView: View {
         }
         .task {
             await viewModel.load()
-            await loadWeek(force: true)
+            await loadWeek()
         }
         .onChange(of: reloadToken) { Task { await reload() } }
         .refreshable { await reload() }
@@ -67,7 +69,7 @@ struct DailyIntakeView: View {
             EditMealGroupSheet(viewModel: viewModel, item: item, onMutated: mutated)
         }
         .sheet(isPresented: $isPickingDate) {
-            NutritionDatePickerSheet(date: viewModel.date, onPick: select)
+            NutritionDatePickerSheet(date: viewModel.date, onPick: onDateSelected)
         }
         .confirmationDialog("Clear this day?", isPresented: $confirmingDayDelete, titleVisibility: .visible) {
             Button("Clear day log", role: .destructive) {
@@ -188,30 +190,18 @@ struct DailyIntakeView: View {
 
     // MARK: - Actions
 
-    private func select(_ date: String) {
-        guard date != viewModel.date else { return }
-        expandedOverrides = [:]
-        Task {
-            await viewModel.setDate(date)
-            await loadWeek(force: false)
-        }
-    }
-
     private func reload() async {
         await viewModel.load()
-        await loadWeek(force: true)
+        await loadWeek()
     }
 
-    private func loadWeek(force: Bool) async {
-        let range = NutritionWeekStrip.range(containing: viewModel.date)
-        guard force || range != loadedWeek else { return }
-        loadedWeek = range
-        await weekModel.load(range: range)
+    private func loadWeek() async {
+        await weekModel.load(range: NutritionWeekStrip.range(containing: viewModel.date))
     }
 
     private func mutated() {
         onMutated()
-        Task { await loadWeek(force: true) }
+        Task { await loadWeek() }
     }
 
     private func changePlan(_ planId: String?) {

@@ -12,7 +12,7 @@ final class TodayNavigationWiringTests: XCTestCase {
 
     func testTodayShortcutsClearTheDestinationBeforeSelectingItsTab() throws {
         let shell = try shellSource("AppShellView")
-        let nutritionAction = #"openNutritionLog:\s*\{\s*nutritionSection = \.log\s*nutritionPath = \[\]\s*selection = \.nutrition\s*\}"#
+        let nutritionAction = #"openNutritionLog:\s*\{\s*nutritionLogDate\.showToday\(\)\s*nutritionSection = \.log\s*nutritionPath = \[\]\s*selection = \.nutrition\s*\}"#
         let progressAction = #"openProgress:\s*\{ section in\s*progressSection = section\s*progressPath = \[\]\s*selection = \.progress\s*\}"#
 
         XCTAssertNotNil(shell.range(of: nutritionAction, options: .regularExpression))
@@ -38,6 +38,37 @@ final class TodayNavigationWiringTests: XCTestCase {
         let progress = try shellSource("ProgressNavigationView")
         XCTAssertTrue(progress.contains("path: Binding<[ProgressRoute]>"))
         XCTAssertTrue(progress.contains("_path = path"))
+    }
+
+    func testNutritionLogUsesTheShellSelectedDateForItsDayViewIdentity() throws {
+        let shell = try shellSource("AppShellView")
+        XCTAssertTrue(shell.contains("@State private var nutritionLogDate = NutritionLogDateSelection()"))
+        XCTAssertTrue(shell.contains("logDate: $nutritionLogDate"))
+        let nutrition = try shellSource("NutritionNavigationView")
+        XCTAssertTrue(nutrition.contains("@Binding var logDate: NutritionLogDateSelection"))
+        let keyedDay = #"case \.log:\s*DailyIntakeView\(\s*repository: repository,\s*date: logDate\.date,"#
+            + #"\s*reloadToken: [^\n]+,\s*onDateSelected: \{ logDate\.select\(\$0\) \},"#
+            + #"\s*onMutated: invalidateLists\s*\)\s*(?://[^\n]*\s*)*\.id\(logDate\.date\)"#
+        XCTAssertNotNil(
+            nutrition.range(of: keyedDay, options: .regularExpression),
+            "Date selection must replace the day model, not retarget a loaded model's write target"
+        )
+    }
+
+    func testNutritionLogRefreshesTodayOnForegroundAndSignificantTimeChanges() throws {
+        let shell = try shellSource("AppShellView")
+        XCTAssertTrue(shell.contains(#"@Environment(\.scenePhase) private var scenePhase"#))
+        let foregroundRefresh = #"\.onChange\(of: scenePhase\) \{ _, phase in\s*"#
+            + #"if phase == \.active \{ nutritionLogDate\.refreshToday\(\) \}\s*\}"#
+        XCTAssertNotNil(shell.range(of: foregroundRefresh, options: .regularExpression))
+        let timeRefresh = #"\.onReceive\(NotificationCenter\.default\.publisher\(for: "#
+            + #"UIApplication\.significantTimeChangeNotification\)\) \{ _ in\s*"#
+            + #"nutritionLogDate\.refreshToday\(\)\s*\}"#
+        XCTAssertNotNil(shell.range(of: timeRefresh, options: .regularExpression))
+        XCTAssertFalse(
+            shell.contains("NSCalendarDayChanged"),
+            "Use UIKit's main-actor significant-time notification for midnight, not an off-main calendar publisher"
+        )
     }
 
     func testCreateToDetailStillAppendsAfterTheCreateViewDismisses() throws {

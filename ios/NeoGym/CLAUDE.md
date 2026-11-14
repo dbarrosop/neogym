@@ -26,7 +26,10 @@ package at its lower deployment floor unless its own code needs newer APIs.
   SwiftUI/UIKit out of `Sources/NeoGymKit` so this works on macOS.
 - `swift test` — run deterministic package tests against fakes; do not require
   a live Nhost backend, real Keychain, or writable HealthKit data for unit
-  tests. DailyEnergy GraphQL fixtures must include both `activeKcal` and
+  tests. Include `TodayNavigationWiringTests` for shell/date changes: its source
+  guards check the SwiftUI shortcut order, selected-date identity and lifecycle
+  refresh hooks that host model tests do not compile.
+  DailyEnergy GraphQL fixtures must include both `activeKcal` and
   `restingKcal` (use `.null` for an absent metric): their numeric decoders expect
   the selected nullable keys, just as the real GraphQL response provides them.
   For fixed-date watch PAT handoff tests, inject the same clock into
@@ -96,6 +99,12 @@ that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
 test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
 `AR`, and `LDFLAGS`.
+
+Swift 6 SwiftUI `.onReceive` closures inherit `MainActor` isolation and can trap
+if a publisher emits off the main thread. `NSCalendarDayChanged` is an
+`AsyncMessage`, not main-actor-guaranteed; prefer UIKit's
+`significantTimeChangeNotification` (which includes midnight), or explicitly
+hop with `.receive(on: DispatchQueue.main)` before handling an off-main publisher.
 
 The package now supports watchOS 8 without raising its iOS/macOS floors. Its
 two HealthKit implementations (Body measurements and raw workouts) compile
@@ -516,6 +525,15 @@ section records how the iPhone app implements it.
   Progress paths live in the shell. Today's explicit section shortcuts clear
   the destination path before selecting its tab, including when that section
   is already selected behind a detail; ordinary tab switches preserve history.
+  The shell also owns Nutrition Log's date (`NutritionLogDateSelection`): Today's
+  Log shortcuts always select today. Scene activation and UIKit's main-actor
+  `significantTimeChangeNotification` (midnight and clock/time-zone changes)
+  advance a selection that matched the previous today, but retain deliberately
+  browsed dates. `DailyIntakeView` is
+  keyed by the selected date, giving each date its own day model and sheets;
+  changing dates closes old drafts and reloads the day/week so an old response
+  cannot provide the new date's write target. Cache policies and query ranges
+  are unchanged.
   Other tabs can also open a session. Each section's
   create/log action is a top-trailing `+` (`AreaPrimaryAction`); Today's `+` is
   a quick-log menu. Pushed routes use typed enums (`TrainRoute`,
