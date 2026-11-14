@@ -27,6 +27,108 @@ final class NutritionEditorRulesTests: XCTestCase {
         ))
     }
 
+    func testAddingAFoodToAMealOnlySlotAppendsAfterItsMeals() {
+        let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
+            name: "Plan",
+            description: "",
+            slots: [
+                NutritionPlanSlotFormValues(id: "oats", mealId: "meal-1", slotTime: "07:00", label: "", position: 0),
+                NutritionPlanSlotFormValues(id: "smoothie", mealId: "meal-2", slotTime: "07:00:00", label: "", position: 1)
+            ]
+        ))
+
+        model.addFoodSlot(foodId: "banana", slotTime: "07:00:00")
+
+        let entries = model.sortedDraftEntries()
+        XCTAssertEqual(entries.prefix(2).map(\.stableId), ["oats", "smoothie"])
+        XCTAssertEqual(entries.map(\.kind), [.meal, .meal, .food])
+        XCTAssertEqual(entries.map(\.position), [0, 1, 2])
+
+        model.addSlot(mealId: "meal-3", slotTime: "07:00")
+        XCTAssertEqual(model.sortedDraftEntries().prefix(3).map(\.stableId), entries.map(\.stableId))
+        XCTAssertEqual(model.sortedDraftEntries().map(\.position), [0, 1, 2, 3])
+    }
+
+    func testAddingAMealToAFoodOnlySlotAppendsAfterItsFoods() {
+        let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
+            name: "Plan",
+            description: "",
+            slots: [],
+            foodSlots: (0 ..< 3).map { position in
+                NutritionPlanFoodSlotFormValues(
+                    id: "food-\(position)", foodId: "food", grams: "100",
+                    slotTime: position == 1 ? "07:15:00" : "07:15", label: "", position: position
+                )
+            }
+        ))
+
+        model.addSlot(mealId: "meal", slotTime: "07:15:00")
+
+        let entries = model.sortedDraftEntries()
+        XCTAssertEqual(entries.prefix(3).map(\.stableId), ["food-0", "food-1", "food-2"])
+        XCTAssertEqual(entries.map(\.kind), [.food, .food, .food, .meal])
+        XCTAssertEqual(entries.map(\.position), [0, 1, 2, 3])
+
+        model.addFoodSlot(foodId: "another-food", slotTime: "07:15")
+        XCTAssertEqual(model.sortedDraftEntries().prefix(4).map(\.stableId), entries.map(\.stableId))
+        XCTAssertEqual(model.sortedDraftEntries().map(\.position), [0, 1, 2, 3, 4])
+    }
+
+    func testMovingAnEntryToAnotherSlotAppendsAfterMixedEntriesAndKeepsIdentity() {
+        for kind in [NutritionPlanEntryKind.food, .meal] {
+            let model = NutritionPlanFormModel(initialValues: NutritionPlanFormValues(
+                name: "Plan",
+                description: "",
+                slots: [
+                    NutritionPlanSlotFormValues(
+                        clientId: "source-meal", mealId: "meal-1", slotTime: "07:15", label: "Breakfast", position: 0
+                    ),
+                    NutritionPlanSlotFormValues(
+                        id: "target-meal", mealId: "meal-2", slotTime: "12:30", label: "Lunch", position: 1
+                    )
+                ],
+                foodSlots: [
+                    NutritionPlanFoodSlotFormValues(
+                        id: "source-food", foodId: "food-1", grams: "110", slotTime: "07:15", label: "", position: 1
+                    ),
+                    NutritionPlanFoodSlotFormValues(
+                        clientId: "target-food", foodId: "food-2", grams: "40", slotTime: "12:30:00", label: "", position: 0
+                    )
+                ]
+            ))
+            let mealClientIds = model.slots.map(\.clientId).sorted()
+            let foodClientIds = model.foodSlots.map(\.clientId).sorted()
+            let movedId = "source-\(kind.rawValue)"
+            let remainingId = kind == .meal ? "source-food" : "source-meal"
+
+            if kind == .meal {
+                model.updateSlot(stableId: movedId, slotTime: "12:30:00")
+            } else {
+                model.updateFoodSlot(stableId: movedId, slotTime: "12:30")
+            }
+
+            XCTAssertEqual(model.sortedDraftEntries().map(\.stableId), [remainingId, "target-food", "target-meal", movedId])
+            XCTAssertEqual(model.sortedDraftEntries().map(\.position), [0, 0, 1, 2])
+            XCTAssertEqual(model.slots.map(\.clientId).sorted(), mealClientIds)
+            XCTAssertEqual(model.foodSlots.map(\.clientId).sorted(), foodClientIds)
+        }
+    }
+
+    func testEquivalentTimeAndContentUpdatesKeepMixedEntryOrder() {
+        let model = planModel()
+        let entries = model.sortedDraftEntries()
+
+        model.updateSlot(stableId: "lunch-meal", slotTime: "12:30:00")
+        model.updateFoodSlot(stableId: "bread", slotTime: "07:15:00")
+        model.updateSlot(stableId: "lunch-meal", mealId: "another-meal", label: "Lunch")
+        model.updateFoodSlot(stableId: "bread", foodId: "another-food", grams: "120")
+
+        XCTAssertEqual(model.sortedDraftEntries().map(\.stableId), entries.map(\.stableId))
+        XCTAssertEqual(model.sortedDraftEntries().map(\.position), entries.map(\.position))
+        XCTAssertEqual(model.slots.first?.mealId, "another-meal")
+        XCTAssertEqual(model.foodSlots.first?.grams, "120")
+    }
+
     func testSettingASlotTimeMovesEveryEntryInThatSlot() {
         let model = planModel()
 

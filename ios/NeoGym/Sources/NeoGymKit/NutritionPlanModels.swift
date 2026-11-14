@@ -653,7 +653,7 @@ public final class NutritionPlanFormModel: ObservableObject {
             mealId: mealId,
             slotTime: slotTime,
             label: label,
-            position: slots.count
+            position: nextPosition(inSlotAt: slotTime)
         ))
         renumber()
     }
@@ -664,7 +664,7 @@ public final class NutritionPlanFormModel: ObservableObject {
             grams: grams,
             slotTime: slotTime,
             label: label,
-            position: foodSlots.count
+            position: nextPosition(inSlotAt: slotTime)
         ))
         renumber()
     }
@@ -682,13 +682,16 @@ public final class NutritionPlanFormModel: ObservableObject {
     public func updateSlot(stableId: String, mealId: String? = nil, slotTime: String? = nil, label: String? = nil) {
         slots = slots.map { slot in
             guard slot.stableId == stableId else { return slot }
+            let targetTime = slotTime ?? slot.slotTime
+            let position = normalizedSlotKey(slot.slotTime) == normalizedSlotKey(targetTime)
+                ? slot.position : nextPosition(inSlotAt: targetTime)
             return NutritionPlanSlotFormValues(
                 id: slot.id,
                 clientId: slot.clientId,
                 mealId: mealId ?? slot.mealId,
-                slotTime: slotTime ?? slot.slotTime,
+                slotTime: targetTime,
                 label: label ?? slot.label,
-                position: slot.position
+                position: position
             )
         }
         renumber()
@@ -703,14 +706,17 @@ public final class NutritionPlanFormModel: ObservableObject {
     ) {
         foodSlots = foodSlots.map { slot in
             guard slot.stableId == stableId else { return slot }
+            let targetTime = slotTime ?? slot.slotTime
+            let position = normalizedSlotKey(slot.slotTime) == normalizedSlotKey(targetTime)
+                ? slot.position : nextPosition(inSlotAt: targetTime)
             return NutritionPlanFoodSlotFormValues(
                 id: slot.id,
                 clientId: slot.clientId,
                 foodId: foodId ?? slot.foodId,
                 grams: grams ?? slot.grams,
-                slotTime: slotTime ?? slot.slotTime,
+                slotTime: targetTime,
                 label: label ?? slot.label,
-                position: slot.position
+                position: position
             )
         }
         renumber()
@@ -817,6 +823,12 @@ public final class NutritionPlanFormModel: ObservableObject {
             errorMessage = message
             return nil
         }
+    }
+
+    private func nextPosition(inSlotAt slotTime: String) -> Int {
+        let key = normalizedSlotKey(slotTime)
+        return slots.filter { normalizedSlotKey($0.slotTime) == key }.count
+            + foodSlots.filter { normalizedSlotKey($0.slotTime) == key }.count
     }
 
     private func normalizedSlotKey(_ slotTime: String) -> String {
