@@ -1,3 +1,4 @@
+import NeoGymKit
 import SwiftUI
 
 /// Search field on the fill token, 44 pt tall, with a clear button.
@@ -109,6 +110,17 @@ struct EntryListHeader: View {
         .foregroundStyle(NeoGymTheme.textSecondary)
         .padding(.horizontal, NeoGymTheme.spacingXXS)
         .padding(.top, NeoGymTheme.spacingXS)
+    }
+}
+
+/// Small red heart after a Body or Energy entry's date when the row still
+/// carries the Apple Health import note (`HealthImportMarker`).
+struct HealthImportHeart: View {
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(.caption)
+            .foregroundStyle(NeoGymTheme.health)
+            .accessibilityLabel(HealthImportMarker.note)
     }
 }
 

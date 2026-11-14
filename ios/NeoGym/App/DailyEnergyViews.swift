@@ -141,10 +141,15 @@ private struct DailyEnergyListRow: View {
 
     var body: some View {
         HStack(spacing: NeoGymTheme.spacingSM) {
-            Text(DateOnly.parse(entry.energyOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? entry.energyOn)
-                .font(.subheadline)
-                .foregroundStyle(NeoGymTheme.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                Text(DateOnly.parse(entry.energyOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? entry.energyOn)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.text)
+                if HealthImportMarker.isImported(entry.notes) {
+                    HealthImportHeart()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let notes = entry.notes, !notes.isEmpty, !HealthImportMarker.isImported(notes) {
                 Image(systemName: "note.text")
                     .font(.footnote)

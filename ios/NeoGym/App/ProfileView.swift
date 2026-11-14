@@ -30,7 +30,7 @@ struct ProfileView: View {
                     SettingsRow(title: "Member since", systemImage: "calendar", value: profile?.memberSince)
                 }
                 group("Connections") {
-                    SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.destructive, value: "Workouts, Body")
+                    SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.health, value: "Workouts, Body")
                     RowSeparator(leadingInset: 60)
                     SettingsRow(title: "Apple Watch", systemImage: "applewatch", value: watchStatus) {
                         phoneConnectivity.clearPresentedSuccess()

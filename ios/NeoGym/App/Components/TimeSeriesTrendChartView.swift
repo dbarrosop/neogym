@@ -1,3 +1,4 @@
+import NeoGymKit
 import SwiftUI
 
 enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
@@ -200,39 +201,25 @@ struct TimeSeriesTrendChartView: View {
 }
 
 extension TimeSeriesChartView {
+    /// The visible series' spoken summary: lowest, highest, average and latest
+    /// over complete periods, then today's or this week's value so far
+    /// (`ChartAccessibilitySummary`).
     var defaultAccessibilityValue: String {
-        let visibleSeries = effectiveVisibleSeries
-        let visiblePoints = visibleSeries.flatMap(\.points).sorted { $0.date < $1.date }
-        let seriesNames = visibleSeries.map(\.name).joined(separator: ", ")
-        let pointsLabel = visiblePoints.count == 1 ? "point" : "points"
-        let dateRange = Self.accessibilityDateRangeDescription(for: visiblePoints)
-        let overview = "\(visibleSeries.count) visible series: \(seriesNames). "
-            + "\(visiblePoints.count) total \(pointsLabel)\(dateRange)."
-        let seriesSummaries = visibleSeries.map(Self.accessibilitySummary(for:)).joined(separator: " ")
-        return [overview, seriesSummaries].filter { !$0.isEmpty }.joined(separator: " ")
-    }
-
-    static func accessibilitySummary(for singleSeries: TimeSeriesChartSeries) -> String {
-        guard let latest = singleSeries.points.last else { return "" }
-        let pointCount = singleSeries.points.count
-        let pointLabel = pointCount == 1 ? "point" : "points"
-        let minValue = singleSeries.points.map(\.value).min() ?? latest.value
-        let maxValue = singleSeries.points.map(\.value).max() ?? latest.value
-        let latestDate = accessibilityDateFormatter.string(from: latest.date)
-
-        return "\(singleSeries.name): \(pointCount) \(pointLabel), "
-            + "latest \(singleSeries.valueFormatter(latest.value)) on \(latestDate), "
-            + "minimum \(singleSeries.valueFormatter(minValue)), maximum \(singleSeries.valueFormatter(maxValue))."
-    }
-
-    static func accessibilityDateRangeDescription(for points: [TimeSeriesChartDataPoint]) -> String {
-        guard let firstDate = points.first?.date, let lastDate = points.last?.date else { return "" }
-        let first = accessibilityDateFormatter.string(from: firstDate)
-        let last = accessibilityDateFormatter.string(from: lastDate)
-        if Calendar.current.isDate(firstDate, inSameDayAs: lastDate) {
-            return " on \(first)"
-        }
-        return " from \(first) to \(last)"
+        let formatter = Self.accessibilityDateFormatter
+        return ChartAccessibilitySummary.text(
+            for: effectiveVisibleSeries.map { singleSeries in
+                ChartAccessibilitySummary.Series(
+                    name: singleSeries.name,
+                    points: singleSeries.points.map {
+                        ChartAccessibilitySummary.Point(date: $0.date, value: $0.value, isPartial: $0.isPartial)
+                    },
+                    unit: singleSeries.periodUnit,
+                    isRollingAverage: singleSeries.isRollingAverage,
+                    format: singleSeries.valueFormatter
+                )
+            },
+            formatDate: formatter.string(from:)
+        )
     }
 
     static var accessibilityDateFormatter: DateFormatter {

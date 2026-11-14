@@ -173,7 +173,8 @@ struct ProgressOverviewView: View {
                                 id: week.weekStart.ISO8601Format(), date: week.weekStart, value: week.volume, isPartial: true
                             )
                         },
-                        valueFormatter: { "\(MetricFormat.compact($0)) kg" }
+                        valueFormatter: { "\(MetricFormat.compact($0)) kg" },
+                        periodUnit: .week
                     )],
                     showsAxes: false,
                     showsLegend: false,
@@ -234,12 +235,14 @@ struct ProgressOverviewView: View {
                             TimeSeriesChartSeries(
                                 id: "overview-weight-average", name: "Weight · 7-day avg", color: NeoGymTheme.chart1,
                                 points: BodyMetricTrendCard.points(weight),
-                                valueFormatter: { "\(MetricFormat.decimal($0)) kg" }
+                                valueFormatter: { "\(MetricFormat.decimal($0)) kg" },
+                                isRollingAverage: true
                             ),
                             TimeSeriesChartSeries(
                                 id: "overview-body-fat-average", name: "Body fat · 7-day avg", color: NeoGymTheme.chart2,
                                 axis: .right, points: BodyMetricTrendCard.points(fat),
-                                valueFormatter: { "\(MetricFormat.decimal($0)) %" }
+                                valueFormatter: { "\(MetricFormat.decimal($0)) %" },
+                                isRollingAverage: true
                             )
                         ],
                         showsLegend: false,
@@ -304,7 +307,8 @@ struct ProgressOverviewView: View {
                             TimeSeriesChartSeries(
                                 id: "overview-net-average", name: "7-day avg", color: NeoGymTheme.chart2,
                                 points: average.map(CalorieHistorySection.point),
-                                valueFormatter: CalorieHistorySection.signedKcalText
+                                valueFormatter: CalorieHistorySection.signedKcalText,
+                                isRollingAverage: true
                             )
                         ],
                         showsAxes: false,

@@ -98,7 +98,7 @@ struct CalorieHistorySection: View {
                     ),
                     TimeSeriesChartSeries(
                         id: "consumed-average", name: "7-day avg", color: NeoGymTheme.chart1,
-                        points: trend.consumedAverage.map(point), valueFormatter: kcalText
+                        points: trend.consumedAverage.map(point), valueFormatter: kcalText, isRollingAverage: true
                     )
                 ],
                 emptyMessage: "No food logged in this range.",
@@ -114,7 +114,8 @@ struct CalorieHistorySection: View {
                     ),
                     TimeSeriesChartSeries(
                         id: "net-average", name: "7-day avg", color: NeoGymTheme.chart2,
-                        includesZero: true, points: trend.netAverage.map(point), valueFormatter: signedKcalText
+                        includesZero: true, points: trend.netAverage.map(point), valueFormatter: signedKcalText,
+                        isRollingAverage: true
                     )
                 ],
                 emptyMessage: "No full days with food and energy in this range.",

@@ -1,26 +1,43 @@
 import Foundation
 
+/// How a value axis prints its labels: the same notation as the series'
+/// values, callouts and spoken summary.
+public enum ChartAxisValueFormat: Equatable, Sendable {
+    /// Bare grouped numbers (`2,000`, `50k`); units live in the title and legend.
+    case number
+    /// Seconds, labelled m:ss (h:mm:ss past an hour) on whole-minute ticks
+    /// (`20:00 · 30:00 · 40:00`), never raw seconds.
+    case durationSeconds
+}
+
 /// A chart value axis with three labels (bottom, middle, top) on round
 /// values, as in the unified design: `0 · 6 · 12`, `20k · 40k · 60k`,
-/// `70 · 71 · 72`. Labels are bare numbers; units live in the chart's title
-/// and legend.
+/// `70 · 71 · 72`. Labels are bare numbers, units living in the chart's title
+/// and legend, except durations, which use the values' m:ss notation.
 public struct ChartAxisScale: Equatable, Sendable {
     /// The bottom of the axis.
     public let min: Double
     /// The distance between labels; the axis spans two steps.
     public let step: Double
+    public let format: ChartAxisValueFormat
 
-    public init(min: Double, step: Double) {
+    public init(min: Double, step: Double, format: ChartAxisValueFormat = .number) {
         self.min = min
         self.step = step
+        self.format = format
     }
 
     public var mid: Double { min + step }
     public var max: Double { min + 2 * step }
 
     /// The smallest rounded axis containing `values` (and zero when
-    /// `includesZero`), or nil when there are no values.
-    public static func rounded(values: [Double], includesZero: Bool = false) -> ChartAxisScale? {
+    /// `includesZero`), or nil when there are no values. Durations step in
+    /// whole minutes (1, 2, 5, 10, 15, 20, 30 or 60) or, past that, hours.
+    public static func rounded(
+        values: [Double],
+        includesZero: Bool = false,
+        format: ChartAxisValueFormat = .number
+    ) -> ChartAxisScale? {
         let finite = values.filter(\.isFinite)
         guard var low = finite.min(), var high = finite.max() else { return nil }
         if includesZero {
@@ -32,13 +49,13 @@ public struct ChartAxisScale: Equatable, Sendable {
             if !(includesZero && low == 0) { low -= padding }
             high += padding
         }
-        var step = niceStep(atLeast: (high - low) / 2)
+        var step = niceStep(atLeast: (high - low) / 2, format: format)
         var bottom = (low / step).rounded(.down) * step
         while bottom + 2 * step < high {
-            step = niceStep(atLeast: step * 1.000_1)
+            step = niceStep(atLeast: step * 1.000_1, format: format)
             bottom = (low / step).rounded(.down) * step
         }
-        return ChartAxisScale(min: bottom, step: step)
+        return ChartAxisScale(min: bottom, step: step, format: format)
     }
 
     /// Scales for two measures sharing a chart on left and right axes
@@ -87,10 +104,33 @@ public struct ChartAxisScale: Equatable, Sendable {
         return nice * base
     }
 
+    private static func niceStep(atLeast value: Double, format: ChartAxisValueFormat) -> Double {
+        switch format {
+        case .number: niceStep(atLeast: value)
+        case .durationSeconds: niceDurationStep(atLeast: value)
+        }
+    }
+
+    /// A whole-minute duration step in seconds of at least `value`.
+    static func niceDurationStep(atLeast value: Double) -> Double {
+        let minutes: [Double] = [1, 2, 5, 10, 15, 20, 30, 60]
+        if let step = minutes.map({ $0 * 60 }).first(where: { $0 >= value }) { return step }
+        return niceStep(atLeast: value / 3_600) * 3_600
+    }
+
     /// An axis label: grouped digits below 10,000 (`2,000`), thousands as
     /// `k` above (`50k`), and an explicit sign when the axis crosses zero
-    /// (`+400`, `−1,200`).
+    /// (`+400`, `−1,200`). Durations read `35:00`, and every label reads
+    /// h:mm:ss once the axis reaches an hour (`0:00:00 · 2:00:00 · 4:00:00`).
     public func label(_ value: Double, locale: Locale = .current) -> String {
+        if format == .durationSeconds {
+            let seconds = Swift.max(value.rounded(), 0)
+            if max >= 3_600, seconds < 3_600 {
+                let whole = Int(seconds)
+                return String(format: "0:%02d:%02d", whole / 60, whole % 60)
+            }
+            return CardioMetricsSchemaHelpers.formatSecondsAsDuration(seconds)
+        }
         let magnitude = Swift.max(abs(min), abs(max))
         let snapped = abs(value) < step * 1e-6 ? 0 : value
         let digits: String

@@ -266,6 +266,8 @@ struct PlannedSlotCard: View {
     let slot: NutritionPlanTimeSlot<NutritionPlanEntry>
     let isExpanded: Bool
     let isNext: Bool
+    /// Food is already logged at this time: Log stays quiet and asks first.
+    let hasLoggedFood: Bool
     let isLogging: Bool
     let isDisabled: Bool
     let toggle: () -> Void
@@ -290,6 +292,7 @@ struct PlannedSlotCard: View {
                 .foregroundStyle(isNext ? NeoGymTheme.onFill : NeoGymTheme.accentText)
                 .disabled(isDisabled || slot.entries.isEmpty)
                 .accessibilityLabel("Log \(slot.label) slot")
+                .accessibilityHint(hasLoggedFood ? "Food is already logged at this time. Asks before logging." : "")
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: toggle)

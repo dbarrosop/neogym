@@ -41,6 +41,9 @@ enum NeoGymTheme {
     static let destructive = Color("ThemeDestructive")
     /// Destructive fills.
     static let destructiveFill = Color("ThemeDestructiveFill")
+    /// The heart that marks rows imported from Apple Health (glyph only, never
+    /// text; passes 3:1 on surfaces in both appearances).
+    static let health = Color("ThemeHealth")
     /// Labels and glyphs on accent or destructive fills (white passes 4.5:1).
     static let onFill = Color.white
 

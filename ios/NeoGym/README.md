@@ -1,8 +1,8 @@
 # NeoGym iOS
 
 Native SwiftUI iPhone app with a watchOS companion and widget. The phone
-uses email OTP, a protected Workouts/Nutrition/Me navigation shell, app-side
-PKCE email change, and read-only Apple Health imports.
+uses email OTP, a protected five-tab shell (Today, Train, Nutrition, Progress,
+Me), app-side PKCE email change, and read-only Apple Health imports.
 
 ## Layout
 
@@ -272,8 +272,9 @@ the request; system-reported expiry can cancel PAT sign-in or a name read, while
 session clearing must complete. A PAT sign-in forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
 terminate the iPhone app, tap **Connect using iPhone** on the watch, then open
-Profile on the phone; when iOS delivers the request,
-confirm **Finish watch connection** appears without a second tap. Repeat after a
+**Me › Account** on the phone; when iOS delivers the request, confirm the
+**Apple Watch** row shows **Request waiting** without a second tap (tap it to
+open Connect Apple Watch). Repeat after a
 force-quit and retry from the watch if iOS suppressed background delivery. Then
 sign in with the phone-issued PAT, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
@@ -560,8 +561,8 @@ Manual local OTP check:
    commands above.
 3. Sign up with display name + email, open MailHog, copy the 6-digit code, and
    verify.
-4. Confirm the profile shows initials, display name, email, locale, role, user
-   ID, and member-since date.
+4. Confirm **Me › Account** shows the initials, display name, email, and
+   member-since date.
 5. Sign out, sign in again with the same email, verify the OTP, and relaunch the
    app to confirm the persisted session is restored.
 
@@ -571,12 +572,12 @@ Manual local email-change check:
    `make -C backend dev-env-down && make -C backend dev-env-up` after redirect
    config changes so local Auth loads the allowlist.
 2. Build/run the iOS app in a simulator and sign in as an existing user.
-3. Open **Change email** on the profile screen, enter a different email address,
+3. Open **Change email** in **Me › Account**, enter a different email address,
    and submit the request.
 4. Open MailHog, open the verification link on the simulator, and confirm iOS
    routes the callback into the app as `neogym://verify?code=...`.
-5. Confirm token exchange succeeds, the saved verifier is cleared, and the
-   profile shows the updated email.
+5. Confirm token exchange succeeds, the saved verifier is cleared, and
+   **Me › Account** shows the updated email.
 
 Hand-crafted callback smoke check, when a simulator is available:
 

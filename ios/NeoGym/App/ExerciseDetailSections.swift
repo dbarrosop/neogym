@@ -239,7 +239,8 @@ struct CardioProgressSummary: View {
                         value: point.value
                     )
                 },
-                valueFormatter: { CardioMetricsSchemaHelpers.formatMetricValue($0, spec: primary) }
+                valueFormatter: { CardioMetricsSchemaHelpers.formatMetricValue($0, spec: primary) },
+                axisFormat: primary.format == .durationSeconds ? .durationSeconds : .number
             )
         ]
     }

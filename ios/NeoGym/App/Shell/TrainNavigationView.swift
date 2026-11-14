@@ -180,7 +180,7 @@ struct HealthSyncStatusRow: View {
         HStack(spacing: NeoGymTheme.spacingSM) {
             Image(systemName: "heart.fill")
                 .font(.body)
-                .foregroundStyle(NeoGymTheme.destructive)
+                .foregroundStyle(NeoGymTheme.health)
                 .frame(width: 36, height: 36)
                 .background(Circle().fill(NeoGymTheme.fill))
                 .accessibilityHidden(true)

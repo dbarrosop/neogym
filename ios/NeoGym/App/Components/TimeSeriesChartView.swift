@@ -281,7 +281,9 @@ struct TimeSeriesChartView: View {
         let minX = allPoints.map { $0.date.timeIntervalSince1970 }.min() ?? points[0].date.timeIntervalSince1970
         let maxX = allPoints.map { $0.date.timeIntervalSince1970 }.max() ?? points[0].date.timeIntervalSince1970
         let scale = axisDescriptor(for: series.axis)?.scale
-            ?? ChartAxisScale.rounded(values: series.points.map(\.value), includesZero: series.includesZero)
+            ?? ChartAxisScale.rounded(
+                values: series.points.map(\.value), includesZero: series.includesZero, format: series.axisFormat
+            )
             ?? ChartAxisScale(min: points[0].value - 1, step: 1)
         let horizontalSpan = max(maxX - minX, 1)
         let verticalSpan = max(scale.max - scale.min, 0.000_001)
@@ -406,9 +408,11 @@ struct TimeSeriesChartView: View {
             return ChartAxisDescriptor(axis: axis, scale: axis == .left ? left : right)
         }
         let values = axisSeries.flatMap { $0.points.map(\.value) }
+        let isDuration = axisSeries.allSatisfy { $0.axisFormat == .durationSeconds }
         guard let scale = ChartAxisScale.rounded(
             values: values,
-            includesZero: axisSeries.contains(where: \.includesZero)
+            includesZero: axisSeries.contains(where: \.includesZero),
+            format: isDuration ? .durationSeconds : .number
         ) else { return nil }
         return ChartAxisDescriptor(axis: axis, scale: scale)
     }

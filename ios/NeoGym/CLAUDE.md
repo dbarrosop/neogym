@@ -575,7 +575,8 @@ section records how the iPhone app implements it.
   `segmentedThumb`, `separator`, `text`, `textSecondary`, `textTertiary`,
   `accent` for fills, `accentText` for text/icons, `accentSoft`, `chart1`/
   `chart2` for chart series, `carbs` for the carbs macro, `positive`,
-  `destructive`, `destructiveFill`, and `onFill` for
+  `destructive` (text: light `#B91C1C`, dark `#F87171`), `destructiveFill`
+  (`#DC2626`), `health` (the `#E5484D` Apple Health heart, glyph only), and `onFill` for
   labels/glyphs on accent or destructive fills). Never hard-code hex
   or system colours in views. `RootView` applies `.preferredColorScheme` from
   the `AppAppearance` `@AppStorage` key (Dark default) and the global
@@ -615,6 +616,11 @@ section records how the iPhone app implements it.
   still opens `EditMealGroupSheet`. Successful entry changes keep the existing
   day reload and parent mutation callback, which reloads week-strip kcal and
   invalidates the other nutrition views. Planned (dashed) slots pass `muted`.
+  Every selected-plan slot stays in the timeline; one sharing its time with a
+  logged slot comes after it (`hasLoggedFood`), keeps the accent-soft Log and
+  asks first through a `confirmationDialog` with the web dialog's wording.
+  Only `NutritionTimeline.nextPlannedId` (the first planned slot with nothing
+  logged at its time) opens by default with the accent Log.
 - **Patterns**: session logging, the Nutrition Log timeline, Today, Progress
   and Account follow the root design section. Their rules live in host-tested
   NeoGymKit types (`SessionLogging`, `NextSetDraft`, `SessionWeekGrouping`,
@@ -627,7 +633,9 @@ section records how the iPhone app implements it.
   trailing value, with a chevron only when the row pushes. Body and Energy
   entry lists show the latest five under an `EntryListHeader` ("5 of 32") and
   end with `LoadMoreRow` (`App/Components/ListPrimitives.swift`). Health data always shows its source with a
-  sync-status row (`HealthSyncStatusRow`).
+  sync-status row (`HealthSyncStatusRow`), and each Body/Energy row whose
+  notes are exactly the import marker shows `HealthImportHeart` (a red heart
+  labelled "Imported from Apple Health") after its date instead of the note.
 - **Loading, empty, and error states**: reuse `AppLoadingStateView`,
   `AppErrorStateView` and `AppEmptyStateView`. The empty state follows the
   design's States board: its icon on an accent-soft tile, a Title 2 heading, the
@@ -712,15 +720,22 @@ section records how the iPhone app implements it.
   both axes but no legend. Body and Energy charts (Calories included) open on
   `.last30Days`, as do Overview's Body and Energy cards. Non-empty
   custom chart plots collapse decorative drawing, axes, markers, and callouts
-  into one VoiceOver element with a domain label plus a summary of visible
-  series, point counts, date range, latest values, and min/max values; legends
+  into one VoiceOver element with a domain label plus the NeoGymKit
+  `ChartAccessibilitySummary` of the visible series: the complete-period date
+  range, then lowest, highest, average and latest per series (no average for
+  `isRollingAverage` 7-day lines), leaving out a partial point, and a closing
+  "Today so far: …" (or "This week so far: …" for `periodUnit: .week` series
+  such as weekly volume) that names series only when several are partial; legends
   stay separate tappable controls for hiding/showing series. Caller-provided
   chart accessibility values must account for hidden series themselves.
   Empty-state text remains naturally accessible. Value axes use NeoGymKit
   `ChartAxisScale`: three labels (bottom, middle, top) on rounded values, bare
   compact numbers without units (`12`, `2,000`, `50k`, `+400`/`−1,200` when the
   axis crosses zero) in `textSecondary` whatever the series colour, with one
-  grid line per label. Series with `includesZero` (Muscles sets, daily energy,
+  grid line per label. A series with `axisFormat: .durationSeconds` (cardio
+  exercise detail when the primary metric is a duration) steps in whole
+  minutes and labels m:ss, or h:mm:ss on every label once the axis reaches an
+  hour, matching its `valueFormatter`; seconds are never shown raw. Series with `includesZero` (Muscles sets, daily energy,
   net calories) keep 0 on the axis; others hug their data. When visible series
   sit on both axes (Strength and exercise-detail volume + Est. 1RM, the Today
   and Overview body charts), `ChartAxisScale.startAligned` scales each to its

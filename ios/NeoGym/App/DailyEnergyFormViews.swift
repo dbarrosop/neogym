@@ -199,7 +199,8 @@ private struct DailyEnergyFormScreen: View {
             FormSection(
                 header: "Notes",
                 footer: "One entry per date with at least one value. "
-                    + "The NeoGym Apple Watch app imports active and resting energy from Apple Health."
+                    + "The NeoGym Apple Watch app imports active and resting energy from Apple Health; "
+                    + "imported days show a heart in the list."
             ) {
                 FormTextAreaRow(placeholder: "Optional", text: $form.notes, accessibilityLabel: "Notes")
             }

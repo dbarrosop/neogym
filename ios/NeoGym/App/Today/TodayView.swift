@@ -11,8 +11,8 @@ struct TodayActions {
     let nutritionLogged: () -> Void
 }
 
-/// Today: training, nutrition against the plan, yesterday's balance with
-/// today's estimate, and the body trend. It replaces Nutrition › Overview and
+/// Today: training, nutrition against the plan, today's balance so far with
+/// the end-of-day estimate, and the body trend. It replaces Nutrition › Overview and
 /// keeps its duties: the Energy Balance widget snapshot (written only after a
 /// fresh backend overview), Apple Health Body sync on open and refresh, and
 /// cached-first reads that keep stale values while revalidating.

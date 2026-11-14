@@ -68,7 +68,8 @@ struct StrengthProgressView: View {
                                     isPartial: week.weekStart == StrengthWeeklyOverview.currentWeekStart()
                                 )
                             },
-                            valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" }
+                            valueFormatter: { "\($0.formatted(.number.precision(.fractionLength(0)))) kg" },
+                            periodUnit: .week
                         )],
                         emptyMessage: "No strength sets in this period.",
                         accessibilityLabel: "Weekly strength volume chart",

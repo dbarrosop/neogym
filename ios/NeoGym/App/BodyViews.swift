@@ -129,10 +129,15 @@ private struct BodyMeasurementListRow: View {
 
     var body: some View {
         HStack(spacing: NeoGymTheme.spacingSM) {
-            Text(DateOnly.parse(measurement.measuredOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? measurement.measuredOn)
-                .font(.subheadline)
-                .foregroundStyle(NeoGymTheme.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 6) {
+                Text(DateOnly.parse(measurement.measuredOn)?.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)) ?? measurement.measuredOn)
+                    .font(.subheadline)
+                    .foregroundStyle(NeoGymTheme.text)
+                if HealthImportMarker.isImported(measurement.notes) {
+                    HealthImportHeart()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             if let notes = measurement.notes, !notes.isEmpty, !HealthImportMarker.isImported(notes) {
                 Image(systemName: "note.text")
                     .font(.footnote)
@@ -323,7 +328,7 @@ struct BodyMeasurementCreateView: View {
 
     var body: some View {
         BodyMeasurementFormScreen(
-            submitLabel: "Save measurement",
+            submitLabel: "Save",
             form: form,
             isSubmitting: editor.saveState.isLoading,
             errorMessage: form.errorMessage ?? editor.saveState.errorMessage,
@@ -495,7 +500,7 @@ private struct BodyMeasurementFormScreen: View {
             FormSection(
                 header: "Notes",
                 footer: "One entry per date with at least one value. "
-                    + "Entries imported from Apple Health show a heart tag in the list."
+                    + "Entries imported from Apple Health show a heart in the list."
             ) {
                 FormTextAreaRow(placeholder: "Optional", text: $form.notes, accessibilityLabel: "Notes")
             }
@@ -588,7 +593,8 @@ struct BodyMetricTrendCard: View {
             ),
             TimeSeriesChartSeries(
                 id: "\(title)-average", name: "7-day avg", color: color,
-                points: Self.points(metric.rollingAverage), valueFormatter: format
+                points: Self.points(metric.rollingAverage), valueFormatter: format,
+                isRollingAverage: true
             )
         ]
     }

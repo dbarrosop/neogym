@@ -28,7 +28,7 @@ final class NutritionLogTimelineTests: XCTestCase {
         ])
     }
 
-    func testTimelineMergesLoggedAndUnloggedPlannedSlotsByTime() {
+    func testTimelineMergesLoggedAndPlannedSlotsByTime() {
         let day = NutritionDay(
             id: "d", logDate: "2026-11-12", nutritionPlanId: "p",
             nutritionLogMeals: [
@@ -38,7 +38,13 @@ final class NutritionLogTimelineTests: XCTestCase {
             nutritionLogEntries: [entry("banana", time: "05:45:00"), entry("whey", time: "05:45:00")]
         )
         let items = NutritionTimeline.items(day: day, selectedPlan: plan, locale: Locale(identifier: "en_GB"))
-        XCTAssertEqual(items.map(\.id), ["logged-05:45", "planned-07:15", "logged-13:00", "planned-21:30"])
+        XCTAssertEqual(
+            items.map(\.id),
+            ["logged-05:45", "planned-07:15", "logged-13:00", "planned-13:00", "planned-21:30"],
+            "A planned slot stays beside same-time logged food, after it"
+        )
+        XCTAssertEqual(items.map(hasLoggedFood), [nil, false, nil, true, false])
+        XCTAssertEqual(NutritionTimeline.nextPlannedId(items), "planned-07:15")
         XCTAssertEqual(NutritionTimeline.defaultExpandedIds(items), ["logged-13:00", "planned-07:15"])
 
         if case let .logged(breakfast) = items[0] {
@@ -50,7 +56,56 @@ final class NutritionLogTimelineTests: XCTestCase {
         if case let .logged(lunch) = items[2] {
             XCTAssertEqual(NutritionTimeline.loggedCountLabel(lunch), "1 meal")
         }
-        XCTAssertEqual(items[3].kcal, 102, accuracy: 0.001)
+        XCTAssertEqual(items[4].kcal, 102, accuracy: 0.001)
+    }
+
+    func testNextPlannedSlotSkipsSlotsWithSameTimeFood() throws {
+        let day = NutritionDay(
+            id: "d", logDate: "2026-11-12", nutritionPlanId: "p",
+            nutritionLogEntries: [entry("coffee", time: "07:15:00"), entry("rice", time: "13:00:00")]
+        )
+        let items = NutritionTimeline.items(day: day, selectedPlan: plan, locale: Locale(identifier: "en_GB"))
+        XCTAssertEqual(NutritionTimeline.nextPlannedId(items), "planned-21:30")
+        XCTAssertEqual(NutritionTimeline.defaultExpandedIds(items), ["logged-13:00", "planned-21:30"])
+
+        let allLogged = NutritionDay(
+            id: "d", logDate: "2026-11-12", nutritionPlanId: "p",
+            nutritionLogEntries: ["07:15:00", "13:00:00", "21:30:00"].map { entry($0, time: $0) }
+        )
+        let loggedItems = NutritionTimeline.items(day: allLogged, selectedPlan: plan, locale: Locale(identifier: "en_GB"))
+        XCTAssertEqual(loggedItems.count, 6)
+        XCTAssertNil(NutritionTimeline.nextPlannedId(loggedItems))
+        XCTAssertEqual(NutritionTimeline.defaultExpandedIds(loggedItems), ["logged-21:30"])
+    }
+
+    func testPlannedSlotConfirmationMatchesTheWebWording() throws {
+        let slots = NutritionPlanGrouping.groupPlanEntriesByTimeSlot(
+            plan.sortedEntries + [.food(NutritionPlanFoodSlot(
+                id: "d", foodId: "jam", grams: .number(40), slotTime: "07:15:00", position: 1, food: food("jam", kcal: 250)
+            ))],
+            locale: Locale(identifier: "en_GB")
+        )
+        XCTAssertEqual(
+            NutritionTimeline.plannedSlotConfirmationMessage(try XCTUnwrap(slots.first)),
+            "Food is already logged at 07:15. This adds 2 planned items at 07:15; nothing already logged changes."
+        )
+        XCTAssertEqual(
+            NutritionTimeline.plannedSlotConfirmationMessage(slots[1]),
+            "Food is already logged at 13:00. This adds 1 planned item at 13:00; nothing already logged changes."
+        )
+        let untimed = NutritionPlanGrouping.groupPlanEntriesByTimeSlot([.food(NutritionPlanFoodSlot(
+            id: "e", foodId: "oats", grams: .number(80), slotTime: "", position: 0, food: food("oats", kcal: 380)
+        ))])
+        XCTAssertEqual(
+            NutritionTimeline.plannedSlotConfirmationMessage(try XCTUnwrap(untimed.first)),
+            "Food without a time is already logged. This adds 1 planned item at the current time; "
+                + "nothing already logged changes."
+        )
+    }
+
+    private func hasLoggedFood(_ item: NutritionTimelineItem) -> Bool? {
+        if case let .planned(_, hasLoggedFood) = item { return hasLoggedFood }
+        return nil
     }
 
     func testLoggedMealEntriesStayWithTheirLoggedGroupInPositionOrder() throws {

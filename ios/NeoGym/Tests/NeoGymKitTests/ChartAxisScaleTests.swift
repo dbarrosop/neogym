@@ -63,6 +63,31 @@ final class ChartAxisScaleTests: XCTestCase {
         XCTAssertEqual(fractional.label(5, locale: enUS), "5")
     }
 
+    func testDurationAxesUseWholeMinuteTicksInTheValuesNotation() throws {
+        // 26:30 to 35:00 per session, stored in seconds.
+        let rowing = try XCTUnwrap(ChartAxisScale.rounded(values: [1_590, 1_800, 2_100], format: .durationSeconds))
+        XCTAssertEqual(rowing.step.truncatingRemainder(dividingBy: 60), 0)
+        XCTAssertLessThanOrEqual(rowing.min, 1_590)
+        XCTAssertGreaterThanOrEqual(rowing.max, 2_100)
+        XCTAssertEqual([rowing.min, rowing.mid, rowing.max].map { rowing.label($0) }, ["25:00", "30:00", "35:00"])
+
+        let single = try XCTUnwrap(ChartAxisScale.rounded(values: [2_100], format: .durationSeconds))
+        XCTAssertEqual(single.step.truncatingRemainder(dividingBy: 60), 0)
+        XCTAssertLessThan(single.min, 2_100)
+        XCTAssertGreaterThan(single.max, 2_100)
+
+        let long = try XCTUnwrap(ChartAxisScale.rounded(values: [3_000, 11_000], format: .durationSeconds))
+        XCTAssertEqual(long.step.truncatingRemainder(dividingBy: 60), 0)
+        XCTAssertEqual(
+            [long.min, long.mid, long.max].map { long.label($0) }, ["0:00:00", "2:00:00", "4:00:00"],
+            "Once the axis reaches an hour, every label is h:mm:ss"
+        )
+        XCTAssertEqual(ChartAxisScale(min: 0, step: 1_800, format: .durationSeconds).label(1_800), "0:30:00")
+        XCTAssertEqual(ChartAxisScale(min: 0, step: 1_800, format: .durationSeconds).label(3_600), "1:00:00")
+        XCTAssertEqual(ChartAxisScale(min: 0, step: 60, format: .durationSeconds).label(0), "0:00")
+        XCTAssertEqual(ChartAxisScale.rounded(values: [1_590, 2_100])?.format, .number)
+    }
+
     func testAxisCrossingZeroShowsSigns() throws {
         let net = try XCTUnwrap(ChartAxisScale.rounded(values: [-1_180, 360], includesZero: true))
         XCTAssertLessThan(net.min, 0)

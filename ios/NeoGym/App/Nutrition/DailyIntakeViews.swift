@@ -4,7 +4,8 @@ import WidgetKit
 
 /// Nutrition › Log: a week strip and date picker, the day summary, and a
 /// time-slot timeline where logged slots are solid and the selected plan's
-/// remaining slots are dashed with one Log action each.
+/// slots are dashed with one Log action each. A planned slot stays beside
+/// same-time logged food; its Log is quieter and asks first.
 struct DailyIntakeView: View {
     let reloadToken: Int
     let onDateSelected: (String) -> Void
@@ -19,6 +20,7 @@ struct DailyIntakeView: View {
     @State private var isPickingDate = false
     @State private var expandedOverrides: [String: Bool] = [:]
     @State private var loggingSlotKey: String?
+    @State private var confirmingSlot: NutritionPlanTimeSlot<NutritionPlanEntry>?
 
     init(
         repository: any NutritionFoodMealRepositoryProtocol,
@@ -81,6 +83,17 @@ struct DailyIntakeView: View {
         } message: {
             Text("Everything logged on \(IntakeGrouping.formatLocalDateLabel(viewModel.date)) is deleted, including meal groups. This can't be undone.")
         }
+        .confirmationDialog(
+            "Log this planned slot?",
+            isPresented: Binding(get: { confirmingSlot != nil }, set: { if !$0 { confirmingSlot = nil } }),
+            titleVisibility: .visible,
+            presenting: confirmingSlot
+        ) { slot in
+            Button("Log slot") { logSlot(slot) }
+            Button("Cancel", role: .cancel) {}
+        } message: { slot in
+            Text(NutritionTimeline.plannedSlotConfirmationMessage(slot))
+        }
     }
 
     @ViewBuilder
@@ -134,7 +147,7 @@ struct DailyIntakeView: View {
     private var timeline: some View {
         let items = NutritionTimeline.items(day: viewModel.day, selectedPlan: viewModel.selectedPlan)
         let defaults = NutritionTimeline.defaultExpandedIds(items)
-        let nextPlannedId = items.first { !$0.isLogged }?.id
+        let nextPlannedId = NutritionTimeline.nextPlannedId(items)
         if items.isEmpty {
             AppEmptyStateView(
                 title: "Nothing logged yet",
@@ -157,15 +170,18 @@ struct DailyIntakeView: View {
                     editEntry: { editingEntry = $0 },
                     editGroup: { editingGroup = $0 }
                 )
-            case let .planned(slot):
+            case let .planned(slot, hasLoggedFood):
                 PlannedSlotCard(
                     slot: slot,
                     isExpanded: isExpanded,
                     isNext: item.id == nextPlannedId,
+                    hasLoggedFood: hasLoggedFood,
                     isLogging: loggingSlotKey == slot.key,
                     isDisabled: viewModel.isMutating,
                     toggle: toggle,
-                    log: { logSlot(slot) }
+                    log: {
+                        if hasLoggedFood { confirmingSlot = slot } else { logSlot(slot) }
+                    }
                 )
             }
         }

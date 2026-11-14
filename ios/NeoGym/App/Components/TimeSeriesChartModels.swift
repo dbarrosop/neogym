@@ -32,7 +32,16 @@ struct TimeSeriesChartSeries: Identifiable {
     /// signed series (net calories) show where they cross it.
     let includesZero: Bool
     let points: [TimeSeriesChartDataPoint]
+    /// Formats values in callouts and spoken summaries.
     let valueFormatter: (Double) -> String
+    /// The axis labels' notation; durations match `valueFormatter`'s m:ss.
+    let axisFormat: ChartAxisValueFormat
+    /// A day or a week per point; names a partial last point in the spoken
+    /// summary ("Today so far", "This week so far").
+    let periodUnit: ChartAccessibilitySummary.PeriodUnit
+    /// A 7-day average line: the spoken summary gives its lowest, highest and
+    /// latest, not an average of averages.
+    let isRollingAverage: Bool
 
     init(
         id: String,
@@ -42,7 +51,10 @@ struct TimeSeriesChartSeries: Identifiable {
         axis: TimeSeriesChartAxis = .left,
         includesZero: Bool = false,
         points: [TimeSeriesChartDataPoint],
-        valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
+        valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) },
+        axisFormat: ChartAxisValueFormat = .number,
+        periodUnit: ChartAccessibilitySummary.PeriodUnit = .day,
+        isRollingAverage: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -52,13 +64,17 @@ struct TimeSeriesChartSeries: Identifiable {
         self.includesZero = includesZero
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
+        self.axisFormat = axisFormat
+        self.periodUnit = periodUnit
+        self.isRollingAverage = isRollingAverage
     }
 
     /// The same series keeping only the points that pass `isIncluded`.
     func filtered(_ isIncluded: (TimeSeriesChartDataPoint) -> Bool) -> TimeSeriesChartSeries {
         TimeSeriesChartSeries(
             id: id, name: name, color: color, style: style, axis: axis, includesZero: includesZero,
-            points: points.filter(isIncluded), valueFormatter: valueFormatter
+            points: points.filter(isIncluded), valueFormatter: valueFormatter, axisFormat: axisFormat,
+            periodUnit: periodUnit, isRollingAverage: isRollingAverage
         )
     }
 }
@@ -74,7 +90,8 @@ struct TimeSeriesChartPanel: Identifiable {
 }
 
 /// One value axis: which side, and its rounded `ChartAxisScale`. Labels are
-/// bare numbers in the secondary text colour, whatever the series colour.
+/// bare numbers (durations in m:ss) in the secondary text colour, whatever
+/// the series colour.
 struct ChartAxisDescriptor {
     let axis: TimeSeriesChartAxis
     let scale: ChartAxisScale

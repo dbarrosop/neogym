@@ -1,29 +1,31 @@
 import Foundation
 
 /// One row of the Nutrition › Log timeline: a logged time slot, or a slot from
-/// the day's selected plan that has not been logged yet.
+/// the day's selected plan. `hasLoggedFood` marks a planned slot whose time
+/// already has logged food; matching times don't mean the plan was followed, so
+/// the planned card stays, with a quieter Log that asks first.
 public enum NutritionTimelineItem: Sendable, Identifiable {
     case logged(IntakeTimeSlot)
-    case planned(NutritionPlanTimeSlot<NutritionPlanEntry>)
+    case planned(NutritionPlanTimeSlot<NutritionPlanEntry>, hasLoggedFood: Bool)
 
     public var id: String {
         switch self {
         case let .logged(slot): "logged-\(slot.key)"
-        case let .planned(slot): "planned-\(slot.key)"
+        case let .planned(slot, _): "planned-\(slot.key)"
         }
     }
 
     public var key: String {
         switch self {
         case let .logged(slot): slot.key
-        case let .planned(slot): slot.key
+        case let .planned(slot, _): slot.key
         }
     }
 
     public var sortKey: String {
         switch self {
         case let .logged(slot): slot.sortKey
-        case let .planned(slot): slot.sortKey
+        case let .planned(slot, _): slot.sortKey
         }
     }
 
@@ -35,14 +37,15 @@ public enum NutritionTimelineItem: Sendable, Identifiable {
     public var kcal: Double {
         switch self {
         case let .logged(slot): slot.totals.kcal
-        case let .planned(slot): slot.totals.kcal
+        case let .planned(slot, _): slot.totals.kcal
         }
     }
 }
 
 public extension NutritionTimeline {
-    /// Logged slots plus selected-plan slots, in time order. A planned slot is
-    /// hidden once a logged slot has the same time.
+    /// Logged slots plus every selected-plan slot, in time order, the logged
+    /// slot first at a shared time. A planned slot stays beside same-time
+    /// logged food (as on the web), flagged `hasLoggedFood`.
     static func items(
         day: NutritionDay?,
         selectedPlan: NutritionPlan?,
@@ -54,19 +57,41 @@ public extension NutritionTimeline {
             NutritionPlanGrouping.groupPlanEntriesByTimeSlot($0.sortedEntries, locale: locale)
         } ?? []
         let items = logged.map(NutritionTimelineItem.logged)
-            + planned.filter { !loggedKeys.contains($0.key) }.map(NutritionTimelineItem.planned)
+            + planned.map { NutritionTimelineItem.planned($0, hasLoggedFood: loggedKeys.contains($0.key)) }
         return items.sorted { left, right in
             if left.sortKey != right.sortKey { return left.sortKey < right.sortKey }
             return left.isLogged && !right.isLogged
         }
     }
 
-    /// Open by default: the latest logged slot and the first slot still planned.
+    /// The first planned slot with nothing logged at its time: open by default,
+    /// with the prominent Log.
+    static func nextPlannedId(_ items: [NutritionTimelineItem]) -> String? {
+        items.first { item in
+            if case .planned(_, hasLoggedFood: false) = item { return true }
+            return false
+        }?.id
+    }
+
+    /// Open by default: the latest logged slot and the next planned slot.
     static func defaultExpandedIds(_ items: [NutritionTimelineItem]) -> Set<String> {
         var ids = Set<String>()
         if let lastLogged = items.last(where: \.isLogged) { ids.insert(lastLogged.id) }
-        if let firstPlanned = items.first(where: { !$0.isLogged }) { ids.insert(firstPlanned.id) }
+        if let nextPlanned = nextPlannedId(items) { ids.insert(nextPlanned) }
         return ids
+    }
+
+    /// Message for the confirmation shown before logging a planned slot whose
+    /// time already has logged food (the web dialog's wording).
+    static func plannedSlotConfirmationMessage(_ slot: NutritionPlanTimeSlot<NutritionPlanEntry>) -> String {
+        let count = slot.entries.count
+        let items = count == 1 ? "1 planned item" : "\(count) planned items"
+        guard !IntakeGrouping.timeToInputValue(slot.key).isEmpty else {
+            return "Food without a time is already logged. This adds \(items) at the current time; "
+                + "nothing already logged changes."
+        }
+        return "Food is already logged at \(slot.label). This adds \(items) at \(slot.label); "
+            + "nothing already logged changes."
     }
 
     /// Child snapshots in their existing slot order, matched by logged group ID
