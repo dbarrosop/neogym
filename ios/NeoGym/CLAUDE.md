@@ -558,6 +558,11 @@ section records how the iPhone app implements it.
   `App/Components/ListPrimitives.swift` (`SearchField`, `ListRow`,
   `RowSeparator`). `AdaptiveRow` stacks vertically at accessibility text sizes;
   use it for tiles and paired metrics instead of letting text truncate.
+- **Nutrition slots**: the Log timeline and plan detail share
+  `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
+  grams line with accent/series 2/secondary dots aligned under the title) and
+  `NutritionSlotItemRow` (name, MEAL tag for meals, "amount · P · C · F" from
+  NeoGymKit `NutritionMacroText`, kcal). Planned (dashed) slots pass `muted`.
 - **Patterns**: session logging, the Nutrition Log timeline, Today, Progress
   and Account follow the root design section. Their rules live in host-tested
   NeoGymKit types (`SessionLogging`, `NextSetDraft`, `SessionWeekGrouping`,

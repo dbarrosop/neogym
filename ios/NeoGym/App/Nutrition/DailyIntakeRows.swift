@@ -12,63 +12,159 @@ struct EditingGroupSheetItem: Identifiable {
     var id: String { group.id }
 }
 
-/// Shared slot header: time, status line, kcal and a trailing control.
-private struct SlotHeader<Trailing: View>: View {
+private extension HorizontalAlignment {
+    /// The leading edge of a slot header's title, so the macro line starts
+    /// under it whatever the time label's width ("No time" is wider).
+    enum SlotTitle: AlignmentID {
+        static func defaultValue(in context: ViewDimensions) -> CGFloat { context[.leading] }
+    }
+
+    static let slotTitle = HorizontalAlignment(SlotTitle.self)
+}
+
+/// Slot header shared by the Log timeline and plan detail: time, title, kcal
+/// and a trailing control, then the slot's protein, carbs and fat in grams.
+struct NutritionSlotHeader<Title: View, Trailing: View>: View {
     let time: String
-    let title: String
-    let kcal: Double
-    let muted: Bool
+    let totals: MacroTotals
+    var muted = false
+    @ViewBuilder let title: Title
     @ViewBuilder let trailing: Trailing
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text(time)
-                .font(.subheadline.weight(.bold))
-                .monospacedDigit()
-                .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
-                .frame(minWidth: 46, alignment: .leading)
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("\(MetricFormat.whole(kcal)) kcal")
-                .font(.footnote)
-                .monospacedDigit()
-                .foregroundStyle(NeoGymTheme.textSecondary)
-            trailing
+        VStack(alignment: .slotTitle, spacing: 2) {
+            HStack(spacing: 10) {
+                Text(time)
+                    .font(.subheadline.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
+                    .frame(minWidth: 46, alignment: .leading)
+                title
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .alignmentGuide(.slotTitle) { $0[.leading] }
+                Text("\(MetricFormat.whole(totals.kcal)) kcal")
+                    .font(.footnote)
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                trailing
+            }
+            .frame(minHeight: 40)
+            NutritionSlotMacroLine(totals: totals, muted: muted)
+                .alignmentGuide(.slotTitle) { $0[.leading] }
         }
         .padding(.horizontal, NeoGymTheme.spacingMD)
-        .frame(minHeight: 52)
+        .padding(.top, 6)
+        .padding(.bottom, NeoGymTheme.spacingSM)
     }
 }
 
-/// One food row inside a slot: name, grams and kcal.
-private struct SlotItemRow: View {
+/// "● P 45 g  ● C 106 g  ● F 6 g", with the day summary's bar colours.
+struct NutritionSlotMacroLine: View {
+    let totals: MacroTotals
+    var muted = false
+
+    var body: some View {
+        HStack(spacing: 14) {
+            macro("P", totals.protein, dot: NeoGymTheme.accent)
+            macro("C", totals.carbs, dot: NeoGymTheme.series2)
+            macro("F", totals.fat, dot: NeoGymTheme.textSecondary)
+        }
+        .font(.footnote)
+        .monospacedDigit()
+        .foregroundStyle(NeoGymTheme.textSecondary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(NutritionMacroText.slotAccessibility(totals))
+    }
+
+    private func macro(_ label: String, _ grams: Double, dot: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(dot)
+                .frame(width: 7, height: 7)
+            Text(
+                "\(label) \(Text(MetricFormat.whole(grams)).fontWeight(.semibold).foregroundStyle(valueColor)) g"
+            )
+        }
+    }
+
+    private var valueColor: Color {
+        muted ? NeoGymTheme.text.opacity(0.8) : NeoGymTheme.text
+    }
+}
+
+/// One entry in a slot: the name (with a MEAL tag for meals), then its amount
+/// and macros ("45 g · P 33 · C 6.8 · F 2"), and kcal on the right.
+struct NutritionSlotItemRow: View {
     let name: String
-    let detail: String
-    let kcal: Double
-    let muted: Bool
+    let amount: String
+    let spokenAmount: String
+    let totals: MacroTotals
+    var isMeal = false
+    var muted = false
+
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(name)
-                .font(.subheadline)
-                .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text(detail)
-                .font(.footnote)
-                .foregroundStyle(NeoGymTheme.textSecondary)
-            Text(MetricFormat.whole(kcal))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(name)
+                        .font(.subheadline)
+                        .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
+                        .lineLimit(dynamicTypeSize.isAccessibilitySize ? 3 : 1)
+                    if isMeal {
+                        EntryKindTag(isMeal: true)
+                    }
+                }
+                Text(NutritionMacroText.entryCaption(amount: amount, totals: totals))
+                    .font(.footnote)
+                    .foregroundStyle(muted ? NeoGymTheme.textTertiary : NeoGymTheme.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(MetricFormat.whole(totals.kcal))
                 .font(.subheadline)
                 .foregroundStyle(muted ? NeoGymTheme.textSecondary : NeoGymTheme.text)
                 .frame(minWidth: 44, alignment: .trailing)
         }
         .monospacedDigit()
         .padding(.horizontal, NeoGymTheme.spacingMD)
-        .frame(minHeight: NeoGymTheme.minimumTapTarget)
+        .padding(.vertical, NeoGymTheme.spacingXS)
+        .frame(minHeight: 56)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            "\(name)\(isMeal ? ", meal" : ""), "
+                + NutritionMacroText.entryAccessibility(amount: spokenAmount, totals: totals)
+                + ", \(MetricFormat.whole(totals.kcal)) kilocalories"
+        )
+    }
+}
+
+extension NutritionSlotItemRow {
+    /// A plan entry: a food's grams, or a meal's item count.
+    init(planEntry entry: NutritionPlanEntry, muted: Bool = false) {
+        switch entry {
+        case let .food(food):
+            self.init(
+                name: entry.displayLabel,
+                amount: NutritionMath.formatMacro(food.grams, unit: "g"),
+                spokenAmount: NutritionMath.formatMacro(food.grams, unit: "grams"),
+                totals: entry.macroTotals,
+                muted: muted
+            )
+        case let .meal(meal):
+            let items = NutritionMacroText.itemCount(meal.meal?.mealIngredients.count ?? 0)
+            self.init(
+                name: entry.displayLabel,
+                amount: items,
+                spokenAmount: items,
+                totals: entry.macroTotals,
+                isMeal: true,
+                muted: muted
+            )
+        }
     }
 }
 
@@ -84,12 +180,9 @@ struct LoggedSlotCard: View {
     var body: some View {
         VStack(spacing: 0) {
             Button(action: toggle) {
-                SlotHeader(
-                    time: slot.label,
-                    title: "Logged · \(NutritionTimeline.loggedCountLabel(slot))",
-                    kcal: slot.totals.kcal,
-                    muted: false
-                ) {
+                NutritionSlotHeader(time: slot.label, totals: slot.totals) {
+                    Text("Logged · \(NutritionTimeline.loggedCountLabel(slot))")
+                } trailing: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(NeoGymTheme.textTertiary)
@@ -98,7 +191,11 @@ struct LoggedSlotCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(slot.label), logged, \(NutritionTimeline.loggedCountLabel(slot)), \(MetricFormat.whole(slot.totals.kcal)) kilocalories")
+            .accessibilityLabel(
+                "\(slot.label), logged, \(NutritionTimeline.loggedCountLabel(slot)), "
+                    + "\(MetricFormat.whole(slot.totals.kcal)) kilocalories. "
+                    + NutritionMacroText.slotAccessibility(slot.totals)
+            )
             .accessibilityHint(isExpanded ? "Collapses the slot" : "Shows what you logged")
             if isExpanded {
                 ForEach(slot.mealGroups, id: \.id) { group in
@@ -106,12 +203,12 @@ struct LoggedSlotCard: View {
                     Button {
                         editGroup(EditingGroupSheetItem(group: original(group)))
                     } label: {
-                        SlotItemRow(
+                        NutritionSlotItemRow(
                             name: group.name,
-                            detail: "\(group.entryCount) item\(group.entryCount == 1 ? "" : "s")",
-                            kcal: slot.entries.filter { $0.mealId == group.id }
-                                .reduce(0) { $0 + NutritionMath.loggedEntryMacroTotals($1.entry.loggedSnapshot).kcal },
-                            muted: false
+                            amount: NutritionMacroText.itemCount(group.entryCount),
+                            spokenAmount: NutritionMacroText.itemCount(group.entryCount),
+                            totals: groupTotals(group),
+                            isMeal: true
                         )
                     }
                     .buttonStyle(.plain)
@@ -122,11 +219,11 @@ struct LoggedSlotCard: View {
                     Button {
                         editEntry(EditingEntrySheetItem(entry: slotEntry.entry, showTime: true))
                     } label: {
-                        SlotItemRow(
+                        NutritionSlotItemRow(
                             name: slotEntry.entry.snapshotFoodName,
-                            detail: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "g"),
-                            kcal: NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot).kcal,
-                            muted: false
+                            amount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "g"),
+                            spokenAmount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "grams"),
+                            totals: NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot)
                         )
                     }
                     .buttonStyle(.plain)
@@ -135,6 +232,12 @@ struct LoggedSlotCard: View {
             }
         }
         .cardSurface()
+    }
+
+    private func groupTotals(_ group: IntakeSlotMealGroup) -> MacroTotals {
+        slot.entries.filter { $0.mealId == group.id }.reduce(MacroTotals.empty) { total, slotEntry in
+            NutritionMath.addMacroTotals(total, NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot))
+        }
     }
 
     private func original(_ group: IntakeSlotMealGroup) -> NutritionLogMeal {
@@ -161,7 +264,9 @@ struct PlannedSlotCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SlotHeader(time: slot.label, title: "Planned · \(countLabel)", kcal: slot.totals.kcal, muted: true) {
+            NutritionSlotHeader(time: slot.label, totals: slot.totals, muted: true) {
+                Text("Planned · \(countLabel)")
+            } trailing: {
                 Button(action: log) {
                     if isLogging {
                         ProgressView().controlSize(.small)
@@ -183,7 +288,7 @@ struct PlannedSlotCard: View {
             if isExpanded {
                 ForEach(slot.entries) { entry in
                     Divider().overlay(NeoGymTheme.separator)
-                    SlotItemRow(name: entry.displayLabel, detail: detail(entry), kcal: entry.macroTotals.kcal, muted: true)
+                    NutritionSlotItemRow(planEntry: entry, muted: true)
                 }
             }
         }
@@ -198,13 +303,6 @@ struct PlannedSlotCard: View {
         if slot.mealCount > 0 { parts.append("\(slot.mealCount) \(slot.mealCount == 1 ? "meal" : "meals")") }
         if slot.foodCount > 0 { parts.append("\(slot.foodCount) \(slot.foodCount == 1 ? "food" : "foods")") }
         return parts.joined(separator: ", ")
-    }
-
-    private func detail(_ entry: NutritionPlanEntry) -> String {
-        switch entry {
-        case let .food(food): NutritionMath.formatMacro(food.grams, unit: "g")
-        case let .meal(meal): "Meal · \(meal.meal?.mealIngredients.count ?? 0) items"
-        }
     }
 }
 

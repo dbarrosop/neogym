@@ -208,65 +208,50 @@ private struct NutritionPlanSlotDetailCard: View {
             Button {
                 isExpanded.toggle()
             } label: {
-                HStack(spacing: 10) {
-                    Text(slot.label)
-                        .font(.subheadline.weight(.bold))
-                        .monospacedDigit()
-                        .frame(minWidth: 46, alignment: .leading)
-                    Text(countLabel)
-                        .font(.subheadline.weight(.semibold))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("\(MetricFormat.whole(slot.totals.kcal)) kcal · P \(MetricFormat.whole(slot.totals.protein))")
-                        .font(.footnote)
-                        .monospacedDigit()
-                        .foregroundStyle(NeoGymTheme.textSecondary)
+                NutritionSlotHeader(time: slot.label, totals: slot.totals) {
+                    title
+                } trailing: {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(NeoGymTheme.textTertiary)
                 }
-                .foregroundStyle(NeoGymTheme.text)
-                .padding(.horizontal, NeoGymTheme.spacingMD)
-                .frame(minHeight: 52)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                "\(slot.label), \(singleMeal.map { "\($0.displayLabel), meal" } ?? countLabel), "
+                    + "\(MetricFormat.whole(slot.totals.kcal)) kilocalories. "
+                    + NutritionMacroText.slotAccessibility(slot.totals)
+            )
             .accessibilityHint(isExpanded ? "Collapses the slot" : "Shows the slot's entries")
             if isExpanded {
                 ForEach(slot.entries) { entry in
                     RowSeparator(leadingInset: 0)
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(entry.displayLabel)
-                                    .font(.subheadline)
-                                    .foregroundStyle(NeoGymTheme.text)
-                                if entry.kind == .meal {
-                                    Text("MEAL")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(NeoGymTheme.accentText)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(Capsule().fill(NeoGymTheme.accentSoft))
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        Text(detail(entry))
-                            .font(.footnote)
-                            .foregroundStyle(NeoGymTheme.textSecondary)
-                        Text(MetricFormat.whole(entry.macroTotals.kcal))
-                            .font(.subheadline)
-                            .foregroundStyle(NeoGymTheme.text)
-                            .frame(minWidth: 40, alignment: .trailing)
-                    }
-                    .monospacedDigit()
-                    .padding(.horizontal, NeoGymTheme.spacingMD)
-                    .frame(minHeight: NeoGymTheme.minimumTapTarget)
-                    .accessibilityElement(children: .combine)
+                    NutritionSlotItemRow(planEntry: entry)
                 }
             }
         }
         .cardSurface()
+    }
+
+    /// A slot holding one meal and nothing else is named after the meal.
+    private var singleMeal: NutritionPlanEntry? {
+        guard slot.mealCount == 1, slot.foodCount == 0 else { return nil }
+        return slot.entries.first
+    }
+
+    @ViewBuilder
+    private var title: some View {
+        if let singleMeal {
+            HStack(spacing: 6) {
+                Text(singleMeal.displayLabel)
+                    .lineLimit(1)
+                EntryKindTag(isMeal: true)
+            }
+        } else {
+            Text(countLabel)
+        }
     }
 
     private var countLabel: String {
@@ -274,12 +259,5 @@ private struct NutritionPlanSlotDetailCard: View {
         if slot.mealCount > 0 { parts.append("\(slot.mealCount) \(slot.mealCount == 1 ? "meal" : "meals")") }
         if slot.foodCount > 0 { parts.append("\(slot.foodCount) \(slot.foodCount == 1 ? "food" : "foods")") }
         return parts.joined(separator: ", ")
-    }
-
-    private func detail(_ entry: NutritionPlanEntry) -> String {
-        switch entry {
-        case let .food(food): NutritionMath.formatMacro(food.grams, unit: "g")
-        case let .meal(meal): "\(meal.meal?.mealIngredients.count ?? 0) items"
-        }
     }
 }
