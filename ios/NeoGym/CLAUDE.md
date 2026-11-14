@@ -661,8 +661,9 @@ section records how the iPhone app implements it.
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
   date pickers, sampled points, axes/legend, and tap/drag callouts. One period
   menu can drive several stacked `TimeSeriesChartPanel`s (Consumed above Net);
-  `chartHeight` covers each chart and its legend. Overview sparklines are a
-  `TimeSeriesChartView` with `showsAxes: false` (no grid, axes or legend). Non-empty
+  `chartHeight` covers each chart and its legend. Overview's Strength and Energy
+  sparklines are a `TimeSeriesChartView` with `showsAxes: false` (no grid, axes
+  or legend); its Body chart keeps both axes but no legend. Non-empty
   custom chart plots collapse decorative drawing, axes, markers, and callouts
   into one VoiceOver element with a domain label plus a summary of visible
   series, point counts, date range, latest values, and min/max values; legends
@@ -673,17 +674,21 @@ section records how the iPhone app implements it.
   compact numbers without units (`12`, `2,000`, `50k`, `+400`/`−1,200` when the
   axis crosses zero) in `textSecondary` whatever the series colour, with one
   grid line per label. Series with `includesZero` (Muscles sets, daily energy,
-  net calories) keep 0 on the axis; others hug their data. Lines break across
-  missing readings (`ChartGaps`: more than three times the typical spacing and
-  at least three days), and a reading isolated by gaps keeps its dot. X-axis
-  dates use the "d MMM" template. Charts have no border and
+  net calories) keep 0 on the axis; others hug their data. Lines join across
+  missing days; a `.readings` series always dots each reading (smaller past
+  `maxPointMarkers`) so the joined stretches stay visible, while a `.line`
+  series dots only sparse data. X-axis dates use the "d MMM" template
+  (`showsMiddleDate: false` keeps only the first and last). A series `unit`
+  is appended to its axis's top label, for the Overview Body card that pairs
+  the weight (left, kg) and body fat (right, %) averages. Charts have no border and
   grid lines use the separator token. Series colour follows the metric:
   `chart1` (blue) for weight, resting energy, consumed, volume and sets,
   `chart2` (orange) for body fat, active energy, net and Est. 1RM, for lines,
   bars and split bars alike; no grey series and no `accentText` lines. A
   `.readings` series (daily values: 1.5 pt line at half opacity with dots)
   sits under its `.line` 7-day average in the same colour, and one chart holds
-  one unit (Body has a card per metric). A point with `isPartial` (today's
+  one unit on detail tabs (Body has a card per metric); summary cards may pair
+  weight and body fat averages on two axes. A point with `isPartial` (today's
   intake or energy, this week's volume) is an open dot off the line, and the
   NeoGymKit averages leave it out. Callouts name the series in
   `textSecondary` beside a colour dot. Day summaries use `MeterBar`/`MeterTrack` (protein

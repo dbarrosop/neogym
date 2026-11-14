@@ -469,7 +469,7 @@ struct TodayBodyCard: View {
 }
 
 /// Weight (chart 1) and body fat (chart 2) as two lines in their own bands,
-/// broken where readings are missing, with the first and last dates below.
+/// joined across missing days, with the first and last dates below.
 /// No value axis: the columns underneath carry the numbers.
 private struct TodayBodyChart: View {
     let weight: [BodyReading]
@@ -524,7 +524,6 @@ private struct TodayBodyChart: View {
         let dated = readings.compactMap { reading in
             IntakeGrouping.localDateToDate(reading.day).map { (date: $0, value: reading.value) }
         }
-        let gaps = ChartGaps.intervals(in: dated.map(\.date))
         let values = dated.map(\.value)
         let low = values.min() ?? 0
         let high = values.max() ?? 0
@@ -536,27 +535,15 @@ private struct TodayBodyChart: View {
             let y = band.upperBound - CGFloat(ratio) * (band.upperBound - band.lowerBound)
             return CGPoint(x: x, y: y)
         }
-        var segments: [[CGPoint]] = []
-        var current: [CGPoint] = []
-        var previous: Date?
-        for entry in dated {
-            if let previous, gaps.contains(where: { $0.lowerBound >= previous && $0.upperBound <= entry.date }) {
-                segments.append(current)
-                current = []
-            }
-            current.append(point(entry))
-            previous = entry.date
-        }
-        if !current.isEmpty { segments.append(current) }
+        // Missing days are joined with a straight line.
+        let points = dated.map(point)
         return ZStack {
             Path { path in
-                for segment in segments where segment.count > 1 {
-                    path.addLines(segment)
-                }
+                if points.count > 1 { path.addLines(points) }
             }
             .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-            ForEach(Array(segments.filter { $0.count == 1 }.enumerated()), id: \.offset) { _, segment in
-                Circle().fill(color).frame(width: 5, height: 5).position(segment[0])
+            if points.count == 1, let only = points.first {
+                Circle().fill(color).frame(width: 5, height: 5).position(only)
             }
         }
     }

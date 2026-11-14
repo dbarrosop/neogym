@@ -76,21 +76,3 @@ public struct ChartAxisScale: Equatable, Sendable {
         return digits
     }
 }
-
-/// Where a chart line should break because readings are missing.
-public enum ChartGaps {
-    /// Intervals between consecutive (sorted) dates that are longer than
-    /// three times the typical spacing and at least three days, so daily
-    /// readings break after three missing days and weekly ones after three
-    /// missing weeks. Fewer than three dates never break.
-    public static func intervals(in dates: [Date]) -> [ClosedRange<Date>] {
-        guard dates.count >= 3 else { return [] }
-        let pairs = zip(dates, dates.dropFirst())
-        let spacings = pairs.map { $1.timeIntervalSince($0) }.sorted()
-        let median = spacings[spacings.count / 2]
-        let threshold = Swift.max(median * 3, 3 * 86_400)
-        return pairs.compactMap { earlier, later in
-            later.timeIntervalSince(earlier) > threshold ? earlier ... later : nil
-        }
-    }
-}

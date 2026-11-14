@@ -206,6 +206,9 @@ struct ProgressOverviewView: View {
     /// prior seven days.
     private static let bodyWindowDays = 21
 
+    /// The 7-day averages above one chart that pairs them: weight on the left
+    /// axis, body fat on the right (a summary card may pair units; the Body
+    /// tab keeps one per chart).
     private var bodyCard: some View {
         OverviewCard(title: "Body") { onSeeAll(.body) } content: {
             if bodyModel.state.value == nil {
@@ -214,73 +217,62 @@ struct ProgressOverviewView: View {
                 let today = IntakeGrouping.formatLocalDate()
                 let firstDay = IntakeGrouping.addLocalDateDays(today, days: -(Self.bodyWindowDays - 1))
                 let summary = BodyTrendSummary(points: bodyModel.trendData.points, today: today)
-                let weight = summary.weight.readings.filter { $0.day >= firstDay }
-                let fat = summary.bodyFat.readings.filter { $0.day >= firstDay }
+                let weight = summary.weight.rollingAverage.filter { $0.day >= firstDay }
+                let fat = summary.bodyFat.rollingAverage.filter { $0.day >= firstDay }
                 if weight.isEmpty && fat.isEmpty {
                     OverviewPlaceholder(state: .empty, emptyMessage: "No measurements in the last three weeks.")
                 } else {
                     AdaptiveRow(spacing: NeoGymTheme.spacingMD, alignment: .top) {
                         if !weight.isEmpty {
-                            bodyColumn("Weight", summary.weight, unit: "kg", color: NeoGymTheme.chart1, from: firstDay)
+                            bodyColumn("Weight", summary.weight, unit: "kg", color: NeoGymTheme.chart1)
                         }
                         if !fat.isEmpty {
-                            bodyColumn("Body fat", summary.bodyFat, unit: "%", color: NeoGymTheme.chart2, from: firstDay)
+                            bodyColumn("Body fat", summary.bodyFat, unit: "%", color: NeoGymTheme.chart2)
                         }
                     }
-                    let days = (weight + fat).map(\.day).sorted()
-                    if let first = days.first, let last = days.last {
-                        OverviewDateRange(
-                            start: TodayBodyCard.dayLabel(first),
-                            end: last == first ? nil : TodayBodyCard.dayLabel(last)
-                        )
-                    }
+                    TimeSeriesChartView(
+                        series: [
+                            TimeSeriesChartSeries(
+                                id: "overview-weight-average", name: "Weight · 7-day avg", color: NeoGymTheme.chart1,
+                                unit: "kg", points: BodyMetricTrendCard.points(weight),
+                                valueFormatter: { "\(MetricFormat.decimal($0)) kg" }
+                            ),
+                            TimeSeriesChartSeries(
+                                id: "overview-body-fat-average", name: "Body fat · 7-day avg", color: NeoGymTheme.chart2,
+                                axis: .right, unit: "%", points: BodyMetricTrendCard.points(fat),
+                                valueFormatter: { "\(MetricFormat.decimal($0)) %" }
+                            )
+                        ],
+                        showsLegend: false,
+                        showsMiddleDate: false,
+                        accessibilityLabel: "Weight and body fat 7-day averages"
+                    )
+                    .frame(height: 130)
                 }
             }
         }
     }
 
-    private func bodyColumn(
-        _ title: String, _ metric: BodyMetricTrend, unit: String, color: Color, from firstDay: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    LegendSwatch(color: color).accessibilityHidden(true)
-                    Text("\(title) · 7-day avg")
-                        .font(.footnote)
-                        .foregroundStyle(NeoGymTheme.textSecondary)
-                }
-                MetricValueText(
-                    value: metric.weekAverage.map { MetricFormat.decimal($0) } ?? "—",
-                    unit: unit,
-                    size: .title2.weight(.bold)
-                )
-                Text(metric.weekChange.map { "\(MetricFormat.signedDecimal($0)) vs prior 7 days" } ?? "No prior week to compare")
-                    .font(.footnote.weight(.semibold))
-                    .monospacedDigit()
+    private func bodyColumn(_ title: String, _ metric: BodyMetricTrend, unit: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                LegendSwatch(color: color).accessibilityHidden(true)
+                Text("\(title) · 7-day avg")
+                    .font(.footnote)
                     .foregroundStyle(NeoGymTheme.textSecondary)
             }
-            .accessibilityElement(children: .combine)
-            TimeSeriesChartView(
-                series: [
-                    TimeSeriesChartSeries(
-                        id: "\(title)-daily", name: "Daily", color: color, style: .readings,
-                        points: BodyMetricTrendCard.points(metric.readings.filter { $0.day >= firstDay }),
-                        valueFormatter: { "\(MetricFormat.trimmed($0, digits: 2)) \(unit)" }
-                    ),
-                    TimeSeriesChartSeries(
-                        id: "\(title)-average", name: "7-day avg", color: color,
-                        points: BodyMetricTrendCard.points(metric.rollingAverage.filter { $0.day >= firstDay }),
-                        valueFormatter: { "\(MetricFormat.decimal($0)) \(unit)" }
-                    )
-                ],
-                showsAxes: false,
-                showsLegend: false,
-                accessibilityLabel: "\(title), daily readings and 7-day average"
+            MetricValueText(
+                value: metric.weekAverage.map { MetricFormat.decimal($0) } ?? "—",
+                unit: unit,
+                size: .title2.weight(.bold)
             )
-            .frame(height: 60)
+            Text(metric.weekChange.map { "\(MetricFormat.signedDecimal($0)) vs prior 7 days" } ?? "No prior week to compare")
+                .font(.footnote.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(NeoGymTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Energy

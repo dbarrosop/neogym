@@ -7,6 +7,8 @@ struct TimeSeriesChartView: View {
     var maxPointMarkers = 28
     var showsAxes = true
     var showsLegend = true
+    /// Summary cards label only the first and last dates.
+    var showsMiddleDate = true
     var emptyMessage = "No data in this range."
     var accessibilityLabel = "Time series chart"
     var accessibilityValue: String?
@@ -130,20 +132,19 @@ struct TimeSeriesChartView: View {
         let plotted = plottedPoints(for: singleSeries, size: size)
         let partial = plotted.filter(\.point.isPartial)
         let complete = plotted.filter { !$0.point.isPartial }
-        let segments = lineSegments(
-            complete,
-            gaps: ChartGaps.intervals(in: singleSeries.points.filter { !$0.isPartial }.map(\.date))
-        )
-        let showsMarkers = complete.count <= maxPointMarkers
         let isReadings = singleSeries.style == .readings
+        // Missing days are joined with a straight line, so daily readings
+        // always mark the days that have one (smaller when dense); a line
+        // series shows dots only when sparse, or for a single value.
+        let dense = complete.count > maxPointMarkers
+        let showsMarkers = isReadings || !dense || complete.count == 1
+        let markerSize: CGFloat = isReadings ? (dense ? 3 : 5) : 6
 
         return Path { path in
-            for segment in segments {
-                guard let first = segment.first else { continue }
-                path.move(to: first.position)
-                for point in segment.dropFirst() {
-                    path.addLine(to: point.position)
-                }
+            guard let first = complete.first else { return }
+            path.move(to: first.position)
+            for point in complete.dropFirst() {
+                path.addLine(to: point.position)
             }
         }
         .stroke(
@@ -151,14 +152,15 @@ struct TimeSeriesChartView: View {
             style: StrokeStyle(lineWidth: isReadings ? 1.5 : 2.5, lineCap: .round, lineJoin: .round)
         )
         .overlay {
-            // A reading isolated by gaps has no line, so it always gets a dot.
-            ForEach(segments.filter { showsMarkers || $0.count == 1 }.flatMap { $0 }) { plottedPoint in
-                Circle()
-                    .fill(singleSeries.color.opacity(isReadings ? 0.85 : 1))
-                    .frame(width: isReadings ? 5 : 6, height: isReadings ? 5 : 6)
-                    .position(plottedPoint.position)
+            if showsMarkers {
+                ForEach(complete) { plottedPoint in
+                    Circle()
+                        .fill(singleSeries.color.opacity(isReadings ? 0.85 : 1))
+                        .frame(width: markerSize, height: markerSize)
+                        .position(plottedPoint.position)
+                }
             }
-            // A partial value (today so far) is an open dot, off the line.
+            // A partial value (today so far) is an open dot, not joined.
             ForEach(partial) { plottedPoint in
                 Circle()
                     .fill(NeoGymTheme.surface)
@@ -167,28 +169,6 @@ struct TimeSeriesChartView: View {
                     .position(plottedPoint.position)
             }
         }
-    }
-
-    /// Splits plotted (possibly sampled) points wherever a missing-readings
-    /// gap of the full series falls between two neighbours.
-    private func lineSegments(_ points: [PlottedChartPoint], gaps: [ClosedRange<Date>]) -> [[PlottedChartPoint]] {
-        guard !gaps.isEmpty else { return points.isEmpty ? [] : [points] }
-        var segments: [[PlottedChartPoint]] = []
-        var current: [PlottedChartPoint] = []
-        for point in points {
-            if let previous = current.last {
-                let spansGap = gaps.contains { gap in
-                    gap.lowerBound >= previous.point.date && gap.upperBound <= point.point.date
-                }
-                if spansGap {
-                    segments.append(current)
-                    current = []
-                }
-            }
-            current.append(point)
-        }
-        if !current.isEmpty { segments.append(current) }
-        return segments
     }
 
     private func selectedPointLayer(_ plottedPoint: PlottedChartPoint, size: CGSize) -> some View {
@@ -342,7 +322,9 @@ struct TimeSeriesChartView: View {
                 (axis.scale.min, proxy.size.height - inset)
             ]
             ForEach(rows, id: \.1) { value, y in
-                Text(axis.scale.label(value))
+                Text(value == axis.scale.max && axis.unit != nil
+                    ? "\(axis.scale.label(value)) \(axis.unit ?? "")"
+                    : axis.scale.label(value))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .frame(width: proxy.size.width, alignment: axis.axis == .left ? .trailing : .leading)
@@ -358,7 +340,7 @@ struct TimeSeriesChartView: View {
         return HStack(alignment: .top) {
             Text(sortedPoints.first.map { timeSeriesChartAxisDateFormatter.string(from: $0.date) } ?? "")
             Spacer(minLength: 4)
-            if sortedPoints.count > 2 {
+            if showsMiddleDate, sortedPoints.count > 2 {
                 Text(timeSeriesChartAxisDateFormatter.string(from: sortedPoints[sortedPoints.count / 2].date))
                     .lineLimit(1)
             }
@@ -417,7 +399,7 @@ struct TimeSeriesChartView: View {
             values: values,
             includesZero: axisSeries.contains(where: \.includesZero)
         ) else { return nil }
-        return ChartAxisDescriptor(axis: axis, scale: scale)
+        return ChartAxisDescriptor(axis: axis, scale: scale, unit: axisSeries.first?.unit)
     }
 
 }

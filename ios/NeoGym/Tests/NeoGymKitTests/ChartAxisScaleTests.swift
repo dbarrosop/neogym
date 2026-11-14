@@ -70,22 +70,4 @@ final class ChartAxisScaleTests: XCTestCase {
         XCTAssertTrue(net.label(net.min, locale: enUS).hasPrefix("−"))
         XCTAssertEqual(ChartAxisScale(min: -2_000, step: 2_000).label(0, locale: enUS), "0")
     }
-
-    func testGapsBreakDailyReadingsAfterThreeMissingDays() {
-        let start = Date(timeIntervalSince1970: 1_790_000_000)
-        let days = [0, 1, 2, 3, 4, 5, 6, 7, 13, 14, 15, 16, 17, 18]
-        let dates = days.map { start.addingTimeInterval(Double($0) * 86_400) }
-        let gaps = ChartGaps.intervals(in: dates)
-        XCTAssertEqual(gaps, [dates[7] ... dates[8]])
-        let shortGap = [0, 1, 2, 5, 6].map { start.addingTimeInterval(Double($0) * 86_400) }
-        XCTAssertEqual(ChartGaps.intervals(in: shortGap), [])
-    }
-
-    func testGapsScaleWithWeeklyReadings() {
-        let start = Date(timeIntervalSince1970: 1_790_000_000)
-        let weeks = [0, 1, 2, 3, 5, 9].map { start.addingTimeInterval(Double($0) * 7 * 86_400) }
-        let gaps = ChartGaps.intervals(in: weeks)
-        XCTAssertEqual(gaps, [weeks[4] ... weeks[5]])
-        XCTAssertEqual(ChartGaps.intervals(in: Array(weeks.prefix(2))), [])
-    }
 }
