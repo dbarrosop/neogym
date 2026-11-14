@@ -521,6 +521,73 @@ final class DailyIntakeViewModelTests: XCTestCase {
         XCTAssertTrue(requests.isEmpty)
     }
 
+    func testGroupedEntryEditAndDeleteRefreshDaySlotAndWeekTotalsWithoutChangingMealTime() async throws {
+        let secondEntry = groupedEntryFixture.setting("id", to: .string("entry-other"))
+            .setting("grams", to: .string("50")).setting("position", to: .number(1))
+        let updatedEntry = groupedEntryFixture.setting("grams", to: .string("200"))
+        let group = try XCTUnwrap(nutritionDayFixture["nutritionLogMeals"]?.arrayValue?.first)
+        func day(entries: [JSONValue]) -> JSONValue {
+            nutritionDayFixture.setting("nutritionLogMeals", to: .array([
+                group.setting("nutritionLogEntries", to: .array(entries))
+            ]))
+        }
+        func payload(_ day: JSONValue) -> JSONValue {
+            .object([
+                "nutritionDays": .array([day]), "nutritionPlans": .array([planFixture]),
+                "meals": .array([mealFixture]), "foods": .array([snapshotFoodFixture]),
+                "dailyEnergyEntries": .array([])
+            ])
+        }
+        let updatedDay = day(entries: [updatedEntry, secondEntry])
+        let deletedDay = day(entries: [updatedEntry])
+        let fake = FakeGraphQLService(replies: [
+            .json(payload(day(entries: [groupedEntryFixture, secondEntry]))),
+            .json(.object(["updateNutritionLogEntry": .object(["id": .string("entry-1")])])),
+            .json(payload(updatedDay)), .json(payload(updatedDay)),
+            .json(.object(["deleteNutritionLogEntry": .object(["id": .string("entry-other")])])),
+            .json(payload(deletedDay)), .json(payload(deletedDay))
+        ])
+        let repository = NutritionFoodMealRepository(graphQL: fake)
+        let viewModel = DailyIntakeViewModel(date: "2026-06-27", repository: repository)
+        let weekModel = NutritionCalorieHistoryViewModel(repository: repository)
+        let range = NutritionWeekStrip.range(containing: viewModel.date)
+        await viewModel.load()
+        XCTAssertEqual(viewModel.caloriesIn, 300, accuracy: 0.001)
+
+        let didSave = await viewModel.updateEntry(id: "entry-1", grams: "200", position: 0, slotTime: nil)
+        XCTAssertTrue(didSave)
+        XCTAssertEqual(viewModel.caloriesIn, 350, accuracy: 0.001)
+        let updatedSlot = try XCTUnwrap(viewModel.intakeSlots.first { $0.key == "08:30" })
+        XCTAssertEqual(updatedSlot.totals.kcal, 250, accuracy: 0.001)
+        XCTAssertEqual(updatedSlot.totals.protein, 12.5, accuracy: 0.001)
+        XCTAssertEqual(updatedSlot.mealGroups.first?.entryCount, 2)
+        await weekModel.load(range: range)
+        XCTAssertEqual(NutritionWeekStrip.kcalByDate(weekModel.history)[viewModel.date], 350)
+
+        let didDelete = await viewModel.deleteEntry(id: "entry-other")
+        XCTAssertTrue(didDelete)
+        XCTAssertEqual(viewModel.caloriesIn, 300, accuracy: 0.001)
+        let remainingSlot = try XCTUnwrap(viewModel.intakeSlots.first { $0.key == "08:30" })
+        XCTAssertEqual(remainingSlot.totals.kcal, 200, accuracy: 0.001)
+        let remainingGroup = try XCTUnwrap(remainingSlot.mealGroups.first)
+        XCTAssertEqual(remainingGroup.slotTime, "08:30:00")
+        XCTAssertEqual(remainingGroup.entryCount, 1)
+        XCTAssertEqual(NutritionTimeline.loggedMealEntries(remainingGroup, in: remainingSlot).map(\.entry.id), ["entry-1"])
+        XCTAssertEqual(viewModel.day?.nutritionLogEntries.map(\.id), ["entry-2"])
+        await weekModel.load(range: range)
+        XCTAssertEqual(NutritionWeekStrip.kcalByDate(weekModel.history)[viewModel.date], 300)
+
+        let requests = await fake.requestsSnapshot()
+        XCTAssertEqual(requests.map(\.operationName), [
+            "DailyIntakeLog", "UpdateNutritionLogEntry", "DailyIntakeLog", "NutritionCalorieHistory",
+            "DeleteNutritionLogEntry", "DailyIntakeLog", "NutritionCalorieHistory"
+        ])
+        XCTAssertEqual(requests[1].variables, [
+            "id": .string("entry-1"), "set": .object(["grams": .string("200"), "position": .number(0)])
+        ])
+        XCTAssertEqual(requests[4].variables, ["id": .string("entry-other")])
+    }
+
     func testViewModelLogsPlanFoodWithActualTimeAndPlanFoodProvenance() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object([

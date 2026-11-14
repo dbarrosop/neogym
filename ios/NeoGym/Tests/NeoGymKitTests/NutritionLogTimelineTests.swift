@@ -11,9 +11,9 @@ final class NutritionLogTimelineTests: XCTestCase {
         )
     }
 
-    private func entry(_ id: String, time: String?, mealId: String? = nil) -> NutritionLogEntry {
+    private func entry(_ id: String, time: String?, mealId: String? = nil, position: Int = 0) -> NutritionLogEntry {
         NutritionLogEntry(
-            id: id, nutritionLogMealId: mealId, grams: .number(100), position: 0, slotTime: time,
+            id: id, nutritionLogMealId: mealId, grams: .number(100), position: position, slotTime: time,
             snapshotFoodName: id, snapshotKcalPer100g: .number(100), snapshotFatPer100g: .number(0),
             snapshotCarbsPer100g: .number(0), snapshotProteinPer100g: .number(0),
             snapshotFiberPer100g: .number(0), snapshotSugarPer100g: .number(0)
@@ -51,6 +51,49 @@ final class NutritionLogTimelineTests: XCTestCase {
             XCTAssertEqual(NutritionTimeline.loggedCountLabel(lunch), "1 meal")
         }
         XCTAssertEqual(items[3].kcal, 102, accuracy: 0.001)
+    }
+
+    func testLoggedMealEntriesStayWithTheirLoggedGroupInPositionOrder() throws {
+        let last = entry("last", time: "23:00", mealId: "first-log", position: 2)
+        let day = NutritionDay(
+            id: "d", logDate: "2026-11-12", nutritionLogMeals: [
+                NutritionLogMeal(
+                    id: "first-log", mealId: "same-template", name: "Bowl", slotTime: "13:00", position: 0,
+                    nutritionLogEntries: [last, entry("first", time: nil, mealId: "first-log")]
+                ),
+                NutritionLogMeal(
+                    id: "second-log", mealId: "same-template", nutritionPlanMealId: "plan-meal",
+                    name: "Bowl again", slotTime: "13:00", position: 1,
+                    nutritionLogEntries: [entry("other", time: nil, mealId: "second-log")]
+                ),
+                NutritionLogMeal(id: "empty-log", name: "Empty", slotTime: "13:00", position: 2)
+            ], nutritionLogEntries: [entry("standalone", time: "13:00")]
+        )
+        let slot = try XCTUnwrap(day.intakeSlots.first)
+        let firstGroup = try XCTUnwrap(slot.mealGroups.first)
+        let children = NutritionTimeline.loggedMealEntries(firstGroup, in: slot)
+
+        XCTAssertEqual(day.intakeSlots.map(\.key), ["13:00"], "Grouped entries inherit their meal's time")
+        XCTAssertEqual(children.map(\.entry.id), ["first", "last"])
+        XCTAssertEqual(children.map(\.mealName), ["Bowl", "Bowl"])
+        XCTAssertEqual(children.map(\.kind), [.meal, .meal])
+        XCTAssertEqual(NutritionTimeline.loggedMealEntries(slot.mealGroups[1], in: slot).map(\.entry.id), ["other"])
+        XCTAssertTrue(NutritionTimeline.loggedMealEntries(slot.mealGroups[2], in: slot).isEmpty)
+        XCTAssertEqual(NutritionTimeline.loggedCountLabel(slot), "3 meals, 1 food")
+        XCTAssertEqual(slot.totals.kcal, 400, accuracy: 0.001)
+    }
+
+    // The host package cannot compile SwiftUI; guard the app-only sheet routing
+    // alongside the public-API selection and mutation tests.
+    func testLoggedSlotRendersMealChildrenThroughTheEntryEditor() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(
+            contentsOf: packageRoot.appendingPathComponent("App/Nutrition/DailyIntakeRows.swift"), encoding: .utf8
+        )
+        let children = #"ForEach\(NutritionTimeline.loggedMealEntries\(group, in: slot\), id: \\\.entry\.id\) \{ slotEntry in\s*entryRow\(slotEntry\)"#
+        XCTAssertNotNil(source.range(of: children, options: .regularExpression))
+        XCTAssertTrue(source.contains("EditingEntrySheetItem(entry: slotEntry.entry, showTime: slotEntry.kind == .standalone)"))
     }
 
     func testTimelineWithoutPlanShowsOnlyLoggedSlots() {

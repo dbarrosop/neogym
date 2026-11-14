@@ -69,6 +69,12 @@ public extension NutritionTimeline {
         return ids
     }
 
+    /// Child snapshots in their existing slot order, matched by logged group ID
+    /// rather than template meal ID (the same meal may be logged more than once).
+    static func loggedMealEntries(_ group: IntakeSlotMealGroup, in slot: IntakeTimeSlot) -> [IntakeSlotEntry] {
+        slot.entries.filter { $0.kind == .meal && $0.mealId == group.id }
+    }
+
     /// "5 foods", "2 meals, 1 food" for a logged slot.
     static func loggedCountLabel(_ slot: IntakeTimeSlot) -> String {
         let meals = slot.mealGroups.count

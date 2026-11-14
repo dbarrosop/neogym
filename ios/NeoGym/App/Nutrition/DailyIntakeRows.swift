@@ -213,29 +213,38 @@ struct LoggedSlotCard: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint("Edit or delete this logged meal")
+                    ForEach(NutritionTimeline.loggedMealEntries(group, in: slot), id: \.entry.id) { slotEntry in
+                        entryRow(slotEntry)
+                    }
                 }
                 ForEach(slot.entries.filter { $0.kind == .standalone }, id: \.entry.id) { slotEntry in
-                    Divider().overlay(NeoGymTheme.separator)
-                    Button {
-                        editEntry(EditingEntrySheetItem(entry: slotEntry.entry, showTime: true))
-                    } label: {
-                        NutritionSlotItemRow(
-                            name: slotEntry.entry.snapshotFoodName,
-                            amount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "g"),
-                            spokenAmount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "grams"),
-                            totals: NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Edit or delete this entry")
+                    entryRow(slotEntry)
                 }
             }
         }
         .cardSurface()
     }
 
+    private func entryRow(_ slotEntry: IntakeSlotEntry) -> some View {
+        Group {
+            Divider().overlay(NeoGymTheme.separator)
+            Button {
+                editEntry(EditingEntrySheetItem(entry: slotEntry.entry, showTime: slotEntry.kind == .standalone))
+            } label: {
+                NutritionSlotItemRow(
+                    name: slotEntry.entry.snapshotFoodName,
+                    amount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "g"),
+                    spokenAmount: NutritionMath.formatMacro(slotEntry.entry.grams, unit: "grams"),
+                    totals: NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot)
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Edit or delete this entry")
+        }
+    }
+
     private func groupTotals(_ group: IntakeSlotMealGroup) -> MacroTotals {
-        slot.entries.filter { $0.mealId == group.id }.reduce(MacroTotals.empty) { total, slotEntry in
+        NutritionTimeline.loggedMealEntries(group, in: slot).reduce(MacroTotals.empty) { total, slotEntry in
             NutritionMath.addMacroTotals(total, NutritionMath.loggedEntryMacroTotals(slotEntry.entry.loggedSnapshot))
         }
     }

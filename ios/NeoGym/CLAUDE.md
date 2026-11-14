@@ -575,7 +575,14 @@ section records how the iPhone app implements it.
   `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
   grams line with accent/carbs/secondary dots aligned under the title) and
   `NutritionSlotItemRow` (name, MEAL tag for meals, "amount · P · C · F" from
-  NeoGymKit `NutritionMacroText`, kcal). Planned (dashed) slots pass `muted`.
+  NeoGymKit `NutritionMacroText`, kcal). Expanded logged meals list their child
+  food snapshots beneath the meal row (`NutritionTimeline.loggedMealEntries`
+  matches the logged group ID, not the reusable meal ID). Each food row opens
+  `EditLogEntrySheet` for grams/position edits and single-entry deletion, hiding
+  the time control because grouped foods inherit their meal's time; the meal row
+  still opens `EditMealGroupSheet`. Successful entry changes keep the existing
+  day reload and parent mutation callback, which reloads week-strip kcal and
+  invalidates the other nutrition views. Planned (dashed) slots pass `muted`.
 - **Patterns**: session logging, the Nutrition Log timeline, Today, Progress
   and Account follow the root design section. Their rules live in host-tested
   NeoGymKit types (`SessionLogging`, `NextSetDraft`, `SessionWeekGrouping`,
