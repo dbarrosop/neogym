@@ -246,9 +246,9 @@ struct FoodEditView: View {
                 }
             }
         }
-        .alert("Delete this food?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this food?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete food", role: .destructive) { deleteFood() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(
                 "Food used by meal templates or nutrition plan food entries cannot be deleted "

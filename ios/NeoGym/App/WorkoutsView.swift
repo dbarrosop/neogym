@@ -76,9 +76,10 @@ struct WorkoutsListView: View {
                     message: viewModel.isFiltered
                         ? "Clear filters to see all available routines."
                         : "Create your first workout template with the + button.",
-                    systemImage: "dumbbell"
+                    systemImage: "dumbbell",
+                    actionTitle: viewModel.isFiltered ? "Clear filters" : nil,
+                    action: viewModel.clearFilters
                 )
-                .cardSurface()
             } else {
                 ForEach(viewModel.filteredWorkouts) { workout in
                     WorkoutCard(
@@ -171,10 +172,13 @@ private struct WorkoutCard: View {
     }
 }
 
-/// Selectable capsule used in filter rows.
+/// Selectable capsule used in filter rows. Unselected chips sit on the
+/// surface token over the page background; pass `fill` where the row sits on
+/// a sheet beside other fill-token controls (Add exercises).
 struct FilterChip: View {
     let title: String
     let isSelected: Bool
+    var unselectedFill: Color = NeoGymTheme.surface
     let action: () -> Void
 
     var body: some View {
@@ -184,7 +188,7 @@ struct FilterChip: View {
                 .foregroundStyle(isSelected ? NeoGymTheme.onFill : NeoGymTheme.text)
                 .padding(.horizontal, 14)
                 .frame(minHeight: 36)
-                .background(Capsule().fill(isSelected ? NeoGymTheme.accent : NeoGymTheme.fill))
+                .background(Capsule().fill(isSelected ? NeoGymTheme.accent : unselectedFill))
                 .frame(minHeight: NeoGymTheme.minimumTapTarget)
                 .contentShape(Capsule())
         }

@@ -67,7 +67,6 @@ struct BodyMeasurementsListView: View {
                     message: "Log a measurement with the + button, or allow Apple Health to import weight and body fat.",
                     systemImage: "scalemass"
                 )
-                .cardSurface()
             } else {
                 VStack(spacing: 0) {
                     ForEach(viewModel.measurements) { measurement in
@@ -333,7 +332,6 @@ struct BodyMeasurementCreateView: View {
 
     var body: some View {
         BodyMeasurementFormScreen(
-            title: "New measurement",
             submitLabel: "Save measurement",
             form: form,
             isSubmitting: editor.saveState.isLoading,
@@ -404,7 +402,6 @@ struct BodyMeasurementEditView: View {
             default:
                 if let form {
                     BodyMeasurementFormScreen(
-                        title: "Edit measurement",
                         submitLabel: "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
@@ -427,9 +424,9 @@ struct BodyMeasurementEditView: View {
                 await loadAndPrepareForm()
             }
         }
-        .alert("Delete this measurement?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this measurement?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete measurement", role: .destructive) { deleteMeasurement() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This entry will be removed from your body history.")
         }
@@ -471,7 +468,6 @@ private struct BodyMeasurementFormScreen: View {
         case bodyFat
     }
 
-    let title: String
     let submitLabel: String
     @ObservedObject var form: BodyMeasurementFormModel
     let isSubmitting: Bool
@@ -483,68 +479,46 @@ private struct BodyMeasurementFormScreen: View {
     @FocusState private var focusedField: FocusedField?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Date",
-                        selection: Binding(
-                            get: { DateOnly.parse(form.measuredOn) ?? Date() },
-                            set: { form.measuredOn = DateOnly.formatLocalISO($0) }
-                        ),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-
-                    HStack(spacing: 12) {
-                        decimalField(
-                            title: "Weight",
-                            unit: "kg",
-                            placeholder: "78.4",
-                            text: $form.weightKg,
-                            field: .weight
-                        )
-                        decimalField(
-                            title: "Body fat",
-                            unit: "%",
-                            placeholder: "18.5",
-                            text: $form.bodyFatPct,
-                            field: .bodyFat
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Notes")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.notes)
-                            .frame(minHeight: 110)
-                            .padding(NeoGymTheme.spacingXS)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.fill
-                            )
-                        Text("Optional")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete measurement",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
-                }
+        FormScrollContainer {
+            FormSection {
+                FormDateRow(isoDate: $form.measuredOn)
+                RowSeparator()
+                FormNumberRow(
+                    title: "Weight",
+                    text: $form.weightKg,
+                    unit: "kg",
+                    placeholder: "",
+                    field: FocusedField.weight,
+                    focusedField: $focusedField
+                )
+                RowSeparator()
+                FormNumberRow(
+                    title: "Body fat",
+                    text: $form.bodyFatPct,
+                    unit: "%",
+                    placeholder: "",
+                    field: FocusedField.bodyFat,
+                    focusedField: $focusedField
+                )
             }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(
+                header: "Notes",
+                footer: "One entry per date with at least one value. "
+                    + "Entries imported from Apple Health show a heart tag in the list."
+            ) {
+                FormTextAreaRow(placeholder: "Optional", text: $form.notes, accessibilityLabel: "Notes")
+            }
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete measurement",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
         .nativeFormActionToolbar(
@@ -555,35 +529,6 @@ private struct BodyMeasurementFormScreen: View {
             onSubmit: onSubmit
         )
     }
-
-    private func decimalField(
-        title: String,
-        unit: String,
-        placeholder: String,
-        text: Binding<String>,
-        field: FocusedField
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
-            TextField(placeholder, text: text)
-                .keyboardType(.decimalPad)
-                .numericFieldFocus(field, focusedField: $focusedField)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .padding(NeoGymTheme.spacingSM)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.fill
-                )
-        }
-    }
-
 }
 
 struct BodyTrendChartView: View {

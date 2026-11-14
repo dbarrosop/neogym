@@ -157,8 +157,6 @@ struct WorkoutDetailView: View {
                 message: "Edit this workout to add exercises.",
                 systemImage: "dumbbell"
             )
-            .padding(NeoGymTheme.spacingMD)
-            .cardSurface()
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(workout.workoutExercises.enumerated()), id: \.element.id) { index, row in

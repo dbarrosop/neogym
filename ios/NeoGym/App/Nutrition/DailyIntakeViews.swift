@@ -141,7 +141,6 @@ struct DailyIntakeView: View {
                     : "This plan has no time slots yet. Use + to log what you ate.",
                 systemImage: "fork.knife"
             )
-            .cardSurface()
         }
         ForEach(items) { item in
             let isExpanded = expandedOverrides[item.id] ?? defaults.contains(item.id)

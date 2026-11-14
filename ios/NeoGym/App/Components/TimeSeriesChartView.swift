@@ -71,7 +71,7 @@ struct TimeSeriesChartView: View {
         let plotHeight = max(size.height - xAxisHeight, 1)
 
         return HStack(alignment: .top, spacing: axisSpacing) {
-            if let leftAxis {
+            if showsAxes, let leftAxis {
                 yAxisLabels(for: leftAxis)
                     .frame(width: leftAxisWidth, height: plotHeight)
             }
@@ -85,27 +85,33 @@ struct TimeSeriesChartView: View {
                 }
             }
 
-            if let rightAxis {
+            if showsAxes, let rightAxis {
                 yAxisLabels(for: rightAxis)
                     .frame(width: rightAxisWidth, height: plotHeight)
             }
         }
     }
 
-    private var chartGrid: some View {
-        VStack {
-            ForEach(0..<4, id: \.self) { _ in
-                Rectangle().fill(NeoGymTheme.separator).frame(height: NeoGymTheme.hairline)
-                Spacer()
+    /// Points sit this far inside the plot, so the axis top and bottom
+    /// values (and their grid lines) are not clipped.
+    private static let plotInset: CGFloat = 10
+
+    /// No chart border: one separator-colour grid line per axis label
+    /// (bottom, middle, top).
+    private func chartGrid(size: CGSize) -> some View {
+        Path { path in
+            let inset = Self.plotInset
+            for y in [inset, size.height / 2, size.height - inset] {
+                path.move(to: CGPoint(x: 0, y: y))
+                path.addLine(to: CGPoint(x: size.width, y: y))
             }
-            Rectangle().fill(NeoGymTheme.separator).frame(height: NeoGymTheme.hairline)
         }
+        .stroke(NeoGymTheme.separator, lineWidth: NeoGymTheme.hairline)
     }
 
     private func plotArea(size: CGSize) -> some View {
         ZStack(alignment: .topLeading) {
-            chartGrid
-            if showsAxes { chartAxes(size: size) }
+            chartGrid(size: size)
             ForEach(effectiveVisibleSeries) { singleSeries in
                 seriesLayer(singleSeries, size: size)
             }
@@ -118,37 +124,52 @@ struct TimeSeriesChartView: View {
         }
     }
 
-    private func chartAxes(size: CGSize) -> some View {
-        // No chart border: only the baseline, in the separator colour.
-        Path { path in
-            path.move(to: CGPoint(x: 0, y: size.height))
-            path.addLine(to: CGPoint(x: size.width, y: size.height))
-        }
-        .stroke(NeoGymTheme.separator, lineWidth: 1)
-    }
-
     private func seriesLayer(_ singleSeries: TimeSeriesChartSeries, size: CGSize) -> some View {
         let plottedPoints = plottedPoints(for: singleSeries, size: size)
-        let positions = plottedPoints.map(\.position)
+        let segments = lineSegments(plottedPoints, gaps: ChartGaps.intervals(in: singleSeries.points.map(\.date)))
+        let showsMarkers = plottedPoints.count <= maxPointMarkers
 
         return Path { path in
-            guard let first = positions.first else { return }
-            path.move(to: first)
-            for point in positions.dropFirst() {
-                path.addLine(to: point)
+            for segment in segments {
+                guard let first = segment.first else { continue }
+                path.move(to: first.position)
+                for point in segment.dropFirst() {
+                    path.addLine(to: point.position)
+                }
             }
         }
         .stroke(singleSeries.color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
         .overlay {
-            if positions.count <= maxPointMarkers {
-                ForEach(plottedPoints) { plottedPoint in
-                    Circle()
-                        .fill(singleSeries.color)
-                        .frame(width: 6, height: 6)
-                        .position(plottedPoint.position)
-                }
+            // A reading isolated by gaps has no line, so it always gets a dot.
+            ForEach(segments.filter { showsMarkers || $0.count == 1 }.flatMap { $0 }) { plottedPoint in
+                Circle()
+                    .fill(singleSeries.color)
+                    .frame(width: 6, height: 6)
+                    .position(plottedPoint.position)
             }
         }
+    }
+
+    /// Splits plotted (possibly sampled) points wherever a missing-readings
+    /// gap of the full series falls between two neighbours.
+    private func lineSegments(_ points: [PlottedChartPoint], gaps: [ClosedRange<Date>]) -> [[PlottedChartPoint]] {
+        guard !gaps.isEmpty else { return points.isEmpty ? [] : [points] }
+        var segments: [[PlottedChartPoint]] = []
+        var current: [PlottedChartPoint] = []
+        for point in points {
+            if let previous = current.last {
+                let spansGap = gaps.contains { gap in
+                    gap.lowerBound >= previous.point.date && gap.upperBound <= point.point.date
+                }
+                if spansGap {
+                    segments.append(current)
+                    current = []
+                }
+            }
+            current.append(point)
+        }
+        if !current.isEmpty { segments.append(current) }
+        return segments
     }
 
     private func selectedPointLayer(_ plottedPoint: PlottedChartPoint, size: CGSize) -> some View {
@@ -251,19 +272,19 @@ struct TimeSeriesChartView: View {
         guard !points.isEmpty else { return [] }
         let minX = allPoints.map { $0.date.timeIntervalSince1970 }.min() ?? points[0].date.timeIntervalSince1970
         let maxX = allPoints.map { $0.date.timeIntervalSince1970 }.max() ?? points[0].date.timeIntervalSince1970
-        let range = axisDescriptor(for: series.axis)?.range
-            ?? timeSeriesChartMetricRange(values: series.points.map(\.value), centersOnZero: series.centersAxisOnZero)
-            ?? ChartMetricRange(min: points[0].value - 1, max: points[0].value + 1)
+        let scale = axisDescriptor(for: series.axis)?.scale
+            ?? ChartAxisScale.rounded(values: series.points.map(\.value), includesZero: series.includesZero)
+            ?? ChartAxisScale(min: points[0].value - 1, step: 1)
         let horizontalSpan = max(maxX - minX, 1)
-        let verticalSpan = max(range.max - range.min, 0.000_001)
-        let inset: CGFloat = 10
+        let verticalSpan = max(scale.max - scale.min, 0.000_001)
+        let inset = Self.plotInset
         let width = max(size.width - inset * 2, 1)
         let height = max(size.height - inset * 2, 1)
 
         return points.map { point in
             let time = point.date.timeIntervalSince1970
             let xPosition = inset + CGFloat((time - minX) / horizontalSpan) * width
-            let yRatio = (point.value - range.min) / verticalSpan
+            let yRatio = (point.value - scale.min) / verticalSpan
             let yPosition = inset + CGFloat(1 - yRatio) * height
             return CGPoint(x: xPosition, y: yPosition)
         }
@@ -290,29 +311,37 @@ struct TimeSeriesChartView: View {
     }
 
     private func yAxisLabels(for axis: ChartAxisDescriptor) -> some View {
-        VStack(alignment: .trailing) {
-            Text(axis.formatter(axis.range.max))
-            Spacer()
-            Text(axis.formatter(axis.range.midpoint))
-            Spacer()
-            Text(axis.formatter(axis.range.min))
+        // Each label is centred on its grid line (see `chartGrid`).
+        GeometryReader { proxy in
+            let inset = Self.plotInset
+            let rows: [(Double, CGFloat)] = [
+                (axis.scale.max, inset),
+                (axis.scale.mid, proxy.size.height / 2),
+                (axis.scale.min, proxy.size.height - inset)
+            ]
+            ForEach(rows, id: \.1) { value, y in
+                Text(axis.scale.label(value))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(width: proxy.size.width, alignment: axis.axis == .left ? .trailing : .leading)
+                    .position(x: proxy.size.width / 2, y: y)
+            }
         }
         .font(.caption2.monospacedDigit())
-        .foregroundColor(axis.color)
-        .frame(maxWidth: .infinity, alignment: .trailing)
+        .foregroundStyle(NeoGymTheme.textSecondary)
     }
 
     private var xAxisLabels: some View {
         let sortedPoints = allPoints.sorted { $0.date < $1.date }
         return HStack(alignment: .top) {
-            Text(sortedPoints.first.map { timeSeriesChartShortDateFormatter.string(from: $0.date) } ?? "")
+            Text(sortedPoints.first.map { timeSeriesChartAxisDateFormatter.string(from: $0.date) } ?? "")
             Spacer(minLength: 4)
             if sortedPoints.count > 2 {
-                Text(timeSeriesChartShortDateFormatter.string(from: sortedPoints[sortedPoints.count / 2].date))
+                Text(timeSeriesChartAxisDateFormatter.string(from: sortedPoints[sortedPoints.count / 2].date))
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
-            Text(sortedPoints.last.map { timeSeriesChartShortDateFormatter.string(from: $0.date) } ?? "")
+            Text(sortedPoints.last.map { timeSeriesChartAxisDateFormatter.string(from: $0.date) } ?? "")
         }
         .font(.caption2)
         .foregroundColor(NeoGymTheme.textSecondary)
@@ -361,18 +390,13 @@ struct TimeSeriesChartView: View {
 
     private func axisDescriptor(for axis: TimeSeriesChartAxis) -> ChartAxisDescriptor? {
         let axisSeries = effectiveVisibleSeries.filter { $0.axis == axis }
-        guard let firstSeries = axisSeries.first else { return nil }
+        guard !axisSeries.isEmpty else { return nil }
         let values = axisSeries.flatMap { $0.points.map(\.value) }
-        guard let range = timeSeriesChartMetricRange(
+        guard let scale = ChartAxisScale.rounded(
             values: values,
-            centersOnZero: axisSeries.contains(where: \.centersAxisOnZero)
+            includesZero: axisSeries.contains(where: \.includesZero)
         ) else { return nil }
-        return ChartAxisDescriptor(
-            axis: axis,
-            range: range,
-            color: firstSeries.color,
-            formatter: firstSeries.valueFormatter
-        )
+        return ChartAxisDescriptor(axis: axis, scale: scale)
     }
 
 }

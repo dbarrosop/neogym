@@ -105,6 +105,7 @@ struct FormNumberField<Field: Hashable>: View {
     var unit: String?
     var placeholder = "0"
     var keyboard: UIKeyboardType = .decimalPad
+    var isInvalid = false
     let field: Field
     let focusedField: FocusState<Field?>.Binding
 
@@ -115,15 +116,13 @@ struct FormNumberField<Field: Hashable>: View {
                 .multilineTextAlignment(.trailing)
                 .font(.body.weight(.semibold))
                 .monospacedDigit()
+                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .numericFieldFocus(field, focusedField: focusedField)
                 .padding(.horizontal, 10)
                 .frame(width: 84, height: 38)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(NeoGymTheme.background)
-                )
+                .formWell(isInvalid: isInvalid)
                 .accessibilityLabel(accessibilityLabel)
             if let unit {
                 Text(unit)
@@ -136,11 +135,27 @@ struct FormNumberField<Field: Hashable>: View {
     }
 }
 
+extension View {
+    /// The recessed well behind a form value: the background token inside a
+    /// surface row, outlined in the destructive colour when invalid.
+    func formWell(isInvalid: Bool = false) -> some View {
+        background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(NeoGymTheme.background)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(NeoGymTheme.destructive, lineWidth: isInvalid ? 1.5 : 0)
+        )
+    }
+}
+
 /// A labelled numeric row: "Protein  [ 4 ] g".
 struct FormNumberRow<Field: Hashable>: View {
     let title: String
     @Binding var text: String
     let unit: String
+    var placeholder = "0"
     let field: Field
     let focusedField: FocusState<Field?>.Binding
 
@@ -153,6 +168,7 @@ struct FormNumberRow<Field: Hashable>: View {
                 accessibilityLabel: "\(title), \(unit)",
                 text: $text,
                 unit: unit,
+                placeholder: placeholder,
                 field: field,
                 focusedField: focusedField
             )
@@ -160,17 +176,70 @@ struct FormNumberRow<Field: Hashable>: View {
     }
 }
 
-/// An accent text action row inside a section, such as "Add ingredient".
+/// "Date  [ 12 Nov 2026 ]": a compact date picker bound to a local
+/// `YYYY-MM-DD` string.
+struct FormDateRow: View {
+    var title = "Date"
+    @Binding var isoDate: String
+
+    var body: some View {
+        FormRow {
+            Text(title)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
+            DatePicker(
+                title,
+                selection: Binding(
+                    get: { DateOnly.parse(isoDate) ?? Date() },
+                    set: { isoDate = DateOnly.formatLocalISO($0) }
+                ),
+                displayedComponents: .date
+            )
+            .datePickerStyle(.compact)
+            .labelsHidden()
+        }
+    }
+}
+
+/// A multi-line text area filling its section, such as notes or a markdown
+/// body. It grows with its content from `minLines`.
+struct FormTextAreaRow: View {
+    let placeholder: String
+    @Binding var text: String
+    var accessibilityLabel: String?
+    var minLines = 3
+    var monospaced = false
+
+    var body: some View {
+        TextField(placeholder, text: $text, axis: .vertical)
+            .lineLimit(minLines ... max(minLines, 40))
+            .font(monospaced ? .body.monospaced() : .body)
+            .textInputAutocapitalization(.sentences)
+            .padding(.horizontal, NeoGymTheme.spacingMD)
+            .padding(.vertical, NeoGymTheme.spacingSM)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .accessibilityLabel(accessibilityLabel ?? placeholder)
+    }
+}
+
+/// An accent action row inside a section, such as "Add ingredient": a white
+/// glyph on an accent-fill circle, then accent text.
 struct FormActionRow: View {
     let title: String
-    var systemImage = "plus"
+    var systemImage = "plus.circle.fill"
     var isDisabled = false
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             FormRow {
-                Label(title, systemImage: systemImage)
+                Image(systemName: systemImage)
+                    .font(.title3)
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(NeoGymTheme.onFill, NeoGymTheme.accent)
+                    .frame(width: 28)
+                    .accessibilityHidden(true)
+                Text(title)
                     .foregroundStyle(NeoGymTheme.accentText)
                 Spacer(minLength: 0)
             }

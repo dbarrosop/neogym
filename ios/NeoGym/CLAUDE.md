@@ -569,18 +569,26 @@ section records how the iPhone app implements it.
   chevron only when the row pushes. Health data always shows its source with a
   sync-status row (`HealthSyncStatusRow`).
 - **Loading, empty, and error states**: reuse `AppLoadingStateView`,
-  `AppErrorStateView` and `AppEmptyStateView` (on `.cardSurface()` when they
-  stand alone). Preserve stale data while refreshing when the view model exposes
-  a previous value, and wire retry buttons to `Task { await viewModel.load() }`.
+  `AppErrorStateView` and `AppEmptyStateView`. The empty state follows the
+  design's States board: its icon on an accent-soft tile, a Title 2 heading, the
+  message and an optional primary capsule action (`actionTitle`/`action`, e.g.
+  Sessions' "Browse workouts", "Clear filters", a session's "Add exercise"). A
+  section-level empty state sits directly on the page background with no card;
+  only one nested inside an existing card (an exercise's Progress card) takes
+  that card's surface. Preserve stale data while refreshing when the view model
+  exposes a previous value, and wire retry buttons to
+  `Task { await viewModel.load() }`.
 - **Buttons and destructive actions**: primary full-width actions use
   `NeoGymPrimaryButtonStyle`; secondary actions use `NeoGymSecondaryButtonStyle`;
   icon-only buttons keep a 44×44 target and an accessibility label.
   Destructive deletes and Sign out are full-width buttons on the surface token
   with destructive text (`FormDeleteButton`) at the end of the content, opening
-  an `.alert`/`.confirmationDialog` that states what will cascade. Pushed form
-  routes put Cancel in `.cancellationAction` and Save in `.confirmationAction`.
-  Nutrition log edit sheets and the set/cardio editors keep their Delete as a
-  destructive `Button` in a trailing `Section`.
+  a `.confirmationDialog` (action sheet, `titleVisibility: .visible`, destructive
+  button then Cancel) that states what will cascade; keep `.alert` for text
+  input such as a plan slot label. Pushed form routes put Cancel in
+  `.cancellationAction` and Save in `.confirmationAction`. Nutrition log edit
+  sheets and the set editor keep their Delete as a destructive `Button` in a
+  trailing `Section`; the cardio entry sheet uses `FormDeleteButton`.
 - **Forms and validation**: non-trivial forms keep field state and validation in
   `NeoGymKit` `ObservableObject` form models (`valuesForSubmit()`, `canSubmit`,
   `errorMessage`) and keep SwiftUI views focused on layout. Representative
@@ -591,14 +599,23 @@ section records how the iPhone app implements it.
   model-level validation rather than live services; a full app-wide form
   migration is intentionally out of scope unless a view is already being
   refactored.
-- **Grouped editors**: New/Edit food, Edit meal and Edit plan follow the
-  design's inset grouped rows from `App/Components/FormRows.swift`
-  (`FormSection`, `FormRow`, `FormLabeledTextRow`, `FormNumberRow`/
-  `FormNumberField` wells on the background token, `FormActionRow`,
-  `FormRemoveButton`, `MacroTotalsStrip`, `EntryKindTag`,
-  `FormScrollContainer`). Inputs inside a surface card must use a contrasting
-  fill (`fill`, `inset` or the background well), never the surface token.
-- **Inputs**: label stacked fields with `.subheadline.weight(.semibold)`. Use `.words`
+- **Grouped editors**: New/Edit food, Edit meal, Edit plan, New/Edit workout,
+  New/Edit journal entry, New/Edit measurement, New/Edit energy and the cardio
+  entry sheet follow the design's inset grouped rows from
+  `App/Components/FormRows.swift` (`FormSection` with caps header/footer,
+  `FormRow`, `FormLabeledTextRow`, `FormDateRow` for a `YYYY-MM-DD` binding,
+  `FormTextAreaRow` for notes and monospaced markdown bodies, `FormNumberRow`/
+  `FormNumberField` wells on the background token via `formWell(isInvalid:)`,
+  `FormActionRow` with its accent-circle glyph, `FormRemoveButton`,
+  `MacroTotalsStrip`, `EntryKindTag`, `FormScrollContainer`). The navigation
+  bar carries the title; do not repeat it in a `SectionShell` card. Inputs
+  inside a surface card must use a contrasting fill (`fill`, `inset` or the
+  background well), never the surface token. Editable lists (meal ingredients,
+  plan entries, workout exercises) remove rows with the red minus and reorder
+  through a long-press menu mirrored in `accessibilityActions`; the workout
+  design's drag handle is not implemented.
+- **Inputs**: grouped editors use inline row titles; any remaining stacked
+  fields are labelled with `.subheadline.weight(.semibold)`. Use `.words`
   autocapitalization for names/titles, `.never` plus disabled autocorrection for
   emails, IDs, labels, and numeric text; use `.decimalPad` for weights/grams and
   macro fields, `.numberPad` for integer/cardio duration parts, compact
@@ -606,18 +623,25 @@ section records how the iPhone app implements it.
   `.decimalPad`/`.numberPad` `TextField`s outside OTP should opt in to local
   `@FocusState` plus `KeyboardDoneToolbar`/`numericFieldFocus` so the keyboard
   has a Done dismissal affordance without moving validation into `NeoGymKit`.
-  Multi-line notes/descriptions use `TextEditor` with a minimum height and muted
-  helper text where useful. OTP entry uses the custom `OTPCodeField` so paste,
+  Multi-line notes/descriptions use `FormTextAreaRow` (a vertical `TextField`
+  that grows from a minimum line count, placeholder "Optional" for notes). OTP entry uses the custom `OTPCodeField` so paste,
   one-time-code autofill, six-digit filtering, focus, and accessibility stay
   consistent.
 - **Pickers and composite editors**: workouts and sessions add exercises
   through the multi-select `ExercisePickerView` checklist; meal and plan
   editors pick foods/meals with the searchable `NutritionSelectionSheet` list
   (its toolbar pushes a create form in the same sheet), while the log sheets
-  still use the searchable wheel `FoodPickerView` and `MealPickerView`; workout labels and journal labels use chip inputs with
-  normalized typed creation and suggestions. Strength set editing intentionally
-  uses a sheet with native `Form` + wheel pickers for kg/grams/reps; cardio entry
-  editing is schema-driven and highlights the invalid metric row.
+  still use the searchable wheel `FoodPickerView` and `MealPickerView`; workout
+  labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):
+  accent-soft chips with a remove button, an inline "Add label" field with
+  normalized typed creation, and matching existing labels shown only while the
+  field is focused. Strength set editing intentionally uses a sheet with native
+  `Form` + wheel pickers for kg/grams/reps; cardio entry editing is
+  schema-driven: the exercise name and "Entry N" form the title, REQUIRED then
+  OPTIONAL groups list each metric with its unit and the schema range as the
+  placeholder, and the invalid metric row is highlighted. Filter-chip rows use
+  `FilterChip`, whose unselected fill is the surface token on the page and the
+  fill token on sheets (Add exercises).
 - **Graphs and summaries**: Muscles, Strength, Body, daily-energy and calorie trends use
   `TimeSeriesTrendChartView` / `TimeSeriesChartView` with a period menu, custom
   date pickers, sampled points, axes/legend, and tap/drag callouts. Non-empty
@@ -626,7 +650,15 @@ section records how the iPhone app implements it.
   series, point counts, date range, latest values, and min/max values; legends
   stay separate tappable controls for hiding/showing series. Caller-provided
   chart accessibility values must account for hidden series themselves.
-  Empty-state text remains naturally accessible. Charts have no border, grid
+  Empty-state text remains naturally accessible. Value axes use NeoGymKit
+  `ChartAxisScale`: three labels (bottom, middle, top) on rounded values, bare
+  compact numbers without units (`12`, `2,000`, `50k`, `+400`/`−1,200` when the
+  axis crosses zero) in `textSecondary` whatever the series colour, with one
+  grid line per label. Series with `includesZero` (Muscles sets, daily energy,
+  net calories) keep 0 on the axis; others hug their data. Lines break across
+  missing readings (`ChartGaps`: more than three times the typical spacing and
+  at least three days), and a reading isolated by gaps keeps its dot. X-axis
+  dates use the "d MMM" template. Charts have no border, grid
   lines use the separator token, series 1 is the accent and series 2 the
   orange `series2` token. Orange is fill-only (bars, split bars, macro meters
   and their legend swatches), never a line, because it falls below 3:1 on

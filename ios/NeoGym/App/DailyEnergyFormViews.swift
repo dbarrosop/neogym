@@ -27,7 +27,6 @@ struct DailyEnergyCreateView: View {
 
     var body: some View {
         DailyEnergyFormScreen(
-            title: "New energy entry",
             submitLabel: "Save energy",
             form: form,
             isSubmitting: editor.saveState.isLoading,
@@ -98,7 +97,6 @@ struct DailyEnergyEditView: View {
             default:
                 if let form {
                     DailyEnergyFormScreen(
-                        title: "Edit energy",
                         submitLabel: "Save changes",
                         form: form,
                         isSubmitting: editor.saveState.isLoading || editor.deleteState.isLoading,
@@ -121,9 +119,9 @@ struct DailyEnergyEditView: View {
                 await loadAndPrepareForm()
             }
         }
-        .alert("Delete this energy entry?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this energy entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete energy", role: .destructive) { deleteEntry() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This entry will be removed from your energy history.")
         }
@@ -165,7 +163,6 @@ private struct DailyEnergyFormScreen: View {
         case resting
     }
 
-    let title: String
     let submitLabel: String
     @ObservedObject var form: DailyEnergyFormModel
     let isSubmitting: Bool
@@ -177,68 +174,46 @@ private struct DailyEnergyFormScreen: View {
     @FocusState private var focusedField: FocusedField?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Date",
-                        selection: Binding(
-                            get: { DateOnly.parse(form.energyOn) ?? Date() },
-                            set: { form.energyOn = DateOnly.formatLocalISO($0) }
-                        ),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-
-                    HStack(spacing: 12) {
-                        decimalField(
-                            title: "Active",
-                            unit: "kcal",
-                            placeholder: "650",
-                            text: $form.activeKcal,
-                            field: .active
-                        )
-                        decimalField(
-                            title: "Resting",
-                            unit: "kcal",
-                            placeholder: "1650",
-                            text: $form.restingKcal,
-                            field: .resting
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Notes")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.notes)
-                            .frame(minHeight: 110)
-                            .padding(NeoGymTheme.spacingXS)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.fill
-                            )
-                        Text("Optional")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete energy",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
-                }
+        FormScrollContainer {
+            FormSection {
+                FormDateRow(isoDate: $form.energyOn)
+                RowSeparator()
+                FormNumberRow(
+                    title: "Active",
+                    text: $form.activeKcal,
+                    unit: "kcal",
+                    placeholder: "",
+                    field: FocusedField.active,
+                    focusedField: $focusedField
+                )
+                RowSeparator()
+                FormNumberRow(
+                    title: "Resting",
+                    text: $form.restingKcal,
+                    unit: "kcal",
+                    placeholder: "",
+                    field: FocusedField.resting,
+                    focusedField: $focusedField
+                )
             }
-            .frame(maxWidth: 640)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(
+                header: "Notes",
+                footer: "One entry per date with at least one value. "
+                    + "The NeoGym Apple Watch app imports active and resting energy from Apple Health."
+            ) {
+                FormTextAreaRow(placeholder: "Optional", text: $form.notes, accessibilityLabel: "Notes")
+            }
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete energy",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .keyboardDoneToolbar(focusedField: $focusedField)
         .nativeFormActionToolbar(
@@ -249,33 +224,4 @@ private struct DailyEnergyFormScreen: View {
             onSubmit: onSubmit
         )
     }
-
-    private func decimalField(
-        title: String,
-        unit: String,
-        placeholder: String,
-        text: Binding<String>,
-        field: FocusedField
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(unit)
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
-            TextField(placeholder, text: text)
-                .keyboardType(.decimalPad)
-                .numericFieldFocus(field, focusedField: $focusedField)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .padding(NeoGymTheme.spacingSM)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.fill
-                )
-        }
-    }
-
 }

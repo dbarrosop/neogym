@@ -82,7 +82,6 @@ struct StrengthProgressView: View {
                         message: "Log a strength set to see volume and estimated 1RM here for the next 10 days.",
                         systemImage: "chart.line.uptrend.xyaxis"
                     )
-                    .cardSurface()
                 } else {
                     Text("Logged in the last 10 days")
                         .font(.title3.weight(.bold))

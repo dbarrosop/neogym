@@ -166,9 +166,9 @@ struct NutritionPlanEditView: View {
                 }
             }
         }
-        .alert("Delete this plan?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this plan?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete plan", role: .destructive) { deletePlan() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Days that used this plan keep everything you logged.")
         }

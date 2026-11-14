@@ -1,134 +1,155 @@
 import NeoGymKit
 import SwiftUI
 
+/// The LABELS group of the workout and journal editors: selected labels as
+/// accent-soft chips with a remove button, an inline "Add label" field, and
+/// matching existing labels (or "Create …") while the field is focused.
+struct LabelChipsEditor: View {
+    let selected: [String]
+    let available: [String]
+    let maxLength: Int
+    let normalize: (String) -> String
+    var isDisabled = false
+    let onRemove: (String) -> Void
+    let onPick: (String) -> Void
+    let onCommit: (String) -> Void
+
+    @State private var input = ""
+    @FocusState private var isFieldFocused: Bool
+
+    private var normalizedInput: String {
+        normalize(input)
+    }
+
+    private var suggestions: [String] {
+        let chosen = Set(selected)
+        return available
+            .filter { !chosen.contains($0) }
+            .filter { normalizedInput.isEmpty || $0.contains(normalizedInput) }
+            .prefix(8)
+            .map { $0 }
+    }
+
+    private var canCreate: Bool {
+        !normalizedInput.isEmpty
+            && normalizedInput.count <= maxLength
+            && !selected.contains(normalizedInput)
+            && !suggestions.contains(normalizedInput)
+    }
+
+    var body: some View {
+        FormSection(header: "Labels") {
+            if !selected.isEmpty {
+                FlowRow(spacing: 6) {
+                    ForEach(selected, id: \.self) { chip($0) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, NeoGymTheme.spacingSM)
+                .padding(.top, NeoGymTheme.spacingSM)
+            }
+            FormRow {
+                TextField("Add label", text: Binding(
+                    get: { input },
+                    set: { input = String($0.prefix(maxLength)) }
+                ))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($isFieldFocused)
+                .disabled(isDisabled)
+                .onSubmit(commit)
+                if !normalizedInput.isEmpty {
+                    Button("Add", action: commit)
+                        .fontWeight(.semibold)
+                        .disabled(isDisabled)
+                }
+            }
+            if isFieldFocused, !suggestions.isEmpty || canCreate {
+                RowSeparator()
+                FlowRow(spacing: 6) {
+                    ForEach(suggestions, id: \.self) { name in
+                        Button {
+                            onPick(name)
+                            input = ""
+                        } label: {
+                            suggestionLabel(name, systemImage: "plus")
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Add label \(name)")
+                    }
+                    if canCreate {
+                        Button(action: commit) {
+                            suggestionLabel("Create “\(normalizedInput)”", systemImage: "tag")
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(NeoGymTheme.spacingSM)
+            }
+        }
+    }
+
+    private func commit() {
+        guard !normalizedInput.isEmpty else { return }
+        onCommit(input)
+        input = ""
+        isFieldFocused = true
+    }
+
+    private func chip(_ name: String) -> some View {
+        HStack(spacing: 0) {
+            Text(name)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+            Button {
+                onRemove(name)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.bold))
+                    .frame(width: 28, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isDisabled)
+            .accessibilityLabel("Remove label \(name)")
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 2)
+        .foregroundStyle(NeoGymTheme.accentText)
+        .background(Capsule(style: .continuous).fill(NeoGymTheme.accentSoft))
+    }
+
+    private func suggestionLabel(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline)
+            .lineLimit(1)
+            .foregroundStyle(NeoGymTheme.text)
+            .padding(.horizontal, 10)
+            .frame(minHeight: 32)
+            .background(Capsule(style: .continuous).fill(NeoGymTheme.fill))
+    }
+}
+
+/// Workout labels: chips over `WorkoutFormModel`.
 struct LabelInputView: View {
     @ObservedObject var form: WorkoutFormModel
     let suggestions: [WorkoutLabel]
     var disabled = false
 
-    @State private var input = ""
-
-    private var normalizedInput: String {
-        WorkoutLabelNormalizer.normalize(input)
-    }
-
-    private var filteredSuggestions: [WorkoutLabel] {
-        let selected = Set(form.labels.map(\.name))
-        return suggestions
-            .filter { !selected.contains($0.name) }
-            .filter { normalizedInput.isEmpty ? true : $0.name.contains(normalizedInput) }
-            .prefix(8)
-            .map { $0 }
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Labels")
-                .font(.subheadline.weight(.semibold))
-            LabelFlowLayout(spacing: 6) {
-                ForEach(form.labels, id: \.stableId) { label in
-                    labelChip(label)
-                }
-            }
-            HStack(spacing: 8) {
-                TextField("Add a label", text: $input)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-                    .disabled(disabled)
-                    .onSubmit { commitTyped() }
-                Button("Add") { commitTyped() }
-                    .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > workoutLabelMaxLength)
-            }
-            .padding(NeoGymTheme.spacingSM)
-            .cardSurface(
-                cornerRadius: NeoGymTheme.radiusMD,
-                fill: NeoGymTheme.fill
-            )
-
-            if !filteredSuggestions.isEmpty || canCreateLabel {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(filteredSuggestions) { suggestion in
-                        Button {
-                            form.addLabel(WorkoutLabelSelection(id: suggestion.id, name: suggestion.name))
-                            input = ""
-                        } label: {
-                            Label(suggestion.name, systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if canCreateLabel {
-                        Button {
-                            commitTyped()
-                        } label: {
-                            Label("Create \"\(normalizedInput)\"", systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(NeoGymTheme.spacingSM)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.inset
-                )
-            }
-        }
-    }
-
-    private var canCreateLabel: Bool {
-        !normalizedInput.isEmpty
-            && normalizedInput.count <= workoutLabelMaxLength
-            && !form.labels.contains { $0.name == normalizedInput }
-            && !filteredSuggestions.contains { $0.name == normalizedInput }
-    }
-
-    private func commitTyped() {
-        form.commitLabel(input, suggestions: suggestions)
-        input = ""
-    }
-
-    private func labelChip(_ label: WorkoutLabelSelection) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: "tag.fill")
-            Text(label.name)
-            Button {
-                form.removeLabel(name: label.name)
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Remove label \(label.name)")
-        }
-        .font(.caption.weight(.semibold))
-        .padding(.horizontal, 9)
-        .padding(.vertical, 5)
-        .foregroundStyle(NeoGymTheme.accentText)
-        .background(
-            Capsule(style: .continuous)
-                .fill(NeoGymTheme.accentSoft)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .stroke(NeoGymTheme.accentText.opacity(0.4), lineWidth: NeoGymTheme.hairline)
-                )
+        LabelChipsEditor(
+            selected: form.labels.map(\.name),
+            available: suggestions.map(\.name),
+            maxLength: workoutLabelMaxLength,
+            normalize: WorkoutLabelNormalizer.normalize,
+            isDisabled: disabled,
+            onRemove: { form.removeLabel(name: $0) },
+            onPick: { name in
+                guard let label = suggestions.first(where: { $0.name == name }) else { return }
+                form.addLabel(WorkoutLabelSelection(id: label.id, name: label.name))
+            },
+            onCommit: { form.commitLabel($0, suggestions: suggestions) }
         )
-    }
-}
-
-private struct LabelFlowLayout<Content: View>: View {
-    var spacing: CGFloat = 8
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        if #available(iOS 16.0, macOS 13.0, *) {
-            AnyLayout(HStackLayout(spacing: spacing)) {
-                content
-            }
-        } else {
-            HStack(spacing: spacing) {
-                content
-            }
-        }
     }
 }

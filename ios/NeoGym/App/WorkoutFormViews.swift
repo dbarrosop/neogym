@@ -110,7 +110,7 @@ struct WorkoutEditView: View {
                     .onAppear { presentationMode.wrappedValue.dismiss() }
                 } else if let form {
                     WorkoutFormScreen(
-                        title: editor.workout?.name ?? "Edit workout",
+                        title: "Edit workout",
                         submitLabel: "Save changes",
                         form: form,
                         labels: editor.labels,
@@ -136,9 +136,9 @@ struct WorkoutEditView: View {
                 }
             }
         }
-        .alert("Delete this workout?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this workout?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete workout", role: .destructive) { deleteWorkout() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("This removes the workout and its exercise list. Past sessions you've logged with it stay intact.")
         }
@@ -179,54 +179,30 @@ private struct WorkoutFormScreen: View {
     @State private var pickerOpen = false
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Name")
-                            .font(.subheadline.weight(.semibold))
-                        TextField("e.g. Upper / push day", text: $form.name)
-                            .textInputAutocapitalization(.words)
-                            .padding(NeoGymTheme.spacingSM)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.fill
-                            )
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Description")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.description)
-                            .frame(minHeight: 120)
-                            .padding(NeoGymTheme.spacingXS)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.fill
-                            )
-                        Text("Markdown supported for headings, lists, and emphasis.")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-                    LabelInputView(form: form, suggestions: labels, disabled: isSubmitting)
-                    exerciseRows
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete workout",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
+        FormScrollContainer {
+            FormSection(header: "Name") {
+                FormRow {
+                    TextField("e.g. Upper / push day", text: $form.name)
+                        .textInputAutocapitalization(.words)
+                        .accessibilityLabel("Name")
                 }
             }
-            .frame(maxWidth: 700)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.top, NeoGymTheme.screenVerticalPadding)
-            .padding(.bottom, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(header: "Notes · Markdown") {
+                FormTextAreaRow(placeholder: "Optional", text: $form.description, accessibilityLabel: "Notes, markdown")
+            }
+            LabelInputView(form: form, suggestions: labels, disabled: isSubmitting)
+            exerciseRows
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete workout",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
@@ -252,94 +228,69 @@ private struct WorkoutFormScreen: View {
     }
 
     private var exerciseRows: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Exercises")
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("\(form.exercises.count) added")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
-            if form.exercises.isEmpty {
-                AppEmptyStateView(
-                    title: "No exercises yet",
-                    message: "Add one to get started.",
-                    systemImage: "dumbbell"
+        FormSection(
+            header: "Exercises",
+            headerDetail: form.exercises.count > 1 ? "Long-press to reorder" : nil,
+            footer: form.exercises.isEmpty ? "Sessions started from this workout begin with these exercises." : nil
+        ) {
+            ForEach(Array(form.exercises.enumerated()), id: \.element.rowId) { index, exercise in
+                WorkoutFormExerciseRowView(
+                    exercise: exercise,
+                    isFirst: index == 0,
+                    isLast: index == form.exercises.count - 1,
+                    isDisabled: isSubmitting,
+                    remove: { form.removeExercise(rowId: exercise.rowId) },
+                    moveUp: { form.moveExerciseUp(rowId: exercise.rowId) },
+                    moveDown: { form.moveExerciseDown(rowId: exercise.rowId) }
                 )
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(form.exercises.enumerated()), id: \.element.rowId) { index, exercise in
-                        WorkoutFormExerciseRowView(
-                            exercise: exercise,
-                            index: index,
-                            isFirst: index == 0,
-                            isLast: index == form.exercises.count - 1,
-                            remove: { form.removeExercise(rowId: exercise.rowId) },
-                            moveUp: { form.moveExerciseUp(rowId: exercise.rowId) },
-                            moveDown: { form.moveExerciseDown(rowId: exercise.rowId) }
-                        )
-                        if exercise.rowId != form.exercises.last?.rowId { Divider() }
-                    }
-                }
-                .padding(.horizontal, NeoGymTheme.spacingXS)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.inset
-                )
+                RowSeparator(leadingInset: 52)
             }
-            Button {
+            FormActionRow(title: "Add exercise", isDisabled: isSubmitting) {
                 pickerOpen = true
-            } label: {
-                Label("Add exercise", systemImage: "plus")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(NeoGymSecondaryButtonStyle())
-            .disabled(isSubmitting)
         }
     }
-
 }
 
+/// One exercise in the workout editor: red minus to remove, name and primary
+/// muscle; long-press (or the VoiceOver actions) moves it up or down.
 private struct WorkoutFormExerciseRowView: View {
     let exercise: WorkoutFormExerciseRow
-    let index: Int
     let isFirst: Bool
     let isLast: Bool
+    let isDisabled: Bool
     let remove: () -> Void
     let moveUp: () -> Void
     let moveDown: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Text("\(index + 1)")
-                .font(.caption.bold())
-                .frame(width: 24, height: 24)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusPill,
-                    fill: NeoGymTheme.inset
-                )
+        FormRow {
+            FormRemoveButton(accessibilityLabel: "Remove \(exercise.name)", isDisabled: isDisabled, action: remove)
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name)
-                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
                 Text(
                     ExerciseFormatters.enumValue(exercise.primaryMuscleGroup)
                         + (exercise.doubleWeight ? " · two-handed" : "")
                 )
-                .font(.caption)
-                .foregroundColor(NeoGymTheme.textSecondary)
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
             }
-            Spacer()
-            Button(action: moveUp) { Image(systemName: "chevron.up") }
-                .accessibilityLabel("Move exercise up")
-                .disabled(isFirst)
-            Button(action: moveDown) { Image(systemName: "chevron.down") }
-                .accessibilityLabel("Move exercise down")
-                .disabled(isLast)
-            Button(role: .destructive, action: remove) { Image(systemName: "xmark") }
-                .accessibilityLabel("Remove exercise")
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .buttonStyle(.plain)
-        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .contextMenu { menu }
+        .accessibilityElement(children: .combine)
+        .accessibilityActions { menu }
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        Button("Move up", systemImage: "arrow.up", action: moveUp)
+            .disabled(isFirst || isDisabled)
+        Button("Move down", systemImage: "arrow.down", action: moveDown)
+            .disabled(isLast || isDisabled)
+        Button("Remove", systemImage: "minus.circle", role: .destructive, action: remove)
+            .disabled(isDisabled)
     }
 }

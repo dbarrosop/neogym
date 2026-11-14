@@ -104,17 +104,13 @@ struct SessionDetailView: View {
             FeedbackBanner(message: message)
         }
         if session.workoutSessionExercises.isEmpty {
-            VStack(spacing: NeoGymTheme.spacingSM) {
-                AppEmptyStateView(
-                    title: "No exercises yet",
-                    message: "Add exercises to this session to start logging sets.",
-                    systemImage: "dumbbell"
-                )
-                Button("Add exercise") { isShowingExercisePicker = true }
-                    .buttonStyle(NeoGymPrimaryButtonStyle())
-            }
-            .padding(NeoGymTheme.spacingMD)
-            .cardSurface()
+            AppEmptyStateView(
+                title: "No exercises yet",
+                message: "Add exercises to this session to start logging sets.",
+                systemImage: "dumbbell",
+                actionTitle: "Add exercise",
+                action: { isShowingExercisePicker = true }
+            )
         } else {
             let lastTimes = lastTimeByExercise(session)
             let activeId = SessionLogging.defaultActiveExerciseId(session: session, lastTimeByExercise: lastTimes)

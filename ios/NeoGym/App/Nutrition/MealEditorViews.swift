@@ -165,9 +165,9 @@ struct MealEditView: View {
                 }
             }
         }
-        .alert("Delete this meal?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this meal?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete meal", role: .destructive) { deleteMeal() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text("Logged meals keep their foods; they just stop linking to this template.")
         }

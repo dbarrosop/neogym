@@ -56,19 +56,13 @@ struct PlansListView: View {
                 .cardSurface()
         default:
             if viewModel.filteredPlans.isEmpty {
-                VStack(spacing: NeoGymTheme.spacingMD) {
-                    AppEmptyStateView(
-                        title: viewModel.isFiltered ? "No plans match this search" : "No plans yet",
-                        message: viewModel.isFiltered ? "Clear the search or try another meal or food name." : "Create a reusable day template with the + button.",
-                        systemImage: "fork.knife"
-                    )
-                    if viewModel.isFiltered {
-                        Button("Clear") { viewModel.clearSearch() }
-                            .buttonStyle(NeoGymSecondaryButtonStyle())
-                    }
-                }
-                .padding(.bottom, NeoGymTheme.spacingMD)
-                .cardSurface()
+                AppEmptyStateView(
+                    title: viewModel.isFiltered ? "No plans match this search" : "No plans yet",
+                    message: viewModel.isFiltered ? "Clear the search or try another meal or food name." : "Create a reusable day template with the + button.",
+                    systemImage: "fork.knife",
+                    actionTitle: viewModel.isFiltered ? "Clear" : nil,
+                    action: viewModel.clearSearch
+                )
             } else {
                 VStack(spacing: 0) {
                     ForEach(viewModel.filteredPlans) { plan in

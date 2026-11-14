@@ -63,22 +63,27 @@ extension SessionDetailView {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("All exercises, sets and entries in this session will be permanently removed.")
+                Text("All sets logged in this session will be permanently removed. This can’t be undone.")
             }
-            .alert(item: $pendingRemoveExercise) { row in
-                Alert(
-                    title: Text("Remove \(row.exercise.name)?"),
-                    message: Text(Self.removeExerciseMessage(row)),
-                    primaryButton: .destructive(Text("Remove")) {
-                        Task {
-                            if await viewModel.removeExercise(id: row.id) {
-                                pendingRemoveExercise = nil
-                                onMutated()
-                            }
+            .confirmationDialog(
+                pendingRemoveExercise.map { "Remove \($0.exercise.name)?" } ?? "Remove exercise?",
+                isPresented: Binding(
+                    get: { pendingRemoveExercise != nil },
+                    set: { if !$0 { pendingRemoveExercise = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: pendingRemoveExercise
+            ) { row in
+                Button("Remove", role: .destructive) {
+                    Task {
+                        if await viewModel.removeExercise(id: row.id) {
+                            onMutated()
                         }
-                    },
-                    secondaryButton: .cancel { pendingRemoveExercise = nil }
-                )
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: { row in
+                Text(Self.removeExerciseMessage(row))
             }
     }
 

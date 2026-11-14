@@ -58,7 +58,6 @@ struct MuscleSetProgressView: View {
                         message: "Log a non-stretching strength set with reps above zero to see sets by muscle here.",
                         systemImage: "chart.bar"
                     )
-                    .cardSurface()
                 } else {
                     if let muscle = activeMuscle(in: latest),
                        let current = latest.first(where: { $0.muscleGroup == muscle }) {
@@ -91,6 +90,7 @@ struct MuscleSetProgressView: View {
                     id: current.muscleGroup,
                     name: "Weighted sets",
                     color: NeoGymTheme.accentText,
+                    includesZero: true,
                     points: rows.filter { $0.muscleGroup == current.muscleGroup }
                         .sorted { $0.day < $1.day }.compactMap { row in
                             guard let date = row.date(in: .current) else { return nil }

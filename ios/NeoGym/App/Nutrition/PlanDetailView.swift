@@ -102,7 +102,6 @@ struct NutritionPlanDetailView: View {
                         message: "Edit this plan to add meals and foods.",
                         systemImage: "fork.knife"
                     )
-                    .cardSurface()
                 } else {
                     ForEach(slots, id: \.key) { slot in
                         NutritionPlanSlotDetailCard(slot: slot)

@@ -6,15 +6,18 @@ struct SessionsListView: View {
     @StateObject private var viewModel: SessionsListViewModel
     let reloadToken: Int
     let onRefresh: @MainActor () async -> Void
+    let onBrowseWorkouts: @MainActor () -> Void
 
     init(
         sessionsRepository: any SessionsRepositoryProtocol,
         reloadToken: Int,
-        onRefresh: @escaping @MainActor () async -> Void = {}
+        onRefresh: @escaping @MainActor () async -> Void = {},
+        onBrowseWorkouts: @escaping @MainActor () -> Void = {}
     ) {
         _viewModel = StateObject(wrappedValue: SessionsListViewModel(repository: sessionsRepository))
         self.reloadToken = reloadToken
         self.onRefresh = onRefresh
+        self.onBrowseWorkouts = onBrowseWorkouts
     }
 
     var body: some View {
@@ -56,10 +59,11 @@ struct SessionsListView: View {
             if viewModel.sessions.isEmpty {
                 AppEmptyStateView(
                     title: "No sessions yet",
-                    message: "Start a session from a workout or an exercise to log your training.",
-                    systemImage: "dumbbell"
+                    message: "Start one from a workout, or from any exercise for an ad-hoc session.",
+                    systemImage: "dumbbell",
+                    actionTitle: "Browse workouts",
+                    action: onBrowseWorkouts
                 )
-                .cardSurface()
             } else {
                 ForEach(SessionWeekGrouping.groups(viewModel.sessions)) { group in
                     weekGroup(group)

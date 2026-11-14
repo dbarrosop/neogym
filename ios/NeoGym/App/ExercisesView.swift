@@ -116,7 +116,7 @@ struct ExercisesListView: View {
             .foregroundStyle(value == nil ? NeoGymTheme.text : NeoGymTheme.onFill)
             .padding(.horizontal, 14)
             .frame(minHeight: 36)
-            .background(Capsule().fill(value == nil ? NeoGymTheme.fill : NeoGymTheme.accent))
+            .background(Capsule().fill(value == nil ? NeoGymTheme.surface : NeoGymTheme.accent))
             .frame(minHeight: NeoGymTheme.minimumTapTarget)
         }
         .accessibilityLabel("\(key.title) filter")
@@ -138,15 +138,15 @@ struct ExercisesListView: View {
             }
         default:
             if viewModel.filteredExercises.isEmpty {
-                SectionShell(title: "No matches") {
-                    AppEmptyStateView(
-                        title: "No exercises match these filters",
-                        message: viewModel.isFiltered
-                            ? "Clear filters to see the full catalog."
-                            : "The catalog is empty.",
-                        systemImage: "dumbbell"
-                    )
-                }
+                AppEmptyStateView(
+                    title: viewModel.isFiltered ? "No exercises match these filters" : "No exercises yet",
+                    message: viewModel.isFiltered
+                        ? "Clear filters to see the full catalog."
+                        : "The catalog is empty.",
+                    systemImage: "dumbbell",
+                    actionTitle: viewModel.isFiltered ? "Clear filters" : nil,
+                    action: viewModel.clearAll
+                )
             } else if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 VStack(spacing: NeoGymTheme.spacingMD) {
                     ForEach(viewModel.groupedExercises) { group in

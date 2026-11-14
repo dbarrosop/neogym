@@ -66,7 +66,6 @@ struct DailyEnergyListView: View {
                     message: "Log active or resting energy with the + button, or connect your Apple Watch under Me › Account.",
                     systemImage: "flame"
                 )
-                .cardSurface()
             } else {
                 entryList
             }

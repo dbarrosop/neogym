@@ -68,7 +68,9 @@ struct ExercisePickerView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: NeoGymTheme.spacingXS) {
                 ForEach(ExercisePickerFilter.allCases) { option in
-                    FilterChip(title: option.title, isSelected: filter == option) { filter = option }
+                    FilterChip(title: option.title, isSelected: filter == option, unselectedFill: NeoGymTheme.fill) {
+                        filter = option
+                    }
                 }
             }
         }
@@ -96,7 +98,6 @@ struct ExercisePickerView: View {
                     message: "Try another search or muscle area.",
                     systemImage: "magnifyingglass"
                 )
-                .padding(.vertical, NeoGymTheme.spacingXL)
             } else {
                 if !sections.recent.isEmpty {
                     exerciseList(title: "Recently logged", exercises: sections.recent)

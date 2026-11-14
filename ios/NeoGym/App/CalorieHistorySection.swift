@@ -92,7 +92,7 @@ struct CalorieHistorySection: View {
                 name: "Net",
                 color: NeoGymTheme.textTertiary,
                 axis: .right,
-                centersAxisOnZero: true,
+                includesZero: true,
                 points: history.dailyNetChartPoints.map { value in
                     TimeSeriesChartDataPoint(id: "net-\(value.logDate)", date: value.date, value: value.value)
                 },
@@ -103,7 +103,7 @@ struct CalorieHistorySection: View {
                 name: "7-day avg net",
                 color: NeoGymTheme.textSecondary,
                 axis: .right,
-                centersAxisOnZero: true,
+                includesZero: true,
                 points: history.rollingNetChartPoints.map { value in
                     TimeSeriesChartDataPoint(id: "rolling-net-\(value.logDate)", date: value.date, value: value.value)
                 },

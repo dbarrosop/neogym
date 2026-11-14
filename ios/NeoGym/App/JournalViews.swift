@@ -72,9 +72,10 @@ struct JournalListView: View {
                     message: viewModel.isFiltered
                         ? "Clear a filter or choose another label combination."
                         : "Write your first entry with the + button.",
-                    systemImage: "book.closed"
+                    systemImage: "book.closed",
+                    actionTitle: viewModel.isFiltered ? "Clear filters" : nil,
+                    action: { Task { await viewModel.clearFilters() } }
                 )
-                .cardSurface()
             } else {
                 ForEach(viewModel.entries) { entry in
                     NavigationLink(value: MeRoute.journalEntryDetail(entry.id)) {
@@ -276,7 +277,6 @@ struct JournalEntryCreateView: View {
             default:
                 if let form {
                     JournalEntryFormScreen(
-                        title: "New entry",
                         submitLabel: "Save entry",
                         form: form,
                         suggestions: editor.labels,
@@ -353,7 +353,6 @@ struct JournalEntryEditView: View {
             default:
                 if let form {
                     JournalEntryFormScreen(
-                        title: "Edit entry",
                         submitLabel: "Save changes",
                         form: form,
                         suggestions: editor.labels,
@@ -380,9 +379,9 @@ struct JournalEntryEditView: View {
                 }
             }
         }
-        .alert("Delete this entry?", isPresented: $confirmDelete) {
-            Button("Cancel", role: .cancel) {}
+        .confirmationDialog("Delete this entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete entry", role: .destructive) { deleteEntry() }
+            Button("Cancel", role: .cancel) {}
         } message: {
             Text(
                 "The entry and its label associations will be removed. "
@@ -412,7 +411,6 @@ struct JournalEntryEditView: View {
 }
 
 private struct JournalEntryFormScreen: View {
-    let title: String
     let submitLabel: String
     @ObservedObject var form: JournalEntryFormModel
     let suggestions: [JournalLabel]
@@ -423,74 +421,52 @@ private struct JournalEntryFormScreen: View {
     var deleteAction: (() -> Void)?
 
     var body: some View {
-        ScrollView {
-            SectionShell(title: title) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DatePicker(
-                        "Date",
-                        selection: Binding(
-                            get: { DateOnly.parse(form.entryDate) ?? Date() },
-                            set: { form.entryDate = DateOnly.formatLocalISO($0) }
-                        ),
-                        displayedComponents: .date
-                    )
-                    .datePickerStyle(.compact)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 4) {
-                            Text("Title")
-                                .font(.subheadline.weight(.semibold))
-                            Text("Optional")
-                                .font(.caption)
-                                .foregroundColor(NeoGymTheme.textSecondary)
-                        }
-                        TextField("A short headline for this entry", text: Binding(
-                            get: { form.title },
-                            set: { form.title = String($0.prefix(journalEntryTitleMaxLength)) }
-                        ))
-                        .textInputAutocapitalization(.sentences)
-                        .disableAutocorrection(false)
-                        .padding(NeoGymTheme.spacingSM)
-                        .cardSurface(
-                            cornerRadius: NeoGymTheme.radiusMD,
-                            fill: NeoGymTheme.fill
-                        )
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Entry")
-                            .font(.subheadline.weight(.semibold))
-                        TextEditor(text: $form.body)
-                            .frame(minHeight: 220)
-                            .padding(NeoGymTheme.spacingXS)
-                            .cardSurface(
-                                cornerRadius: NeoGymTheme.radiusMD,
-                                fill: NeoGymTheme.fill
-                            )
-                        Text("Markdown supported — use **bold**, - lists, headings, and more.")
-                            .font(.caption)
-                            .foregroundColor(NeoGymTheme.textSecondary)
-                    }
-
-                    JournalLabelInputView(form: form, suggestions: suggestions, disabled: isSubmitting)
-
-                    if let errorMessage {
-                        FeedbackBanner(message: errorMessage)
-                    }
-                    if let deleteAction {
-                        FormDeleteButton(
-                            title: "Delete entry",
-                            isDisabled: isSubmitting,
-                            action: deleteAction
-                        )
-                        .padding(.top, NeoGymTheme.spacingSM)
-                    }
+        FormScrollContainer {
+            FormSection {
+                FormDateRow(isoDate: $form.entryDate)
+                RowSeparator()
+                FormRow {
+                    TextField("Title (optional)", text: Binding(
+                        get: { form.title },
+                        set: { form.title = String($0.prefix(journalEntryTitleMaxLength)) }
+                    ))
+                    .textInputAutocapitalization(.sentences)
+                    .accessibilityLabel("Title")
                 }
             }
-            .frame(maxWidth: 680)
-            .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-            .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-            .frame(maxWidth: .infinity)
+            FormSection(header: "Entry · Markdown") {
+                FormTextAreaRow(
+                    placeholder: "Write your entry",
+                    text: $form.body,
+                    accessibilityLabel: "Entry, markdown",
+                    minLines: 12,
+                    monospaced: true
+                )
+            }
+            LabelChipsEditor(
+                selected: form.labels.map(\.name),
+                available: suggestions.map(\.name),
+                maxLength: journalLabelMaxLength,
+                normalize: JournalLabelNormalizer.normalize,
+                isDisabled: isSubmitting,
+                onRemove: { form.removeLabel(name: $0) },
+                onPick: { name in
+                    guard let label = suggestions.first(where: { $0.name == name }) else { return }
+                    form.addLabel(JournalLabelSelection(id: label.id, name: label.name))
+                },
+                onCommit: { form.commitLabel($0, suggestions: suggestions) }
+            )
+            if let errorMessage {
+                FeedbackBanner(message: errorMessage)
+            }
+            if let deleteAction {
+                FormDeleteButton(
+                    title: "Delete entry",
+                    isDisabled: isSubmitting,
+                    action: deleteAction
+                )
+                .padding(.top, NeoGymTheme.spacingXS)
+            }
         }
         .nativeFormActionToolbar(
             submitLabel: submitLabel,
@@ -499,123 +475,6 @@ private struct JournalEntryFormScreen: View {
             onCancel: onCancel,
             onSubmit: onSubmit
         )
-    }
-}
-
-private struct JournalLabelInputView: View {
-    @ObservedObject var form: JournalEntryFormModel
-    let suggestions: [JournalLabel]
-    var disabled = false
-
-    @State private var input = ""
-
-    private var normalizedInput: String {
-        JournalLabelNormalizer.normalize(input)
-    }
-
-    private var filteredSuggestions: [JournalLabel] {
-        let selected = Set(form.labels.map(\.name))
-        return suggestions
-            .filter { !selected.contains($0.name) }
-            .filter { normalizedInput.isEmpty ? true : $0.name.contains(normalizedInput) }
-            .prefix(8)
-            .map { $0 }
-    }
-
-    private var canCreateLabel: Bool {
-        !normalizedInput.isEmpty
-            && normalizedInput.count <= journalLabelMaxLength
-            && !form.labels.contains { $0.name == normalizedInput }
-            && !filteredSuggestions.contains { $0.name == normalizedInput }
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                Text("Labels")
-                    .font(.subheadline.weight(.semibold))
-                Text("Optional")
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
-            JournalLabelFlowLayout(spacing: 6) {
-                ForEach(form.labels, id: \.stableId) { label in
-                    HStack(spacing: 4) {
-                        Image(systemName: "tag.fill")
-                        Text(label.name)
-                        Button {
-                            form.removeLabel(name: label.name)
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Remove label \(label.name)")
-                    }
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .foregroundStyle(NeoGymTheme.accentText)
-                    .background(
-                        Capsule(style: .continuous)
-                            .fill(NeoGymTheme.accentSoft)
-                            .overlay(
-                                Capsule(style: .continuous)
-                                    .stroke(NeoGymTheme.accentText.opacity(0.4), lineWidth: NeoGymTheme.hairline)
-                            )
-                    )
-                }
-            }
-            HStack(spacing: 8) {
-                TextField("Add a label", text: Binding(
-                    get: { input },
-                    set: { input = String($0.prefix(journalLabelMaxLength)) }
-                ))
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .disabled(disabled)
-                .onSubmit { commitTyped() }
-                Button("Add") { commitTyped() }
-                    .disabled(disabled || normalizedInput.isEmpty || normalizedInput.count > journalLabelMaxLength)
-            }
-            .padding(NeoGymTheme.spacingSM)
-            .cardSurface(
-                cornerRadius: NeoGymTheme.radiusMD,
-                fill: NeoGymTheme.fill
-            )
-
-            if !filteredSuggestions.isEmpty || canCreateLabel {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(filteredSuggestions) { suggestion in
-                        Button {
-                            form.addLabel(JournalLabelSelection(id: suggestion.id, name: suggestion.name))
-                            input = ""
-                        } label: {
-                            Label(suggestion.name, systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if canCreateLabel {
-                        Button { commitTyped() } label: {
-                            Label("Create \"\(normalizedInput)\"", systemImage: "tag")
-                                .font(.caption.weight(.semibold))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(NeoGymTheme.spacingSM)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardSurface(
-                    cornerRadius: NeoGymTheme.radiusMD,
-                    fill: NeoGymTheme.inset
-                )
-            }
-        }
-    }
-
-    private func commitTyped() {
-        form.commitLabel(input, suggestions: suggestions)
-        input = ""
     }
 }
 

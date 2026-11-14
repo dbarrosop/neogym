@@ -1,3 +1,4 @@
+import NeoGymKit
 import SwiftUI
 
 struct TimeSeriesChartDataPoint: Identifiable, Equatable {
@@ -16,7 +17,9 @@ struct TimeSeriesChartSeries: Identifiable {
     let name: String
     let color: Color
     let axis: TimeSeriesChartAxis
-    let centersAxisOnZero: Bool
+    /// Keeps zero on the value axis: counts and energy start at 0, and
+    /// signed series (net calories) show where they cross it.
+    let includesZero: Bool
     let points: [TimeSeriesChartDataPoint]
     let valueFormatter: (Double) -> String
 
@@ -25,7 +28,7 @@ struct TimeSeriesChartSeries: Identifiable {
         name: String,
         color: Color,
         axis: TimeSeriesChartAxis = .left,
-        centersAxisOnZero: Bool = false,
+        includesZero: Bool = false,
         points: [TimeSeriesChartDataPoint],
         valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
     ) {
@@ -33,38 +36,17 @@ struct TimeSeriesChartSeries: Identifiable {
         self.name = name
         self.color = color
         self.axis = axis
-        self.centersAxisOnZero = centersAxisOnZero
+        self.includesZero = includesZero
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
     }
 }
 
-func timeSeriesChartMetricRange(values: [Double], centersOnZero: Bool = false) -> ChartMetricRange? {
-    guard let minValue = values.min(), let maxValue = values.max() else { return nil }
-    if centersOnZero {
-        let magnitude = max(abs(minValue), abs(maxValue), 1)
-        let paddedMagnitude = magnitude * 1.1
-        return ChartMetricRange(min: -paddedMagnitude, max: paddedMagnitude)
-    }
-    if minValue == maxValue {
-        let padding = max(abs(minValue) * 0.05, 1)
-        return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
-    }
-    let padding = max((maxValue - minValue) * 0.1, 0.5)
-    return ChartMetricRange(min: minValue - padding, max: maxValue + padding)
-}
-
+/// One value axis: which side, and its rounded `ChartAxisScale`. Labels are
+/// bare numbers in the secondary text colour, whatever the series colour.
 struct ChartAxisDescriptor {
     let axis: TimeSeriesChartAxis
-    let range: ChartMetricRange
-    let color: Color
-    let formatter: (Double) -> String
-}
-
-struct ChartMetricRange {
-    let min: Double
-    let max: Double
-    var midpoint: Double { (min + max) / 2 }
+    let scale: ChartAxisScale
 }
 
 struct PlottedChartPoint: Identifiable {
@@ -83,9 +65,9 @@ let timeSeriesChartCalloutDateFormatter: DateFormatter = {
     return formatter
 }()
 
-let timeSeriesChartShortDateFormatter: DateFormatter = {
+/// Day and short month ("18 Sep", or the locale's order).
+let timeSeriesChartAxisDateFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .none
+    formatter.setLocalizedDateFormatFromTemplate("d MMM")
     return formatter
 }()

@@ -44,12 +44,13 @@ struct CardioEntryEditorState: Identifiable {
         )
     }
 
-    var title: String {
+    /// "Entry 2" under the exercise name in the sheet's title.
+    var entryLabel: String {
         switch mode {
         case .add:
-            return "Add entry \(nextEntryNumber)"
+            return "Entry \(nextEntryNumber)"
         case let .edit(entry):
-            return "Edit entry \(entry.entryNumber)"
+            return "Entry \(entry.entryNumber)"
         }
     }
 
@@ -93,38 +94,52 @@ struct CardioMetricsFormView: View {
     var body: some View {
         NavigationView {
             ScreenScaffold {
-                ScrollView {
-                    VStack(spacing: NeoGymTheme.spacingMD) {
-                        metricsPanel
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.subheadline)
-                                .foregroundColor(NeoGymTheme.destructive)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(NeoGymTheme.spacingMD)
-                                .cardSurface(
-                                    cornerRadius: NeoGymTheme.radiusLG,
-                                    fill: NeoGymTheme.destructive.opacity(0.06),
-                                    stroke: NeoGymTheme.destructive.opacity(0.22)
-                                )
+                FormScrollContainer {
+                    let required = model.specs.filter(\.required)
+                    let optional = model.specs.filter { !$0.required }
+                    if !required.isEmpty {
+                        FormSection(
+                            header: "Required",
+                            footer: optional.isEmpty ? Self.schemaFooter : nil
+                        ) {
+                            metricRows(required)
                         }
-                        deleteSection
                     }
-                    .frame(maxWidth: 620)
-                    .padding(.horizontal, NeoGymTheme.screenHorizontalPadding)
-                    .padding(.vertical, NeoGymTheme.screenVerticalPadding)
-                    .frame(maxWidth: .infinity)
+                    if !optional.isEmpty {
+                        FormSection(header: "Optional", footer: Self.schemaFooter) {
+                            metricRows(optional)
+                        }
+                    }
+                    if let errorMessage {
+                        FeedbackBanner(message: errorMessage)
+                    }
+                    if case .edit = state.mode {
+                        FormDeleteButton(title: "Delete entry", isDisabled: isPending, action: onDelete)
+                            .padding(.top, NeoGymTheme.spacingXS)
+                    }
                 }
             }
-            .navigationTitle(state.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack(spacing: 0) {
+                        Text(state.exerciseName)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text(state.entryLabel)
+                            .font(.footnote)
+                            .foregroundStyle(NeoGymTheme.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
+                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel", action: onCancel)
                         .disabled(isPending)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(isPending ? "Saving…" : "Save") { save() }
+                        .fontWeight(.semibold)
                         .disabled(isPending)
                 }
             }
@@ -133,27 +148,20 @@ struct CardioMetricsFormView: View {
         .navigationViewStyle(.stack)
     }
 
-    private var metricsPanel: some View {
-        SectionShell(title: state.exerciseName, subtitle: "Cardio metrics") {
-            VStack(spacing: NeoGymTheme.spacingSM) {
-                ForEach(model.specs, id: \.key) { spec in
-                    MetricInputRow(
-                        spec: spec,
-                        value: binding(for: spec),
-                        isInvalid: invalidKey == spec.key,
-                        focusedField: $focusedField
-                    )
-                }
-            }
-        }
-    }
+    private static let schemaFooter = "Fields, units and limits come from this exercise’s metrics schema."
 
     @ViewBuilder
-    private var deleteSection: some View {
-        if case .edit = state.mode {
-            Button("Delete entry", role: .destructive, action: onDelete)
-                .buttonStyle(NeoGymSecondaryButtonStyle())
-                .disabled(isPending)
+    private func metricRows(_ specs: [CardioMetricSpec]) -> some View {
+        ForEach(Array(specs.enumerated()), id: \.element.key) { index, spec in
+            if index > 0 {
+                RowSeparator()
+            }
+            MetricInputRow(
+                spec: spec,
+                value: binding(for: spec),
+                isInvalid: invalidKey == spec.key,
+                focusedField: $focusedField
+            )
         }
     }
 
@@ -198,6 +206,8 @@ private enum CardioDurationComponent: Hashable {
     case seconds
 }
 
+/// One schema metric as a grouped form row: the label on the left and a
+/// recessed value well (or h/m/s wells for durations) with its unit.
 private struct MetricInputRow: View {
     let spec: CardioMetricSpec
     @Binding var value: CardioFieldState
@@ -205,58 +215,46 @@ private struct MetricInputRow: View {
     let focusedField: FocusState<CardioMetricFocusedField?>.Binding
 
     var body: some View {
-        if spec.format == .durationSeconds {
-            durationFields
-        } else {
-            scalarField
+        FormRow {
+            Text(spec.label)
+                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityHidden(true)
+            if spec.format == .durationSeconds {
+                durationFields
+            } else {
+                FormNumberField(
+                    accessibilityLabel: spec.unit.isEmpty ? spec.label : "\(spec.label), \(spec.unit)",
+                    text: scalarBinding,
+                    unit: spec.unit.isEmpty ? nil : spec.unit,
+                    placeholder: placeholder,
+                    keyboard: spec.format == .decimal ? .decimalPad : .numberPad,
+                    isInvalid: isInvalid,
+                    field: .scalar(spec.key),
+                    focusedField: focusedField
+                )
+            }
         }
     }
 
-    private var scalarField: some View {
-        HStack(alignment: .firstTextBaseline, spacing: NeoGymTheme.spacingSM) {
-            Text(label)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
-            Spacer(minLength: NeoGymTheme.spacingSM)
-            TextField("0", text: scalarBinding)
-                .keyboardType(spec.format == .decimal ? .decimalPad : .numberPad)
-                .numericFieldFocus(.scalar(spec.key), focusedField: focusedField)
-                .multilineTextAlignment(.trailing)
-                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
-        }
-        .padding(NeoGymTheme.spacingSM)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: isInvalid ? NeoGymTheme.destructive.opacity(0.07) : NeoGymTheme.inset,
-            stroke: isInvalid ? NeoGymTheme.destructive.opacity(0.28) : NeoGymTheme.separator
-        )
+    /// The schema's range ("0–15"), else a dash.
+    private var placeholder: String {
+        guard let minimum = spec.minimum, let maximum = spec.maximum ?? spec.exclusiveMaximum else { return "—" }
+        return "\(Self.compact(minimum))–\(Self.compact(maximum))"
+    }
+
+    private static func compact(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0 ... 2)).grouping(.never))
     }
 
     private var durationFields: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.textSecondary)
-            HStack(spacing: 8) {
-                if CardioMetricsSchemaHelpers.shouldShowHoursInput(maximum: spec.maximum) {
-                    durationTextField("h", binding: durationBinding(\.hours), field: .hours)
-                }
-                durationTextField("min", binding: durationBinding(\.minutes), field: .minutes)
-                durationTextField("sec", binding: durationBinding(\.seconds), field: .seconds)
+        HStack(spacing: 4) {
+            if CardioMetricsSchemaHelpers.shouldShowHoursInput(maximum: spec.maximum) {
+                durationWell("Hours", unit: "h", binding: durationBinding(\.hours), field: .hours)
             }
+            durationWell("Minutes", unit: "m", binding: durationBinding(\.minutes), field: .minutes)
+            durationWell("Seconds", unit: "s", binding: durationBinding(\.seconds), field: .seconds)
         }
-        .padding(NeoGymTheme.spacingSM)
-        .cardSurface(
-            cornerRadius: NeoGymTheme.radiusMD,
-            fill: isInvalid ? NeoGymTheme.destructive.opacity(0.07) : NeoGymTheme.inset,
-            stroke: isInvalid ? NeoGymTheme.destructive.opacity(0.28) : NeoGymTheme.separator
-        )
-    }
-
-    private var label: String {
-        let unit = spec.unit.isEmpty ? "" : " (\(spec.unit))"
-        let optional = spec.required ? "" : " · optional"
-        return spec.label + unit + optional
     }
 
     private var scalarBinding: Binding<String> {
@@ -287,21 +285,28 @@ private struct MetricInputRow: View {
         return DurationParts(hours: "", minutes: "", seconds: "")
     }
 
-    private func durationTextField(
-        _ placeholder: String,
+    private func durationWell(
+        _ name: String,
+        unit: String,
         binding: Binding<String>,
         field: CardioDurationComponent
     ) -> some View {
-        TextField(placeholder, text: binding)
-            .keyboardType(.numberPad)
-            .numericFieldFocus(.duration(spec.key, field), focusedField: focusedField)
-            .multilineTextAlignment(.trailing)
-            .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
-            .padding(NeoGymTheme.spacingXS)
-            .cardSurface(
-                cornerRadius: NeoGymTheme.radiusSM,
-                fill: NeoGymTheme.fill
-            )
+        HStack(spacing: 2) {
+            TextField("0", text: binding)
+                .keyboardType(.numberPad)
+                .numericFieldFocus(.duration(spec.key, field), focusedField: focusedField)
+                .multilineTextAlignment(.center)
+                .font(.body.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(isInvalid ? NeoGymTheme.destructive : NeoGymTheme.text)
+                .frame(width: 44, height: 38)
+                .formWell(isInvalid: isInvalid)
+                .accessibilityLabel("\(spec.label), \(name.lowercased())")
+            Text(unit)
+                .font(.footnote)
+                .foregroundStyle(NeoGymTheme.textSecondary)
+                .accessibilityHidden(true)
+        }
     }
 }
 
