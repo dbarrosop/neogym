@@ -298,7 +298,7 @@ struct TodayBalanceCard: View {
         if let net = summary.net, let out = summary.caloriesOut {
             AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Yesterday")
+                    Text(soFarCaption(summary))
                         .font(.footnote)
                         .foregroundStyle(NeoGymTheme.textSecondary)
                     MetricValueText(value: MetricFormat.signedWhole(net), unit: "kcal")
@@ -321,22 +321,44 @@ struct TodayBalanceCard: View {
                 }
             }
         } else {
-            CardMessage(text: "No energy logged for yesterday.")
-        }
-        if let projection = summary.projection {
-            Divider().overlay(NeoGymTheme.separator)
-            HStack {
-                Text("Today so far")
+            VStack(alignment: .leading, spacing: 2) {
+                CardMessage(text: "No energy recorded yet today.")
+                Text("In \(MetricFormat.whole(summary.caloriesIn)) kcal so far")
                     .font(.footnote)
-                    .foregroundStyle(NeoGymTheme.textSecondary)
-                Spacer()
-                Text("Burned \(projection.burnedValue(locale: locale)) · Net \(projection.netValue(locale: locale))")
-                    .font(.footnote.weight(.semibold))
                     .monospacedDigit()
-                    .foregroundStyle(NeoGymTheme.text)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
             }
             .accessibilityElement(children: .combine)
         }
+        if let projection = summary.projection {
+            Divider().overlay(NeoGymTheme.separator)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("By end of day, estimated")
+                    .font(.footnote)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+                HStack(spacing: 20) {
+                    estimate("Burned", projection.burnedValue(locale: locale, includesUnit: false))
+                    estimate("Net", projection.netValue(locale: locale, includesUnit: false))
+                }
+                Text("Net counts only food logged so far.")
+                    .font(.caption)
+                    .foregroundStyle(NeoGymTheme.textTertiary)
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    /// "Today so far · 13:40": the time today's energy was last recorded.
+    private func soFarCaption(_ summary: TodayBalanceSummary) -> String {
+        guard let updated = summary.energyUpdatedAt else { return "Today so far" }
+        return "Today so far · \(updated.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private func estimate(_ label: String, _ value: String) -> some View {
+        Text("\(Text(label).font(.footnote).foregroundStyle(NeoGymTheme.textSecondary)) \(Text(value).fontWeight(.semibold))")
+            .font(.subheadline)
+            .monospacedDigit()
+            .foregroundStyle(NeoGymTheme.text)
     }
 
     private func splitBar(resting: Double, active: Double) -> some View {
@@ -350,7 +372,7 @@ struct TodayBalanceCard: View {
         }
         .frame(height: 10)
         .accessibilityElement()
-        .accessibilityLabel("Energy out: resting \(MetricFormat.whole(resting)), active \(MetricFormat.whole(active)) kilocalories")
+        .accessibilityLabel("Out so far: resting \(MetricFormat.whole(resting)), active \(MetricFormat.whole(active)) kilocalories")
     }
 }
 
@@ -387,77 +409,173 @@ struct TodayBodyCard: View {
         }
     }
 
-    private static func dayLabel(_ isoDay: String) -> String {
+    static func dayLabel(_ isoDay: String) -> String {
         DateOnly.parse(isoDay)?.formatted(.dateTime.day().month(.abbreviated)) ?? isoDay
     }
 
     @ViewBuilder
     private func content(_ summary: TodayBodySummary) -> some View {
-        if let weight = summary.latestWeightKg {
-            AdaptiveRow(spacing: NeoGymTheme.spacingMD, alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(weightCaption(summary))
-                        .font(.footnote)
-                        .foregroundStyle(NeoGymTheme.textSecondary)
-                    MetricValueText(value: MetricFormat.decimal(weight, digits: 2), unit: "kg")
-                    if let average = summary.weekAverageKg {
-                        // Neutral: NeoGym has no weight goal, so neither direction is a success.
-                        Text(averageText(average, change: summary.weekChangeKg))
-                            .font(.footnote.weight(.semibold))
-                            .monospacedDigit()
-                            .foregroundStyle(NeoGymTheme.textSecondary)
-                    }
+        if summary.isEmpty {
+            CardMessage(text: "No measurements in the last three weeks.")
+        } else {
+            TodayBodyChart(weight: summary.weight.readings, bodyFat: summary.bodyFat.readings)
+            Divider().overlay(NeoGymTheme.separator)
+            // Weight and body fat render independently: a body-fat-only
+            // reading still shows. Both stay neutral: NeoGym has no weight goal.
+            AdaptiveRow(spacing: NeoGymTheme.spacingMD, alignment: .top) {
+                if summary.weight.latest != nil {
+                    metricColumn("Weight", summary.weight, unit: "kg", digits: 2, color: NeoGymTheme.accentText)
                 }
-                .accessibilityElement(children: .combine)
-                Spacer(minLength: 0)
-                if summary.rollingWeights.count >= 2 {
-                    Sparkline(values: summary.rollingWeights, accessibilityText: trendLabel(summary))
-                        .frame(width: 150, height: 56)
+                if summary.bodyFat.latest != nil {
+                    metricColumn("Body fat", summary.bodyFat, unit: "%", digits: 1, color: NeoGymTheme.textSecondary)
                 }
             }
         }
-        // Weight and body fat render independently: a body-fat-only reading
-        // still shows, and the empty message needs both to be missing.
-        if let fat = summary.latestBodyFatPct {
-            if summary.latestWeightKg != nil {
-                Divider().overlay(NeoGymTheme.separator)
-            }
-            HStack {
-                Text("Body fat")
+    }
+
+    private func metricColumn(
+        _ title: String, _ metric: TodayBodyMetric, unit: String, digits: Int, color: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Capsule().fill(color).frame(width: 12, height: 3)
+                    .accessibilityHidden(true)
+                Text(caption(title, metric))
                     .font(.footnote)
                     .foregroundStyle(NeoGymTheme.textSecondary)
-                Spacer()
-                Text("\(MetricFormat.decimal(fat)) %")
-                    .font(.subheadline.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(NeoGymTheme.text)
             }
-            .accessibilityElement(children: .combine)
+            MetricValueText(value: MetricFormat.decimal(metric.latest?.value ?? 0, digits: digits), unit: unit)
+            if let average = metric.weekAverage {
+                Text("7-day avg \(MetricFormat.decimal(average))")
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+            }
+            if let change = metric.weekChange {
+                Text("\(change < 0 ? "−" : "+")\(MetricFormat.decimal(abs(change))) vs prior week")
+                    .font(.footnote.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+            }
         }
-        if summary.latestWeightKg == nil, summary.latestBodyFatPct == nil {
-            CardMessage(text: "No measurements in the last three weeks.")
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func caption(_ title: String, _ metric: TodayBodyMetric) -> String {
+        guard let day = metric.latest?.day else { return title }
+        return "\(title) · \(Self.dayLabel(day))"
+    }
+}
+
+/// Weight (accent) and body fat (neutral) as two lines in their own bands,
+/// broken where readings are missing, with the first and last dates below.
+/// No value axis: the columns underneath carry the numbers.
+private struct TodayBodyChart: View {
+    let weight: [TodayBodyReading]
+    let bodyFat: [TodayBodyReading]
+
+    private var days: [String] { (weight + bodyFat).map(\.day).sorted() }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            GeometryReader { proxy in
+                ZStack {
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: proxy.size.height - 0.5))
+                        path.addLine(to: CGPoint(x: proxy.size.width, y: proxy.size.height - 0.5))
+                    }
+                    .stroke(NeoGymTheme.separator, lineWidth: NeoGymTheme.hairline)
+                    series(weight, band: band(for: .weight, height: proxy.size.height), width: proxy.size.width,
+                           color: NeoGymTheme.accentText)
+                    series(bodyFat, band: band(for: .bodyFat, height: proxy.size.height), width: proxy.size.width,
+                           color: NeoGymTheme.textSecondary)
+                }
+            }
+            .frame(height: 100)
+            if let first = days.first, let last = days.last {
+                HStack {
+                    Text(TodayBodyCard.dayLabel(first))
+                    Spacer()
+                    if last != first { Text(TodayBodyCard.dayLabel(last)) }
+                }
+                .font(.caption2)
+                .monospacedDigit()
+                .foregroundStyle(NeoGymTheme.textTertiary)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private enum Metric { case weight, bodyFat }
+
+    /// Weight above body fat when both exist; one metric uses the full height.
+    private func band(for metric: Metric, height: CGFloat) -> ClosedRange<CGFloat> {
+        let inset: CGFloat = 6
+        guard !weight.isEmpty, !bodyFat.isEmpty else { return inset ... height - inset }
+        let middle = height / 2
+        return metric == .weight ? inset ... middle - 4 : middle + 4 ... height - inset
+    }
+
+    private func series(
+        _ readings: [TodayBodyReading], band: ClosedRange<CGFloat>, width: CGFloat, color: Color
+    ) -> some View {
+        let dated = readings.compactMap { reading in
+            IntakeGrouping.localDateToDate(reading.day).map { (date: $0, value: reading.value) }
+        }
+        let gaps = ChartGaps.intervals(in: dated.map(\.date))
+        let values = dated.map(\.value)
+        let low = values.min() ?? 0
+        let high = values.max() ?? 0
+        let domain = dateDomain
+        func point(_ entry: (date: Date, value: Double)) -> CGPoint {
+            let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
+            let x = span > 0 ? CGFloat(entry.date.timeIntervalSince(domain.lowerBound) / span) * (width - 8) + 4 : width / 2
+            let ratio = high > low ? (entry.value - low) / (high - low) : 0.5
+            let y = band.upperBound - CGFloat(ratio) * (band.upperBound - band.lowerBound)
+            return CGPoint(x: x, y: y)
+        }
+        var segments: [[CGPoint]] = []
+        var current: [CGPoint] = []
+        var previous: Date?
+        for entry in dated {
+            if let previous, gaps.contains(where: { $0.lowerBound >= previous && $0.upperBound <= entry.date }) {
+                segments.append(current)
+                current = []
+            }
+            current.append(point(entry))
+            previous = entry.date
+        }
+        if !current.isEmpty { segments.append(current) }
+        return ZStack {
+            Path { path in
+                for segment in segments where segment.count > 1 {
+                    path.addLines(segment)
+                }
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            ForEach(Array(segments.filter { $0.count == 1 }.enumerated()), id: \.offset) { _, segment in
+                Circle().fill(color).frame(width: 5, height: 5).position(segment[0])
+            }
         }
     }
 
-    private func weightCaption(_ summary: TodayBodySummary) -> String {
-        guard let day = summary.latestWeightOn,
-              let date = IntakeGrouping.localDateToDate(day)
-        else { return "Weight" }
-        return "Weight · \(date.formatted(.dateTime.day().month(.abbreviated)))"
+    private var dateDomain: ClosedRange<Date> {
+        let dates = days.compactMap { IntakeGrouping.localDateToDate($0) }
+        guard let first = dates.first, let last = dates.last else { return Date() ... Date() }
+        return first ... last
     }
 
-    private func averageText(_ average: Double, change: Double?) -> String {
-        let base = "7-day avg \(MetricFormat.decimal(average))"
-        guard let change else { return base }
-        let sign = change < 0 ? "−" : "+"
-        return "\(base) · \(sign)\(MetricFormat.decimal(abs(change))) vs prior week"
-    }
-
-    private func trendLabel(_ summary: TodayBodySummary) -> String {
-        guard let first = summary.rollingWeights.first, let last = summary.rollingWeights.last else {
-            return "Seven-day average weight"
+    private var accessibilityText: String {
+        guard let first = days.first, let last = days.last else { return "No body measurements" }
+        var parts = ["Weight and body fat from \(TodayBodyCard.dayLabel(first)) to \(TodayBodyCard.dayLabel(last))"]
+        if let start = weight.first, let end = weight.last {
+            parts.append("weight \(MetricFormat.decimal(start.value, digits: 2)) to \(MetricFormat.decimal(end.value, digits: 2)) kilograms")
         }
-        let direction = last < first ? "down" : last > first ? "up" : "flat"
-        return "Seven-day average weight trending \(direction), from \(MetricFormat.decimal(first)) to \(MetricFormat.decimal(last)) kilograms"
+        if let start = bodyFat.first, let end = bodyFat.last {
+            parts.append("body fat \(MetricFormat.decimal(start.value)) to \(MetricFormat.decimal(end.value)) percent")
+        }
+        return parts.joined(separator: ", ")
     }
 }

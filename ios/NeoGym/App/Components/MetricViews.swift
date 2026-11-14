@@ -127,31 +127,6 @@ struct RingMeter<Center: View>: View {
     }
 }
 
-/// Small trend line without axes.
-struct Sparkline: View {
-    let values: [Double]
-    let accessibilityText: String
-    var color: Color = NeoGymTheme.accentText
-
-    var body: some View {
-        Canvas { context, size in
-            guard values.count >= 2, let low = values.min(), let high = values.max() else { return }
-            let range = max(high - low, 0.0001)
-            var path = Path()
-            for (index, value) in values.enumerated() {
-                let point = CGPoint(
-                    x: size.width * CGFloat(index) / CGFloat(values.count - 1),
-                    y: 3 + (size.height - 6) * CGFloat(1 - (value - low) / range)
-                )
-                if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
-            }
-            context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-        }
-        .accessibilityElement()
-        .accessibilityLabel(accessibilityText)
-    }
-}
-
 /// Coloured square plus label for chart and split-bar legends.
 struct LegendItem: View {
     let color: Color

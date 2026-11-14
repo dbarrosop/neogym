@@ -161,63 +161,101 @@ public enum NutritionTimeline {
     }
 }
 
-/// Yesterday's actual balance plus today's estimate.
+/// Today's balance so far (food logged against energy recorded so far) plus
+/// the end-of-day estimate.
 public struct TodayBalanceSummary: Sendable, Equatable {
-    public let yesterday: String
+    public let today: String
     public let caloriesIn: Double
     public let activeKcal: Double
     public let restingKcal: Double
+    /// Energy recorded so far today; nil until today's row exists.
     public let caloriesOut: Double?
     public let net: Double?
+    /// When today's energy row was last written (watch sync or manual edit),
+    /// so "so far" says how fresh the energy side is.
+    public let energyUpdatedAt: Date?
     public let projection: DailyEnergyProjection?
 
     public init(payload: NutritionOverviewPayload, today: String, calendar: Calendar = .current) {
-        yesterday = IntakeGrouping.addLocalDateDays(today, days: -1, calendar: calendar)
-        let balance = payload.balance(for: yesterday)
-        let energy = payload.energyByDate[yesterday]
+        self.today = today
+        let balance = payload.balance(for: today)
+        let energy = payload.energyByDate[today]
         caloriesIn = balance.caloriesIn
         activeKcal = energy?.activeKcal ?? 0
         restingKcal = energy?.restingKcal ?? 0
         caloriesOut = balance.caloriesOut
         net = balance.net
+        energyUpdatedAt = energy?.updatedAt.flatMap(ExerciseDateParser.parseTimestamp)
         projection = payload.energyProjection(today: today, calendar: calendar)
     }
 }
 
-/// Latest weight and body fat with the seven-day average against the week before.
-public struct TodayBodySummary: Sendable, Equatable {
-    public let latestWeightKg: Double?
-    public let latestWeightOn: String?
-    public let latestBodyFatPct: Double?
-    public let weekAverageKg: Double?
-    public let priorWeekAverageKg: Double?
-    /// Seven-day rolling average for each weighed day, oldest first.
-    public let rollingWeights: [Double]
+/// One dated body reading.
+public struct TodayBodyReading: Sendable, Equatable {
+    public let day: String
+    public let value: Double
 
-    public var weekChangeKg: Double? {
-        guard let weekAverageKg, let priorWeekAverageKg else { return nil }
-        return weekAverageKg - priorWeekAverageKg
+    public init(day: String, value: Double) {
+        self.day = day
+        self.value = value
+    }
+}
+
+/// One body metric on Today: its readings, the latest one, and the
+/// seven-day average against the week before.
+public struct TodayBodyMetric: Sendable, Equatable {
+    /// Readings in the loaded range, oldest first.
+    public let readings: [TodayBodyReading]
+    public let weekAverage: Double?
+    public let priorWeekAverage: Double?
+
+    public var latest: TodayBodyReading? { readings.last }
+
+    public var weekChange: Double? {
+        guard let weekAverage, let priorWeekAverage else { return nil }
+        return weekAverage - priorWeekAverage
     }
 
-    public init(points: [BodyMeasurementChartPoint], today: String, calendar: Calendar = .current) {
-        let sorted = points.sorted { $0.measuredOn < $1.measuredOn }
-        let weights = sorted.compactMap { point in point.weightKg.map { (date: point.measuredOn, value: $0) } }
-        latestWeightKg = weights.last?.value
-        latestWeightOn = weights.last?.date
-        latestBodyFatPct = sorted.last { $0.bodyFatPct != nil }?.bodyFatPct
+    init(readings: [TodayBodyReading], today: String, calendar: Calendar) {
+        self.readings = readings
         let weekStart = IntakeGrouping.addLocalDateDays(today, days: -6, calendar: calendar)
         let priorStart = IntakeGrouping.addLocalDateDays(today, days: -13, calendar: calendar)
-        weekAverageKg = Self.average(weights.filter { $0.date >= weekStart && $0.date <= today }.map(\.value))
-        priorWeekAverageKg = Self.average(
-            weights.filter { $0.date >= priorStart && $0.date < weekStart }.map(\.value)
-        )
-        rollingWeights = weights.map { point in
-            let from = IntakeGrouping.addLocalDateDays(point.date, days: -6, calendar: calendar)
-            return Self.average(weights.filter { $0.date >= from && $0.date <= point.date }.map(\.value)) ?? point.value
-        }
+        weekAverage = Self.average(readings.filter { $0.day >= weekStart && $0.day <= today }.map(\.value))
+        priorWeekAverage = Self.average(readings.filter { $0.day >= priorStart && $0.day < weekStart }.map(\.value))
     }
 
     private static func average(_ values: [Double]) -> Double? {
         values.isEmpty ? nil : values.reduce(0, +) / Double(values.count)
+    }
+}
+
+/// Weight and body fat for Today's Body card: both series for the chart and,
+/// for each, the latest reading with its seven-day average against the week
+/// before. The two metrics are independent, so a body-fat-only reading shows.
+public struct TodayBodySummary: Sendable, Equatable {
+    public let weight: TodayBodyMetric
+    public let bodyFat: TodayBodyMetric
+
+    public var isEmpty: Bool { weight.readings.isEmpty && bodyFat.readings.isEmpty }
+
+    public var latestWeightKg: Double? { weight.latest?.value }
+    public var latestWeightOn: String? { weight.latest?.day }
+    public var latestBodyFatPct: Double? { bodyFat.latest?.value }
+    public var weekAverageKg: Double? { weight.weekAverage }
+    public var priorWeekAverageKg: Double? { weight.priorWeekAverage }
+    public var weekChangeKg: Double? { weight.weekChange }
+
+    public init(points: [BodyMeasurementChartPoint], today: String, calendar: Calendar = .current) {
+        let sorted = points.sorted { $0.measuredOn < $1.measuredOn }
+        weight = TodayBodyMetric(
+            readings: sorted.compactMap { point in point.weightKg.map { TodayBodyReading(day: point.measuredOn, value: $0) } },
+            today: today,
+            calendar: calendar
+        )
+        bodyFat = TodayBodyMetric(
+            readings: sorted.compactMap { point in point.bodyFatPct.map { TodayBodyReading(day: point.measuredOn, value: $0) } },
+            today: today,
+            calendar: calendar
+        )
     }
 }

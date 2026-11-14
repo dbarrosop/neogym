@@ -14,6 +14,7 @@ public extension NutritionFoodMealRepository {
         energyOn
         activeKcal
         restingKcal
+        updatedAt
       }
     }
     fragment OverviewDay on nutritionDays {

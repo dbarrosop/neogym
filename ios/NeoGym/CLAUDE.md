@@ -553,7 +553,7 @@ section records how the iPhone app implements it.
   navigation bar on area roots, Title 2 for detail titles, Headline/Body/
   Subheadline/Footnote for content). Every metric uses `.monospacedDigit()`.
   Shared pieces live in `App/Components/MetricViews.swift` (`CardHeader`,
-  `StatTile`, `MeterBar`, `MeterTrack`, `RingMeter`, `Sparkline`,
+  `StatTile`, `MeterBar`, `MeterTrack`, `RingMeter`,
   `LegendItem`, `MetricValueText`, `MetricFormat`, `AdaptiveRow`) and
   `App/Components/ListPrimitives.swift` (`SearchField`, `ListRow`,
   `RowSeparator`). `AdaptiveRow` stacks vertically at accessibility text sizes;

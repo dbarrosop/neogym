@@ -178,37 +178,52 @@ final class TodaySummaryTests: XCTestCase {
 
     // MARK: - Balance
 
-    func testBalanceUsesYesterdayAndSplitsEnergy() {
-        let yesterday = NutritionDay(
-            id: "d0", logDate: "2026-11-11",
-            nutritionLogEntries: [entry("lunch", time: "12:00", grams: 1_000, kcal: 214)]
+    func testBalanceIsTodaySoFarAndSplitsEnergy() {
+        let today = NutritionDay(
+            id: "d1", logDate: "2026-11-12",
+            nutritionLogEntries: [entry("lunch", time: "12:00", grams: 1_000, kcal: 146.1)]
         )
-        let payload = NutritionOverviewPayload(
-            days: [yesterday],
-            dailyEnergyEntries: [DailyEnergy(id: "e0", energyOn: "2026-11-11", activeKcal: 728, restingKcal: 1_842)]
+        let yesterdayEnergy = DailyEnergy(id: "e0", energyOn: "2026-11-11", activeKcal: 728, restingKcal: 1_842)
+        let todayEnergy = DailyEnergy(
+            id: "e1", energyOn: "2026-11-12", activeKcal: 160, restingKcal: 1_050,
+            updatedAt: "2026-11-12T12:40:00+00:00"
         )
+        let payload = NutritionOverviewPayload(days: [today], dailyEnergyEntries: [todayEnergy, yesterdayEnergy])
         let balance = TodayBalanceSummary(payload: payload, today: "2026-11-12", calendar: calendar)
-        XCTAssertEqual(balance.yesterday, "2026-11-11")
-        XCTAssertEqual(balance.caloriesIn, 2_140, accuracy: 0.001)
-        XCTAssertEqual(balance.caloriesOut ?? 0, 2_570, accuracy: 0.001)
-        XCTAssertEqual(balance.net ?? 0, -430, accuracy: 0.001)
-        XCTAssertEqual(balance.activeKcal, 728)
-        XCTAssertEqual(balance.restingKcal, 1_842)
-        XCTAssertNil(balance.projection)
+        XCTAssertEqual(balance.today, "2026-11-12")
+        XCTAssertEqual(balance.caloriesIn, 1_461, accuracy: 0.001)
+        XCTAssertEqual(balance.caloriesOut ?? 0, 1_210, accuracy: 0.001)
+        XCTAssertEqual(balance.net ?? 0, 251, accuracy: 0.001)
+        XCTAssertEqual(balance.activeKcal, 160)
+        XCTAssertEqual(balance.restingKcal, 1_050)
+        XCTAssertEqual(balance.energyUpdatedAt, date("2026-11-12T12:40:00Z"))
+        // Yesterday's resting energy is the baseline for today's estimate.
+        XCTAssertEqual(balance.projection?.estimatedBurnedKcal ?? 0, 160 + 1_842, accuracy: 0.001)
+        let enUS = Locale(identifier: "en_US")
+        XCTAssertEqual(balance.projection?.burnedValue(locale: enUS, includesUnit: false), "≈2,002")
+        XCTAssertEqual(balance.projection?.netValue(locale: enUS, includesUnit: false), "≈−541")
+        XCTAssertEqual(balance.projection?.netValue(locale: enUS), "≈−541 kcal")
     }
 
-    func testBalanceWithoutYesterdayEnergyHasNoNet() {
-        let balance = TodayBalanceSummary(payload: NutritionOverviewPayload(days: []), today: "2026-11-12")
+    func testBalanceWithoutTodayEnergyHasNoNet() {
+        let yesterdayEnergy = DailyEnergy(id: "e0", energyOn: "2026-11-11", activeKcal: 728, restingKcal: 1_842)
+        let balance = TodayBalanceSummary(
+            payload: NutritionOverviewPayload(days: [], dailyEnergyEntries: [yesterdayEnergy]),
+            today: "2026-11-12",
+            calendar: calendar
+        )
         XCTAssertNil(balance.caloriesOut)
         XCTAssertNil(balance.net)
+        XCTAssertNil(balance.energyUpdatedAt)
+        XCTAssertNil(balance.projection)
     }
 
     // MARK: - Body
 
-    func testBodyTrendComparesWeekAveragesAndKeepsLatestFat() {
+    func testBodyTrendComparesWeekAveragesForWeightAndFat() {
         let points = [
-            ("2026-10-31", 72.0, 13.0), ("2026-11-02", 71.6, nil), ("2026-11-04", 71.4, nil),
-            ("2026-11-07", 71.0, 12.8), ("2026-11-10", 70.8, nil), ("2026-11-12", 70.6, nil)
+            ("2026-10-31", 72.0, 13.2), ("2026-11-02", 71.6, nil), ("2026-11-04", 71.4, 13.0),
+            ("2026-11-07", 71.0, 12.8), ("2026-11-10", 70.8, nil), ("2026-11-12", 70.6, 12.6)
         ].map { day, weight, fat in
             BodyMeasurementChartPoint(
                 id: day, measuredOn: day,
@@ -219,19 +234,36 @@ final class TodaySummaryTests: XCTestCase {
         let body = TodayBodySummary(points: points, today: "2026-11-12", calendar: calendar)
         XCTAssertEqual(body.latestWeightKg, 70.6)
         XCTAssertEqual(body.latestWeightOn, "2026-11-12")
-        XCTAssertEqual(body.latestBodyFatPct, 12.8)
+        XCTAssertEqual(body.latestBodyFatPct, 12.6)
+        XCTAssertEqual(body.bodyFat.latest?.day, "2026-11-12")
         // This week: 6–12 Nov. Prior week: 30 Oct–5 Nov.
         XCTAssertEqual(body.weekAverageKg ?? 0, (71.0 + 70.8 + 70.6) / 3, accuracy: 0.0001)
         XCTAssertEqual(body.priorWeekAverageKg ?? 0, (72.0 + 71.6 + 71.4) / 3, accuracy: 0.0001)
         XCTAssertEqual(body.weekChangeKg ?? 0, -0.8667, accuracy: 0.001)
-        XCTAssertEqual(body.rollingWeights.count, 6)
-        XCTAssertEqual(body.rollingWeights.first, 72.0)
+        XCTAssertEqual(body.bodyFat.weekAverage ?? 0, (12.8 + 12.6) / 2, accuracy: 0.0001)
+        XCTAssertEqual(body.bodyFat.weekChange ?? 0, 12.7 - 13.1, accuracy: 0.0001)
+        XCTAssertEqual(body.weight.readings.count, 6)
+        XCTAssertEqual(body.bodyFat.readings.map(\.day), ["2026-10-31", "2026-11-04", "2026-11-07", "2026-11-12"])
+        XCTAssertFalse(body.isEmpty)
     }
 
-    func testBodyTrendWithoutWeightsIsEmpty() {
+    func testBodyFatOnlyReadingsStandAlone() {
+        let point = BodyMeasurementChartPoint(
+            id: "f", measuredOn: "2026-11-12",
+            date: IntakeGrouping.localDateToDate("2026-11-12", calendar: calendar)!,
+            weightKg: nil, bodyFatPct: 12.6
+        )
+        let body = TodayBodySummary(points: [point], today: "2026-11-12", calendar: calendar)
+        XCTAssertNil(body.latestWeightKg)
+        XCTAssertEqual(body.latestBodyFatPct, 12.6)
+        XCTAssertNil(body.bodyFat.weekChange)
+        XCTAssertFalse(body.isEmpty)
+    }
+
+    func testBodyTrendWithoutReadingsIsEmpty() {
         let body = TodayBodySummary(points: [], today: "2026-11-12")
         XCTAssertNil(body.latestWeightKg)
         XCTAssertNil(body.weekChangeKg)
-        XCTAssertTrue(body.rollingWeights.isEmpty)
+        XCTAssertTrue(body.isEmpty)
     }
 }

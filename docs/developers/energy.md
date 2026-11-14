@@ -87,7 +87,7 @@ list queries, for both desktop quick entry and full-page create, edit and delete
 Energy writes also invalidate the nutrition energy-projection queries.
 
 The native iPhone app exposes Energy as a Progress section alongside Muscles,
-Strength, and Body; Today shows yesterday's balance and today's estimate. `NeoGymKit` owns the host-testable
+Strength, and Body; Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
 pure HealthKit grouping helpers shared with the watch; SwiftUI views under
 `ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read
