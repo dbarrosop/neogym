@@ -41,6 +41,37 @@ public struct ChartAxisScale: Equatable, Sendable {
         return ChartAxisScale(min: bottom, step: step)
     }
 
+    /// Scales for two measures sharing a chart on left and right axes
+    /// (exercise volume and Est. 1RM, weight and body fat): each fits its own
+    /// data, and both first values sit at the same height so their movement
+    /// can be compared. Values are in date order; the labels come out less
+    /// round than `rounded` (4.8k · 3.7k · 2.6k).
+    public static func startAligned(_ first: [Double], _ second: [Double]) -> (ChartAxisScale, ChartAxisScale)? {
+        let firstValues = first.filter(\.isFinite)
+        let secondValues = second.filter(\.isFinite)
+        guard let firstStart = firstValues.first, let secondStart = secondValues.first else { return nil }
+        let firstSpread = spread(firstValues, from: firstStart)
+        let secondSpread = spread(secondValues, from: secondStart)
+        // Where each start falls within its own data, averaged, keeps both
+        // lines using most of the height.
+        let natural = [firstSpread, secondSpread].compactMap { spread -> Double? in
+            let total = spread.below + spread.above
+            return total > 0 ? spread.below / total : nil
+        }
+        let average = natural.isEmpty ? 0.5 : natural.reduce(0, +) / Double(natural.count)
+        let fraction = Swift.min(Swift.max(average, 0.1), 0.9)
+        func scale(start: Double, spread: (below: Double, above: Double)) -> ChartAxisScale {
+            var range = Swift.max(spread.below / fraction, spread.above / (1 - fraction))
+            if range <= 0 { range = Swift.max(abs(start) * 0.1, 1) }
+            return ChartAxisScale(min: start - fraction * range, step: range / 2)
+        }
+        return (scale(start: firstStart, spread: firstSpread), scale(start: secondStart, spread: secondSpread))
+    }
+
+    private static func spread(_ values: [Double], from start: Double) -> (below: Double, above: Double) {
+        (start - (values.min() ?? start), (values.max() ?? start) - start)
+    }
+
     /// The smallest 1, 2, 2.5 or 5 × 10ⁿ that is at least `value`.
     static func niceStep(atLeast value: Double) -> Double {
         guard value > 0, value.isFinite else { return 1 }
@@ -68,7 +99,8 @@ public struct ChartAxisScale: Equatable, Sendable {
                 .number.precision(.fractionLength(0 ... 1)).grouping(.never).locale(locale)
             ) + "k"
         } else {
-            let decimals = step >= 1 && step.rounded() == step ? 0 : (step >= 0.1 ? 1 : 2)
+            // Start-aligned steps are not round: whole numbers from a step of 5.
+            let decimals = step >= 5 || (step >= 1 && step.rounded() == step) ? 0 : (step >= 0.1 ? 1 : 2)
             digits = abs(snapped).formatted(.number.precision(.fractionLength(0 ... decimals)).locale(locale))
         }
         if snapped < 0 { return "−" + digits }

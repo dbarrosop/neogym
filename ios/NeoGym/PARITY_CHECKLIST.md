@@ -53,7 +53,7 @@ This checklist maps each in-scope signed-in web route/action to the native iOS p
 | Web route/action | Native destination/action | Phase | Status | Notes |
 | --- | --- | --- | --- | --- |
 | `/train/sessions` list | Sessions list | UI 2 | ☑ complete | Grouped by week ("This week", "Last week", "Week of …") with session and set counts; Apple Health workout sync status. |
-| `/train/sessions/$sessionId` detail | Session logging | UI 2 | ☑ complete | Exercise cards in session order; finished ones collapse to one line; the active one shows sets against last time and an inline next-set row (weight ±2.5, reps ±1, Log starts the rest timer); totals under the title; earlier sessions of the workout and Delete at the end. |
+| `/train/sessions/$sessionId` detail | Session logging | UI 2 | ☑ complete | Exercise cards in session order; finished ones collapse to one line; the active one shows the image beside a Recent panel of three earlier sessions, its sets and an inline next-set row (weight ±2.5, reps ±1, Log starts the rest timer); totals under the title; earlier sessions of the workout and Delete at the end. |
 | Edit session started-at | Session detail edit action | 5 | ☑ complete | Refetches detail and affected session summaries. |
 | Delete session | Session delete confirmation | 5 | ☑ complete | Spent detail dismisses after delete. |
 | Add/remove session exercise | Session exercise picker/delete | 5 | ☑ complete | Uses insert/delete only; never updates `exercise_id`. |

@@ -141,7 +141,6 @@ struct StrengthProgressSummary: View {
                     }
                     TimeSeriesTrendChartView(
                         series: strengthChartSeries,
-                        maxRenderedPoints: 48,
                         emptyMessage: "No progress in this period.",
                         accessibilityLabel: "Strength progress chart",
                         initialPeriod: .last90Days
@@ -173,6 +172,8 @@ struct StrengthProgressSummary: View {
                 id: "one-rep-max",
                 name: "Est. 1RM",
                 color: NeoGymTheme.chart2,
+                // Its own axis, starting level with volume.
+                axis: .right,
                 points: points.map { point in
                     TimeSeriesChartDataPoint(
                         id: "\(point.date.timeIntervalSince1970)-one-rep-max",
@@ -216,7 +217,6 @@ struct CardioProgressSummary: View {
                     )
                     TimeSeriesTrendChartView(
                         series: cardioChartSeries,
-                        maxRenderedPoints: 48,
                         emptyMessage: "No progress in this period.",
                         accessibilityLabel: "\(primary.label) progress chart",
                         initialPeriod: .last90Days

@@ -3,8 +3,10 @@ import SwiftUI
 
 struct TimeSeriesChartView: View {
     let series: [TimeSeriesChartSeries]
-    var maxRenderedPoints = 48
-    var maxPointMarkers = 28
+    var maxRenderedPoints = 64
+    /// Every point gets a dot; past this many the dots shrink so a long line
+    /// doesn't blur.
+    var maxPointMarkers = 31
     var showsAxes = true
     var showsLegend = true
     /// Summary cards label only the first and last dates.
@@ -133,12 +135,9 @@ struct TimeSeriesChartView: View {
         let partial = plotted.filter(\.point.isPartial)
         let complete = plotted.filter { !$0.point.isPartial }
         let isReadings = singleSeries.style == .readings
-        // Missing days are joined with a straight line, so daily readings
-        // always mark the days that have one (smaller when dense); a line
-        // series shows dots only when sparse, or for a single value.
-        let dense = complete.count > maxPointMarkers
-        let showsMarkers = isReadings || !dense || complete.count == 1
-        let markerSize: CGFloat = isReadings ? (dense ? 3 : 5) : 6
+        // Every reading gets a dot (missing days are joined with a straight
+        // line); dots shrink on long lines.
+        let markerSize: CGFloat = plotted.count > maxPointMarkers ? 3.6 : (isReadings ? 5 : 6)
 
         return Path { path in
             guard let first = complete.first else { return }
@@ -152,20 +151,27 @@ struct TimeSeriesChartView: View {
             style: StrokeStyle(lineWidth: isReadings ? 1.5 : 2.5, lineCap: .round, lineJoin: .round)
         )
         .overlay {
-            if showsMarkers {
-                ForEach(complete) { plottedPoint in
-                    Circle()
-                        .fill(singleSeries.color.opacity(isReadings ? 0.85 : 1))
-                        .frame(width: markerSize, height: markerSize)
-                        .position(plottedPoint.position)
+            // A partial period (today, this week) joins with a dashed segment.
+            if let last = complete.last {
+                Path { path in
+                    for point in partial {
+                        path.move(to: last.position)
+                        path.addLine(to: point.position)
+                    }
                 }
+                .stroke(singleSeries.color.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [3, 3]))
             }
-            // A partial value (today so far) is an open dot, not joined.
+            ForEach(complete) { plottedPoint in
+                Circle()
+                    .fill(singleSeries.color.opacity(isReadings ? 0.85 : 1))
+                    .frame(width: markerSize, height: markerSize)
+                    .position(plottedPoint.position)
+            }
             ForEach(partial) { plottedPoint in
                 Circle()
                     .fill(NeoGymTheme.surface)
                     .overlay(Circle().stroke(singleSeries.color, lineWidth: 1.5))
-                    .frame(width: 7, height: 7)
+                    .frame(width: 6, height: 6)
                     .position(plottedPoint.position)
             }
         }
@@ -322,9 +328,7 @@ struct TimeSeriesChartView: View {
                 (axis.scale.min, proxy.size.height - inset)
             ]
             ForEach(rows, id: \.1) { value, y in
-                Text(value == axis.scale.max && axis.unit != nil
-                    ? "\(axis.scale.label(value)) \(axis.unit ?? "")"
-                    : axis.scale.label(value))
+                Text(axis.scale.label(value))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .frame(width: proxy.size.width, alignment: axis.axis == .left ? .trailing : .leading)
@@ -391,17 +395,30 @@ struct TimeSeriesChartView: View {
         .accessibilityAddTraits(isEffectivelyVisible ? .isSelected : [])
     }
 
+    /// Two measures on left and right axes start at the same height
+    /// (`ChartAxisScale.startAligned`); a single axis gets rounded labels.
     private func axisDescriptor(for axis: TimeSeriesChartAxis) -> ChartAxisDescriptor? {
         let axisSeries = effectiveVisibleSeries.filter { $0.axis == axis }
         guard !axisSeries.isEmpty else { return nil }
+        let other: TimeSeriesChartAxis = axis == .left ? .right : .left
+        if effectiveVisibleSeries.contains(where: { $0.axis == other }),
+           let (left, right) = ChartAxisScale.startAligned(dateOrderedValues(on: .left), dateOrderedValues(on: .right)) {
+            return ChartAxisDescriptor(axis: axis, scale: axis == .left ? left : right)
+        }
         let values = axisSeries.flatMap { $0.points.map(\.value) }
         guard let scale = ChartAxisScale.rounded(
             values: values,
             includesZero: axisSeries.contains(where: \.includesZero)
         ) else { return nil }
-        return ChartAxisDescriptor(axis: axis, scale: scale, unit: axisSeries.first?.unit)
+        return ChartAxisDescriptor(axis: axis, scale: scale)
     }
 
+    private func dateOrderedValues(on axis: TimeSeriesChartAxis) -> [Double] {
+        effectiveVisibleSeries.filter { $0.axis == axis }
+            .flatMap(\.points)
+            .sorted { $0.date < $1.date }
+            .map(\.value)
+    }
 }
 
 /// A legend key drawn like its series: a solid bar for a line, a faint bar

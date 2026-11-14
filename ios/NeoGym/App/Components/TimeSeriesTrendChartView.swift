@@ -40,8 +40,8 @@ enum TimeSeriesChartPeriod: String, CaseIterable, Identifiable {
 /// it (Consumed above Net). Changing the period filters every panel.
 struct TimeSeriesTrendChartView: View {
     let panels: [TimeSeriesChartPanel]
-    var maxRenderedPoints = 48
-    var maxPointMarkers = 28
+    var maxRenderedPoints = 64
+    var maxPointMarkers = 31
     /// Each panel's chart plus its legend.
     var chartHeight: CGFloat = 240
     var onVisibleRangeChange: ((Date, Date) -> Void)?
@@ -52,8 +52,8 @@ struct TimeSeriesTrendChartView: View {
 
     init(
         series: [TimeSeriesChartSeries],
-        maxRenderedPoints: Int = 48,
-        maxPointMarkers: Int = 28,
+        maxRenderedPoints: Int = 64,
+        maxPointMarkers: Int = 31,
         chartHeight: CGFloat = 240,
         emptyMessage: String = "No data in this range.",
         accessibilityLabel: String = "Time series chart",
@@ -83,8 +83,8 @@ struct TimeSeriesTrendChartView: View {
 
     init(
         panels: [TimeSeriesChartPanel],
-        maxRenderedPoints: Int = 48,
-        maxPointMarkers: Int = 28,
+        maxRenderedPoints: Int = 64,
+        maxPointMarkers: Int = 31,
         chartHeight: CGFloat = 240,
         initialPeriod: TimeSeriesChartPeriod = .last90Days,
         now: Date = Date(),

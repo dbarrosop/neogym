@@ -34,17 +34,18 @@ public struct MuscleSetBar: Sendable, Equatable {
     }
 }
 
-/// Average daily energy out across complete days (today is partial).
+/// Average daily energy out across the complete days of the default 30-day
+/// chart (today is partial, so at most 29 days).
 public struct DailyEnergyOutAverage: Sendable, Equatable {
     public let kcalPerDay: Double
     public let dayCount: Int
 
-    /// Uses up to `days` most recent entries before `today` with any recorded energy.
-    public init?(entries: [DailyEnergy], today: String, days: Int = 14) {
+    /// Uses entries with any recorded energy from the `days` local dates
+    /// before `today`.
+    public init?(entries: [DailyEnergy], today: String, days: Int = 29, calendar: Calendar = .current) {
+        let firstDay = IntakeGrouping.addLocalDateDays(today, days: -days, calendar: calendar)
         let totals = entries
-            .filter { $0.energyOn < today && ($0.activeKcal != nil || $0.restingKcal != nil) }
-            .sorted { $0.energyOn > $1.energyOn }
-            .prefix(days)
+            .filter { $0.energyOn >= firstDay && $0.energyOn < today && ($0.activeKcal != nil || $0.restingKcal != nil) }
             .map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
         guard !totals.isEmpty else { return nil }
         kcalPerDay = totals.reduce(0, +) / Double(totals.count)

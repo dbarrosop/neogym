@@ -3,14 +3,14 @@ import SwiftUI
 
 /// Calories consumed (blue) above net (orange), each as daily values with a
 /// 7-day average, under one Period menu. Today's partial intake is an open dot
-/// and neither average nor net counts it (`CalorieTrend`). Loads the last 14
+/// and neither average nor net counts it (`CalorieTrend`). Loads the last 30
 /// local days (plus warm-up days) first, from the SDK cache when available,
 /// and fetches wider or custom ranges on demand.
 struct CalorieHistorySection: View {
     let reloadToken: Int
 
     @StateObject private var viewModel: NutritionCalorieHistoryViewModel
-    @State private var range = ChartHistoryRange.recentDays(14)
+    @State private var range = ChartHistoryRange.recentDays(30)
     @State private var trend: CalorieTrend?
     @State private var hasRequested = false
 
@@ -25,7 +25,7 @@ struct CalorieHistorySection: View {
         }
         .task {
             guard !hasRequested else { return }
-            await viewModel.load(range: range, cacheCandidates: ChartHistoryRange.recentCacheCandidates(14))
+            await viewModel.load(range: range, cacheCandidates: ChartHistoryRange.recentCacheCandidates(30))
             hasRequested = true
         }
         .task(id: range) {
@@ -61,13 +61,13 @@ struct CalorieHistorySection: View {
                 TimeSeriesTrendChartView(
                     panels: trend.map(Self.panels) ?? [],
                     chartHeight: 200,
-                    initialPeriod: .last14Days,
+                    initialPeriod: .last30Days,
                     onVisibleRangeChange: { start, end in
                         let next = ChartHistoryRange(visibleStart: start, endExclusive: end)
                         if next != range { range = next }
                     }
                 )
-                Text("Today so far is the open dot; averages use full days only.")
+                Text("Today so far is the open dot after the dashed line; averages use full days only.")
                     .font(.caption)
                     .foregroundStyle(NeoGymTheme.textTertiary)
                 if let through = viewModel.cachedThrough {

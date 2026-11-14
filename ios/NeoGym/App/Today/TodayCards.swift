@@ -468,9 +468,10 @@ struct TodayBodyCard: View {
     }
 }
 
-/// Weight (chart 1) and body fat (chart 2) as two lines in their own bands,
-/// joined across missing days, with the first and last dates below.
-/// No value axis: the columns underneath carry the numbers.
+/// Weight (chart 1) and body fat (chart 2) as raw daily readings with a dot
+/// each, on their own axes scaled so both start at the same height (they
+/// overlap where they move in step), joined across missing days, with the
+/// first and last dates below. No value labels: the columns carry the numbers.
 private struct TodayBodyChart: View {
     let weight: [BodyReading]
     let bodyFat: [BodyReading]
@@ -479,20 +480,28 @@ private struct TodayBodyChart: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            GeometryReader { proxy in
-                ZStack {
-                    Path { path in
-                        path.move(to: CGPoint(x: 0, y: proxy.size.height - 0.5))
-                        path.addLine(to: CGPoint(x: proxy.size.width, y: proxy.size.height - 0.5))
-                    }
-                    .stroke(NeoGymTheme.separator, lineWidth: NeoGymTheme.hairline)
-                    series(weight, band: band(for: .weight, height: proxy.size.height), width: proxy.size.width,
-                           color: NeoGymTheme.chart1)
-                    series(bodyFat, band: band(for: .bodyFat, height: proxy.size.height), width: proxy.size.width,
-                           color: NeoGymTheme.chart2)
-                }
-            }
+            TimeSeriesChartView(
+                series: [
+                    TimeSeriesChartSeries(
+                        id: "today-weight", name: "Weight", color: NeoGymTheme.chart1,
+                        points: BodyMetricTrendCard.points(weight),
+                        valueFormatter: { "\(MetricFormat.trimmed($0, digits: 2)) kg" }
+                    ),
+                    TimeSeriesChartSeries(
+                        id: "today-body-fat", name: "Body fat", color: NeoGymTheme.chart2, axis: .right,
+                        points: BodyMetricTrendCard.points(bodyFat),
+                        valueFormatter: { "\(MetricFormat.trimmed($0, digits: 1)) %" }
+                    )
+                ],
+                showsAxes: false,
+                showsLegend: false,
+                accessibilityLabel: "Weight and body fat",
+                accessibilityValue: accessibilityText
+            )
             .frame(height: 100)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(NeoGymTheme.separator).frame(height: NeoGymTheme.hairline)
+            }
             if let first = days.first, let last = days.last {
                 HStack {
                     Text(TodayBodyCard.dayLabel(first))
@@ -502,61 +511,14 @@ private struct TodayBodyChart: View {
                 .font(.caption2)
                 .monospacedDigit()
                 .foregroundStyle(NeoGymTheme.textTertiary)
+                .accessibilityHidden(true)
             }
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityText)
-    }
-
-    private enum Metric { case weight, bodyFat }
-
-    /// Weight above body fat when both exist; one metric uses the full height.
-    private func band(for metric: Metric, height: CGFloat) -> ClosedRange<CGFloat> {
-        let inset: CGFloat = 6
-        guard !weight.isEmpty, !bodyFat.isEmpty else { return inset ... height - inset }
-        let middle = height / 2
-        return metric == .weight ? inset ... middle - 4 : middle + 4 ... height - inset
-    }
-
-    private func series(
-        _ readings: [BodyReading], band: ClosedRange<CGFloat>, width: CGFloat, color: Color
-    ) -> some View {
-        let dated = readings.compactMap { reading in
-            IntakeGrouping.localDateToDate(reading.day).map { (date: $0, value: reading.value) }
-        }
-        let values = dated.map(\.value)
-        let low = values.min() ?? 0
-        let high = values.max() ?? 0
-        let domain = dateDomain
-        func point(_ entry: (date: Date, value: Double)) -> CGPoint {
-            let span = domain.upperBound.timeIntervalSince(domain.lowerBound)
-            let x = span > 0 ? CGFloat(entry.date.timeIntervalSince(domain.lowerBound) / span) * (width - 8) + 4 : width / 2
-            let ratio = high > low ? (entry.value - low) / (high - low) : 0.5
-            let y = band.upperBound - CGFloat(ratio) * (band.upperBound - band.lowerBound)
-            return CGPoint(x: x, y: y)
-        }
-        // Missing days are joined with a straight line.
-        let points = dated.map(point)
-        return ZStack {
-            Path { path in
-                if points.count > 1 { path.addLines(points) }
-            }
-            .stroke(color, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
-            if points.count == 1, let only = points.first {
-                Circle().fill(color).frame(width: 5, height: 5).position(only)
-            }
-        }
-    }
-
-    private var dateDomain: ClosedRange<Date> {
-        let dates = days.compactMap { IntakeGrouping.localDateToDate($0) }
-        guard let first = dates.first, let last = dates.last else { return Date() ... Date() }
-        return first ... last
     }
 
     private var accessibilityText: String {
         guard let first = days.first, let last = days.last else { return "No body measurements" }
-        var parts = ["Weight and body fat from \(TodayBodyCard.dayLabel(first)) to \(TodayBodyCard.dayLabel(last))"]
+        var parts = ["From \(TodayBodyCard.dayLabel(first)) to \(TodayBodyCard.dayLabel(last)), both starting at the same height"]
         if let start = weight.first, let end = weight.last {
             parts.append("weight \(MetricFormat.decimal(start.value, digits: 2)) to \(MetricFormat.decimal(end.value, digits: 2)) kilograms")
         }

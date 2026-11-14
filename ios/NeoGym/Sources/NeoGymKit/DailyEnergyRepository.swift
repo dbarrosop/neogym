@@ -237,7 +237,9 @@ private struct DailyEnergyMutationIdPayload: Decodable, Sendable {
 }
 
 public extension DailyEnergyRepository {
-    static let pageSize = 25
+    /// Today plus the 29 days before it: the first page fills the default
+    /// 30-day chart.
+    static let pageSize = 30
 
     static let dailyEnergyQuery = """
     query DailyEnergy($limit: Int!, $offset: Int!) {

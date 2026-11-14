@@ -561,11 +561,10 @@ struct BodyMetricTrendCard: View {
             TimeSeriesTrendChartView(
                 series: series,
                 maxRenderedPoints: 120,
-                maxPointMarkers: 45,
                 chartHeight: 220,
                 emptyMessage: "No \(title.lowercased()) readings in this range.",
                 accessibilityLabel: "\(title), daily readings and 7-day average",
-                initialPeriod: .last90Days
+                initialPeriod: .last30Days
             )
         }
         .padding(NeoGymTheme.spacingMD)

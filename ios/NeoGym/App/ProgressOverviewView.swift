@@ -4,7 +4,7 @@ import SwiftUI
 /// Progress › Overview, the Progress tab's first section: one card per
 /// section with "See all". Muscles and Strength read the area root's view
 /// models (so their sections open already loaded); Body and Energy read the
-/// cached measurement list and the last 14 days of calories.
+/// cached measurement list and the last 30 days of calories.
 struct ProgressOverviewView: View {
     @ObservedObject var muscleModel: MuscleSetProgressViewModel
     @ObservedObject var strengthModel: StrengthProgressViewModel
@@ -74,8 +74,8 @@ struct ProgressOverviewView: View {
     private func loadBodyAndCalories(useCache: Bool) async {
         async let body: Void = bodyModel.load()
         async let calories: Void = calorieModel.load(
-            range: ChartHistoryRange.recentDays(14),
-            cacheCandidates: useCache ? ChartHistoryRange.recentCacheCandidates(14) : []
+            range: ChartHistoryRange.recentDays(Self.windowDays),
+            cacheCandidates: useCache ? ChartHistoryRange.recentCacheCandidates(Self.windowDays) : []
         )
         _ = await (body, calories)
     }
@@ -197,30 +197,29 @@ struct ProgressOverviewView: View {
 
     private func thisWeekCaption(_ week: StrengthWeeklyVolume?) -> String {
         guard let week, week.volume > 0 else { return "No sets this week yet" }
-        return "This week so far \(MetricFormat.compact(week.volume)) · open dot"
+        return "This week so far \(MetricFormat.compact(week.volume)), dashed"
     }
 
     // MARK: - Body
 
-    /// Three weeks of readings: enough for the seven-day average against the
-    /// prior seven days.
-    private static let bodyWindowDays = 21
+    /// Body and Energy cover the same 30 days as their sections' charts.
+    private static let windowDays = 30
 
     /// The 7-day averages above one chart that pairs them: weight on the left
-    /// axis, body fat on the right (a summary card may pair units; the Body
-    /// tab keeps one per chart).
+    /// axis, body fat on the right, both starting at the same height (a
+    /// summary card may pair units; the Body tab keeps one per chart).
     private var bodyCard: some View {
         OverviewCard(title: "Body") { onSeeAll(.body) } content: {
             if bodyModel.state.value == nil {
                 OverviewPlaceholder(state: placeholderState(bodyModel.state), emptyMessage: "")
             } else {
                 let today = IntakeGrouping.formatLocalDate()
-                let firstDay = IntakeGrouping.addLocalDateDays(today, days: -(Self.bodyWindowDays - 1))
+                let firstDay = IntakeGrouping.addLocalDateDays(today, days: -(Self.windowDays - 1))
                 let summary = BodyTrendSummary(points: bodyModel.trendData.points, today: today)
                 let weight = summary.weight.rollingAverage.filter { $0.day >= firstDay }
                 let fat = summary.bodyFat.rollingAverage.filter { $0.day >= firstDay }
                 if weight.isEmpty && fat.isEmpty {
-                    OverviewPlaceholder(state: .empty, emptyMessage: "No measurements in the last three weeks.")
+                    OverviewPlaceholder(state: .empty, emptyMessage: "No measurements in the last 30 days.")
                 } else {
                     AdaptiveRow(spacing: NeoGymTheme.spacingMD, alignment: .top) {
                         if !weight.isEmpty {
@@ -234,12 +233,12 @@ struct ProgressOverviewView: View {
                         series: [
                             TimeSeriesChartSeries(
                                 id: "overview-weight-average", name: "Weight · 7-day avg", color: NeoGymTheme.chart1,
-                                unit: "kg", points: BodyMetricTrendCard.points(weight),
+                                points: BodyMetricTrendCard.points(weight),
                                 valueFormatter: { "\(MetricFormat.decimal($0)) kg" }
                             ),
                             TimeSeriesChartSeries(
                                 id: "overview-body-fat-average", name: "Body fat · 7-day avg", color: NeoGymTheme.chart2,
-                                axis: .right, unit: "%", points: BodyMetricTrendCard.points(fat),
+                                axis: .right, points: BodyMetricTrendCard.points(fat),
                                 valueFormatter: { "\(MetricFormat.decimal($0)) %" }
                             )
                         ],
@@ -281,7 +280,7 @@ struct ProgressOverviewView: View {
         OverviewCard(title: "Energy") { onSeeAll(.energy) } content: {
             if let history = calorieModel.history {
                 let today = IntakeGrouping.formatLocalDate()
-                let firstDay = IntakeGrouping.addLocalDateDays(today, days: -13)
+                let firstDay = IntakeGrouping.addLocalDateDays(today, days: -(Self.windowDays - 1))
                 let trend = CalorieTrend(history: history, today: today)
                 let net = trend.net.filter { $0.day >= firstDay }
                 let average = trend.netAverage.filter { $0.day >= firstDay }
@@ -322,7 +321,7 @@ struct ProgressOverviewView: View {
                 } else {
                     OverviewPlaceholder(
                         state: .empty,
-                        emptyMessage: "No full days with food logged and energy recorded in the last two weeks."
+                        emptyMessage: "No full days with food logged and energy recorded in the last 30 days."
                     )
                 }
             } else {

@@ -88,15 +88,16 @@ Energy writes also invalidate the nutrition energy-projection queries.
 
 The native iPhone app exposes Energy as a Progress section alongside Overview,
 Muscles, Strength, and Body. Progress › Energy draws active (Chart 2, orange)
-and resting (Chart 1, blue) energy with today's partial row as open dots, then
+and resting (Chart 1, blue) energy with today's partial row dashed to open dots, then
 the Calories card: a Consumed chart above a Net (consumed − out) chart, each
 with daily values and a trailing 7-day average. Today's partial intake is an
 open dot; the averages and net use full days with food logged only
 (`CalorieTrend`). Its entry list shows the latest five rows with a "5 of N"
 count from the list query's `dailyEnergyEntriesAggregate` and Load more (the
-next 25-row page loads when the window passes the loaded rows). Progress ›
+first page holds 30 rows for the default 30-day chart, and the next page loads
+when the window passes the loaded rows). Progress ›
 Overview's Energy card repeats the 7-day average net with consumed and burned
-per day over the last 14 days. Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
+per day over the last 30 days. Energy charts open on the last 30 days. Today's Balance card shows today so far (food logged against energy recorded so far, stamped with the energy row's last update) and then today's end-of-day estimate. `NeoGymKit` owns the host-testable
 `DailyEnergy*` models, repository, validation, view models, trend builders, and
 pure HealthKit grouping helpers shared with the watch; SwiftUI views under
 `ios/NeoGym/App/` own presentation and navigation. The iPhone **does not read

@@ -6,8 +6,9 @@ struct SessionExerciseCardActions {
     let remove: () -> Void
 }
 
-/// Strength exercise: one summary line when collapsed; logged sets with a
-/// per-set "last time" and the inline next-set row when open.
+/// Strength exercise: one summary line (with "last time") when collapsed;
+/// when open, the image and Recent panel, logged sets and the inline next-set
+/// row. The Recent panel stands in for per-set "last" captions.
 struct StrengthExerciseCard: View {
     let row: SessionExerciseRow
     let index: Int
@@ -98,9 +99,6 @@ struct StrengthExerciseCard: View {
                     .font(.body.weight(.semibold))
                     .foregroundStyle(NeoGymTheme.text)
                 Spacer(minLength: NeoGymTheme.spacingXS)
-                Text("last \(StrengthSetFormatting.lastTimeCell(lastTimeSet))")
-                    .font(.footnote)
-                    .foregroundStyle(NeoGymTheme.textSecondary)
                 Image(systemName: "checkmark")
                     .font(.footnote.weight(.bold))
                     .foregroundStyle(NeoGymTheme.positive)
@@ -122,16 +120,9 @@ struct StrengthExerciseCard: View {
 
     private var nextSetRow: some View {
         VStack(alignment: .leading, spacing: NeoGymTheme.spacingXS) {
-            HStack {
-                Text("Set \(nextSetNumber)")
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(NeoGymTheme.accentText)
-                Spacer()
-                Text("last \(StrengthSetFormatting.lastTimeCell(SessionLogging.lastTimeSet(at: sets.count, lastTime: lastTime)))")
-                    .font(.footnote)
-                    .monospacedDigit()
-                    .foregroundStyle(NeoGymTheme.textSecondary)
-            }
+            Text("Set \(nextSetNumber)")
+                .font(.footnote.weight(.bold))
+                .foregroundStyle(NeoGymTheme.accentText)
             AdaptiveRow(spacing: NeoGymTheme.spacingXS) {
                 ValueStepper(
                     value: draft.weightLabel,
@@ -395,11 +386,12 @@ struct SessionExerciseMedia: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(dateLabel(entry))
                         .font(.caption)
-                        .foregroundStyle(NeoGymTheme.textSecondary)
+                        .foregroundStyle(NeoGymTheme.textTertiary)
                         .frame(minWidth: 42, alignment: .leading)
+                    // Grey and lighter, so it sits behind the sets being logged.
                     Text(SessionLogging.setsSummary(entry.sets) ?? "")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(NeoGymTheme.text)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(NeoGymTheme.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
                 }

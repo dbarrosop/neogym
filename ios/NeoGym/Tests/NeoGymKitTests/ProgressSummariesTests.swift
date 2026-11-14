@@ -51,7 +51,9 @@ final class DailyEnergyOutAverageTests: XCTestCase {
             DailyEnergy(id: "t", energyOn: "2026-11-12", activeKcal: 300, restingKcal: 900),
             DailyEnergy(id: "a", energyOn: "2026-11-11", activeKcal: 700, restingKcal: 1_800),
             DailyEnergy(id: "b", energyOn: "2026-11-10", activeKcal: nil, restingKcal: 1_900),
-            DailyEnergy(id: "c", energyOn: "2026-11-09", activeKcal: nil, restingKcal: nil)
+            DailyEnergy(id: "c", energyOn: "2026-11-09", activeKcal: nil, restingKcal: nil),
+            // Outside the 29 full days before today.
+            DailyEnergy(id: "old", energyOn: "2026-10-13", activeKcal: 9_000, restingKcal: 9_000)
         ]
         let average = DailyEnergyOutAverage(entries: entries, today: "2026-11-12")
         XCTAssertEqual(average?.dayCount, 2)

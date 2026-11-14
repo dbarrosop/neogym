@@ -43,10 +43,9 @@ struct DailyEnergyTrendChartView: View {
     var body: some View {
         TimeSeriesTrendChartView(
             series: chartSeries,
-            maxRenderedPoints: 48,
             emptyMessage: "No energy entries in this range.",
             accessibilityLabel: "Active and resting energy trend chart",
-            initialPeriod: .last90Days
+            initialPeriod: .last30Days
         )
     }
 }

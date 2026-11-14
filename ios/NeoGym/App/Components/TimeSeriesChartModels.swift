@@ -5,7 +5,8 @@ struct TimeSeriesChartDataPoint: Identifiable, Equatable {
     let id: String
     let date: Date
     let value: Double
-    /// Today's (or this week's) value so far: drawn as an open dot, off the line.
+    /// Today's (or this week's) value so far: an open dot joined to the line
+    /// by a dashed segment.
     var isPartial = false
 }
 
@@ -30,9 +31,6 @@ struct TimeSeriesChartSeries: Identifiable {
     /// Keeps zero on the value axis: counts and energy start at 0, and
     /// signed series (net calories) show where they cross it.
     let includesZero: Bool
-    /// Shown after the top value-axis label ("72 kg") when two axes pair
-    /// different units on a summary card.
-    let unit: String?
     let points: [TimeSeriesChartDataPoint]
     let valueFormatter: (Double) -> String
 
@@ -43,7 +41,6 @@ struct TimeSeriesChartSeries: Identifiable {
         style: TimeSeriesChartSeriesStyle = .line,
         axis: TimeSeriesChartAxis = .left,
         includesZero: Bool = false,
-        unit: String? = nil,
         points: [TimeSeriesChartDataPoint],
         valueFormatter: @escaping (Double) -> String = { String(format: "%.1f", $0) }
     ) {
@@ -53,7 +50,6 @@ struct TimeSeriesChartSeries: Identifiable {
         self.style = style
         self.axis = axis
         self.includesZero = includesZero
-        self.unit = unit
         self.points = points.sorted { $0.date < $1.date }
         self.valueFormatter = valueFormatter
     }
@@ -62,7 +58,7 @@ struct TimeSeriesChartSeries: Identifiable {
     func filtered(_ isIncluded: (TimeSeriesChartDataPoint) -> Bool) -> TimeSeriesChartSeries {
         TimeSeriesChartSeries(
             id: id, name: name, color: color, style: style, axis: axis, includesZero: includesZero,
-            unit: unit, points: points.filter(isIncluded), valueFormatter: valueFormatter
+            points: points.filter(isIncluded), valueFormatter: valueFormatter
         )
     }
 }
@@ -82,8 +78,6 @@ struct TimeSeriesChartPanel: Identifiable {
 struct ChartAxisDescriptor {
     let axis: TimeSeriesChartAxis
     let scale: ChartAxisScale
-    /// Appended to the top label only.
-    var unit: String?
 }
 
 struct PlottedChartPoint: Identifiable {

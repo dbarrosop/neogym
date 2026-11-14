@@ -70,4 +70,26 @@ final class ChartAxisScaleTests: XCTestCase {
         XCTAssertTrue(net.label(net.min, locale: enUS).hasPrefix("−"))
         XCTAssertEqual(ChartAxisScale(min: -2_000, step: 2_000).label(0, locale: enUS), "0")
     }
+
+    func testStartAlignedAxesPutBothFirstValuesAtTheSameHeight() throws {
+        let volume = [3_500.0, 3_000, 2_800, 3_100, 4_000, 2_660]
+        let estimate = [166.7, 169, 173.3, 175.5, 180, 172.7]
+        let (left, right) = try XCTUnwrap(ChartAxisScale.startAligned(volume, estimate))
+        for (scale, values) in [(left, volume), (right, estimate)] {
+            XCTAssertLessThanOrEqual(scale.min, values.min()!)
+            XCTAssertGreaterThanOrEqual(scale.max, values.max()!)
+        }
+        let leftHeight = (volume[0] - left.min) / (left.max - left.min)
+        let rightHeight = (estimate[0] - right.min) / (right.max - right.min)
+        XCTAssertEqual(leftHeight, rightHeight, accuracy: 1e-9)
+        XCTAssertFalse(left.label(left.max, locale: enUS).contains("."))
+    }
+
+    func testStartAlignedHandlesAFlatSeriesAndMissingData() throws {
+        let (weight, fat) = try XCTUnwrap(ChartAxisScale.startAligned([70, 70], [13.2, 12.6, 12.9]))
+        XCTAssertLessThan(weight.min, 70)
+        XCTAssertGreaterThan(weight.max, 70)
+        XCTAssertEqual((70 - weight.min) / (weight.max - weight.min), (13.2 - fat.min) / (fat.max - fat.min), accuracy: 1e-9)
+        XCTAssertNil(ChartAxisScale.startAligned([], [1, 2]))
+    }
 }
