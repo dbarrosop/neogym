@@ -121,6 +121,38 @@ final class SessionLoggingTests: XCTestCase {
         XCTAssertEqual(NextSetDraft.suggested(currentSets: [], lastTime: nil), NextSetDraft(weight: 0, reps: 0))
     }
 
+    func testSuccessfulLogClearsOnlyAnUnchangedStoredDraft() {
+        for submitted: NextSetDraft? in [nil, NextSetDraft(weight: 95, reps: 12)] {
+            XCTAssertNil(NextSetDraft.remainingAfterLogging(current: submitted, submitted: submitted))
+        }
+    }
+
+    func testSuccessfulLogPreservesWeightOrRepsPreparedDuringSubmission() {
+        let suggestion = NextSetDraft(weight: 95, reps: 12)
+        for submitted: NextSetDraft? in [nil, suggestion] {
+            var changedWeight = submitted ?? suggestion
+            changedWeight.stepWeight(1)
+            XCTAssertEqual(
+                NextSetDraft.remainingAfterLogging(current: changedWeight, submitted: submitted),
+                NextSetDraft(weight: 97.5, reps: 12)
+            )
+
+            var changedReps = submitted ?? suggestion
+            changedReps.stepReps(-1)
+            XCTAssertEqual(
+                NextSetDraft.remainingAfterLogging(current: changedReps, submitted: submitted),
+                NextSetDraft(weight: 95, reps: 11)
+            )
+        }
+    }
+
+    func testSuccessfulLogPreservesAnExplicitDraftMatchingTheSubmittedSuggestion() {
+        let suggestion = NextSetDraft(weight: 95, reps: 12)
+        // The user can step away and back while an untouched suggestion is in flight.
+        // Compare stored optionals, not the resolved suggestion used for the insert.
+        XCTAssertEqual(NextSetDraft.remainingAfterLogging(current: suggestion, submitted: nil), suggestion)
+    }
+
     func testWeekGroupingUsesMondayWeeksWithRelativeTitles() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Stockholm")!

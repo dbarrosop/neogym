@@ -142,6 +142,12 @@ public struct NextSetDraft: Sendable, Equatable {
         return NextSetDraft(weight: 0, reps: 0)
     }
 
+    /// After a successful log, clear only an unchanged stored draft. A missing
+    /// stored draft means the row was showing a suggestion, not an explicit edit.
+    public static func remainingAfterLogging(current: NextSetDraft?, submitted: NextSetDraft?) -> NextSetDraft? {
+        current == submitted ? nil : current
+    }
+
     public mutating func stepWeight(_ direction: Int) {
         weight = max(0, ((weight + Double(direction) * Self.weightStep) * 100).rounded() / 100)
     }

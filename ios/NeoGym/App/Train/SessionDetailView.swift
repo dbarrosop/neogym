@@ -256,13 +256,14 @@ extension SessionDetailView {
     func logSet(for row: SessionExerciseRow) {
         guard loggingRowId == nil, let session = viewModel.session else { return }
         let lastTime = lastTimeByExercise(session)[row.exercise.id]
-        let draft = drafts[row.id] ?? NextSetDraft.suggested(currentSets: row.workoutSessionStrengthSets, lastTime: lastTime)
+        let submittedDraft = drafts[row.id]
+        let draft = submittedDraft ?? NextSetDraft.suggested(currentSets: row.workoutSessionStrengthSets, lastTime: lastTime)
         let nextNumber = StrengthSetNumbering.nextSetNumber(currentSets: row.workoutSessionStrengthSets)
         loggingRowId = row.id
         Task {
             defer { loggingRowId = nil }
             if await viewModel.addStrengthSet(workoutSessionExerciseId: row.id, reps: draft.reps, weight: draft.weight) {
-                drafts[row.id] = nil
+                drafts[row.id] = NextSetDraft.remainingAfterLogging(current: drafts[row.id], submitted: submittedDraft)
                 restTimer.start(label: "\(row.exercise.name) · set \(nextNumber + 1) next", sessionId: viewModel.sessionId)
                 onMutated()
             }
