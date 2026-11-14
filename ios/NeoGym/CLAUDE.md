@@ -567,7 +567,10 @@ section records how the iPhone app implements it.
   `AppShellView` sets, so rows need no URL plumbing; list, editor and session
   queries select `image1FileId` (sessions also `image2FileId` for the open
   card's alternating `AlternatingStorageImageView`). Storage files load with
-  plain `AsyncImage` GETs, as on exercise detail.
+  plain `AsyncImage` GETs, as on exercise detail. Catalog muscle groups and the
+  shared grouped/search row stack are lazy, so thumbnail work follows visible
+  and nearby rows rather than the whole catalog. Keep laziness at the row
+  boundary; making only muscle cards lazy still eagerly loads a large group.
 - **Nutrition slots**: the Log timeline and plan detail share
   `NutritionSlotHeader` (time, title, kcal, trailing control, then a P · C · F
   grams line with accent/carbs/secondary dots aligned under the title) and

@@ -148,7 +148,7 @@ struct ExercisesListView: View {
                     action: viewModel.clearAll
                 )
             } else if viewModel.searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                VStack(spacing: NeoGymTheme.spacingMD) {
+                LazyVStack(spacing: NeoGymTheme.spacingMD) {
                     ForEach(viewModel.groupedExercises) { group in
                         ExerciseGroupCard(group: group)
                     }
@@ -200,7 +200,7 @@ private struct ExerciseRowsGroup: View {
                     .foregroundStyle(NeoGymTheme.textSecondary)
             }
             .padding(.horizontal, NeoGymTheme.spacingXXS)
-            VStack(spacing: 0) {
+            LazyVStack(spacing: 0) {
                 ForEach(exercises) { exercise in
                     ExerciseRowLink(exercise: exercise, showMuscle: showMuscle)
                     if exercise.id != exercises.last?.id {
