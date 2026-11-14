@@ -1,6 +1,5 @@
 import NeoGymKit
 import SwiftUI
-import WidgetKit
 
 /// Cross-tab navigation the Today cards trigger.
 struct TodayActions {
@@ -34,6 +33,7 @@ struct TodayView: View {
     @State private var loggingSlotKey: String?
     @State private var slotError: String?
     @Environment(\.locale) private var locale
+    @Environment(\.energyWidgetUpdates) private var widgetUpdates
     @Environment(\.scenePhase) private var scenePhase
 
     init(
@@ -203,15 +203,14 @@ struct TodayView: View {
     }
 
     private func writeWidgetSnapshotIfFresh() {
-        guard case .loaded = overviewModel.state, overviewModel.lastLoadIncludedFreshData else { return }
+        guard widgetUpdates.enabled, case .loaded = overviewModel.state, overviewModel.lastLoadIncludedFreshData else { return }
         let snapshot = EnergyBalanceWidgetSnapshot(
             summary: overviewModel.energyBalanceOverviewSummary(locale: locale),
             userMarker: currentUserId,
             generatedAt: Date(),
             locale: locale
         )
-        EnergyBalanceWidgetSnapshotStore.shared.save(snapshot)
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+        widgetUpdates.save(snapshot)
     }
 
     /// Logs every planned entry of the slot in one mutation, as the Log tab does.
@@ -231,7 +230,7 @@ struct TodayView: View {
         }
         if await intake.logSelectedPlanSlot(planSlot) {
             actions.nutritionLogged()
-            WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+            widgetUpdates.reload()
             await overviewModel.load()
             writeWidgetSnapshotIfFresh()
         } else {

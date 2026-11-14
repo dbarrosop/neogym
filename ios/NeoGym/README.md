@@ -83,6 +83,26 @@ cd ../..
 nix develop . --command xcodegen --version
 ```
 
+## Offline iPhone demo
+
+On Sign in, tap **Try demo** to explore all five areas with fictional local data.
+The normal screens support edits, session/set logging, nutrition logging and
+charts without an account or backend. Demo stays selected across relaunches;
+**Demo controls** in the persistent banner and **Me › Account** provide Reset
+and Exit. Reset affects only demo data/preferences. Exit returns to normal
+sign-in/session restoration without replacing an existing real session.
+
+For simulator agents, use `--demo --demo-reset --demo-screen train/session/current`
+(or any area/section). The same entry ships in Release; it is not a hidden build.
+Demo never connects HealthKit, Watch/PAT, email/MCP, widgets, notifications or
+Live Activities. Its in-app rest countdown is functional and isolated.
+
+See [Offline iPhone demo](../../docs/developers/ios-demo.md) for build/install/
+launch commands, supported screen names, storage and isolation rules, and draft
+App Review notes. The `NeoGym` scheme now includes `NeoGymUITests` for five-area,
+logging/persistence/reset and public-entry smoke tests. This does **not** establish
+Apple's approval to replace review credentials with a demo.
+
 ## Embedded Apple Watch companion (Phase 2)
 
 `NeoGymWatch` is a watchOS 27 companion embedded in the existing iPhone app

@@ -12,9 +12,10 @@ final class RestTimerWiringTests: XCTestCase {
 
     func testAppOwnsAndBindsTheScopeAndClearsItOnEveryAuthClearReason() throws {
         let app = try source("App/NeoGymApp.swift")
-        XCTAssertTrue(app.contains("@StateObject private var restTimers: RestTimerAccountScope"))
+        XCTAssertTrue(app.contains("let restTimers: RestTimerAccountScope"))
+        XCTAssertTrue(app.contains("@StateObject private var runtime = LiveAppRuntime()"))
         XCTAssertTrue(app.contains("restTimers.bind(to: authStore)"))
-        let clearHandler = #"snapshotClearHandler: \{ _ in\s*restTimers.endSession\(\)"#
+        let clearHandler = #"snapshotClearHandler: \{ _ in\s*guard gate.enabled else \{ return \}\s*restTimers.endSession\(\)"#
         XCTAssertNotNil(app.range(of: clearHandler, options: .regularExpression))
         let root = try source("App/RootView.swift")
         XCTAssertTrue(root.contains("restTimer.ownerId == session.user?.id"))

@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject private var phoneConnectivity: PhoneAccountConnectivity
+    @Environment(\.demoActions) private var demoActions
     let session: StoredSession
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
@@ -13,6 +14,7 @@ struct ProfileView: View {
     @State private var isShowingWatchSignIn = false
     @State private var isShowingAgentAccess = false
     @State private var isConfirmingSignOut = false
+    @State private var isConfirmingDemoReset = false
     @AppStorage(AppAppearance.storageKey) private var appearanceRawValue = AppAppearance.defaultValue.rawValue
     @AppStorage(RestTimerPreference.storageKey) private var restSeconds = RestTimerPreference.defaultSeconds
 
@@ -22,27 +24,21 @@ struct ProfileView: View {
                 AreaSectionHeader()
                 profileHeader
                 group("Account") {
-                    SettingsRow(title: "Change email", systemImage: "envelope", value: profile?.emailDisplay) {
-                        isShowingChangeEmail = true
+                    if demoActions != nil {
+                        SettingsRow(title: "Change email", systemImage: "envelope", value: "Not connected in demo")
+                    } else {
+                        SettingsRow(title: "Change email", systemImage: "envelope", value: profile?.emailDisplay) {
+                            isShowingChangeEmail = true
+                        }
+                        .disabled(changeEmailModel == nil)
                     }
-                    .disabled(changeEmailModel == nil)
                     RowSeparator(leadingInset: 60)
                     SettingsRow(title: "Member since", systemImage: "calendar", value: profile?.memberSince)
                 }
-                group("Connections") {
-                    SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.health, value: "Workouts, Body")
-                    RowSeparator(leadingInset: 60)
-                    SettingsRow(title: "Apple Watch", systemImage: "applewatch", value: watchStatus) {
-                        phoneConnectivity.clearPresentedSuccess()
-                        isShowingWatchSignIn = true
-                    }
-                    .disabled(isSigningOut)
-                    RowSeparator(leadingInset: 60)
-                    SettingsRow(title: "Connect an agent (MCP)", systemImage: "point.3.connected.trianglepath.dotted") {
-                        isShowingAgentAccess = true
-                    }
-                }
-                Text("Apple Health access is read-only. NeoGym imports workouts and body measurements on this iPhone; your Apple Watch imports energy.")
+                connections
+                Text(demoActions == nil
+                     ? "Apple Health access is read-only. NeoGym imports workouts and body measurements on this iPhone; your Apple Watch imports energy."
+                     : "Demo data is fictional and stays on this iPhone. Email, Apple Health, Watch pairing, MCP, widgets and system rest alerts are not connected.")
                     .font(.caption)
                     .foregroundStyle(NeoGymTheme.textTertiary)
                     .padding(.horizontal, NeoGymTheme.spacingXXS)
@@ -63,6 +59,11 @@ struct ProfileView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(NeoGymTheme.spacingSM)
+                }
+                if demoActions != nil {
+                    group("Demo") {
+                        SettingsRow(title: "Reset demo data", systemImage: "arrow.counterclockwise") { isConfirmingDemoReset = true }
+                    }
                 }
                 signOutButton
                     .padding(.top, NeoGymTheme.spacingXS)
@@ -100,7 +101,35 @@ struct ProfileView: View {
             Button("Sign out", role: .destructive, action: signOut)
             Button("Cancel", role: .cancel) {}
         }
-        .onAppear { phoneConnectivity.expireAttempt() }
+        .confirmationDialog("Reset all demo changes?", isPresented: $isConfirmingDemoReset, titleVisibility: .visible) {
+            Button("Reset demo data", role: .destructive) { demoActions?.reset() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Only fictional demo data changes. Your real account is not affected.")
+        }
+        .onAppear { if demoActions == nil { phoneConnectivity.expireAttempt() } }
+    }
+
+    private var connections: some View {
+        group("Connections") {
+            if demoActions != nil {
+                SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.health, value: "Not connected")
+                RowSeparator(leadingInset: 60)
+                SettingsRow(title: "Apple Watch", systemImage: "applewatch", value: "Not connected")
+                RowSeparator(leadingInset: 60)
+                SettingsRow(title: "Connect an agent (MCP)", systemImage: "point.3.connected.trianglepath.dotted", value: "Not connected")
+            } else {
+                SettingsRow(title: "Apple Health", systemImage: "heart.fill", iconTint: NeoGymTheme.health, value: "Workouts, Body")
+                RowSeparator(leadingInset: 60)
+                SettingsRow(title: "Apple Watch", systemImage: "applewatch", value: watchStatus) {
+                    phoneConnectivity.clearPresentedSuccess()
+                    isShowingWatchSignIn = true
+                }
+                .disabled(isSigningOut)
+                RowSeparator(leadingInset: 60)
+                SettingsRow(title: "Connect an agent (MCP)", systemImage: "point.3.connected.trianglepath.dotted") { isShowingAgentAccess = true }
+            }
+        }
     }
 
     private var profile: UserProfile? {
@@ -125,7 +154,7 @@ struct ProfileView: View {
                 Text(profile?.displayName ?? "Signed in")
                     .font(.title3.weight(.bold))
                     .foregroundStyle(NeoGymTheme.text)
-                Text(profile.map { "\($0.emailDisplay) · signs in with an email code" } ?? "Signs in with an email code")
+                Text(demoActions != nil ? "Local sample profile" : profile.map { "\($0.emailDisplay) · signs in with an email code" } ?? "Signs in with an email code")
                     .font(.footnote)
                     .foregroundStyle(NeoGymTheme.textSecondary)
             }
@@ -138,7 +167,8 @@ struct ProfileView: View {
 
     private var signOutButton: some View {
         Button {
-            isConfirmingSignOut = true
+            if let demoActions { demoActions.exit() }
+            else { isConfirmingSignOut = true }
         } label: {
             Group {
                 if isSigningOut {
@@ -147,7 +177,7 @@ struct ProfileView: View {
                         Text("Signing out")
                     }
                 } else {
-                    Text("Sign out")
+                    Text(demoActions == nil ? "Sign out" : "Exit demo")
                 }
             }
             .font(.body)
@@ -157,6 +187,7 @@ struct ProfileView: View {
         }
         .buttonStyle(.plain)
         .disabled(isSigningOut)
+        .accessibilityIdentifier(demoActions == nil ? "account.signout" : "demo.exit")
     }
 
     private func group<Content: View>(

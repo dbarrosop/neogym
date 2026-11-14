@@ -1,6 +1,5 @@
 import NeoGymKit
 import SwiftUI
-import WidgetKit
 
 /// Nutrition tab: Log · Plans · Foods · Meals. Log opens today's day; its
 /// date controls replace the old Days list, and Today replaces Overview.
@@ -13,6 +12,7 @@ struct NutritionNavigationView: View {
     /// Bumped by the shell when another tab logged nutrition.
     let nutritionRevision: Int
     let onNutritionMutated: () -> Void
+    @Environment(\.energyWidgetUpdates) private var widgetUpdates
 
     @State private var reloadToken = 0
 
@@ -134,6 +134,6 @@ struct NutritionNavigationView: View {
     private func invalidateLists() {
         reloadToken += 1
         onNutritionMutated()
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+        widgetUpdates.reload()
     }
 }

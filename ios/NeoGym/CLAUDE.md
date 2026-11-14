@@ -14,6 +14,30 @@ watch app SwiftUI and connectivity live under `Watch/`; the token-free
 rectangular complication lives under `WatchWidgets/` in the separate
 `NeoGymWatchWidgets` extension, without Keychain or HealthKit access.
 
+## Offline iPhone demo
+
+**Try demo** on Sign in/Auth error is available in Release; agents can launch
+`--demo --demo-reset --demo-screen train/session/current`. See
+[`docs/developers/ios-demo.md`](../../docs/developers/ios-demo.md) for all section
+names, simulator commands, storage/lifecycle rules and draft App Review notes.
+`AppModeView` must choose demo before constructing `LiveAppRuntime`; never pass
+the display-only `DemoIdentity` to AuthStore, SDK, Keychain or Watch connectivity.
+`AppRepositories` / `AppShellEnvironment` are the composition boundary: feature
+views must not construct live repositories themselves. The stateful actor store
+persists only under app-private `NeoGymDemo/state-v1.json`; demo `@AppStorage`
+and rest timers use the `io.nhost.neogym.demo` suite, not standard defaults.
+Demo has no Health importers, Watch activation/PAT/hints, MCP, notification or
+Live Activity effects; all phone Energy widget saves/reloads must use the
+`energyWidgetUpdates` environment boundary, disabled in demo. Bundled demo
+illustrations never reach AsyncImage. Entering demo calls `AuthStore.retire()`
+to stop live observation/late callbacks without clearing credentials; Exit creates
+a new live runtime. Reset/exit invalidate demo stores and timers so late callbacks
+are inert. Keep the visible fictional-data banner, Reset and Exit.
+The `NeoGym` XcodeGen scheme includes `NeoGymUITests`; host `Demo*Tests` cover
+repository behavior and source wiring. Do not claim these replace real backend,
+hardware, signing or App Review acceptance. Apple must approve omitting normal
+review-account access separately.
+
 ## Commands
 
 Run these from `ios/NeoGym/`:

@@ -13,7 +13,14 @@ struct StorageImageView: View {
 
     var body: some View {
         Group {
-            if let url {
+            if let asset = DemoExerciseArtwork.assetName(for: url) {
+                NeoGymTheme.fill.overlay {
+                    Image(asset)
+                        .resizable()
+                        .scaledToFill()
+                        .accessibilityLabel("Sample exercise illustration")
+                }
+            } else if let url, !url.isFileURL {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
@@ -124,7 +131,11 @@ struct ExerciseThumbnail: View {
     var body: some View {
         ZStack {
             NeoGymTheme.background
-            if let url {
+            if let asset = DemoExerciseArtwork.assetName(for: url) {
+                Image(asset)
+                    .resizable()
+                    .scaledToFill()
+            } else if let url, !url.isFileURL {
                 AsyncImage(url: url) { phase in
                     if let image = phase.image {
                         image
@@ -147,6 +158,17 @@ struct ExerciseThumbnail: View {
         Image(systemName: "photo")
             .font(.title3)
             .foregroundStyle(NeoGymTheme.textTertiary)
+    }
+}
+
+private enum DemoExerciseArtwork {
+    static func assetName(for url: URL?) -> String? {
+        guard let url, url.isFileURL else { return nil }
+        switch url.lastPathComponent {
+        case "demo-run": return "DemoCardioIllustration"
+        case "demo-bench", "demo-squat", "demo-row", "demo-raise": return "DemoStrengthIllustration"
+        default: return nil
+        }
     }
 }
 

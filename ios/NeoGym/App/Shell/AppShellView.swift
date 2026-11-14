@@ -8,7 +8,7 @@ import UIKit
 /// view's bottom accessory on every tab.
 struct AppShellView: View {
     let session: StoredSession
-    let environment: AppEnvironment
+    let environment: AppShellEnvironment
     let isSigningOut: Bool
     let changeEmailModel: ChangeEmailModel?
     let signOut: () -> Void
@@ -22,6 +22,7 @@ struct AppShellView: View {
     @State private var nutritionLogDate = NutritionLogDateSelection()
     @State private var progressSection: ProgressSection = .overview
     @State private var meSection: MeSection = .journal
+    @State private var hasAppliedInitialScreen = false
     /// Cross-tab invalidation: bumped after training or nutrition mutations so
     /// Today and Progress revalidate their cached reads.
     @State private var trainingRevision = 0
@@ -54,7 +55,7 @@ struct AppShellView: View {
             Tab(AppTab.me.title, systemImage: AppTab.me.systemImage, value: AppTab.me) {
                 MeNavigationView(
                     session: session,
-                    journalRepository: JournalRepository(graphQL: environment.graphQLService),
+                    journalRepository: environment.repositories.journal,
                     isSigningOut: isSigningOut,
                     changeEmailModel: changeEmailModel,
                     signOut: signOut,
@@ -65,7 +66,13 @@ struct AppShellView: View {
         .tabViewBottomAccessory(isEnabled: showsAccessory) {
             RestTimerAccessory(timer: restTimer, openSessionId: openSessionId, onOpenSession: openSession)
         }
-        .environment(\.storageBaseURL, environment.client.serviceURLs.storage)
+        .environment(\.storageBaseURL, environment.storageBaseURL)
+        .environment(\.energyWidgetUpdates, environment.isDemo ? .disabled : .live)
+        .onAppear {
+            guard !hasAppliedInitialScreen else { return }
+            hasAppliedInitialScreen = true
+            applyInitialScreen()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { nutritionLogDate.refreshToday() }
         }
@@ -79,7 +86,7 @@ struct AppShellView: View {
             sessionsRepository: sessionsRepository,
             nutritionRepository: nutritionRepository,
             bodyRepository: bodyRepository,
-            bodyHealthImporter: Self.makeBodyHealthImporter(),
+            bodyHealthImporter: environment.bodyHealthImporter,
             currentUserId: userId,
             isSelected: selection == .today,
             revision: trainingRevision + nutritionRevision,
@@ -108,12 +115,12 @@ struct AppShellView: View {
 
     private var trainTab: some View {
         TrainNavigationView(
-            workoutsRepository: WorkoutsRepository(graphQL: environment.graphQLService),
-            healthWorkoutRepository: HealthWorkoutRepository(client: environment.client, ownerUserId: userId ?? ""),
-            healthWorkoutImporter: Self.makeWorkoutHealthImporter(),
+            workoutsRepository: environment.repositories.workouts,
+            healthWorkoutRepository: environment.healthWorkoutRepository,
+            healthWorkoutImporter: environment.workoutHealthImporter,
             sessionsRepository: sessionsRepository,
             exercisesRepository: exercisesRepository,
-            storageBaseURL: environment.client.serviceURLs.storage,
+            storageBaseURL: environment.storageBaseURL,
             currentUserId: userId,
             isSelected: selection == .train,
             path: $trainPath,
@@ -127,10 +134,10 @@ struct AppShellView: View {
         ProgressNavigationView(
             sessionsRepository: sessionsRepository,
             exercisesRepository: exercisesRepository,
-            storageBaseURL: environment.client.serviceURLs.storage,
+            storageBaseURL: environment.storageBaseURL,
             bodyRepository: bodyRepository,
-            bodyHealthImporter: Self.makeBodyHealthImporter(),
-            energyRepository: DailyEnergyRepository(graphQL: environment.graphQLService),
+            bodyHealthImporter: environment.bodyHealthImporter,
+            energyRepository: environment.repositories.energy,
             nutritionRepository: nutritionRepository,
             currentUserId: userId,
             trainingRevision: trainingRevision,
@@ -172,43 +179,42 @@ struct AppShellView: View {
 
     private var userId: String? { session.user?.id }
 
-    private var sessionsRepository: SessionsRepository {
-        SessionsRepository(graphQL: environment.graphQLService)
-    }
+    private var sessionsRepository: any SessionsRepositoryProtocol & TodayTrainingProviding { environment.repositories.sessions }
+    private var exercisesRepository: any ExercisesRepositoryProtocol { environment.repositories.exercises }
+    private var nutritionRepository: any NutritionFoodMealRepositoryProtocol { environment.repositories.nutrition }
+    private var bodyRepository: any BodyMeasurementsRepositoryProtocol { environment.repositories.body }
 
-    private var exercisesRepository: ExercisesRepository {
-        ExercisesRepository(graphQL: environment.graphQLService)
-    }
-
-    private var nutritionRepository: NutritionFoodMealRepository {
-        NutritionFoodMealRepository(graphQL: environment.graphQLService)
-    }
-
-    private var bodyRepository: BodyMeasurementsRepository {
-        BodyMeasurementsRepository(graphQL: environment.graphQLService)
-    }
-
-    private static func makeBodyHealthImporter() -> (any BodyMeasurementsHealthImporting)? {
-        #if canImport(HealthKit) && !os(macOS)
-        HealthKitBodyMeasurementImporter()
-        #else
-        nil
-        #endif
-    }
-
-    private static func makeWorkoutHealthImporter() -> (any HealthWorkoutImporting)? {
-        #if canImport(HealthKit) && !os(macOS)
-        HealthKitWorkoutImporter()
-        #else
-        nil
-        #endif
+    private func applyInitialScreen() {
+        guard environment.isDemo else { return }
+        switch environment.initialScreen {
+        case .today: selection = .today
+        case .sessions, .workouts, .exercises, .currentSession:
+            selection = .train
+            if environment.initialScreen == .workouts { trainSection = .workouts }
+            if environment.initialScreen == .exercises { trainSection = .exercises }
+            if environment.initialScreen == .currentSession { openSession("demo-session-\(DateOnly.todayLocalISO())") }
+        case .log, .plans, .foods, .meals:
+            selection = .nutrition
+            if environment.initialScreen == .plans { nutritionSection = .plans }
+            if environment.initialScreen == .foods { nutritionSection = .foods }
+            if environment.initialScreen == .meals { nutritionSection = .meals }
+        case .overview, .muscles, .strength, .body, .energy:
+            selection = .progress
+            if environment.initialScreen == .muscles { progressSection = .muscles }
+            if environment.initialScreen == .strength { progressSection = .strength }
+            if environment.initialScreen == .body { progressSection = .body }
+            if environment.initialScreen == .energy { progressSection = .energy }
+        case .journal, .account:
+            selection = .me
+            if environment.initialScreen == .account { meSection = .account }
+        }
     }
 }
 
 #Preview {
     AppShellView(
         session: NeoGymPreviewFixtures.session,
-        environment: NhostClientFactory.makeEnvironment(),
+        environment: .live(NhostClientFactory.makeEnvironment(), ownerId: "user-1"),
         isSigningOut: false,
         changeEmailModel: nil,
         signOut: {},

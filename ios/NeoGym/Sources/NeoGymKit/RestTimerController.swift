@@ -80,7 +80,8 @@ public final class RestTimerController: ObservableObject {
         defaults.removeObject(forKey: Self.persistedKey)
     }
 
-    func invalidate() {
+    /// Retire a runtime permanently so callbacks from its old views cannot restart a rest.
+    public func invalidate() {
         cancel()
         sessionNames = [:]
         isValid = false

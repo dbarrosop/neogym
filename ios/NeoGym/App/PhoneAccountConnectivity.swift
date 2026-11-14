@@ -8,8 +8,10 @@ import WatchConnectivity
 final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTransport {
     private lazy var publisher = PhoneHintPublisher(transport: self)
     private let patService: any WatchPATServicing
-    init(patService: any WatchPATServicing) {
+    private var isEnabled: Bool
+    init(patService: any WatchPATServicing, enabled: Bool = true) {
         self.patService = patService
+        self.isEnabled = enabled
         super.init()
     }
 
@@ -36,18 +38,27 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
         }
     }
 
+    func suspend() {
+        isEnabled = false
+        authSubscription?.cancel()
+        authSubscription = nil
+        if WCSession.isSupported(), WCSession.default.delegate === self { WCSession.default.delegate = nil }
+    }
+
     func start() {
-        guard WCSession.isSupported() else { return }
+        guard isEnabled, WCSession.isSupported() else { return }
         WCSession.default.delegate = self
         WCSession.default.activate()
     }
 
     private func observe(_ state: AuthState) {
+        guard isEnabled else { return }
         publisher.observe(state)
         assisted.observe(state)
     }
 
     func foreground() {
+        guard isEnabled else { return }
         expireAttempt()
         guard WCSession.isSupported() else { return }
         if WCSession.default.activationState != .activated { WCSession.default.activate() }
@@ -55,19 +66,22 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
     }
 
     func send(context: [String: String]) throws {
-        guard WCSession.isSupported(), WCSession.default.activationState == .activated else {
+        guard isEnabled, WCSession.isSupported(), WCSession.default.activationState == .activated else {
             throw ConnectivityError.notActivated
         }
         try WCSession.default.updateApplicationContext(context)
     }
 
-    func connect() async { await assisted.connect() }
+    func connect() async {
+        guard isEnabled else { return }
+        await assisted.connect()
+    }
     func clearAttempt() { assisted.clearAttempt() }
     func clearPresentedSuccess() { assisted.clearPresentedSuccess() }
     func expireAttempt() { assisted.expireAttempt() }
 
     private func send(_ message: WatchAssistedSignInMessage, for attempt: WatchAssistedSignInAttempt) {
-        guard WCSession.isSupported(), WCSession.default.activationState == .activated,
+        guard isEnabled, WCSession.isSupported(), WCSession.default.activationState == .activated,
               WCSession.default.isReachable else {
             assisted.deliveryFailed(for: attempt)
             return
@@ -85,18 +99,22 @@ final class PhoneAccountConnectivity: NSObject, ObservableObject, PhoneHintTrans
 extension PhoneAccountConnectivity: WCSessionDelegate {
     nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
         Task { @MainActor in
-            if state == .activated { publisher.resend() }
+            if isEnabled, state == .activated { publisher.resend() }
         }
     }
 
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
 
     nonisolated func sessionDidDeactivate(_ session: WCSession) {
-        Task { @MainActor in WCSession.default.activate() }
+        Task { @MainActor in
+            if isEnabled { WCSession.default.activate() }
+        }
     }
 
     nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
-        Task { @MainActor in publisher.resend() }
+        Task { @MainActor in
+            if isEnabled { publisher.resend() }
+        }
     }
 
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
@@ -105,6 +123,7 @@ extension PhoneAccountConnectivity: WCSessionDelegate {
               let payload = WatchAssistedSignInMessage.decode(strings) else { return }
         let receivedAt = Date()
         Task { @MainActor [self] in
+            guard isEnabled else { return }
             assisted.receive(payload, receivedAt: receivedAt)
         }
     }

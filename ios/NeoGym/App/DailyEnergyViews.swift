@@ -1,6 +1,5 @@
 import NeoGymKit
 import SwiftUI
-import WidgetKit
 
 struct DailyEnergyListView: View {
     @StateObject private var viewModel: DailyEnergyListViewModel
@@ -9,6 +8,8 @@ struct DailyEnergyListView: View {
     let reloadToken: Int
     let nutritionRepository: any NutritionFoodMealRepositoryProtocol
     @State private var estimateRefreshToken = 0
+    @Environment(\.energyWidgetUpdates) private var widgetUpdates
+    @Environment(\.demoActions) private var demoActions
 
     init(repository: any DailyEnergyRepositoryProtocol,
          nutritionRepository: any NutritionFoodMealRepositoryProtocol, reloadToken: Int) {
@@ -54,7 +55,7 @@ struct DailyEnergyListView: View {
     private func loadEnergyAndRefreshWidget() async {
         await viewModel.load()
         estimateRefreshToken += 1
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+        widgetUpdates.reload()
     }
 
     @ViewBuilder
@@ -75,7 +76,13 @@ struct DailyEnergyListView: View {
             }
             TodayEnergyEstimateSection(repository: nutritionRepository, refreshToken: estimateRefreshToken)
             CalorieHistorySection(viewModel: calorieViewModel, range: $calorieRange)
-            HealthSyncStatusRow(title: "Imported by Apple Watch", detail: "The watch refreshes the last 7 days automatically")
+            if demoActions == nil {
+                HealthSyncStatusRow(title: "Imported by Apple Watch", detail: "The watch refreshes the last 7 days automatically")
+            } else {
+                Text("Fictional demo energy · Apple Watch is not connected")
+                    .font(.caption)
+                    .foregroundStyle(NeoGymTheme.textSecondary)
+            }
             if viewModel.entries.isEmpty {
                 AppEmptyStateView(
                     title: "No energy entries yet",
