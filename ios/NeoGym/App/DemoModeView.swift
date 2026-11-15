@@ -10,12 +10,14 @@ final class AppModeController: ObservableObject {
     @Published private(set) var configurationError: String?
     let options: DemoLaunchOptions?
     let defaults: UserDefaults?
+    private var pendingLaunchReset = false
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         defaults = UserDefaults(suiteName: Self.defaultsSuite)
         do {
             let options = try DemoLaunchOptions(arguments: arguments)
             self.options = options
+            pendingLaunchReset = options.reset
             isDemo = options.enabled || defaults?.bool(forKey: Self.activeKey) == true
             if options.enabled { defaults?.set(true, forKey: Self.activeKey) }
             if isDemo, defaults == nil { configurationError = "Demo preferences are unavailable." }
@@ -23,6 +25,11 @@ final class AppModeController: ObservableObject {
             options = nil
             configurationError = error.localizedDescription
         }
+    }
+
+    func takeLaunchReset() -> Bool {
+        defer { pendingLaunchReset = false }
+        return pendingLaunchReset
     }
 
     func enterDemo() {
@@ -46,7 +53,7 @@ struct AppModeView: View {
             AppErrorStateView(title: "Couldn't configure demo", message: error, retryTitle: "Open normal sign-in", retry: mode.exitDemo)
                 .padding()
         } else if mode.isDemo, let defaults = mode.defaults {
-            DemoModeView(defaults: defaults, options: mode.options, exit: mode.exitDemo)
+            DemoModeView(defaults: defaults, options: mode.options, takeLaunchReset: mode.takeLaunchReset, exit: mode.exitDemo)
         } else {
             LiveAppView(enterDemo: mode.enterDemo)
         }
@@ -112,16 +119,16 @@ private final class DemoRuntime: ObservableObject {
 
 private struct DemoModeView: View {
     let defaults: UserDefaults
-    let options: DemoLaunchOptions?
+    let takeLaunchReset: () -> Bool
     let exit: () -> Void
     @StateObject private var runtime: DemoRuntime
     @StateObject private var connectivity = PhoneAccountConnectivity(patService: DisabledDemoPATService(), enabled: false)
     @AppStorage private var appearance: String
     @State private var isExiting = false
 
-    init(defaults: UserDefaults, options: DemoLaunchOptions?, exit: @escaping () -> Void) {
+    init(defaults: UserDefaults, options: DemoLaunchOptions?, takeLaunchReset: @escaping () -> Bool, exit: @escaping () -> Void) {
         self.defaults = defaults
-        self.options = options
+        self.takeLaunchReset = takeLaunchReset
         self.exit = exit
         _runtime = StateObject(wrappedValue: DemoRuntime(defaults: defaults, screen: options?.screen ?? .today))
         _appearance = AppStorage(wrappedValue: AppAppearance.defaultValue.rawValue, AppAppearance.storageKey, store: defaults)
@@ -157,7 +164,7 @@ private struct DemoModeView: View {
         .background(NeoGymTheme.background)
         .tint(NeoGymTheme.accentText)
         .preferredColorScheme(AppAppearance(storedValue: appearance).colorScheme)
-        .task { await runtime.load(reset: options?.reset ?? false) }
+        .task { await runtime.load(reset: takeLaunchReset()) }
     }
 
     private func exitDemo() {

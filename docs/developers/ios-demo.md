@@ -53,9 +53,12 @@ env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl launch --terminate-running
 env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl io "$UDID" screenshot /tmp/neogym-demo.png
 ```
 
-`--demo-reset` is destructive **only to demo state**. Omit it to inspect edits
-across relaunches. Xcode's scheme Run › Arguments accepts these same arguments;
-there is no separate build configuration or compile-time demo switch.
+`--demo-reset` is destructive **only to demo state** and applies only to the
+first demo load of that process launch. Exit → Try demo in the same process
+preserves subsequent edits; **Reset demo data** remains an explicit reset.
+Omit the flag to inspect edits across relaunches. Xcode's scheme Run › Arguments
+accepts these same arguments; there is no separate build configuration or
+compile-time demo switch.
 
 Supported arguments:
 
@@ -195,7 +198,8 @@ not a promise that all device processes have stopped networking.
 
   Smoke tests visit all five areas, inspect connection disclosure, exercise the
   native Quick log/Back/create/cancel controls, log a set, relaunch without reset,
-  reset, exit and re-enter through the public action, log a planned nutrition slot
+  reset, exit and re-enter through the public action (including preserving a logged
+  set in a process launched with `--demo-reset`), log a planned nutrition slot
   and check persisted totals, and open explicit launch targets. Screenshots are
   retained as test attachments.
   Keep simulator ad-hoc signing enabled for exit/public-entry checks: an unsigned

@@ -72,6 +72,21 @@ final class DemoModeUITests: XCTestCase {
         XCTAssertTrue(banner.waitForExistence(timeout: 15))
     }
 
+    func testLaunchResetDoesNotRepeatAfterExitAndPublicReentry() {
+        launch(screen: "train/session/current", reset: true)
+        XCTAssertTrue(app.buttons["Log set 2"].waitForExistence(timeout: 10))
+        app.buttons["Log set 2"].tap()
+        XCTAssertTrue(app.buttons["Log set 3"].waitForExistence(timeout: 10))
+
+        app.buttons["demo.controls"].tap()
+        app.buttons["Exit demo"].tap()
+        XCTAssertTrue(app.buttons["demo.enter"].waitForExistence(timeout: 15),
+                      "Use a clean test simulator: Exit intentionally restores any existing real session, not always Sign in.")
+        app.buttons["demo.enter"].tap()
+        XCTAssertTrue(app.buttons["Log set 3"].waitForExistence(timeout: 15), "Launch reset must not erase same-process demo edits on re-entry")
+        attachScreenshot("Demo edit preserved after launch reset and re-entry")
+    }
+
     func testPlannedNutritionLoggingUpdatesTotalsAndPersists() {
         launch(screen: "nutrition/log", reset: true)
         XCTAssertTrue(kcalLabel(425).waitForExistence(timeout: 10))
