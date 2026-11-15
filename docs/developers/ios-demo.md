@@ -115,7 +115,8 @@ children, template delete restrictions, nullable provenance, and unique
 Body/Energy dates. This is not a full Postgres/Hasura emulator; backend security
 and integration tests remain necessary. Today training preserves the live query's
 ordering: today's sessions are oldest first, while the latest-session fallback
-remains newest first.
+remains newest first. The Workouts index matches `WorkoutsIndex`: private workouts
+first, then public workouts, each ordered by name; its labels are ordered by name.
 
 The populated scenario has three workouts, five exercises with bundled vector
 illustrations, strength/cardio history, foods/meals/a mixed-slot plan, partially
@@ -177,6 +178,8 @@ not a promise that all device processes have stopped networking.
   `DemoIsolationWiringTests` cover DTO compatibility, cross-feature mutation
   consistency, persistence/reset/retirement, failed-save rollback, snapshot and
   cascade invariants, local-midnight/DST fixtures and composition/effect guards.
+  Workouts ordering fixtures include a newly created late-alphabet private workout
+  and label IDs opposite to name order, so record-ID sorting cannot pass by chance.
   DST fixtures include fresh seeds after skipped midnights in America/Santiago
   and Atlantic/Azores, plus persisted reopen across each transition day's end;
   they check today's session, nutrition, energy, Body and journal records.

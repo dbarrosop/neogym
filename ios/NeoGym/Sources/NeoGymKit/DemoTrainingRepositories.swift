@@ -6,9 +6,16 @@ public struct DemoWorkoutsRepository: WorkoutsRepositoryProtocol {
 
     public func listWorkouts() async throws -> WorkoutIndexPayload {
         try await store.read { state in
-            WorkoutIndexPayload(
-                workouts: try state.decode([WorkoutListItem].self, .array(state.rows(.workouts).map { try state.workout($0.text("id")) })),
-                labels: try state.records(table: .workoutLabels)
+            let workouts = try state.decode(
+                [WorkoutListItem].self,
+                .array(state.rows(.workouts).map { try state.workout($0.text("id")) })
+            )
+            let labels: [WorkoutLabel] = try state.records(table: .workoutLabels)
+            return WorkoutIndexPayload(
+                workouts: workouts.sorted {
+                    $0.isPublic == $1.isPublic ? $0.name < $1.name : !$0.isPublic
+                },
+                labels: labels.sorted { $0.name < $1.name }
             )
         }
     }

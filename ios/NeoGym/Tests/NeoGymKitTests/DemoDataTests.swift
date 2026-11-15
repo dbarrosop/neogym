@@ -53,6 +53,30 @@ final class DemoDataTests: XCTestCase {
         XCTAssertFalse(journal.entries.isEmpty)
     }
 
+    func testWorkoutsIndexOrdersPrivateWorkoutsByNameBeforePublicWorkouts() async throws {
+        let store = try DemoStore(now: now, calendar: calendar)
+        let repository = DemoWorkoutsRepository(store: store)
+        // A late-alphabet name makes ID sorting fail regardless of the generated UUIDs.
+        for name in ["B", "A", "Z"] {
+            _ = try await repository.createWorkout(WorkoutFormValues(name: name, description: "", exercises: [], labels: []))
+        }
+
+        let payload = try await repository.listWorkouts()
+        XCTAssertEqual(payload.workouts.map(\.name), ["A", "B", "Run and reset", "Strength foundation", "Z", "Simple full body"])
+        XCTAssertEqual(payload.workouts.map(\.isPublic), [false, false, false, false, false, true])
+    }
+
+    func testWorkoutsIndexOrdersLabelsByNameRatherThanRecordId() async throws {
+        let store = try DemoStore(now: now, calendar: calendar)
+        try await store.change { state in
+            state.insert(.workoutLabels, ["name": .string("alpha")], id: "demo-label-z")
+            state.insert(.workoutLabels, ["name": .string("zeta")], id: "demo-label-a")
+        }
+
+        let payload = try await DemoWorkoutsRepository(store: store).listWorkouts()
+        XCTAssertEqual(payload.labels.map(\.name), ["alpha", "strength", "zeta"])
+    }
+
     func testTrainingMutationsUpdateTodayProgressAndHistoryAndDetachDeletedWorkout() async throws {
         let store = try DemoStore(now: now, calendar: calendar)
         let repositories = AppRepositories.demo(store: store)
