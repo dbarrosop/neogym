@@ -90,6 +90,25 @@ final class DemoDataTests: XCTestCase {
         XCTAssertNil(deleted)
     }
 
+    func testTodayTrainingOrdersSessionsOldestFirstAndKeepsNewestAsLatest() async throws {
+        let store = try DemoStore(now: now, calendar: calendar)
+        let repositories = AppRepositories.demo(store: store)
+        let seededId = "demo-session-\(today)"
+        let loadedSeed = try await repositories.sessions.sessionDetail(id: seededId)
+        let seededStart = try XCTUnwrap(loadedSeed?.startedAtDate)
+        XCTAssertLessThan(seededStart, now)
+        let newId = try await repositories.exercises.startAdHocSession(exerciseId: "demo-exercise-bench", startedAt: now)
+
+        var snapshot: TodayTrainingSnapshot?
+        for try await value in repositories.sessions.todayTrainingUpdates(window: TodayTrainingWindow(now: now, calendar: calendar)) {
+            snapshot = value
+        }
+        let training = try XCTUnwrap(snapshot)
+        XCTAssertEqual(training.todaySessions.map(\.id), [seededId, newId])
+        XCTAssertEqual(training.todaySessions.compactMap(\.startedAtDate), [seededStart, now])
+        XCTAssertEqual(training.latestSession.map(\.id), [newId])
+    }
+
     func testKindAndCardioSchemaValidationAreNotNoOps() async throws {
         let store = try DemoStore(now: now, calendar: calendar)
         let exercises = DemoExercisesRepository(store: store)

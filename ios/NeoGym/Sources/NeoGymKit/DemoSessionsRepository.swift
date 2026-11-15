@@ -26,6 +26,9 @@ public struct DemoSessionsRepository: SessionsRepositoryProtocol, TodayTrainingP
                 let today = sessions.filter {
                     guard let date = ExerciseDateParser.parseTimestamp($0.text("startedAt")) else { return false }
                     return date >= window.dayStart && date < window.dayEnd
+                }.sorted {
+                    $0.text("startedAt") == $1.text("startedAt")
+                        ? $0.text("id") < $1.text("id") : $0.text("startedAt") < $1.text("startedAt")
                 }
                 return TodayTrainingSnapshot(
                     todaySessions: try state.decode([SessionDetailModel].self, .array(today.map { try state.session($0.text("id")) })),

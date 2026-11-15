@@ -113,7 +113,9 @@ important domain behavior: strength/cardio validation, public read-only items,
 workout deletion detaching sessions, trusted food snapshots, same-day meal
 children, template delete restrictions, nullable provenance, and unique
 Body/Energy dates. This is not a full Postgres/Hasura emulator; backend security
-and integration tests remain necessary.
+and integration tests remain necessary. Today training preserves the live query's
+ordering: today's sessions are oldest first, while the latest-session fallback
+remains newest first.
 
 The populated scenario has three workouts, five exercises with bundled vector
 illustrations, strength/cardio history, foods/meals/a mixed-slot plan, partially
