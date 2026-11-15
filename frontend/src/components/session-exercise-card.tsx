@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Check, ChevronUp, History, Loader2 } from "lucide-react";
-import { type ReactNode, type SubmitEvent, useState } from "react";
+import { type ReactNode, type SubmitEvent, useId, useState } from "react";
 import { toast } from "sonner";
 import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
 import { NumberStepper } from "@/components/patterns/number-stepper";
@@ -274,7 +274,11 @@ function weightLabel(weight: number): string {
   return weight === 0 ? "BW" : `${weight} kg`;
 }
 
-/** This session's logged sets; each row is one native button that opens the set. */
+// Shared by the visual header and in-flow row buttons; no positioned table rows.
+const LOGGED_SET_COLUMNS =
+  "grid grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_3.5rem] sm:grid-cols-[3rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_3.5rem]";
+
+/** This session's logged sets, visually tabular with one native button per set. */
 export function LoggedSetsTable({
   sets,
   multiplier,
@@ -284,62 +288,71 @@ export function LoggedSetsTable({
   multiplier: number;
   onEdit: (set: SetRow) => void;
 }) {
+  const descriptionId = useId();
   if (sets.length === 0) {
     return null;
   }
   return (
-    <table className="w-full text-sm tabular-nums">
-      <thead>
-        <tr className="border-b text-left text-[12px] text-muted-foreground">
-          <th scope="col" className="w-12 py-2 pl-4 font-semibold">
-            Set
-          </th>
-          <th scope="col" className="px-3 font-semibold">
-            Weight
-          </th>
-          <th scope="col" className="px-3 font-semibold">
-            Reps
-          </th>
-          <th scope="col" className="hidden px-3 font-semibold sm:table-cell">
-            Volume
-          </th>
-          <th scope="col" className="w-14 pr-4">
-            <span className="sr-only">Actions</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
+    <div className="w-full text-sm tabular-nums">
+      <div
+        aria-hidden="true"
+        className={cn(
+          LOGGED_SET_COLUMNS,
+          "items-center border-b py-2 text-left text-[12px] font-semibold text-muted-foreground",
+        )}
+      >
+        <span className="pl-4">Set</span>
+        <span className="px-3">Weight</span>
+        <span className="px-3">Reps</span>
+        <span className="hidden px-3 sm:block">Volume</span>
+      </div>
+      {/* biome-ignore lint/a11y/noRedundantRoles: Safari drops list semantics when the CSS reset removes list markers. */}
+      <ol aria-label="Logged sets" role="list">
         {sets.map((set) => {
           const weight = Number(set.weight);
+          const weightId = `${descriptionId}-${set.id}-weight`;
+          const repsId = `${descriptionId}-${set.id}-reps`;
+          const volumeId = `${descriptionId}-${set.id}-volume`;
           return (
-            <tr
-              key={set.id}
-              className="relative h-11 border-b border-border/70 focus-within:bg-surface-inset hover:bg-surface-inset"
-            >
-              <td className="pl-4 font-semibold text-muted-foreground">{set.setNumber}</td>
-              <td className="px-3 font-semibold">{weightLabel(weight)}</td>
-              <td className="px-3 font-semibold">{set.reps}</td>
-              <td className="hidden px-3 sm:table-cell">
-                {volumeFormat.format(weight * set.reps * multiplier)} kg
-              </td>
-              <td className="w-14">
-                {/* One native button spans the row without replacing its table semantics. */}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute inset-0 size-full justify-end rounded-none px-4 text-positive hover:bg-transparent hover:text-positive dark:hover:bg-transparent"
-                  aria-label={`Edit set ${set.setNumber}`}
-                  onClick={() => onEdit(set)}
-                >
-                  <Check strokeWidth={2.6} aria-hidden="true" />
-                </Button>
-              </td>
-            </tr>
+            <li key={set.id} className="border-b border-border/70">
+              {/* Safari versions can ignore a positioned <tr> as an absolute
+                  button's containing block, letting its hit target cover the page.
+                  Keep the entire button and its tick in normal flow instead. */}
+              <Button
+                type="button"
+                variant="ghost"
+                className={cn(
+                  LOGGED_SET_COLUMNS,
+                  "h-auto min-h-11 w-full gap-0 rounded-none px-0 py-0 text-left whitespace-normal hover:bg-surface-inset focus-visible:bg-surface-inset has-[>svg]:px-0",
+                )}
+                aria-label={`Edit set ${set.setNumber}`}
+                aria-describedby={`${weightId} ${repsId} ${volumeId}`}
+                onClick={() => onEdit(set)}
+              >
+                <span className="pl-4 text-muted-foreground">{set.setNumber}</span>
+                <span id={weightId} className="px-3">
+                  <span className="sr-only">Weight: </span>
+                  {weightLabel(weight)}
+                </span>
+                <span id={repsId} className="px-3">
+                  <span className="sr-only">Reps: </span>
+                  {set.reps}
+                </span>
+                <span id={volumeId} className="hidden px-3 font-normal sm:block">
+                  <span className="sr-only">Volume: </span>
+                  {volumeFormat.format(weight * set.reps * multiplier)} kg
+                </span>
+                <Check
+                  strokeWidth={2.6}
+                  aria-hidden="true"
+                  className="mr-4 justify-self-end text-positive"
+                />
+              </Button>
+            </li>
           );
         })}
-      </tbody>
-    </table>
+      </ol>
+    </div>
   );
 }
 

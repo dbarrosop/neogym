@@ -694,14 +694,18 @@ try {
   // Each row has one full-row native edit button, not a pencil-only target.
   for (const number of [1, 2]) {
     const edit = button(`Edit set ${number}`, card("Squat"));
-    const row = edit.closest("tr");
+    const row = edit.closest("li");
     assert(row);
     assert.equal(row.querySelectorAll("button").length, 1);
-    assert(row.classList.contains("relative"));
-    assert(row.classList.contains("h-11"));
-    assert(edit.classList.contains("absolute"));
-    assert(edit.classList.contains("inset-0"));
-    assert(edit.classList.contains("size-full"));
+    assert(edit.classList.contains("min-h-11"));
+    assert(edit.classList.contains("w-full"));
+    assert(
+      !edit.classList.contains("absolute"),
+      "Set hit targets must stay in normal flow on Safari",
+    );
+    assert(!edit.closest("table"));
+    assert(edit.textContent?.includes("Weight: 50 kgReps: 8"));
+    assert(edit.querySelector("svg"), "The tick stays inside its own row button");
     // biome-ignore lint/performance/noAwaitInLoops: Open and dismiss each real set dialog.
     await settle(() => {
       edit.focus();
@@ -903,7 +907,10 @@ try {
   assert.equal(earlierSection.querySelectorAll("li").length, 3);
   assert(!earlierSection.textContent?.includes("4 sets"));
   await logSet("Squat", 1);
-  assert.equal(card("Squat").querySelector("tbody tr")?.textContent, "150 kg8400 kg");
+  assert.equal(
+    button("Edit set 1", card("Squat")).textContent,
+    "1Weight: 50 kgReps: 8Volume: 400 kg",
+  );
   assert(card("Squat").querySelector('form[aria-label="Log set 2"]'));
   await logSet("Squat", 2);
   await logSet("Squat", 3);
