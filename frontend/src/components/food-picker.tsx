@@ -476,7 +476,9 @@ function SelectModePicker<T extends PickerItem>(
         <span className="flex shrink-0 items-center gap-2">
           {/* In narrow rows the name wins: the selected item's tag only shows from 14rem. */}
           {selected && props.renderSelected ? (
-            <span className="hidden @[14rem]:inline-flex">{props.renderSelected(selected)}</span>
+            <span className="hidden @min-[14rem]:inline-flex">
+              {props.renderSelected(selected)}
+            </span>
           ) : null}
           <ChevronDown aria-hidden="true" className="size-3 text-muted-foreground" />
         </span>

@@ -1,10 +1,11 @@
-import { Link } from "@tanstack/react-router";
-import { Check, ChevronUp, History, Loader2, X } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Check, ChevronUp, History, Loader2 } from "lucide-react";
 import { type ReactNode, type SubmitEvent, useState } from "react";
 import { toast } from "sonner";
 import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
 import { NumberStepper } from "@/components/patterns/number-stepper";
 import { Tag } from "@/components/patterns/tag";
+import { RowActionsMenu } from "@/components/row-actions-menu";
 import { AlternatingStorageImage } from "@/components/storage-image";
 import { Button } from "@/components/ui/button";
 import type { ExerciseStatus } from "@/lib/session-logging";
@@ -38,7 +39,10 @@ export function formatRecentDate(iso: string, now = new Date()): string {
   });
 }
 
-/** Open card header: exercise name (links to its page), muscle tag, collapse and remove. */
+/**
+ * Open card header: exercise name (links to its page), muscle tag, collapse,
+ * and an options menu (as on iOS) so removing never sits one tap from collapse.
+ */
 export function OpenCardHeader({
   exerciseId,
   exerciseName,
@@ -50,6 +54,7 @@ export function OpenCardHeader({
   tags?: ReactNode;
   onCollapse?: (() => void) | undefined;
 }) {
+  const navigate = useNavigate();
   return (
     <div className="flex items-center gap-2.5 py-1.5 pr-1.5 pl-4">
       <Link
@@ -77,16 +82,18 @@ export function OpenCardHeader({
             <ChevronUp />
           </Button>
         ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          aria-label={`Remove ${exerciseName} from session`}
-          onClick={onRequestRemove}
-        >
-          <X />
-        </Button>
+        <RowActionsMenu
+          label={`Options for ${exerciseName}`}
+          buttonClassName="size-11 rounded-[9px]"
+          items={[
+            {
+              label: "Exercise details",
+              onSelect: () =>
+                void navigate({ to: "/train/exercises/$exerciseId", params: { exerciseId } }),
+            },
+            { label: "Remove from session", destructive: true, onSelect: onRequestRemove },
+          ]}
+        />
       </span>
     </div>
   );

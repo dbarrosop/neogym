@@ -20,12 +20,15 @@ export function RowActionsMenu({
   items,
   disabled = false,
   className,
+  buttonClassName,
 }: {
   /** Accessible name of the button, e.g. "More actions for Banana". */
   label: string;
   items: RowMenuItem[];
   disabled?: boolean;
   className?: string;
+  /** Extra classes for the trigger, e.g. `size-11` for a 44 px touch target. */
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -96,7 +99,10 @@ export function RowActionsMenu({
             setOpen(true);
           }
         }}
-        className="grid size-9 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+        className={cn(
+          "grid size-9 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+          buttonClassName,
+        )}
       >
         <MoreHorizontal aria-hidden="true" className="size-4" />
       </button>

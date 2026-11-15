@@ -641,10 +641,39 @@ try {
     "Decrease Reps for set 1",
     "Increase Reps for set 1",
     "Collapse Squat",
-    "Remove Squat from session",
+    "Options for Squat",
   ]) {
     assert(button(label).classList.contains("size-11"), `${label} needs a 44 px target`);
   }
+  // Removing lives in the options menu (as on iOS), never one tap from Collapse.
+  assert(!container.querySelector('[aria-label="Remove Squat from session"]'));
+  const options = button("Options for Squat");
+  assert.equal(options.getAttribute("aria-haspopup"), "menu");
+  await settle(() => options.click());
+  const menu = container.querySelector<HTMLElement>('[role="menu"]');
+  assert(menu);
+  assert.deepEqual(
+    [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+    ["Exercise details", "Remove from session"],
+  );
+  await settle(() => button("Exercise details", menu).click());
+  assert.deepEqual(navigations.at(-1), {
+    to: "/train/exercises/$exerciseId",
+    params: { exerciseId: "Squat" },
+  });
+  await settle(() => options.click());
+  await settle(() =>
+    button(
+      "Remove from session",
+      container.querySelector<HTMLElement>('[role="menu"]') ?? container,
+    ).click(),
+  );
+  const removeDialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+  assert(removeDialog);
+  assert(removeDialog.textContent?.includes("Remove Squat?"));
+  await settle(() => button("Cancel", removeDialog).click());
+  assert(!document.querySelector('[role="alertdialog"]'));
+  assert(card("Squat"));
   assert(button("Log set").classList.contains("h-11"));
   const firstWeight = card("Squat").querySelector<HTMLInputElement>(
     'input[aria-label="Weight in kg for set 1"]',

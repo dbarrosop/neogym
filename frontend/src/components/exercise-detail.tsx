@@ -223,18 +223,23 @@ function ExerciseDetailContent({ exercise }: { exercise: ExerciseData }) {
           </Button>
         }
       />
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-5">
-        <div className="flex min-w-0 flex-col gap-5">
-          {renderProgress()}
-          <DetailCard title="History" flush>
-            {renderHistory()}
-          </DetailCard>
-        </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          <ImagesAndMuscles exercise={exercise} />
-          <DetailCard title="How to">
-            <ExerciseInstructions instructions={exercise.instructions} />
-          </DetailCard>
+      {/* The exercise itself (photos, muscles, how to) comes first, as on iOS:
+          stacked above Progress and History in one column, and moved to the
+          right-hand column once the page fits two (the design's desktop layout). */}
+      <div className="@container">
+        <div className="grid items-start gap-5 @min-[860px]:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-5 @min-[860px]:order-last">
+            <ImagesAndMuscles exercise={exercise} />
+            <DetailCard title="How to">
+              <ExerciseInstructions instructions={exercise.instructions} />
+            </DetailCard>
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            {renderProgress()}
+            <DetailCard title="History" flush>
+              {renderHistory()}
+            </DetailCard>
+          </div>
         </div>
       </div>
     </>
