@@ -329,12 +329,16 @@ last timeline snapshot; unchanged-value reads may not update that age until
 WidgetKit asks for another timeline. Foreground return explicitly awaits the
 uncached `/user` revalidation and calls Energy refresh even when the account
 name is unchanged, coalescing with the existing account-state-driven refresh.
-The phone creates and binds `AuthStore` to `PhoneAccountConnectivity` and
-activates WCSession in `NeoGymApp.init`, independently of any `WindowGroup`
-scene. An incoming watch pairing request during asynchronous Auth restoration is held
-in memory until the signed-in account is known, retaining its original receipt
-time for the ten-minute expiry. Force-quit delivery is not guaranteed by iOS,
-so request pairing again from the watch if needed. No watch OTP path exists.
+The phone's `LiveAppView` owns the lazy `LiveAppRuntime` in the `WindowGroup`
+live branch. `LiveAppRuntime.init` creates `AuthStore`, binds it to
+`PhoneAccountConnectivity` and starts WCSession activation; this bootstrap is
+view-owned, not independent of scenes. A background-only phone launch that creates
+no live view does not activate WCSession or receive watch pairing requests.
+Once the live runtime exists, an incoming watch pairing request during
+asynchronous Auth restoration is held in memory until the signed-in account is
+known, retaining its original receipt time for the ten-minute expiry. Force-quit
+delivery is not guaranteed by iOS, so request pairing again from the watch if
+needed. No watch OTP path exists.
 The phone publishes definitive `AuthStore`
 states through `PhoneHintPublisher` and WCSession, re-sending with an opaque
 delivery ID on activation/foreground. Transient bootstrap states do not overwrite hints.
