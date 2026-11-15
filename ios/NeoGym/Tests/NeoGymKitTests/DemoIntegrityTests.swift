@@ -24,18 +24,60 @@ final class DemoIntegrityTests: XCTestCase {
     }
 
     func testTodayHasACurrentSessionEvenImmediatelyAfterMidnightAcrossDSTDates() async throws {
-        for zone in ["Europe/Madrid", "America/New_York"] {
+        for (zone, days) in [
+            ("Europe/Madrid", ["2026-03-08", "2026-03-29", "2026-10-25", "2026-11-01"]),
+            ("America/New_York", ["2026-03-08", "2026-03-29", "2026-10-25", "2026-11-01"]),
+            ("America/Santiago", ["2026-09-06", "2026-09-07", "2026-11-15"]),
+            ("Atlantic/Azores", ["2026-03-29", "2026-03-30", "2026-04-20"])
+        ] {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
-            for day in ["2026-03-08", "2026-03-29", "2026-10-25", "2026-11-01"] {
+            for day in days {
                 let midnight = try XCTUnwrap(IntakeGrouping.localDateToDate(day, calendar: calendar))
                 let now = midnight.addingTimeInterval(60)
-                let repository = DemoSessionsRepository(store: try DemoStore(now: now, calendar: calendar))
-                var snapshot: TodayTrainingSnapshot?
-                for try await value in repository.todayTrainingUpdates(window: TodayTrainingWindow(now: now, calendar: calendar)) { snapshot = value }
-                XCTAssertTrue(try XCTUnwrap(snapshot).todaySessions.contains { $0.id == "demo-session-\(day)" }, "\(zone) \(day)")
+                let store = try DemoStore(now: now, calendar: calendar)
+                try await assertTodayIsSeeded(store: store, now: now, calendar: calendar)
+                let energy = try await DemoEnergyRepository(store: store).listEntries()
+                XCTAssertEqual(energy.count, 91, "\(zone) \(day)")
             }
         }
+    }
+
+    func testReopeningAfterSkippedMidnightSeedsTheNextLocalDay() async throws {
+        for (zone, transitionDay) in [("America/Santiago", "2026-09-06"), ("Atlantic/Azores", "2026-03-29")] {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = try XCTUnwrap(TimeZone(identifier: zone))
+            let firstStart = try XCTUnwrap(IntakeGrouping.localDateToDate(transitionDay, calendar: calendar))
+            XCTAssertEqual(calendar.component(.hour, from: firstStart), 1, zone)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("demo.json")
+            defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+            let store = try DemoStore(fileURL: url, now: firstStart.addingTimeInterval(60), calendar: calendar)
+            await store.invalidate()
+
+            let next = try XCTUnwrap(calendar.date(byAdding: .day, value: 1, to: firstStart))
+            let now = calendar.startOfDay(for: next).addingTimeInterval(60)
+            let reopened = try DemoStore(fileURL: url, now: now, calendar: calendar)
+            try await assertTodayIsSeeded(store: reopened, now: now, calendar: calendar)
+            await reopened.invalidate()
+        }
+    }
+
+    private func assertTodayIsSeeded(store: DemoStore, now: Date, calendar: Calendar) async throws {
+        let day = DateOnly.formatLocalISO(now, calendar: calendar)
+        let context = "\(calendar.timeZone.identifier) \(day)"
+        let repositories = AppRepositories.demo(store: store)
+        let session = try await repositories.sessions.sessionDetail(id: "demo-session-\(day)")
+        XCTAssertNotNil(session, context)
+        var snapshot: TodayTrainingSnapshot?
+        for try await value in repositories.sessions.todayTrainingUpdates(window: TodayTrainingWindow(now: now, calendar: calendar)) { snapshot = value }
+        XCTAssertTrue(try XCTUnwrap(snapshot).todaySessions.contains { $0.id == "demo-session-\(day)" }, context)
+        let intake = try await repositories.nutrition.openDailyIntake(date: day)
+        XCTAssertEqual(intake.day?.logDate, day, context)
+        XCTAssertEqual(intake.dailyEnergy?.energyOn, day, context)
+        let body = try await repositories.body.measurement(id: "demo-body-\(day)")
+        XCTAssertEqual(body?.measuredOn, day, context)
+        let journal = try await repositories.journal.entry(id: "demo-journal-\(day)")
+        XCTAssertEqual(journal?.entryDate, day, context)
     }
 
     func testStrengthReportsExcludeZeroRepSetsAndDoubleVolumeButNotOneRepMax() async throws {

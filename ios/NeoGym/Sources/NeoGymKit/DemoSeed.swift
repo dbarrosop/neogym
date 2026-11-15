@@ -20,8 +20,10 @@ enum DemoSeed {
         guard state.preparedThrough < today else { return }
         let first = max(state.preparedThrough, DateOnly.formatLocalISO(calendar.date(byAdding: .day, value: -91, to: now) ?? now, calendar: calendar))
         var date = IntakeGrouping.localDateToDate(first, calendar: calendar) ?? now
-        while let next = calendar.date(byAdding: .day, value: 1, to: date), next <= calendar.startOfDay(for: now) {
-            date = next
+        let todayStart = calendar.startOfDay(for: now)
+        // A skipped midnight can resolve to 01:00; do not carry that hour into later days.
+        while let next = calendar.date(byAdding: .day, value: 1, to: date), calendar.startOfDay(for: next) <= todayStart {
+            date = calendar.startOfDay(for: next)
             seedDay(&state, date: date, today: today, now: now, calendar: calendar)
         }
         state.preparedThrough = today

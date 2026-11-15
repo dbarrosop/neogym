@@ -115,7 +115,9 @@ and integration tests remain necessary.
 The populated scenario has three workouts, five exercises with bundled vector
 illustrations, strength/cardio history, foods/meals/a mixed-slot plan, partially
 logged intake and training today, Body/Energy history, and journal entries.
-Initial history covers 91 local dates. Dates use local-calendar arithmetic; a
+Initial history covers 91 local dates. Dates use local-calendar arithmetic,
+normalizing every step to that day's start: a DST-skipped midnight may start at
+01:00, but that hour must not carry into later days and leave today unseeded. A
 reopened store adds missing newer dates without overwriting edits or resurrecting
 deleted templates. For each date, seeding independently skips any existing Log day,
 Body measurement or Energy entry, including user rows created for future dates or
@@ -124,6 +126,8 @@ food entries. Seeded IDs are stable; newly created IDs are unique. Clock
 freezing, fault/empty scenarios and backward device-clock changes are not v1
 features (reset after deliberately changing the device clock). Leave and reopen
 demo after crossing a local midnight to prepare the new day's sample records.
+If an older build already marked a missing day as prepared, use **Reset demo
+data** to regenerate it; reopening does not backfill dates already marked prepared.
 
 ### Storage
 
@@ -168,6 +172,9 @@ not a promise that all device processes have stopped networking.
   `DemoIsolationWiringTests` cover DTO compatibility, cross-feature mutation
   consistency, persistence/reset/retirement, failed-save rollback, snapshot and
   cascade invariants, local-midnight/DST fixtures and composition/effect guards.
+  DST fixtures include fresh seeds after skipped midnights in America/Santiago
+  and Atlantic/Azores, plus persisted reopen across each transition day's end;
+  they check today's session, nutrition, energy, Body and journal records.
   `AuthStoreTests` also verifies retirement preserves real credentials, ignores
   late startup success/failure, and does not cancel an already-issued SDK refresh.
   Host source guards supplement, not replace, compiling the SwiftUI target.
