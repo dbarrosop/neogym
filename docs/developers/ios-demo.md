@@ -117,7 +117,10 @@ illustrations, strength/cardio history, foods/meals/a mixed-slot plan, partially
 logged intake and training today, Body/Energy history, and journal entries.
 Initial history covers 91 local dates. Dates use local-calendar arithmetic; a
 reopened store adds missing newer dates without overwriting edits or resurrecting
-deleted templates. Seeded IDs are stable; newly created IDs are unique. Clock
+deleted templates. For each date, seeding independently skips any existing Log day,
+Body measurement or Energy entry, including user rows created for future dates or
+after midnight before reopening. An existing Log day receives no seeded meals or
+food entries. Seeded IDs are stable; newly created IDs are unique. Clock
 freezing, fault/empty scenarios and backward device-clock changes are not v1
 features (reset after deliberately changing the device clock). Leave and reopen
 demo after crossing a local midnight to prepare the new day's sample records.

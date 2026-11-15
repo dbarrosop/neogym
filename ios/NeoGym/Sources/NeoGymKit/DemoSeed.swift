@@ -121,7 +121,8 @@ enum DemoSeed {
         let isToday = day == today
         let currentStart = max(calendar.startOfDay(for: now), now.addingTimeInterval(-2700))
         let timestamp = ISO8601DateFormatter().string(from: isToday ? currentStart : calendar.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date)
-        if state.tables[DemoTable.foods.rawValue]?["demo-food-yogurt"] != nil {
+        if state.tables[DemoTable.foods.rawValue]?["demo-food-yogurt"] != nil,
+           !state.rows(.days).contains(where: { $0.text("logDate") == day }) {
             let dayId = "demo-day-\(day)"
             let selectedPlan: JSONValue = state.tables[DemoTable.plans.rawValue]?[planId] == nil ? .null : .string(planId)
             state.insert(.days, ["logDate": .string(day), "userId": .string(DemoStore.userId), "nutritionPlanId": selectedPlan], id: dayId)
@@ -157,17 +158,21 @@ enum DemoSeed {
                 state.insert(.logEntries, entry, id: "\(dayId)-dinner")
             }
         }
-        state.insert(.energy, ["energyOn": .string(day),
-            "activeKcal": .number(isToday ? 310 : 420 + Double(ordinal % 8) * 35),
-            "restingKcal": .number(isToday ? 880 : 1750 + Double(ordinal % 5) * 15),
-            "notes": .string("Fictional demo data"),
-            "updatedAt": .string(timestamp)], id: "demo-energy-\(day)")
-        if ordinal % 3 == 0 || isToday {
-            state.insert(.body, ["measuredOn": .string(day),
-                "weightKg": .number(78 + Double(ordinal % 13) / 10),
-                "bodyFatPct": .number(18 + Double(ordinal % 9) / 10),
+        if !state.rows(.energy).contains(where: { $0.text("energyOn") == day }) {
+            state.insert(.energy, ["energyOn": .string(day),
+                "activeKcal": .number(isToday ? 310 : 420 + Double(ordinal % 8) * 35),
+                "restingKcal": .number(isToday ? 880 : 1750 + Double(ordinal % 5) * 15),
                 "notes": .string("Fictional demo data"),
-                "updatedAt": .string(timestamp)], id: "demo-body-\(day)")
+                "updatedAt": .string(timestamp)], id: "demo-energy-\(day)")
+        }
+        if ordinal % 3 == 0 || isToday {
+            if !state.rows(.body).contains(where: { $0.text("measuredOn") == day }) {
+                state.insert(.body, ["measuredOn": .string(day),
+                    "weightKg": .number(78 + Double(ordinal % 13) / 10),
+                    "bodyFatPct": .number(18 + Double(ordinal % 9) / 10),
+                    "notes": .string("Fictional demo data"),
+                    "updatedAt": .string(timestamp)], id: "demo-body-\(day)")
+            }
             if state.tables[DemoTable.workouts.rawValue]?[workoutId] != nil {
                 seedSession(&state, day: day, timestamp: timestamp, partial: isToday, ordinal: ordinal)
             }

@@ -179,6 +179,76 @@ final class DemoDataTests: XCTestCase {
         XCTAssertNil(removed)
     }
 
+    func testAdvancingDemoPreservesFutureDatedUserRows() async throws {
+        let tomorrow = try XCTUnwrap(calendar.date(byAdding: .day, value: 1, to: now))
+        let day = DateOnly.formatLocalISO(tomorrow, calendar: calendar)
+        // Reopen on the occupied date and after it, covering today's and historical seed intake.
+        for offset in [1, 2] {
+            let reopenedAt = try XCTUnwrap(calendar.date(byAdding: .day, value: offset, to: now))
+            try await assertReopeningPreservesUserRows(openedAt: now, day: day, reopenedAt: reopenedAt)
+        }
+    }
+
+    func testReopeningDemoPreservesRowsLoggedAfterMidnightBeforeReseeding() async throws {
+        let midnight = try XCTUnwrap(IntakeGrouping.localDateToDate("2026-03-29", calendar: calendar))
+        let afterMidnight = midnight.addingTimeInterval(60)
+        // The still-open store was prepared yesterday, but Log/entry forms now write today's date.
+        try await assertReopeningPreservesUserRows(
+            openedAt: midnight.addingTimeInterval(-60),
+            day: DateOnly.formatLocalISO(afterMidnight, calendar: calendar),
+            reopenedAt: afterMidnight
+        )
+    }
+
+    private func assertReopeningPreservesUserRows(openedAt: Date, day: String, reopenedAt: Date) async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("demo.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let store = try DemoStore(fileURL: url, now: openedAt, calendar: calendar)
+        let repositories = AppRepositories.demo(store: store)
+        let energyValues = DailyEnergyFormValues(energyOn: day, activeKcal: "400", restingKcal: "1700", notes: "My energy")
+        let energyId = try await repositories.energy.createEntry(energyValues)
+        let bodyValues = BodyMeasurementFormValues(measuredOn: day, weightKg: "82", bodyFatPct: "19", notes: "My body")
+        let bodyId = try await repositories.body.createMeasurement(bodyValues)
+        let dayId = try await repositories.nutrition.createNutritionDay(date: day, nutritionPlanId: nil)
+        let logId = try await repositories.nutrition.logFood(LogFoodValues(
+            dayId: dayId, foodId: "demo-food-banana", grams: "100", slotTime: "10:00", position: 0
+        ))
+        let savedEnergy = try await repositories.energy.entry(id: energyId)
+        let savedBody = try await repositories.body.measurement(id: bodyId)
+        let savedIntake = try await repositories.nutrition.openDailyIntake(date: day)
+        let savedDay = try XCTUnwrap(savedIntake.day)
+        await store.invalidate()
+
+        let reopened = try DemoStore(fileURL: url, now: reopenedAt, calendar: calendar)
+        let restored = AppRepositories.demo(store: reopened)
+        let overview = try await restored.nutrition.nutritionOverview()
+        let body = try await restored.body.listMeasurements()
+        let intake = try await restored.nutrition.openDailyIntake(date: day)
+        let energyRows = overview.dailyEnergyEntries.filter { $0.energyOn == day }
+        XCTAssertEqual(energyRows, [try XCTUnwrap(savedEnergy)])
+        XCTAssertEqual(body.filter { $0.measuredOn == day }, [try XCTUnwrap(savedBody)])
+        XCTAssertEqual(overview.days.filter { $0.logDate == day }, [savedDay])
+        XCTAssertEqual(intake.day, savedDay)
+        XCTAssertEqual(overview.daysByDate[day], intake.day)
+        XCTAssertEqual(intake.day?.allLogEntries.map(\.id), [logId])
+        // Fail assertions rather than trapping the test process on the original duplicate-energy bug.
+        guard energyRows.count == 1 else { return }
+        let balance = TodayBalanceSummary(payload: overview, today: day, calendar: calendar)
+        XCTAssertEqual(balance.caloriesIn, 89)
+        XCTAssertEqual(balance.caloriesOut, 2100)
+        for try await history in restored.nutrition.nutritionCalorieHistoryUpdates(range: ChartHistoryRange(from: day, through: day)) {
+            XCTAssertEqual(history.consumedValues.map(\.calories), [89])
+            XCTAssertEqual(history.dailyNetValues.map(\.net), [89 - 2100])
+        }
+        // Unchanged-value edits must still pass the repositories' date-uniqueness checks.
+        try await restored.energy.updateEntry(id: energyId, values: energyValues)
+        try await restored.body.updateMeasurement(id: bodyId, values: bodyValues)
+        let reopenedDay = DateOnly.formatLocalISO(reopenedAt, calendar: calendar)
+        let currentSession = try await restored.sessions.sessionDetail(id: "demo-session-\(reopenedDay)")
+        XCTAssertNotNil(currentSession, "Skipping an occupied Body date must not skip training seeds")
+        await reopened.invalidate()
+    }
+
     private func foodValues(kcal: String) -> FoodFormValues {
         FoodFormValues(name: "Custom sample", kcalPer100g: kcal, fatPer100g: "0", carbsPer100g: "0", proteinPer100g: "0", fiberPer100g: "0", sugarPer100g: "0")
     }
