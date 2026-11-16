@@ -5,6 +5,13 @@ Review exploration. It ships in normal Release builds; it is not a hidden
 review-only build or a production authentication bypass. The watch app and
 widgets do **not** have demo modes.
 
+For an illustrated tour, see the [iPhone demo guide](../ios/README.md), its
+[recorded walkthroughs](../ios/workflows.md), and the [full screenshot gallery](../ios/gallery.html).
+The catalog covers reachable demo screen families and canonical workflows, with
+explicit live-only boundaries and observed navigation issues. The opt-in
+`DemoGuideCaptureUITests` driver is skipped in ordinary test runs; reproducible
+capture and host-only tooling checks are documented in [capture instructions](../ios/capture.md).
+
 ## Entry, reset, and exit
 
 - On the signed-out **Sign in** screen, tap **Try demo**. No email or code is

@@ -103,6 +103,12 @@ App Review notes. The `NeoGym` scheme now includes `NeoGymUITests` for five-area
 logging/persistence/reset and public-entry smoke tests. This does **not** establish
 Apple's approval to replace review credentials with a demo.
 
+The [illustrated iPhone guide](../../docs/ios/README.md) links every captured
+section, canonical walkthrough and full-resolution screenshot, including observed
+navigation issues and live-only coverage boundaries. See its
+[capture instructions](../../docs/ios/capture.md) for the opt-in, skipped-by-default
+`DemoGuideCaptureUITests` driver and Python reproduction/validation tools.
+
 ## Embedded Apple Watch companion (Phase 2)
 
 `NeoGymWatch` is a watchOS 27 companion embedded in the existing iPhone app

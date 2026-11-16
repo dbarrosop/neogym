@@ -1,0 +1,4326 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "5ee6a466da7e83052d5379365e1f8502467b656f",
+  "device": "iPhone 17",
+  "runtime": "iOS 27.0",
+  "locale": "en_US",
+  "appearance": "Dark unless the screenshot explicitly demonstrates Light/System",
+  "statusBar": "9:41, full signal and battery (cosmetic simulator override)",
+  "data": "Fictional populated demo; local dates are not frozen",
+  "screenshots": [
+    {
+      "id": "01-today",
+      "title": "Today: training and nutrition",
+      "file": "screenshots/01-today.png",
+      "workflow": "root-today",
+      "capturedAt": "2026-11-15T16:05:28Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7f6694330143c793dfb260246657866cf8e775a6949f1822dad92b99134f8798",
+      "steps": [
+        "Open Today"
+      ],
+      "capturedSha256": "9f3c76a66b61fcb7b6afa7c5d4791344d3b201e6eacbd3582e3bc549060b656f"
+    },
+    {
+      "id": "10-sessions",
+      "title": "Train: sessions by week",
+      "file": "screenshots/10-sessions.png",
+      "workflow": "root-train-sessions",
+      "capturedAt": "2026-11-15T16:05:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7814a10b27e9f37b61eb51118cf72b0d61fefebd44f59c0ab6bd6a8407eb5967",
+      "steps": [
+        "Open Train → Sessions"
+      ],
+      "capturedSha256": "71033786cd442cc03928a20d985bc21f5862f2b6de646ec4e42d6e4a4de2b302"
+    },
+    {
+      "id": "12-workouts",
+      "title": "Train: workout library",
+      "file": "screenshots/12-workouts.png",
+      "workflow": "root-train-workouts",
+      "capturedAt": "2026-11-15T16:05:48Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b8c9e78a21b9c9b1d5c2b7deae86e0c071e0c656576a3d76e60ee5d1e46049ec",
+      "steps": [
+        "Open Train → Workouts"
+      ],
+      "capturedSha256": "d824afc83d718b603015c6d946e5d972d82f6dd7899898145f23308c78b9bb62"
+    },
+    {
+      "id": "13-exercises",
+      "title": "Train: exercise catalog",
+      "file": "screenshots/13-exercises.png",
+      "workflow": "root-train-exercises",
+      "capturedAt": "2026-11-15T16:05:57Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f5f808232c09d004918b91e408cf2796601eabe5e2d92a2a4f9169bc56e1ea4f",
+      "steps": [
+        "Open Train → Exercises"
+      ],
+      "capturedSha256": "c41ed2edccaf7b400a64ad3a1d63b136273d228e0151626ab9ef8e6f830d0aba"
+    },
+    {
+      "id": "20-nutrition-log",
+      "title": "Nutrition: day summary and week strip",
+      "file": "screenshots/20-nutrition-log.png",
+      "workflow": "root-nutrition-log",
+      "capturedAt": "2026-11-15T16:06:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2b7dd922acecce0902dc7c67c17b7c501d4243eb05b678ae6a02baea35739387",
+      "steps": [
+        "Open Nutrition → Log"
+      ],
+      "capturedSha256": "621bd114ac4a987605a38b97a04e0245efd4c200fb84e144fa1faaba7892b981"
+    },
+    {
+      "id": "21-plans",
+      "title": "Nutrition: plan library",
+      "file": "screenshots/21-plans.png",
+      "workflow": "root-nutrition-plans",
+      "capturedAt": "2026-11-15T16:06:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c7fa3d84ba9165a4aff9baf21e4a363251d00bfe39a989a78d76471cd4637851",
+      "steps": [
+        "Open Nutrition → Plans"
+      ],
+      "capturedSha256": "de351319fa441c4d93cc94dae7b5ac0b32b7431844b794e77d04518fed26d055"
+    },
+    {
+      "id": "22-foods",
+      "title": "Nutrition: food library",
+      "file": "screenshots/22-foods.png",
+      "workflow": "root-nutrition-foods",
+      "capturedAt": "2026-11-15T16:06:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "42592d7899a6e6099bac7743c7146d5ef5423fb21e62720d295eae6b69ab80fb",
+      "steps": [
+        "Open Nutrition → Foods"
+      ],
+      "capturedSha256": "7f5d2d913124a49b7dabb25c2cec4cdef223a7d2219ad715082bc16572a1c838"
+    },
+    {
+      "id": "23-meals",
+      "title": "Nutrition: meal library",
+      "file": "screenshots/23-meals.png",
+      "workflow": "root-nutrition-meals",
+      "capturedAt": "2026-11-15T16:06:35Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0422d67527442a6bb79514f9921c69beb44c5b053f94b5c001a26eaaf4da08b9",
+      "steps": [
+        "Open Nutrition → Meals"
+      ],
+      "capturedSha256": "e890494c2c13283f7c761763169ee839adfc13c78990636c00cd9d8594ed1af6"
+    },
+    {
+      "id": "30-progress-overview",
+      "title": "Progress: overview",
+      "file": "screenshots/30-progress-overview.png",
+      "workflow": "root-progress-overview",
+      "capturedAt": "2026-11-15T16:06:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "691b48ad47031110689c14392cb53d048d5ec6544bc6e73f307868dbb304c778",
+      "steps": [
+        "Open Progress → Overview"
+      ],
+      "capturedSha256": "07668fc93252217f788ad3d42150dbe961c4790756a29de515e51213ecf82786"
+    },
+    {
+      "id": "31-muscles",
+      "title": "Progress: weighted muscle sets",
+      "file": "screenshots/31-muscles.png",
+      "workflow": "root-progress-muscles",
+      "capturedAt": "2026-11-15T16:06:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9366255536ad27de918352b4df68f81676a2093fea6abebd1c2e616fcfc1d650",
+      "steps": [
+        "Open Progress → Muscles"
+      ],
+      "capturedSha256": "62b063f80eb405d9924668d45125853d98dc50bff77e20364539f86dd6bfc64f"
+    },
+    {
+      "id": "32-strength",
+      "title": "Progress: strength and volume",
+      "file": "screenshots/32-strength.png",
+      "workflow": "root-progress-strength",
+      "capturedAt": "2026-11-15T16:07:03Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "865f57dfa5f917e97382d8d62476071d782339c93c2e08ff2f6bf488bce09fb2",
+      "steps": [
+        "Open Progress → Strength"
+      ],
+      "capturedSha256": "1dcdadfa32101136b3d281dcf76fed9cf9a78a3ae12bfec99f5abe66b2c72ea8"
+    },
+    {
+      "id": "33-body",
+      "title": "Progress: body measurements",
+      "file": "screenshots/33-body.png",
+      "workflow": "root-progress-body",
+      "capturedAt": "2026-11-15T16:07:12Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d2f1a8136aebe34e5c506ee593db9dff6e9b457e66430c8d4b6cdcbf3514866f",
+      "steps": [
+        "Open Progress → Body"
+      ],
+      "capturedSha256": "0735a84da75860968e50db50b4171ed710635d827131d541ddfa0cab6ec45a72"
+    },
+    {
+      "id": "34-energy",
+      "title": "Progress: daily energy",
+      "file": "screenshots/34-energy.png",
+      "workflow": "root-progress-energy",
+      "capturedAt": "2026-11-15T16:07:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1372bb1f8651ef4ff397693290933358e3aa5dc4b2c68c5ae34a9cd2c2881e36",
+      "steps": [
+        "Open Progress → Energy"
+      ],
+      "capturedSha256": "c15b804bbcf076e730e753e10dd2b3e7997c3de1f6486c8a56c26725ac933640"
+    },
+    {
+      "id": "40-journal",
+      "title": "Me: journal",
+      "file": "screenshots/40-journal.png",
+      "workflow": "root-me-journal",
+      "capturedAt": "2026-11-15T16:07:32Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "aba5cfefe6a284b003642e5fd5cc0b469202321c5e6a127eda65858dcfc35921",
+      "steps": [
+        "Open Me → Journal"
+      ],
+      "capturedSha256": "a6dffcb48873dbd2d3e886932cc5bb74e131a07cb9afe9f250b09ee57be6a305"
+    },
+    {
+      "id": "41-account",
+      "title": "Me: local sample profile and connections",
+      "file": "screenshots/41-account.png",
+      "workflow": "root-me-account",
+      "capturedAt": "2026-11-15T16:07:42Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7f11f9969b5a9e3e16c26892f3b3a3f8bdbcd8c81322664bfa0e79c098a4d473",
+      "steps": [
+        "Open Me → Account"
+      ],
+      "capturedSha256": "2a185dc97542230e0a6f6aedc6a285637021cc88171d5071c5b685a838d362cb"
+    },
+    {
+      "id": "11-session-strength",
+      "title": "Session: active strength exercise and recent history",
+      "file": "screenshots/11-session-strength.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:33Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bb069c7314fcde20f42a7a76d5b49a93fd8652784a6a05fc60a2ba08663598f0",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise"
+      ],
+      "capturedSha256": "6775c74ef0c15e544616fc10ae16af38bc06f03d8a29f97310317cd6605f212f"
+    },
+    {
+      "id": "11-session-date-editor",
+      "title": "Session: edit start date and time",
+      "file": "screenshots/11-session-date-editor.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "971b7e4e4bb7e2ae30907cd4aaec8f5ed9799658da4d2ee9bdbd4bf922dd613b",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise"
+      ],
+      "capturedSha256": "1e0bf534fbdd32b9d23f70d08fbb745329bd611341e1c1c59f1c5e03cbe7d5b7"
+    },
+    {
+      "id": "11-session-set-edit",
+      "title": "Session: edit a logged strength set",
+      "file": "screenshots/11-session-set-edit.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:43Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "58b4597e5dd1b5c94c3531521607cb608bc9e8407a8884a64971658963b1a653",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels"
+      ],
+      "capturedSha256": "0786372420a5614b2a0473b7d937e52d82ad3e63136a1b22798ea21f7b4ff94c"
+    },
+    {
+      "id": "11-session-set-edit-adjusted",
+      "title": "Session: adjusted repetitions",
+      "file": "screenshots/11-session-set-edit-adjusted.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:47Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7d1546885d0e4fd7abf008106ab6f45c03c527b5907fd1d71102961ac816daad",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels"
+      ],
+      "capturedSha256": "b775a105a233d4eb5dc59393cdc0eeb81dd44600cf0b97f112eca0320a6830aa"
+    },
+    {
+      "id": "11-session-set-add",
+      "title": "Session: add a strength set with wheel controls",
+      "file": "screenshots/11-session-set-add.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "515e10f5fa73f31c8bbb2b1d6547ff7a45786fb9d0aa07e5afba7ca121cb5229",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest"
+      ],
+      "capturedSha256": "22c7ec8cbb9564fe7b059d247cd22c7f15bf3c0088fd642c8a44133b6f5edf1a"
+    },
+    {
+      "id": "11-session-set-logged",
+      "title": "Session: saved set and running rest timer",
+      "file": "screenshots/11-session-set-logged.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:15:59Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "938741f88434e644a49f584590222e5d37e862f6e17624702cd55a5c94806147",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest"
+      ],
+      "capturedSha256": "d763f39826a0e86809dc672bf60fd5fd9accf8d4312625d79897b75d2b4fc808"
+    },
+    {
+      "id": "11-session-rest-extended",
+      "title": "Session: extend the rest countdown",
+      "file": "screenshots/11-session-rest-extended.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:02Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "eea48c22737c3ed1b776e393a31ad0de7eca281761fb2aa7f1a42695314dc395",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest"
+      ],
+      "capturedSha256": "3ab0acbf198c9a5028644600e70189f0ad87cae516d5884ba014b93f233568af"
+    },
+    {
+      "id": "11-session-rest-on-today",
+      "title": "Rest timer remains available on Today",
+      "file": "screenshots/11-session-rest-on-today.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9788638d75369789baf8b984a981aa6f3bd59bf251777d2a3fa7154cb1f1c7d1",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory"
+      ],
+      "capturedSha256": "d95ed1e4f25d8f8e6043199935c69e839408c52999d88750b92bd91d3503fd45"
+    },
+    {
+      "id": "11-session-rest-skipped",
+      "title": "Session: rest skipped, live session remains open",
+      "file": "screenshots/11-session-rest-skipped.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:12Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "eb999a786f98509ff4fa9f83b6cf29b8e15468c17983a608082224fced62912d",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory"
+      ],
+      "capturedSha256": "eb6f9613c72cc96079f7c41f58e49a6f5168f343ebf3c93d71780edda6d08bfe"
+    },
+    {
+      "id": "11-session-set-deleted",
+      "title": "Session: deleted set removed from totals",
+      "file": "screenshots/11-session-set-deleted.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:20Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "161dac6cc1b98258763856c87697a8fe45ab094e910325c9278d7b9c7fec2401",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate"
+      ],
+      "capturedSha256": "d1de3250b3a664607e3a3e2e17a8beb69eb3f2c1e9bb476b13614142dfbdf60c"
+    },
+    {
+      "id": "11-session-exercise-picker",
+      "title": "Session: exercise selection and filters",
+      "file": "screenshots/11-session-exercise-picker.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:24Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "3509d54a56fe9027cba4497662c90229e15c5f5bcfc5c92c805be969fc3f7f98",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker"
+      ],
+      "capturedSha256": "2b76eadfb7f8bdd8f5b594e0eb4dcc3d4d17e9a35de6aaac38f8c517646d1082"
+    },
+    {
+      "id": "11-session-exercise-picker-selected",
+      "title": "Session: selected exercise ready to add",
+      "file": "screenshots/11-session-exercise-picker-selected.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f265a8f47a6732a93cfcdedc09d8594106c0200d185dc87f8f35aac126582d0a",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker"
+      ],
+      "capturedSha256": "5d8656f306243292d35796ad828c69baefa139b3adab1614d5b2826ab3136455"
+    },
+    {
+      "id": "11-session-added-exercise",
+      "title": "Session: added cardio exercise and earlier workout sessions",
+      "file": "screenshots/11-session-added-exercise.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:33Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "96bc0fbd19ac28d101b4e029f43546fd88e9f9785ca6039e3cc65b5511d3c1e3",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker"
+      ],
+      "capturedSha256": "c3a42e0b04d71d9c7064542c5fb944c1f8809d963ff82ee16be4c8fbfc77d14a"
+    },
+    {
+      "id": "11-session-exercise-menu",
+      "title": "Session: exercise details and remove actions",
+      "file": "screenshots/11-session-exercise-menu.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:37Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c42c83ae898adcb9a72c9328cc91537154339fe84eda2001f3c1c83f07dc9f05",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal"
+      ],
+      "capturedSha256": "1ae84d87026be0981dc982ffa9fb60055660741718efc117b8893e3eb442530e"
+    },
+    {
+      "id": "11-session-remove-confirmation",
+      "title": "Session: confirm removing an exercise",
+      "file": "screenshots/11-session-remove-confirmation.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:41Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ff41e38fca149be94409088a338bc2dbbe30e76c7196dc40c9868111971c008d",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal"
+      ],
+      "capturedSha256": "4baf2fbeb8f00e9b592983e28a3609c2784c970cf55853b5a82a325242434412"
+    },
+    {
+      "id": "11-session-comparison-delete",
+      "title": "Session: earlier sessions and destructive action",
+      "file": "screenshots/11-session-comparison-delete.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e367ffce70f775796d0ab550abbfdb0c0a95a47f3bbdf5cbd05a1367b8d4a0d0",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal",
+        "Inspect earlier sessions, then confirm deletion of the current session"
+      ],
+      "capturedSha256": "6c5ae259484a9001989cd2febca418f39f9e85ff776c195cd1ee05b537ca80a4"
+    },
+    {
+      "id": "11-session-delete-confirmation",
+      "title": "Session: confirm deleting all logged sets",
+      "file": "screenshots/11-session-delete-confirmation.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:47Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1314e1fbf6b8e17c2c712078b3358b6eb5a11c4d606534e2291a1a2234ae0203",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal",
+        "Inspect earlier sessions, then confirm deletion of the current session"
+      ],
+      "capturedSha256": "cf94e733f7668d8cc0b6c83efaf692dbbd83fe5a4b81dcaf874f0be7db9c23a1"
+    },
+    {
+      "id": "11-session-deleted",
+      "title": "Session deleted: return to the Train root",
+      "file": "screenshots/11-session-deleted.png",
+      "workflow": "session",
+      "capturedAt": "2026-11-15T16:16:51Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5332dc891b7d56d9eaaecbba595d3c44776156e1f4a3d9de5871dd70f9f39ed9",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal",
+        "Inspect earlier sessions, then confirm deletion of the current session"
+      ],
+      "capturedSha256": "8c8e2d6500e95943bdd9076eada779877d5be2a2bbce8685afd5b7ecc9f816ba"
+    },
+    {
+      "id": "12-workout-create",
+      "title": "Workout: new template form",
+      "file": "screenshots/12-workout-create.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:30:57Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a33a25a7c05df7abc17b3538c97e306f7ff7f1422508a4c2769d526ea574067f",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "a3d0c6809f28cccba9a867f1b143d824186ae24c6daa7ae001425abe331647a6"
+    },
+    {
+      "id": "12-workout-label-suggestions",
+      "title": "Workout: create or choose a label",
+      "file": "screenshots/12-workout-label-suggestions.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:31:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a43ceb56d7a3192e764ea69adc8914fc8ceedea5f64aa5989c7cb34d241d59b2",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "545f22ca8a9cae02ed7f35164df43d0e6ea4207733b9d565a4dc340046b34a80"
+    },
+    {
+      "id": "12-workout-exercise-picker",
+      "title": "Workout: multi-select exercise picker",
+      "file": "screenshots/12-workout-exercise-picker.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:31:13Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e02d3983751d45e7980bd260ef9b4fabb7f19bfb30b51d818184d0f6ac4a9265",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "0f658b936e7382af9634a330c6f998188be7b0d3d17a0fda8638c9d78a5ee19b"
+    },
+    {
+      "id": "12-workout-exercise-selection",
+      "title": "Workout: multiple selected exercises",
+      "file": "screenshots/12-workout-exercise-selection.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:31:18Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "51f01096a9f63045e82df1c83151afe07617aa8bd6204e5a7776a0562e1e96da",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "396c0d154562695ca03c09dda130ab752e7e10e93c55f3653f2ac6209440d8b9"
+    },
+    {
+      "id": "12-workout-create-filled",
+      "title": "Workout: populated create form",
+      "file": "screenshots/12-workout-create-filled.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:31:21Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c1d27a6ad4cbf7a5663f8a9b67cf928244f73058b6de183878136c7bb317ac10",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "8766118428a7fcd1b03f2e27b44a2e0ea352410c53d9fc4df1480807b735a1e6"
+    },
+    {
+      "id": "12-workout-created",
+      "title": "Workout: newly created private template",
+      "file": "screenshots/12-workout-created.png",
+      "workflow": "workout-create",
+      "capturedAt": "2026-11-15T16:31:29Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8b94af1da3e70dc157c00f84ee155b59a3caf0ec19e2eb5722b3bcaad5e52d7d",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "capturedSha256": "cf858e2fbc7eabab244eba24dd9ffe43cf20f4894b629c494f5392c1f0f5dd17"
+    },
+    {
+      "id": "12-workout-detail",
+      "title": "Workout: history bars, exercise list and Start session",
+      "file": "screenshots/12-workout-detail.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:03Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "432fd99cd6b4511566df2ce70a2b5306c3d7649786ebe097041bffd9272a118d",
+      "steps": [
+        "Open a private workout; public workouts remain read-only"
+      ],
+      "capturedSha256": "910b8a146ec68e554ef8b9f38e332508ad554f0756487c1faeca37c71b8ed446"
+    },
+    {
+      "id": "12-workout-detail-notes",
+      "title": "Workout: exercises and markdown notes",
+      "file": "screenshots/12-workout-detail-notes.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1244cd5d81f7d056d87c17c4c3a51d31e9b84cf4dd17a4c7c9cb4cdfb1b4f5b2",
+      "steps": [
+        "Open a private workout; public workouts remain read-only"
+      ],
+      "capturedSha256": "79c76fc55f44f0788ebce225dc37c8f9c08211fd78b0dfcb0ce04cc6e53455d1"
+    },
+    {
+      "id": "12-workout-notes-expanded",
+      "title": "Workout: expanded markdown notes",
+      "file": "screenshots/12-workout-notes-expanded.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:08Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f9af87b99a3d134db06dc9394251ebe43cca3d3713a34a015a1a5cd75cdcff35",
+      "steps": [
+        "Open a private workout; public workouts remain read-only"
+      ],
+      "capturedSha256": "5213a600753ac2e9b14baa8e0b504806376aee25701933895286d141509cc6fe"
+    },
+    {
+      "id": "12-workout-edit",
+      "title": "Workout: edit template fields and labels",
+      "file": "screenshots/12-workout-edit.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:13Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5e9d6dfd7d9cdbcab536d84fc2f85b0373aa070947d1c78a7efd630972c33945",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press"
+      ],
+      "capturedSha256": "eef90f9e80da12749e029e28b35fee6282f19c88d53e56844c6088aca62c963f"
+    },
+    {
+      "id": "12-workout-exercise-context-menu",
+      "title": "Workout: reorder or remove an exercise",
+      "file": "screenshots/12-workout-exercise-context-menu.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:25Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8655d9fb796965c9ce674d1cca36d8d8257a6171df40c8ceb6070fa3f4a43f8c",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press"
+      ],
+      "capturedSha256": "a8f139f209d81a677bff8ec6fb1b4779a5e4eb2ceec4b11bae23038dc0173d89"
+    },
+    {
+      "id": "12-workout-edit-exercises",
+      "title": "Workout: reordered exercises and delete action",
+      "file": "screenshots/12-workout-edit-exercises.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:31Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fc237fff894033816cd63ab8e7a2b11f0a1527411648815ae58be091fc962392",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press"
+      ],
+      "capturedSha256": "d62cd7e13033f7f6b8de14c1964d4328aa7ea382af7197bb87d168d8c288087b"
+    },
+    {
+      "id": "12-workout-started-session",
+      "title": "Workout: new session inherits the template exercise order",
+      "file": "screenshots/12-workout-started-session.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:42Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "83f89b806d5abcbec5d72c04af1e7722f2203681f37502218e7a8f887cbb4b53",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press",
+        "Start a new session from the edited workout"
+      ],
+      "capturedSha256": "074a1167e86af5e157293657130acc1f0e4c714731ac66fd286d76ad6ffc2343"
+    },
+    {
+      "id": "12-workout-delete-confirmation",
+      "title": "Workout: deletion preserves past sessions",
+      "file": "screenshots/12-workout-delete-confirmation.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "486730ad883ea203778e4cfbaf00440d5c9190d5792a87bbdaa7052182dd6404",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press",
+        "Start a new session from the edited workout",
+        "Delete the workout; existing sessions are preserved as ad-hoc"
+      ],
+      "capturedSha256": "73813eb6bcf84ae7aed108ba37e9888e4e3355f51b5274b71264cdcf035c65dd"
+    },
+    {
+      "id": "12-workout-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/12-workout-deleted-detail-issue.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:37:59Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b4b3115f3d8d38e92f88c78474aba26f66c448e6e03fff5251abbf7f1d6668e7",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press",
+        "Start a new session from the edited workout",
+        "Delete the workout; existing sessions are preserved as ad-hoc"
+      ],
+      "capturedSha256": "149df685947c64ccb62d3780f2ebc03355808bf154726eaacf46d485ec75edac"
+    },
+    {
+      "id": "12-workout-deleted-sessions-preserved",
+      "title": "Workout deleted: detached sessions remain in history",
+      "file": "screenshots/12-workout-deleted-sessions-preserved.png",
+      "workflow": "workout-edit",
+      "capturedAt": "2026-11-15T16:38:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d1b57c9320eb2f65044cd40eb9c5e627a2b6cfdc5e8e16b5b1ae9b03971fc825",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press",
+        "Start a new session from the edited workout",
+        "Delete the workout; existing sessions are preserved as ad-hoc"
+      ],
+      "capturedSha256": "e2d5966660bff58eda99699fa3f161359efdc2db56cb40178eb41d995b8ddd8c"
+    },
+    {
+      "id": "12-workouts-public-filter",
+      "title": "Workouts: public template filter",
+      "file": "screenshots/12-workouts-public-filter.png",
+      "workflow": "public-workout",
+      "capturedAt": "2026-11-15T16:38:15Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e08cd59f48ea6bfbae2608342de429413e49b1db44fe12f52df026ebf0f547c0",
+      "steps": [
+        "Filter public templates and open a read-only workout"
+      ],
+      "capturedSha256": "4bf2b4bf14fb0e3a9cebed8fd41c91fc4875dbeedeb802fb9429a6d5dcd8760e"
+    },
+    {
+      "id": "12-workout-public-read-only",
+      "title": "Workout: public template is usable but read-only",
+      "file": "screenshots/12-workout-public-read-only.png",
+      "workflow": "public-workout",
+      "capturedAt": "2026-11-15T16:38:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "080b9b4e56acf6ab09a75bb78a6d8d1f640a8d58f4d37e3c3626b65b824588f9",
+      "steps": [
+        "Filter public templates and open a read-only workout"
+      ],
+      "capturedSha256": "4f3f3cb99f9eea6ca04ee3b2c8a7a4b707376d2ba9359347a690998aac050ecb"
+    },
+    {
+      "id": "13-exercises-mine",
+      "title": "Exercises: private catalog filter",
+      "file": "screenshots/13-exercises-mine.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:38:29Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f8c253b70e0a623184d31b554bee9cef390967541b1f98d5ca4496926dd1e2f0",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu"
+      ],
+      "capturedSha256": "9ac7d0092b7ccdec797f3a5b25e6f740565a03d49d30288d655277347b99ef3b"
+    },
+    {
+      "id": "13-exercises-filter-muscle",
+      "title": "Exercises: muscle filter options",
+      "file": "screenshots/13-exercises-filter-muscle.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:38:35Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5bb9ae4be6a5d8bf82d67fa90c36a9b2492f447651b05e713e8b7c96127cff52",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu"
+      ],
+      "capturedSha256": "b56fba1a7005cd3e6c9313a354c397ed807895029bbafedb899eff6dfd5eda8e"
+    },
+    {
+      "id": "13-exercises-filter-category",
+      "title": "Exercises: category filter options",
+      "file": "screenshots/13-exercises-filter-category.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:38:43Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "eab014ac2e5706ff5ec2bfb0b7f82e3c63d8a67b759d421e934ec7a902eab5fb",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu"
+      ],
+      "capturedSha256": "ffd60a9e2901b0718636c77a62cbcde1cb78b1c41533819c92c838c98b8b7690"
+    },
+    {
+      "id": "13-exercises-filter-equipment",
+      "title": "Exercises: equipment filter options",
+      "file": "screenshots/13-exercises-filter-equipment.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:38:51Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "172a1b08f370c7f7978583c9b77301d29b8a07eddfa479fc0124037573817d0b",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu"
+      ],
+      "capturedSha256": "6b086f557b1d18722a75320624deaac99f107267a49a5c598a67cf53ef285073"
+    },
+    {
+      "id": "13-exercises-filter-level",
+      "title": "Exercises: level filter options",
+      "file": "screenshots/13-exercises-filter-level.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:39:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5a27fc91b85e8530aa25dee7f3b074890e1132f1dbf900070818c9b09f630d1e",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu"
+      ],
+      "capturedSha256": "06b15ce4baf878afee983bb48278080773ad8d244278687a922e124602364f06"
+    },
+    {
+      "id": "13-exercises-search",
+      "title": "Exercises: search results",
+      "file": "screenshots/13-exercises-search.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:39:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "aef5df2196a7e9be4aec18ea4ae755389cb4d48ff4bf6d7e15ee9189465e9ea7",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu",
+        "Search for a matching exercise and inspect the no-results state"
+      ],
+      "capturedSha256": "912ed0c77daf1e7636cf6a4038327b5227fe387bdcd8f259f71ad22e07198f22"
+    },
+    {
+      "id": "13-exercises-empty-search",
+      "title": "Exercises: no matching results and Clear filters",
+      "file": "screenshots/13-exercises-empty-search.png",
+      "workflow": "exercise-catalog",
+      "capturedAt": "2026-11-15T16:39:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9dede6b2f7f54347179342b0f6a8be87f6bfa9ef5ed7ce491a36fc89cf9d48e9",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu",
+        "Search for a matching exercise and inspect the no-results state"
+      ],
+      "capturedSha256": "452d5ee8f079f1200bf359f7b438cc2390566abae59a0b75a73005d9cd2a6503"
+    },
+    {
+      "id": "13-exercise-strength-detail",
+      "title": "Exercise: strength summary and illustration",
+      "file": "screenshots/13-exercise-strength-detail.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:33Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "98ead4c9c7d5760e9a631253f77a48295549e6b8a5ff2d553fca59f5ebf60836",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions"
+      ],
+      "capturedSha256": "a21ffb2336bf5139aa05c3efdad4438172a09d61d131a3a0fea65e2e6e111f0e"
+    },
+    {
+      "id": "13-exercise-strength-instructions",
+      "title": "Exercise: instructions, start action and detail tabs",
+      "file": "screenshots/13-exercise-strength-instructions.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:37Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7339ec553f7de8da37d4841452dea9f9805f536f1f02e0220d4ac4288a477f93",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions"
+      ],
+      "capturedSha256": "8ff8b539b6f413180aff6be0febc15bae3d719f46fed3c5ea3b82a873e7226e5"
+    },
+    {
+      "id": "13-exercise-strength-progress",
+      "title": "Exercise: volume and estimated 1RM progress",
+      "file": "screenshots/13-exercise-strength-progress.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a255355e63ec41aa5d773bea17a5a032aaba0de50e7b7a8142d55382f589aa61",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions"
+      ],
+      "capturedSha256": "7f1b5a806e59a4fb873f5a5f057216e86e42817584155756c6a48dbc9fb5db76"
+    },
+    {
+      "id": "13-exercise-strength-history",
+      "title": "Exercise: previously logged strength sets",
+      "file": "screenshots/13-exercise-strength-history.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:43Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4f5408feaa01e819db32fac79351af6eef73cf6833aefceb4c0967442e5d9687",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions"
+      ],
+      "capturedSha256": "1874fc36f1dd3ee29385640c6f9148e511c25dced30dee3ea778f48cbdf6a859"
+    },
+    {
+      "id": "13-exercise-started-ad-hoc",
+      "title": "Exercise: new ad-hoc strength session",
+      "file": "screenshots/13-exercise-started-ad-hoc.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:48Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "507641df4b5335fc1b41074da13e868554b64c36868632c0c715f35bab558e57",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions",
+        "Start a one-exercise ad-hoc strength session"
+      ],
+      "capturedSha256": "ab170d042a5e65c9b1a7a96bcde0b0199e6efc84c44021163008063e3e7261be"
+    },
+    {
+      "id": "13-exercise-cardio-detail",
+      "title": "Exercise: cardio summary and illustration",
+      "file": "screenshots/13-exercise-cardio-detail.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:39:58Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2c486ac36eb7a39d8041181a01c75cb79939301470ab8019748f9abebef1d5e8",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions",
+        "Start a one-exercise ad-hoc strength session",
+        "Open the cardio exercise and inspect its duration progress and entry history"
+      ],
+      "capturedSha256": "dd90e1259bcc77a5948424cb45762ebdd380bbee9153e708de7bd8b060ce7cbc"
+    },
+    {
+      "id": "13-exercise-cardio-progress",
+      "title": "Exercise: duration progress with duration-formatted axes",
+      "file": "screenshots/13-exercise-cardio-progress.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:40:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "385234b5afb9da36828e8842f561b095617672bd405a610693e8e7761b805ee2",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions",
+        "Start a one-exercise ad-hoc strength session",
+        "Open the cardio exercise and inspect its duration progress and entry history"
+      ],
+      "capturedSha256": "b09cb4828487762d0c33944171d595a55bebab7254b662f552dc9a6b73e7118e"
+    },
+    {
+      "id": "13-exercise-cardio-history",
+      "title": "Exercise: prior cardio entries",
+      "file": "screenshots/13-exercise-cardio-history.png",
+      "workflow": "exercise-details",
+      "capturedAt": "2026-11-15T16:40:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f3040c3d6439433e99b5b960ad571f841dd3287057994e6fbbee4e84c699005b",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions",
+        "Start a one-exercise ad-hoc strength session",
+        "Open the cardio exercise and inspect its duration progress and entry history"
+      ],
+      "capturedSha256": "b472ecd1f019bd5cb9c09928d90df417ba20f74b5962ef4a70cd020bf0d1f32e"
+    },
+    {
+      "id": "11-session-cardio-empty",
+      "title": "Session: cardio exercise before its first entry",
+      "file": "screenshots/11-session-cardio-empty.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:04Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "10f6c0106d322afe317bbcd2519d9b21ca8367bef0013a8232dd6e78e1a153c7",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "4ad5bf9b9061659f7b1e57cfa2503cf5c9040c6c5fe3cef873f71f7a8392f09b"
+    },
+    {
+      "id": "11-session-cardio-add",
+      "title": "Cardio: schema-driven required and optional fields",
+      "file": "screenshots/11-session-cardio-add.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9e60661df2a4c34e2b46b34a3c35042b4da3284947f50b9c3bdd8dbf1f6a0221",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "c1c9d8e092a65dabc24d5367317728f921d8f11bd96d8c97e00e863c4afaf9e6"
+    },
+    {
+      "id": "11-session-cardio-required-validation",
+      "title": "Cardio: required-field validation",
+      "file": "screenshots/11-session-cardio-required-validation.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:10Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "73b2e47b18191876dad2b2631f45e930afa228d998f7444c0297c75cf4b8c6ac",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "30ca79150d365ce584c62b7c95ff42393b65b3a1d04e7fe1f37ccfef6c0969cc"
+    },
+    {
+      "id": "11-session-cardio-add-filled",
+      "title": "Cardio: duration and distance ready to save",
+      "file": "screenshots/11-session-cardio-add-filled.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:20Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0eb4c0be07962271258fa1dbda39b2a4a63fbc1ae873fdf3eba52ea1b379eeda",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "a4a4b3cbe5a8364933e0b06069389b8e3a7a5243a48f85ae246fe2c90c6264b8"
+    },
+    {
+      "id": "11-session-cardio-logged",
+      "title": "Session: cardio exercise automatically collapses after logging",
+      "file": "screenshots/11-session-cardio-logged.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4df268c7b136906a7115dbd39fb7ef191ab0b841e30c703a047787a027a99b4a",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "f46fdab448f82df1d2769096a1606db61563e73ff2b78f7fef15d8bedf7dd7cd"
+    },
+    {
+      "id": "11-session-cardio-expanded",
+      "title": "Session: reopened cardio exercise and saved metrics",
+      "file": "screenshots/11-session-cardio-expanded.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:27Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "376e1c6768bbe9f3319c9679c1c109994704f06f7daf21e074cafcaa5bce9473",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema"
+      ],
+      "capturedSha256": "4b7bb5e7fe026b95b39cfafcf3daf23a53b56bfe9199d779fa53df23e63111c9"
+    },
+    {
+      "id": "11-session-cardio-edit",
+      "title": "Cardio: edit a saved entry",
+      "file": "screenshots/11-session-cardio-edit.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:30Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0ce4ed831aacc66be51d2b28b7f25bb4777f1d7e2f864dd210d8a9dbe749c054",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema",
+        "Edit the logged cardio entry, then delete it from the editor"
+      ],
+      "capturedSha256": "3b47976c184a4e472d97bea5457068c4ad0f54462d110927c08ece8da9463c30"
+    },
+    {
+      "id": "11-session-cardio-updated",
+      "title": "Session: updated cardio distance",
+      "file": "screenshots/11-session-cardio-updated.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:39Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5d7e5d89a96a90969d1cce21d00adf564916ff0951b2d54c6ef890d36b352d13",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema",
+        "Edit the logged cardio entry, then delete it from the editor"
+      ],
+      "capturedSha256": "5b2d66a015fbbd10cfae410313b4df3f12e4b91f3f4e8181507fea3205496adf"
+    },
+    {
+      "id": "11-session-cardio-deleted",
+      "title": "Session: cardio entry removed (immediate sheet action)",
+      "file": "screenshots/11-session-cardio-deleted.png",
+      "workflow": "cardio",
+      "capturedAt": "2026-11-15T16:43:46Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9720c10141f727ce134d62a8c153ba8e17308767a4914d866fe8db90cc8a25dd",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema",
+        "Edit the logged cardio entry, then delete it from the editor"
+      ],
+      "capturedSha256": "e8670c4cc89fbfcd9ebe5fdb381eed976fbe64255afe5aaf4f72c6ae7c9116e5"
+    },
+    {
+      "id": "22-foods-public-filter",
+      "title": "Foods: public catalog filter",
+      "file": "screenshots/22-foods-public-filter.png",
+      "workflow": "food-browse",
+      "capturedAt": "2026-11-15T16:43:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2937d0274bd9865cce3ee3c6c5e72477bab79e7b15df9efb9016c9ca63c114f6",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "capturedSha256": "623445b626df0fe00155633749bb74036dad9a0c2506b96c2fb0815f418c2720"
+    },
+    {
+      "id": "22-food-public-detail",
+      "title": "Food: public per-100 g nutrients (read-only)",
+      "file": "screenshots/22-food-public-detail.png",
+      "workflow": "food-browse",
+      "capturedAt": "2026-11-15T16:44:00Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "743dfb63a62be7a9e6a108b6f404544ab66c4a6f26985f92c427cdf68843907b",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "capturedSha256": "166b2b851a4b000acce963990beb6470c29b5a6d785eb463479a4485fce98b47"
+    },
+    {
+      "id": "22-foods-private-filter",
+      "title": "Foods: private food filter",
+      "file": "screenshots/22-foods-private-filter.png",
+      "workflow": "food-browse",
+      "capturedAt": "2026-11-15T16:44:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "931bd197356b38cfdad2d00a40b93f5c097f32a06090754169a7fe726ea3f777",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "capturedSha256": "d2e97f1226c62dfb6cfc92fae9cb59ae45c6be84337e37f5784b11108f778d5a"
+    },
+    {
+      "id": "22-food-private-detail",
+      "title": "Food: private nutrients and Edit action",
+      "file": "screenshots/22-food-private-detail.png",
+      "workflow": "food-browse",
+      "capturedAt": "2026-11-15T16:44:09Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "91b10816332a82dde4cb0bc8f33781f12b86ef5c95d9ffb35fdb4cc764e73e3b",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "capturedSha256": "7d7d2fc274f8e72aae4cf3543b1305683e6fb31d42534d8cb63e5ff7f1303074"
+    },
+    {
+      "id": "22-foods-empty-search",
+      "title": "Foods: no matching search results",
+      "file": "screenshots/22-foods-empty-search.png",
+      "workflow": "food-browse",
+      "capturedAt": "2026-11-15T16:44:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "65cd35bd4bf898735692eeac2d3825999a7d648afecdfca7b6b88b7be43b249c",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "capturedSha256": "a52194f3d498dfa2b178963f0de5d27816ac4ae6078203a38d1b54ac84407479"
+    },
+    {
+      "id": "22-food-create",
+      "title": "Food: new private food form",
+      "file": "screenshots/22-food-create.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:51:25Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "cd4a4c67df0c1e5c1f50ebf7f8be92009e89de5f36de9a251925386dc871df8c",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values"
+      ],
+      "capturedSha256": "be81fbe336fdbd8a177075bf6baea118a0d1367a999387219159cc6f0e212bc2"
+    },
+    {
+      "id": "22-food-create-filled",
+      "title": "Food: populated per-100 g values",
+      "file": "screenshots/22-food-create-filled.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d9fdccd6a37c3cadd335e02d143b51b3ad196719293a749b32f032d5781674fc",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values"
+      ],
+      "capturedSha256": "d86a9ece989554c9ed3e8c02467f88902217e20bd38f09d734f24585342e9b15"
+    },
+    {
+      "id": "22-food-created",
+      "title": "Food: newly created private item",
+      "file": "screenshots/22-food-created.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:20Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6a419b6d1a2b9e4410aae55e396b9c88b961e4414d841933a5b14b5d875bf07c",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values"
+      ],
+      "capturedSha256": "99c8a442659aa5ffe1c30cb26e316d905ca1ca324c4a4179cbb327928683457a"
+    },
+    {
+      "id": "22-food-edit",
+      "title": "Food: edit private catalog values",
+      "file": "screenshots/22-food-edit.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "20c4c4be43e940841e66246e442e628bb520028abf772ec1eab51c7aba9d9f95",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value"
+      ],
+      "capturedSha256": "e68e7fc88ad95a32b94d358cac50ae993c4dedcf256d131a13c178b66bcfcb0a"
+    },
+    {
+      "id": "22-food-updated",
+      "title": "Food: updated catalog nutrients",
+      "file": "screenshots/22-food-updated.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:43Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "3200b09facd6cb0842107f69c7ab8d07a81dd3470a019b93c37724ac84ca13ee",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value"
+      ],
+      "capturedSha256": "b912817394b7c56e3490a07201d77dd48d0277d71a2e9230552eccadbcb58225"
+    },
+    {
+      "id": "22-food-delete-confirmation",
+      "title": "Food: deletion and template-reference warning",
+      "file": "screenshots/22-food-delete-confirmation.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:48Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b67d94b88f89f233a9054f9a47420887ede1d833d6d89f3cf13e0f637658116c",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value",
+        "Delete the unreferenced food after its confirmation dialog"
+      ],
+      "capturedSha256": "196856e2327c6c60496624231f5f11aac9be20e4bf55e1a54a03e1ee12ae03ce"
+    },
+    {
+      "id": "22-food-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/22-food-deleted-detail-issue.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:53Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "3200b09facd6cb0842107f69c7ab8d07a81dd3470a019b93c37724ac84ca13ee",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value",
+        "Delete the unreferenced food after its confirmation dialog"
+      ],
+      "capturedSha256": "b912817394b7c56e3490a07201d77dd48d0277d71a2e9230552eccadbcb58225"
+    },
+    {
+      "id": "22-food-deleted",
+      "title": "Food deleted: return to the library",
+      "file": "screenshots/22-food-deleted.png",
+      "workflow": "food-crud",
+      "capturedAt": "2026-11-15T16:52:57Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b4e0319c23db5a1064fbd105b10ea5127186cbd315ae32f9c480b72d20e35613",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value",
+        "Delete the unreferenced food after its confirmation dialog"
+      ],
+      "capturedSha256": "141b24d9c545260ec9aa95a7285258363efec4216ff58911b954bb8a904d3bc5"
+    },
+    {
+      "id": "23-meal-detail",
+      "title": "Meal: reusable template and ingredients",
+      "file": "screenshots/23-meal-detail.png",
+      "workflow": "meal-browse",
+      "capturedAt": "2026-11-15T16:57:33Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a8c3ce4cb9f8a345f5278492b48426150136ffb50d741e7f38a05ad6b2899ba2",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "capturedSha256": "085d4fb674b39a7c0febb080ad30ebe0738fc3ef56b5120ae024b7cfcc703a48"
+    },
+    {
+      "id": "23-meal-edit-referenced",
+      "title": "Meal: grouped ingredient editor",
+      "file": "screenshots/23-meal-edit-referenced.png",
+      "workflow": "meal-browse",
+      "capturedAt": "2026-11-15T16:57:35Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "cf092d411b24ac618de8bd27673637e148faa2c3b1939c16ceb11783ba00043a",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "capturedSha256": "4e858f72d68e9b87a11b0453a57fc01b1f4a3d22be1b1cd4e7b61d0d3cd8edb4"
+    },
+    {
+      "id": "23-meal-delete-blocked",
+      "title": "Meal: deletion disabled while a plan references it",
+      "file": "screenshots/23-meal-delete-blocked.png",
+      "workflow": "meal-browse",
+      "capturedAt": "2026-11-15T16:57:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d98ab2621261d2190a55e852336d1393786b9573d4d8e94ef70169f34dca7e25",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "capturedSha256": "028e3fe8a19a921b65ab92c53840a25ff42200d0463fadfc8bc6ae2e88e51cc2"
+    },
+    {
+      "id": "23-meals-search",
+      "title": "Meals: filtered totals and matching templates",
+      "file": "screenshots/23-meals-search.png",
+      "workflow": "meal-browse",
+      "capturedAt": "2026-11-15T16:57:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "598909811d51e79197c11dbbec48360c52fc5096eebb0b73426cb302bb6eb175",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "capturedSha256": "243b476124bb85a645b4556766772940fcecde3beb23bdacb66a3c3b7269a91b"
+    },
+    {
+      "id": "23-meals-empty-search",
+      "title": "Meals: no matching templates",
+      "file": "screenshots/23-meals-empty-search.png",
+      "workflow": "meal-browse",
+      "capturedAt": "2026-11-15T16:58:04Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c4c7f7fce87748c5f57caa7e91ee5f4fe8293e39f0eb3c296f4b1ee4ec5b56ba",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "capturedSha256": "28e6f375a663d797f05f5fc7522fe721ea1d3c981a782bf88dd13e1e45ecf8f7"
+    },
+    {
+      "id": "20-log-yesterday",
+      "title": "Nutrition Log: yesterday's complete intake",
+      "file": "screenshots/20-log-yesterday.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:15Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "845d48676a0ac0764353e6e392fd936f79718c603771d2c7a8f17498f59dd535",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet"
+      ],
+      "capturedSha256": "7383b061d1bded41f6f669838497ad07106b915d4badd93413f38d861ac29d85"
+    },
+    {
+      "id": "20-log-date-picker",
+      "title": "Nutrition Log: graphical calendar picker",
+      "file": "screenshots/20-log-date-picker.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bc6b958addf31cdaca3cac30820d9c50895462eb497e5d595314fa0d92850766",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet"
+      ],
+      "capturedSha256": "e919f616e3be6ca72dba1734fa733c84de1df5dc9b1a4ca101e1a1e750e6372a"
+    },
+    {
+      "id": "20-log-next-week",
+      "title": "Nutrition Log: next week, with no logged food",
+      "file": "screenshots/20-log-next-week.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:24Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "833eeee921626737fd48f4cff96790dd08e94293518ae7b433b0d66bbfa8cb8c",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week"
+      ],
+      "capturedSha256": "1b1e222546b87e2fe8f429a6abcf8a706900a1404be5f6a0de713251004b9608"
+    },
+    {
+      "id": "20-log-plan-menu",
+      "title": "Nutrition Log: choose or clear the day's plan",
+      "file": "screenshots/20-log-plan-menu.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:34Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8adba3eb9645a780a4beb448e92b4ada0ad10043ca47a24689a2094c70fffa93",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week",
+        "Inspect the selected plan menu, then remove the plan without deleting food"
+      ],
+      "capturedSha256": "4c34ce889bcef916bc72d7f3808e8be504441825098e08cc0dbf24d7d1f39447"
+    },
+    {
+      "id": "20-log-no-plan",
+      "title": "Nutrition Log: logged food remains without planned suggestions",
+      "file": "screenshots/20-log-no-plan.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "063f6c63a3ebdb379b1ce3d5651d32d8b144178f69ea90817d30f3fa6a134ee1",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week",
+        "Inspect the selected plan menu, then remove the plan without deleting food"
+      ],
+      "capturedSha256": "911a28651b37a947b0eda48fdfa640dd112373436df59b0b9cf726154f6116be"
+    },
+    {
+      "id": "20-log-clear-confirmation",
+      "title": "Nutrition Log: clear the whole day's intake",
+      "file": "screenshots/20-log-clear-confirmation.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fece7a259676be73c046895385d9d4b288ff880a029b3a13c89192a5fbf93ec9",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week",
+        "Inspect the selected plan menu, then remove the plan without deleting food"
+      ],
+      "capturedSha256": "67c39c2ce36f3e100accdbe9b3ace8f74e7590de86d93fe0bd48d8dabf9ad7e4"
+    },
+    {
+      "id": "20-log-cleared-empty",
+      "title": "Nutrition Log: empty day after clear",
+      "file": "screenshots/20-log-cleared-empty.png",
+      "workflow": "log-navigation",
+      "capturedAt": "2026-11-15T17:23:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "96aa3bab7b2476e833e3de58f9eea6f3f13c35428b8aaa502bfbcc01ad9fa83b",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week",
+        "Inspect the selected plan menu, then remove the plan without deleting food"
+      ],
+      "capturedSha256": "f7f759cb96d3fb8608e183e862830ed310d9aa9333cb600d942042c6d103d628"
+    },
+    {
+      "id": "20-log-food-sheet",
+      "title": "Log intake: food mode, grams and time",
+      "file": "screenshots/20-log-food-sheet.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b974860648191b40db47e0d519c3c224641e3967c030ef473a57d77d2e6d6ec9",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview"
+      ],
+      "capturedSha256": "45b7f8d53fbc1a4eaccd8499b86cc2ad547aa7bd9fdf69c85b7aca33111e4fce"
+    },
+    {
+      "id": "20-log-food-search-picker",
+      "title": "Log food: filtered wheel and nutrition preview",
+      "file": "screenshots/20-log-food-search-picker.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:17Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "975b5d4bbeb26b42dd15116a83ed9b2affa63f70f4afd515304c991739167453",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview"
+      ],
+      "capturedSha256": "794ba5dcf66062aa82192b91a220dbc248a47c57e134afdd6cd3c4aa86371676"
+    },
+    {
+      "id": "20-log-food-filled",
+      "title": "Log food: 150 grams ready to append",
+      "file": "screenshots/20-log-food-filled.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9e14e131bbaea35c271aebd4bb8b398ab73a97d2ad1a2849063d2f29bcd99bfe",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview"
+      ],
+      "capturedSha256": "29fc562d71d25cd6c302a0bcadc43187e4592e28c420d6e1ec93849eac1ed3af"
+    },
+    {
+      "id": "20-log-food-added",
+      "title": "Nutrition Log: newly logged standalone food",
+      "file": "screenshots/20-log-food-added.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:34Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5144ca86f8690bfb8654cb035a03a090ac30fd25f01c639750c036b9c45fa07b",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview"
+      ],
+      "capturedSha256": "d0d0c1adfd18cf3244b213c8741160aca21c062b9e476ec2666f743bb9ad7dda"
+    },
+    {
+      "id": "20-log-entry-edit",
+      "title": "Log entry: standalone time, grams, position and Delete",
+      "file": "screenshots/20-log-entry-edit.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1262f5ed185138904c956fe416c217637643123b459d75fbd2c881363b2f9e1f",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ],
+      "capturedSha256": "ec09cd1da28ce9dd8eba214d423c92b131dd92d1074cdae6ce6efc3152b7e142"
+    },
+    {
+      "id": "20-log-entry-updated",
+      "title": "Nutrition Log: updated logged quantity",
+      "file": "screenshots/20-log-entry-updated.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c5c41baa5597e1f22f2d9d3b3dea008541442f9bc55d3b6f0b5410c215bb8129",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ],
+      "capturedSha256": "abb306bcfa19375d3ec9200e1ce2ec1d32b2e2cac1c31c7eca31efc0090e7ac9"
+    },
+    {
+      "id": "20-log-entry-delete-confirmation",
+      "title": "Log entry: destructive confirmation",
+      "file": "screenshots/20-log-entry-delete-confirmation.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:24:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b548d6cd59d04483d5ccede232889e5f77044291b858aa38225a16f2d33506fe",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ],
+      "capturedSha256": "f06e1a18c6fed0c4a5b0d4fda1d75a2dd217601e0bdb9aa2e041e58d29651156"
+    },
+    {
+      "id": "20-log-entry-deleted",
+      "title": "Nutrition Log: standalone entry removed",
+      "file": "screenshots/20-log-entry-deleted.png",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-15T17:25:24Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2b7dd922acecce0902dc7c67c17b7c501d4243eb05b678ae6a02baea35739387",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ],
+      "capturedSha256": "621bd114ac4a987605a38b97a04e0245efd4c200fb84e144fa1faaba7892b981"
+    },
+    {
+      "id": "21-plan-detail",
+      "title": "Plan: daily macro-energy split and Use for today",
+      "file": "screenshots/21-plan-detail.png",
+      "capturedSha256": "5bc76f9936cd2bdd808b83ea15cf18859009dee3d089a51ac483fb5e8110c300",
+      "workflow": "plan-browse",
+      "capturedAt": "2026-11-15T17:27:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "32c9a9f44d025486e91f63453b04299b911bbb3debe4a8593d0e95b84090729a",
+      "steps": [
+        "Inspect the plan's daily totals and all four planned time slots"
+      ]
+    },
+    {
+      "id": "21-plan-detail-slots",
+      "title": "Plan: mixed meal and direct-food time slots",
+      "file": "screenshots/21-plan-detail-slots.png",
+      "capturedSha256": "895536754b347b51ef31b43eef9581fef361f9a277e7a12c2a794adee3f65554",
+      "workflow": "plan-browse",
+      "capturedAt": "2026-11-15T17:27:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fc77570b344e0bf8eb843470d2d73038917d4ae7f930dbfb2e128d79ee1f4f82",
+      "steps": [
+        "Inspect the plan's daily totals and all four planned time slots"
+      ]
+    },
+    {
+      "id": "21-plan-detail-later-slots",
+      "title": "Plan: afternoon food and evening meal",
+      "file": "screenshots/21-plan-detail-later-slots.png",
+      "capturedSha256": "895536754b347b51ef31b43eef9581fef361f9a277e7a12c2a794adee3f65554",
+      "workflow": "plan-browse",
+      "capturedAt": "2026-11-15T17:27:41Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fc77570b344e0bf8eb843470d2d73038917d4ae7f930dbfb2e128d79ee1f4f82",
+      "steps": [
+        "Inspect the plan's daily totals and all four planned time slots"
+      ]
+    },
+    {
+      "id": "21-plans-empty-search",
+      "title": "Plans: no matching templates",
+      "file": "screenshots/21-plans-empty-search.png",
+      "capturedSha256": "5a1162e0c6c666036d514f77d964e8c630f58e1a6bdd8a57bc91cd055b2b55d6",
+      "workflow": "plan-browse",
+      "capturedAt": "2026-11-15T17:27:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "20ffbc401ad4e64812599e4403041959f7df05aeafd44c70025e717a64d28fd3",
+      "steps": [
+        "Inspect the plan's daily totals and all four planned time slots"
+      ]
+    },
+    {
+      "id": "33-body-create",
+      "title": "Measurement: new date, weight, body fat and notes",
+      "file": "screenshots/33-body-create.png",
+      "capturedSha256": "0380d78bc88dacd63eb0415dc7c0d9a27ec45f8c84fed0dea9d9e745db982412",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:30:40Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "48a8cb5a23e9df2c953a4aec61c3823f97c78bec58e6dd8aebebc654bcce4fed",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation"
+      ]
+    },
+    {
+      "id": "33-body-duplicate-date-error",
+      "title": "Measurement: one-entry-per-date validation",
+      "file": "screenshots/33-body-duplicate-date-error.png",
+      "capturedSha256": "f8bbdd594147b0f7bb94e26eeba5b3524adba659efe136f481ea12f2236838c8",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:30:52Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "15bc14e55ca977edc6e5542e1d06b0d2b67ac896da0446cfdaef32f2c64c2a22",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation"
+      ]
+    },
+    {
+      "id": "33-body-create-date-picker",
+      "title": "Form date: native calendar popover",
+      "file": "screenshots/33-body-create-date-picker.png",
+      "capturedSha256": "517ce18763639a72bd7fce05f4204332ba3b6b17a757402824d38ccc7c72fb68",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:30:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d40d24fd5a9208d85ffb8fb7736a99b5bef9c96f8124d5290f5ccf13a1dbd4ec",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation"
+      ]
+    },
+    {
+      "id": "33-body-create-filled",
+      "title": "Measurement: unique date and complete readings",
+      "file": "screenshots/33-body-create-filled.png",
+      "capturedSha256": "5a6e4a31f615c3d85c9b513e5e9fc7a0970aadaf8932f6bed3104193fa1a4c42",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "765a91773e9207308d23f81da5f6f80e6e5ed851daeca03067af9c342e19777e",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation"
+      ]
+    },
+    {
+      "id": "33-body-created",
+      "title": "Measurement: newly created detail",
+      "file": "screenshots/33-body-created.png",
+      "capturedSha256": "ff82f307d7564f7d703ecc2e88bd0e1d243ce3120a79419f386e71bf50e6479f",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "cedd9546b03c7ff6ffdf9639f2403500f4c2911ad6f1fce2030e587a5f726328",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation"
+      ]
+    },
+    {
+      "id": "33-body-edit",
+      "title": "Measurement: edit form and destructive action",
+      "file": "screenshots/33-body-edit.png",
+      "capturedSha256": "05f9aca7173170bdb22e50a9e34869681b4b2e365c4c9da4e220f1d07ec71e7a",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:08Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bb4bb944b133727d9dcd971fd5563a6d42f85bb30360a53dbeac5c24e5de7b3a",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ]
+    },
+    {
+      "id": "33-body-updated",
+      "title": "Measurement: updated weight",
+      "file": "screenshots/33-body-updated.png",
+      "capturedSha256": "61431b342a8c2a35a172463ea92f820ddf25c7145159b391daa3e485c8eb6ab6",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:20Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f0d982798e307d9f4fbdf0bdad175dea4551223e2a64e73c779c8aedac1f2ba4",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ]
+    },
+    {
+      "id": "33-body-delete-confirmation",
+      "title": "Measurement: delete confirmation",
+      "file": "screenshots/33-body-delete-confirmation.png",
+      "capturedSha256": "e795bfc5c4cae29ed45cd686ebf03c5a275f2e74b91bf5d50c87af1bb93cb45b",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:25Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "aed9a3af5f78dceaa7f084ae3f8d4c90b04a02693130b8ccce15dcb3aeb46031",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ]
+    },
+    {
+      "id": "33-body-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/33-body-deleted-detail-issue.png",
+      "capturedSha256": "f8f70281d31a84f58bfbeea3d29e7692ebd6f0016ed8ddd26f93d3c3a2ac3b3e",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:30Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "620b86eef45b9975ce5609fe39beee5b92b588ad306e6d6e9623c065c8be608c",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ]
+    },
+    {
+      "id": "33-body-deleted",
+      "title": "Measurement deleted: return to Body",
+      "file": "screenshots/33-body-deleted.png",
+      "capturedSha256": "59c9e2f062fadb8e7de203873a72d446b8259a0f209e8260343826740f655325",
+      "workflow": "body-crud",
+      "capturedAt": "2026-11-15T17:31:35Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "eeddfc33fe38973dd404b92ddef696342e9b74c677bc92c45be8a2168d922f5a",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ]
+    },
+    {
+      "id": "34-energy-create",
+      "title": "Energy: new date, active/resting kcal and notes",
+      "file": "screenshots/34-energy-create.png",
+      "capturedSha256": "20550e4c29afafffd198fa2959e538c8499dc725c370ad29c44a107da49467dc",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "08e9ce501855cb4ca1f5e82f6225ef6fddaff4bf97862d5c0562655e48516d24",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-duplicate-date-error",
+      "title": "Energy: one-entry-per-date validation",
+      "file": "screenshots/34-energy-duplicate-date-error.png",
+      "capturedSha256": "00dbf760a4f38430b9aae03bacf71c76b4026fce511d90323d4da4770c9921b2",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bda33943d363b34697f7ff1e712e4f91f1ca7d3444293f29bafe2244e4d84129",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-create-date-picker",
+      "title": "Form date: native calendar popover",
+      "file": "screenshots/34-energy-create-date-picker.png",
+      "capturedSha256": "4554f42f19e1699841bce76b3b0bbcf42d653696f6e87fe642cf4d254b6e0de0",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:42Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0c131f0f7107eb2cbda94a6b1a2fdcc1d8131e6f8eb2b21540bc45977a7cf5da",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-create-filled",
+      "title": "Energy: unique date and manual values",
+      "file": "screenshots/34-energy-create-filled.png",
+      "capturedSha256": "b2ac0d863060ffa90a20ba39d29e6c9dd7c8555f86d8799ab4f47f54eabbb2d0",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:46Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8e890291a8b919cac474fb7a015e0698ac6404eb31009597b510c4a0f03bd938",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-created",
+      "title": "Energy: newly created entry",
+      "file": "screenshots/34-energy-created.png",
+      "capturedSha256": "bdcb554c4539ec157c02c333cbf7c5e440391977a02b980d1431c3895c65ca98",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:51Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "abee42b96377a6033f567c4d94b33b07ffff95aca26576027ed64e6373cdc838",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-edit",
+      "title": "Energy: edit active/resting readings",
+      "file": "screenshots/34-energy-edit.png",
+      "capturedSha256": "44323a84c91687347f69f2f7eb0a0409a19bb88b96e0ebb3282b0771d75b2d30",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:32:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c01f23d4c69f6890a42426f5047a86812cc4ae9a7dbac5c3354f3360c417361c",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-updated",
+      "title": "Energy: updated resting and total calories",
+      "file": "screenshots/34-energy-updated.png",
+      "capturedSha256": "d66682aa3d350f621d3bcdd679d2a8388e3f3048ab4d787447620ee6ed026dcf",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:33:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e8cbaf93bfd176a0dde192b2fcf566507f9bf92450194b105e011df8f1a9e196",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-delete-confirmation",
+      "title": "Energy: delete confirmation",
+      "file": "screenshots/34-energy-delete-confirmation.png",
+      "capturedSha256": "883e5e5154853be3219c2893e2c52d6fadd12c30bf4585c3535c5aebbabf5ae1",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:33:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "18940fc41df0a88a1bf53103ff2c565ce7e94ec4cadd578867e0b495cbea3a45",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/34-energy-deleted-detail-issue.png",
+      "capturedSha256": "9519a3fcc10bacd80d741499c222cac7c4b08e0b8c1c90c084695de741f03b9f",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:33:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8470a23309c9a84bf20625d9e8960bcd47169e74952135c1f4f71551f3790d0b",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "34-energy-deleted",
+      "title": "Energy deleted: return to history",
+      "file": "screenshots/34-energy-deleted.png",
+      "capturedSha256": "22ffec282106a27c9c50915c9fa2e8368997444d9ef95ee6162d13f36b0f3eb6",
+      "workflow": "energy-crud",
+      "capturedAt": "2026-11-15T17:33:22Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "752188ba1caeec7b76a214a97f7c8beda578f6f3f096e24eee1480acee61217f",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ]
+    },
+    {
+      "id": "40-journal-label-filter",
+      "title": "Journal: label-filtered entries",
+      "file": "screenshots/40-journal-label-filter.png",
+      "capturedSha256": "28b06c24af0ee592cdcefafd5ec9a91ce8143d0a030e1f4a5241c8e0a21d60ba",
+      "workflow": "journal-browse",
+      "capturedAt": "2026-11-15T17:34:12Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ac22eb6bd4a72fb52bc1cf2ce7b958f3c633e317c3800fdc5f0b116301d897e5",
+      "steps": [
+        "Filter journal entries by an existing label"
+      ]
+    },
+    {
+      "id": "40-journal-detail",
+      "title": "Journal: date, labels and rendered markdown",
+      "file": "screenshots/40-journal-detail.png",
+      "capturedSha256": "ab288868372550670fb47c06274ea7b56766d50dca8ac0ae837c9f932009bf55",
+      "workflow": "journal-browse",
+      "capturedAt": "2026-11-15T17:34:25Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "47f4a8aa63fa1c5c6312f36046f8de935d04d880bb99806498d984cac1b7fe6e",
+      "steps": [
+        "Filter journal entries by an existing label"
+      ]
+    },
+    {
+      "id": "50-demo-invalid-configuration",
+      "title": "Demo: malformed launch-configuration recovery",
+      "file": "screenshots/50-demo-invalid-configuration.png",
+      "capturedSha256": "4cfaf0acdd1c005b57ecb2d2fd5a8d9105b3a3d4a852097714f68d2a408741d8",
+      "workflow": "demo-recovery",
+      "capturedAt": "2026-11-15T17:36:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "eb85849741fb8fb4d0b28af4165e853417dc3c23b8bd1b825b3dedd8df2b8461",
+      "steps": [
+        "Launch an invalid explicit demo destination; recover through normal sign-in"
+      ]
+    },
+    {
+      "id": "50-demo-corrupt-data",
+      "title": "Demo: corrupt saved-data recovery without live-account access",
+      "file": "screenshots/50-demo-corrupt-data.png",
+      "capturedSha256": "b2e6bbcac780b4299618477c0ef2cd0e3dcb1726aac23d774abd27ae588fe50d",
+      "workflow": "demo-recovery",
+      "capturedAt": "2026-11-15T17:36:39Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6adabfb6dddea3a053a0ea64cbc17906fccb9a036ff8186cf1c4e3c7a6bbebb1",
+      "steps": [
+        "Launch an invalid explicit demo destination; recover through normal sign-in",
+        "On this dedicated simulator only, corrupt the isolated demo JSON and recover with Reset"
+      ]
+    },
+    {
+      "id": "50-demo-corrupt-data-recovered",
+      "title": "Demo: valid sample data after recovery",
+      "file": "screenshots/50-demo-corrupt-data-recovered.png",
+      "capturedSha256": "5b037ce88b201fc793686aa6d3c3cd75eaf7cde4d8823d815a5aaf4338f25c3d",
+      "workflow": "demo-recovery",
+      "capturedAt": "2026-11-15T17:36:43Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "3a4d55a26f7e32e0779e9fa9fede769bd6bca739514f213846eaac2b793c1931",
+      "steps": [
+        "Launch an invalid explicit demo destination; recover through normal sign-in",
+        "On this dedicated simulator only, corrupt the isolated demo JSON and recover with Reset"
+      ]
+    },
+    {
+      "id": "10-session-start-browse-workouts",
+      "title": "Start session: choose a workout, or start ad-hoc from an exercise",
+      "file": "screenshots/10-session-start-browse-workouts.png",
+      "capturedSha256": "8fafc1907bf3d66475b65fe4277785d5b5fb784abca289fd440e6a01973d8eac",
+      "workflow": "sessions-pagination",
+      "capturedAt": "2026-11-15T17:36:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8b658e6482abaf8a083b48e7a52c7c67d8721d5e60c244c07773f4193371aba2",
+      "steps": [
+        "Start session from Sessions opens the workout library"
+      ]
+    },
+    {
+      "id": "10-sessions-load-more",
+      "title": "Sessions: weekly history and Load more",
+      "file": "screenshots/10-sessions-load-more.png",
+      "capturedSha256": "7a46c33582892e4fb54562a3ef042455c49021d67e340fa4bba90ded7a6d2a3f",
+      "workflow": "sessions-pagination",
+      "capturedAt": "2026-11-15T17:37:17Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ae8a7cc7ac43be4a0cd19a2c730f9ec31d24ad04648862ffb0acbd269953ff76",
+      "steps": [
+        "Start session from Sessions opens the workout library",
+        "Load an older page of sessions grouped by week"
+      ]
+    },
+    {
+      "id": "10-sessions-older-page",
+      "title": "Sessions: older history appended",
+      "file": "screenshots/10-sessions-older-page.png",
+      "capturedSha256": "3853024b33954efdd2ac43c7e7a3a5fc3ebc8d0b119d3cad15f88b2afc6a60fc",
+      "workflow": "sessions-pagination",
+      "capturedAt": "2026-11-15T17:37:21Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e445f19955ddef6d0e268861b58b816352048d2bdbfcd2aa793df4e8f6883f3d",
+      "steps": [
+        "Start session from Sessions opens the workout library",
+        "Load an older page of sessions grouped by week"
+      ]
+    },
+    {
+      "id": "20-log-meal-sheet",
+      "title": "Log intake: meal mode and ingredient quantities",
+      "file": "screenshots/20-log-meal-sheet.png",
+      "capturedSha256": "41e6fb247905d5a13f170babb8977dfe3fc8cea34e565c1066e998d859ef7064",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:10Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fa768aa59db87dbfdeda90e70f1b769c449f732a6cc07a5fba6487c6906f08ed",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities"
+      ]
+    },
+    {
+      "id": "20-log-meal-added",
+      "title": "Nutrition Log: meal group with child food snapshots",
+      "file": "screenshots/20-log-meal-added.png",
+      "capturedSha256": "4a456e5320b2dcbbf1083b208bf4d5569fad401f5bee5bb7d3a4279ae5d04042",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b62bea25dd58411e2f1c386c5fa84519135489577bf60a7d9d278b74807f643a",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities"
+      ]
+    },
+    {
+      "id": "20-log-meal-edit",
+      "title": "Logged meal: group editor",
+      "file": "screenshots/20-log-meal-edit.png",
+      "capturedSha256": "0dbb063462b6ffb7697ad0b3abd4efe16d1f30011b1a5d89a8d919ed4251f02a",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0f17b73feb687493a1e3f621aa2e8d7089434da028ab697807f883cde1d886d5",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities",
+        "Edit a logged meal group's name, time and ordering independently of the template"
+      ]
+    },
+    {
+      "id": "20-log-meal-updated",
+      "title": "Nutrition Log: renamed logged meal",
+      "file": "screenshots/20-log-meal-updated.png",
+      "capturedSha256": "a04d198dfdc0fccdda7c5f97eac4b509190807b323c7229207d2de1ceee56a5c",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0b129f8636f3d5d988b0065bdc65aaedc8a7d75719da763455c04b4932cb4df8",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities",
+        "Edit a logged meal group's name, time and ordering independently of the template"
+      ]
+    },
+    {
+      "id": "20-log-meal-delete-confirmation",
+      "title": "Logged meal: group and child deletion confirmation",
+      "file": "screenshots/20-log-meal-delete-confirmation.png",
+      "capturedSha256": "416382ab89477d05ff39dda91513d7e9dbfd50cfc2c53c4c31ebca75e2efdaf9",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:51Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bfdd7b787d53c0d1d407b2bc482473ac2bb942a86a305548325e14992174d272",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities",
+        "Edit a logged meal group's name, time and ordering independently of the template"
+      ]
+    },
+    {
+      "id": "20-log-meal-deleted",
+      "title": "Nutrition Log: logged meal and children removed",
+      "file": "screenshots/20-log-meal-deleted.png",
+      "capturedSha256": "37c86510d805d3d5f80c7d713cfe3ff5bcf02179931a71affc00332628d3708e",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-15T17:41:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "88c534eb8a12070426dce4a77222d2e4248c316f6a15859f463e353f5e785bc2",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities",
+        "Edit a logged meal group's name, time and ordering independently of the template"
+      ]
+    },
+    {
+      "id": "41-account-demo-connections",
+      "title": "Account: Health, Watch, MCP and other live-only features are not connected",
+      "file": "screenshots/41-account-demo-connections.png",
+      "capturedSha256": "c1b078c03e6024d0d894c3c1593907369542f75c8c159a1f7efc35f31ac5e5f2",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:46:39Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6e3da0732df527d7a5aa90cf46af9c0824b6d4fd20492f735cfdfc9e54a0779a",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures"
+      ]
+    },
+    {
+      "id": "41-account-preferences",
+      "title": "Account: appearance and default rest preferences",
+      "file": "screenshots/41-account-preferences.png",
+      "capturedSha256": "76e0f19d67caa3def191875b1117f2ab0738400299bddad60a27eaf86d8d0bb2",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:46:42Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4a153f4b46ba4ca89e51e6ac16726959c94169a055ed176dba94519d9fa13d80",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures"
+      ]
+    },
+    {
+      "id": "41-account-light-preference",
+      "title": "Account: Light appearance selected",
+      "file": "screenshots/41-account-light-preference.png",
+      "capturedSha256": "79a6a7a93a03fa3d3d8af8bea59880b6d7ea73b7022f0a4ca13e21a5ff03cffc",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:46:47Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "869d0259236bee23794e50d55135ad475a96a6197460c90ca3dc818e8dd50ee2",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark"
+      ]
+    },
+    {
+      "id": "01-today-light",
+      "title": "Today: Light appearance",
+      "file": "screenshots/01-today-light.png",
+      "capturedSha256": "7320b2f951708b5404398c4979b28e59c4e770f5970510e64cb33d62c8f84d15",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:46:52Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bc72469ace29a7d86e6c81eaa01f5b7e4eea873e9c58f8fe42787c95aa00a069",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark"
+      ]
+    },
+    {
+      "id": "41-account-system-preference",
+      "title": "Account: System follows the simulator's dark appearance",
+      "file": "screenshots/41-account-system-preference.png",
+      "capturedSha256": "9b6d7c331445978a119c3ce5990d64eced530dbdc0e8fc2ca455ff17793dca6b",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:47:00Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6163f4849d92316d6b46cf9548e6b00a4d3096eb8565234ef36c6f39f2361f97",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark"
+      ]
+    },
+    {
+      "id": "41-account-default-rest",
+      "title": "Account: changed default rest to one minute",
+      "file": "screenshots/41-account-default-rest.png",
+      "capturedSha256": "f0d5fd49306ed654a9148d655f5c194760c6ef4b15c30863c9a45618f06e15f8",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:47:08Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ce30400b5aaecae26afb017afa4577df4d2f73662c55e06bcbdde6f0d846f083",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark"
+      ]
+    },
+    {
+      "id": "41-account-reset-confirmation",
+      "title": "Account: reset affects fictional demo data only",
+      "file": "screenshots/41-account-reset-confirmation.png",
+      "capturedSha256": "c8372112d81054cccdcc31a187b862e1853215fc1d32a531ccbcba7e4b92620b",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:47:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "dd9633d2bf687472c6ad61383fa38c4c983c49ceaae38823392813a3d21824bd",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark",
+        "Open the account's Reset demo data confirmation and cancel it"
+      ]
+    },
+    {
+      "id": "41-account-demo-actions",
+      "title": "Account: reset and exit instead of real-account sign-out",
+      "file": "screenshots/41-account-demo-actions.png",
+      "capturedSha256": "b979f16aed1ebf4b35700a705e7832d6745df5ea15f550f20f2a933a261c7966",
+      "workflow": "account",
+      "capturedAt": "2026-11-15T17:47:18Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "193ecc95e16916539abc2a22d7ac0fb38d6ed80eb7455453d2d13487ab96cc5d",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark",
+        "Open the account's Reset demo data confirmation and cancel it"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-sheet",
+      "title": "Log intake: ad-hoc name, per-100 g nutrients, grams and time",
+      "file": "screenshots/20-log-ad-hoc-sheet.png",
+      "capturedSha256": "74f352168b67bf55fa46aaae5f6ba4acc2940c580b9aaefb0ca9400fb487fda6",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-15T18:08:15Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a712eceaaee6867b9d62e39c66b89e941a794fc1bacd14e12d5de3857cd03e28",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-filled",
+      "title": "Ad-hoc log: complete nutrient snapshot",
+      "file": "screenshots/20-log-ad-hoc-filled.png",
+      "capturedSha256": "ecce970ef1c36eb5956a76ab6a004e0776ae52f1cd35d99dd99cb6cf66cfa732",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-15T18:08:55Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f4620d3e683516824e328bc18ed23a442655fb3b208fd0abe7c79a489a6497b4",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-added",
+      "title": "Nutrition Log: standalone ad-hoc item",
+      "file": "screenshots/20-log-ad-hoc-added.png",
+      "capturedSha256": "f71d40950ae098869663f1e45397916868668a1b86c448d3011a4db7ecf79547",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-15T18:09:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "359bd0c4586741642497dd024664b92dcf26e2c3d248bbe0c0dcf11ffa5bfaf2",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-edit",
+      "title": "Ad-hoc entry: editable snapshot nutrients as well as grams",
+      "file": "screenshots/20-log-ad-hoc-edit.png",
+      "capturedSha256": "88276fe6bae42026abbd63b210833ff47cbb593d892c610f7bc6869ef37c37f6",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-15T18:09:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d428d527b50707c0f8dcba2611b54678e2ee60855c673c0cbfcf93d34bf415cf",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-updated",
+      "title": "Nutrition Log: renamed ad-hoc snapshot",
+      "file": "screenshots/20-log-ad-hoc-updated.png",
+      "capturedSha256": "37d0d96dac08e4aa5ed814e146be40a9d87a436435f3affc4a3f62ed751d8402",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-15T18:09:29Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "10fe7bae490c757c97cb09ace7e983c0da93331ba6805b2fde7bde5e424f17f8",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ]
+    },
+    {
+      "id": "21-plan-create",
+      "title": "Plan: name, description and Add time slot",
+      "file": "screenshots/21-plan-create.png",
+      "capturedSha256": "92f7a02022d602ce15a05abb6bdc2961df26355d6fd4cf6d7499f0397ed4e5bc",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:04Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9161005a76daddc97d8ff3d727b14d39ad4e9a7c3a11c1828517663a65efe6b2",
+      "steps": [
+        "Create a nutrition plan and add a first time slot"
+      ]
+    },
+    {
+      "id": "21-plan-new-slot",
+      "title": "Plan: pending slot with one shared Time control",
+      "file": "screenshots/21-plan-new-slot.png",
+      "capturedSha256": "3bd7bc600cef818d4e3f7f367733676ab404639d67c88b48ac39f5c54d730ec9",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:22Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4d839bae7ee16de180b8a3f96615bad08709ebc9caaeb89accd97c6d46170493",
+      "steps": [
+        "Create a nutrition plan and add a first time slot"
+      ]
+    },
+    {
+      "id": "21-plan-meal-picker",
+      "title": "Plan: reusable meal selection sheet",
+      "file": "screenshots/21-plan-meal-picker.png",
+      "capturedSha256": "8f54d6280ff909dacc617d571577862ca9541ae4c9cefc6cb9998e6b3e289982",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a97481485b7d0535f05e9ea1e95a0faa471fedeaaa079bde942b5d0718701d64",
+      "steps": [
+        "Create a nutrition plan and add a first time slot"
+      ]
+    },
+    {
+      "id": "21-plan-inline-new-meal",
+      "title": "Plan picker: nested new-meal form",
+      "file": "screenshots/21-plan-inline-new-meal.png",
+      "capturedSha256": "c1a28d331001deda259d7e9e82091fc160fc2dd0b2fa5c75f088e5ebe524a600",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:29Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fefbbe901304bda0a2dd63b13f09756c2e8535431bb3a591ad9cbe137a07c6d9",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-inline-meal-created",
+      "title": "Plan: newly created meal added to the slot",
+      "file": "screenshots/21-plan-inline-meal-created.png",
+      "capturedSha256": "fcb6998b300ed960568c7bcca2d9f5bde191b3b1ac8d9adb6578cbe284d28bcd",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "840bc6609726b86ec86017d3c0e82d410f164dc9c97d6574ad53fe737116f00a",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-food-picker",
+      "title": "Plan: direct-food selection sheet",
+      "file": "screenshots/21-plan-food-picker.png",
+      "capturedSha256": "58892baa42d737fb06289c41472ef24fb24fd6d01c464c7ab15356dc228188bb",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:19:57Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "a98a1ccf796f1b044389b50478fffb38428954d3d2fe6525a78951c592ea15ec",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-mixed-slot",
+      "title": "Plan: meal and direct food sharing a time slot",
+      "file": "screenshots/21-plan-mixed-slot.png",
+      "capturedSha256": "f9bd6d40adc976d8b581426b03d8d4b19f0dc78b000122628a481c0c256e5f48",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:00Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8a7250731ee63e07f136a6d15dc1740735c2bbaaeed75d0c852a3c7a0546c8a0",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-create-filled",
+      "title": "Plan: two complete time slots",
+      "file": "screenshots/21-plan-create-filled.png",
+      "capturedSha256": "acefb68e791a1142cccc0ca4f1635f0eb1f1f6aa158de4c0c1863d426135af1f",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:09Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1ef6f3bb15fea6d59adde4bcccfa48bafb601bf197d2419b8fabb28a97172f7e",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-created-navigation-issue",
+      "title": "Known issue: creation can leave an unresolved blank destination",
+      "file": "screenshots/21-plan-created-navigation-issue.png",
+      "capturedSha256": "c8583f62bffe97bce614c6be98d5556e94511bc54362f089206ea52fa1a8fdcf",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:14Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b4284229b6343d78d43429011048fee5df0bfa92c087d50458ef1fa3819398ec",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-created",
+      "title": "Plan: newly created template",
+      "file": "screenshots/21-plan-created.png",
+      "capturedSha256": "85627475edf5c236fb095ef2ba4c80f4799b989481e6528073917a1e02e7c076",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:22Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "826aab8b0aa16887866a24bc594d5930df99b93a875774597ead3253f6f81061",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-used-for-today",
+      "title": "Plan: successfully selected for today's log",
+      "file": "screenshots/21-plan-used-for-today.png",
+      "capturedSha256": "a3c574886547d8b8fa5421207b048af8bde3a9c6bf95f92635b669e41bc7ad2b",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "258ab1fbd497a7cbf649ef14958f2f630bcb25b33221c3ea5d51fa3f30136c22",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker"
+      ]
+    },
+    {
+      "id": "21-plan-entry-menu",
+      "title": "Plan entry: change, reorder or move to another time",
+      "file": "screenshots/21-plan-entry-menu.png",
+      "capturedSha256": "3f93e17ebaa94a620906b39c35231ec39715e7823761440e4cf4a55c3e9b2464",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:49Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "95421c25481f12e0f71614be96ecfef993559b205df735e9902d0c25e37f30a3",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu"
+      ]
+    },
+    {
+      "id": "21-plan-entry-time-sheet",
+      "title": "Plan entry: wheel-based time editor",
+      "file": "screenshots/21-plan-entry-time-sheet.png",
+      "capturedSha256": "5c04b1565108e86938edf0d813f0bac40c3e569c4d3df678294b34325a64d325",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:20:53Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1389ff1845c8aae6c383f35dda63602fd5f76ce220bdcdb0b6abc09a9b247524",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu"
+      ]
+    },
+    {
+      "id": "21-plan-entry-moved-time",
+      "title": "Plan: direct food moved into its own time slot",
+      "file": "screenshots/21-plan-entry-moved-time.png",
+      "capturedSha256": "837767739849271a91a64bf8d70672add48bdd85e55fc093482492afd45ac53d",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "898096cb30565bde0c71ba53effc7f2c7477ac2965fd84ecda708e814b462712",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu"
+      ]
+    },
+    {
+      "id": "21-plan-slot-label-alert",
+      "title": "Plan meal: optional slot label alert",
+      "file": "screenshots/21-plan-slot-label-alert.png",
+      "capturedSha256": "b0e33b56aba08cdbe11abefef1f9e30581e336a9d57949e112aebd9f95e6731e",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:13Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "658caff1bbfeb82d1241b8215d0cd96eac2de0a8bed770eca9b1823c94c4b00f",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert"
+      ]
+    },
+    {
+      "id": "21-plan-slot-label-updated",
+      "title": "Plan: custom meal label with source meal caption",
+      "file": "screenshots/21-plan-slot-label-updated.png",
+      "capturedSha256": "88329d835fc386922ca99ff0649260438634fdf3fa1509b006f674f02417b979",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:25Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "043967c81651156d35636669a16df6d32c5f074b7e49d9ac84062c6568670407",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert"
+      ]
+    },
+    {
+      "id": "21-plan-slot-time-sheet",
+      "title": "Plan: shared time editor for every entry in the slot",
+      "file": "screenshots/21-plan-slot-time-sheet.png",
+      "capturedSha256": "1fd99917932580aaa9536f97edd29750a852fa0fe9e64e3930e2943f55dec391",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:29Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7da6b91b7f77332c897bd3c197f355ad56b82806894e3e054ede0c4aa597e435",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge"
+      ]
+    },
+    {
+      "id": "21-plan-slots-merged",
+      "title": "Plan: changing a slot time merges it with an existing slot",
+      "file": "screenshots/21-plan-slots-merged.png",
+      "capturedSha256": "7afd65aa97c37c099bb58e12d110d049300613d3965b0c4ece5833cabdf97391",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:37Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c30fe22a22a6ca1b9ee126a2a487249a37869920133c1a51e7bebaba25824945",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge"
+      ]
+    },
+    {
+      "id": "21-plan-updated",
+      "title": "Plan: updated name, label and entry time",
+      "file": "screenshots/21-plan-updated.png",
+      "capturedSha256": "133e01cd844beac654d62f4aba4d4486e0718cafb47407c1965ed6ead4ad761f",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:41Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8b56839c1af4a90b9fd91cde974909dfab1ae1c27c444ce3dc7b76db7614f724",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge"
+      ]
+    },
+    {
+      "id": "21-plan-delete-confirmation",
+      "title": "Plan: deletion detaches selected days and provenance",
+      "file": "screenshots/21-plan-delete-confirmation.png",
+      "capturedSha256": "257761a3eb0cbcff111b7088dd52db8cc3924014a44754f2cc5dd84369dc91d0",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "bb3343a88a4184a207d32359775fe5fee2afe7d4187b42388d18c2c14871c2f6",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge",
+        "Delete the plan; today's selected plan is detached without deleting logged food"
+      ]
+    },
+    {
+      "id": "21-plan-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/21-plan-deleted-detail-issue.png",
+      "capturedSha256": "133e01cd844beac654d62f4aba4d4486e0718cafb47407c1965ed6ead4ad761f",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:21:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8b56839c1af4a90b9fd91cde974909dfab1ae1c27c444ce3dc7b76db7614f724",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge",
+        "Delete the plan; today's selected plan is detached without deleting logged food"
+      ]
+    },
+    {
+      "id": "21-plan-deleted",
+      "title": "Plan deleted: return to the library",
+      "file": "screenshots/21-plan-deleted.png",
+      "capturedSha256": "70b5f69a6b2eadb738703b88e467a40971a093ca93caef27b99092e834409730",
+      "workflow": "plan-crud",
+      "capturedAt": "2026-11-15T18:22:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4c2932f8fbf1ea04286cabd3de02ae5d659f719c37c9bec62ba562f6fe79e13e",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge",
+        "Delete the plan; today's selected plan is detached without deleting logged food"
+      ]
+    },
+    {
+      "id": "33-body-fat-chart",
+      "title": "Body: body-fat readings and rolling average",
+      "file": "screenshots/33-body-fat-chart.png",
+      "capturedSha256": "8f69511a92ab0a16911317bce81abdfdfbedace54f9871332fd4fe4ae3ac9072",
+      "workflow": "body-history",
+      "capturedAt": "2026-11-15T18:22:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b4296ca1a73ffd11d2705b85134bd296eb09a73de60d19f3c0352ca5bbfdfc27",
+      "steps": [
+        "Inspect both daily-reading and 7-day-average charts"
+      ]
+    },
+    {
+      "id": "33-body-history",
+      "title": "Body: Apple Health source and latest five measurements",
+      "file": "screenshots/33-body-history.png",
+      "capturedSha256": "06c807fcce49653d1dec0e651b2b9992eca99e3b59509eeba8017e4267fa4466",
+      "workflow": "body-history",
+      "capturedAt": "2026-11-15T18:22:17Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ecf3a75bfd4d40545d71448a1f6ad37764b93e06a75c9b2ef9d63d201183ca18",
+      "steps": [
+        "Inspect both daily-reading and 7-day-average charts",
+        "Open a measurement, return, then load more than the initial five entries"
+      ]
+    },
+    {
+      "id": "33-body-detail",
+      "title": "Measurement: recorded weight, body fat and source note",
+      "file": "screenshots/33-body-detail.png",
+      "capturedSha256": "c6e5cd3887d1d2d7bbd5a755b10a141fbd4d0097e0093e1138b7407ef4268132",
+      "workflow": "body-history",
+      "capturedAt": "2026-11-15T18:22:22Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7ca2a9172caa06877b439db7202cc9591dde97c6c8a662c2d8a11e8d6b779511",
+      "steps": [
+        "Inspect both daily-reading and 7-day-average charts",
+        "Open a measurement, return, then load more than the initial five entries"
+      ]
+    },
+    {
+      "id": "33-body-history-loaded-more",
+      "title": "Body: expanded entry history",
+      "file": "screenshots/33-body-history-loaded-more.png",
+      "capturedSha256": "35f9d481ed3f90f759962cd1b60ee5b173d76838c8b161e52f840e0a5ab26227",
+      "workflow": "body-history",
+      "capturedAt": "2026-11-15T18:22:34Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "09b0c4b69b0ea0b5e9c476cdf23676e15d424bfd94de5885d3579f97d1112848",
+      "steps": [
+        "Inspect both daily-reading and 7-day-average charts",
+        "Open a measurement, return, then load more than the initial five entries"
+      ]
+    },
+    {
+      "id": "34-energy-estimate",
+      "title": "Energy: today's recorded totals and end-of-day estimate",
+      "file": "screenshots/34-energy-estimate.png",
+      "capturedSha256": "6f760e11cbbe2b70458e4bbbcdf287c82364e1b202d7c42c624875c4aef5bd73",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:22:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e2d376a9b3d035b21278252087663dcaf3495248a4cbf60dd07fb031f4f003a9",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts"
+      ]
+    },
+    {
+      "id": "34-energy-calories-consumed",
+      "title": "Energy: consumed calories and 7-day average",
+      "file": "screenshots/34-energy-calories-consumed.png",
+      "capturedSha256": "8d10386fd0e6944131e16f5562b320897a443e4b00a7c34181013e5b49b978c9",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:22:58Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "84b86566b8604d8d8cd36ec582fa04967bd1369480ea9626f781797ee54ac8a9",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts"
+      ]
+    },
+    {
+      "id": "34-energy-calories-net",
+      "title": "Energy: net calories and 7-day average",
+      "file": "screenshots/34-energy-calories-net.png",
+      "capturedSha256": "9055a9bde8dd80b22de787741a14d606eb6f4c9b54d007865e43f725fbbb4960",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:23:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8e41e0fb0a35f927ec882f146d9a2ed56ddcda6fe919e5374abcf92173176138",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts"
+      ]
+    },
+    {
+      "id": "34-energy-history",
+      "title": "Energy: source row and latest five entries",
+      "file": "screenshots/34-energy-history.png",
+      "capturedSha256": "76b0f4c9e6ecd0fe7dda0c1fc275d83d0952eedecb909d6f22be9e36e6eeb686",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:23:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2e91cd0712d2245146883326c0cab46c6de855c9a8f3f2947e59fde46693951b",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts",
+        "Inspect the source disclosure and paginate the daily active/resting entries"
+      ]
+    },
+    {
+      "id": "34-energy-history-loaded-more",
+      "title": "Energy: expanded entry history",
+      "file": "screenshots/34-energy-history-loaded-more.png",
+      "capturedSha256": "375c90a922d17058a7fcfb950f88334ac4ad3a0e4040959845fc699ee2ae8ff2",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:23:18Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "58681271489efd6e3fb12588eedff053677108d1b4df5d24e2b24093aa84ec2a",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts",
+        "Inspect the source disclosure and paginate the daily active/resting entries"
+      ]
+    },
+    {
+      "id": "34-energy-detail",
+      "title": "Energy entry: active, resting, total and notes",
+      "file": "screenshots/34-energy-detail.png",
+      "capturedSha256": "376d803ccb42435b053bf24362d1cc98eefd32eb52aa1bd01a3eadef1c289473",
+      "workflow": "energy-history",
+      "capturedAt": "2026-11-15T18:23:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f9fe55292789c86155c0da8f695a21a63b7614f14e3404d9f21e78ae6ee7a43f",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts",
+        "Inspect the source disclosure and paginate the daily active/resting entries"
+      ]
+    },
+    {
+      "id": "40-journal-create",
+      "title": "Journal: new entry form",
+      "file": "screenshots/40-journal-create.png",
+      "capturedSha256": "ebebf5e4095c1850013c9050a93cb7ec2b7370b80e9bf4bbae56dbbde0be565b",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:34:22Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "190b1f26f298fdbffb09326c8ea296f7947dcf34740cb2689053bee1667bf52e",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-markdown-editor",
+      "title": "Journal: plain-text Markdown editor",
+      "file": "screenshots/40-journal-markdown-editor.png",
+      "capturedSha256": "e2a01aae1316e44238bb8f89c5970bf15db0f2975e81bd6caa1fce31ce685631",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:34:39Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0f2609a9d9daa850131110e4a48bb7c9fbf3c340d91df048718ef001cc52bb82",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-label-input",
+      "title": "Journal: add or choose a label",
+      "file": "screenshots/40-journal-label-input.png",
+      "capturedSha256": "bf82c87a92ba6741d06e456846403af2b510ae07edfd155452caf55ae31dbf1a",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:34:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "92f64c5728c6bff43d98dbb239ab778666c8448fd59c2517b85cf3e8948cb45a",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-create-filled",
+      "title": "Journal: Markdown and label ready to save",
+      "file": "screenshots/40-journal-create-filled.png",
+      "capturedSha256": "7de6cc25bcfb0a34bb312dfa4f7d151780bdc8ad60b517816d98e94f5f6baeca",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:34:53Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7587b54c79ea5c3d9b5ed30a17349a4d9b76529cc080a1ee0bb143af76d8e1f3",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-created-navigation-issue",
+      "title": "Known issue: creation can leave an unresolved blank destination",
+      "file": "screenshots/40-journal-created-navigation-issue.png",
+      "capturedSha256": "0fcca3c7e0196eb3e49f89e4c3352c08bebffb32ab1ec8f579d6ec6ff12abba8",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:34:59Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "26477a6805a165c2c5d278acea15d2f13a1c39670eafe334de4d447de74c77d8",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-created",
+      "title": "Journal: newly created rendered entry",
+      "file": "screenshots/40-journal-created.png",
+      "capturedSha256": "a9a7363a589a5ae00c067454b3382cf5db2d0c69e0dc8ca2f3da256c93ab16be",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5906b8f650a78f825e753ce128f2a09dc22ba2e3c23bfe420741c031638d1d25",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label"
+      ]
+    },
+    {
+      "id": "40-journal-edit",
+      "title": "Journal: existing entry editor",
+      "file": "screenshots/40-journal-edit.png",
+      "capturedSha256": "43f18d252ea31a51921444841c770587fc215c8b92dd4eb9279911eb36fc5abe",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:09Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f42f71045eabe28f6dabd7e38855516e9f8dca6c800682d6c605cdb28a11dbfa",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "40-journal-updated",
+      "title": "Journal: edited title and retained Markdown",
+      "file": "screenshots/40-journal-updated.png",
+      "capturedSha256": "1a2a174a0e9a9a73b08b1010501473cb34635392ff36c723a4a9eb9e7f5c2301",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:21Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ad8cae9c75f7bdfe65fedaadaabf16abee69e61328974ebaf6c7182193c43257",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "40-journal-delete-confirmation",
+      "title": "Journal: delete confirmation",
+      "file": "screenshots/40-journal-delete-confirmation.png",
+      "capturedSha256": "e015047c2d5109aa9928c8ca4665243f81818ca360c4b862950e80a3959dea0f",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:27Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9750db84e782e6e39a6067d609a6d34f375c31a11180fd14db84ab3e6d402b18",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "40-journal-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/40-journal-deleted-detail-issue.png",
+      "capturedSha256": "1a2a174a0e9a9a73b08b1010501473cb34635392ff36c723a4a9eb9e7f5c2301",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:31Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ad8cae9c75f7bdfe65fedaadaabf16abee69e61328974ebaf6c7182193c43257",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "40-journal-deleted",
+      "title": "Journal deleted: return to the list",
+      "file": "screenshots/40-journal-deleted.png",
+      "capturedSha256": "786796622a78200f273d072f298e391d2edfcdbbb5cb8ca478959e4c48c3d750",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e3f3e86ab9f541bf8d4c9f972a44b18e516e11e994f546a772c53ea6c883d8b3",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "40-journal-empty-label-filter",
+      "title": "Journal: an unused label has no matching entries",
+      "file": "screenshots/40-journal-empty-label-filter.png",
+      "capturedSha256": "d31d4e57c1d7a37bd5c1a925af12d818652ab22e2b6f3dbf4800169e4f405a48",
+      "workflow": "journal-crud",
+      "capturedAt": "2026-11-15T18:35:40Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1c891d44be0a82b7d2f1b75b36fb7f84dbf850eae9ff5e2f49ae816dc493b8f1",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ]
+    },
+    {
+      "id": "50-demo-restored",
+      "title": "Demo: restored local changes after relaunch",
+      "file": "screenshots/50-demo-restored.png",
+      "capturedSha256": "547a6433cdfb24b6dca4b67e9db8120fa3bd1fc02b9cd0fe3ae8c38fb18b2f62",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:19Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8eb5359756e71ebfac40e7850da97612ad826f19ea9d08b36e3ec9391480cf50",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset"
+      ]
+    },
+    {
+      "id": "50-demo-controls",
+      "title": "Demo: always-available Reset and Exit menu",
+      "file": "screenshots/50-demo-controls.png",
+      "capturedSha256": "df3c3fe4e42877927dbc0ae78d3153f7140aa11e37fd7d4329a706b959ff64ac",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:23Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "213f76c49ff7e3f9edf801e014a0d579ec564c450a0fe0ef4c6b216e19c69a2e",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP"
+      ]
+    },
+    {
+      "id": "00-sign-in",
+      "title": "Public entry: email OTP sign-in and Try demo (no email submitted)",
+      "file": "screenshots/00-sign-in.png",
+      "capturedSha256": "4af7848fb06d495db0a7777511049c4b68b41dd7c7080af5f021a2765f16bdb2",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:28Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "72e259f520f48a87a20871eb6b5853426965564c5376b586d201c479043a1ae6",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP"
+      ]
+    },
+    {
+      "id": "00-sign-up",
+      "title": "Public entry: sign-up (no live workflow submitted)",
+      "file": "screenshots/00-sign-up.png",
+      "capturedSha256": "33d7676bd121c5daa4f3baa0bceaaea30922865f931e2d3d8a1f041a04a175a3",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:30Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ea65b98caf0a7683fbe523186b943218523edea7732dbad158911914dedea05e",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP"
+      ]
+    },
+    {
+      "id": "50-demo-reentered",
+      "title": "Demo: Try demo re-entry keeps local changes",
+      "file": "screenshots/50-demo-reentered.png",
+      "capturedSha256": "ad71b9973396bb1e74a7dc59a4db10125a3f8426a9ecd92f0b38a3ff3cad265a",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "53b59a5c714d825fa3525bb48d874ba57d9cd236b94ebbc0e3d7b1f240798830",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP"
+      ]
+    },
+    {
+      "id": "50-demo-reset-confirmation",
+      "title": "Demo: reset confirmation",
+      "file": "screenshots/50-demo-reset-confirmation.png",
+      "capturedSha256": "7b4ac5b3689bb635a64ef46b0f234b33674d7ee8dc9ea65cbe8905521888d320",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2dc4bff87443503db8052517aa7f2a850e228e671f7da82a6458c0492dbfca60",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP",
+        "Confirm Reset demo data and verify the local edit is removed"
+      ]
+    },
+    {
+      "id": "50-demo-reset-complete",
+      "title": "Demo: fresh sample dataset after reset",
+      "file": "screenshots/50-demo-reset-complete.png",
+      "capturedSha256": "35ccb520e395752404dd4a8722b9f5af9e156f7513269e86522a3933cc98fbda",
+      "workflow": "demo-lifecycle",
+      "capturedAt": "2026-11-15T18:36:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4cffccdf773246f29b34fa4caec0cbaf3641f862181ee431dd6f214d5a0eb59e",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP",
+        "Confirm Reset demo data and verify the local edit is removed"
+      ]
+    },
+    {
+      "id": "01-today-quick-log",
+      "title": "Today: quick-log shortcuts",
+      "file": "screenshots/01-today-quick-log.png",
+      "capturedSha256": "11b79a4fd965fa5b008906acbfe6f85600bde003ad61dabda3f9ce7f96a53ef8",
+      "workflow": "today",
+      "capturedAt": "2026-11-15T18:37:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "b5119207bc96f5637bef521cce7df7c8aacee251a0522f90d6b42b538dd1ec3e",
+      "steps": [
+        "Open the Today quick-log menu"
+      ]
+    },
+    {
+      "id": "01-today-nutrition",
+      "title": "Today: logged nutrition and selected plan",
+      "file": "screenshots/01-today-nutrition.png",
+      "capturedSha256": "8ef0e4ea0a939273d49db1fead436cb88a6457fe9aab325724a08f133b91b7e1",
+      "workflow": "today",
+      "capturedAt": "2026-11-15T18:37:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "9e17f92fec5bd09a1438db26f489c3704f078fc74ac7c477adf6411b92373f5c",
+      "steps": [
+        "Open the Today quick-log menu",
+        "Inspect the nutrition summary, recorded balance and end-of-day estimate"
+      ]
+    },
+    {
+      "id": "01-today-balance-body",
+      "title": "Today: recorded balance and end-of-day estimate",
+      "file": "screenshots/01-today-balance-body.png",
+      "capturedSha256": "8308f1e2f1378ad8ed6571595d58781e7ffcd8c7fd33fa4c4bfad2d292442dfe",
+      "workflow": "today",
+      "capturedAt": "2026-11-15T18:37:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "67354ccec5829521edb11b7e18d9697b271f7f67fbc0d82d25de6defc64d4401",
+      "steps": [
+        "Open the Today quick-log menu",
+        "Inspect the nutrition summary, recorded balance and end-of-day estimate"
+      ]
+    },
+    {
+      "id": "01-today-body",
+      "title": "Today: body chart and latest measurements",
+      "file": "screenshots/01-today-body.png",
+      "capturedSha256": "e9ba2bd4ced6c20f5b937af4ab887fd5c19305be6af87dbee3229455ad843b8d",
+      "workflow": "today",
+      "capturedAt": "2026-11-15T18:37:18Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f888d6588eb6af6602e1befac0d4f8ec648c21add2ed0bc73a3b8d000f42139b",
+      "steps": [
+        "Open the Today quick-log menu",
+        "Inspect the nutrition summary, recorded balance and end-of-day estimate"
+      ]
+    },
+    {
+      "id": "20-log-from-plan-sheet",
+      "title": "Log intake: selected-plan entry picker",
+      "file": "screenshots/20-log-from-plan-sheet.png",
+      "capturedSha256": "0d6fafa2fa413aa7385dd3eef28059c47ddd3e17cb6f9c41b50a63519582a6c4",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:12Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5c4a53ccae6511613e654605f64fd4c19e27203bd8eae95bf5b51bf4478df9bd",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet"
+      ]
+    },
+    {
+      "id": "20-log-from-plan-added",
+      "title": "Nutrition Log: selected-plan meal appended",
+      "file": "screenshots/20-log-from-plan-added.png",
+      "capturedSha256": "7ad135493476e7b4079cde7567b573bcc89681661d59ef43e0b415fe4ca07cb1",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:16Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "ec8dd47c396c842061f9e7c5f2bd5113bfed968d81c7cf3e7ad4cd925b27b7f4",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet"
+      ]
+    },
+    {
+      "id": "20-log-from-plan-food-sheet",
+      "title": "Log intake: direct planned food and editable grams",
+      "file": "screenshots/20-log-from-plan-food-sheet.png",
+      "capturedSha256": "3f0d427303a4f23973b0a8d05c82b35852b7cebaf8737b5cd54ba7617f40dfbb",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:39Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6c6278bd1a9370446272a46e2e177d2c010aa746d179598ef0daefb25e83ba34",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet"
+      ]
+    },
+    {
+      "id": "20-log-from-plan-food-added",
+      "title": "Nutrition Log: direct planned food appended from the sheet",
+      "file": "screenshots/20-log-from-plan-food-added.png",
+      "capturedSha256": "97f14b48a58a86254765140f2cd173cc6cc52013e1637fcc0db6bdd4aeb05f28",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:44Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4bf9f558f531a090642d159a747410b2a053d216f22d8479ba5a6091127d7ca0",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet"
+      ]
+    },
+    {
+      "id": "20-log-plan-slot-existing-confirmation",
+      "title": "Planned slot: existing food warning before duplicate logging",
+      "file": "screenshots/20-log-plan-slot-existing-confirmation.png",
+      "capturedSha256": "3cb701dc4c549197acbb0ad51e95bfe6c2af5795c65c754f2590b4a38ae9454c",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:48Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5e37c9a5cce3947cf8267ae47562e684abca5ab7201870963840ececb24081b4",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet",
+        "Log an entire planned time slot that already has food; confirm the append"
+      ]
+    },
+    {
+      "id": "20-log-plan-slot-appended",
+      "title": "Nutrition Log: planned breakfast appended to the existing slot",
+      "file": "screenshots/20-log-plan-slot-appended.png",
+      "capturedSha256": "e948b0b7f7971f034c939a74b7a2e23e5273fe7e277efcc9f5d07f85e5a19464",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:38:53Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2e3d1f6e43a4d58c1a0637c7a1b7405897a7217e6416f4421c1e982c38ffaa8b",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet",
+        "Log an entire planned time slot that already has food; confirm the append"
+      ]
+    },
+    {
+      "id": "20-log-plan-direct-food",
+      "title": "Nutrition Log: direct planned food logged at 16:00",
+      "file": "screenshots/20-log-plan-direct-food.png",
+      "capturedSha256": "5ff1d5f12e7b098b321ccc97e81a8acfb03537f6d4de3595a0347aa5f4edf07f",
+      "workflow": "log-plan",
+      "capturedAt": "2026-11-15T18:39:04Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "59f6f5f9ac8443cf552b12da19ec825fcffca0ebf451552165d884265a83abe8",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet",
+        "Log an entire planned time slot that already has food; confirm the append",
+        "Log a direct planned food at its own slot time"
+      ]
+    },
+    {
+      "id": "23-meal-create",
+      "title": "Meal: new template form",
+      "file": "screenshots/23-meal-create.png",
+      "capturedSha256": "3850397ce632f4de41c754fd070f95a6f37f0ef75e285fd57ace679f0663deab",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:39:14Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7ec9a26ac2ed7988dac0e4bc733ce1d5580a9644e18f3c74bbb0a4693b8ef740",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker"
+      ]
+    },
+    {
+      "id": "23-meal-ingredient-picker",
+      "title": "Meal: searchable ingredient selection sheet",
+      "file": "screenshots/23-meal-ingredient-picker.png",
+      "capturedSha256": "6ea4764043e678179c5f331fc85068df2a82a2225d984f6375d44cc1864223c4",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:39:33Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "942e407a5482da2ee4dfd406268ea6f84f2c1e55f5e670815dfdf78269d50ae8",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker"
+      ]
+    },
+    {
+      "id": "23-meal-inline-new-food",
+      "title": "Ingredient picker: nested new-food form",
+      "file": "screenshots/23-meal-inline-new-food.png",
+      "capturedSha256": "8fe5824b5ce337e312dcbc80c726c60515605afc6de845845ca88fa061e81dbb",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:39:36Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6e00c22a822ff6af5b8707e3549df05153963efdb2e4f55413cc35e206de588a",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker"
+      ]
+    },
+    {
+      "id": "23-meal-inline-food-created",
+      "title": "Meal: newly created food selected as an ingredient",
+      "file": "screenshots/23-meal-inline-food-created.png",
+      "capturedSha256": "2f930a8336d6a01c24b58819afdd77c61868ea3c42d9454b570310343a8fa24f",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:40:38Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4f11b231f4603a09acaca1b51f6e9f788f3ac6879a5d72926ede38538c987632",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker"
+      ]
+    },
+    {
+      "id": "23-meal-ingredient-menu",
+      "title": "Meal ingredient: change food or reorder",
+      "file": "screenshots/23-meal-ingredient-menu.png",
+      "capturedSha256": "0059bb0c0e36e4fed4e1136b3690f194a6dee3f4c92e6efbe98002c1ccc34f3d",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:40:55Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "d8e2c65dc57b1872e253d373b0ef13522520b7ef63d56b5a241073b67d8e8869",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food"
+      ]
+    },
+    {
+      "id": "23-meal-quick-edit-food",
+      "title": "Meal: private food editor in a modal stack",
+      "file": "screenshots/23-meal-quick-edit-food.png",
+      "capturedSha256": "c917a8daaa7c7a34bd609d0dc0f7ffd68554fc46554d25792d2da4bc9b3a8060",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:05Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "4ee731f0b1d15b929ad633657947f613621542a67e17dc76dcbf6114a7a38358",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food"
+      ]
+    },
+    {
+      "id": "23-meal-create-filled",
+      "title": "Meal: reordered ingredients and live updated totals",
+      "file": "screenshots/23-meal-create-filled.png",
+      "capturedSha256": "321ced6839d33ce9664e3d991a76eaaf53a41510c7c66dc415bcf8d7d14a557e",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:20Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1dd8fa2d08ef87daac08d47d6a98ea89598f1ff17d1ee1c9307e7fdaaa92ba33",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food"
+      ]
+    },
+    {
+      "id": "23-meal-created",
+      "title": "Meal: newly created template",
+      "file": "screenshots/23-meal-created.png",
+      "capturedSha256": "38c3a78e7a8b34a7b02e8cb65559b7ef7e7b3c5a158a6e85dd4b32b585b1eb67",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5df8864373683cc6c9a2355cea27ea1bffecf3caa7c60587a145557b5171bc2b",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food"
+      ]
+    },
+    {
+      "id": "23-meal-edit-remove-ingredient",
+      "title": "Meal: ingredient removed from the draft",
+      "file": "screenshots/23-meal-edit-remove-ingredient.png",
+      "capturedSha256": "818e8ca7823a28510eff1520c68eeab87d5122766faf7a67525f30da555bbc74",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:46Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1afee023e4ce999fe1f981615b160acc5d1273633bb27ad5822e404ba05142f0",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ]
+    },
+    {
+      "id": "23-meal-updated",
+      "title": "Meal: edited template",
+      "file": "screenshots/23-meal-updated.png",
+      "capturedSha256": "e1e9b2fe05b2398e11fa0de35de6b335c793211a7eaa7bcda3bcd992c73a85f1",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:50Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "332833745b9ce32c50583bd5a49179a9b24537e78ef0fa133bdfd8ddc706a820",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ]
+    },
+    {
+      "id": "23-meal-delete-confirmation",
+      "title": "Meal: delete an unreferenced template",
+      "file": "screenshots/23-meal-delete-confirmation.png",
+      "capturedSha256": "c6768739811e2f44e84a048d3aac8747330468319ed6cc0fb5d9197a5b16102e",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:41:56Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f99cf76827bebd281e6f4ab02438af70a3c0b9a6816891d27c54b48178dd3da4",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ]
+    },
+    {
+      "id": "23-meal-deleted-detail-issue",
+      "title": "Known issue: deleted detail remains until Back",
+      "file": "screenshots/23-meal-deleted-detail-issue.png",
+      "capturedSha256": "e1e9b2fe05b2398e11fa0de35de6b335c793211a7eaa7bcda3bcd992c73a85f1",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:42:02Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "332833745b9ce32c50583bd5a49179a9b24537e78ef0fa133bdfd8ddc706a820",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ]
+    },
+    {
+      "id": "23-meal-deleted",
+      "title": "Meal deleted: return to the template library",
+      "file": "screenshots/23-meal-deleted.png",
+      "capturedSha256": "426e547626544223b9f4bfd0b5c70a2740453ea88ed676bd926b11d522aedeba",
+      "workflow": "meal-crud",
+      "capturedAt": "2026-11-15T18:42:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "be99cbeca45d7eb60344812da52652672b2f3d8f87884c0e66e87fef5d584798",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ]
+    },
+    {
+      "id": "30-overview-strength",
+      "title": "Progress Overview: weekly strength summary",
+      "file": "screenshots/30-overview-strength.png",
+      "capturedSha256": "000b762594cf42fd7f88ce2c4d8643fec7d4cf192387204f4286d2e10d768242",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:02Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5ae1c0643674bd3b0cea70a9a775058828db54b0c9f858da37b936c1fa399dfd",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut"
+      ]
+    },
+    {
+      "id": "30-overview-body",
+      "title": "Progress Overview: body averages and chart",
+      "file": "screenshots/30-overview-body.png",
+      "capturedSha256": "4fd7d8f0d8a406d6101555f8e7ccf2fb1e98b7f7c0ffd9fa9287c653c6c6ed0c",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:06Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "21c1b6da1b3427543bbc7349e14d87ebd0a7121d66c950d8ff3167133f430b23",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut"
+      ]
+    },
+    {
+      "id": "30-overview-energy",
+      "title": "Progress Overview: energy and calorie balance summary",
+      "file": "screenshots/30-overview-energy.png",
+      "capturedSha256": "05d79948d244fc642ef02759f35a4fa8983819c469a1e58eb78ee461a78cb350",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:13Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "6728e5828afc0bad9e032c3667a87732f443d1538809b6fdfc04b306a02cd7d6",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut"
+      ]
+    },
+    {
+      "id": "31-muscles-stacked-bars",
+      "title": "Muscles: direct and half-secondary weighted-set bars",
+      "file": "screenshots/31-muscles-stacked-bars.png",
+      "capturedSha256": "ddb8db00a52efaef912cce0b694a736a7fefccc65f670bcb92bed3bdb84dbd36",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:35Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "838127019375c3a9b048d9d15742fe3cfe73f4eb20c03958522b9e3ad4e9f271",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history"
+      ]
+    },
+    {
+      "id": "31-muscles-selected-quadriceps",
+      "title": "Muscles: selected quadriceps history",
+      "file": "screenshots/31-muscles-selected-quadriceps.png",
+      "capturedSha256": "42678072ed499500a265641695b0cd0536701e7a3ed16ac45a4a3f62c6f7d13c",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:46Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fe938a7ad6f8752a4359ff35013b828fe0e4dc75321b012a5536e132e6ebd9a7",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history"
+      ]
+    },
+    {
+      "id": "35-chart-point-callout",
+      "title": "Chart: nearest plotted-point callout",
+      "file": "screenshots/35-chart-point-callout.png",
+      "capturedSha256": "7d3d43833db5930ebe2aa9d002dea4e3d89d402bde8ada0bfcd1f72ef19f028d",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:54Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0c5bb16f29275a768e838c52101984132649241885d19b47c5fc5f3c3d84cb2e",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu"
+      ]
+    },
+    {
+      "id": "35-chart-period-menu",
+      "title": "Chart: preset periods and custom date range",
+      "file": "screenshots/35-chart-period-menu.png",
+      "capturedSha256": "516bd7c193b5783bdf9816a6ae2d9c6af2c78bf3ab1716d64eb4883621555d3f",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:43:58Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "cf7ede43602a0e4295ae1915309409498fa98e398c448f0b39330ce58de9ccc2",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu"
+      ]
+    },
+    {
+      "id": "32-strength-last-30-days",
+      "title": "Strength: weekly volume over the last 30 days",
+      "file": "screenshots/32-strength-last-30-days.png",
+      "capturedSha256": "ccf948fcd61154af2c86d371c8a0c99b72b9dd89de837a34ce2f9eb253b324bd",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:02Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "f02888cb226a39f80de7cb20b32a8dadc97f209abe9db4dc84cf86b1ebddb272",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu"
+      ]
+    },
+    {
+      "id": "35-chart-custom-range",
+      "title": "Chart: shared custom From/To date controls",
+      "file": "screenshots/35-chart-custom-range.png",
+      "capturedSha256": "1784806275ab522b90b1affc2610ca71e76866a90332f21a9a4a8958049c319c",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:09Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0dc97df85fcf867fe06e039023421b71101e3e57e587b32dd8fcb7b21c8deac2",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu"
+      ]
+    },
+    {
+      "id": "35-chart-custom-date-popover",
+      "title": "Chart: custom range calendar popover",
+      "file": "screenshots/35-chart-custom-date-popover.png",
+      "capturedSha256": "d53fd623f253751fad5ade0a489c7a577bab3c4f69a4b97767d47376c56c0acc",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:13Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2d7254329d755e4d9c4d6f3e4313e56519f63a4bac359a84dba676c97cc87d21",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu"
+      ]
+    },
+    {
+      "id": "35-chart-series-toggle",
+      "title": "Chart: series visibility control",
+      "file": "screenshots/35-chart-series-toggle.png",
+      "capturedSha256": "5bd6b81ef8553869a83bb51bacb41ba356b7f6bb6314cea4202eb33b7d32a5c7",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:18Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "fd3896dc812f87de37e4ba1b190e53d0d82b38276717ff20788bed752a69377e",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu",
+        "Toggle a chart series, then open an exercise from its strength trend"
+      ]
+    },
+    {
+      "id": "32-strength-exercise-charts",
+      "title": "Strength: per-exercise volume and estimated 1RM",
+      "file": "screenshots/32-strength-exercise-charts.png",
+      "capturedSha256": "53a51af6f12726da295b1534a83bed591b44b984f7884cfcc79c5eda83dd3267",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:26Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "27663a24f8819ac57fa90926e5492a915a2477cc1babf287d42845f2d9f2cb32",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu",
+        "Toggle a chart series, then open an exercise from its strength trend"
+      ]
+    },
+    {
+      "id": "32-strength-exercise-drill-down",
+      "title": "Strength: exercise-detail drill-down in the Progress stack",
+      "file": "screenshots/32-strength-exercise-drill-down.png",
+      "capturedSha256": "ddd5870542b29cda2db71ff861bf5ffab15989781935f77df68b496920a9c2de",
+      "workflow": "progress-charts",
+      "capturedAt": "2026-11-15T18:44:31Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "2e3e1d1cd10ed5c77f169935e5f86157178e2e23051ee829d3f0e6fd80a7448d",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu",
+        "Toggle a chart series, then open an exercise from its strength trend"
+      ]
+    },
+    {
+      "id": "20-log-group-child-edit",
+      "title": "Logged meal child: grams and ordering, with time owned by the meal",
+      "file": "screenshots/20-log-group-child-edit.png",
+      "capturedSha256": "51a3acd4bf62474c2ec26d4be0b103694cced911a2d9aef91125f3dd05f52c5e",
+      "workflow": "log-child",
+      "capturedAt": "2026-11-15T18:44:45Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "0baffa0fdc1d2dddb67dd8f4df833bb5981273dc000bb5c59bffbb55effab2ef",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time"
+      ]
+    },
+    {
+      "id": "20-log-group-child-updated",
+      "title": "Nutrition Log: one meal ingredient's logged amount updated",
+      "file": "screenshots/20-log-group-child-updated.png",
+      "capturedSha256": "88aa5ccba3e5a5ceb150ab5c58f2b8563cbe69acc44fdccd3972184f040bcd41",
+      "workflow": "log-child",
+      "capturedAt": "2026-11-15T18:44:55Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "29c8cfcc730b98c573b43cf8f64ba451f4eaa2abc9582bd78c35c322f3d6aff4",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time"
+      ]
+    },
+    {
+      "id": "20-log-group-child-delete-confirmation",
+      "title": "Logged meal child: single-snapshot deletion confirmation",
+      "file": "screenshots/20-log-group-child-delete-confirmation.png",
+      "capturedSha256": "9931592967516c656c98e521427c29573ad39a16349a5e974bb97f9b3ac3b5c5",
+      "workflow": "log-child",
+      "capturedAt": "2026-11-15T18:45:02Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "1706f285906af1f5072bcec39957c03cdf7320faa42da41bd5b3e3a46f99e00e",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time",
+        "Delete only that logged ingredient, preserving the group and reusable food"
+      ]
+    },
+    {
+      "id": "20-log-group-child-deleted",
+      "title": "Nutrition Log: meal remains with its other logged ingredients",
+      "file": "screenshots/20-log-group-child-deleted.png",
+      "capturedSha256": "03320b532bb8833ff289a2b816dd26125a699d033999e4620a0b5a2ed7b841c2",
+      "workflow": "log-child",
+      "capturedAt": "2026-11-15T18:45:07Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "c272fba25d63442ade551c82bfcc05c746a6fcb5e946cadccc51dd421a3ed7d5",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time",
+        "Delete only that logged ingredient, preserving the group and reusable food"
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "id": "root-today",
+      "title": "Today: training and nutrition",
+      "status": "passed",
+      "steps": [
+        "Open Today"
+      ]
+    },
+    {
+      "id": "root-train-sessions",
+      "title": "Train: sessions by week",
+      "status": "passed",
+      "steps": [
+        "Open Train → Sessions"
+      ]
+    },
+    {
+      "id": "root-train-workouts",
+      "title": "Train: workout library",
+      "status": "passed",
+      "steps": [
+        "Open Train → Workouts"
+      ]
+    },
+    {
+      "id": "root-train-exercises",
+      "title": "Train: exercise catalog",
+      "status": "passed",
+      "steps": [
+        "Open Train → Exercises"
+      ]
+    },
+    {
+      "id": "root-nutrition-log",
+      "title": "Nutrition: day summary and week strip",
+      "status": "passed",
+      "steps": [
+        "Open Nutrition → Log"
+      ]
+    },
+    {
+      "id": "root-nutrition-plans",
+      "title": "Nutrition: plan library",
+      "status": "passed",
+      "steps": [
+        "Open Nutrition → Plans"
+      ]
+    },
+    {
+      "id": "root-nutrition-foods",
+      "title": "Nutrition: food library",
+      "status": "passed",
+      "steps": [
+        "Open Nutrition → Foods"
+      ]
+    },
+    {
+      "id": "root-nutrition-meals",
+      "title": "Nutrition: meal library",
+      "status": "passed",
+      "steps": [
+        "Open Nutrition → Meals"
+      ]
+    },
+    {
+      "id": "root-progress-overview",
+      "title": "Progress: overview",
+      "status": "passed",
+      "steps": [
+        "Open Progress → Overview"
+      ]
+    },
+    {
+      "id": "root-progress-muscles",
+      "title": "Progress: weighted muscle sets",
+      "status": "passed",
+      "steps": [
+        "Open Progress → Muscles"
+      ]
+    },
+    {
+      "id": "root-progress-strength",
+      "title": "Progress: strength and volume",
+      "status": "passed",
+      "steps": [
+        "Open Progress → Strength"
+      ]
+    },
+    {
+      "id": "root-progress-body",
+      "title": "Progress: body measurements",
+      "status": "passed",
+      "steps": [
+        "Open Progress → Body"
+      ]
+    },
+    {
+      "id": "root-progress-energy",
+      "title": "Progress: daily energy",
+      "status": "passed",
+      "steps": [
+        "Open Progress → Energy"
+      ]
+    },
+    {
+      "id": "root-me-journal",
+      "title": "Me: journal",
+      "status": "passed",
+      "steps": [
+        "Open Me → Journal"
+      ]
+    },
+    {
+      "id": "root-me-account",
+      "title": "Me: local sample profile and connections",
+      "status": "passed",
+      "steps": [
+        "Open Me → Account"
+      ]
+    },
+    {
+      "id": "session",
+      "title": "Session",
+      "status": "passed",
+      "steps": [
+        "Open today's partially logged session and inspect the current exercise",
+        "Edit the first logged set with the native weight/reps wheels",
+        "Open the next-set editor and save a set; this starts a local rest",
+        "Switch tabs and reopen the session from the rest accessory",
+        "Delete a logged strength set; this sheet action is immediate",
+        "Add a cardio exercise using the multi-select exercise picker",
+        "Remove an exercise through its options and confirm the removal",
+        "Inspect earlier sessions, then confirm deletion of the current session"
+      ]
+    },
+    {
+      "id": "workout-create",
+      "title": "Workout Create",
+      "status": "passed",
+      "steps": [
+        "Create a private workout with a name, label and exercise list"
+      ],
+      "checks": []
+    },
+    {
+      "id": "workout-edit",
+      "title": "Workout Edit",
+      "status": "passed",
+      "steps": [
+        "Open a private workout; public workouts remain read-only",
+        "Edit the template and reorder its exercise list by long-press",
+        "Start a new session from the edited workout",
+        "Delete the workout; existing sessions are preserved as ad-hoc"
+      ],
+      "checks": [
+        "Workout rename and exercise reordering were persisted",
+        "Deleted workout is absent from the local store",
+        "Workout deletion detached rather than deleted its sessions"
+      ]
+    },
+    {
+      "id": "public-workout",
+      "title": "Public Workout",
+      "status": "passed",
+      "steps": [
+        "Filter public templates and open a read-only workout"
+      ],
+      "checks": []
+    },
+    {
+      "id": "exercise-catalog",
+      "title": "Exercise Catalog",
+      "status": "passed",
+      "steps": [
+        "Filter the catalog to private exercises, then inspect each filter menu",
+        "Search for a matching exercise and inspect the no-results state"
+      ],
+      "checks": []
+    },
+    {
+      "id": "exercise-details",
+      "title": "Exercise Details",
+      "status": "passed",
+      "steps": [
+        "Open a strength exercise's illustration, muscles, attributes and instructions",
+        "Start a one-exercise ad-hoc strength session",
+        "Open the cardio exercise and inspect its duration progress and entry history"
+      ],
+      "checks": []
+    },
+    {
+      "id": "cardio",
+      "title": "Cardio",
+      "status": "passed",
+      "steps": [
+        "Start an ad-hoc cardio session and add an entry using its metrics schema",
+        "Edit the logged cardio entry, then delete it from the editor"
+      ],
+      "checks": [
+        "The cardio entry was persisted"
+      ]
+    },
+    {
+      "id": "food-browse",
+      "title": "Food Browse",
+      "status": "passed",
+      "steps": [
+        "Inspect public food details and their read-only status"
+      ],
+      "checks": []
+    },
+    {
+      "id": "food-crud",
+      "title": "Food CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a private food using the package's per-100 g nutrition values",
+        "Edit the food's name and energy value",
+        "Delete the unreferenced food after its confirmation dialog"
+      ],
+      "checks": [
+        "Deleted private food is absent from the local store"
+      ]
+    },
+    {
+      "id": "meal-browse",
+      "title": "Meal Browse",
+      "status": "passed",
+      "steps": [
+        "Browse a meal's live nutrient totals and ingredient quantities"
+      ],
+      "checks": [
+        "A plan-referenced meal has Delete disabled"
+      ]
+    },
+    {
+      "id": "log-navigation",
+      "title": "Log Navigation",
+      "status": "passed",
+      "steps": [
+        "Navigate yesterday, return to today, then open the calendar sheet",
+        "Swipe the Monday-to-Sunday strip to the next week",
+        "Inspect the selected plan menu, then remove the plan without deleting food"
+      ],
+      "checks": [
+        "Clearing the plan retains today's food snapshots"
+      ]
+    },
+    {
+      "id": "log-food",
+      "title": "Log Food",
+      "status": "passed",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ],
+      "checks": [
+        "Food logging appended one snapshot",
+        "Deleting the entry restored the snapshot count"
+      ]
+    },
+    {
+      "id": "plan-browse",
+      "title": "Plan Browse",
+      "status": "passed",
+      "steps": [
+        "Inspect the plan's daily totals and all four planned time slots"
+      ],
+      "checks": []
+    },
+    {
+      "id": "body-crud",
+      "title": "Body CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a measurement; today's existing date demonstrates duplicate-date validation",
+        "Edit the measurement, then delete it with confirmation"
+      ],
+      "checks": [
+        "The new measurement persisted on the selected date",
+        "Measurement changes were persisted",
+        "Measurement deletion restored the fixture count"
+      ]
+    },
+    {
+      "id": "energy-crud",
+      "title": "Energy CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a manual energy entry, validating the unique daily date"
+      ],
+      "checks": [
+        "The energy entry persisted on the selected date",
+        "Energy changes were persisted",
+        "Energy deletion restored the fixture count"
+      ]
+    },
+    {
+      "id": "journal-browse",
+      "title": "Journal Browse",
+      "status": "passed",
+      "steps": [
+        "Filter journal entries by an existing label"
+      ],
+      "checks": []
+    },
+    {
+      "id": "demo-recovery",
+      "title": "Demo Recovery",
+      "status": "passed",
+      "steps": [
+        "Launch an invalid explicit demo destination; recover through normal sign-in",
+        "On this dedicated simulator only, corrupt the isolated demo JSON and recover with Reset"
+      ],
+      "checks": [
+        "Recovery replaced corrupt demo JSON with a valid store"
+      ]
+    },
+    {
+      "id": "sessions-pagination",
+      "title": "Sessions Pagination",
+      "status": "passed",
+      "steps": [
+        "Start session from Sessions opens the workout library",
+        "Load an older page of sessions grouped by week"
+      ],
+      "checks": []
+    },
+    {
+      "id": "log-meal",
+      "title": "Log Meal",
+      "status": "passed",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities",
+        "Edit a logged meal group's name, time and ordering independently of the template"
+      ],
+      "checks": [
+        "Meal logging appended one group with three food snapshots",
+        "Deleting a logged group also removed its three snapshots"
+      ]
+    },
+    {
+      "id": "account",
+      "title": "Account",
+      "status": "passed",
+      "steps": [
+        "Inspect the fictional profile and explicit disconnected-service disclosures",
+        "Switch to Light, inspect Today, then test System and restore Dark",
+        "Open the account's Reset demo data confirmation and cancel it"
+      ],
+      "checks": []
+    },
+    {
+      "id": "log-ad-hoc",
+      "title": "Log Ad Hoc",
+      "status": "passed",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
+      ],
+      "checks": [
+        "Ad-hoc logging did not create a reusable food"
+      ]
+    },
+    {
+      "id": "plan-crud",
+      "title": "Plan CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a nutrition plan and add a first time slot",
+        "Create a meal inside the plan's meal picker",
+        "Move an entry to a different time and inspect its slot-local reorder menu",
+        "Edit a meal slot label using the native alert",
+        "Retime a whole slot into an existing slot; its entries merge",
+        "Delete the plan; today's selected plan is detached without deleting logged food"
+      ],
+      "checks": [
+        "Use for today selected the new plan on today's nutrition day",
+        "The wheel selected its next visible row",
+        "The wheel selected its next visible row",
+        "The wheel selected its next visible row",
+        "Plan deletion detached days and preserved logged snapshots"
+      ]
+    },
+    {
+      "id": "body-history",
+      "title": "Body History",
+      "status": "passed",
+      "steps": [
+        "Inspect both daily-reading and 7-day-average charts",
+        "Open a measurement, return, then load more than the initial five entries"
+      ],
+      "checks": []
+    },
+    {
+      "id": "energy-history",
+      "title": "Energy History",
+      "status": "passed",
+      "steps": [
+        "Inspect today's end-of-day estimate and the consumed/net calorie charts",
+        "Inspect the source disclosure and paginate the daily active/resting entries"
+      ],
+      "checks": []
+    },
+    {
+      "id": "journal-crud",
+      "title": "Journal CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a dated journal entry with Markdown and a new label",
+        "Edit the title, then delete the entry with confirmation"
+      ],
+      "checks": [
+        "The journal entry and its label were persisted",
+        "Journal deletion restored the fixture count"
+      ]
+    },
+    {
+      "id": "demo-lifecycle",
+      "title": "Demo Lifecycle",
+      "status": "passed",
+      "steps": [
+        "Create an identifiable local record, then terminate and relaunch without reset",
+        "Exit demo and capture the public sign-in/sign-up screens without requesting OTP",
+        "Confirm Reset demo data and verify the local edit is removed"
+      ],
+      "checks": [
+        "A local demo edit survives process termination and relaunch",
+        "Exit and Try demo preserved local demo edits",
+        "Reset removed the synthetic edit and recreated valid fixtures"
+      ]
+    },
+    {
+      "id": "today",
+      "title": "Today",
+      "status": "passed",
+      "steps": [
+        "Open the Today quick-log menu",
+        "Inspect the nutrition summary, recorded balance and end-of-day estimate"
+      ],
+      "checks": []
+    },
+    {
+      "id": "log-plan",
+      "title": "Log Plan",
+      "status": "passed",
+      "steps": [
+        "Log a selected-plan entry using From plan in the intake sheet",
+        "Choose the direct planned Banana entry in the same intake sheet",
+        "Log an entire planned time slot that already has food; confirm the append",
+        "Log a direct planned food at its own slot time"
+      ],
+      "checks": [
+        "The wheel selected its next visible row",
+        "The wheel selected its next visible row",
+        "The wheel selected its next visible row",
+        "The wheel selected its next visible row",
+        "The planned-entry wheel selected a direct food",
+        "From plan logged one standalone food snapshot with plan-food provenance",
+        "Re-logging a planned meal appended rather than replaced snapshots",
+        "A direct plan food appended a standalone snapshot with provenance"
+      ]
+    },
+    {
+      "id": "meal-crud",
+      "title": "Meal CRUD",
+      "status": "passed",
+      "steps": [
+        "Create a meal, including a new food pushed inside the ingredient picker",
+        "Long-press an ingredient to reorder it, or edit its private source food",
+        "Edit the name, remove an ingredient and save the template"
+      ],
+      "checks": [
+        "Created meal persisted with two ingredients",
+        "Deleted meal is absent from the local store"
+      ]
+    },
+    {
+      "id": "progress-charts",
+      "title": "Progress Charts",
+      "status": "passed",
+      "steps": [
+        "Inspect every overview card and use its See all shortcut",
+        "Select another muscle, then return to its weighted-set history",
+        "Select a plotted point and inspect the common Period menu",
+        "Toggle a chart series, then open an exercise from its strength trend"
+      ],
+      "checks": []
+    },
+    {
+      "id": "log-child",
+      "title": "Log Child",
+      "status": "passed",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time",
+        "Delete only that logged ingredient, preserving the group and reusable food"
+      ],
+      "checks": [
+        "Editing a meal child preserved its meal and changed only that snapshot amount",
+        "Single-child deletion preserved the logged group and reusable food catalog"
+      ]
+    }
+  ],
+  "knownIssues": [
+    {
+      "id": "delete-navigation",
+      "description": "Some pushed editors delete the record but leave its now-missing detail page visible. Tap the native Back button once to return to the section list.",
+      "screenshots": [
+        "12-workout-deleted-detail-issue",
+        "22-food-deleted-detail-issue",
+        "23-meal-deleted-detail-issue",
+        "33-body-deleted-detail-issue",
+        "34-energy-deleted-detail-issue",
+        "21-plan-deleted-detail-issue",
+        "40-journal-deleted-detail-issue"
+      ]
+    },
+    {
+      "id": "create-navigation-after-nested-editor",
+      "description": "After using nested nutrition or label editors, saving a new item can leave a blank pushed destination. The item was saved: tap Back, then reopen it from its section list.",
+      "screenshots": [
+        "21-plan-created-navigation-issue",
+        "40-journal-created-navigation-issue"
+      ]
+    }
+  ],
+  "pngStorage": "Original resolution; lossless IDAT recompression only",
+  "captureMethod": "Incremental, sequential XCTest UI walkthroughs; each workflow records its latest verified result.",
+  "coverage": {
+    "sectionRoots": 15,
+    "verifiedWorkflows": 46,
+    "screenshots": 251,
+    "scope": "Reachable iPhone demo screen families and canonical workflows, not live integrations or every state combination."
+  },
+  "reproductionTooling": {
+    "ios/NeoGym/UITests/DemoGuideCaptureUITests.swift": "0ba23afcc5794b4b95cf78a8024736cebd053f634e0868f85a5cf82f01ebc1d1",
+    "ios/NeoGym/Scripts/capture-demo-guide.py": "48376ab0644212cd56dafd12bd4dfb3ba15f5ef20851bd8fd66e76ea48ce8ad5",
+    "ios/NeoGym/Scripts/demo-guide-workflows.py": "785eb6225872bac3d5de839c73270fd28e36dc1d3d93df2b8ccbd148ba5c6912",
+    "ios/NeoGym/Scripts/test_demo_guide.py": "25f7eaf08ccef63174dca28b3caa8b8791737a90a594daaa3566d6fe5db95477"
+  },
+  "validation": {
+    "catalog": "251 PNG images, 15 roots, 46 passing walkthroughs",
+    "pythonToolingTests": 13,
+    "demoModeUITests": 6,
+    "swiftPackageXCTests": 624,
+    "swiftTestingTests": 4,
+    "frontend": "bun run check passed (209 tests)",
+    "localMarkdownLinksChecked": 398,
+    "activeSourceDiagnostics": "4 changed code files; no diagnostics"
+  }
+}

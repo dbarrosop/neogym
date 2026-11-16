@@ -359,6 +359,12 @@ without clearing credentials, and Exit constructs a new live runtime for normal
 authentication/session restoration. `--demo --demo-reset --demo-screen train/session/current` opens a
 repeatable simulator starting point; all sections and the `NeoGymUITests` smoke
 workflow are documented in [`docs/developers/ios-demo.md`](docs/developers/ios-demo.md).
+The illustrated [iPhone demo guide](docs/ios/README.md) includes full-resolution
+screenshots, recorded canonical walkthroughs and explicit coverage boundaries.
+Its [capture instructions](docs/ios/capture.md) document the opt-in
+`DemoGuideCaptureUITests` driver (skipped in normal test runs), Python tools and
+completeness gate; use a fresh credential-free simulator for its destructive
+fixture/recovery scenarios.
 Do not treat the demo as Apple-approved replacement review access: usable review
 credentials are still required unless Apple explicitly approves otherwise.
 
