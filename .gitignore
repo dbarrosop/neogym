@@ -32,3 +32,5 @@ backend/.secrets
 backend/.nhost
 
 /.nhost-code
+
+__pycache__
