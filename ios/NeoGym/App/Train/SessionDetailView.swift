@@ -14,7 +14,7 @@ struct SessionDetailView: View {
     var onMutated: () -> Void
 
     @State var isEditingStartedAt = false
-    @State var draftStartedAt = Date()
+    @State var draftStartedAt = AppClock.now()
     @State var isShowingExercisePicker = false
     @State var isConfirmingDelete = false
     @State var pendingRemoveExercise: SessionExerciseRow?
@@ -145,7 +145,7 @@ struct SessionDetailView: View {
                     .monospacedDigit()
                     .foregroundStyle(NeoGymTheme.textSecondary)
                 Button("Edit") {
-                    draftStartedAt = session.startedAtDate ?? Date()
+                    draftStartedAt = session.startedAtDate ?? AppClock.now()
                     isEditingStartedAt = true
                 }
                 .font(.footnote)
@@ -217,7 +217,7 @@ struct SessionDetailView: View {
 
     private func startedCaption(_ date: Date?) -> String {
         guard let date else { return "Unknown date" }
-        let sameYear = Calendar.current.isDate(date, equalTo: Date(), toGranularity: .year)
+        let sameYear = AppClock.calendar.isDate(date, equalTo: AppClock.now(), toGranularity: .year)
         var day = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated)
         if !sameYear { day = day.year() }
         return "\(date.formatted(day)) · started \(date.formatted(date: .omitted, time: .shortened))"

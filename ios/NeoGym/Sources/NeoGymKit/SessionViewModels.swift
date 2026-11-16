@@ -292,7 +292,7 @@ public final class SessionDetailViewModel: ObservableObject {
             return
         }
         let key = PriorHistoryKey(
-            exerciseIds: exerciseIds, startedAt: session.startedAtDate ?? Date(),
+            exerciseIds: exerciseIds, startedAt: session.startedAtDate ?? AppClock.now(),
             workoutId: session.workout?.id, sessionId: session.id
         )
         if !force, loadedPriorHistoryKey == key, case .loaded = priorHistoryState { return }

@@ -33,6 +33,13 @@ illustrations never reach AsyncImage. Entering demo calls `AuthStore.retire()`
 to stop live observation/late callbacks without clearing credentials; Exit creates
 a new live runtime. Reset/exit invalidate demo stores and timers so late callbacks
 are inert. Keep the visible fictional-data banner, Reset and Exit.
+The documentation driver opts into `NEOGYM_DEMO_CAPTURE=1` with the versioned
+`Sources/NeoGymKit/Resources/gallery-capture.json` profile (15 Jan 2025, 09:41 UTC).
+`AppClock` freezes capture-visible domain dates only during that demo; Exit clears
+it. Ordinary demo/live clocks and SDK/Auth/HealthKit deadlines stay real. New
+visible date defaults should use `AppClock.now()` / `AppClock.calendar` or an
+explicit injected clock. Unchanged captures preserve PNG/provenance/order; use
+only affected groups and keep baseline migrations separate from feature work.
 The `NeoGym` XcodeGen scheme includes `NeoGymUITests`; host `Demo*Tests` cover
 repository behavior and source wiring. Do not claim these replace real backend,
 hardware, signing or App Review acceptance. Apple must approve omitting normal
@@ -726,8 +733,19 @@ section records how the iPhone app implements it.
 - **Pickers and composite editors**: workouts and sessions add exercises
   through the multi-select `ExercisePickerView` checklist; meal and plan
   editors pick foods/meals with the searchable `NutritionSelectionSheet` list
-  (its toolbar pushes a create form in the same sheet), while the log sheets
-  still use the searchable wheel `FoodPickerView` and `MealPickerView`; workout
+  (its toolbar pushes a create form in the same sheet). Log intake uses it too:
+  Food and Meal show the chosen item as a two-line `NutritionChoiceRow` (name,
+  wrapping, over its per-100 g or meal caption) whose Change opens the list
+  with a checkmark on the current choice and no create action (`newItemTitle:
+  nil`). Meal search retains name, description and ingredient matching via
+  `Meal.matchesSearch`, shared with the Meals library. Both the choice row and
+  paired macro values stack at accessibility text sizes. Its Macro preview and `EditLogEntrySheet`'s Nutrition card share
+  `NutritionMacroPreview`: kcal with P · C · F in whole grams (protein first, as
+  on the log's slots), fiber and sugar below; while editing it recalculates
+  from the entry's snapshot per 100 g × typed grams and shows the saved totals
+  ("Was 110 kcal · P 14 · C 6 · F 3 at 150 g") once the rounded values differ.
+  Amount and custom-nutrient fields provide a focus-scoped keyboard Done action.
+  `FoodPickerView` / `MealPickerView` (wheels) are no longer used; workout
   labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):
   accent-soft chips with a remove button, an inline "Add label" field with
   normalized typed creation, and matching existing labels shown only while the
@@ -795,6 +813,8 @@ section records how the iPhone app implements it.
   at least one usable historical resting value, and never replace actual values,
   historical charts or `daily_energy` records. Keep estimate presentation compact:
   labeled values and units, without calculation prose or history-day counts.
+  Format estimates as whole kcal, choosing the net sign after rounding so zero
+  never displays a plus/minus sign.
   Future food/activity are not predicted. The overview read behind Today reads extra past/current
   `balanceDays` without hiding future logs from browsing, and its cache key
   includes today. Daily intake/watch reads fetch today plus seven prior energy

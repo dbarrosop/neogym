@@ -36,6 +36,14 @@ struct LogIntakeSheet: View {
         }
     }
 
+    /// The food or meal list opened from the chosen-item row.
+    private enum ChoiceSheet: String, Identifiable {
+        case food
+        case meal
+
+        var id: String { rawValue }
+    }
+
     @ObservedObject var viewModel: DailyIntakeViewModel
     let request: LogIntakeSheetRequest
     let onMutated: () -> Void
@@ -54,8 +62,9 @@ struct LogIntakeSheet: View {
     @State private var adHocFiber = "0"
     @State private var adHocSugar = "0"
     @State private var ingredientGrams: [String: String] = [:]
-    @State private var slotTime = Date()
+    @State private var slotTime = AppClock.now()
     @State private var hasInitializedSlotTime = false
+    @State private var choiceSheet: ChoiceSheet?
 
     private var foods: [Food] { viewModel.payload?.foods ?? [] }
     private var meals: [Meal] { viewModel.payload?.meals ?? [] }
@@ -186,6 +195,9 @@ struct LogIntakeSheet: View {
             }
         }
         .navigationViewStyle(.stack)
+        .sheet(item: $choiceSheet) { choice in
+            choiceList(choice)
+        }
         .onAppear(perform: prepareInitialDraft)
         .onChange(of: mode) { prepareDraft() }
         .onChange(of: foodId) { prepareFoodDraft() }
@@ -229,9 +241,33 @@ private extension LogIntakeSheet {
 
             switch mode {
             case .food:
-                FoodPickerView(foods: foods, foodId: $foodId, disabled: viewModel.isMutating, revealWheelOnDemand: true)
+                if foods.isEmpty {
+                    Text("No foods are available yet. Create a private food first.")
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.textSecondary)
+                } else {
+                    NutritionChoiceRow(
+                        name: selectedFood?.name,
+                        caption: selectedFood.map(NutritionSelectionCaption.food),
+                        placeholder: "Choose a food",
+                        isDisabled: viewModel.isMutating
+                    ) { choiceSheet = .food }
+                    .accessibilityIdentifier("logIntake.chooseFood")
+                }
             case .meal:
-                MealPickerView(meals: meals, mealId: $mealId, disabled: viewModel.isMutating)
+                if meals.isEmpty {
+                    Text("No meal templates are available yet. Create a private meal first.")
+                        .font(.caption)
+                        .foregroundColor(NeoGymTheme.textSecondary)
+                } else {
+                    NutritionChoiceRow(
+                        name: selectedMeal?.name,
+                        caption: selectedMeal.map(NutritionSelectionCaption.meal),
+                        placeholder: "Choose a meal",
+                        isDisabled: viewModel.isMutating
+                    ) { choiceSheet = .meal }
+                    .accessibilityIdentifier("logIntake.chooseMeal")
+                }
             case .plan:
                 if planEntries.isEmpty {
                     Text("The selected plan does not have meal or food entries yet.")
@@ -334,15 +370,42 @@ private extension LogIntakeSheet {
 
     var macroSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(NutritionMath.formatMacro(previewTotals.kcal, unit: "kcal"))
-                    .font(.headline.monospacedDigit())
-                Text(NutritionMath.macroTotalsSummary(previewTotals))
-                    .font(.caption)
-                    .foregroundColor(NeoGymTheme.textSecondary)
-            }
+            NutritionMacroPreview(totals: previewTotals)
         } header: {
             Text("Macro preview")
+        }
+    }
+
+    /// The shared two-line list (as in the plan and meal editors), with the
+    /// current choice checked.
+    @ViewBuilder
+    private func choiceList(_ choice: ChoiceSheet) -> some View {
+        switch choice {
+        case .food:
+            NutritionSelectionSheet(
+                title: "Choose food",
+                searchPrompt: "Search foods",
+                items: foods,
+                name: \.name,
+                caption: NutritionSelectionCaption.food,
+                newItemTitle: nil,
+                onSelect: { foodId = $0.id },
+                selectedId: foodId,
+                newItemForm: { EmptyView() }
+            )
+        case .meal:
+            NutritionSelectionSheet(
+                title: "Choose meal",
+                searchPrompt: "Search meals or ingredients",
+                items: meals,
+                name: \.name,
+                caption: NutritionSelectionCaption.meal,
+                newItemTitle: nil,
+                onSelect: { mealId = $0.id },
+                selectedId: mealId,
+                matches: { $0.matchesSearch($1) },
+                newItemForm: { EmptyView() }
+            )
         }
     }
 
@@ -359,7 +422,7 @@ private extension LogIntakeSheet {
 
     func prepareInitialDraft() {
         if !hasInitializedSlotTime {
-            slotTime = Date()
+            slotTime = AppClock.now()
             hasInitializedSlotTime = true
         }
         if case let .planEntry(entryId) = request.initialMode {
@@ -460,6 +523,9 @@ private struct AdHocNutrientFields: View {
                 nutrientField("Fiber", unit: "g", text: $fiber, field: .fiber)
                 nutrientField("Sugar", unit: "g", text: $sugar, field: .sugar)
             }
+        }
+        .toolbar {
+            if focusedField != nil { KeyboardDoneToolbar(focusedField: $focusedField) }
         }
     }
 
@@ -565,8 +631,15 @@ struct EditLogEntrySheet: View {
                         ))
                         .textInputAutocapitalization(.words)
                     } else {
-                        Text(item.entry.snapshotFoodName)
-                            .font(.subheadline.weight(.semibold))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.entry.snapshotFoodName)
+                                .font(.subheadline.weight(.semibold))
+                            Text(per100gCaption)
+                                .font(.footnote)
+                                .monospacedDigit()
+                                .foregroundStyle(NeoGymTheme.textSecondary)
+                        }
+                        .accessibilityElement(children: .combine)
                     }
                     NutritionGramTextField(grams: $grams, title: "Grams")
                     Stepper("Position \(position)", value: $position, in: 1 ... 999)
@@ -591,6 +664,20 @@ struct EditLogEntrySheet: View {
                             "Ad-hoc snapshot nutrients are editable because this entry is not backed by a catalog food."
                         )
                     }
+                }
+
+                Section {
+                    NutritionMacroPreview(
+                        totals: previewTotals,
+                        saved: NutritionMacroPreview.Saved(
+                            totals: NutritionMath.loggedEntryMacroTotals(item.entry.loggedSnapshot),
+                            amount: "\(NutritionLogAmount.editableNumber(item.entry.grams)) g"
+                        )
+                    )
+                } header: {
+                    Text("Nutrition")
+                } footer: {
+                    Text(nutritionFooter)
                 }
 
                 if item.showTime {
@@ -661,6 +748,49 @@ struct EditLogEntrySheet: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+
+    /// Per 100 g: the saved snapshot, or the custom values being edited.
+    private var per100gFields: MacroFields {
+        if item.entry.isAdHoc {
+            return MacroFields(
+                kcalPer100g: .string(kcal),
+                fatPer100g: .string(fat),
+                carbsPer100g: .string(carbs),
+                proteinPer100g: .string(protein),
+                fiberPer100g: .string(fiber),
+                sugarPer100g: .string(sugar)
+            )
+        }
+        return MacroFields(
+            kcalPer100g: item.entry.snapshotKcalPer100g,
+            fatPer100g: item.entry.snapshotFatPer100g,
+            carbsPer100g: item.entry.snapshotCarbsPer100g,
+            proteinPer100g: item.entry.snapshotProteinPer100g,
+            fiberPer100g: item.entry.snapshotFiberPer100g,
+            sugarPer100g: item.entry.snapshotSugarPer100g
+        )
+    }
+
+    /// What the entry adds up to at the grams being typed, as the database
+    /// will save it (snapshot per 100 g × grams).
+    private var previewTotals: MacroTotals {
+        NutritionMath.macrosForGrams(input: per100gFields, grams: .string(grams))
+    }
+
+    private var nutritionFooter: String {
+        if item.entry.isAdHoc {
+            return "Updates as you change the amount or the nutrients per 100 g."
+        }
+        return "Updates as you change the amount. Uses the values saved when this was logged, "
+            + "so later edits to the food don't change it."
+    }
+
+    /// "73 kcal · P 9 · C 4 · F 2 per 100 g, as logged".
+    private var per100gCaption: String {
+        let per100 = NutritionMath.macrosForGrams(input: per100gFields, grams: .number(100))
+        return "\(MetricFormat.whole(per100.kcal)) kcal · P \(MetricFormat.whole(per100.protein))"
+            + " · C \(MetricFormat.whole(per100.carbs)) · F \(MetricFormat.whole(per100.fat)) per 100 g, as logged"
     }
 
     private func adHocDraft(nextTime: String?) -> AdHocFoodDraftValues {

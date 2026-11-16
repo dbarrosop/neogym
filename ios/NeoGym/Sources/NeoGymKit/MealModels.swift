@@ -47,6 +47,15 @@ public struct Meal: Decodable, Identifiable, Sendable, Equatable {
         self.nutritionPlanMeals = nutritionPlanMeals
     }
 
+    /// Search the same name, description and ingredients in the library and log picker.
+    public func matchesSearch(_ text: String) -> Bool {
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return true }
+        return name.lowercased().contains(query)
+            || (description?.lowercased().contains(query) ?? false)
+            || mealIngredients.contains { $0.food?.name.lowercased().contains(query) ?? false }
+    }
+
     /// Names of the plans that reference this meal, each once, sorted.
     public var usedInPlanNames: [String] {
         let byId = Dictionary(

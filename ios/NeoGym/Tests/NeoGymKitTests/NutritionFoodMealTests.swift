@@ -37,6 +37,21 @@ final class NutritionFoodMealRepositoryTests: XCTestCase {
         XCTAssertTrue(request.query.contains("mealIngredients(order_by: [{ position: asc }, { id: asc }])"))
     }
 
+    func testMealSearchKeepsNameDescriptionAndIngredientMatches() async throws {
+        let fake = FakeGraphQLService(replies: [.json(.object(["meals": .array([mealFixture])]))])
+        let meals = try await NutritionFoodMealRepository(graphQL: fake).listMeals()
+        let meal = try XCTUnwrap(meals.first)
+        for query in ["breakfast", " WITH BERRIES ", "GREEK", "blueberries", " \n "] {
+            XCTAssertTrue(meal.matchesSearch(query), query)
+        }
+        XCTAssertFalse(meal.matchesSearch("broccoli"))
+        let incomplete = Meal(id: "missing-food", name: "Untitled", mealIngredients: [
+            MealIngredient(id: "ingredient", foodId: "deleted", grams: .number(100), position: 0)
+        ])
+        XCTAssertTrue(incomplete.matchesSearch("untitled"))
+        XCTAssertFalse(incomplete.matchesSearch("deleted"), "Missing foods must not match by ID or crash")
+    }
+
     func testFoodCrudVariablesOmitOwnershipAndPublicFields() async throws {
         let fake = FakeGraphQLService(replies: [
             .json(.object(["insertFood": .object(["id": .string("food-new")])])),

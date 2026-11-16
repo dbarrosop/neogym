@@ -44,10 +44,7 @@ printf 'Capture simulator UDID: %s\n' "$UDID"
 
 env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl boot "$UDID"
 env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl bootstatus "$UDID" -b
-env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl ui "$UDID" appearance dark
-env -u SDKROOT -u DEVELOPER_DIR /usr/bin/xcrun simctl status_bar "$UDID" override \
-  --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 3 \
-  --batteryState charged --batteryLevel 100
+# Terminal B applies the versioned font/appearance/status-bar profile automatically.
 
 RESULT=/tmp/neogym-guide-$(date +%Y%m%d-%H%M%S).xcresult
 
@@ -98,9 +95,61 @@ Rerun a single group after diagnosing a failed locator or UI change:
 /usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py --help
 ```
 
-Group reruns replace their named screenshots and latest workflow result. Captures
-are incremental: timestamps can differ and the sample clock is not frozen. A
-rerun is not expected to be byte-identical to an earlier day's capture.
+Group reruns update their named screenshots and latest workflow result. Run only
+affected groups, not `all`, for normal feature work.
+
+### Fixed capture profile and quiet reruns
+
+The single source of truth is
+`ios/NeoGym/Sources/NeoGymKit/Resources/gallery-capture.json`, shared by the app
+bundle and host script. Version 1 pins **15 Jan 2025, 09:41 UTC**, `en_US`, a
+Gregorian calendar, Large text and initial Dark appearance. Every host-driven app
+launch receives `NEOGYM_DEMO_CAPTURE=1` and `TZ=UTC`, including launches through
+Sign in → Try demo. The application/domain clock is fixed only while that demo
+is active; ordinary demo/live use and SDK/Auth/network/XCTest clocks stay real.
+Fixture dates, query windows, chart periods, default log times, mutation timestamps
+and rest displays use the same clock. Capture record IDs use a persisted sequence
+instead of random UUID tie-breaking. Choosing a historical month also keeps the
+native calendar's real-today highlight out of the visible capture month.
+
+Each new host Guide applies the profile's font size, appearance and explicit
+Wi-Fi, cellular-mode/**cellular-bars**, battery and clock overrides. The old
+status-bar command omitted cellular state, which caused otherwise identical
+screens to change. Locale/time zone and profile are not device-wide preferences
+for normal app use. Appearance walkthroughs can deliberately change theme within
+their own run.
+
+A same-profile, identical-image recapture keeps its PNG, `capturedAt`, original
+capture hash and manifest position. Workflow positions also remain stable. A
+real image/profile change still records fresh provenance; capture timestamps are
+actual capture times, not fabricated historical dates. PNG recompression is
+lossless and unchanged files are not rewritten.
+
+Legacy published images have no `captureProfile` field. Do not label them frozen
+by editing timestamps or rerendering: the first adoption of this profile needs a
+**one-time reviewed baseline refresh**, ideally a separate catalog-only change.
+This implementation does not automatically replace the legacy catalog. Profile,
+Xcode/runtime/device or font changes can require another explicit baseline;
+system rendering/animation can still cause differences and must be reviewed.
+
+Check a selected workflow twice in a scratch catalog before publishing:
+
+```sh
+/usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py \
+  --device "$UDID" --output "$OUT" --group log-food
+cp "$OUT/capture-manifest.json" "$OUT/first-pass.json"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \\; | sort > "$OUT/first-pass.sha256"
+
+/usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py \
+  --device "$UDID" --output "$OUT" --group log-food
+cmp "$OUT/first-pass.json" "$OUT/capture-manifest.json"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \\; | sort > "$OUT/second-pass.sha256"
+cmp "$OUT/first-pass.sha256" "$OUT/second-pass.sha256"
+```
+
+These comparisons must be clean; investigate a mismatch rather than replacing
+unrelated screenshots. A scratch catalog containing only one workflow is not a
+complete publishable catalog and will intentionally fail the full coverage gate.
 
 The host script drives actual controls and reads `NeoGymDemo/state-v1.json` only
 to verify persisted outcomes. The recovery group is the explicit exception: it
@@ -147,6 +196,10 @@ successful screenshot can show the wrong scroll position. The tooling uses
 heading/row anchors to frame long charts and a left-padding drag fallback. Numeric
 wells and the legacy Custom intake grid also require deliberate selection/ordinal
 fallbacks; requested input is checked against the field's read-back value.
+Native Log amount and custom-nutrient fields use standard text selection and
+keyboard Done; coordinate double-taps can lose focus when the toolbar moves the
+sheet. Keyboard visibility probes read presence only, not transient properties.
+Run XCTest smoke tests and this capture serially, even on different simulators.
 
 After visual review, replace the published `docs/ios/screenshots/` directory and
 its manifest/gallery/generated walkthroughs with the reviewed output, removing
@@ -194,7 +247,9 @@ catalog substitutes for signed archives, physical integrations or App Review acc
 | `ios/NeoGym/Scripts/capture-demo-guide.py` | Host command bridge, state checks, PNG storage, completeness gate and rendering |
 | `ios/NeoGym/Scripts/demo-guide-workflows.py` | Explicit UI paths and canonical workflow registry |
 | `ios/NeoGym/Scripts/demo-guide-gallery.py` | Curated section/row/frame layout and single-page HTML renderer |
-| `ios/NeoGym/Scripts/test_demo_guide.py` | Host-only tooling tests |
+| `ios/NeoGym/Scripts/test_demo_guide.py` | Host-only tooling and no-op recapture tests |
+| `ios/NeoGym/Sources/NeoGymKit/Resources/gallery-capture.json` | Versioned clock/locale/timezone/font/status-bar profile |
+| `ios/NeoGym/Sources/NeoGymKit/AppClock.swift` | Capture-only domain clock and profile loading |
 | `docs/ios/capture-manifest.json` | Latest per-workflow result and per-image provenance |
 | `docs/ios/workflows.md`, `docs/ios/gallery.html` | Generated human-readable indexes |
 | `docs/ios/screenshots/*.png` | Full-resolution actual app captures |

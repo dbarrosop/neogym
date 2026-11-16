@@ -1,6 +1,6 @@
 # NeoGym iPhone — illustrated demo guide
 
-**251 actual simulator screenshots · all 15 section roots · 46 verified walkthroughs.**
+**255 actual simulator screenshots · all 15 section roots · 46 verified walkthroughs.**
 
 This is a tour of the current iPhone app, driven through its normal SwiftUI screens
 with the isolated, interactive demo dataset. It is useful both for agents checking
@@ -29,13 +29,17 @@ an account. It is **not** evidence that Apple has approved demo-only review acce
 
 The 97 visual rows are curated from the 46 recorded walkthroughs, not 97 new
 independent capture runs. Shared images retain their original provenance and are
-marked **Reused view**. Every one of the 251 original captures appears on the page.
+marked **Reused view**. Every one of the 255 original captures appears on the page.
 
 The images were captured on **iPhone 17, iOS 27.0, English, portrait**, with Dark as
 the default. Light and System preferences are demonstrated separately. The
-simulator status bar is cosmetically set to 9:41; **the app's dates and clock are
-not frozen**. Samples and newly created records are fictional. Screenshots use the
-original **1206 × 2622** resolution, with lossless PNG recompression only.
+simulator status bar is cosmetically set to 9:41. This published catalog includes
+legacy captures whose app dates/clock were not frozen. The capture tooling now
+supports a versioned **15 Jan 2025, 09:41 UTC** profile and preserves unchanged
+images/provenance; profile adoption requires a deliberate baseline refresh, not
+re-dating old images. See the [capture instructions](capture.md). Samples and newly
+created records are fictional. Screenshots use the original **1206 × 2622**
+resolution, with lossless PNG recompression only.
 
 ## Enter and leave demo
 
@@ -120,10 +124,10 @@ it again appends food after confirmation rather than treating the slot as done.
 | Workflow | What to do / what is shown | Walkthrough |
 |---|---|---|
 | Navigate dates and plan | Previous/next date, week strip, calendar picker, selected-plan menu, no-plan/empty-day states, clear-day confirmation | [Log navigation](workflows.md#log-navigation) |
-| Log a food | Open +, use Food, select from the wheel, set grams, save; edit/delete the standalone snapshot | [Food logging](workflows.md#log-food) |
-| Log a meal | Use Meal; inspect ingredient amounts; save a logged group; edit its name/ordering and delete the group with its children | [Meal logging](workflows.md#log-meal) |
-| Edit a meal's logged child | Tap a food inside the expanded meal; change its grams; delete only that snapshot, preserving the meal and reusable food | [Grouped food](workflows.md#log-child) |
-| Log an ad-hoc item | Use Custom; enter name, amount and per-100g nutrients; edit/delete it without adding to the food catalog | [Custom logging](workflows.md#log-ad-hoc) |
+| Log a food | Open +, use Food, tap Change to search the two-line food list, set grams and inspect the macro preview; edit/delete the standalone snapshot | [Food logging](workflows.md#log-food) |
+| Log a meal | Use Meal; search the meal list with the current choice checked; inspect ingredient amounts; save, edit and delete the logged group | [Meal logging](workflows.md#log-meal) |
+| Edit a meal's logged child | Tap a food inside the expanded meal; change grams and compare live nutrition totals with the saved amount; delete only that snapshot | [Grouped food](workflows.md#log-child) |
+| Log an ad-hoc item | Use Custom; enter name, amount and per-100g nutrients; edit its snapshot nutrients and inspect the recalculated preview without changing the food catalog | [Custom logging](workflows.md#log-ad-hoc) |
 | Log planned intake | From plan supports meals and direct foods; timeline Log acts on a whole slot; an occupied slot asks first | [Plan logging](workflows.md#log-plan) |
 | Browse foods | Search, public/owned details and no-result state | [Food library](workflows.md#food-browse) |
 | Maintain foods | Create, edit and delete a private food | [Food CRUD](workflows.md#food-crud) |
@@ -131,6 +135,11 @@ it again appends food after confirmation rather than treating the slot as done.
 | Maintain meals | Create/edit/delete; choose, reorder and remove ingredients; create/edit a food inside the picker | [Meal CRUD](workflows.md#meal-crud) |
 | Browse plans | Search, meal/food slot cards, macros and Use for today | [Plan library](workflows.md#plan-browse) |
 | Maintain plans | Create mixed slots; create a meal inside its picker; move a row's time; label a meal; retime/merge slots; edit/delete the plan | [Plan CRUD](workflows.md#plan-crud) |
+
+The log and entry editor show kcal and protein/carbs/fat together, with fiber and
+sugar below. Changing the amount or custom nutrients recalculates the preview;
+the editor compares changed totals with the saved amount. Energy estimates use
+whole kcal, not decimal precision.
 
 Logged food uses its stored nutrient snapshot, not today's edited catalog values.
 A grouped child's time belongs to its logged meal; editing that child does not

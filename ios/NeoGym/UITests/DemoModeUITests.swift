@@ -110,6 +110,55 @@ final class DemoModeUITests: XCTestCase {
         XCTAssertTrue(kcalLabel(850).waitForExistence(timeout: 10))
     }
 
+    func testIntakePickersSearchSelectAndCancelWithoutLosingTheDraft() {
+        launch(screen: "nutrition/log", reset: true)
+        app.navigationBars.buttons["Log food"].tap()
+        let foodChoice = app.buttons["logIntake.chooseFood"]
+        XCTAssertTrue(foodChoice.waitForExistence(timeout: 10))
+        let originalFood = foodChoice.label
+        foodChoice.tap()
+        XCTAssertTrue(app.navigationBars["Choose food"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.navigationBars.buttons["New food"].exists)
+        let foodSearch = app.textFields["Search foods"]
+        foodSearch.tap()
+        foodSearch.typeText("Greek yogurt")
+        let yogurtRows = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Greek yogurt,"))
+        let yogurt = yogurtRows.firstMatch
+        XCTAssertTrue(yogurt.waitForExistence(timeout: 5))
+        app.navigationBars["Choose food"].buttons["Cancel"].tap()
+        XCTAssertTrue(foodChoice.waitForExistence(timeout: 5))
+        XCTAssertEqual(foodChoice.label, originalFood, "Cancelling the search must preserve the draft choice")
+
+        foodChoice.tap()
+        foodSearch.tap()
+        foodSearch.typeText("Greek yogurt")
+        yogurt.tap()
+        XCTAssertTrue(foodChoice.waitForExistence(timeout: 5))
+        XCTAssertTrue(foodChoice.label.contains("Greek yogurt"))
+        foodChoice.tap()
+        XCTAssertTrue(app.navigationBars["Choose food"].waitForExistence(timeout: 5))
+        let selectedYogurt = yogurtRows.allElementsBoundByIndex.first { $0.isHittable }
+        XCTAssertEqual(selectedYogurt?.isSelected, true, "The current food must be marked for VoiceOver as well as visually")
+        app.navigationBars["Choose food"].buttons["Cancel"].tap()
+
+        app.buttons["Meal"].tap()
+        let mealChoice = app.buttons["logIntake.chooseMeal"]
+        XCTAssertTrue(mealChoice.waitForExistence(timeout: 5))
+        mealChoice.tap()
+        XCTAssertTrue(app.navigationBars["Choose meal"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars.buttons["New meal"].exists)
+        let mealSearch = app.textFields["Search meals or ingredients"]
+        mealSearch.tap()
+        mealSearch.typeText("Blueberries")
+        let meal = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Yogurt and oats,")).firstMatch
+        XCTAssertTrue(meal.waitForExistence(timeout: 5))
+        meal.tap()
+        XCTAssertTrue(mealChoice.waitForExistence(timeout: 5))
+        XCTAssertTrue(mealChoice.label.contains("Yogurt and oats"))
+        app.navigationBars["Log intake"].buttons["Cancel"].tap()
+        XCTAssertTrue(app.navigationBars["Nutrition"].waitForExistence(timeout: 5))
+    }
+
     private func kcalLabel(_ value: Int) -> XCUIElement {
         app.staticTexts.matching(NSPredicate(format: "label MATCHES %@", "^\(value) of .+ planned kilocalories$")).firstMatch
     }

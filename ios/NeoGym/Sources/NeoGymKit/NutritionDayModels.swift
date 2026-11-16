@@ -321,7 +321,7 @@ public struct NutritionOverviewPayload: Sendable, Equatable {
     public func rollingNetAverage(
         endingOn endDate: String,
         days count: Int = 7,
-        calendar: Calendar = .current
+        calendar: Calendar = AppClock.calendar
     ) -> RollingCalorieNetAverage? {
         let nets = netValues(endingOn: endDate, days: count, calendar: calendar)
         guard !nets.isEmpty else { return nil }
@@ -344,7 +344,7 @@ public struct NutritionOverviewPayload: Sendable, Equatable {
         .sorted { $0.date < $1.date }
     }
 
-    public func rollingNetAverageValues(days count: Int = 7, calendar: Calendar = .current) -> [DatedCalorieNet] {
+    public func rollingNetAverageValues(days count: Int = 7, calendar: Calendar = AppClock.calendar) -> [DatedCalorieNet] {
         days.compactMap { day in
             guard let average = rollingNetAverage(endingOn: day.logDate, days: count, calendar: calendar) else {
                 return nil
@@ -419,8 +419,8 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
 
     public init(
         payload: NutritionOverviewPayload,
-        todayDate: Date = Date(),
-        calendar: Calendar = .current,
+        todayDate: Date = AppClock.now(),
+        calendar: Calendar = AppClock.calendar,
         locale: Locale = .current
     ) {
         self.init(
@@ -434,7 +434,7 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
     public init(
         payload: NutritionOverviewPayload,
         today: String,
-        calendar: Calendar = .current,
+        calendar: Calendar = AppClock.calendar,
         locale: Locale = .current
     ) {
         date = today

@@ -355,7 +355,7 @@ struct NutritionWeekStripView: View {
 
     private func dayButton(_ day: String) -> some View {
         let isSelected = day == selected
-        let date = IntakeGrouping.localDateToDate(day) ?? Date()
+        let date = IntakeGrouping.localDateToDate(day) ?? AppClock.now()
         let kcal = kcalByDate[day]
         return Button {
             onSelect(day)

@@ -12,15 +12,15 @@
       "id": "01-today",
       "title": "Today: training and nutrition",
       "file": "screenshots/01-today.png",
+      "capturedSha256": "a21ec0e93f09fbe5bcbf3aa970749813ca761202784e1f7ff2a1dd14d9b1c9f7",
       "workflow": "root-today",
-      "capturedAt": "2026-11-15T16:05:28Z",
+      "capturedAt": "2026-11-16T14:47:32Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "7f6694330143c793dfb260246657866cf8e775a6949f1822dad92b99134f8798",
+      "sha256": "61da830870b1f87c07d7e94d814ded2196db36bc866e54982f20722b06a3093c",
       "steps": [
         "Open Today"
-      ],
-      "capturedSha256": "9f3c76a66b61fcb7b6afa7c5d4791344d3b201e6eacbd3582e3bc549060b656f"
+      ]
     },
     {
       "id": "10-sessions",
@@ -68,15 +68,15 @@
       "id": "20-nutrition-log",
       "title": "Nutrition: day summary and week strip",
       "file": "screenshots/20-nutrition-log.png",
+      "capturedSha256": "9b2867e35e419e45a3bc9451e72def6f48f54783df4d9f4081f37d2eafcbb546",
       "workflow": "root-nutrition-log",
-      "capturedAt": "2026-11-15T16:06:07Z",
+      "capturedAt": "2026-11-16T14:48:13Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "2b7dd922acecce0902dc7c67c17b7c501d4243eb05b678ae6a02baea35739387",
+      "sha256": "cc3afa39ad7c21f06641261b12d0a12a29c5a77f52d5b3901d2242e10b4982a8",
       "steps": [
         "Open Nutrition → Log"
-      ],
-      "capturedSha256": "621bd114ac4a987605a38b97a04e0245efd4c200fb84e144fa1faaba7892b981"
+      ]
     },
     {
       "id": "21-plans",
@@ -180,15 +180,15 @@
       "id": "34-energy",
       "title": "Progress: daily energy",
       "file": "screenshots/34-energy.png",
+      "capturedSha256": "dff9b0aa7f7bc1b7ed031c96ef8d397bbc9a420332347ac74739f197813852c5",
       "workflow": "root-progress-energy",
-      "capturedAt": "2026-11-15T16:07:23Z",
+      "capturedAt": "2026-11-16T14:49:33Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "1372bb1f8651ef4ff397693290933358e3aa5dc4b2c68c5ae34a9cd2c2881e36",
+      "sha256": "d0ba54ed9fec2259aaffe17dc26a55032d00263aac6f840fad397ee633b9784b",
       "steps": [
         "Open Progress → Energy"
-      ],
-      "capturedSha256": "c15b804bbcf076e730e753e10dd2b3e7997c3de1f6486c8a56c26725ac933640"
+      ]
     },
     {
       "id": "40-journal",
@@ -1414,224 +1414,224 @@
       "id": "20-log-yesterday",
       "title": "Nutrition Log: yesterday's complete intake",
       "file": "screenshots/20-log-yesterday.png",
+      "capturedSha256": "e3f58bba27d199dfce516e10513bc2ebf5d363c022bd0203c15d6c739693ab48",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:15Z",
+      "capturedAt": "2026-11-16T14:46:46Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "845d48676a0ac0764353e6e392fd936f79718c603771d2c7a8f17498f59dd535",
+      "sha256": "0eda5902b6bc676b49bd320570ed3bb2ed55178e103d2da6c7048d3a0e2a55b3",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet"
-      ],
-      "capturedSha256": "7383b061d1bded41f6f669838497ad07106b915d4badd93413f38d861ac29d85"
+      ]
     },
     {
       "id": "20-log-date-picker",
       "title": "Nutrition Log: graphical calendar picker",
       "file": "screenshots/20-log-date-picker.png",
+      "capturedSha256": "e0c1f84ce52fae26f649ea6d43e07a42fe9d9231af20823fdb91666142337cc9",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:19Z",
+      "capturedAt": "2026-11-16T14:46:50Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "bc6b958addf31cdaca3cac30820d9c50895462eb497e5d595314fa0d92850766",
+      "sha256": "4757d343989cc4980ba0f613cb9058c3fc4de0e511fb2460553e3b3539609076",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet"
-      ],
-      "capturedSha256": "e919f616e3be6ca72dba1734fa733c84de1df5dc9b1a4ca101e1a1e750e6372a"
+      ]
     },
     {
       "id": "20-log-next-week",
       "title": "Nutrition Log: next week, with no logged food",
       "file": "screenshots/20-log-next-week.png",
+      "capturedSha256": "0e6c82a345b6158eba77787e4479017626b125702810c1f5d8869035f9dffc44",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:24Z",
+      "capturedAt": "2026-11-16T14:46:57Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "833eeee921626737fd48f4cff96790dd08e94293518ae7b433b0d66bbfa8cb8c",
+      "sha256": "f3600b367b3ce170983103c5fe4e2efd88ff77e01187424af7581632c4a4574d",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet",
         "Swipe the Monday-to-Sunday strip to the next week"
-      ],
-      "capturedSha256": "1b1e222546b87e2fe8f429a6abcf8a706900a1404be5f6a0de713251004b9608"
+      ]
     },
     {
       "id": "20-log-plan-menu",
       "title": "Nutrition Log: choose or clear the day's plan",
       "file": "screenshots/20-log-plan-menu.png",
+      "capturedSha256": "cd07049c95cff0db94ff4b26a62ccb3bbbd3664a914d760f3442bb2b172a6f8d",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:34Z",
+      "capturedAt": "2026-11-16T14:47:06Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "8adba3eb9645a780a4beb448e92b4ada0ad10043ca47a24689a2094c70fffa93",
+      "sha256": "ab3426c0deef42bb1fc99e1bf53b976fb4dbbec36512fcdfe55565cb14814a87",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet",
         "Swipe the Monday-to-Sunday strip to the next week",
         "Inspect the selected plan menu, then remove the plan without deleting food"
-      ],
-      "capturedSha256": "4c34ce889bcef916bc72d7f3808e8be504441825098e08cc0dbf24d7d1f39447"
+      ]
     },
     {
       "id": "20-log-no-plan",
       "title": "Nutrition Log: logged food remains without planned suggestions",
       "file": "screenshots/20-log-no-plan.png",
+      "capturedSha256": "c5558c6d2d9a465c75ed5603fcf7caa746d29ee45c60d21b7d3f03844eed9f06",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:38Z",
+      "capturedAt": "2026-11-16T14:47:10Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "063f6c63a3ebdb379b1ce3d5651d32d8b144178f69ea90817d30f3fa6a134ee1",
+      "sha256": "a0af3c2c056e52eeb9ab86289d1d6e9087c5ac8710dcb43d466f403a55b770c1",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet",
         "Swipe the Monday-to-Sunday strip to the next week",
         "Inspect the selected plan menu, then remove the plan without deleting food"
-      ],
-      "capturedSha256": "911a28651b37a947b0eda48fdfa640dd112373436df59b0b9cf726154f6116be"
+      ]
     },
     {
       "id": "20-log-clear-confirmation",
       "title": "Nutrition Log: clear the whole day's intake",
       "file": "screenshots/20-log-clear-confirmation.png",
+      "capturedSha256": "670d76e9785c04c1cb3a2f4d724f9c4ab3ce0058c247486126af175a06e5cb3a",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:44Z",
+      "capturedAt": "2026-11-16T14:47:17Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "fece7a259676be73c046895385d9d4b288ff880a029b3a13c89192a5fbf93ec9",
+      "sha256": "1ca2ff2a5c0c7f8d5ed0c18ba709213a092cd18f55bf0e574bc7d09a55375439",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet",
         "Swipe the Monday-to-Sunday strip to the next week",
         "Inspect the selected plan menu, then remove the plan without deleting food"
-      ],
-      "capturedSha256": "67c39c2ce36f3e100accdbe9b3ace8f74e7590de86d93fe0bd48d8dabf9ad7e4"
+      ]
     },
     {
       "id": "20-log-cleared-empty",
       "title": "Nutrition Log: empty day after clear",
       "file": "screenshots/20-log-cleared-empty.png",
+      "capturedSha256": "06f989fae0102bbcc04b297c833b7ab967d101f2f46bc1b4c2b0d092d72adf01",
       "workflow": "log-navigation",
-      "capturedAt": "2026-11-15T17:23:50Z",
+      "capturedAt": "2026-11-16T14:47:23Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "96aa3bab7b2476e833e3de58f9eea6f3f13c35428b8aaa502bfbcc01ad9fa83b",
+      "sha256": "3e5a5411f0761e96499e2ec774480db002378765a46ce75d1053983ca1ece944",
       "steps": [
         "Navigate yesterday, return to today, then open the calendar sheet",
         "Swipe the Monday-to-Sunday strip to the next week",
         "Inspect the selected plan menu, then remove the plan without deleting food"
-      ],
-      "capturedSha256": "f7f759cb96d3fb8608e183e862830ed310d9aa9333cb600d942042c6d103d628"
+      ]
     },
     {
       "id": "20-log-food-sheet",
       "title": "Log intake: food mode, grams and time",
       "file": "screenshots/20-log-food-sheet.png",
+      "capturedSha256": "210b0ce6dbd53fb189daa37906c834b785ca0f36b2952eb62b8f88f3f8d5ba60",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:01Z",
+      "capturedAt": "2026-11-16T14:36:51Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "b974860648191b40db47e0d519c3c224641e3967c030ef473a57d77d2e6d6ec9",
+      "sha256": "7d6a72ae8449d90c4725abb9b3dcf290fe113aa1842135a7b5a0eb799a30908e",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview"
-      ],
-      "capturedSha256": "45b7f8d53fbc1a4eaccd8499b86cc2ad547aa7bd9fdf69c85b7aca33111e4fce"
+      ]
     },
     {
       "id": "20-log-food-search-picker",
-      "title": "Log food: filtered wheel and nutrition preview",
+      "title": "Choose food: searchable list, name over macros per 100 g",
       "file": "screenshots/20-log-food-search-picker.png",
+      "capturedSha256": "484bb93eb81b2dd73d9c776eafe717f2c7f4612ed86002b83e7c123047275f29",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:17Z",
+      "capturedAt": "2026-11-16T14:37:11Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "975b5d4bbeb26b42dd15116a83ed9b2affa63f70f4afd515304c991739167453",
+      "sha256": "4eef16324e8896c6ea9741b3186ddddff338b336655840b58840fdd28577ee32",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview"
-      ],
-      "capturedSha256": "794ba5dcf66062aa82192b91a220dbc248a47c57e134afdd6cd3c4aa86371676"
+      ]
     },
     {
       "id": "20-log-food-filled",
       "title": "Log food: 150 grams ready to append",
       "file": "screenshots/20-log-food-filled.png",
+      "capturedSha256": "12835c28a4925a349f8f3ae463e902596b39ce62d4352c0b9c3509645ceefaee",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:26Z",
+      "capturedAt": "2026-11-16T14:37:29Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "9e14e131bbaea35c271aebd4bb8b398ab73a97d2ad1a2849063d2f29bcd99bfe",
+      "sha256": "fd3ec3fef6453f4879fc74a88f6fdaf1f33cb90b184e248e75a7151b6f62d933",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview"
-      ],
-      "capturedSha256": "29fc562d71d25cd6c302a0bcadc43187e4592e28c420d6e1ec93849eac1ed3af"
+      ]
     },
     {
       "id": "20-log-food-added",
       "title": "Nutrition Log: newly logged standalone food",
       "file": "screenshots/20-log-food-added.png",
+      "capturedSha256": "8e328433d36cb3faa233e72f4c7ae130dae21a6511a42cb179b802e9cb0a5ed5",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:34Z",
+      "capturedAt": "2026-11-16T14:37:40Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "5144ca86f8690bfb8654cb035a03a090ac30fd25f01c639750c036b9c45fa07b",
+      "sha256": "d3aeda56bb25a375230dc3fc205973263365a2a24a60fc7f64b31c54e1f059d8",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview"
-      ],
-      "capturedSha256": "d0d0c1adfd18cf3244b213c8741160aca21c062b9e476ec2666f743bb9ad7dda"
+      ]
     },
     {
       "id": "20-log-entry-edit",
       "title": "Log entry: standalone time, grams, position and Delete",
       "file": "screenshots/20-log-entry-edit.png",
+      "capturedSha256": "5bd94bfee7380f8e40fc029e0caa8e3a7b9a687bf231c83f7047c975ebd9c1f2",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:38Z",
+      "capturedAt": "2026-11-16T14:37:44Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "1262f5ed185138904c956fe416c217637643123b459d75fbd2c881363b2f9e1f",
+      "sha256": "f8fae1bd6433144820060db588b222cd375d9789e20d60df760554c50c43b35c",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview",
         "Edit grams and entry position, then delete with confirmation"
-      ],
-      "capturedSha256": "ec09cd1da28ce9dd8eba214d423c92b131dd92d1074cdae6ce6efc3152b7e142"
+      ]
     },
     {
       "id": "20-log-entry-updated",
       "title": "Nutrition Log: updated logged quantity",
       "file": "screenshots/20-log-entry-updated.png",
+      "capturedSha256": "be4606cea8041a86c5b3c9e33a7f3e9a8199ba49eceb3fa9ce1196bab74328de",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:50Z",
+      "capturedAt": "2026-11-16T14:38:09Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "c5c41baa5597e1f22f2d9d3b3dea008541442f9bc55d3b6f0b5410c215bb8129",
+      "sha256": "fc84c959fc5eb959415d3d15eafee9124da473e7d093c199187c84a2ebcfab43",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview",
         "Edit grams and entry position, then delete with confirmation"
-      ],
-      "capturedSha256": "abb306bcfa19375d3ec9200e1ce2ec1d32b2e2cac1c31c7eca31efc0090e7ac9"
+      ]
     },
     {
       "id": "20-log-entry-delete-confirmation",
       "title": "Log entry: destructive confirmation",
       "file": "screenshots/20-log-entry-delete-confirmation.png",
+      "capturedSha256": "25cd70c182ea02facdc28b02474e219664c713633988cb3e58cdbbe7f1a73686",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:24:56Z",
+      "capturedAt": "2026-11-16T14:38:18Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "b548d6cd59d04483d5ccede232889e5f77044291b858aa38225a16f2d33506fe",
+      "sha256": "f3ae49b55756c21c08a9794ed45ce7c565b3e87876522d9099687ae5f9eb76b0",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview",
         "Edit grams and entry position, then delete with confirmation"
-      ],
-      "capturedSha256": "f06e1a18c6fed0c4a5b0d4fda1d75a2dd217601e0bdb9aa2e041e58d29651156"
+      ]
     },
     {
       "id": "20-log-entry-deleted",
       "title": "Nutrition Log: standalone entry removed",
       "file": "screenshots/20-log-entry-deleted.png",
+      "capturedSha256": "9b2867e35e419e45a3bc9451e72def6f48f54783df4d9f4081f37d2eafcbb546",
       "workflow": "log-food",
-      "capturedAt": "2026-11-15T17:25:24Z",
+      "capturedAt": "2026-11-16T14:38:49Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "2b7dd922acecce0902dc7c67c17b7c501d4243eb05b678ae6a02baea35739387",
+      "sha256": "cc3afa39ad7c21f06641261b12d0a12a29c5a77f52d5b3901d2242e10b4982a8",
       "steps": [
         "Log a food with a searchable picker, grams, time and calculated preview",
         "Edit grams and entry position, then delete with confirmation"
-      ],
-      "capturedSha256": "621bd114ac4a987605a38b97a04e0245efd4c200fb84e144fa1faaba7892b981"
+      ]
     },
     {
       "id": "21-plan-detail",
@@ -2094,12 +2094,12 @@
       "id": "20-log-meal-sheet",
       "title": "Log intake: meal mode and ingredient quantities",
       "file": "screenshots/20-log-meal-sheet.png",
-      "capturedSha256": "41e6fb247905d5a13f170babb8977dfe3fc8cea34e565c1066e998d859ef7064",
+      "capturedSha256": "f63c54a803365bab3e448354e1f4db050acf502a2e67bd650ae29146cce216cd",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:10Z",
+      "capturedAt": "2026-11-16T14:39:19Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "fa768aa59db87dbfdeda90e70f1b769c449f732a6cc07a5fba6487c6906f08ed",
+      "sha256": "4da2de3687ee477023cb06d477a59b963a9b4bb418971967812a8d0a876a9181",
       "steps": [
         "Log a reusable meal with per-ingredient quantities"
       ]
@@ -2108,12 +2108,12 @@
       "id": "20-log-meal-added",
       "title": "Nutrition Log: meal group with child food snapshots",
       "file": "screenshots/20-log-meal-added.png",
-      "capturedSha256": "4a456e5320b2dcbbf1083b208bf4d5569fad401f5bee5bb7d3a4279ae5d04042",
+      "capturedSha256": "cd2a9578987404d225980693828675ac9c8c3ad710a166c1d543071fd32a81f0",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:19Z",
+      "capturedAt": "2026-11-16T14:39:56Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "b62bea25dd58411e2f1c386c5fa84519135489577bf60a7d9d278b74807f643a",
+      "sha256": "364cac63d76ea1304c69ae1025700119dc3bae0627f7d11ddd2dca92e68f3c9c",
       "steps": [
         "Log a reusable meal with per-ingredient quantities"
       ]
@@ -2122,12 +2122,12 @@
       "id": "20-log-meal-edit",
       "title": "Logged meal: group editor",
       "file": "screenshots/20-log-meal-edit.png",
-      "capturedSha256": "0dbb063462b6ffb7697ad0b3abd4efe16d1f30011b1a5d89a8d919ed4251f02a",
+      "capturedSha256": "c6237144cdc01d9173440137a2c03c80ce7744b60f02d336d54ae44bf5a41edc",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:23Z",
+      "capturedAt": "2026-11-16T14:40:01Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "0f17b73feb687493a1e3f621aa2e8d7089434da028ab697807f883cde1d886d5",
+      "sha256": "2eb929571328536679582c68c7b763c07ccebd3153f85aa4f4391124ccecbb73",
       "steps": [
         "Log a reusable meal with per-ingredient quantities",
         "Edit a logged meal group's name, time and ordering independently of the template"
@@ -2137,12 +2137,12 @@
       "id": "20-log-meal-updated",
       "title": "Nutrition Log: renamed logged meal",
       "file": "screenshots/20-log-meal-updated.png",
-      "capturedSha256": "a04d198dfdc0fccdda7c5f97eac4b509190807b323c7229207d2de1ceee56a5c",
+      "capturedSha256": "bd06f184b44c9e46ad9279a0db1b2f94173024dcb8f9e3b71392d890b776fcd6",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:44Z",
+      "capturedAt": "2026-11-16T14:40:24Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "0b129f8636f3d5d988b0065bdc65aaedc8a7d75719da763455c04b4932cb4df8",
+      "sha256": "fbba5e398d35bca591572ef7286f954a657c8aa6cc308aaadfc54023d62dc11a",
       "steps": [
         "Log a reusable meal with per-ingredient quantities",
         "Edit a logged meal group's name, time and ordering independently of the template"
@@ -2152,12 +2152,12 @@
       "id": "20-log-meal-delete-confirmation",
       "title": "Logged meal: group and child deletion confirmation",
       "file": "screenshots/20-log-meal-delete-confirmation.png",
-      "capturedSha256": "416382ab89477d05ff39dda91513d7e9dbfd50cfc2c53c4c31ebca75e2efdaf9",
+      "capturedSha256": "12e398fc47c2e85c1b0704eb6703f998f573418f816cb57deeb64e08e0f1f8d4",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:51Z",
+      "capturedAt": "2026-11-16T14:40:32Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "bfdd7b787d53c0d1d407b2bc482473ac2bb942a86a305548325e14992174d272",
+      "sha256": "ab11619deda043206345195a7f13a6ff529ac87a7245c17b29d80c79f936af17",
       "steps": [
         "Log a reusable meal with per-ingredient quantities",
         "Edit a logged meal group's name, time and ordering independently of the template"
@@ -2167,12 +2167,12 @@
       "id": "20-log-meal-deleted",
       "title": "Nutrition Log: logged meal and children removed",
       "file": "screenshots/20-log-meal-deleted.png",
-      "capturedSha256": "37c86510d805d3d5f80c7d713cfe3ff5bcf02179931a71affc00332628d3708e",
+      "capturedSha256": "024ed532f575cb825e1fc440bc9a9c1cf106ef9b1876c4f39efe827fbb27b578",
       "workflow": "log-meal",
-      "capturedAt": "2026-11-15T17:41:56Z",
+      "capturedAt": "2026-11-16T14:40:37Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "88c534eb8a12070426dce4a77222d2e4248c316f6a15859f463e353f5e785bc2",
+      "sha256": "264e3c65ca758ce9d9cd1978805eef3d470360370ad289049dab6702707881be",
       "steps": [
         "Log a reusable meal with per-ingredient quantities",
         "Edit a logged meal group's name, time and ordering independently of the template"
@@ -2302,12 +2302,12 @@
       "id": "20-log-ad-hoc-sheet",
       "title": "Log intake: ad-hoc name, per-100 g nutrients, grams and time",
       "file": "screenshots/20-log-ad-hoc-sheet.png",
-      "capturedSha256": "74f352168b67bf55fa46aaae5f6ba4acc2940c580b9aaefb0ca9400fb487fda6",
+      "capturedSha256": "43c5c5b80e24ba457b3f7c326a5d22ab46653516c916fb3da944f1f54c2c6f88",
       "workflow": "log-ad-hoc",
-      "capturedAt": "2026-11-15T18:08:15Z",
+      "capturedAt": "2026-11-16T14:41:46Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "a712eceaaee6867b9d62e39c66b89e941a794fc1bacd14e12d5de3857cd03e28",
+      "sha256": "c38d82bc0d6e59ca712db3278ef8aa63f52cf2ba8c717fa4a443e5b84919fa0e",
       "steps": [
         "Log an ad-hoc item without adding it to the food catalog"
       ]
@@ -2316,12 +2316,12 @@
       "id": "20-log-ad-hoc-filled",
       "title": "Ad-hoc log: complete nutrient snapshot",
       "file": "screenshots/20-log-ad-hoc-filled.png",
-      "capturedSha256": "ecce970ef1c36eb5956a76ab6a004e0776ae52f1cd35d99dd99cb6cf66cfa732",
+      "capturedSha256": "0c8a7d8d8095c25d57908f6596e627d7d3e36a4620b107bc04d8aa707ab526e3",
       "workflow": "log-ad-hoc",
-      "capturedAt": "2026-11-15T18:08:55Z",
+      "capturedAt": "2026-11-16T14:42:52Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "f4620d3e683516824e328bc18ed23a442655fb3b208fd0abe7c79a489a6497b4",
+      "sha256": "7e3efb82591d5e78dbf2542d7b45c7226315036e23a11c890cd16e43d846da0e",
       "steps": [
         "Log an ad-hoc item without adding it to the food catalog"
       ]
@@ -2330,12 +2330,12 @@
       "id": "20-log-ad-hoc-added",
       "title": "Nutrition Log: standalone ad-hoc item",
       "file": "screenshots/20-log-ad-hoc-added.png",
-      "capturedSha256": "f71d40950ae098869663f1e45397916868668a1b86c448d3011a4db7ecf79547",
+      "capturedSha256": "426eb6830996ffaf60debdf87bbf7787a2d7d506674c5be1e694a9dd216caf4a",
       "workflow": "log-ad-hoc",
-      "capturedAt": "2026-11-15T18:09:06Z",
+      "capturedAt": "2026-11-16T14:43:02Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "359bd0c4586741642497dd024664b92dcf26e2c3d248bbe0c0dcf11ffa5bfaf2",
+      "sha256": "053c913064cffbfa6a4e6924ac738262574736dbcdf869a73e4b719dcf2e4147",
       "steps": [
         "Log an ad-hoc item without adding it to the food catalog"
       ]
@@ -2344,12 +2344,12 @@
       "id": "20-log-ad-hoc-edit",
       "title": "Ad-hoc entry: editable snapshot nutrients as well as grams",
       "file": "screenshots/20-log-ad-hoc-edit.png",
-      "capturedSha256": "88276fe6bae42026abbd63b210833ff47cbb593d892c610f7bc6869ef37c37f6",
+      "capturedSha256": "523d25d01970e97738034974eb01a8fa018bdb92900611cda36888bfb24c49b8",
       "workflow": "log-ad-hoc",
-      "capturedAt": "2026-11-15T18:09:11Z",
+      "capturedAt": "2026-11-16T14:43:06Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "d428d527b50707c0f8dcba2611b54678e2ee60855c673c0cbfcf93d34bf415cf",
+      "sha256": "3224dd312ea16de634a96a711ad922fc2307e5f38b242d15510c64bdc986e648",
       "steps": [
         "Log an ad-hoc item without adding it to the food catalog"
       ]
@@ -2358,12 +2358,12 @@
       "id": "20-log-ad-hoc-updated",
       "title": "Nutrition Log: renamed ad-hoc snapshot",
       "file": "screenshots/20-log-ad-hoc-updated.png",
-      "capturedSha256": "37d0d96dac08e4aa5ed814e146be40a9d87a436435f3affc4a3f62ed751d8402",
+      "capturedSha256": "b41fcc2eaaada27b75ee331943bca2efe3ccacc2bb6fdd2df027aa648a420e75",
       "workflow": "log-ad-hoc",
-      "capturedAt": "2026-11-15T18:09:29Z",
+      "capturedAt": "2026-11-16T14:43:37Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "10fe7bae490c757c97cb09ace7e983c0da93331ba6805b2fde7bde5e424f17f8",
+      "sha256": "55feb6ea9727ed378ca678e8abf19c5c0b57f451da952bd9d482fc10f4ad4588",
       "steps": [
         "Log an ad-hoc item without adding it to the food catalog"
       ]
@@ -2786,12 +2786,12 @@
       "id": "34-energy-estimate",
       "title": "Energy: today's recorded totals and end-of-day estimate",
       "file": "screenshots/34-energy-estimate.png",
-      "capturedSha256": "6f760e11cbbe2b70458e4bbbcdf287c82364e1b202d7c42c624875c4aef5bd73",
+      "capturedSha256": "ce038a6a8a4e5e9c513879ceee28291dac21cb6c3f77715bc27afed35bf59596",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:22:50Z",
+      "capturedAt": "2026-11-16T14:50:34Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "e2d376a9b3d035b21278252087663dcaf3495248a4cbf60dd07fb031f4f003a9",
+      "sha256": "ccd0bcf168011351630b460471ab9ff02b5c8377b6eea250c24b2e22bcc77d29",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts"
       ]
@@ -2800,12 +2800,12 @@
       "id": "34-energy-calories-consumed",
       "title": "Energy: consumed calories and 7-day average",
       "file": "screenshots/34-energy-calories-consumed.png",
-      "capturedSha256": "8d10386fd0e6944131e16f5562b320897a443e4b00a7c34181013e5b49b978c9",
+      "capturedSha256": "3a83b1a62bf515439e40626eea0c1c4799b7c58ef522798ddeafce2df524e9a3",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:22:58Z",
+      "capturedAt": "2026-11-16T14:50:39Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "84b86566b8604d8d8cd36ec582fa04967bd1369480ea9626f781797ee54ac8a9",
+      "sha256": "e804c41031a3a28018a1f994fdd82d3cab4590f472435174b0558c672ba375d8",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts"
       ]
@@ -2814,12 +2814,12 @@
       "id": "34-energy-calories-net",
       "title": "Energy: net calories and 7-day average",
       "file": "screenshots/34-energy-calories-net.png",
-      "capturedSha256": "9055a9bde8dd80b22de787741a14d606eb6f4c9b54d007865e43f725fbbb4960",
+      "capturedSha256": "16eba649e9da0d1f2b923d58e6fdd569233c8ae992fd9e55eecac2cc03e31806",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:23:06Z",
+      "capturedAt": "2026-11-16T14:50:43Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "8e41e0fb0a35f927ec882f146d9a2ed56ddcda6fe919e5374abcf92173176138",
+      "sha256": "e8cbc3a6c1a538aded3b4c72d8db69edd1574aeac9344561d16232af8a7caae2",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts"
       ]
@@ -2828,12 +2828,12 @@
       "id": "34-energy-history",
       "title": "Energy: source row and latest five entries",
       "file": "screenshots/34-energy-history.png",
-      "capturedSha256": "76b0f4c9e6ecd0fe7dda0c1fc275d83d0952eedecb909d6f22be9e36e6eeb686",
+      "capturedSha256": "000eb1010c6fd0bbe5361cc2f1135e5f81a8ed0c3722605eb8dcc2a334182837",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:23:11Z",
+      "capturedAt": "2026-11-16T14:50:50Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "2e91cd0712d2245146883326c0cab46c6de855c9a8f3f2947e59fde46693951b",
+      "sha256": "fe58651c05cafe10291024628bbfb29d05ed29681cfd357f8a2a622a93758c8a",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts",
         "Inspect the source disclosure and paginate the daily active/resting entries"
@@ -2843,12 +2843,12 @@
       "id": "34-energy-history-loaded-more",
       "title": "Energy: expanded entry history",
       "file": "screenshots/34-energy-history-loaded-more.png",
-      "capturedSha256": "375c90a922d17058a7fcfb950f88334ac4ad3a0e4040959845fc699ee2ae8ff2",
+      "capturedSha256": "828da5c415545ebb98bd3a91ba238ddf1b304145b85b2a3b9fc65b23ad20bf8e",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:23:18Z",
+      "capturedAt": "2026-11-16T14:50:57Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "58681271489efd6e3fb12588eedff053677108d1b4df5d24e2b24093aa84ec2a",
+      "sha256": "e9a2ecf3fedc92b8bb96f1fc29cc78de5535b1767e198fe703bb747b5df3990b",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts",
         "Inspect the source disclosure and paginate the daily active/resting entries"
@@ -2858,12 +2858,12 @@
       "id": "34-energy-detail",
       "title": "Energy entry: active, resting, total and notes",
       "file": "screenshots/34-energy-detail.png",
-      "capturedSha256": "376d803ccb42435b053bf24362d1cc98eefd32eb52aa1bd01a3eadef1c289473",
+      "capturedSha256": "af51c04edc0410c3c050e6f251b4c4deada30b033b75311f28cd02b0b37a92a7",
       "workflow": "energy-history",
-      "capturedAt": "2026-11-15T18:23:23Z",
+      "capturedAt": "2026-11-16T14:51:02Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "f9fe55292789c86155c0da8f695a21a63b7614f14e3404d9f21e78ae6ee7a43f",
+      "sha256": "6801444f4cb09eadf55669dfa7a48a154b12865f0fb8108a57066b6a48879dce",
       "steps": [
         "Inspect today's end-of-day estimate and the consumed/net calorie charts",
         "Inspect the source disclosure and paginate the daily active/resting entries"
@@ -3153,12 +3153,12 @@
       "id": "01-today-quick-log",
       "title": "Today: quick-log shortcuts",
       "file": "screenshots/01-today-quick-log.png",
-      "capturedSha256": "11b79a4fd965fa5b008906acbfe6f85600bde003ad61dabda3f9ce7f96a53ef8",
+      "capturedSha256": "cadb887d5f77eb25c0f0c34ea824ab25d845319dd2ddbaae396439bcfd1ab87b",
       "workflow": "today",
-      "capturedAt": "2026-11-15T18:37:01Z",
+      "capturedAt": "2026-11-16T14:50:03Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "b5119207bc96f5637bef521cce7df7c8aacee251a0522f90d6b42b538dd1ec3e",
+      "sha256": "ff8f3911c6cef4ae242e8622f481d23a1cf8d6ffd242fff3d592a47e74f6c35a",
       "steps": [
         "Open the Today quick-log menu"
       ]
@@ -3167,12 +3167,12 @@
       "id": "01-today-nutrition",
       "title": "Today: logged nutrition and selected plan",
       "file": "screenshots/01-today-nutrition.png",
-      "capturedSha256": "8ef0e4ea0a939273d49db1fead436cb88a6457fe9aab325724a08f133b91b7e1",
+      "capturedSha256": "3b8f3424e3ba9641e5a7b22a8689c73c1d91c8f5cabf4de80c4742315094647f",
       "workflow": "today",
-      "capturedAt": "2026-11-15T18:37:07Z",
+      "capturedAt": "2026-11-16T14:50:09Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "9e17f92fec5bd09a1438db26f489c3704f078fc74ac7c477adf6411b92373f5c",
+      "sha256": "d88279c615eb753b35b29f3c308124875b5572d62e2592913d847e0d7afc3aa4",
       "steps": [
         "Open the Today quick-log menu",
         "Inspect the nutrition summary, recorded balance and end-of-day estimate"
@@ -3182,12 +3182,12 @@
       "id": "01-today-balance-body",
       "title": "Today: recorded balance and end-of-day estimate",
       "file": "screenshots/01-today-balance-body.png",
-      "capturedSha256": "8308f1e2f1378ad8ed6571595d58781e7ffcd8c7fd33fa4c4bfad2d292442dfe",
+      "capturedSha256": "231cd212a4b85c8631e3dafc4d0a0aa6386a9e798edb31b1c5b9d376dcfa9560",
       "workflow": "today",
-      "capturedAt": "2026-11-15T18:37:11Z",
+      "capturedAt": "2026-11-16T14:50:13Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "67354ccec5829521edb11b7e18d9697b271f7f67fbc0d82d25de6defc64d4401",
+      "sha256": "03f830b1ba67e57541ba9cb43ab9af2b5b036b6e3a31fab4c5d8e4d322cc7300",
       "steps": [
         "Open the Today quick-log menu",
         "Inspect the nutrition summary, recorded balance and end-of-day estimate"
@@ -3197,12 +3197,12 @@
       "id": "01-today-body",
       "title": "Today: body chart and latest measurements",
       "file": "screenshots/01-today-body.png",
-      "capturedSha256": "e9ba2bd4ced6c20f5b937af4ab887fd5c19305be6af87dbee3229455ad843b8d",
+      "capturedSha256": "d6ecf962cfea2776859d5fb73b9ab3fdb0dfe3d13eb826e74637548f20244059",
       "workflow": "today",
-      "capturedAt": "2026-11-15T18:37:18Z",
+      "capturedAt": "2026-11-16T14:50:21Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "f888d6588eb6af6602e1befac0d4f8ec648c21add2ed0bc73a3b8d000f42139b",
+      "sha256": "14a21579a28938b03e73b979153a6b772c47ddeb3f17a1aecda1ec85e0c2d651",
       "steps": [
         "Open the Today quick-log menu",
         "Inspect the nutrition summary, recorded balance and end-of-day estimate"
@@ -3212,12 +3212,12 @@
       "id": "20-log-from-plan-sheet",
       "title": "Log intake: selected-plan entry picker",
       "file": "screenshots/20-log-from-plan-sheet.png",
-      "capturedSha256": "0d6fafa2fa413aa7385dd3eef28059c47ddd3e17cb6f9c41b50a63519582a6c4",
+      "capturedSha256": "8b125027e2b5876ed00fba490323dbdcc2634e2afc0830a87b8b8e899b870844",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:12Z",
+      "capturedAt": "2026-11-16T14:43:55Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "5c4a53ccae6511613e654605f64fd4c19e27203bd8eae95bf5b51bf4478df9bd",
+      "sha256": "b89483a950dc41483590fc094b9c70b18b4cfcbbb734411876895769fc4a9113",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet"
       ]
@@ -3226,12 +3226,12 @@
       "id": "20-log-from-plan-added",
       "title": "Nutrition Log: selected-plan meal appended",
       "file": "screenshots/20-log-from-plan-added.png",
-      "capturedSha256": "7ad135493476e7b4079cde7567b573bcc89681661d59ef43e0b415fe4ca07cb1",
+      "capturedSha256": "521a5600310afc092bf85528ad0de256572fe10a82262f165fb4e560e92e76e2",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:16Z",
+      "capturedAt": "2026-11-16T14:43:59Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "ec8dd47c396c842061f9e7c5f2bd5113bfed968d81c7cf3e7ad4cd925b27b7f4",
+      "sha256": "ab47a92abed2ea05d5765dc92b74110bfe785e2077a53faf375eeae49e7bda64",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet"
       ]
@@ -3240,12 +3240,12 @@
       "id": "20-log-from-plan-food-sheet",
       "title": "Log intake: direct planned food and editable grams",
       "file": "screenshots/20-log-from-plan-food-sheet.png",
-      "capturedSha256": "3f0d427303a4f23973b0a8d05c82b35852b7cebaf8737b5cd54ba7617f40dfbb",
+      "capturedSha256": "6388bb3d42b8e0ed057fbb96b0e7faeeded895f6edbd38a22535cf6fc3cfae76",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:39Z",
+      "capturedAt": "2026-11-16T14:44:23Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "6c6278bd1a9370446272a46e2e177d2c010aa746d179598ef0daefb25e83ba34",
+      "sha256": "9ce6784181cb2665f157c8f0e03b09323744b6f96287a13a9d80c9dd34999788",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet",
         "Choose the direct planned Banana entry in the same intake sheet"
@@ -3255,12 +3255,12 @@
       "id": "20-log-from-plan-food-added",
       "title": "Nutrition Log: direct planned food appended from the sheet",
       "file": "screenshots/20-log-from-plan-food-added.png",
-      "capturedSha256": "97f14b48a58a86254765140f2cd173cc6cc52013e1637fcc0db6bdd4aeb05f28",
+      "capturedSha256": "7268a18fa899722291f745e6dd33e4fd6f6d54982cc15a6ac07ac698be45bd84",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:44Z",
+      "capturedAt": "2026-11-16T14:44:27Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "4bf9f558f531a090642d159a747410b2a053d216f22d8479ba5a6091127d7ca0",
+      "sha256": "f0f434ecfc54d03249bd7c29a824ef7dee5a657e05f7103b39e433adcef33a29",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet",
         "Choose the direct planned Banana entry in the same intake sheet"
@@ -3270,12 +3270,12 @@
       "id": "20-log-plan-slot-existing-confirmation",
       "title": "Planned slot: existing food warning before duplicate logging",
       "file": "screenshots/20-log-plan-slot-existing-confirmation.png",
-      "capturedSha256": "3cb701dc4c549197acbb0ad51e95bfe6c2af5795c65c754f2590b4a38ae9454c",
+      "capturedSha256": "2bce1ecc74a97ebca420f992c69ea13ed4a58a02c837f141a21b4c08a3a63bad",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:48Z",
+      "capturedAt": "2026-11-16T14:44:32Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "5e37c9a5cce3947cf8267ae47562e684abca5ab7201870963840ececb24081b4",
+      "sha256": "4dab2f4a7f145097f8b95c180426e49c4cafc97f9e500a44aad8e397fb870788",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet",
         "Choose the direct planned Banana entry in the same intake sheet",
@@ -3286,12 +3286,12 @@
       "id": "20-log-plan-slot-appended",
       "title": "Nutrition Log: planned breakfast appended to the existing slot",
       "file": "screenshots/20-log-plan-slot-appended.png",
-      "capturedSha256": "e948b0b7f7971f034c939a74b7a2e23e5273fe7e277efcc9f5d07f85e5a19464",
+      "capturedSha256": "de52f9ff18f13076aae04adc4594c5307e981c21641c6617f12d464cb45e9a39",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:38:53Z",
+      "capturedAt": "2026-11-16T14:44:37Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "2e3d1f6e43a4d58c1a0637c7a1b7405897a7217e6416f4421c1e982c38ffaa8b",
+      "sha256": "aa1c7b80b5e32b057683284408e5fdfc2a55469a2df823241a321d4bdc1b374f",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet",
         "Choose the direct planned Banana entry in the same intake sheet",
@@ -3302,12 +3302,12 @@
       "id": "20-log-plan-direct-food",
       "title": "Nutrition Log: direct planned food logged at 16:00",
       "file": "screenshots/20-log-plan-direct-food.png",
-      "capturedSha256": "5ff1d5f12e7b098b321ccc97e81a8acfb03537f6d4de3595a0347aa5f4edf07f",
+      "capturedSha256": "0952480566d00d88daae1fbecc53dfe9b847f1a996e779847bf7756377225cf6",
       "workflow": "log-plan",
-      "capturedAt": "2026-11-15T18:39:04Z",
+      "capturedAt": "2026-11-16T14:44:51Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "59f6f5f9ac8443cf552b12da19ec825fcffca0ebf451552165d884265a83abe8",
+      "sha256": "ee2699014aa44491279f6a46dede52866e209d1b67c620f31c3e65b6ef3acb92",
       "steps": [
         "Log a selected-plan entry using From plan in the intake sheet",
         "Choose the direct planned Banana entry in the same intake sheet",
@@ -3718,12 +3718,12 @@
       "id": "20-log-group-child-edit",
       "title": "Logged meal child: grams and ordering, with time owned by the meal",
       "file": "screenshots/20-log-group-child-edit.png",
-      "capturedSha256": "51a3acd4bf62474c2ec26d4be0b103694cced911a2d9aef91125f3dd05f52c5e",
+      "capturedSha256": "79187aa66a36a97c90bedbb8cc8a1bea8d17a6181eef813d6500c221d3ccf40a",
       "workflow": "log-child",
-      "capturedAt": "2026-11-15T18:44:45Z",
+      "capturedAt": "2026-11-16T14:40:54Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "0baffa0fdc1d2dddb67dd8f4df833bb5981273dc000bb5c59bffbb55effab2ef",
+      "sha256": "e45713993e021322bc909414e2bb0a853af55886eee874352cdbbab9321aea34",
       "steps": [
         "Edit one food snapshot inside a logged meal; the meal still owns its time"
       ]
@@ -3732,12 +3732,12 @@
       "id": "20-log-group-child-updated",
       "title": "Nutrition Log: one meal ingredient's logged amount updated",
       "file": "screenshots/20-log-group-child-updated.png",
-      "capturedSha256": "88aa5ccba3e5a5ceb150ab5c58f2b8563cbe69acc44fdccd3972184f040bcd41",
+      "capturedSha256": "b8ae05c0ffe3c8a3f5dc14df423140defad0ae17f586856db829193c215436ef",
       "workflow": "log-child",
-      "capturedAt": "2026-11-15T18:44:55Z",
+      "capturedAt": "2026-11-16T14:41:16Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "29c8cfcc730b98c573b43cf8f64ba451f4eaa2abc9582bd78c35c322f3d6aff4",
+      "sha256": "184bd329eebe16870ceb46d30fc2ba257c1706f91bbff576e70a2fa7699fc290",
       "steps": [
         "Edit one food snapshot inside a logged meal; the meal still owns its time"
       ]
@@ -3746,12 +3746,12 @@
       "id": "20-log-group-child-delete-confirmation",
       "title": "Logged meal child: single-snapshot deletion confirmation",
       "file": "screenshots/20-log-group-child-delete-confirmation.png",
-      "capturedSha256": "9931592967516c656c98e521427c29573ad39a16349a5e974bb97f9b3ac3b5c5",
+      "capturedSha256": "36450c5296f4172cca932d2948536876d33bfab4d66e5b076906f7f99a3e783d",
       "workflow": "log-child",
-      "capturedAt": "2026-11-15T18:45:02Z",
+      "capturedAt": "2026-11-16T14:41:23Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "1706f285906af1f5072bcec39957c03cdf7320faa42da41bd5b3e3a46f99e00e",
+      "sha256": "a3f830f56c213155e50347dfe4853b270c6effbcc3666d6aa65e093f1fe510a8",
       "steps": [
         "Edit one food snapshot inside a logged meal; the meal still owns its time",
         "Delete only that logged ingredient, preserving the group and reusable food"
@@ -3761,15 +3761,72 @@
       "id": "20-log-group-child-deleted",
       "title": "Nutrition Log: meal remains with its other logged ingredients",
       "file": "screenshots/20-log-group-child-deleted.png",
-      "capturedSha256": "03320b532bb8833ff289a2b816dd26125a699d033999e4620a0b5a2ed7b841c2",
+      "capturedSha256": "537df927830aedbe768706c697577621d8d7aa6ba4bd0f10656fe0665071ba6a",
       "workflow": "log-child",
-      "capturedAt": "2026-11-15T18:45:07Z",
+      "capturedAt": "2026-11-16T14:41:29Z",
       "width": 1206,
       "height": 2622,
-      "sha256": "c272fba25d63442ade551c82bfcc05c746a6fcb5e946cadccc51dd421a3ed7d5",
+      "sha256": "4c00229518e1e45ca139c6f78d023018404f07ed24645b3dd043bfd49e101241",
       "steps": [
         "Edit one food snapshot inside a logged meal; the meal still owns its time",
         "Delete only that logged ingredient, preserving the group and reusable food"
+      ]
+    },
+    {
+      "id": "20-log-entry-edit-adjusted",
+      "title": "Log entry: 175 g recalculates calories and macros against saved totals",
+      "file": "screenshots/20-log-entry-edit-adjusted.png",
+      "capturedSha256": "3f0975bafb5b27ddae1b6caea755a9ac897a51de249d9d2742fc04f5502ffa90",
+      "workflow": "log-food",
+      "capturedAt": "2026-11-16T14:38:01Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "8a9d504a2bbc33616175a8aace9963bf4835af4f34bf180ebfd2070b65708351",
+      "steps": [
+        "Log a food with a searchable picker, grams, time and calculated preview",
+        "Edit grams and entry position, then delete with confirmation"
+      ]
+    },
+    {
+      "id": "20-log-meal-search-picker",
+      "title": "Choose meal: ingredient search finds the current meal, marked with a check",
+      "file": "screenshots/20-log-meal-search-picker.png",
+      "capturedSha256": "2f29188aee8732be9b4db0b03e94be604a3816a68830dd8cb1d3f38a22ee10a2",
+      "workflow": "log-meal",
+      "capturedAt": "2026-11-16T14:39:40Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "e4afe7df8380265ec0d8b83bee43012ac02a7e42bc4e6fe635c053868be8c535",
+      "steps": [
+        "Log a reusable meal with per-ingredient quantities"
+      ]
+    },
+    {
+      "id": "20-log-group-child-edit-adjusted",
+      "title": "Logged meal child: live nutrition totals compared with the saved 200 g",
+      "file": "screenshots/20-log-group-child-edit-adjusted.png",
+      "capturedSha256": "ffb5d9b11bada86a9c3cf7706163558998cd0069598d3ee0170c33cdf3f25e2a",
+      "workflow": "log-child",
+      "capturedAt": "2026-11-16T14:41:11Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "5be1232e2a5dad21c37d86c0bcc7a132da069a292d4905d083bf6d7a649852c4",
+      "steps": [
+        "Edit one food snapshot inside a logged meal; the meal still owns its time"
+      ]
+    },
+    {
+      "id": "20-log-ad-hoc-edit-adjusted",
+      "title": "Ad-hoc entry: changing snapshot nutrients recalculates the preview",
+      "file": "screenshots/20-log-ad-hoc-edit-adjusted.png",
+      "capturedSha256": "c789ca01254cd62cac595abb7972167434f0164fdeaadcc23ef7ecfbff3be817",
+      "workflow": "log-ad-hoc",
+      "capturedAt": "2026-11-16T14:43:32Z",
+      "width": 1206,
+      "height": 2622,
+      "sha256": "7773e2763fb28ebae7eedba23291e914dfb26d34bb69590a1049917cacb68643",
+      "steps": [
+        "Log an ad-hoc item without adding it to the food catalog"
       ]
     }
   ],
@@ -3780,7 +3837,8 @@
       "status": "passed",
       "steps": [
         "Open Today"
-      ]
+      ],
+      "checks": []
     },
     {
       "id": "root-train-sessions",
@@ -3812,7 +3870,8 @@
       "status": "passed",
       "steps": [
         "Open Nutrition → Log"
-      ]
+      ],
+      "checks": []
     },
     {
       "id": "root-nutrition-plans",
@@ -3876,7 +3935,8 @@
       "status": "passed",
       "steps": [
         "Open Progress → Energy"
-      ]
+      ],
+      "checks": []
     },
     {
       "id": "root-me-journal",
@@ -4134,7 +4194,8 @@
         "Log an ad-hoc item without adding it to the food catalog"
       ],
       "checks": [
-        "Ad-hoc logging did not create a reusable food"
+        "Ad-hoc logging did not create a reusable food",
+        "Custom snapshot edits persist without changing the reusable food catalog"
       ]
     },
     {

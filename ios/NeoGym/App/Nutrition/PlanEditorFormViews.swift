@@ -568,8 +568,8 @@ private struct PlanSlotTimeSheet: View {
 
     private static func date(from time: String) -> Date {
         let parts = IntakeGrouping.timeToInputValue(time).split(separator: ":").compactMap { Int($0) }
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: Date())
+        let calendar = AppClock.calendar
+        let start = calendar.startOfDay(for: AppClock.now())
         guard parts.count == 2 else {
             return calendar.date(bySettingHour: 12, minute: 0, second: 0, of: start) ?? start
         }
@@ -577,7 +577,7 @@ private struct PlanSlotTimeSheet: View {
     }
 
     private static func inputValue(from date: Date) -> String {
-        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let components = AppClock.calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
     }
 }

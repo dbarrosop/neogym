@@ -375,7 +375,7 @@ struct NutritionDatePickerSheet: View {
     let date: String
     let onPick: (String) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var selection = Date()
+    @State private var selection = AppClock.now()
 
     var body: some View {
         NavigationStack {
@@ -401,6 +401,6 @@ struct NutritionDatePickerSheet: View {
                 }
         }
         .presentationDetents([.medium, .large])
-        .onAppear { selection = IntakeGrouping.localDateToDate(date) ?? Date() }
+        .onAppear { selection = IntakeGrouping.localDateToDate(date) ?? AppClock.now() }
     }
 }

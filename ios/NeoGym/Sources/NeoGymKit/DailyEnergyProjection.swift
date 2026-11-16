@@ -63,13 +63,21 @@ public struct DailyEnergyProjection: Equatable, Sendable {
 
     /// "≈−851 kcal", or "≈−851" with `includesUnit: false`.
     public func netValue(locale: Locale = .current, includesUnit: Bool = true) -> String {
-        let sign = estimatedNetKcal < 0 ? "−" : estimatedNetKcal > 0 ? "+" : ""
-        return "≈\(sign)" + Self.kcal(abs(estimatedNetKcal), locale: locale, includesUnit: includesUnit)
+        let rounded = estimatedNetKcal.rounded()
+        let sign = rounded < 0 ? "−" : rounded > 0 ? "+" : ""
+        return "≈\(sign)" + Self.kcal(abs(rounded), locale: locale, includesUnit: includesUnit)
     }
 
+    /// Whole kilocalories: an estimate never needs a decimal ("≈2,092", not
+    /// "≈2,092.1").
     private static func kcal(_ value: Double, locale: Locale, includesUnit: Bool) -> String {
-        let formatted = NutritionMath.formatMacro(value, unit: "kcal", locale: locale)
-        return includesUnit ? formatted : String(formatted.dropLast(" kcal".count))
+        let formatter = NumberFormatter()
+        formatter.locale = locale
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        formatter.roundingMode = .halfUp
+        let formatted = formatter.string(from: NSNumber(value: value)) ?? String(Int(value.rounded()))
+        return includesUnit ? "\(formatted) kcal" : formatted
     }
 }
 

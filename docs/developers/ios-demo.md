@@ -135,12 +135,43 @@ reopened store adds missing newer dates without overwriting edits or resurrectin
 deleted templates. For each date, seeding independently skips any existing Log day,
 Body measurement or Energy entry, including user rows created for future dates or
 after midnight before reopening. An existing Log day receives no seeded meals or
-food entries. Seeded IDs are stable; newly created IDs are unique. Clock
-freezing, fault/empty scenarios and backward device-clock changes are not v1
-features (reset after deliberately changing the device clock). Leave and reopen
-demo after crossing a local midnight to prepare the new day's sample records.
+food entries. Seeded IDs are stable; newly created IDs are unique. Ordinary demo
+use follows the real local clock. Fault/empty scenarios and backward device-clock
+changes are not v1 features (reset after deliberately changing the device clock).
+Leave and reopen demo after crossing a local midnight to prepare the new day's
+sample records.
 If an older build already marked a missing day as prepared, use **Reset demo
 data** to regenerate it; reopening does not backfill dates already marked prepared.
+
+### Deterministic documentation capture
+
+The opt-in driver sets `NEOGYM_DEMO_CAPTURE=1` and `TZ=UTC` on every app launch,
+including the public-entry/re-entry path. The versioned source of truth is
+`ios/NeoGym/Sources/NeoGymKit/Resources/gallery-capture.json`, bundled by SwiftPM
+and read by the host tooling. Profile v1 uses **15 January 2025, 09:41 UTC**, an
+English US/Gregorian calendar, default Large text, Dark appearance and explicit
+full Wi-Fi/cellular/battery status-bar overrides. The historical month also
+avoids the native graphical date picker's moving real-today highlight.
+
+`AppModeController` enables `AppClock` only while an opted-in demo is active and
+clears it before returning to live mode. Date helpers, model/query defaults,
+forms, chart windows and demo rest timers use that domain clock; fixture seeding
+and mutation timestamps use it too. Ordinary demo/live launches still use system
+time. OS/XCTest timeouts, network deadlines, Auth/SDK credentials and HealthKit
+clocks are never frozen. Use `AppClock.now()` / `AppClock.calendar` (or explicit
+injected clocks) for new capture-visible domain dates rather than raw `Date()`.
+
+Capture-created records get a persisted monotonic ID sequence, avoiding random
+ID tie-breaking; the optional sequence remains compatible with old v1 files.
+Ordinary demo creation keeps UUIDs. This is a test-fixture facility, not a user
+preference or a different production data path.
+
+Identical recaptures preserve image files, first identical capture provenance
+and manifest ordering. Legacy published images are not silently re-dated or
+claimed to use this profile: new captures record it per image. Establishing the
+fixed profile is a one-time reviewed baseline change; see the capture guide for
+repeatability checks. Runtime/device/font changes can still require an explicit
+new baseline.
 
 ### Storage
 
@@ -212,8 +243,9 @@ not a promise that all device processes have stopped networking.
   native Quick log/Back/create/cancel controls, log a set, relaunch without reset,
   reset, exit and re-enter through the public action (including preserving a logged
   set in a process launched with `--demo-reset`), log a planned nutrition slot
-  and check persisted totals, and open explicit launch targets. Screenshots are
-  retained as test attachments.
+  and check persisted totals, search/select food and meal lists (including cancel
+  preserving the draft and the current food's selected accessibility trait),
+  and open explicit launch targets. Screenshots are retained as test attachments.
   Keep simulator ad-hoc signing enabled for exit/public-entry checks: an unsigned
   demo itself runs, but the live runtime deliberately rejects an unavailable
   shared App Group when Exit constructs it. Do not weaken that provisioning gate

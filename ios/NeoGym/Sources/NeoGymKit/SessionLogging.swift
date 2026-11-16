@@ -183,8 +183,8 @@ public struct SessionWeekGroup: Sendable, Equatable, Identifiable {
 public enum SessionWeekGrouping {
     public static func groups(
         _ sessions: [SessionListItem],
-        now: Date = Date(),
-        calendar: Calendar = .current,
+        now: Date = AppClock.now(),
+        calendar: Calendar = AppClock.calendar,
         locale: Locale = .current
     ) -> [SessionWeekGroup] {
         var calendar = calendar

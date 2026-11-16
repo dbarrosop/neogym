@@ -63,7 +63,7 @@ struct CardioPriorSummary: View {
 private func shortPriorDate(_ iso: String) -> String {
     guard let date = ExerciseDateParser.parseTimestamp(iso) else { return "—" }
     let formatter = DateFormatter()
-    let sameYear = Calendar.current.component(.year, from: date) == Calendar.current.component(.year, from: Date())
+    let sameYear = AppClock.calendar.component(.year, from: date) == AppClock.calendar.component(.year, from: AppClock.now())
     formatter.dateFormat = sameYear ? "MMM d" : "MMM d, yyyy"
     return formatter.string(from: date)
 }

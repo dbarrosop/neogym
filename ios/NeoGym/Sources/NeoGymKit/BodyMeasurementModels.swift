@@ -224,7 +224,7 @@ public struct BodyMeasurementTrendData: Sendable, Equatable {
     public var bodyFatCount: Int { points.filter { $0.bodyFatPct != nil }.count }
     public var shouldShowChart: Bool { weightCount >= 2 || bodyFatCount >= 2 }
 
-    public func rollingAverageValues(days: Int, calendar: Calendar = .current) -> [RollingBodyMeasurementAverage] {
+    public func rollingAverageValues(days: Int, calendar: Calendar = AppClock.calendar) -> [RollingBodyMeasurementAverage] {
         guard days > 0 else { return [] }
         return points.map { point in
             let start = calendar.date(byAdding: .day, value: -(days - 1), to: point.date) ?? point.date
@@ -249,8 +249,8 @@ public struct BodyMeasurementTrendData: Sendable, Equatable {
         by timescale: BodyMeasurementTrendTimescale,
         customStartISO: String? = nil,
         customEndISO: String? = nil,
-        calendar: Calendar = .current,
-        now: Date = Date()
+        calendar: Calendar = AppClock.calendar,
+        now: Date = AppClock.now()
     ) -> BodyMeasurementTrendData {
         BodyMeasurementTrendRangeFilter.filter(
             self,
@@ -299,8 +299,8 @@ public enum BodyMeasurementTrendRangeFilter {
         by timescale: BodyMeasurementTrendTimescale,
         customStartISO: String? = nil,
         customEndISO: String? = nil,
-        calendar: Calendar = .current,
-        now: Date = Date()
+        calendar: Calendar = AppClock.calendar,
+        now: Date = AppClock.now()
     ) -> BodyMeasurementTrendData {
         guard let range = dateRange(
             for: timescale,
@@ -346,7 +346,7 @@ public enum BodyMeasurementTrendRangeFilter {
 public enum BodyMeasurementTrendBuilder {
     public static func make(
         from measurements: [BodyMeasurement],
-        calendar: Calendar = .current
+        calendar: Calendar = AppClock.calendar
     ) -> BodyMeasurementTrendData {
         let points = measurements.compactMap { measurement -> BodyMeasurementChartPoint? in
             guard let date = DateOnly.parse(measurement.measuredOn, calendar: calendar) else { return nil }

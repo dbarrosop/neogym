@@ -33,7 +33,7 @@ public struct DemoBodyRepository: BodyMeasurementsRepositoryProtocol {
             let record: DemoRecord = [
                 "measuredOn": .string(normalized.measuredOn), "weightKg": .demoNumber(normalized.weightKg),
                 "bodyFatPct": .demoNumber(normalized.bodyFatPct), "notes": .string(normalized.notes),
-                "updatedAt": .string(ISO8601DateFormatter().string(from: Date()))
+                "updatedAt": .string(ISO8601DateFormatter().string(from: AppClock.now()))
             ]
             if let id { try state.update(.body, id, record); return id }
             return state.insert(.body, record)
@@ -80,7 +80,7 @@ public struct DemoEnergyRepository: DailyEnergyRepositoryProtocol {
             let record: DemoRecord = [
                 "energyOn": .string(normalized.energyOn), "activeKcal": .demoNumber(normalized.activeKcal),
                 "restingKcal": .demoNumber(normalized.restingKcal), "notes": .string(normalized.notes),
-                "updatedAt": .string(ISO8601DateFormatter().string(from: Date()))
+                "updatedAt": .string(ISO8601DateFormatter().string(from: AppClock.now()))
             ]
             if let id { try state.update(.energy, id, record); return id }
             return state.insert(.energy, record)

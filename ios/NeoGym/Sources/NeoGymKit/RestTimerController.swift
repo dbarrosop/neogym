@@ -25,7 +25,7 @@ public final class RestTimerController: ObservableObject {
     private var tickerTask: Task<Void, Never>?
     private var isValid = true
 
-    public init(ownerId: String?, defaults: UserDefaults = .standard, effects: any RestTimerEffects, now: @escaping () -> Date = Date.init) {
+    public init(ownerId: String?, defaults: UserDefaults = .standard, effects: any RestTimerEffects, now: @escaping () -> Date = AppClock.now) {
         self.ownerId = ownerId
         self.defaults = defaults
         self.effects = effects
@@ -138,7 +138,7 @@ public final class RestTimerAccountScope: ObservableObject {
     private let now: () -> Date
     private var subscription: AnyCancellable?
 
-    public init(defaults: UserDefaults = .standard, effects: any RestTimerEffects, now: @escaping () -> Date = Date.init) {
+    public init(defaults: UserDefaults = .standard, effects: any RestTimerEffects, now: @escaping () -> Date = AppClock.now) {
         self.defaults = defaults
         self.effects = effects
         self.now = now

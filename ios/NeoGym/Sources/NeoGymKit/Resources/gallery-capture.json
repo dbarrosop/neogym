@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "now": "2025-01-15T09:41:00Z",
+  "timeZone": "UTC",
+  "locale": "en_US",
+  "contentSize": "large",
+  "statusBar": {
+    "time": "9:41",
+    "dataNetwork": "wifi",
+    "wifiMode": "active",
+    "wifiBars": 3,
+    "cellularMode": "active",
+    "cellularBars": 4,
+    "batteryState": "charged",
+    "batteryLevel": 100
+  }
+}

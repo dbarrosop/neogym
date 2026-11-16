@@ -436,6 +436,9 @@ def log_navigation(guide):
     guide.launch("nutrition/log")
     guide.step("Navigate yesterday, return to today, then open the calendar sheet")
     yesterday = datetime.date.fromisoformat(guide.state()["preparedThrough"]) - datetime.timedelta(days=1)
+    if yesterday.weekday() == 6:
+        # On Monday, yesterday belongs to the previous strip, not this week's.
+        guide.call("drag", x=0.15, y=0.355, toX=0.85, toY=0.355)
     guide.tap(yesterday.strftime("%A, %B ") + str(yesterday.day), match="prefix")
     guide.shot("20-log-yesterday", "Nutrition Log: yesterday's complete intake")
     guide.tap("Pick a date")
@@ -466,10 +469,12 @@ def log_food(guide):
     guide.step("Log a food with a searchable picker, grams, time and calculated preview")
     guide.tap("Log food", scope=guide.element(kind="navigationBar"))
     guide.shot("20-log-food-sheet", "Log intake: food mode, grams and time")
-    guide.type(None, "Greek yogurt", index=0)
+    guide.tap("logIntake.chooseFood")
+    guide.type("Search foods", "Greek yogurt")
     dismiss_keyboard(guide)
-    guide.shot("20-log-food-search-picker", "Log food: filtered wheel and nutrition preview")
-    guide.type(None, "150", index=1, selection="doubleTap", tap_x=0.97)
+    guide.shot("20-log-food-search-picker", "Choose food: searchable list, name over macros per 100 g")
+    guide.tap("Greek yogurt,", match="prefix")
+    guide.type(None, "150", index=0)
     dismiss_keyboard(guide)
     guide.shot("20-log-food-filled", "Log food: 150 grams ready to append")
     guide.tap("Log", scope=guide.element(kind="navigationBar"))
@@ -479,8 +484,10 @@ def log_food(guide):
     guide.tap("^Greek yogurt,.*150.*", match="regex")
     guide.step("Edit grams and entry position, then delete with confirmation")
     guide.shot("20-log-entry-edit", "Log entry: standalone time, grams, position and Delete")
-    guide.type(None, "175", index=0, selection="doubleTap", tap_x=0.97)
+    guide.type(None, "175", index=0)
     dismiss_keyboard(guide)
+    guide.expect("Was ", kind="any", match="contains")
+    guide.shot("20-log-entry-edit-adjusted", "Log entry: 175 g recalculates calories and macros against saved totals")
     guide.tap("Increment")
     guide.tap("Save", scope=guide.element(kind="navigationBar"))
     guide.reveal("^Greek yogurt,.*175.*", match="regex")
@@ -502,6 +509,12 @@ def log_meal(guide):
     guide.tap("Log food", scope=guide.element(kind="navigationBar"))
     guide.tap("Meal")
     guide.shot("20-log-meal-sheet", "Log intake: meal mode and ingredient quantities")
+    guide.tap("logIntake.chooseMeal")
+    guide.type("Search meals or ingredients", "broccoli")
+    dismiss_keyboard(guide)
+    guide.shot("20-log-meal-search-picker", "Choose meal: ingredient search finds the current meal, marked with a check")
+    guide.tap("Chicken rice bowl,", match="prefix")
+    guide.expect("logIntake.chooseMeal", kind="button")
     guide.tap("Log", scope=guide.element(kind="navigationBar"))
     guide.require("Meal logging appended one group with three food snapshots",
                   len(guide.rows("logMeals")) == groups_before + 1
@@ -536,7 +549,10 @@ def log_child(guide):
     guide.reveal("Greek yogurt, 200", match="prefix")
     guide.tap("Greek yogurt, 200", match="prefix")
     guide.shot("20-log-group-child-edit", "Logged meal child: grams and ordering, with time owned by the meal")
-    guide.type(None, "180", index=0, selection="doubleTap", tap_x=0.97)
+    guide.type(None, "180", index=0)
+    dismiss_keyboard(guide)
+    guide.expect("Was ", kind="any", match="contains")
+    guide.shot("20-log-group-child-edit-adjusted", "Logged meal child: live nutrition totals compared with the saved 200 g")
     guide.tap("Save", scope=guide.element(kind="navigationBar"))
     edited = [row for row in guide.rows("logEntries")
               if row.get("nutritionLogMealId") and persisted_number(row["grams"]) == 180
@@ -567,7 +583,7 @@ def log_ad_hoc(guide):
     # The legacy custom nutrient grid has no field labels; its six numeric wells
     # follow the name and grams fields in Calories/Fat/Carbs/Protein/Fiber/Sugar order.
     for index, value in enumerate(["250", "10", "30", "10", "2", "8"], start=2):
-        guide.type(None, value, index=index, selection="doubleTap", tap_x=0.97)
+        guide.type(None, value, index=index)
     dismiss_keyboard(guide)
     guide.shot("20-log-ad-hoc-filled", "Ad-hoc log: complete nutrient snapshot")
     guide.tap("Log", scope=guide.element(kind="navigationBar"))
@@ -577,8 +593,17 @@ def log_ad_hoc(guide):
     guide.tap("Guide cafe snack,", match="prefix")
     guide.shot("20-log-ad-hoc-edit", "Ad-hoc entry: editable snapshot nutrients as well as grams")
     guide.type("Food name", "Guide cafe snack edited")
+    guide.type(None, "275", index=2)
     dismiss_keyboard(guide)
+    guide.reveal("Nutrition", kind="text")
+    guide.expect("Was ", kind="any", match="contains")
+    guide.shot("20-log-ad-hoc-edit-adjusted", "Ad-hoc entry: changing snapshot nutrients recalculates the preview")
     guide.tap("Save", scope=guide.element(kind="navigationBar"))
+    guide.require("Custom snapshot edits persist without changing the reusable food catalog",
+                  any(row["snapshotFoodName"] == "Guide cafe snack edited"
+                      and persisted_number(row["snapshotKcalPer100g"]) == 275
+                      for row in guide.rows("logEntries"))
+                  and len(guide.rows("foods")) == foods_before)
     guide.reveal("Guide cafe snack edited,", match="prefix")
     guide.shot("20-log-ad-hoc-updated", "Nutrition Log: renamed ad-hoc snapshot")
 

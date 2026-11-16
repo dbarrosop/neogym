@@ -8,7 +8,7 @@ public struct TodayTrainingWindow: Sendable, Equatable {
     /// Start of the trailing seven local days, today included.
     public let weekStart: Date
 
-    public init(now: Date = Date(), calendar: Calendar = .current) {
+    public init(now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) {
         let start = calendar.startOfDay(for: now)
         dayStart = start
         dayEnd = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
@@ -87,8 +87,8 @@ public final class TodayTrainingViewModel: ObservableObject {
 
     public init(
         repository: any TodayTrainingProviding,
-        calendar: Calendar = .current,
-        now: @escaping @Sendable () -> Date = Date.init
+        calendar: Calendar = AppClock.calendar,
+        now: @escaping @Sendable () -> Date = AppClock.now
     ) {
         self.repository = repository
         self.calendar = calendar

@@ -7,7 +7,7 @@ public actor DemoStore {
     private let fileURL: URL?
     private var isActive = true
 
-    public init(fileURL: URL? = nil, reset: Bool = false, now: Date = Date(), calendar: Calendar = .current) throws {
+    public init(fileURL: URL? = nil, reset: Bool = false, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) throws {
         self.fileURL = fileURL
         if !reset, let fileURL, FileManager.default.fileExists(atPath: fileURL.path) {
             let saved = try JSONDecoder().decode(DemoState.self, from: Data(contentsOf: fileURL))
@@ -81,6 +81,8 @@ struct DemoState: Codable, Sendable {
     static let currentVersion = 1
     var version = currentVersion
     var preparedThrough = ""
+    // Optional for compatibility with existing v1 files; used only by opt-in capture.
+    var captureSequence: Int?
     var tables: [String: [String: DemoRecord]] = [:]
 
     func rows(_ table: DemoTable) -> [DemoRecord] {
@@ -100,11 +102,19 @@ struct DemoState: Codable, Sendable {
     }
 
     @discardableResult
-    mutating func insert(_ table: DemoTable, _ values: DemoRecord, id: String = UUID().uuidString) -> String {
+    mutating func insert(_ table: DemoTable, _ values: DemoRecord, id: String? = nil) -> String {
+        let id = id ?? makeId()
         var record = values
         record["id"] = .string(id)
         tables[table.rawValue, default: [:]][id] = record
         return id
+    }
+
+    private mutating func makeId() -> String {
+        guard AppClock.captureProfile != nil else { return UUID().uuidString }
+        let next = (captureSequence ?? 0) + 1
+        captureSequence = next
+        return String(format: "demo-capture-%08d", next)
     }
 
     mutating func update(_ table: DemoTable, _ id: String, _ values: DemoRecord) throws {

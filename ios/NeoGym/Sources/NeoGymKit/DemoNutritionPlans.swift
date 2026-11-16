@@ -60,7 +60,7 @@ extension DemoState {
             let slotId = insert(.planMeals, [
                 "nutritionPlanId": .string(id), "mealId": .string(slot.mealId), "slotTime": .string(slot.slotTime),
                 "label": .string(slot.label), "position": .number(Double(slot.position))
-            ], id: existing?.text("id") ?? UUID().uuidString)
+            ], id: existing?.text("id"))
             keptMeals.insert(slotId)
         }
         for slot in values.foodSlots {
@@ -68,7 +68,7 @@ extension DemoState {
             let slotId = insert(.planFoods, [
                 "nutritionPlanId": .string(id), "foodId": .string(slot.foodId), "slotTime": .string(slot.slotTime),
                 "grams": .demoNumber(slot.grams), "position": .number(Double(slot.position))
-            ], id: existing?.text("id") ?? UUID().uuidString)
+            ], id: existing?.text("id"))
             keptFoods.insert(slotId)
         }
         for slot in oldMeals where !keptMeals.contains(slot.text("id")) { try removePlanSlot(.planMeals, slot.text("id")) }

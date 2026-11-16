@@ -21,8 +21,8 @@ public class ProgressHistoryViewModel<Row: Sendable>: ObservableObject {
     public init(
         cachedSnapshot: @escaping @Sendable (String, String, String) async throws -> [Row]?,
         updates: @escaping @Sendable (String, String, String) -> AsyncThrowingStream<[Row], Error>,
-        calendar: Calendar = .current,
-        clock: @escaping @Sendable () -> Date = Date.init
+        calendar: Calendar = AppClock.calendar,
+        clock: @escaping @Sendable () -> Date = AppClock.now
     ) {
         self.cachedSnapshot = cachedSnapshot
         self.updates = updates

@@ -37,6 +37,37 @@ final class DailyEnergyProjectionTests: XCTestCase {
         XCTAssertEqual(projection(intake: 3000)?.estimatedNetKcal, 800)
     }
 
+    func testEstimatesShowWholeKilocalories() throws {
+        // Resting history averaging 1,800.05 kcal makes a fractional estimate.
+        let estimate = try XCTUnwrap(projection(
+            intake: 600.4, active: 292, resting: 10,
+            history: [row("2026-11-01", resting: 1800.1), row("2026-10-26", resting: 1800)]
+        ))
+        let enUS = Locale(identifier: "en_US")
+        XCTAssertEqual(estimate.burnedValue(locale: enUS), "≈2,092 kcal")
+        XCTAssertEqual(estimate.burnedValue(locale: enUS, includesUnit: false), "≈2,092")
+        XCTAssertEqual(estimate.netValue(locale: enUS), "≈−1,492 kcal")
+    }
+
+    func testEstimateRoundingPreservesLocaleAndPositiveNetSign() throws {
+        let estimate = try XCTUnwrap(projection(intake: 3001, active: 400.5))
+        let german = Locale(identifier: "de_DE")
+        XCTAssertEqual(estimate.burnedValue(locale: german), "≈2.201 kcal")
+        XCTAssertEqual(estimate.netValue(locale: german), "≈+801 kcal")
+        XCTAssertEqual(estimate.netValue(locale: german, includesUnit: false), "≈+801")
+        XCTAssertEqual(try XCTUnwrap(projection(intake: 2200)).netValue(locale: german), "≈0 kcal")
+    }
+
+    func testNetRoundingNormalizesSignedZeroAndHalfKilocalories() throws {
+        let locale = Locale(identifier: "en_US_POSIX")
+        for (net, expected) in [(-0.3, "≈0 kcal"), (0.4, "≈0 kcal"),
+                                (-0.5, "≈−1 kcal"), (0.5, "≈+1 kcal"), (12.6, "≈+13 kcal")] {
+            let estimate = try XCTUnwrap(projection(intake: 2200 + net))
+            XCTAssertEqual(estimate.netValue(locale: locale), expected)
+        }
+        XCTAssertEqual(try XCTUnwrap(projection(active: 292)).burnedValue(locale: locale), "≈2092 kcal")
+    }
+
     func testPreviousSevenLocalDatesAcrossDSTAndYearBoundary() {
         let history = (26...31).map { row("2026-10-\($0)", resting: 1800) }
             + [row("2026-11-01", resting: 1800)]

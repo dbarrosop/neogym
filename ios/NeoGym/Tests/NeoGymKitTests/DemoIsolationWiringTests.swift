@@ -36,6 +36,20 @@ final class DemoIsolationWiringTests: XCTestCase {
         XCTAssertTrue(shell.contains("environment.isDemo ? .disabled : .live"))
     }
 
+    func testCaptureClockIsOptInAndClearedBeforeReturningToLiveMode() throws {
+        let demo = try source("App/DemoModeView.swift")
+        XCTAssertTrue(demo.contains("try DemoCaptureProfile.requested()"))
+        XCTAssertTrue(demo.contains("AppClock.useDemoCapture(isDemo ? captureProfile : nil)"))
+        XCTAssertTrue(demo.contains("AppClock.useDemoCapture(captureProfile)"))
+        let exitStart = try XCTUnwrap(demo.range(of: "func exitDemo()"))
+        let exitEnd = try XCTUnwrap(demo.range(of: "struct AppModeView"))
+        let exit = demo[exitStart.lowerBound..<exitEnd.lowerBound]
+        XCTAssertTrue(exit.contains("AppClock.useDemoCapture(nil)"))
+        XCTAssertTrue(demo.contains("now: AppClock.now(), calendar: AppClock.calendar"))
+        let driver = try source("UITests/DemoGuideCaptureUITests.swift")
+        XCTAssertTrue(driver.contains("app.launchEnvironment = request[\"environment\"]"))
+    }
+
     func testAllPhoneEnergyWidgetWritesGoThroughTheEffectBoundary() throws {
         for path in ["App/Today/TodayView.swift", "App/DailyEnergyViews.swift", "App/Shell/NutritionNavigationView.swift", "App/Shell/ProgressNavigationView.swift"] {
             let view = try source(path)

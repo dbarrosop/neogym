@@ -62,7 +62,7 @@ public struct StrengthProgress: Sendable, Equatable {
 
 public enum StrengthProgressBuilder {
     public static func build(
-        rows: [StrengthProgressRow], now: Date = Date(), calendar: Calendar = .current
+        rows: [StrengthProgressRow], now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar
     ) -> StrengthProgress {
         let today = calendar.startOfDay(for: now)
         let recentStart = calendar.date(byAdding: .day, value: -9, to: today) ?? today
@@ -103,8 +103,8 @@ public enum StrengthProgressBuilder {
 @MainActor
 public final class StrengthProgressViewModel: ProgressHistoryViewModel<StrengthProgressRow> {
     public init(
-        repository: any SessionsRepositoryProtocol, calendar: Calendar = .current,
-        clock: @escaping @Sendable () -> Date = Date.init
+        repository: any SessionsRepositoryProtocol, calendar: Calendar = AppClock.calendar,
+        clock: @escaping @Sendable () -> Date = AppClock.now
     ) {
         super.init(cachedSnapshot: { from, through, zone in
             try await repository.cachedStrengthProgress(fromDay: from, throughDay: through, timeZone: zone)

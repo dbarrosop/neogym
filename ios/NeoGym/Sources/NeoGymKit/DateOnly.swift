@@ -1,11 +1,11 @@
 import Foundation
 
 public enum DateOnly {
-    public static func todayLocalISO(calendar: Calendar = .current, now: Date = Date()) -> String {
+    public static func todayLocalISO(calendar: Calendar = AppClock.calendar, now: Date = AppClock.now()) -> String {
         formatLocalISO(now, calendar: calendar)
     }
 
-    public static func parse(_ iso: String, calendar: Calendar = .current) -> Date? {
+    public static func parse(_ iso: String, calendar: Calendar = AppClock.calendar) -> Date? {
         let parts = iso.split(separator: "-", omittingEmptySubsequences: false)
         guard parts.count == 3,
               let year = Int(parts[0]),
@@ -31,7 +31,7 @@ public enum DateOnly {
         return calendar.date(from: components)
     }
 
-    public static func formatLong(_ iso: String, locale: Locale = .current, calendar: Calendar = .current) -> String {
+    public static func formatLong(_ iso: String, locale: Locale = .current, calendar: Calendar = AppClock.calendar) -> String {
         guard let date = parse(iso, calendar: calendar) else { return iso }
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -41,7 +41,7 @@ public enum DateOnly {
         return formatter.string(from: date)
     }
 
-    public static func formatShort(_ iso: String, locale: Locale = .current, calendar: Calendar = .current) -> String {
+    public static func formatShort(_ iso: String, locale: Locale = .current, calendar: Calendar = AppClock.calendar) -> String {
         guard let date = parse(iso, calendar: calendar) else { return iso }
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -51,7 +51,7 @@ public enum DateOnly {
         return formatter.string(from: date)
     }
 
-    public static func formatLocalISO(_ date: Date, calendar: Calendar = .current) -> String {
+    public static func formatLocalISO(_ date: Date, calendar: Calendar = AppClock.calendar) -> String {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
         let year = components.year ?? 0
         let month = components.month ?? 0

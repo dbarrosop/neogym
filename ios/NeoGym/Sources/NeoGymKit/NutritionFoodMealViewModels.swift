@@ -197,15 +197,7 @@ public final class MealsListViewModel: ObservableObject {
     public var isFiltered: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     public var filteredMeals: [Meal] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return meals }
-        return meals.filter { meal in
-            meal.name.lowercased().contains(query)
-                || (meal.description?.lowercased().contains(query) ?? false)
-                || meal.mealIngredients.contains { ingredient in
-                    ingredient.food?.name.lowercased().contains(query) ?? false
-                }
-        }
+        meals.filter { $0.matchesSearch(searchText) }
     }
 
     public var filteredTotals: MacroTotals {

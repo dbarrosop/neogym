@@ -224,7 +224,7 @@ public final class ExerciseDetailViewModel: ObservableObject {
     public init(
         exerciseId: String,
         repository: any ExercisesRepositoryProtocol,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = AppClock.now
     ) {
         self.exerciseId = exerciseId
         self.repository = repository
