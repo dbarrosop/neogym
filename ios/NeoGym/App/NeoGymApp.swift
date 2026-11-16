@@ -8,6 +8,11 @@ struct NeoGymApp: App {
     @StateObject private var mode = AppModeController()
     private let notificationDelegate = NeoGymNotificationDelegate()
 
+    init() {
+        // Live Activity buttons can launch the app in the background before any scene.
+        LiveRestTimerIntents.install()
+    }
+
     var body: some Scene {
         WindowGroup {
             AppModeView(mode: mode)
@@ -27,7 +32,9 @@ final class LiveAppRuntime: ObservableObject {
 
     init() {
         let environment = NhostClientFactory.makeProductionEnvironment()
-        let restTimers = RestTimerAccountScope(effects: RestTimerSystemEffects())
+        let restEffects = RestTimerSystemEffects()
+        let restTimers = RestTimerAccountScope(effects: restEffects)
+        LiveRestTimerIntents.attach(scope: restTimers, effects: restEffects)
         let gate = LiveEffectsGate()
         self.effectsGate = gate
         self.environment = environment
@@ -51,6 +58,7 @@ final class LiveAppRuntime: ObservableObject {
 
     func suspendForDemo() {
         effectsGate.enabled = false
+        LiveRestTimerIntents.detach(scope: restTimers)
         phoneConnectivity.suspend()
         authStore.retire()
     }
@@ -63,6 +71,7 @@ struct LiveAppView: View {
     let enterDemo: () -> Void
     @StateObject private var runtime = LiveAppRuntime()
     @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
+    @StateObject private var deepLinks = AppDeepLinkRouter()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -73,7 +82,15 @@ struct LiveAppView: View {
         .environmentObject(runtime.authStore)
         .environmentObject(authCallbackURLRouter)
         .environmentObject(runtime.phoneConnectivity)
-        .onOpenURL { authCallbackURLRouter.open($0) }
+        .environment(\.appDeepLinks, deepLinks)
+        .onOpenURL { url in
+            // Navigation links never reach the auth callback handler.
+            if let link = AppDeepLink(url: url) {
+                deepLinks.open(link)
+            } else {
+                authCallbackURLRouter.open(url)
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { runtime.phoneConnectivity.foreground() }
         }

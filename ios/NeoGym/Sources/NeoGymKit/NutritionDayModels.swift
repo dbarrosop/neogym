@@ -323,13 +323,10 @@ public struct NutritionOverviewPayload: Sendable, Equatable {
         days count: Int = 7,
         calendar: Calendar = AppClock.calendar
     ) -> RollingCalorieNetAverage? {
-        let nets = netValues(endingOn: endDate, days: count, calendar: calendar)
-        guard !nets.isEmpty else { return nil }
-        let average = nets.reduce(0, +) / Double(nets.count)
-        return RollingCalorieNetAverage(
-            averageNet: average,
-            includedDayCount: nets.count,
-            windowDayCount: max(count, 1)
+        RollingCalorieNetAverage(
+            endingOn: endDate, days: count,
+            intakeByDate: daysByDate.mapValues(\.loggedTotals.kcal),
+            energyByDate: energyByDate, calendar: calendar
         )
     }
 
@@ -354,18 +351,6 @@ public struct NutritionOverviewPayload: Sendable, Equatable {
         .sorted { $0.date < $1.date }
     }
 
-    private func netValues(endingOn endDate: String, days count: Int, calendar: Calendar) -> [Double] {
-        let daysByDate = daysByDate
-        let energyByDate = energyByDate
-        let dates = (0..<max(count, 1)).map { offset in
-            IntakeGrouping.addLocalDateDays(endDate, days: -offset, calendar: calendar)
-        }
-
-        return dates.compactMap { date -> Double? in
-            guard let day = daysByDate[date], let energy = energyByDate[date] else { return nil }
-            return DailyCalorieBalance(caloriesIn: day.loggedTotals.kcal, dailyEnergy: energy).net
-        }
-    }
 }
 
 public struct DatedCalorieNet: Sendable, Equatable {
@@ -389,6 +374,31 @@ public struct RollingCalorieNetAverage: Sendable, Equatable {
         self.windowDayCount = windowDayCount
     }
 
+    /// The one 7-day rule shared by Today, the widgets and the watch: each date in the
+    /// window ending on `endDate` counts only when it has both a nutrition day and an
+    /// energy row; nil when none does.
+    public init?(
+        endingOn endDate: String,
+        days count: Int = 7,
+        intakeByDate: [String: Double],
+        energyByDate: [String: DailyEnergy],
+        calendar: Calendar = .current
+    ) {
+        let dates = (0..<max(count, 1)).map { offset in
+            IntakeGrouping.addLocalDateDays(endDate, days: -offset, calendar: calendar)
+        }
+        let nets = dates.compactMap { date -> Double? in
+            guard let intake = intakeByDate[date], let energy = energyByDate[date] else { return nil }
+            return DailyCalorieBalance(caloriesIn: intake, dailyEnergy: energy).net
+        }
+        guard !nets.isEmpty else { return nil }
+        self.init(
+            averageNet: nets.reduce(0, +) / Double(nets.count),
+            includedDayCount: nets.count,
+            windowDayCount: max(count, 1)
+        )
+    }
+
     public var state: DailyCalorieBalanceState {
         if averageNet < 0 { return .deficit }
         if averageNet > 0 { return .surplus }
@@ -407,6 +417,8 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
     public let projection: DailyEnergyProjection?
     public let sevenDayAverageNet: Double?
     public let sevenDayAverageState: DailyCalorieBalanceState?
+    /// The day's selected plan kcal, for the Lock Screen "food in against the plan".
+    public let planKcal: Double?
     public let latestLoggedSlotTime: String?
     public let consumedValue: String
     public let consumedCaption: String
@@ -452,6 +464,7 @@ public struct EnergyBalanceOverviewSummary: Sendable, Equatable {
         projection = payload.energyProjection(today: today, calendar: calendar)
         sevenDayAverageNet = average?.averageNet
         sevenDayAverageState = average?.state
+        planKcal = todayDay?.nutritionPlan?.macroTotals.kcal
         latestLoggedSlotTime = todayDay?.latestLoggedSlotTime
 
         consumedValue = Self.kcalValue(balance.caloriesIn, locale: locale)

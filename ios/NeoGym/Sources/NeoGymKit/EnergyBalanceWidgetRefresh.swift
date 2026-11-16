@@ -105,7 +105,7 @@ public struct EnergyBalanceWidgetLiveRefreshOrchestrator: Sendable {
         locale: Locale = .current
     ) async -> EnergyBalanceWidgetTimeline {
         let result = await refresh(date: date, calendar: calendar, locale: locale)
-        return EnergyBalanceWidgetTimeline(result: result, date: date, calendar: calendar)
+        return EnergyBalanceWidgetTimeline(result: result, date: date, calendar: calendar, locale: locale)
     }
 
     public func refresh(
@@ -126,8 +126,7 @@ public struct EnergyBalanceWidgetLiveRefreshOrchestrator: Sendable {
             let liveSnapshot = EnergyBalanceWidgetSnapshot(
                 summary: summary,
                 userMarker: payload.userMarker,
-                generatedAt: date,
-                locale: locale
+                generatedAt: date
             )
             snapshotWriter(liveSnapshot)
             return EnergyBalanceWidgetLiveRefreshResult(

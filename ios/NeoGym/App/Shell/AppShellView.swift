@@ -1,3 +1,4 @@
+import Combine
 import NeoGymKit
 import Nhost
 import SwiftUI
@@ -29,6 +30,7 @@ struct AppShellView: View {
     @State private var nutritionRevision = 0
     @ObservedObject var restTimer: RestTimerController
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.appDeepLinks) private var deepLinks
 
     var body: some View {
         TabView(selection: $selection) {
@@ -78,6 +80,24 @@ struct AppShellView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             nutritionLogDate.refreshToday()
+        }
+        .onReceive(pendingDeepLinks) { link in
+            guard let link else { return }
+            open(link)
+            deepLinks?.consume(link)
+        }
+    }
+
+    /// Emits the current pending link on subscribe, so a cold launch applies it once mounted.
+    private var pendingDeepLinks: AnyPublisher<AppDeepLink?, Never> {
+        deepLinks?.$pending.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()
+    }
+
+    /// Widgets open Today; the rest timer Live Activity opens its session.
+    private func open(_ link: AppDeepLink) {
+        switch link {
+        case .today: selection = .today
+        case let .session(id): openSession(id)
         }
     }
 

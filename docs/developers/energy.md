@@ -172,12 +172,18 @@ Daily intake screens show a read-only calories-in/out/net balance:
 - If no `daily_energy` row exists for the day, clients render intake-only/no
   energy logged instead of treating output as zero or showing a misleading net.
 
-The native medium Energy Balance widget displays the same read-only balance
-contract for today plus the 7-day average net. `NeoGymKit` owns the shared
-summary math, captions, snapshot DTO/store, and live-fetch/fallback orchestration;
+The native **Balance** widget (Home Screen small and medium; Lock Screen inline,
+rectangular and circular) displays the same read-only balance contract as
+Today's Balance card: balance so far (food in minus energy out), in and out,
+the resting/active split, and the end-of-day estimate; medium adds the 7-day
+average net, and the Lock Screen circular shows food in against the day's
+selected plan kcal. `NeoGymKit` owns the shared summary math, the snapshot
+DTO/store, the `EnergyBalanceDisplay` formatter (also used by the watch app and
+complication), and live-fetch/fallback orchestration;
 `ios/NeoGym/Sources/NeoGymKit/EnergyBalanceWidgetSnapshot.swift` stores only
-aggregate, preformatted snapshot fields in the App Group and never stores auth
-tokens. The app writes snapshots after successful fresh nutrition overview loads on Today,
+aggregate kcal numbers (schema v2, key `energyBalanceWidgetSnapshot.v2`) in the
+App Group and never stores auth tokens. Pre-redesign v1 string snapshots are
+never read and are removed on the next save or clear. The app writes snapshots after successful fresh nutrition overview loads on Today,
 clears them on sign-out/signed-out bootstrap/auth errors/user switches, and asks
 WidgetKit to reload timelines. Nutrition mutations and Energy-list loads also ask
 WidgetKit to reload timelines so the widget can try a live server refresh after
@@ -235,12 +241,12 @@ estimated net = today's logged snapshot kcal - estimated burned
 
 Surfaces: native Today, today's Nutrition › Log, Progress › Energy list and
 current-day detail; web Today (Balance card, beside yesterday's actual balance),
-today's daily log and Energy list/current-day detail; watch app Energy; and the
-medium iPhone Energy Balance widget. Energy pages
-fetch nutrition as well as energy to calculate today's estimated net. Historical
-day/detail screens and charts retain recorded values only. The compact **watch
-complication remains unchanged**, including its actual-burn/net math and reload
-identity.
+today's daily log and Energy list/current-day detail; the watch app's End of day
+page; and the small and medium iPhone Balance widgets ("End of day ≈ −851").
+Energy pages fetch nutrition as well as energy to calculate today's estimated
+net. Historical day/detail screens and charts retain recorded values only. The
+**watch complication** and the iPhone **Lock Screen** widgets show actual
+balance so far only, never estimates.
 
 Native daily intake and watch reads include seven previous energy dates plus
 today. The native overview read behind Today keeps future-dated nutrition logs in its browsing list
@@ -268,29 +274,49 @@ The watch snapshot carries an optional aggregate resting baseline so the app
 can immediately recompute a projection when an eligible provisional local
 Health reading replaces today's partial totals. It retains the same owner/date
 and manual-row gates as existing snapshots; old snapshots without that baseline
-still decode and show actual values only. Baseline-only changes do not request
-complication reloads. The iPhone widget snapshot adds optional formatted estimate
-strings; old snapshots still decode. Its compact layout owns its content margins:
-a softly tinted Net panel uses a prominent signed value beside green cutlery
-(consumed) and red flame (burned) icons with neutral rounded numerals. Estimates
-remain secondary lines beneath their recorded metrics. A shared kcal unit sits
-in the header; the 7-day average net and last-sync time share a quiet footer.
-Repeated units, per-metric timestamps, the active/resting breakdown and balance
-arrows are not visible. VoiceOver retains full labels, units, captions and both
-estimates, including the forecast limitation.
-The empty state uses only a sign-in title and open-app sync prompt. Widget
-estimates are shown only when the snapshot's date matches the timeline entry's
-local date. For live and cached estimates,
-`EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` also schedules an estimate-free
-entry at the next local midnight using calendar-day arithmetic (including DST).
-That entry retains recorded snapshot values and the last-synced caption without
-requiring another backend fetch or provider execution. The existing 15/30-minute
-provider reload policies remain best-effort; a new day's estimates require a
-snapshot for that day.
+still decode and show actual values only. Baseline-only and 7-day-average-only
+changes do not request complication reloads; a plan kcal change does.
+
+The iPhone widget snapshot carries the estimated burned/net kcal as optional
+numbers. Every surface formats through `EnergyBalanceDisplay`: whole kcal with
+locale grouping and a true minus sign ("+251", "−851"), estimates as "≈ −851",
+missing energy as "—" (unknown, never zero), and the snapshot's read time
+("13:40"). Colour follows the metric: resting is Chart 1 (blue), active Chart 2
+(orange); there are no green, red or teal glyphs. In tinted Home Screen modes the
+big number and the bar are accentable and the active segment drops to 45 % of the
+tint; In/Out/Resting/Active labels keep the meaning without colour. The Lock
+Screen draws accessories in one vibrant colour, so its words carry the meaning;
+inline uses the `scalemass` symbol (accessory inline accepts only SF Symbols),
+rectangular uses the shared two-pan balance glyph. Signed out or never synced
+shows one message and the app icon, never zeros. Tapping any family opens Today
+(`neogym://today`); medium's Refresh keeps the existing intent. VoiceOver labels
+name each value and unit.
+
+Estimates are shown only when the snapshot's date matches the timeline entry's
+local date. For a same-day snapshot,
+`EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` also schedules an entry at
+the next local midnight using calendar-day arithmetic (including DST). That entry
+keeps the recorded values but drops estimates and relabels "today so far" as the
+snapshot's weekday ("Sunday so far"), without another backend fetch or provider
+execution. The existing 15/30-minute provider reload policies remain
+best-effort; a new day's estimates require a snapshot for that day.
 
 ## Watch Energy and complication
 
-The signed-in watch app has swipeable Energy, Profile, and Events pages. Events
+The signed-in watch app has vertical pages: **Today** (balance so far, the
+resting/active bar and In/Out), **End of day** (the estimate card with Net ≈ and
+Burned ≈, the 7-day average net, Refresh and the sync time) and **Account**
+(initial, name, "Signed in from iPhone", Health status, Sign out). Until the
+watch has asked for Health access, an **Allow Health access** page comes first.
+Words and numbers match the phone's Today card, sized for the watch (title 17,
+body 15, caption 13, 40 pt buttons). Account states without a usable session
+(connect from iPhone, sign in again, signed out on iPhone, session error) use a
+message layout (icon, title, one line, buttons) instead of red text.
+
+Diagnostics move out of the page set: Account has a watch-only **Debug mode**
+switch (`watchDebugMode.v1` in watch-only defaults, off by default), and only
+while it is on does a **Diagnostics** page open behind Account. Event logging
+itself is unaffected by the switch. Diagnostics events
 retain the last 300 timestamped, watch-app-only typed outcomes across launches:
 background scheduling requests/acceptances/failures, actual wakes, Health
 observer arrival/acknowledgement (and legacy timeout), permission/reconciliation,
@@ -333,7 +359,7 @@ The widget extension separately records up to 64 timestamp-only receipts in
 an atomic App Group file when `getTimeline`/`getSnapshot` reads its shared
 snapshot. Each receipt has the request time, local date and snapshot update
 time (or absence), never the values or owner; a receipt does not prove the face
-rendered it. The watch Events page can load these receipts on demand.
+rendered it. The watch Diagnostics page can load these receipts on demand.
 **Share logs** uses the watchOS system share sheet and attaches a temporary
 plain-text `.txt` file with typed events plus widget receipts. `ShareLink`
 cannot pre-address Mail; nothing is emailed/uploaded automatically. Neither
@@ -353,11 +379,12 @@ marks main-actor handling, not raw callback receipt, so `acknowledged` can
 precede it after suspension. The app-state field is omitted for acknowledgement
 because recording-time state could be different from callback-time state. An accepted hourly-preferred request does not guarantee an OS wake, nor does a WidgetKit
 reload request confirm a new watch-face rendering. A local snapshot
-save failure also appears on the Energy page and skips the reload request. On launch it
+save failure also appears on the End of day page and skips the reload request. On launch it
 restores the local SDK session, shows the last fetched name/email from a
 watch-app-only, session-user-ID-checked cache (falling back to the SDK session
 name) and today's same-owner energy snapshot, then revalidates name/email from
-uncached Auth `GET /user` in the background. Profile offers watch-only sign-out;
+uncached Auth `GET /user` in the background. Account shows the name (not the
+email) and offers watch-only sign-out;
 non-auth `/user` errors retain the same-owner cached or session-fallback
 profile with Retry; connectivity failures say to retry when connected, while
 other failures use a neutral refresh warning. Auth errors clear the profile.
@@ -379,31 +406,36 @@ activation and account validation before accessing the private backend. If a
 transient `/user` failure leaves a same-owner cached profile visible, later
 background wakes and HealthKit observer deliveries retry validation before
 private energy access; a still-failing or rejected account skips sync. The
-Energy page shows the validation warning and its Refresh control retries the
-read before fetching energy. Energy shows today's consumed kcal from nutrition
-log snapshots (including standalone entries and logged-meal children), total
-burned kcal from today's `daily_energy` active
-plus resting values, the active/resting breakdown, and Net (`consumed - burned`).
-An absent backend energy row displays `—` for burned, its breakdown, and Net
-unless an eligible local Health estimate has been saved. A missing component on
-an existing energy row
-shows `—` in the breakdown but counts as zero toward total burned, matching
-the backend balance contract. The watch app uses icons instead of visible Consumed/Burned labels while
-retaining VoiceOver labels. Net uses the same prominent icon-and-value style
-with a balance-scale symbol in the app and a custom two-pan balance icon in
-the complication. Only the complication's icons are tinted: cutlery green,
-flame red, balance teal/turquoise. Its consumed and burned values have the
-same bold type and no visible “in/out” words; VoiceOver still names them.
-The Energy heading includes a smaller `(kcal)` unit, with no redundant Today subheading.
-An icon-only circular-arrow refresh control sits before the last-synced time;
-there is no separate Refresh text button. Its rectangular complication shows
-intake and total burn, active/resting, and icon-labeled Net in three compact
-rows. Net is derived from the token-free snapshot, not stored as a
-separate value; older snapshots lacking the optional breakdown still decode
-until the next refresh. The app reads a small date-bounded GraphQL query from
-the watch's own managed session.
+End of day page shows the validation warning and its Refresh control retries the
+read before fetching energy. Today shows the balance so far (consumed minus
+burned), today's consumed kcal from nutrition log snapshots (including
+standalone entries and logged-meal children) as In, total burned kcal from
+today's `daily_energy` active plus resting values as Out, and the resting/active
+split. An absent backend energy row displays `—` for the balance and Out and
+hides the split unless an eligible local Health estimate has been saved. A
+missing component on an existing energy row counts as zero toward Out and the
+split, matching the backend balance contract. The same WatchTodayEnergy read
+also returns the previous seven dates' intake (for the 7-day net average, using
+the phone's rule: dates with both a nutrition day and an energy row, today
+included) and today's selected plan (for its kcal).
 
-After the user taps **Sync Apple Health**, the watch requests read-only
+The complication has two families. **Rectangular** mirrors the iPhone Lock Screen
+widget: the two-pan balance glyph and "Balance so far", the balance with unit,
+then "In · Out". **Circular** is food in against the plan as a capacity ring with
+a compact number ("1.5k", "IN"). Full colour uses the accent for the title and
+Chart 1 for the ring; tinted faces take the face colour for the title and ring
+only, and numbers stay white. A snapshot older than an hour shows its time
+("Balance at 13:40"), never a guess; a snapshot from an earlier date shows "—"
+with "Open NeoGym to sync"; no snapshot at all (never connected, or cleared by
+sign-out or a blocking phone hint) shows "Not connected · Open the app on
+iPhone". The provider reads the latest snapshot of any date and schedules extra
+entries at the stale point and at local midnight. Balance is derived from the
+token-free snapshot, not stored as a separate value; older snapshots lacking
+the optional breakdown, plan or average still decode until the next refresh.
+The app reads a small date-bounded GraphQL query from the watch's own managed
+session.
+
+After the user taps **Allow** on the Allow Health access page, the watch requests read-only
 `.activeEnergyBurned` and `.basalEnergyBurned` access (never writes HealthKit),
 sums statistics across local calendar days, and syncs the last seven dates to
 the private backend `daily_energy` table. It only creates dates with positive
@@ -412,7 +444,7 @@ note; it never overwrites manual/edited rows. Unique-date insert races are
 skipped. The iPhone no longer uploads HealthKit energy; previously imported
 phone rows with that exact note may be refreshed by the watch. A fresh
 backend read follows direct writes or a completed background upload so the
-Energy page and complication eventually use post-sync values, including food
+Today pages and complication eventually use post-sync values, including food
 logs recorded on another device. An observer delivery first attempts a local
 seven-day Health read; for a same-owner snapshot whose last known server row was
 imported or absent, today's valid metric totals can be saved and displayed as

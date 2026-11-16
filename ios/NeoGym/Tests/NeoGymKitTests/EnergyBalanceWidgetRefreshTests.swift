@@ -164,19 +164,12 @@ final class EnergyBalanceWidgetLiveRefreshTests: XCTestCase {
         EnergyBalanceWidgetSnapshot(
             localDate: "2026-07-11",
             userMarker: "cached-user",
-            generatedAtISO8601: "2026-07-11T12:00:00Z",
-            generatedAtText: "Jul 11, 2026 at 12:00 PM",
-            lastSyncedText: "Last synced 12:00 PM",
-            consumedValue: "1,200 kcal",
-            consumedCaption: "As of 12:00 PM",
-            burnedValue: "1,800 kcal",
-            burnedCaption: "300 + 1,500 kcal",
-            netValue: "−600 kcal",
-            netCaption: "Deficit",
-            netState: "deficit",
-            sevenDayValue: "−200 kcal",
-            sevenDayCaption: "Deficit",
-            sevenDayState: "deficit"
+            generatedAt: Date(timeIntervalSince1970: 1_783_771_200),
+            consumedKcal: 1_200,
+            burnedKcal: 1_800,
+            activeKcal: 300,
+            restingKcal: 1_500,
+            sevenDayAverageNet: -200
         )
     }
 

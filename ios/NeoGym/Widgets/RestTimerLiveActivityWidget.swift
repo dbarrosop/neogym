@@ -1,4 +1,6 @@
 import ActivityKit
+import AppIntents
+import NeoGymKit
 import SwiftUI
 import WidgetKit
 
@@ -6,85 +8,242 @@ import WidgetKit
 struct NeoGymWidgetsBundle: WidgetBundle {
     var body: some Widget {
         EnergyBalanceWidget()
-
-        if #available(iOSApplicationExtension 16.2, *) {
-            RestTimerLiveActivityWidget()
-        }
+        RestTimerLiveActivityWidget()
     }
 }
 
-@available(iOSApplicationExtension 16.2, *)
+/// The session's rest pill on the Lock Screen and in the Dynamic Island. The time
+/// counts down by itself; the app updates it only on +30 s or Skip. At the end date
+/// the activity turns stale and shows "Rest over" with Open session.
 struct RestTimerLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: RestTimerActivityAttributes.self) { context in
             RestTimerLockScreenView(context: context)
-                .activityBackgroundTint(Color(.systemBackground))
-                .activitySystemActionForegroundColor(.accentColor)
+                .activityBackgroundTint(WidgetTheme.surface.opacity(0.94))
+                .activitySystemActionForegroundColor(WidgetTheme.text)
+                .widgetURL(context.sessionURL)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: "stopwatch.fill")
-                        .foregroundStyle(Color.accentColor)
-                }
-                DynamicIslandExpandedRegion(.center) {
-                    VStack(spacing: 2) {
-                        Text("Rest timer")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(context.state.endDate, style: .timer)
-                            .font(.headline.monospacedDigit().weight(.bold))
+                    HStack(spacing: 10) {
+                        RestStatusGlyph(isOver: context.isStale, size: 22)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(context.isStale ? "Rest over" : "Rest").font(.system(size: 15, weight: .semibold))
+                            if let exercise = context.state.exerciseName {
+                                Text(exercise)
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(WidgetTheme.textSecondary)
+                            }
+                        }
+                        .lineLimit(1)
                     }
+                    .padding(.leading, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(context.accessibilitySummary)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    Text(Self.durationText(context.attributes.duration))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                    RestCountdown(context: context, size: 40)
+                        .padding(.trailing, 4)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        if let detail = context.expandedDetail {
+                            Text(detail)
+                                .font(.system(size: 13))
+                                .monospacedDigit()
+                                .foregroundStyle(WidgetTheme.textSecondary)
+                        }
+                        RestActions(context: context, height: 40)
+                    }
+                    .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                Image(systemName: "stopwatch.fill")
-                    .foregroundStyle(Color.accentColor)
+                RestStatusGlyph(isOver: context.isStale, size: 17)
             } compactTrailing: {
-                Text(context.state.endDate, style: .timer)
-                    .monospacedDigit()
+                RestCountdown(context: context, size: 15, weight: .semibold)
                     .frame(maxWidth: 44)
             } minimal: {
-                Image(systemName: "stopwatch.fill")
-                    .foregroundStyle(Color.accentColor)
+                RestMinimalRing(context: context)
             }
+            .widgetURL(context.sessionURL)
+            .keylineTint(WidgetTheme.accentText)
         }
-    }
-
-    private static func durationText(_ duration: TimeInterval) -> String {
-        let seconds = Int(duration.rounded())
-        if seconds >= 60 {
-            return "\(seconds / 60)m"
-        }
-        return "\(seconds)s"
     }
 }
 
-@available(iOSApplicationExtension 16.2, *)
+private extension ActivityViewContext<RestTimerActivityAttributes> {
+    var startDate: Date { state.startDate(fallback: attributes.startedAt) }
+    var countdownInterval: ClosedRange<Date> { startDate...max(startDate, state.endDate) }
+    var sessionURL: URL? { state.sessionId.flatMap(AppDeepLink.sessionURL) }
+
+    /// "Set 3 next · 95 kg × 10" in the expanded island.
+    var expandedDetail: String? {
+        let set = state.nextSetNumber.map { isStale ? "Set \($0)" : "Set \($0) next" }
+        let parts = [set, state.target].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    var accessibilitySummary: String {
+        let context = (isStale ? state.finishedLabel : state.runningLabel).map { ", \($0)" } ?? ""
+        let target = state.target.map { ", \($0)" } ?? ""
+        return (isStale ? "Rest over" : "Rest") + context + target
+    }
+}
+
+private struct RestStatusGlyph: View {
+    let isOver: Bool
+    let size: CGFloat
+
+    var body: some View {
+        Image(systemName: isOver ? "checkmark" : "stopwatch")
+            .font(.system(size: size * 0.9, weight: isOver ? .bold : .semibold))
+            .foregroundStyle(isOver ? WidgetTheme.positive : WidgetTheme.accentText)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+/// Counts down to the end date and stops at 0:00, in the accent while running and
+/// tertiary once the rest is over.
+private struct RestCountdown: View {
+    let context: ActivityViewContext<RestTimerActivityAttributes>
+    let size: CGFloat
+    var weight: Font.Weight = .bold
+
+    var body: some View {
+        Group {
+            if context.isStale {
+                Text("0:00").foregroundStyle(WidgetTheme.textTertiary)
+            } else {
+                Text(timerInterval: context.countdownInterval, countsDown: true)
+                    .foregroundStyle(WidgetTheme.accentText)
+            }
+        }
+        .font(.system(size: size, weight: weight))
+        .tracking(size >= 30 ? -0.02 * size : 0)
+        .monospacedDigit()
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+    }
+}
+
+/// The time-left bar: full at the start of the rest, empty at its end.
+private struct RestProgressBar: View {
+    let context: ActivityViewContext<RestTimerActivityAttributes>
+
+    var body: some View {
+        ProgressView(timerInterval: context.countdownInterval, countsDown: true) {
+            EmptyView()
+        } currentValueLabel: {
+            EmptyView()
+        }
+        .progressViewStyle(.linear)
+        .tint(WidgetTheme.accentText)
+        .accessibilityLabel("Time left")
+    }
+}
+
+/// +30 s and Skip are App Intents that update the session's own timer; once the rest
+/// is over they give way to Open session.
+private struct RestActions: View {
+    let context: ActivityViewContext<RestTimerActivityAttributes>
+    let height: CGFloat
+
+    var body: some View {
+        if context.isStale {
+            if let url = context.sessionURL {
+                Link(destination: url) {
+                    Text("Open session")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: height)
+                        .background(WidgetTheme.accentFill, in: Capsule())
+                }
+            }
+        } else {
+            VStack(spacing: 12) {
+                RestProgressBar(context: context)
+                HStack(spacing: 10) {
+                    Button(intent: ExtendRestTimerIntent()) {
+                        Text("+30 s").capsuleAction(height: height)
+                    }
+                    .accessibilityLabel("Add 30 seconds")
+                    Button(intent: SkipRestTimerIntent()) {
+                        HStack(spacing: 6) {
+                            Text("Skip")
+                            Image(systemName: "forward.end.fill").font(.system(size: 12, weight: .bold))
+                        }
+                        .capsuleAction(height: height)
+                    }
+                    .accessibilityLabel("Skip rest")
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+private extension View {
+    func capsuleAction(height: CGFloat) -> some View {
+        font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(WidgetTheme.text)
+            .frame(maxWidth: .infinity, minHeight: height)
+            .background(WidgetTheme.fill, in: Capsule())
+            .contentShape(Capsule())
+    }
+}
+
+/// With another Live Activity: a ring of time left around the glyph.
+private struct RestMinimalRing: View {
+    let context: ActivityViewContext<RestTimerActivityAttributes>
+
+    var body: some View {
+        if context.isStale {
+            RestStatusGlyph(isOver: true, size: 14)
+        } else {
+            ProgressView(timerInterval: context.countdownInterval, countsDown: true) {
+                EmptyView()
+            } currentValueLabel: {
+                RestStatusGlyph(isOver: false, size: 11)
+            }
+            .progressViewStyle(.circular)
+            .tint(WidgetTheme.accentText)
+            .accessibilityLabel("Rest time left")
+        }
+    }
+}
+
 private struct RestTimerLockScreenView: View {
     let context: ActivityViewContext<RestTimerActivityAttributes>
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "stopwatch.fill")
-                .font(.title3.weight(.bold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 36, height: 36)
-                .background(Circle().fill(Color.accentColor.opacity(0.14)))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("NeoGym rest timer")
-                    .font(.subheadline.weight(.semibold))
-                Text("Next set in")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                RestStatusGlyph(isOver: context.isStale, size: 20)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(context.isStale ? "Rest over" : "Rest")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(WidgetTheme.text)
+                    if let label = context.isStale ? context.state.finishedLabel : context.state.runningLabel {
+                        Text(label)
+                            .font(.system(size: 13))
+                            .foregroundStyle(WidgetTheme.textSecondary)
+                    }
+                    if let target = context.state.target {
+                        Text(target)
+                            .font(.system(size: 13))
+                            .monospacedDigit()
+                            .foregroundStyle(WidgetTheme.textSecondary)
+                    }
+                }
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(context.accessibilitySummary)
+                RestCountdown(context: context, size: 40)
             }
-            Spacer()
-            Text(context.state.endDate, style: .timer)
-                .font(.title3.monospacedDigit().weight(.bold))
+            RestActions(context: context, height: 38)
         }
-        .padding(.vertical, 4)
+        .padding(16)
     }
 }

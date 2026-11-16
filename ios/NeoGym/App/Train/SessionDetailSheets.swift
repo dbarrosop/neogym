@@ -97,10 +97,10 @@ extension SessionDetailView {
                     reps: reps,
                     weight: weight,
                     onInserted: {
-                        restTimer.start(
-                            label: "\(state.exerciseName) · set \(state.nextSetNumber + 1) next",
-                            sessionId: viewModel.sessionId
-                        )
+                        restTimer.start(sessionId: viewModel.sessionId, context: .afterLogging(
+                            exerciseName: state.exerciseName, loggedSetNumber: state.nextSetNumber,
+                            weight: weight, reps: reps, doubleWeight: state.doubleWeight
+                        ))
                         onMutated()
                     }
                 )

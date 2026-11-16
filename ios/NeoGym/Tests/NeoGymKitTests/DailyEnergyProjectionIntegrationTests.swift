@@ -127,24 +127,19 @@ final class DailyEnergyProjectionIntegrationTests: XCTestCase {
         XCTAssertTrue(requests[0].query.contains("balanceDays: nutritionDays"))
     }
 
-    func testIPhoneWidgetAddsOptionalEstimatesAndLegacySnapshotsStillDecode() throws {
+    func testIPhoneWidgetCarriesEstimatesAndRawNumbers() throws {
         let payload = NutritionOverviewPayload(days: [], dailyEnergyEntries: [
             DailyEnergy(id: "today", energyOn: today, activeKcal: 400, restingKcal: 1000),
             DailyEnergy(id: "prior", energyOn: "2026-11-01", restingKcal: 1800)
         ])
         let summary = EnergyBalanceOverviewSummary(payload: payload, today: today)
         let snapshot = EnergyBalanceWidgetSnapshot(summary: summary, userMarker: "owner", generatedAt: now)
-        XCTAssertNotNil(snapshot.estimatedBurnedValue)
-        XCTAssertNotNil(snapshot.estimatedNetValue)
-        XCTAssertEqual(snapshot.burnedValue, summary.burnedValue)
-        XCTAssertEqual(snapshot.netValue, summary.netTodayValue)
-        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(snapshot)) as? [String: Any])
-        json.removeValue(forKey: "estimatedBurnedValue")
-        json.removeValue(forKey: "estimatedNetValue")
-        let legacy = try JSONDecoder().decode(EnergyBalanceWidgetSnapshot.self,
-                                              from: JSONSerialization.data(withJSONObject: json))
-        XCTAssertNil(legacy.estimatedBurnedValue)
-        XCTAssertNil(legacy.estimatedNetValue)
-        XCTAssertEqual(legacy.netValue, snapshot.netValue)
+        XCTAssertEqual(snapshot.estimatedBurnedKcal, summary.projection?.estimatedBurnedKcal)
+        XCTAssertEqual(snapshot.estimatedNetKcal, summary.projection?.estimatedNetKcal)
+        XCTAssertEqual(snapshot.burnedKcal, summary.caloriesOut)
+        XCTAssertEqual(snapshot.netKcal, summary.net)
+        let decoded = try JSONDecoder().decode(EnergyBalanceWidgetSnapshot.self,
+                                               from: JSONEncoder().encode(snapshot))
+        XCTAssertEqual(decoded, snapshot)
     }
 }

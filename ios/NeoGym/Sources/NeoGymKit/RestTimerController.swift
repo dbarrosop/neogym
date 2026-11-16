@@ -46,10 +46,15 @@ public final class RestTimerController: ObservableObject {
         if sessionNames[id] != name { sessionNames[id] = name }
     }
 
-    public func start(seconds: Int? = nil, label: String? = nil, sessionId: String? = nil) {
+    public func start(
+        seconds: Int? = nil, label: String? = nil, sessionId: String? = nil,
+        context: RestTimerSetContext? = nil
+    ) {
         guard isValid, let ownerId, !ownerId.isEmpty else { return }
         effects.cancel()
-        apply(.start(seconds: seconds ?? defaultSeconds, now: now(), label: label, sessionId: sessionId))
+        apply(.start(
+            seconds: seconds ?? defaultSeconds, now: now(), label: label, sessionId: sessionId, context: context
+        ))
     }
 
     public func extend(by seconds: Int = RestTimerPreference.extensionSeconds) {
@@ -91,14 +96,7 @@ public final class RestTimerController: ObservableObject {
         guard let ownerId, !ownerId.isEmpty else { return }
         schedule = next
         remainingSeconds = next.remainingSeconds(at: now())
-        var stored: [String: Any] = [
-            "ownerId": ownerId,
-            "endDate": next.endDate.timeIntervalSince1970,
-            "duration": next.duration
-        ]
-        stored["label"] = next.label
-        stored["sessionId"] = next.sessionId
-        defaults.set(stored, forKey: Self.persistedKey)
+        Self.persist(next, ownerId: ownerId, defaults: defaults)
         effects.schedule(next)
         tickerTask?.cancel()
         tickerTask = Task { [weak self] in
@@ -113,19 +111,74 @@ public final class RestTimerController: ObservableObject {
 
     private func restore() {
         guard let ownerId, !ownerId.isEmpty,
-              let stored = defaults.dictionary(forKey: Self.persistedKey),
-              stored["ownerId"] as? String == ownerId,
-              let end = stored["endDate"] as? TimeInterval, end.isFinite,
-              let duration = stored["duration"] as? Int, duration > 0,
-              end > now().timeIntervalSince1970
+              let (storedOwner, schedule) = Self.persisted(defaults: defaults, now: now()),
+              storedOwner == ownerId
         else {
             cancel()
             return
         }
-        apply(RestTimerSchedule(
+        apply(schedule)
+    }
+}
+
+/// The persisted rest, shared by restoration and by Live Activity buttons that the
+/// system runs while no account runtime is mounted (a background app launch).
+extension RestTimerController {
+    static func persist(_ schedule: RestTimerSchedule, ownerId: String, defaults: UserDefaults) {
+        var stored: [String: Any] = [
+            "ownerId": ownerId,
+            "endDate": schedule.endDate.timeIntervalSince1970,
+            "duration": schedule.duration
+        ]
+        stored["label"] = schedule.label
+        stored["sessionId"] = schedule.sessionId
+        if let context = schedule.context {
+            stored["contextExercise"] = context.exerciseName
+            stored["contextSet"] = context.nextSetNumber
+            stored["contextTarget"] = context.target
+        }
+        defaults.set(stored, forKey: persistedKey)
+    }
+
+    /// A running, well-formed persisted rest and its owner; nil once it has ended.
+    static func persisted(defaults: UserDefaults, now: Date) -> (ownerId: String, schedule: RestTimerSchedule)? {
+        guard let stored = defaults.dictionary(forKey: persistedKey),
+              let ownerId = stored["ownerId"] as? String, !ownerId.isEmpty,
+              let end = stored["endDate"] as? TimeInterval, end.isFinite,
+              let duration = stored["duration"] as? Int, duration > 0,
+              end > now.timeIntervalSince1970
+        else { return nil }
+        var context: RestTimerSetContext?
+        if let exercise = stored["contextExercise"] as? String, let set = stored["contextSet"] as? Int {
+            context = RestTimerSetContext(exerciseName: exercise, nextSetNumber: set,
+                                          target: stored["contextTarget"] as? String)
+        }
+        let schedule = RestTimerSchedule(
             endDate: Date(timeIntervalSince1970: end), duration: duration,
-            label: stored["label"] as? String, sessionId: stored["sessionId"] as? String
-        ))
+            label: stored["label"] as? String, sessionId: stored["sessionId"] as? String, context: context
+        )
+        return (ownerId, schedule)
+    }
+
+    /// +30 s from the Live Activity while no controller is mounted. Keeps the stored
+    /// owner, so only that account's runtime restores it. Nil when nothing is running.
+    public static func extendPersisted(
+        by seconds: Int = RestTimerPreference.extensionSeconds,
+        defaults: UserDefaults = .standard,
+        now: Date = Date()
+    ) -> RestTimerSchedule? {
+        guard let (ownerId, schedule) = persisted(defaults: defaults, now: now) else {
+            defaults.removeObject(forKey: persistedKey)
+            return nil
+        }
+        let next = schedule.extended(by: seconds)
+        persist(next, ownerId: ownerId, defaults: defaults)
+        return next
+    }
+
+    /// Skip from the Live Activity while no controller is mounted.
+    public static func cancelPersisted(defaults: UserDefaults = .standard) {
+        defaults.removeObject(forKey: persistedKey)
     }
 }
 

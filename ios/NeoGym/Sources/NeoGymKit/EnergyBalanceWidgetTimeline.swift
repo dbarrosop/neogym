@@ -1,41 +1,41 @@
 import Foundation
 
-/// A renderable entry, including the estimates eligible on its scheduled local date.
+/// A renderable entry. Its display is formatted for the entry's own date, so the
+/// local-midnight entry drops estimates and relabels the day without a new fetch.
 public struct EnergyBalanceWidgetTimelineEntry: Sendable, Equatable {
     public let date: Date
     public let snapshot: EnergyBalanceWidgetSnapshot?
-    public let estimatedBurnedValue: String?
-    public let estimatedNetValue: String?
+    public let display: EnergyBalanceDisplay?
 
     public init(
         date: Date,
         snapshot: EnergyBalanceWidgetSnapshot?,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        locale: Locale = .current
     ) {
         self.date = date
         self.snapshot = snapshot
-        let isSnapshotDay = snapshot?.localDate == DateOnly.formatLocalISO(date, calendar: calendar)
-        estimatedBurnedValue = isSnapshotDay ? snapshot?.estimatedBurnedValue : nil
-        estimatedNetValue = isSnapshotDay ? snapshot?.estimatedNetValue : nil
+        display = snapshot.map { EnergyBalanceDisplay($0.displayInput, at: date, calendar: calendar, locale: locale) }
     }
 }
 
-/// Schedules estimate expiry without requiring another live fetch or provider execution.
+/// Schedules the day change without requiring another live fetch or provider execution.
 public struct EnergyBalanceWidgetTimeline: Sendable, Equatable {
     public let entries: [EnergyBalanceWidgetTimelineEntry]
     public let reloadAfter: Date
     public let refreshDecision: EnergyBalanceWidgetLiveRefreshDecision
 
-    init(result: EnergyBalanceWidgetLiveRefreshResult, date: Date, calendar: Calendar) {
-        let entry = EnergyBalanceWidgetTimelineEntry(date: date, snapshot: result.snapshot, calendar: calendar)
+    init(result: EnergyBalanceWidgetLiveRefreshResult, date: Date, calendar: Calendar, locale: Locale) {
+        let entry = EnergyBalanceWidgetTimelineEntry(
+            date: date, snapshot: result.snapshot, calendar: calendar, locale: locale
+        )
         var entries = [entry]
-        if entry.estimatedBurnedValue != nil || entry.estimatedNetValue != nil,
+        if entry.display?.isCurrentDay == true,
            let midnight = calendar.dateInterval(of: .day, for: date)?.end {
-            // Reuse recorded values, but the new local date makes yesterday's estimates ineligible.
+            // Reuse recorded values, but the new local date makes "today so far"
+            // and yesterday's estimates ineligible.
             entries.append(EnergyBalanceWidgetTimelineEntry(
-                date: midnight,
-                snapshot: result.snapshot,
-                calendar: calendar
+                date: midnight, snapshot: result.snapshot, calendar: calendar, locale: locale
             ))
         }
         self.entries = entries

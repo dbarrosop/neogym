@@ -19,6 +19,10 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     public let pendingBackend: Bool?
     /// Optional for backwards-compatible snapshots. The complication ignores this baseline.
     public let restingBaseline: DailyRestingEnergyBaseline?
+    /// Today's selected nutrition plan kcal, for the circular complication's ring.
+    public let planKcal: Double?
+    /// The phone's 7-day net rule from the last backend read (watch app only).
+    public let sevenDayAverageNet: Double?
 
     public var projection: DailyEnergyProjection? {
         guard burnedKcal != nil, let restingBaseline else { return nil }
@@ -29,20 +33,32 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     /// Calories in minus calories out. A missing energy row is unknown, not zero.
     public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
 
+    public var displayInput: EnergyBalanceDisplayInput {
+        let projection = projection
+        return EnergyBalanceDisplayInput(
+            localDate: localDate, updatedAt: updatedAt, consumedKcal: consumedKcal,
+            burnedKcal: burnedKcal, activeKcal: activeKcal, restingKcal: restingKcal,
+            sevenDayAverageNet: sevenDayAverageNet, planKcal: planKcal,
+            estimatedBurnedKcal: projection?.estimatedBurnedKcal,
+            estimatedNetKcal: projection?.estimatedNetKcal
+        )
+    }
+
     /// Ignore the fetch timestamp when deciding whether the widget's values
     /// changed; an unchanged read does not need another WidgetKit reload.
     public func hasSameDisplayValues(as other: Self) -> Bool {
         userID == other.userID && localDate == other.localDate
             && consumedKcal == other.consumedKcal && burnedKcal == other.burnedKcal
             && activeKcal == other.activeKcal && restingKcal == other.restingKcal
-            && pendingBackend == other.pendingBackend
+            && pendingBackend == other.pendingBackend && planKcal == other.planKcal
     }
 
     public init(
         userID: String, localDate: String, consumedKcal: Double, burnedKcal: Double?,
         activeKcal: Double? = nil, restingKcal: Double? = nil, updatedAt: Date,
         rowSource: WatchEnergyRowSource? = nil, pendingBackend: Bool? = nil,
-        restingBaseline: DailyRestingEnergyBaseline? = nil
+        restingBaseline: DailyRestingEnergyBaseline? = nil, planKcal: Double? = nil,
+        sevenDayAverageNet: Double? = nil
     ) {
         self.userID = userID
         self.localDate = localDate
@@ -54,6 +70,8 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
         self.rowSource = rowSource
         self.pendingBackend = pendingBackend
         self.restingBaseline = restingBaseline
+        self.planKcal = planKcal
+        self.sevenDayAverageNet = sevenDayAverageNet
     }
 }
 
@@ -74,7 +92,8 @@ public enum WatchLocalEnergyPolicy {
             userID: ownerID, localDate: today, consumedKcal: snapshot.consumedKcal,
             burnedKcal: (active ?? 0) + (resting ?? 0), activeKcal: active,
             restingKcal: resting, updatedAt: now, rowSource: snapshot.rowSource,
-            pendingBackend: true, restingBaseline: snapshot.restingBaseline
+            pendingBackend: true, restingBaseline: snapshot.restingBaseline,
+            planKcal: snapshot.planKcal, sevenDayAverageNet: snapshot.sevenDayAverageNet
         )
     }
 }
@@ -115,10 +134,15 @@ public struct WatchEnergySnapshotStore: Sendable {
     public init(suite: String = NhostSessionConfig.appGroupIdentifier) { self.suite = suite }
 
     public func load(for date: String) -> WatchEnergySnapshot? {
-        guard let data = UserDefaults(suiteName: suite)?.data(forKey: key),
-              let snapshot = try? JSONDecoder().decode(WatchEnergySnapshot.self, from: data),
-              snapshot.localDate == date else { return nil }
+        guard let snapshot = loadLatest(), snapshot.localDate == date else { return nil }
         return snapshot
+    }
+
+    /// Any day's snapshot. Sign-out and blocking states clear it, so its presence
+    /// is what lets the complication tell "connected" from "not connected".
+    public func loadLatest() -> WatchEnergySnapshot? {
+        guard let data = UserDefaults(suiteName: suite)?.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(WatchEnergySnapshot.self, from: data)
     }
 
     @discardableResult
@@ -183,15 +207,23 @@ public struct WatchEnergyService: Sendable {
                 operationName: "WatchTodayEnergy"
             )
         }
-        let consumed = data.nutritionDays.first?.calories ?? 0
-        let energyEntry = data.dailyEnergyEntries.first { $0.energyOn == today }
+        var intakeByDate: [String: Double] = [:]
+        for day in data.nutritionDays { intakeByDate[day.logDate] = day.calories }
+        let energyByDate = Dictionary(data.dailyEnergyEntries.map { ($0.energyOn, $0) },
+                                      uniquingKeysWith: { first, _ in first })
+        let consumed = intakeByDate[today] ?? 0
+        let energyEntry = energyByDate[today]
         let burned = energyEntry.map { ($0.activeKcal ?? 0) + ($0.restingKcal ?? 0) }
+        let average = RollingCalorieNetAverage(endingOn: today, intakeByDate: intakeByDate,
+                                               energyByDate: energyByDate, calendar: calendar)
+        let plan = data.todayPlan?.first { $0.logDate == today }?.nutritionPlan
         return WatchEnergySnapshot(
             userID: userID, localDate: today, consumedKcal: consumed, burnedKcal: burned,
             activeKcal: energyEntry?.activeKcal, restingKcal: energyEntry?.restingKcal, updatedAt: now,
             rowSource: energyEntry.map { $0.notes == "Imported from Apple Health" ? .imported : .manual }
                 ?? .missing, pendingBackend: false,
-            restingBaseline: DailyRestingEnergyBaseline(today: today, history: data.dailyEnergyEntries, calendar: calendar)
+            restingBaseline: DailyRestingEnergyBaseline(today: today, history: data.dailyEnergyEntries, calendar: calendar),
+            planKcal: plan?.macroTotals.kcal, sevenDayAverageNet: average?.averageNet
         )
     }
 
@@ -262,9 +294,11 @@ public struct WatchEnergyService: Sendable {
         }
     }
 
+    /// Intake and energy for the previous seven dates feed the resting baseline and
+    /// the 7-day net average; only today's selected plan is read, for its kcal.
     public static let todayQuery = """
     query WatchTodayEnergy($date: date!, $since: date!) {
-      nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {
+      nutritionDays(where: { logDate: { _gte: $since, _lte: $date } }, order_by: { logDate: desc }) {
         logDate
         nutritionLogEntries(where: { nutritionLogMealId: { _is_null: true } }) {
           grams
@@ -272,6 +306,42 @@ public struct WatchEnergyService: Sendable {
         }
         nutritionLogMeals {
           nutritionLogEntries { grams snapshotKcalPer100g }
+        }
+      }
+      todayPlan: nutritionDays(where: { logDate: { _eq: $date } }, limit: 1) {
+        logDate
+        nutritionPlan {
+          id
+          name
+          description
+          nutritionPlanMeals(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+            id
+            slotTime
+            label
+            position
+            mealId
+            meal {
+              id
+              name
+              description
+              mealIngredients(order_by: [{ position: asc }, { id: asc }]) {
+                id
+                foodId
+                grams
+                position
+                food { \(planFoodFields) }
+              }
+            }
+          }
+          nutritionPlanFoods(order_by: [{ slotTime: asc }, { position: asc }, { id: asc }]) {
+            id
+            slotTime
+            label
+            position
+            foodId
+            grams
+            food { \(planFoodFields) }
+          }
         }
       }
       dailyEnergyEntries(where: { energyOn: { _gte: $since, _lte: $date } }, order_by: { energyOn: desc }) {
@@ -283,9 +353,20 @@ public struct WatchEnergyService: Sendable {
       }
     }
     """
+
+    private static let planFoodFields = """
+    id name userId isPublic kcalPer100g fatPer100g carbsPer100g proteinPer100g fiberPer100g sugarPer100g
+    """
 }
 
 private struct WatchTodayData: Decodable, Sendable {
     let nutritionDays: [NutritionCalorieHistoryDay]
+    /// Optional so a response without the plan root still renders intake and energy.
+    let todayPlan: [WatchPlanDay]?
     let dailyEnergyEntries: [DailyEnergy]
+}
+
+private struct WatchPlanDay: Decodable, Sendable {
+    let logDate: String
+    let nutritionPlan: NutritionPlan?
 }
