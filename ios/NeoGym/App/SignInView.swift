@@ -6,15 +6,18 @@ import UIKit
 struct SignInView: View {
     @StateObject private var model: SignInModel
     let onSignUp: () -> Void
+    let onTryDemo: (() -> Void)?
     let onAuthenticated: (StoredSession) -> Void
 
     init(
         authService: any AuthServicing,
         onSignUp: @escaping () -> Void,
+        onTryDemo: (() -> Void)? = nil,
         onAuthenticated: @escaping (StoredSession) -> Void
     ) {
         _model = StateObject(wrappedValue: SignInModel(authService: authService))
         self.onSignUp = onSignUp
+        self.onTryDemo = onTryDemo
         self.onAuthenticated = onAuthenticated
     }
 
@@ -40,12 +43,23 @@ struct SignInView: View {
                 }
             } footer: {
                 if model.sentTo == nil {
-                    HStack(spacing: 4) {
-                        Text("New here?")
-                        Button("Create an account", action: onSignUp)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(NeoGymTheme.text)
-                            .frame(minHeight: 44)
+                    VStack(spacing: 8) {
+                        HStack(spacing: 4) {
+                            Text("New here?")
+                            Button("Create an account", action: onSignUp)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(NeoGymTheme.text)
+                                .frame(minHeight: 44)
+                        }
+                        if let onTryDemo {
+                            Button("Try demo", action: onTryDemo)
+                                .buttonStyle(NeoGymSecondaryButtonStyle())
+                                .disabled(model.isSending || model.isVerifying)
+                                .accessibilityIdentifier("demo.enter")
+                            Text("Explore with fictional data. No account needed.")
+                                .font(.caption)
+                                .foregroundStyle(NeoGymTheme.textSecondary)
+                        }
                     }
                 } else {
                     Button("Use a different email") {

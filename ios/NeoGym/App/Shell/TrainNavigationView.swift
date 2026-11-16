@@ -5,7 +5,7 @@ import SwiftUI
 /// refresh Sessions) also runs the read-only Apple Health workout import.
 struct TrainNavigationView: View {
     let workoutsRepository: any WorkoutsRepositoryProtocol
-    let healthWorkoutRepository: any HealthWorkoutStoring
+    let healthWorkoutRepository: (any HealthWorkoutStoring)?
     let healthWorkoutImporter: (any HealthWorkoutImporting)?
     let sessionsRepository: any SessionsRepositoryProtocol
     let exercisesRepository: any ExercisesRepositoryProtocol
@@ -98,7 +98,7 @@ struct TrainNavigationView: View {
     }
 
     private func syncHealthWorkouts(waitForCurrent: Bool = false) async {
-        guard let currentUserId, let healthWorkoutImporter else { return }
+        guard let currentUserId, let healthWorkoutImporter, let healthWorkoutRepository else { return }
         await healthWorkoutSync.sync(
             userId: currentUserId,
             importer: healthWorkoutImporter,

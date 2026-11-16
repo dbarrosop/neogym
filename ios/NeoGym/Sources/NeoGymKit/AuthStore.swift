@@ -44,6 +44,7 @@ public final class AuthStore: ObservableObject {
     private var subscription: AuthSessionSubscription?
     private var bootstrapTask: Task<Void, Never>?
     private var isClearingForExplicitSignOut = false
+    private var isRetired = false
 
     public init(
         authService: any AuthServicing = NhostClientFactory.makeAuthService(),
@@ -66,7 +67,21 @@ public final class AuthStore: ObservableObject {
         }
     }
 
+    /// Stop this runtime without signing out, clearing credentials or emitting a fake account state.
+    /// Retirement is permanent; normal mode creates a new AuthStore on return.
+    public func retire() {
+        guard !isRetired else { return }
+        isRetired = true
+        // Let an already-issued SDK read/refresh settle: cancelling a rotated token's
+        // response could lose the real session. Its late state/effects are ignored below.
+        bootstrapTask = nil
+        let subscription = subscription
+        self.subscription = nil
+        Task { await subscription?.cancel() }
+    }
+
     public func start() {
+        guard !isRetired else { return }
         bootstrapTask?.cancel()
         bootstrapTask = Task { [weak self] in
             await self?.bootstrap()
@@ -74,19 +89,25 @@ public final class AuthStore: ObservableObject {
     }
 
     public func bootstrap() async {
+        guard !isRetired else { return }
         state = .loading
         await subscription?.cancel()
         subscription = nil
-
+        guard !isRetired else { return }
+        var pendingSubscription: AuthSessionSubscription?
         do {
             let newSubscription = await authService.subscribeToSessionChanges { [weak self] session in
                 await self?.applySession(session)
             }
+            pendingSubscription = newSubscription
+            guard !isRetired else { await newSubscription.cancel(); return }
             let session = try await authService.getUserSession()
-
+            guard !isRetired else { await newSubscription.cancel(); return }
             subscription = newSubscription
             applySession(session)
         } catch {
+            await pendingSubscription?.cancel()
+            guard !isRetired else { return }
             snapshotClearHandler(.authError)
             state = .error(error.localizedDescription)
         }
@@ -97,6 +118,7 @@ public final class AuthStore: ObservableObject {
     }
 
     public func signOut() async {
+        guard !isRetired else { return }
         let refreshToken = state.session?.refreshToken
         snapshotClearHandler(.signOut)
         isClearingForExplicitSignOut = true
@@ -113,11 +135,13 @@ public final class AuthStore: ObservableObject {
             try await authService.clearSession()
             applySession(nil)
         } catch {
+            guard !isRetired else { return }
             state = .error(error.localizedDescription)
         }
     }
 
     private func applySession(_ session: StoredSession?) {
+        guard !isRetired else { return }
         if let session {
             let previousUserMarker = state.session?.user?.id
             let nextUserMarker = session.user?.id

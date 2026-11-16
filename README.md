@@ -107,7 +107,13 @@ Native iOS (from `ios/NeoGym/`):
 | `nix develop ../.. --command xcodegen generate` | Generate `NeoGym.xcodeproj` from `project.yml` |
 | `xcodebuild -project NeoGym.xcodeproj -scheme NeoGym -destination 'generic/platform=iOS Simulator' build` | Build the SwiftUI app |
 
-The native app supports the same local email OTP sign-in/sign-up shape as the
+The iPhone also has an interactive offline **Try demo** entry, with synthetic
+local data and no account/backend requirement. Simulator agents can launch
+`--demo --demo-reset --demo-screen train/session/current`; see the
+[demo guide](docs/developers/ios-demo.md) for commands, isolation boundaries and
+App Review access caveats.
+
+The native app's live mode supports the same local email OTP sign-in/sign-up shape as the
 web app: request a 6-digit code, copy it from MailHog, verify, view the
 protected profile, and sign out. Sign-out always clears the local SDK session
 store after the remote request attempt. Native PKCE email change uses

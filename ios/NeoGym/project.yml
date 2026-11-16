@@ -28,6 +28,9 @@ schemes:
     build:
       targets:
         NeoGym: all
+    test:
+      targets:
+        - NeoGymUITests
     run:
       # Keep regenerated schemes from turning on costly default diagnostics.
       enableGPUFrameCaptureMode: disabled
@@ -35,6 +38,19 @@ schemes:
       disableMainThreadChecker: true
       disableThreadPerformanceChecker: true
 targets:
+  NeoGymUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "27.0"
+    sources:
+      - path: UITests
+    dependencies:
+      - target: NeoGym
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.nhost.dbarroso.neogym.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: NeoGym
   NeoGym:
     type: application
     platform: iOS

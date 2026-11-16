@@ -10,6 +10,7 @@ enum AuthScreen {
 struct RootView: View {
     let appEnvironment: AppEnvironment
     @ObservedObject var restTimers: RestTimerAccountScope
+    var onTryDemo: (() -> Void)?
 
     @EnvironmentObject private var authStore: AuthStore
     @EnvironmentObject private var authCallbackURLRouter: AuthCallbackURLRouter
@@ -29,7 +30,7 @@ struct RootView: View {
                 if let restTimer = restTimers.timer, restTimer.ownerId == session.user?.id {
                     AppShellView(
                         session: session,
-                        environment: appEnvironment,
+                        environment: .live(appEnvironment, ownerId: session.user?.id),
                         isSigningOut: isSigningOut,
                         changeEmailModel: changeEmailModel,
                         signOut: signOut,
@@ -41,9 +42,7 @@ struct RootView: View {
                     LoadingView()
                 }
             case let .error(message):
-                ErrorCard(message: message) {
-                    authStore.start()
-                }
+                ErrorCard(message: message, retry: { authStore.start() }, onTryDemo: onTryDemo)
             }
         }
         .tint(NeoGymTheme.accentText)
@@ -69,6 +68,7 @@ struct RootView: View {
             SignInView(
                 authService: authStore.authService,
                 onSignUp: { authScreen = .signUp },
+                onTryDemo: onTryDemo,
                 onAuthenticated: { session in authStore.applyVerifiedSession(session) }
             )
         case .signUp:
@@ -174,6 +174,7 @@ private struct LoadingView: View {
 private struct ErrorCard: View {
     let message: String
     let retry: () -> Void
+    var onTryDemo: (() -> Void)?
 
     var body: some View {
         RootStateLayout(
@@ -196,6 +197,11 @@ private struct ErrorCard: View {
                     FeedbackBanner(message: message)
                     Button("Try again", action: retry)
                         .buttonStyle(NeoGymPrimaryButtonStyle())
+                    if let onTryDemo {
+                        Button("Try demo", action: onTryDemo)
+                            .buttonStyle(NeoGymSecondaryButtonStyle())
+                            .accessibilityIdentifier("demo.enter")
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }

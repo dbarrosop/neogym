@@ -5,54 +5,77 @@ import WidgetKit
 
 @main
 struct NeoGymApp: App {
-    private let appEnvironment: AppEnvironment
-    private let notificationDelegate: NeoGymNotificationDelegate
-    @StateObject private var authStore: AuthStore
-    @StateObject private var restTimers: RestTimerAccountScope
-    @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
-    @StateObject private var phoneConnectivity: PhoneAccountConnectivity
-    @Environment(\.scenePhase) private var scenePhase
-
-    init() {
-        let appEnvironment = NhostClientFactory.makeProductionEnvironment()
-        let notificationDelegate = NeoGymNotificationDelegate()
-        self.appEnvironment = appEnvironment
-        self.notificationDelegate = notificationDelegate
-        let restTimers = RestTimerAccountScope(effects: RestTimerSystemEffects())
-        let authStore = AuthStore(
-            authService: appEnvironment.authService,
-            snapshotClearHandler: { _ in
-                restTimers.endSession()
-                Self.clearEnergyBalanceWidgetSnapshot()
-            }
-        )
-        restTimers.bind(to: authStore)
-        _restTimers = StateObject(wrappedValue: restTimers)
-        let phoneConnectivity = PhoneAccountConnectivity(patService: NhostWatchPATService(client: appEnvironment.client))
-        _authStore = StateObject(wrappedValue: authStore)
-        _phoneConnectivity = StateObject(wrappedValue: phoneConnectivity)
-        phoneConnectivity.bind(to: authStore)
-        phoneConnectivity.start()
-        UNUserNotificationCenter.current().delegate = notificationDelegate
-    }
-
-    private static func clearEnergyBalanceWidgetSnapshot() {
-        EnergyBalanceWidgetSnapshotStore.shared.clear()
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
-    }
+    @StateObject private var mode = AppModeController()
+    private let notificationDelegate = NeoGymNotificationDelegate()
 
     var body: some Scene {
         WindowGroup {
-            RootView(appEnvironment: appEnvironment, restTimers: restTimers)
-                .environmentObject(authStore)
-                .environmentObject(authCallbackURLRouter)
-                .environmentObject(phoneConnectivity)
-                .onOpenURL { url in
-                    authCallbackURLRouter.open(url)
-                }
-                .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { phoneConnectivity.foreground() }
-                }
+            AppModeView(mode: mode)
+                .onAppear { UNUserNotificationCenter.current().delegate = notificationDelegate }
+        }
+    }
+}
+
+/// Created only in the live branch. A --demo launch never constructs this runtime.
+@MainActor
+final class LiveAppRuntime: ObservableObject {
+    let environment: AppEnvironment
+    let authStore: AuthStore
+    let restTimers: RestTimerAccountScope
+    let phoneConnectivity: PhoneAccountConnectivity
+    private let effectsGate: LiveEffectsGate
+
+    init() {
+        let environment = NhostClientFactory.makeProductionEnvironment()
+        let restTimers = RestTimerAccountScope(effects: RestTimerSystemEffects())
+        let gate = LiveEffectsGate()
+        self.effectsGate = gate
+        self.environment = environment
+        self.restTimers = restTimers
+        let authStore = AuthStore(
+            authService: environment.authService,
+            snapshotClearHandler: { _ in
+                guard gate.enabled else { return }
+                restTimers.endSession()
+                EnergyBalanceWidgetSnapshotStore.shared.clear()
+                WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+            }
+        )
+        self.authStore = authStore
+        restTimers.bind(to: authStore)
+        let connectivity = PhoneAccountConnectivity(patService: NhostWatchPATService(client: environment.client))
+        phoneConnectivity = connectivity
+        connectivity.bind(to: authStore)
+        connectivity.start()
+    }
+
+    func suspendForDemo() {
+        effectsGate.enabled = false
+        phoneConnectivity.suspend()
+        authStore.retire()
+    }
+}
+
+@MainActor
+private final class LiveEffectsGate { var enabled = true }
+
+struct LiveAppView: View {
+    let enterDemo: () -> Void
+    @StateObject private var runtime = LiveAppRuntime()
+    @StateObject private var authCallbackURLRouter = AuthCallbackURLRouter()
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        RootView(appEnvironment: runtime.environment, restTimers: runtime.restTimers, onTryDemo: {
+            runtime.suspendForDemo()
+            enterDemo()
+        })
+        .environmentObject(runtime.authStore)
+        .environmentObject(authCallbackURLRouter)
+        .environmentObject(runtime.phoneConnectivity)
+        .onOpenURL { authCallbackURLRouter.open($0) }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { runtime.phoneConnectivity.foreground() }
         }
     }
 }

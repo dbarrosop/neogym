@@ -1,6 +1,5 @@
 import NeoGymKit
 import SwiftUI
-import WidgetKit
 
 /// Progress tab: Overview · Muscles · Strength · Body · Energy. The Muscles and
 /// Strength view models live here so their loaded history survives section
@@ -19,6 +18,7 @@ struct ProgressNavigationView: View {
     @Binding var path: [ProgressRoute]
     @Binding var section: ProgressSection
     let onSessionStarted: (String) -> Void
+    @Environment(\.energyWidgetUpdates) private var widgetUpdates
 
     @StateObject private var muscleModel: MuscleSetProgressViewModel
     @StateObject private var strengthModel: StrengthProgressViewModel
@@ -181,7 +181,7 @@ struct ProgressNavigationView: View {
 
     private func invalidateLists() {
         reloadToken += 1
-        WidgetCenter.shared.reloadTimelines(ofKind: EnergyBalanceWidgetConstants.widgetKind)
+        widgetUpdates.reload()
     }
 }
 

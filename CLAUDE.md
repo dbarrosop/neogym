@@ -346,7 +346,29 @@ path, not guaranteed freshness or cadence. At the widget extension's iOS 27
 floor, AppIntent/`Button(intent:)`/`containerBackground` need no older-OS
 availability gates; existing guards are vestigial, not a pattern for new code.
 
-The native app uses the same email OTP auth shape as the web app for
+The iPhone also ships an offline, interactive **Try demo** entry on Sign in
+(and the Auth-error screen). `AppModeView` selects the runtime before constructing
+production dependencies; `AppRepositories` / `AppShellEnvironment` inject either
+live repositories or one shared actor-backed `DemoStore`. Demo uses a versioned,
+backup-excluded app-private file and the `io.nhost.neogym.demo` defaults suite,
+never the SDK session/cache, Keychain or App Group. A fictional display-only
+identity renders the same shell; demo HealthKit, Watch/PAT, email/MCP, widget
+snapshot/reload and system rest effects are disabled. Reset/exit retire old
+stores/timers; entering demo permanently retires live `AuthStore` observation
+without clearing credentials, and Exit constructs a new live runtime for normal
+authentication/session restoration. `--demo --demo-reset --demo-screen train/session/current` opens a
+repeatable simulator starting point; all sections and the `NeoGymUITests` smoke
+workflow are documented in [`docs/developers/ios-demo.md`](docs/developers/ios-demo.md).
+The illustrated [iPhone demo guide](docs/ios/README.md) includes full-resolution
+screenshots, recorded canonical walkthroughs and explicit coverage boundaries.
+Its [capture instructions](docs/ios/capture.md) document the opt-in
+`DemoGuideCaptureUITests` driver (skipped in normal test runs), Python tools and
+completeness gate; use a fresh credential-free simulator for its destructive
+fixture/recovery scenarios.
+Do not treat the demo as Apple-approved replacement review access: usable review
+credentials are still required unless Apple explicitly approves otherwise.
+
+The native app's live mode uses the same email OTP auth shape as the web app for
 sign-in/sign-up. `NeoGymKit` owns validators, `SignInModel`, `SignUpModel`,
 `PhoneAssistedSignInModel`, `WatchAssistedSignInModel`, `WatchPATCredential`, `UserProfile`,
 `ChangeEmailModel`, `AuthDeepLink`, `PKCEVerifierStore`, and the

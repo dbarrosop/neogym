@@ -139,6 +139,69 @@ final class AuthStoreTests: XCTestCase {
         XCTAssertTrue(clearReasons.isEmpty)
     }
 
+    func testRetirementPreservesCredentialsAndIgnoresOldCallbacks() async throws {
+        let session = try Self.makeSession(userId: "real-owner")
+        let service = FakeAuthService(initialSession: session)
+        var clears: [AuthSnapshotClearReason] = []
+        let store = AuthStore(authService: service, autoBootstrap: false) { clears.append($0) }
+        await store.bootstrap()
+        store.retire()
+        store.start()
+        store.applyVerifiedSession(try DemoIdentity.session())
+        await store.signOut()
+        let saved = try await service.getUserSession()
+        let didClear = await service.didClearSessionSnapshot()
+        let remoteSignOuts = await service.signOutRefreshTokensSnapshot()
+        XCTAssertEqual(saved?.user?.id, "real-owner")
+        XCTAssertFalse(didClear)
+        XCTAssertTrue(remoteSignOuts.isEmpty)
+        await service.updateSession(nil)
+        XCTAssertEqual(store.state.session?.user?.id, "real-owner")
+        XCTAssertTrue(clears.isEmpty)
+    }
+
+    func testRetirementDoesNotCancelAnAlreadyIssuedSDKRefresh() async throws {
+        let started = AsyncStream<Void>.makeStream()
+        let finished = AsyncStream<Bool>.makeStream()
+        let service = FakeAuthService(
+            initialSession: try Self.makeSession(), holdBootstrap: true,
+            onBootstrap: { started.continuation.yield(()) },
+            onBootstrapFinished: { finished.continuation.yield($0) }
+        )
+        let store = AuthStore(authService: service)
+        var startIterator = started.stream.makeAsyncIterator()
+        _ = await startIterator.next()
+        store.retire()
+        await service.releaseBootstrap()
+        var endIterator = finished.stream.makeAsyncIterator()
+        let cancelled = await endIterator.next()
+        XCTAssertEqual(cancelled, false, "A rotated token's response must be allowed to reach SDK persistence")
+        let cleared = await service.didClearSessionSnapshot()
+        XCTAssertFalse(cleared)
+    }
+
+    func testRetiringAnInFlightBootstrapIgnoresLateSuccessAndFailure() async throws {
+        for fails in [false, true] {
+            let started = AsyncStream<Void>.makeStream()
+            let service = FakeAuthService(
+                initialSession: try Self.makeSession(), bootstrapError: fails ? TestError.requestFailed : nil,
+                holdBootstrap: true, onBootstrap: { started.continuation.yield(()) }
+            )
+            var clears: [AuthSnapshotClearReason] = []
+            let store = AuthStore(authService: service, autoBootstrap: false) { clears.append($0) }
+            let load = Task { await store.bootstrap() }
+            var iterator = started.stream.makeAsyncIterator()
+            _ = await iterator.next()
+            store.retire()
+            await service.releaseBootstrap()
+            await load.value
+            XCTAssertTrue(store.state.isLoading, "A retired store must not publish a late account/error state")
+            XCTAssertTrue(clears.isEmpty)
+            let cleared = await service.didClearSessionSnapshot()
+            XCTAssertFalse(cleared)
+        }
+    }
+
     private static func makeSession(
         email: String = "athlete@example.com",
         refreshToken: String = "refresh-token",
@@ -182,6 +245,10 @@ private actor FakeAuthService: AuthServicing {
     private let verifyError: Error?
     private let bootstrapError: Error?
     private var verifySession: StoredSession?
+    private let holdBootstrap: Bool
+    private let onBootstrap: @Sendable () -> Void
+    private let onBootstrapFinished: @Sendable (Bool) -> Void
+    private var bootstrapContinuation: CheckedContinuation<Void, Never>?
     private(set) var signInRequests: [String] = []
     private(set) var signUpRequests: [(email: String, displayName: String)] = []
     private(set) var verifyRequests: [(email: String, otp: String)] = []
@@ -194,7 +261,10 @@ private actor FakeAuthService: AuthServicing {
         requestError: Error? = nil,
         verifyError: Error? = nil,
         verifySession: StoredSession? = nil,
-        bootstrapError: Error? = nil
+        bootstrapError: Error? = nil,
+        holdBootstrap: Bool = false,
+        onBootstrap: @escaping @Sendable () -> Void = {},
+        onBootstrapFinished: @escaping @Sendable (Bool) -> Void = { _ in }
     ) {
         session = initialSession
         self.signOutError = signOutError
@@ -202,13 +272,30 @@ private actor FakeAuthService: AuthServicing {
         self.verifyError = verifyError
         self.verifySession = verifySession
         self.bootstrapError = bootstrapError
+        self.holdBootstrap = holdBootstrap
+        self.onBootstrap = onBootstrap
+        self.onBootstrapFinished = onBootstrapFinished
     }
 
     func getUserSession() async throws -> StoredSession? {
+        if holdBootstrap {
+            await withCheckedContinuation { continuation in
+                bootstrapContinuation = continuation
+                onBootstrap()
+            }
+        } else {
+            onBootstrap()
+        }
+        onBootstrapFinished(Task.isCancelled)
         if let bootstrapError {
             throw bootstrapError
         }
         return session
+    }
+
+    func releaseBootstrap() {
+        bootstrapContinuation?.resume()
+        bootstrapContinuation = nil
     }
 
     func subscribeToSessionChanges(
