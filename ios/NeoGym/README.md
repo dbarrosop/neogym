@@ -260,10 +260,11 @@ before its network reconciliation and saves an estimate only when its same-owner
 same-day backend snapshot says today's row is imported or absent. Manually
 edited rows and older snapshots with unknown provenance are not overlaid;
 intake remains the last known server value. This is provisional until a fresh
-backend read, and phone-side manual edits made since the last server read may
-briefly supersede it. A file-backed watchOS background URLSession upload sends
-one idempotent GraphQL upsert for the last seven dates instead of holding a
-chain of GraphQL calls through suspension. Hasura inserts missing dates and
+backend read: the watch app's End of day page labels it "Health estimate <time>",
+but neither complication family marks provisional values. Phone-side manual
+edits made since the last server read may briefly supersede it. A file-backed
+watchOS background URLSession upload sends one idempotent GraphQL upsert for the
+last seven dates instead of holding a chain of GraphQL calls through suspension. Hasura inserts missing dates and
 updates only conflicts still marked "Imported from Apple Health"; owner
 permissions come from a freshly checked SDK bearer token, never the widget.
 The system may defer transfers or deliver them after the short-lived bearer
@@ -272,9 +273,10 @@ transfer requests a fresh backend read; only successful reconciliation, read
 and snapshot save clear the pending marker. URLSession transfer completion
 cannot prove a WidgetKit render. Full colour tints only the title (accent) and
 ring (Chart 1); tinted faces take the face colour for those, and numbers stay
-white. VoiceOver identifies each metric. A snapshot more than an hour old shows
-its time ("Balance at 13:40"), a previous day's shows "—" with "Open NeoGym to
-sync", and no snapshot (never connected, or cleared on sign-out) shows "Not
+white. VoiceOver identifies each metric. The provider reads the latest snapshot
+of any date. The rectangular title changes to its time ("Balance at 13:40") once
+the snapshot is an hour old; a previous day's snapshot shows "—" with "Open NeoGym
+to sync", and no snapshot (never connected, or cleared on sign-out) shows "Not
 connected". The app saves the
 latest successful fetch timestamp even if values are unchanged, but requests
 a WidgetKit reload only for changed displayed values/provisional status or

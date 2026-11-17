@@ -11,7 +11,7 @@ The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 models, daily energy models/import helpers, and testable form validation;
 iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
 watch app SwiftUI and connectivity live under `Watch/`; the token-free
-rectangular complication lives under `WatchWidgets/` in the separate
+rectangular and circular complications live under `WatchWidgets/` in the separate
 `NeoGymWatchWidgets` extension, without Keychain or HealthKit access.
 
 ## Offline iPhone demo
@@ -330,8 +330,9 @@ scheduling nor WidgetKit reload guarantees a wake or fresh display. After a
 successful fresh backend read the watch saves the new snapshot timestamp.
 Only a previously server-confirmed imported or absent row can receive a local
 Health estimate; manual and legacy unknown-provenance rows remain server-only.
-The estimate retains server intake and is labeled pending on the watch and in
-the widget until a fresh backend reconciliation. It requests `reloadTimelines`
+The estimate retains server intake; the watch app's End of day page labels it
+"Health estimate <time>" until a fresh backend reconciliation. Neither
+complication family marks provisional estimates. The app requests `reloadTimelines`
 only when displayed values, owner or pending status change, or after clearing
 on sign-out. `WatchWidgetReloadGate` allows at most one background app request
 per 15 minutes, persisting the time and deferred flag in watch-only defaults;

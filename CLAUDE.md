@@ -246,9 +246,9 @@ and refreshes energy even if the account name is unchanged. The watch saves a
 fresh token-free, today-only App Group snapshot after each successful backend
 read. On an eligible HealthKit delivery it first reads local daily totals and,
 only for a same-owner snapshot known to represent an imported or absent backend
-row, saves a labeled provisional Health estimate and requests WidgetKit reload
-when visible values change. Manual/edited or legacy unknown-provenance rows are
-never locally overlaid. In the background it enqueues one seven-day, idempotent
+row, saves a provisional Health estimate (labeled on the watch app's End of day
+page) and requests WidgetKit reload when visible values change. Manual/edited or
+legacy unknown-provenance rows are never locally overlaid. In the background it enqueues one seven-day, idempotent
 GraphQL upsert via a file-backed watchOS background URLSession upload; Hasura's
 conflict predicate updates only rows still labeled "Imported from Apple Health"
 and skips manual conflicts. The SDK forces a refresh and owner-checks the
@@ -270,9 +270,12 @@ change (or the snapshot is cleared). Background requests are coalesced to at
 most one per 15 minutes in the watch app, while a suppressed latest-value
 request is retained for another eligible wake/foreground return; foreground
 changes and snapshot clearing bypass the gate. Neither requests nor provider
-receipts prove the watch face updated. The rectangular widget shows relative
-snapshot age and distinguishes a provisional estimate; an unchanged-value
-backend read may not update that age until WidgetKit requests another timeline.
+receipts prove the watch face updated. The rectangular complication's title
+changes from "Balance so far" to "Balance at <time>" once its snapshot is an hour
+old, using a pre-scheduled timeline entry. An unchanged-value backend read may
+leave that displayed time unchanged until WidgetKit requests another timeline.
+Neither complication family marks provisional Health estimates; only the watch
+app's End of day page labels them.
 The widget has no Keychain or HealthKit access;
 blocking auth changes/sign-out clear its snapshot. Watch App Group and HealthKit background-delivery signing
 capabilities must be provisioned for physical-device validation. The watch

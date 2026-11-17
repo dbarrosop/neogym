@@ -447,8 +447,9 @@ backend read follows direct writes or a completed background upload so the
 Today pages and complication eventually use post-sync values, including food
 logs recorded on another device. An observer delivery first attempts a local
 seven-day Health read; for a same-owner snapshot whose last known server row was
-imported or absent, today's valid metric totals can be saved and displayed as
-an explicitly provisional estimate before any account or backend request. A
+imported or absent, today's valid metric totals can be saved and displayed before
+any account or backend request. The watch app's End of day page labels this
+provisional value "Health estimate <time>"; neither complication family marks it. A
 manual/edited row or legacy snapshot without known provenance is never overlaid.
 The last-known server intake remains unchanged; a server-side manual edit
 since the last backend read can briefly differ until fresh reconciliation.
@@ -496,8 +497,9 @@ events may have been acknowledged much later if watchOS suspended the app.
 Suspension or termination may prevent a terminal log, and a scheduled watchOS
 wake is separate from HealthKit observer delivery. Background work first reconciles the local watch session and
 phone account hint and does nothing if blocked/signed out. The watch widget
-extension has no Keychain or HealthKit entitlement: it reads only the token-free
-today's aggregate snapshot written by the watch app into their shared App Group.
+extension has no Keychain or HealthKit entitlement: it reads only the latest
+token-free aggregate snapshot of any date written by the watch app into their
+shared App Group, distinguishing no snapshot from one awaiting today's values.
 The app verifies a local read-back after writing and records a failed write.
 It asks WidgetKit to reload only when displayed same-day values/owner or
 provisional status change or a snapshot is cleared; unchanged-value fresh reads
@@ -506,21 +508,21 @@ background requests are coalesced to at most one per 15 minutes by a
 watch-app-persisted gate; a suppressed latest-value request is retried on a
 later eligible wake/foreground return. Foreground changes and session clearing
 bypass that gate. Coalescing reduces app requests, not WidgetKit's power to
-defer/skip a refresh. The widget
-shows a Health estimate icon while awaiting backend sync, otherwise a clock and
-the relative age of its currently rendered snapshot, which can lag a fresh
-unchanged-value read until WidgetKit requests a new timeline. `getTimeline`
-reads the shared snapshot but never syncs HealthKit or calls the backend;
+defer/skip a refresh. The rectangular complication's title changes from
+"Balance so far" to "Balance at <time>" once its snapshot is an hour old, using a
+pre-scheduled timeline entry. It has no relative-age clock or Health-estimate
+icon. An unchanged-value fresh read may leave the displayed time unchanged until
+WidgetKit requests a new timeline. Both `getTimeline` and `getSnapshot` read the
+latest shared snapshot of any date but never sync HealthKit or call the backend;
 scrolling the widget into view does not guarantee an app wake or widget reload.
 A local read-back still does not prove the extension read it; a provider
-receipt proves a timeline read but not a new watch-face render. The rectangular watch-face complication presents consumed,
-total burned, active/resting, and Net kcal; it never uploads data itself. Today's
+receipt proves a timeline read but not a new watch-face render. Neither the
+rectangular nor circular complication uploads data itself. Today's
 last-good snapshot survives session validation while the SDK restores the
 session; after a non-auth `/user` failure the watch remains in the signed-in
 name state and keeps the snapshot only for the same session owner. Definitive
 sign-out, blocking phone hints, auth errors,
-and account switches clear it; snapshots are
-never carried into the next local date. The
+and account switches clear it; prior-date values are never shown as today's. The
 phone and watch share an App Group **identifier**, not files across devices.
 Signing the watch app and watch widget requires App Group provisioning and
 HealthKit background-delivery capability on the watch app ID. Even though the
