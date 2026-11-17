@@ -1,6 +1,5 @@
 {
   "schemaVersion": 1,
-  "sourceRevision": "5ee6a466da7e83052d5379365e1f8502467b656f",
   "device": "iPhone 17",
   "runtime": "iOS 27.0",
   "locale": "en_US",
@@ -4361,27 +4360,16 @@
     }
   ],
   "pngStorage": "Original resolution; lossless IDAT recompression only",
-  "captureMethod": "Incremental, sequential XCTest UI walkthroughs; each workflow records its latest verified result.",
+  "captureMethod": "Incremental, sequential XCTest UI walkthroughs spanning multiple app/tooling revisions; each workflow records its latest verified result. No single source revision or tooling hash set attests to all retained captures.",
   "coverage": {
     "sectionRoots": 15,
     "verifiedWorkflows": 46,
-    "screenshots": 251,
+    "screenshots": 255,
     "scope": "Reachable iPhone demo screen families and canonical workflows, not live integrations or every state combination."
   },
-  "reproductionTooling": {
-    "ios/NeoGym/UITests/DemoGuideCaptureUITests.swift": "0ba23afcc5794b4b95cf78a8024736cebd053f634e0868f85a5cf82f01ebc1d1",
-    "ios/NeoGym/Scripts/capture-demo-guide.py": "48376ab0644212cd56dafd12bd4dfb3ba15f5ef20851bd8fd66e76ea48ce8ad5",
-    "ios/NeoGym/Scripts/demo-guide-workflows.py": "785eb6225872bac3d5de839c73270fd28e36dc1d3d93df2b8ccbd148ba5c6912",
-    "ios/NeoGym/Scripts/test_demo_guide.py": "25f7eaf08ccef63174dca28b3caa8b8791737a90a594daaa3566d6fe5db95477"
-  },
   "validation": {
-    "catalog": "251 PNG images, 15 roots, 46 passing walkthroughs",
-    "pythonToolingTests": 13,
-    "demoModeUITests": 6,
-    "swiftPackageXCTests": 624,
-    "swiftTestingTests": 4,
-    "frontend": "bun run check passed (209 tests)",
-    "localMarkdownLinksChecked": 398,
-    "activeSourceDiagnostics": "4 changed code files; no diagnostics"
+    "catalog": "255 PNG images, 15 roots, 46 recorded passing walkthroughs",
+    "pythonToolingTests": 27,
+    "scope": "Offline catalog integrity and Python tooling checks only; recorded walkthrough results are retained, not rerun."
   }
 }

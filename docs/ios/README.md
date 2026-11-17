@@ -25,7 +25,9 @@ an account. It is **not** evidence that Apple has approved demo-only review acce
 - **[Demo implementation and isolation contract](../developers/ios-demo.md)** —
   build/install commands, launch arguments, data behavior and App Review caveats.
 - **[Capture manifest](capture-manifest.json)** — machine-readable coverage,
-  timestamps, source revision, image dimensions/hashes and verification results.
+  per-image timestamps/dimensions/hashes, recorded workflow outcomes and offline
+  catalog/tooling verification. The incremental catalog spans multiple app/tooling
+  revisions; it has no single catalog-wide source revision or tooling hash set.
 
 The 97 visual rows are curated from the 46 recorded walkthroughs, not 97 new
 independent capture runs. Shared images retain their original provenance and are

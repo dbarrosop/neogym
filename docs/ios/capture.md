@@ -207,6 +207,15 @@ superseded PNGs. Keep `README.md` and this file; update their counts/scope if
 coverage changes. Re-run validation on `docs/ios` and check Markdown image links.
 Screenshots are original-resolution PNGs, not composited mockups.
 
+The manifest's `coverage` and `validation` summaries are hand-maintained: reconcile
+them with the catalog and checks actually rerun before publishing. Offline
+validation checks retained workflow results; it does not rerun XCTest walkthroughs.
+Remove old test/build counts rather than presenting them as current verification.
+A new scratch manifest's `sourceRevision` identifies its initialization checkout,
+not later incremental captures. The published mixed-revision catalog therefore
+omits that field and `reproductionTooling` hashes; current tooling hashes cannot
+attest to older images. Preserve the per-image/workflow provenance instead.
+
 ## 4. Finish the driver
 
 ```sh
