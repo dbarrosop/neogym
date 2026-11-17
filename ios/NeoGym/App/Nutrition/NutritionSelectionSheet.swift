@@ -96,6 +96,8 @@ struct NutritionSelectionSheet<Item: Identifiable, NewItemForm: View>: View wher
             Image(systemName: isSelected(item) ? "checkmark" : "plus.circle.fill")
                 .font(isSelected(item) ? .body.weight(.semibold) : .title3)
                 .foregroundStyle(NeoGymTheme.accentText)
+                // Keep the glyph's space without suggesting an add in single-choice mode.
+                .opacity(selectedId == nil || isSelected(item) ? 1 : 0)
                 .accessibilityHidden(true)
         }
         .padding(.horizontal, NeoGymTheme.spacingMD)

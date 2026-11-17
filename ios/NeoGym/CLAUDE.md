@@ -739,8 +739,9 @@ section records how the iPhone app implements it.
   (its toolbar pushes a create form in the same sheet). Log intake uses it too:
   Food and Meal show the chosen item as a two-line `NutritionChoiceRow` (name,
   wrapping, over its per-100 g or meal caption) whose Change opens the list
-  with a checkmark on the current choice and no create action (`newItemTitle:
-  nil`). Meal search retains name, description and ingredient matching via
+  with a checkmark only on the current choice, blank glyph space on other rows,
+  and no create action (`newItemTitle: nil`). Editor add lists keep their plus
+  glyphs. Meal search retains name, description and ingredient matching via
   `Meal.matchesSearch`, shared with the Meals library. Both the choice row and
   paired macro values stack at accessibility text sizes. Its Macro preview and `EditLogEntrySheet`'s Nutrition card share
   `NutritionMacroPreview`: kcal with P · C · F in whole grams (protein first, as

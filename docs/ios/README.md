@@ -143,6 +143,13 @@ sugar below. Changing the amount or custom nutrients recalculates the preview;
 the editor compares changed totals with the saved amount. Energy estimates use
 whole kcal, not decimal precision.
 
+The published [Choose food](screenshots/20-log-food-search-picker.png) and
+[Choose meal](screenshots/20-log-meal-search-picker.png) images predate the
+single-choice glyph correction and have not been recaptured. Current Change
+lists show a checkmark only on the selected row, with no add glyph on other
+rows; editor Add lists still show pluses. The retained images are not fresh
+visual evidence of that correction.
+
 Logged food uses its stored nutrient snapshot, not today's edited catalog values.
 A grouped child's time belongs to its logged meal; editing that child does not
 retime the meal. Direct planned-food logging is standalone and retains plan-food
