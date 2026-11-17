@@ -16,10 +16,17 @@ final class AppModeController: ObservableObject {
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         defaults = UserDefaults(suiteName: Self.defaultsSuite)
         do {
+            captureProfile = try DemoCaptureProfile.requested()
+        } catch {
+            captureProfile = nil
+            options = nil
+            AppClock.useDemoCapture(nil)
+            configurationError = error.localizedDescription
+            return
+        }
+        do {
             let options = try DemoLaunchOptions(arguments: arguments)
-            let captureProfile = try DemoCaptureProfile.requested()
             self.options = options
-            self.captureProfile = captureProfile
             pendingLaunchReset = options.reset
             isDemo = options.enabled || defaults?.bool(forKey: Self.activeKey) == true
             AppClock.useDemoCapture(isDemo ? captureProfile : nil)
@@ -27,7 +34,6 @@ final class AppModeController: ObservableObject {
             if isDemo, defaults == nil { configurationError = "Demo preferences are unavailable." }
         } catch {
             options = nil
-            captureProfile = nil
             AppClock.useDemoCapture(nil)
             configurationError = error.localizedDescription
         }

@@ -50,6 +50,23 @@ final class DemoIsolationWiringTests: XCTestCase {
         XCTAssertTrue(driver.contains("app.launchEnvironment = request[\"environment\"]"))
     }
 
+    func testInvalidLaunchOptionsRetainCaptureProfileForPublicDemoReentry() throws {
+        let demo = try source("App/DemoModeView.swift")
+        let profileStart = try XCTUnwrap(demo.range(of: "captureProfile = try DemoCaptureProfile.requested()"))
+        let optionsStart = try XCTUnwrap(demo.range(of: "let options = try DemoLaunchOptions(arguments: arguments)"))
+        let initEnd = try XCTUnwrap(demo.range(of: "func takeLaunchReset()"))
+        XCTAssertLessThan(profileStart.lowerBound, optionsStart.lowerBound)
+        let launchHandling = demo[optionsStart.lowerBound..<initEnd.lowerBound]
+        // An invalid screen must clear the active clock, not the process's opt-in.
+        XCTAssertFalse(launchHandling.contains("captureProfile ="))
+        XCTAssertTrue(launchHandling.contains("options = nil"))
+        XCTAssertTrue(launchHandling.contains("AppClock.useDemoCapture(nil)"))
+        let entryStart = try XCTUnwrap(demo.range(of: "func enterDemo()"))
+        let exitStart = try XCTUnwrap(demo.range(of: "func exitDemo()"))
+        let entry = demo[entryStart.lowerBound..<exitStart.lowerBound]
+        XCTAssertTrue(entry.contains("AppClock.useDemoCapture(captureProfile)"))
+    }
+
     func testAllPhoneEnergyWidgetWritesGoThroughTheEffectBoundary() throws {
         for path in ["App/Today/TodayView.swift", "App/DailyEnergyViews.swift", "App/Shell/NutritionNavigationView.swift", "App/Shell/ProgressNavigationView.swift"] {
             let view = try source(path)

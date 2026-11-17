@@ -36,7 +36,10 @@ are inert. Keep the visible fictional-data banner, Reset and Exit.
 The documentation driver opts into `NEOGYM_DEMO_CAPTURE=1` with the versioned
 `Sources/NeoGymKit/Resources/gallery-capture.json` profile (15 Jan 2025, 09:41 UTC).
 `AppClock` freezes capture-visible domain dates only during that demo; Exit clears
-it. Ordinary demo/live clocks and SDK/Auth/HealthKit deadlines stay real. New
+it. Resolve the capture profile independently of launch arguments: an invalid
+`--demo-screen` must leave the clock cleared at the recovery/sign-in screen but
+retain the process opt-in for a later **Try demo**. Ordinary demo/live clocks and
+SDK/Auth/HealthKit deadlines stay real. New
 visible date defaults should use `AppClock.now()` / `AppClock.calendar` or an
 explicit injected clock. Unchanged captures preserve PNG/provenance/order; use
 only affected groups and keep baseline migrations separate from feature work.
