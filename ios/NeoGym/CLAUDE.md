@@ -258,8 +258,11 @@ numeric error code (when available). The End of day page's Refresh control also
 retries validation and shows the profile warning; a still-failing or auth-rejected
 read cannot sync.
 Signed-in watch pages are vertical: Today, End of day, Account (with an Allow
-Health access page first until access was requested). Account's watch-only
-Debug mode switch (`watchDebugMode.v1`, default off) reveals a Diagnostics page
+Health access page first until access was requested). `WatchCapsuleButtonStyle`
+reads `isEnabled` inside its rendered child view: disabled capsules dim the
+whole label and fill to 40%, while enabled presses retain 70% opacity.
+Account's watch-only Debug mode switch (`watchDebugMode.v1`, default off)
+reveals a Diagnostics page
 behind it; recording never depends on the switch. `WatchEventStore` keeps
 at most 300 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule

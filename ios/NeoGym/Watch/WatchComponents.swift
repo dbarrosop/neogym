@@ -15,13 +15,24 @@ struct WatchCapsuleButtonStyle: ButtonStyle {
     var role: Role = .secondary
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(foreground)
-            .frame(maxWidth: .infinity, minHeight: 40)
-            .background(background, in: Capsule())
-            .opacity(configuration.isPressed ? 0.7 : 1)
-            .contentShape(Capsule())
+        CapsuleBody(configuration: configuration, foreground: foreground, background: background)
+    }
+
+    private struct CapsuleBody: View {
+        @Environment(\.isEnabled) private var isEnabled
+        let configuration: Configuration
+        let foreground: Color
+        let background: Color
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(foreground)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(background, in: Capsule())
+                .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.4)
+                .contentShape(Capsule())
+        }
     }
 
     private var foreground: Color {

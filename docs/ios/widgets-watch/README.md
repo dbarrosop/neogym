@@ -25,7 +25,8 @@ Click any thumbnail to inspect the original full-resolution PNG. Phone captures
 include the fixture name, chosen content-frame size and an explicit non-system
 host label. Watch complication captures say **Visual fixture / Not a watch face**.
 The watch page images themselves use the production page content; their fixture
-identity and caveats are attached in the gallery and manifest.
+identity and caveats are attached in the gallery and manifest. Watch action scenes
+show idle, enabled controls; they do not cover disabled or in-flight states.
 
 ### Deliberate boundaries
 
