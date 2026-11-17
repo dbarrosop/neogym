@@ -130,9 +130,11 @@ and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs in **only** through the signed-in iPhone. Tap **Connect using
-iPhone** on the watch, then **Me › Account › Apple Watch → Connect watch**
-on the phone with both apps open and reachable. The phone creates a 90-day
+The watch signs in **only** through the signed-in iPhone. Tap **Connect** under
+**Connect your iPhone** on the watch, then **Me › Account › Apple Watch → Connect watch**
+on the phone with both apps open and reachable. If the watch shows **Try again**
+instead, tap it after opening the signed-in phone app to re-read its account hint,
+then tap **Connect** once it appears. The phone creates a 90-day
 app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
 The watch keeps the PAT in a separate device-only Keychain item, calls
 `/signin/pat` to create its own SDK session, and automatically repeats that
@@ -148,9 +150,9 @@ fallback. Transient network, profile and energy errors and malformed responses
 alone do not trigger PAT sign-in. A recovered energy refresh can reconcile once
 more after fresh account validation, without an unbounded retry loop. No OTP
 is entered on the watch and no phone session is copied. After 90 days,
-reconnect from the phone. With a matching signed-in phone hint, both Session
-expired and Authentication failed screens show **Connect using iPhone**, even
-if the rejected SDK session is still stored; no preliminary Sign out is needed.
+reconnect from the phone. With a matching signed-in phone hint, both **Sign in
+again** and **Couldn't sign in** screens show **Connect**, even if the rejected
+SDK session is still stored; no preliminary Sign out is needed.
 Healthy sessions and pending local clearing cannot be replaced. **Restore saved
 sign-in** is shown only while a locally valid, owner-eligible PAT remains saved;
 Auth may still reject it. If iOS suppresses
@@ -306,7 +308,7 @@ promise: its 20-second local deadline releases the assertion without cancelling
 the request; system-reported expiry can cancel PAT sign-in or a name read, while local
 session clearing must complete. A PAT sign-in forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
-terminate the iPhone app, tap **Connect using iPhone** on the watch, then open
+terminate the iPhone app, tap **Connect** on the watch, then open
 **Me › Account** on the phone; when iOS delivers the request, confirm the
 **Apple Watch** row shows **Request waiting** without a second tap (tap it to
 open Connect Apple Watch). Repeat after a

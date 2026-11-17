@@ -418,9 +418,10 @@ failure and later foreground opens, with Sign out available to erase it even
 without a session. Transient profile/network or energy failures, malformed
 response bodies alone, and HTTP 400s outside the refresh endpoint do not trigger
 PAT sign-in. An expired/invalid PAT requires new phone pairing; there is no OTP
-fallback. Reauthentication and Auth-error screens offer Connect using iPhone
-with a definitive same-user phone hint even when the SDK retains the rejected
-session. Healthy sessions and pending local clearing still refuse replacement.
+fallback. The reauthentication ("Sign in again") and Auth-error ("Couldn't sign in")
+screens offer **Connect** with a definitive same-user phone hint even when the
+SDK retains the rejected session. Healthy sessions and pending local clearing
+still refuse replacement.
 Restore saved sign-in is shown only for a locally valid, owner-eligible saved
 PAT; local validity does not guarantee Auth will accept it.
 Sign-out and known signed-out or

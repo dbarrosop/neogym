@@ -314,7 +314,7 @@ private struct PhoneWatchSignInSheet: View {
         NavigationStack {
             Form {
                 Section("Connect your watch") {
-                    Text("On your Apple Watch, tap Connect using iPhone. Keep NeoGym open on both devices.")
+                    Text("On your Apple Watch, open NeoGym and tap Connect. Keep NeoGym open on both devices.")
                     if connectivity.connected {
                         Text("Apple Watch connected successfully.")
                     } else if connectivity.pending != nil {
