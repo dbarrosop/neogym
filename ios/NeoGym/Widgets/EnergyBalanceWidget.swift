@@ -301,13 +301,18 @@ private struct RefreshBalanceButton: View {
 
 /// Signed out or never synced: one message and the app icon, never zeros.
 private struct SignedOutBalanceView: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Image(systemName: "dumbbell.fill")
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
-                .background(WidgetTheme.accentFill, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                .background(
+                    WidgetTheme.accentFill.opacity(renderingMode == .accented ? 0.2 : 1),
+                    in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                )
                 .widgetAccentable()
                 .accessibilityHidden(true)
             Spacer(minLength: 8)
@@ -448,6 +453,7 @@ private func previewEntry(_ snapshot: EnergyBalanceWidgetSnapshot?) -> EnergyBal
     EnergyBalanceWidget()
 } timeline: {
     previewEntry(.placeholder)
+    previewEntry(.noEnergy)
     previewEntry(nil)
 }
 

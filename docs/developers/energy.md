@@ -295,9 +295,13 @@ missing energy as "—" (unknown, never zero), and the snapshot's read time
 ("13:40"). Colour follows the metric: resting is Chart 1 (blue), active Chart 2
 (orange); there are no green, red or teal glyphs. In tinted Home Screen modes the
 big number and the bar are accentable and the active segment drops to 45 % of the
-tint; In/Out/Resting/Active labels keep the meaning without colour. The Lock
-Screen draws accessories in one vibrant colour, so its words carry the meaning;
-inline uses the `scalemass` symbol (accessory inline accepts only SF Symbols),
+tint; an empty bar track uses 20 % opacity so missing energy cannot look fully
+recorded. The signed-out icon's tile also uses 20 % opacity while its dumbbell
+stays opaque, keeping the glyph distinct when WidgetKit discards colour.
+In/Out/Resting/Active labels keep the meaning without colour. These opacity rules
+are not proof of system-tinted rendering; the fixture catalog is full-colour only.
+The Lock Screen draws accessories in one vibrant colour, so its words carry the
+meaning; inline uses the `scalemass` symbol (accessory inline accepts only SF Symbols),
 rectangular uses the shared two-pan balance glyph. Signed out or never synced
 shows one message and the app icon, never zeros. Tapping any family opens Today
 (`neogym://today`); medium's Refresh keeps the existing intent. VoiceOver labels

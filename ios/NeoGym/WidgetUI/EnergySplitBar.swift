@@ -3,7 +3,8 @@ import SwiftUI
 
 /// Energy out so far: resting (Chart 1) then active (Chart 2), 2 points apart. In a
 /// tinted/accented rendering the caller passes `accented`, and active drops to 45 %
-/// of the tint so the two parts still read apart without colour.
+/// of the tint so the two parts still read apart without colour. An empty track
+/// uses 20 % opacity so it cannot read as a full resting-energy segment.
 struct EnergySplitBar: View {
     let split: EnergyBalanceSplit?
     let restingColor: Color
@@ -32,7 +33,9 @@ struct EnergySplitBar: View {
                     }
                 }
             } else {
-                Rectangle().fill(trackColor)
+                Rectangle()
+                    .fill(trackColor)
+                    .opacity(accented ? 0.2 : 1)
             }
         }
         .clipShape(Capsule())

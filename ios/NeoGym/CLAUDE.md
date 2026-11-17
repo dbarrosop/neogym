@@ -893,8 +893,10 @@ section records how the iPhone app implements it.
   widgets stay actuals-only. The watch snapshot's optional plan kcal (circular
   ring) does trigger a reload; its optional 7-day average (watch app only) does
   not. Home Screen widgets follow the design board: balance so far with the
-  resting/active bar (Chart 1/Chart 2, 45 % active in accented mode), In/Out,
-  "End of day ≈ …"; medium adds the legend, the 7-day average and Refresh.
+  resting/active bar (Chart 1/Chart 2, 45 % active and 20 % empty-track opacity
+  in accented mode), In/Out, "End of day ≈ …"; medium adds the legend, the 7-day
+  average and Refresh. In accented mode, the signed-out icon keeps its glyph
+  opaque over a 20 % tile; full-colour rendering keeps the opaque accent tile.
   `EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` adds a calendar-day
   next-local-midnight entry for a same-day snapshot: estimates drop and "today so
   far" becomes "<weekday> so far" without another provider run. The Lock Screen
