@@ -47,6 +47,18 @@ class SurfaceGalleryTests(unittest.TestCase):
         self.assertEqual({row["family"] for row in scenes if row["kind"] == "complication"},
                          {"rectangular", "circular"})
 
+    def test_health_scene_keeps_normal_first_run_content_and_enabled_allow(self):
+        scene = next(row for row in TOOLS["specification"]()["scenes"] if row["id"] == "watch-health")
+        self.assertEqual((scene["title"], scene["page"], scene["variant"]),
+                         ("Allow Health access", "health", "populated"))
+        models = (ROOT / "ios/NeoGym/Gallery/Watch/GalleryWatchModels.swift").read_text()
+        for gate in ["let contextReady = true", "let profileError: String? = nil", "let isReadingProfile = false"]:
+            self.assertIn(gate, models)
+        app = (ROOT / "ios/NeoGym/Gallery/Watch/GalleryWatchApp.swift").read_text()
+        health_page = app.split('case "health":', 1)[1].split('case "diagnostics":', 1)[0]
+        self.assertIn("WatchHealthAccessPage(runtime: runtime, account: account)", health_page)
+        self.assertNotIn(".defaultScrollAnchor", health_page)
+
     def test_no_production_runtime_or_entitlements_in_capture_targets(self):
         spec = (ROOT / "ios/NeoGym/Gallery/project.yml").read_text()
         for forbidden in ["NeoGym.entitlements", "NeoGymWatch.entitlements", "WatchEnergyRuntime.swift",

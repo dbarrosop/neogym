@@ -152,6 +152,12 @@ struct WatchHealthAccessPage<Runtime: WatchPageRuntime, Account: WatchPageAccoun
             Button("Allow") { Task { await runtime.enableHealth() } }
                 .buttonStyle(.watchCapsule(.primary))
                 .disabled(!runtime.contextReady || account.isReadingProfile || account.profileError != nil)
+            if let error = account.profileError {
+                WatchNote(text: error)
+                Button("Retry") { account.refresh() }
+                    .buttonStyle(.watchCapsule())
+                    .disabled(!runtime.contextReady || account.isReadingProfile)
+            }
             if let error = runtime.errorMessage {
                 WatchNote(text: error)
             }

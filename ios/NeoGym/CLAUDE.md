@@ -257,7 +257,10 @@ import. Ineligible deliveries record a skipped energy refresh; observer-query an
 background-delivery registration failures record only typed stage, source, and
 numeric error code (when available). The End of day page's Refresh control also
 retries validation and shows the profile warning; a still-failing or auth-rejected
-read cannot sync.
+read cannot sync. Before Health access is requested, the Allow Health access page
+shows that same profile warning with a local Retry action calling account refresh.
+Allow stays disabled until profile validation succeeds; Health-permission errors
+remain separate notes.
 Signed-in watch pages are vertical: Today, End of day, Account (with an Allow
 Health access page first until access was requested). `WatchCapsuleButtonStyle`
 reads `isEnabled` inside its rendered child view: disabled capsules dim the

@@ -117,6 +117,10 @@ fail if those inputs change mid-run. Identical images retain their original byte
 timestamp and source provenance; a rerun does not pretend an unchanged image was
 newly captured. Simulator/system rasterization can still change pixels between
 runs; the no-op guarantee applies to **identical PNG bytes**, not every rerun.
+When a scratch recapture differs only in the system clock or a spinner frame,
+keep the published PNG and its original per-image provenance. Publish only changed
+product content. Keep normal baseline scenes; optional error-state probes can stay
+in ignored scratch evidence rather than replacing a normal scene.
 
 The gate rejects missing/duplicate/orphan captures, incorrect dimensions, changed
 hashes, unsafe paths, mismatched scene/profile metadata and altered source-input
