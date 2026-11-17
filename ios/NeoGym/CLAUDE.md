@@ -631,7 +631,8 @@ section records how the iPhone app implements it.
   (`App/Shell/RestTimerIntentHandler.swift`) routes them to the attached live
   scope's controller, or, with no controller (background launch, or restoring),
   to `RestTimerController.extendPersisted`/`cancelPersisted` for the stored owner,
-  then awaits the ActivityKit work. Demo detaches it. `RestTimerAccessory` is the `.tabViewBottomAccessory`
+  then awaits notification scheduling and the ActivityKit work before the intent
+  returns. Demo detaches it. `RestTimerAccessory` is the `.tabViewBottomAccessory`
   content, enabled while a session is in the Train stack or a rest runs: it
   shows the countdown with +30 s and Skip (only Skip in the inline placement)
   and opens the session on tap. Logging a set starts the default rest

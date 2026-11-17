@@ -61,9 +61,10 @@ final class RestTimerSystemEffects: RestTimerEffects {
         lastSchedule = nil
     }
 
-    /// Lets a Live Activity intent finish its ActivityKit work before the system
-    /// suspends a background launch.
+    /// Lets a Live Activity intent enqueue its notification and finish ActivityKit
+    /// work before the system suspends a background launch.
     func waitForPendingWork() async {
+        await notificationTask?.value
         await activityTask?.value
     }
 

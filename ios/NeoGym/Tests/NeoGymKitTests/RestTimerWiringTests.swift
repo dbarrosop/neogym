@@ -36,6 +36,15 @@ final class RestTimerWiringTests: XCTestCase {
         XCTAssertTrue(effects.contains("removeDeliveredNotifications(withIdentifiers: [Self.notificationIdentifier])"))
     }
 
+    func testLiveActivityIntentsWaitForNotificationAndActivityWork() throws {
+        let effects = try source("App/Shell/RestTimerController.swift")
+        let pendingWork = #"func waitForPendingWork\(\) async \{\s*await notificationTask\?\.value\s*await activityTask\?\.value\s*\}"#
+        XCTAssertNotNil(effects.range(of: pendingWork, options: .regularExpression))
+        let handler = try source("App/Shell/RestTimerIntentHandler.swift")
+        XCTAssertTrue(handler.contains("await effects.waitForPendingWork()"), "The live controller must await both mirrors")
+        XCTAssertTrue(handler.contains("await mirror.waitForPendingWork()"), "The persisted fallback must await both mirrors")
+    }
+
     func testLiveActivityCleanupIsOrderedBehindEarlierOperations() throws {
         let effects = try source("App/Shell/RestTimerController.swift")
         let prior = try XCTUnwrap(effects.range(of: "await previousTask?.value"))
