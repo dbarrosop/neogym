@@ -4,8 +4,8 @@
   "runtime": "iOS 27.0",
   "locale": "en_US",
   "appearance": "Dark unless the screenshot explicitly demonstrates Light/System",
-  "statusBar": "9:41, full signal and battery (cosmetic simulator override)",
-  "data": "Fictional populated demo; local dates are not frozen",
+  "statusBar": "9:41, full Wi-Fi and battery (cosmetic simulator override); cellular: no signal (four grey dots) in 54 captures from 2026-11-16, full bars in 201 captures from 2026-11-15",
+  "data": "Fictional populated demo; all 255 published captures predate the fixed capture profile; app dates/clock are not frozen",
   "screenshots": [
     {
       "id": "01-today",

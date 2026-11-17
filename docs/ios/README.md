@@ -35,13 +35,22 @@ marked **Reused view**. Every one of the 255 original captures appears on the pa
 
 The images were captured on **iPhone 17, iOS 27.0, English, portrait**, with Dark as
 the default. Light and System preferences are demonstrated separately. The
-simulator status bar is cosmetically set to 9:41. This published catalog includes
-legacy captures whose app dates/clock were not frozen. The capture tooling now
-supports a versioned **15 Jan 2025, 09:41 UTC** profile and preserves unchanged
-images/provenance; profile adoption requires a deliberate baseline refresh, not
-re-dating old images. See the [capture instructions](capture.md). Samples and newly
-created records are fictional. Screenshots use the original **1206 × 2622**
-resolution, with lossless PNG recompression only.
+simulator status bar is cosmetically set to 9:41 with full Wi-Fi and battery.
+**All 255 published images are legacy captures**, without the fixed capture
+profile or frozen app dates/clock. The 54 images refreshed on **16 Nov 2026** show
+no cellular signal (four grey dots); the 201 images from **15 Nov 2026** show full
+cellular bars. Rows that reuse views from both dates, such as
+[Add daily energy, including duplicate-date validation](gallery.html#create-energy),
+therefore mix cellular states and app dates. These retained images have not been
+recaptured to unify their status bars.
+
+The capture tooling now supports a versioned **15 Jan 2025, 09:41 UTC** profile
+with explicit cellular overrides and preserves unchanged images/provenance.
+Adopting it and unifying the published cellular state require a separate reviewed
+full-baseline refresh, not re-dating or relabelling old images. See the
+[capture instructions](capture.md). Samples and newly created records are fictional.
+Screenshots use the original **1206 × 2622** resolution, with lossless PNG
+recompression only.
 
 ## Enter and leave demo
 
