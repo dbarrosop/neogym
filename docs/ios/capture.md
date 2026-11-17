@@ -138,12 +138,12 @@ Check a selected workflow twice in a scratch catalog before publishing:
 /usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py \
   --device "$UDID" --output "$OUT" --group log-food
 cp "$OUT/capture-manifest.json" "$OUT/first-pass.json"
-find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \\; | sort > "$OUT/first-pass.sha256"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \; | sort > "$OUT/first-pass.sha256"
 
 /usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py \
   --device "$UDID" --output "$OUT" --group log-food
 cmp "$OUT/first-pass.json" "$OUT/capture-manifest.json"
-find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \\; | sort > "$OUT/second-pass.sha256"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \; | sort > "$OUT/second-pass.sha256"
 cmp "$OUT/first-pass.sha256" "$OUT/second-pass.sha256"
 ```
 
