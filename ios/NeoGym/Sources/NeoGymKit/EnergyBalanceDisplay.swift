@@ -180,9 +180,20 @@ public struct EnergyBalanceDisplay: Equatable, Sendable {
         return "Balance \(periodCaption), \(KcalText.signed(balanceKcal)) kilocalories"
     }
 
+    public var inAccessibility: String { "In \(consumed) kilocalories" }
+
+    public var outAccessibility: String {
+        guard burned != KcalText.missing else { return "Out unavailable" }
+        return "Out \(burned) kilocalories"
+    }
+
     public var inOutAccessibility: String {
-        let out = hasEnergy ? "out \(burned) kilocalories" : "out unavailable"
-        return "In \(consumed) kilocalories, \(out)"
+        "\(inAccessibility), \(outAccessibility.lowercased())"
+    }
+
+    public var sevenDayAverageAccessibility: String {
+        guard sevenDayAverage != KcalText.missing else { return "Seven-day average net unavailable" }
+        return "Seven-day average net, \(sevenDayAverage) kilocalories"
     }
 
     public var splitAccessibility: String? {

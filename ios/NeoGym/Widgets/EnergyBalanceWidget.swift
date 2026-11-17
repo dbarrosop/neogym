@@ -231,14 +231,16 @@ private struct MediumBalanceView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 VStack(spacing: 6) {
                     ValueRow(label: "In", value: display.consumed)
+                        .accessibilityLabel(display.inAccessibility)
                     ValueRow(label: "Out", value: display.burned)
+                        .accessibilityLabel(display.outAccessibility)
                     WidgetTheme.fill.frame(height: 1).padding(.vertical, 2)
                     if let endOfDay = display.endOfDayNet {
                         ValueRow(label: "End of day", value: endOfDay)
                             .accessibilityLabel(display.endOfDayAccessibility ?? endOfDay)
                     }
                     ValueRow(label: "7-day avg", value: display.sevenDayAverage, weight: .medium)
-                        .accessibilityLabel("Seven-day average net, \(display.sevenDayAverage) kilocalories")
+                        .accessibilityLabel(display.sevenDayAverageAccessibility)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -265,7 +267,7 @@ private struct ValueRow: View {
             Text(value).fontWeight(weight)
         }
         .font(.system(size: 13))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
     }
 }
 

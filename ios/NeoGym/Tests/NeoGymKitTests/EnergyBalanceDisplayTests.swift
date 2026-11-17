@@ -59,6 +59,10 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         XCTAssertEqual(display.balance, "+251")
         XCTAssertEqual(display.balanceWithUnit, "+251 kcal")
         XCTAssertEqual(display.inOut, "In 1,461 · Out 1,210")
+        XCTAssertEqual(display.inAccessibility, "In 1,461 kilocalories")
+        XCTAssertEqual(display.outAccessibility, "Out 1,210 kilocalories")
+        XCTAssertEqual(display.inOutAccessibility, "In 1,461 kilocalories, out 1,210 kilocalories")
+        XCTAssertEqual(display.sevenDayAverageAccessibility, "Seven-day average net, −371 kilocalories")
         XCTAssertEqual(display.resting, "679")
         XCTAssertEqual(display.active, "531")
         XCTAssertEqual(display.split, EnergyBalanceSplit(resting: 679, active: 531))
@@ -91,7 +95,39 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         XCTAssertEqual(display.sevenDayAverage, "—")
         XCTAssertEqual(display.inlineText, "In 1,461 kcal")
         XCTAssertEqual(display.inlineAccessibility, "In 1,461 kilocalories today so far, no energy recorded")
+        XCTAssertEqual(display.inAccessibility, "In 1,461 kilocalories")
+        XCTAssertEqual(display.outAccessibility, "Out unavailable")
         XCTAssertEqual(display.inOutAccessibility, "In 1,461 kilocalories, out unavailable")
+        XCTAssertEqual(display.sevenDayAverageAccessibility, "Seven-day average net unavailable")
+    }
+
+    func testSpokenAverageAvailabilityIsIndependentOfTodaysEnergy() {
+        let noAverage = Self.display(Self.input(average: nil), at: Self.date("2026-11-15", 13, 45))
+        XCTAssertEqual(noAverage.outAccessibility, "Out 1,210 kilocalories")
+        XCTAssertEqual(noAverage.sevenDayAverageAccessibility, "Seven-day average net unavailable")
+
+        let historicalAverage = Self.display(Self.input(burned: nil), at: Self.date("2026-11-15", 13, 45))
+        XCTAssertEqual(historicalAverage.outAccessibility, "Out unavailable")
+        XCTAssertEqual(historicalAverage.sevenDayAverageAccessibility, "Seven-day average net, −371 kilocalories")
+
+        let zero = Self.display(Self.input(burned: 0, average: 0), at: Self.date("2026-11-15", 13, 45))
+        XCTAssertEqual(zero.outAccessibility, "Out 0 kilocalories")
+        XCTAssertEqual(zero.sevenDayAverageAccessibility, "Seven-day average net, 0 kilocalories")
+    }
+
+    /// Host tests cannot render WidgetKit; guard the shipping medium row bindings too.
+    func testMediumWidgetRowsUseSharedSpokenLabels() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: packageRoot.appendingPathComponent("Widgets/EnergyBalanceWidget.swift"),
+                                encoding: .utf8)
+        for (row, helper) in [("In", "inAccessibility"), ("Out", "outAccessibility"),
+                              ("7-day avg", "sevenDayAverageAccessibility")] {
+            let rowStart = try XCTUnwrap(source.range(of: "ValueRow(label: \"\(row)\""))
+            let lineEnd = try XCTUnwrap(source[rowStart.lowerBound...].firstIndex(of: "\n"))
+            let binding = source[lineEnd...].dropFirst().prefix(while: { $0 != "\n" })
+            XCTAssertEqual(binding.trimmingCharacters(in: .whitespaces), ".accessibilityLabel(display.\(helper))")
+        }
     }
 
     func testPlanProgressClampsAndNeedsAPositivePlan() {

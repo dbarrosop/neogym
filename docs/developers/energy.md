@@ -305,7 +305,10 @@ meaning; inline uses the `scalemass` symbol (accessory inline accepts only SF Sy
 rectangular uses the shared two-pan balance glyph. Signed out or never synced
 shows one message and the app icon, never zeros. Tapping any family opens Today
 (`neogym://today`); medium's Refresh keeps the existing intent. VoiceOver labels
-name each value and unit.
+name each value and unit. The medium widget's In, Out and 7-day average rows use
+`EnergyBalanceDisplay` spoken labels: available values say "kilocalories", while
+missing Out or average values say "unavailable", never the visible dash. The
+small widget's combined In/Out label uses the same wording.
 
 Estimates are shown only when the snapshot's date matches the timeline entry's
 local date. For a same-day snapshot,
