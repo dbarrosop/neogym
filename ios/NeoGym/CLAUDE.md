@@ -135,7 +135,8 @@ can shadow `/usr/bin/xcrun`; with both `SDKROOT` and `DEVELOPER_DIR` unset,
 that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
 test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
-`AR`, and `LDFLAGS`.
+`AR`, and `LDFLAGS`. For an explicit host SDK, SwiftPM uses `swift test --sdk PATH`
+(or `swift build --sdk PATH`), not the compiler's single-dash `-sdk` flag.
 
 Swift 6 SwiftUI `.onReceive` closures inherit `MainActor` isolation and can trap
 if a publisher emits off the main thread. `NSCalendarDayChanged` is an
@@ -333,7 +334,11 @@ scheduling nor WidgetKit reload guarantees a wake or fresh display. After a
 successful fresh backend read the watch saves the new snapshot timestamp.
 Only a previously server-confirmed imported or absent row can receive a local
 Health estimate; manual and legacy unknown-provenance rows remain server-only.
-The estimate retains server intake; the watch app's End of day page labels it
+The estimate retains server intake; `WatchLocalEnergyPolicy.overlay` merges a
+pending estimate with a backend read after a failed sync or a newer local read.
+Only energy totals and their timestamp stay local; intake, resting baseline,
+plan kcal and 7-day average net always use that fresh backend result (including
+nil values). The watch app's End of day page labels it
 "Health estimate <time>" until a fresh backend reconciliation. Neither
 complication family marks provisional estimates. The app requests `reloadTimelines`
 only when displayed values, owner or pending status change, or after clearing

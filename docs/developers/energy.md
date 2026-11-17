@@ -272,9 +272,13 @@ the same QueryClient.
 
 The watch snapshot carries an optional aggregate resting baseline so the app
 can immediately recompute a projection when an eligible provisional local
-Health reading replaces today's partial totals. It retains the same owner/date
-and manual-row gates as existing snapshots; old snapshots without that baseline
-still decode and show actual values only. Baseline-only and 7-day-average-only
+Health reading replaces today's partial totals. `WatchLocalEnergyPolicy.overlay`
+retains pending local energy after a failed Health sync or when the estimate is
+newer than the backend read, preserving the same owner/date and manual-row gates.
+Only energy totals and their timestamp come from the local estimate; intake,
+resting baseline, selected-plan kcal and 7-day average net come from the fresh
+backend result, including when those optional values are absent. Old snapshots
+without a baseline still decode and show actual values only. Baseline-only and 7-day-average-only
 changes do not request complication reloads; a plan kcal change does.
 
 The iPhone widget snapshot carries the estimated burned/net kcal as optional

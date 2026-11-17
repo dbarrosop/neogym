@@ -346,21 +346,9 @@ extension WatchEnergyRuntime {
     private func finishRefresh(_ result: WatchEnergySnapshot, userID: String,
                                pending: WatchPendingHealthSync?, syncError: String?,
                                trigger: WatchEventTrigger, attemptID: UUID, started: TimeInterval) {
-        let displayed: WatchEnergySnapshot
-        if let local = snapshot, local.pendingBackend == true,
-           local.userID == userID, local.localDate == result.localDate,
-           result.rowSource != .manual,
-           syncError != nil || local.updatedAt > result.updatedAt {
-            displayed = WatchEnergySnapshot(
-                userID: userID, localDate: result.localDate, consumedKcal: result.consumedKcal,
-                burnedKcal: local.burnedKcal, activeKcal: local.activeKcal,
-                restingKcal: local.restingKcal, updatedAt: local.updatedAt,
-                rowSource: result.rowSource, pendingBackend: true,
-                restingBaseline: result.restingBaseline
-            )
-        } else {
-            displayed = result
-        }
+        let displayed = WatchLocalEnergyPolicy.overlay(
+            local: snapshot, onto: result, syncFailed: syncError != nil
+        )
         snapshot = displayed
         let save = store.saveReportingDisplayChange(displayed)
         record(.snapshotSave, save.saved ? .succeeded : .failed, trigger: trigger, attemptID: attemptID)

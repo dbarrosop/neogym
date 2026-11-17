@@ -78,6 +78,25 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
 /// Optimistic display only for a known imported/missing server row. A manual
 /// row (or old snapshot with unknown provenance) always keeps server values.
 public enum WatchLocalEnergyPolicy {
+    /// Keep pending local energy after a failed sync or a read started before
+    /// that estimate. Intake, plan and history always come from the fresh read.
+    public static func overlay(
+        local: WatchEnergySnapshot?, onto server: WatchEnergySnapshot, syncFailed: Bool
+    ) -> WatchEnergySnapshot {
+        guard let local, local.pendingBackend == true,
+              local.userID == server.userID, local.localDate == server.localDate,
+              server.rowSource != .manual,
+              syncFailed || local.updatedAt > server.updatedAt else { return server }
+        return WatchEnergySnapshot(
+            userID: server.userID, localDate: server.localDate, consumedKcal: server.consumedKcal,
+            burnedKcal: local.burnedKcal, activeKcal: local.activeKcal,
+            restingKcal: local.restingKcal, updatedAt: local.updatedAt,
+            rowSource: server.rowSource, pendingBackend: true,
+            restingBaseline: server.restingBaseline, planKcal: server.planKcal,
+            sevenDayAverageNet: server.sevenDayAverageNet
+        )
+    }
+
     public static func estimate(
         from snapshot: WatchEnergySnapshot?, imported: [HealthDailyEnergy],
         ownerID: String, today: String, now: Date
