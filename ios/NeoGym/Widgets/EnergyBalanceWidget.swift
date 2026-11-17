@@ -383,7 +383,7 @@ private struct RectangularBalanceView: View {
     }
 }
 
-/// Food in against the day's plan ("1,461 of 2,243"); a plain total without a plan.
+/// Food in against the day's plan; historical snapshots name their weekday below the total.
 private struct CircularIntakeView: View {
     let display: EnergyBalanceDisplay?
 
@@ -396,7 +396,7 @@ private struct CircularIntakeView: View {
                     .font(.system(size: 15, weight: .bold))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
-                Text(display?.planTarget.map { "of \($0)" } ?? "kcal in")
+                Text(display?.circularIntakeCaption ?? "kcal in")
                     .font(.system(size: 10))
                     .monospacedDigit()
                     .minimumScaleFactor(0.6)
@@ -406,7 +406,7 @@ private struct CircularIntakeView: View {
         .gaugeStyle(.accessoryCircularCapacity)
         .widgetAccentable()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(display?.planAccessibility ?? "Sign in to NeoGym")
+        .accessibilityLabel(display?.circularIntakeAccessibility ?? "Sign in to NeoGym")
     }
 }
 
@@ -461,6 +461,10 @@ private func previewEntry(_ snapshot: EnergyBalanceWidgetSnapshot?) -> EnergyBal
     EnergyBalanceWidget()
 } timeline: {
     previewEntry(.placeholder)
+    EnergyBalanceTimelineEntry(content: EnergyBalanceWidgetTimelineEntry(
+        date: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now,
+        snapshot: .placeholder
+    ))
 }
 
 #Preview("Lock Screen inline", as: .accessoryInline) {

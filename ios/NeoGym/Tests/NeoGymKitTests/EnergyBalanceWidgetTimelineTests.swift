@@ -51,6 +51,8 @@ final class EnergyBalanceWidgetTimelineTests: XCTestCase {
         XCTAssertNil(entry.display?.endOfDayNet)
         XCTAssertEqual(entry.display?.isCurrentDay, false)
         XCTAssertEqual(entry.display?.periodCaption, "Wednesday so far")
+        XCTAssertEqual(entry.display?.circularIntakeCaption, "Wednesday")
+        XCTAssertEqual(entry.display?.circularIntakeAccessibility, "Food in, 0 kilocalories, Wednesday")
     }
 
     func testNewDayLiveReadRequiresThatDaysEnergyToShowEstimates() async throws {
@@ -150,6 +152,9 @@ final class EnergyBalanceWidgetTimelineTests: XCTestCase {
             XCTAssertEqual(expiry.display?.balance, "−900")
             XCTAssertEqual(expiry.display?.sevenDayAverage, first.display?.sevenDayAverage)
             XCTAssertEqual(expiry.display?.updatedTime, first.display?.updatedTime)
+            XCTAssertEqual(expiry.display?.circularIntakeCaption, expiry.display?.dayLabel)
+            XCTAssertEqual(expiry.display?.circularIntakeAccessibility,
+                           "Food in, 0 kilocalories, \(try XCTUnwrap(expiry.display?.dayLabel))")
         }
     }
 

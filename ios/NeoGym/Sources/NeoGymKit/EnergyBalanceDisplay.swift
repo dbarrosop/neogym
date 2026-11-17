@@ -196,6 +196,15 @@ public struct EnergyBalanceDisplay: Equatable, Sendable {
         return "Estimated by end of day: net \(endOfDayNet.dropApproximation) kilocalories\(burnedText)"
     }
 
+    /// The circular widget names historical intake instead of presenting it as today's.
+    public var circularIntakeCaption: String {
+        isCurrentDay ? planTarget.map { "of \($0)" } ?? "kcal in" : dayLabel
+    }
+
+    public var circularIntakeAccessibility: String {
+        isCurrentDay ? planAccessibility : "\(planAccessibility), \(dayLabel)"
+    }
+
     public var planAccessibility: String {
         guard let planTarget else { return "Food in, \(consumed) kilocalories" }
         return "Food in, \(consumed) of \(planTarget) planned kilocalories"

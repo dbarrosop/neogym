@@ -55,9 +55,10 @@ show idle, enabled controls; they do not cover disabled or in-flight states.
   they are not receipts of a real sync or WidgetKit reload.
 - Frame sizes/region arrangements are chosen by the fixture host. They do not
   prove actual WidgetKit margins, Dynamic Island layout or watch-face placement.
-- Captures show current view behavior, including prior-day inline/circular intake
-  and message-layout error states. The in-memory adapters do not validate state
-  transitions or prove every input combination is reachable through live flows.
+- Captures show current view behavior, including weekday-labeled prior-day
+  inline/circular intake and message-layout error states. The in-memory adapters
+  do not validate state transitions or prove every input combination is reachable
+  through live flows.
   Their presence does **not** resolve review findings.
 
 No claims are made about tinted/vibrant system rendering, permission dialogs,
@@ -117,14 +118,18 @@ fail if those inputs change mid-run. Identical images retain their original byte
 timestamp and source provenance; a rerun does not pretend an unchanged image was
 newly captured. Simulator/system rasterization can still change pixels between
 runs; the no-op guarantee applies to **identical PNG bytes**, not every rerun.
-When a scratch recapture differs only in the system clock or a spinner frame,
-keep the published PNG and its original per-image provenance. Publish only changed
-product content. Keep normal baseline scenes; optional error-state probes can stay
-in ignored scratch evidence rather than replacing a normal scene.
+When a scratch recapture differs only in the system clock, the phone's auto-hiding
+home indicator or a spinner frame, keep the published PNG and its original
+per-image provenance. Publish only changed product content. Keep normal baseline
+scenes; optional error-state probes can stay in ignored scratch evidence rather
+than replacing a normal scene.
 
 The gate rejects missing/duplicate/orphan captures, incorrect dimensions, changed
 hashes, unsafe paths, mismatched scene/profile metadata and altered source-input
 maps. It is an artifact-integrity gate, not a semantic UI or integration test.
+For ad-hoc Python `runpy` probes of `source_inputs()`, load the script by its
+resolved absolute path: relative `__file__` paths cannot be compared with its
+absolute repository root.
 
 ```sh
 /usr/bin/python3 -m unittest discover -s ios/NeoGym/Scripts -p 'test_*.py'

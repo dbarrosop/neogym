@@ -127,6 +127,25 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         }
     }
 
+    func testCircularIntakeNamesItsSnapshotDayWithAndWithoutAPlan() {
+        for plan: Double? in [2_243, nil] {
+            let input = Self.input(plan: plan)
+            let today = Self.display(input, at: Self.date("2026-11-15", 13, 45))
+            XCTAssertEqual(today.circularIntakeCaption, plan == nil ? "kcal in" : "of 2,243")
+            XCTAssertEqual(today.circularIntakeAccessibility, today.planAccessibility)
+
+            for hour in [0, 7] {
+                let historical = Self.display(input, at: Self.date("2026-11-16", hour, 0))
+                XCTAssertEqual(historical.circularIntakeCaption, "Sunday")
+                XCTAssertEqual(historical.circularIntakeAccessibility, plan == nil
+                    ? "Food in, 1,461 kilocalories, Sunday"
+                    : "Food in, 1,461 of 2,243 planned kilocalories, Sunday")
+                XCTAssertEqual(historical.consumed, today.consumed, "Values describe the labeled snapshot day")
+                XCTAssertEqual(historical.planProgress, today.planProgress)
+            }
+        }
+    }
+
     func testWidgetSnapshotCarriesThePlanAndSevenDayAverage() {
         let today = "2026-11-15"
         let plan = NutritionPlan(id: "plan", name: "Plan", nutritionPlanFoods: [

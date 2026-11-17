@@ -891,6 +891,9 @@ section records how the iPhone app implements it.
   far" becomes "<weekday> so far" without another provider run. The Lock Screen
   inline intake-only fallback names that weekday too, and its VoiceOver label
   describes intake for the same day rather than only an unavailable balance.
+  The Lock Screen circular widget keeps historical intake/plan progress but
+  replaces the target caption with that weekday and names it in the spoken label;
+  it never presents those prior-day values as today's.
   Timeline tests inject both calendar and locale; `en_US_POSIX` numeric fixtures
   use ungrouped values such as `2100`, unlike `en_US`'s `2,100`.
   See `docs/developers/energy.md` from the repo root. Do not introduce a new

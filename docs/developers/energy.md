@@ -304,9 +304,12 @@ keeps the recorded values but drops estimates and relabels "today so far" as the
 snapshot's weekday ("Sunday so far"), without another backend fetch or provider
 execution. The Lock Screen inline widget also names that weekday when energy is
 missing ("In 1,461 kcal Sunday"); its spoken label describes the same intake and
-day, with energy unavailable rather than zero. The existing 15/30-minute provider
-reload policies remain best-effort; a new day's estimates require a snapshot for
-that day.
+day, with energy unavailable rather than zero. The Lock Screen circular widget
+keeps the historical intake and plan ring but replaces its target caption with the
+snapshot's weekday ("Sunday"); its spoken intake/plan label names that day too.
+It does not claim those values describe today's intake. The existing 15/30-minute
+provider reload policies remain best-effort; a new day's estimates require a
+snapshot for that day.
 
 ## Watch Energy and complication
 
