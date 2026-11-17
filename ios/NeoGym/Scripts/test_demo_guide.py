@@ -364,6 +364,51 @@ class CatalogValidationTests(unittest.TestCase):
     def test_accepts_a_complete_catalog(self):
         self.validate()
 
+    def test_accepts_a_uniform_capture_profile_regardless_of_key_order(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"][0]["captureProfile"] = profile
+        self.manifest["screenshots"][1]["captureProfile"] = dict(reversed(list(profile.items())))
+        self.validate()
+
+    def test_rejects_mixed_legacy_and_profile_captures(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"][1]["captureProfile"] = profile
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn("complete, reviewed baseline (--group all)", str(raised.exception))
+        self.assertIn("null = legacy", str(raised.exception))
+        self.assertIn("null: 01-today", str(raised.exception))
+        self.assertIn(json.dumps(profile, sort_keys=True) + ": sample", str(raised.exception))
+
+    def test_rejects_mixed_capture_profile_versions(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        newer = {**profile, "version": profile["version"] + 1}
+        self.manifest["screenshots"][0]["captureProfile"] = profile
+        self.manifest["screenshots"][1]["captureProfile"] = newer
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn(json.dumps(profile, sort_keys=True) + ": 01-today", str(raised.exception))
+        self.assertIn(json.dumps(newer, sort_keys=True) + ": sample", str(raised.exception))
+
+    def test_reports_retained_legacy_issue_evidence_after_a_full_refresh(self):
+        issue_id = "sample-deleted-detail-issue"
+        record = {**self.manifest["screenshots"][1], "id": issue_id,
+                  "file": "screenshots/" + issue_id + ".png"}
+        for image in self.manifest["screenshots"]:
+            image["captureProfile"] = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"].append(record)
+        self.manifest["knownIssues"] = [{"id": "delete-navigation", "screenshots": [issue_id]}]
+        image = self.output / record["file"]
+        image.write_bytes((self.output / "screenshots/sample.png").read_bytes())
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn("null: " + issue_id, str(raised.exception))
+        self.assertIn("If that run has already completed", str(raised.exception))
+        self.assertIn("obsolete conditional issue evidence per docs/ios/capture.md", str(raised.exception))
+        self.assertIn("never relabel old captures", str(raised.exception))
+        self.assertEqual(json.loads((self.output / "capture-manifest.json").read_text()), self.manifest)
+        self.assertTrue(image.exists())
+
     def test_rejects_failed_workflows(self):
         self.manifest["workflows"][1]["status"] = "failed"
         with self.assertRaisesRegex(ValueError, "Missing or failed workflows: sample"):

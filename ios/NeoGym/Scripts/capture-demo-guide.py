@@ -367,6 +367,17 @@ def validate_catalog(output):
         raise ValueError("Duplicate screenshot IDs")
     if len({row["file"] for row in screenshots.values()}) != len(screenshots):
         raise ValueError("Screenshots must have distinct files")
+    profiles = {}
+    for row in screenshots.values():
+        profile = json.dumps(row.get("captureProfile"), sort_keys=True)
+        profiles.setdefault(profile, []).append(row["id"])
+    if len(profiles) > 1:
+        details = "\n".join(profile + ": " + ", ".join(sorted(identifiers))
+                            for profile, identifiers in sorted(profiles.items()))
+        raise ValueError("Mixed capture profiles: publish only a complete, reviewed baseline (--group all). "
+                         "If that run has already completed, review obsolete conditional issue evidence "
+                         "per docs/ios/capture.md; never relabel old captures.\n"
+                         "Screenshot IDs by captureProfile (null = legacy):\n" + details)
     missing = required_images - screenshots.keys()
     if missing:
         raise ValueError("Missing screenshots: " + ", ".join(sorted(missing)))

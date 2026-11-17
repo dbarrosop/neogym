@@ -95,8 +95,9 @@ Rerun a single group after diagnosing a failed locator or UI change:
 /usr/bin/python3 ios/NeoGym/Scripts/demo-guide-workflows.py --help
 ```
 
-Group reruns update their named screenshots and latest workflow result. Run only
-affected groups, not `all`, for normal feature work.
+Group reruns update their named screenshots and latest workflow result. After
+complete profile-baseline adoption, run only affected groups, not `all`, for normal
+feature work.
 
 ### Fixed capture profile and quiet reruns
 
@@ -128,9 +129,26 @@ lossless and unchanged files are not rewritten.
 Legacy published images have no `captureProfile` field. Do not label them frozen
 by editing timestamps or rerendering: the first adoption of this profile needs a
 **one-time reviewed baseline refresh**, ideally a separate catalog-only change.
+Until that baseline lands, refreshing any group produces frozen-profile frames:
+publish only a reviewed full `--group all` baseline or defer publication, never
+mix those frames with legacy captures. That baseline must also update the manifest's
+top-level `data`/`statusBar` descriptions to reflect the adopted profile; leave
+legacy provenance unchanged until actual recapture. `validate` rejects mixed
+legacy/profile captures and mixed profile versions.
 This implementation does not automatically replace the legacy catalog. Profile,
 Xcode/runtime/device or font changes can require another explicit baseline;
 system rendering/animation can still cause differences and must be reviewed.
+
+A full run does not prune conditional `*-deleted-detail-issue` or
+`*-created-navigation-issue` evidence when an issue no longer reproduces. The mixed-profile
+error lists screenshot IDs grouped by profile (`null` means legacy), including these
+retained records. Only after a fresh walkthrough confirms the issue no longer reproduces,
+manually remove its obsolete record and PNG from the reviewed scratch baseline, its
+`knownIssues.screenshots` reference (and any now-empty issue entry), and its frame reference
+in `demo-guide-gallery.py`'s `LAYOUT`; reconcile coverage counts, then render and validate
+again. Never relabel old captures or remove required normal frames to bypass validation;
+keep the published legacy issue evidence unchanged until that new baseline is reviewed
+and published.
 
 Check a selected workflow twice in a scratch catalog before publishing:
 
@@ -169,9 +187,9 @@ open "$OUT/gallery.html"
   pixels/color profiles; obsolete optional Apple IDAT-layout offsets are removed.
 - `validate` requires every registered walkthrough to pass, every root and literal
   screenshot to exist, unique IDs/files, matching dimensions and SHA-256 hashes,
-  valid known-issue image references, and no uncatalogued PNGs. It also resolves
-  the visual gallery layout, checks its frame references and requires all captures
-  to appear in at least one row.
+  one uniform capture profile (including all-legacy), valid known-issue image
+  references, and no uncatalogued PNGs. It also resolves the visual gallery layout,
+  checks its frame references and requires all captures to appear in at least one row.
 - `render` builds `gallery.html` and `workflows.md` from the manifest. Do not edit
   those generated files by hand. Preview-folder README links resolve after publication.
 
@@ -238,8 +256,9 @@ From the repository root:
 
 The Python suite checks lossless pixels/PNG CRCs and color metadata, optimization
 idempotency, HTML escaping, complete root coverage, workflow failure detection,
-image hashes, duplicates/orphans and missing known-issue evidence. Gallery tests
-also check separate CRUD rows, frame order, reused image paths, section/row links,
+image hashes, duplicates/orphans, uniform capture profiles and missing known-issue
+evidence. Gallery tests also check separate CRUD rows, frame order, reused image
+paths, section/row links,
 issue notes, missing-frame failures and retention of future captures. These tests
 need neither a simulator nor the backend.
 

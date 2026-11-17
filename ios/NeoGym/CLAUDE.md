@@ -41,8 +41,11 @@ it. Resolve the capture profile independently of launch arguments: an invalid
 retain the process opt-in for a later **Try demo**. Ordinary demo/live clocks and
 SDK/Auth/HealthKit deadlines stay real. New
 visible date defaults should use `AppClock.now()` / `AppClock.calendar` or an
-explicit injected clock. Unchanged captures preserve PNG/provenance/order; use
-only affected groups and keep baseline migrations separate from feature work.
+explicit injected clock. Unchanged captures preserve PNG/provenance/order; after
+baseline adoption, use only affected groups and keep baseline migrations separate
+from feature work. Until the one-time profile baseline lands, every group refresh
+produces frozen-profile frames: publish only a reviewed full `--group all` baseline
+or defer publication; `validate` rejects mixed legacy/profile or profile versions.
 The `NeoGym` XcodeGen scheme includes `NeoGymUITests`; host `Demo*Tests` cover
 repository behavior and source wiring. Do not claim these replace real backend,
 hardware, signing or App Review acceptance. Apple must approve omitting normal

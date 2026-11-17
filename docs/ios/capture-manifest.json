@@ -4369,7 +4369,7 @@
   },
   "validation": {
     "catalog": "255 PNG images, 15 roots, 46 recorded passing walkthroughs",
-    "pythonToolingTests": 27,
+    "pythonToolingTests": 31,
     "scope": "Offline catalog integrity and Python tooling checks only; recorded walkthrough results are retained, not rerun."
   }
 }
