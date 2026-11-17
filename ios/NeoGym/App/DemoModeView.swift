@@ -175,10 +175,7 @@ private struct DemoModeView: View {
         .environmentObject(connectivity)
         .environment(\.demoActions, DemoActions(reset: { Task { await runtime.load(reset: true) } }, exit: exitDemo))
         .defaultAppStorage(defaults)
-        .environment(\.calendar, AppClock.calendar)
-        .environment(\.timeZone, AppClock.calendar.timeZone)
-        .environment(\.locale, AppClock.captureProfile?.locale ?? .current)
-        .transaction { if AppClock.captureProfile != nil { $0.disablesAnimations = true } }
+        .modifier(DemoCaptureEnvironment())
         .background(NeoGymTheme.background)
         .tint(NeoGymTheme.accentText)
         .preferredColorScheme(AppAppearance(storedValue: appearance).colorScheme)
@@ -191,6 +188,20 @@ private struct DemoModeView: View {
         Task {
             await runtime.stop()
             exit()
+        }
+    }
+}
+
+private struct DemoCaptureEnvironment: ViewModifier {
+    func body(content: Content) -> some View {
+        if let profile = AppClock.captureProfile {
+            content
+                .environment(\.calendar, profile.calendar)
+                .environment(\.timeZone, profile.timeZone)
+                .environment(\.locale, profile.locale)
+                .transaction { $0.disablesAnimations = true }
+        } else {
+            content
         }
     }
 }

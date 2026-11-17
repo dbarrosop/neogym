@@ -50,6 +50,30 @@ final class DemoIsolationWiringTests: XCTestCase {
         XCTAssertTrue(driver.contains("app.launchEnvironment = request[\"environment\"]"))
     }
 
+    func testOnlyCaptureModeOverridesSwiftUIEnvironment() throws {
+        let demo = try source("App/DemoModeView.swift")
+        let modifierStart = try XCTUnwrap(demo.range(of: "private struct DemoCaptureEnvironment: ViewModifier"))
+        let composition = demo[..<modifierStart.lowerBound]
+        XCTAssertTrue(composition.contains(".modifier(DemoCaptureEnvironment())"))
+        for key in ["calendar", "timeZone", "locale"] {
+            XCTAssertFalse(composition.contains(".environment(\\.\(key),"), key)
+        }
+        let modifier = demo[modifierStart.lowerBound...]
+        let captureStart = try XCTUnwrap(modifier.range(of: "if let profile = AppClock.captureProfile {"))
+        let fallbackStart = try XCTUnwrap(modifier.range(of: "} else {", range: captureStart.upperBound..<modifier.endIndex))
+        let capture = modifier[captureStart.upperBound..<fallbackStart.lowerBound]
+        for override in [
+            ".environment(\\.calendar, profile.calendar)",
+            ".environment(\\.timeZone, profile.timeZone)",
+            ".environment(\\.locale, profile.locale)",
+            ".transaction { $0.disablesAnimations = true }"
+        ] {
+            XCTAssertTrue(capture.contains(override), override)
+        }
+        // Ordinary demo must inherit SwiftUI's updating values, not fixed .current snapshots.
+        XCTAssertTrue(modifier[fallbackStart.lowerBound...].hasPrefix("} else {\n            content\n        }"))
+    }
+
     func testInvalidLaunchOptionsRetainCaptureProfileForPublicDemoReentry() throws {
         let demo = try source("App/DemoModeView.swift")
         let profileStart = try XCTUnwrap(demo.range(of: "captureProfile = try DemoCaptureProfile.requested()"))

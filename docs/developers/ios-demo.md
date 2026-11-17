@@ -156,10 +156,15 @@ avoids the native graphical date picker's moving real-today highlight.
 `AppModeController` enables `AppClock` only while an opted-in demo is active and
 clears it before returning to live mode. Date helpers, model/query defaults,
 forms, chart windows and demo rest timers use that domain clock; fixture seeding
-and mutation timestamps use it too. Ordinary demo/live launches still use system
-time. OS/XCTest timeouts, network deadlines, Auth/SDK credentials and HealthKit
-clocks are never frozen. Use `AppClock.now()` / `AppClock.calendar` (or explicit
-injected clocks) for new capture-visible domain dates rather than raw `Date()`.
+and mutation timestamps use it too. SwiftUI calendar, time zone and locale
+overrides, plus disabled animations, apply only while that capture profile is active.
+Ordinary demo inherits SwiftUI's system-updating environment defaults rather than
+fixed `Calendar.current` / `Locale.current` snapshots, keeping pickers consistent
+with domain conversions after system time-zone or region changes. Ordinary
+demo/live launches still use system time. OS/XCTest timeouts, network deadlines,
+Auth/SDK credentials and HealthKit clocks are never frozen. Use `AppClock.now()` /
+`AppClock.calendar` (or explicit injected clocks) for new capture-visible domain
+dates rather than raw `Date()`.
 
 Capture-created records get a persisted monotonic ID sequence, avoiding random
 ID tie-breaking; the optional sequence remains compatible with old v1 files.
