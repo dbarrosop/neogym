@@ -181,7 +181,9 @@ for today / balance, fresh or stale after an hour). Full colour tints only the
 title (accent) and ring (Chart 1); tinted faces tint those via
 `widgetAccentable()` and keep numbers white. No green, red or teal glyphs; the
 two-pan `BalanceScaleIcon` in `WidgetUI/` marks balance (it is shared with the
-iPhone Lock Screen rectangular widget). Keep full VoiceOver labels.
+iPhone Lock Screen rectangular widget). Keep full VoiceOver labels. An earlier-day
+snapshot means today's values have not synced; the circular waiting-state label
+must not claim that no food has been logged today.
 `Watch/` and `WidgetUI/` are compiled into the watch app; `WatchWidgets/` and
 `WidgetUI/` into its widget extension; `Widgets/`, `Shared/` and `WidgetUI/`
 into the iPhone widget extension. `WidgetUI/WatchPalette.swift` is

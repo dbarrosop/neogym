@@ -224,6 +224,20 @@ final class WatchComplicationContentTests: XCTestCase {
         XCTAssertEqual(WatchComplicationContent(latest: yesterday, at: noon, calendar: calendar), .waitingForToday)
     }
 
+    /// Host tests cannot render the watch-only view; guard its waiting-state wording.
+    func testCircularWaitingLabelDescribesMissingSyncNotMissingFood() throws {
+        let packageRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let source = try String(contentsOf: packageRoot.appendingPathComponent("WatchWidgets/WatchEnergyComplication.swift"),
+                                encoding: .utf8)
+        let circular = try XCTUnwrap(source.range(of: "private struct CircularIntake: View"))
+        let waiting = try XCTUnwrap(source.range(of: "case .waitingForToday:", range: circular.upperBound..<source.endIndex))
+        let notConnected = try XCTUnwrap(source.range(of: "case .notConnected:", range: waiting.upperBound..<source.endIndex))
+        let waitingSource = source[waiting.upperBound..<notConnected.lowerBound]
+        XCTAssertTrue(waitingSource.contains(".accessibilityLabel(\"Food in unavailable, not synced today. Open NeoGym to sync\")"))
+        XCTAssertFalse(source.contains("No food logged yet today"))
+    }
+
     func testFreshThenStaleThenMidnight() throws {
         let latest = snapshot(updatedAt: noon)
         guard case let .balance(display, isStale) = WatchComplicationContent(

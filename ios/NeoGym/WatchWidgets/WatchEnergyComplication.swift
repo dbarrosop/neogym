@@ -165,7 +165,7 @@ private struct CircularIntake: View {
             ring(progress: 0) {
                 Text(KcalText.missing).font(.system(size: 13, weight: .bold))
             }
-            .accessibilityLabel("No food logged yet today")
+            .accessibilityLabel("Food in unavailable, not synced today. Open NeoGym to sync")
         case .notConnected:
             ZStack {
                 Circle()
