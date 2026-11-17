@@ -754,7 +754,9 @@ section records how the iPhone app implements it.
   the typed grams. Saved totals appear only when the displayed whole
   kcal/protein/carbs/fat differ, not for fiber/sugar alone or sub-rounding
   changes. `NutritionMacroText.whole` preserves the previews' existing visible
-  rounding and is shared by the comparison and rendering.
+  rounding and is shared by the comparison, rendering and spoken P/C/F values
+  (also in slot headers). Keep speech on the same formatter: rounding exact
+  half grams away from zero would disagree with the visible half-to-even values.
   Amount and custom-nutrient fields provide a focus-scoped keyboard Done action.
   `FoodPickerView` / `MealPickerView` (wheels) are no longer used; workout
   labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):

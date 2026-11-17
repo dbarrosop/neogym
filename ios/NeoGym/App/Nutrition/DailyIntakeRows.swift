@@ -84,7 +84,7 @@ struct NutritionSlotMacroLine: View {
                 .fill(dot)
                 .frame(width: 7, height: 7)
             Text(
-                "\(label) \(Text(MetricFormat.whole(grams)).fontWeight(.semibold).foregroundStyle(valueColor)) g"
+                "\(label) \(Text(NutritionMacroText.whole(grams)).fontWeight(.semibold).foregroundStyle(valueColor)) g"
             )
         }
     }

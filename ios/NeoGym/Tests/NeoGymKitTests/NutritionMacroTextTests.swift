@@ -47,6 +47,38 @@ final class NutritionMacroTextTests: XCTestCase {
         )
     }
 
+    func testHalfGramPreviewAndSpeechMatchAtLoggedAmount() {
+        let macros = NutritionMath.macrosForGrams(
+            input: MacroFields(
+                kcalPer100g: .integer(100), fatPer100g: .integer(5),
+                carbsPer100g: .integer(5), proteinPer100g: .integer(9)
+            ),
+            grams: .integer(50)
+        )
+
+        XCTAssertEqual(macros.protein, 4.5)
+        XCTAssertEqual(macros.carbs, 2.5)
+        XCTAssertEqual(macros.fat, 2.5)
+        XCTAssertEqual(NutritionEntryPreview.summary(macros, locale: enUS), "50 kcal · P 4 · C 2 · F 2")
+        XCTAssertEqual(
+            NutritionMacroText.slotAccessibility(macros, locale: enUS),
+            "Protein 4 grams, carbs 2 grams, fat 2 grams"
+        )
+    }
+
+    func testSlotSpeechUsesVisibleWholeGramRoundingAcrossLocales() {
+        for locale in [enUS, Locale(identifier: "de_DE")] {
+            for value in [0.5, 1.5, 2.5, 3.5, 4.5, 14.5, 1234.5] {
+                let macros = totals(protein: value, carbs: value, fat: value)
+                let visible = NutritionMacroText.whole(value, locale: locale)
+                XCTAssertEqual(
+                    NutritionMacroText.slotAccessibility(macros, locale: locale),
+                    "Protein \(visible) grams, carbs \(visible) grams, fat \(visible) grams"
+                )
+            }
+        }
+    }
+
     func testItemCount() {
         XCTAssertEqual(NutritionMacroText.itemCount(1), "1 item")
         XCTAssertEqual(NutritionMacroText.itemCount(3), "3 items")
