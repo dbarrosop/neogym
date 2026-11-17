@@ -298,8 +298,11 @@ local date. For a same-day snapshot,
 the next local midnight using calendar-day arithmetic (including DST). That entry
 keeps the recorded values but drops estimates and relabels "today so far" as the
 snapshot's weekday ("Sunday so far"), without another backend fetch or provider
-execution. The existing 15/30-minute provider reload policies remain
-best-effort; a new day's estimates require a snapshot for that day.
+execution. The Lock Screen inline widget also names that weekday when energy is
+missing ("In 1,461 kcal Sunday"); its spoken label describes the same intake and
+day, with energy unavailable rather than zero. The existing 15/30-minute provider
+reload policies remain best-effort; a new day's estimates require a snapshot for
+that day.
 
 ## Watch Energy and complication
 

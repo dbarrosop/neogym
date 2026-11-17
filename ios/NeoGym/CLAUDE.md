@@ -877,7 +877,9 @@ section records how the iPhone app implements it.
   "End of day ≈ …"; medium adds the legend, the 7-day average and Refresh.
   `EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` adds a calendar-day
   next-local-midnight entry for a same-day snapshot: estimates drop and "today so
-  far" becomes "<weekday> so far" without another provider run.
+  far" becomes "<weekday> so far" without another provider run. The Lock Screen
+  inline intake-only fallback names that weekday too, and its VoiceOver label
+  describes intake for the same day rather than only an unavailable balance.
   Timeline tests inject both calendar and locale; `en_US_POSIX` numeric fixtures
   use ungrouped values such as `2100`, unlike `en_US`'s `2,100`.
   See `docs/developers/energy.md` from the repo root. Do not introduce a new

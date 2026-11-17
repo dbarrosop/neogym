@@ -336,7 +336,7 @@ private struct InlineBalanceView: View {
     var body: some View {
         if let display {
             Label(display.inlineText, systemImage: "scalemass")
-                .accessibilityLabel(display.balanceAccessibility)
+                .accessibilityLabel(display.inlineAccessibility)
         } else {
             Label("Open NeoGym", systemImage: "dumbbell")
         }

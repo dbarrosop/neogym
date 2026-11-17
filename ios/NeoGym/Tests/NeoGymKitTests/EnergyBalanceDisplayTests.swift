@@ -72,6 +72,7 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         XCTAssertEqual(display.periodCaption, "today so far")
         XCTAssertEqual(display.periodHeader, "Today so far · 13:40")
         XCTAssertEqual(display.inlineText, "+251 kcal so far")
+        XCTAssertEqual(display.inlineAccessibility, display.balanceAccessibility)
         XCTAssertEqual(display.watchTitle(isStale: false), "Balance so far")
         XCTAssertEqual(display.watchTitle(isStale: true), "Balance at 13:40")
         XCTAssertEqual(display.splitAccessibility, "Out so far: resting 679 and active 531 kilocalories")
@@ -89,6 +90,7 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         XCTAssertNil(display.endOfDayNet)
         XCTAssertEqual(display.sevenDayAverage, "—")
         XCTAssertEqual(display.inlineText, "In 1,461 kcal")
+        XCTAssertEqual(display.inlineAccessibility, "In 1,461 kilocalories today so far, no energy recorded")
         XCTAssertEqual(display.inOutAccessibility, "In 1,461 kilocalories, out unavailable")
     }
 
@@ -109,6 +111,20 @@ final class EnergyBalanceDisplayTests: XCTestCase {
         XCTAssertEqual(display.periodCaption, "Sunday so far")
         XCTAssertEqual(display.periodHeader, "Sunday so far · 13:40")
         XCTAssertEqual(display.inlineText, "+251 kcal Sunday")
+        XCTAssertEqual(display.inlineAccessibility, display.balanceAccessibility)
+    }
+
+    func testMissingEnergyStillNamesItsDayAtMidnightAndOnALaterFallback() {
+        let input = Self.input(burned: nil, active: nil, resting: nil, estimatedNet: nil,
+                               estimatedBurned: nil, average: nil)
+        for hour in [0, 7] {
+            let display = Self.display(input, at: Self.date("2026-11-16", hour, 0))
+            XCTAssertFalse(display.isCurrentDay)
+            XCTAssertFalse(display.hasEnergy)
+            XCTAssertEqual(display.balance, "—", "Missing energy must not become a zero-burn balance")
+            XCTAssertEqual(display.inlineText, "In 1,461 kcal Sunday")
+            XCTAssertEqual(display.inlineAccessibility, "In 1,461 kilocalories Sunday so far, no energy recorded")
+        }
     }
 
     func testWidgetSnapshotCarriesThePlanAndSevenDayAverage() {

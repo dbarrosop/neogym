@@ -154,10 +154,20 @@ public struct EnergyBalanceDisplay: Equatable, Sendable {
     public var periodCaption: String { "\(dayLabel) so far" }
     /// "Today so far · 13:40"
     public var periodHeader: String { "\(periodCaption.capitalizedFirst) · \(updatedTime)" }
-    /// Lock Screen inline text: "+251 kcal so far".
+    /// Lock Screen inline text: "+251 kcal so far", or intake when energy is missing.
+    /// Both forms name the snapshot's weekday once carried past local midnight.
     public var inlineText: String {
-        guard hasEnergy else { return "In \(consumed) kcal" }
+        guard hasEnergy else {
+            return isCurrentDay ? "In \(consumed) kcal" : "In \(consumed) kcal \(dayLabel)"
+        }
         return isCurrentDay ? "\(balanceWithUnit) so far" : "\(balanceWithUnit) \(dayLabel)"
+    }
+
+    public var inlineAccessibility: String {
+        guard hasEnergy else {
+            return "In \(consumed) kilocalories \(periodCaption), no energy recorded"
+        }
+        return balanceAccessibility
     }
 
     /// Watch complication title; stale data names its time instead of claiming "so far".
