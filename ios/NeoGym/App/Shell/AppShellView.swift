@@ -82,15 +82,16 @@ struct AppShellView: View {
             nutritionLogDate.refreshToday()
         }
         .onReceive(pendingDeepLinks) { link in
-            guard let link else { return }
+            guard let link, deepLinks?.take(link) == true else { return }
             open(link)
-            deepLinks?.consume(link)
         }
     }
 
-    /// Emits the current pending link on subscribe, so a cold launch applies it once mounted.
+    private static let noDeepLinks = Empty<AppDeepLink?, Never>().eraseToAnyPublisher()
+
+    /// Stable across renders; the router also delivers a cold launch's pending link.
     private var pendingDeepLinks: AnyPublisher<AppDeepLink?, Never> {
-        deepLinks?.$pending.eraseToAnyPublisher() ?? Just(nil).eraseToAnyPublisher()
+        deepLinks?.pendingLinks ?? Self.noDeepLinks
     }
 
     /// Widgets open Today; the rest timer Live Activity opens its session.

@@ -503,8 +503,14 @@ changes.
   clear), and live-fetch/fallback orchestration live in host-testable
   `NeoGymKit` and use the `group.io.nhost.dbarroso.neogym` App Group. Every family
   opens Today with `neogym://today` (`AppDeepLink`); `LiveAppView` sends those
-  links to `AppDeepLinkRouter`, consumed by `AppShellView`, and only other URLs
-  to the auth callback router. The app
+  links to NeoGymKit's `AppDeepLinkRouter`, taken by `AppShellView`, and only
+  other URLs to the auth callback router. The router retains the latest pending
+  destination while no shell is mounted. Its stable `pendingLinks` publisher
+  delivers on the next main-queue turn (after `@Published` stores the value);
+  the shell must successfully `take` a link before navigating so stale or
+  duplicate deliveries cannot replay it after a tab switch. Keep the cold/warm,
+  re-subscription and latest-pending regression tests in `AppDeepLinkRouterTests`.
+  The app
   writes snapshots only after a fresh backend nutrition overview emission on Today (not
   an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is

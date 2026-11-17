@@ -71,6 +71,15 @@ final class TodayNavigationWiringTests: XCTestCase {
         )
     }
 
+    func testDeepLinksUseTheStableDeferredStreamAndAreTakenBeforeNavigation() throws {
+        let shell = try shellSource("AppShellView")
+        XCTAssertTrue(shell.contains("deepLinks?.pendingLinks ?? Self.noDeepLinks"))
+        let takeBeforeOpen = #"\.onReceive\(pendingDeepLinks\) \{ link in\s*"#
+            + #"guard let link, deepLinks\?\.take\(link\) == true else \{ return \}\s*open\(link\)\s*\}"#
+        XCTAssertNotNil(shell.range(of: takeBeforeOpen, options: .regularExpression))
+        XCTAssertFalse(shell.contains("deepLinks?.$pending"), "The router owns the deferred publisher, not each render")
+    }
+
     func testCreateToDetailStillAppendsAfterTheCreateViewDismisses() throws {
         for area in ["Nutrition", "Progress"] {
             let source = try shellSource("\(area)NavigationView")

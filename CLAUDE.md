@@ -440,8 +440,10 @@ account's controller (or, in a background launch with no mounted runtime, to the
 persisted rest for its stored owner). At the end date it turns stale and shows
 "Rest over" with Open session (`neogym://session/<id>`); the app ends it as Rest
 over for 10 minutes when it sees the rest finish, and the next set's rest replaces
-it. Widget and Live Activity links go through `AppDeepLinkRouter`, never the auth
-callback handler. Today replaces the old Nutrition Overview and keeps its duties: on
+it. Widget and Live Activity links go through NeoGymKit's `AppDeepLinkRouter`, never
+the auth callback handler. Its stable main-queue-deferred stream lets the shell
+atomically take the stored pending link before navigating; warm links cannot
+replay on a later tab switch. Today replaces the old Nutrition Overview and keeps its duties: on
 open, tab return, foreground and pull-to-refresh it loads training
 (`TodayTraining`, sessions cache), the cached nutrition overview (writing the
 Balance widget snapshot only after a fresh emission) and the Body chart
