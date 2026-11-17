@@ -468,3 +468,24 @@ private func previewEntry(_ snapshot: EnergyBalanceWidgetSnapshot?) -> EnergyBal
 } timeline: {
     previewEntry(.placeholder)
 }
+
+#if NEOGYM_GALLERY
+/// Family dispatch only: every layout below is the shipping view above. The host
+/// does not instantiate a TimelineProvider, SDK client, snapshot store or intent.
+struct BalanceGalleryView: View {
+    let display: EnergyBalanceDisplay?
+    let family: WidgetFamily
+
+    @ViewBuilder var body: some View {
+        switch family {
+        case .accessoryInline: InlineBalanceView(display: display)
+        case .accessoryRectangular: RectangularBalanceView(display: display)
+        case .accessoryCircular: CircularIntakeView(display: display)
+        case .systemMedium:
+            if let display { MediumBalanceView(display: display) } else { SignedOutBalanceView() }
+        default:
+            if let display { SmallBalanceView(display: display) } else { SignedOutBalanceView() }
+        }
+    }
+}
+#endif

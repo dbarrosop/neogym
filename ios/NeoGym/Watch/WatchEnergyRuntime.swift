@@ -819,3 +819,10 @@ final class WatchEnergyBackgroundDelegate: NSObject, WKApplicationDelegate {
         max(0, Int(end.timeIntervalSince(start).rounded(.up)))
     }
 }
+
+// The page boundary supplies real time and the same production actions as before.
+extension WatchEnergyRuntime: WatchPageRuntime {
+    var displayDate: Date { Date() }
+    func refreshFromPage() async { await refresh(trigger: .manual) }
+    func currentPhoneContext() -> [String: Any]? { connectivity.currentContext() }
+}

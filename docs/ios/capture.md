@@ -2,6 +2,11 @@
 
 [Guide](README.md) · [Recorded walkthroughs](workflows.md) · [Gallery](gallery.html)
 
+For the separate widget, Live Activity, watch-page and complication **visual
+fixtures**, use the [Widgets & Watch capture guide](widgets-watch/README.md).
+Those run in isolated, inert capture apps and have their own manifest; the driver
+below remains the iPhone interactive-demo walkthrough driver.
+
 ## Safety and prerequisites
 
 Use a **new, dedicated iPhone 17 / iOS 27.0 simulator**. Never point this capture at

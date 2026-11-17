@@ -380,7 +380,15 @@ screenshots, recorded canonical walkthroughs and explicit coverage boundaries.
 Its [capture instructions](docs/ios/capture.md) document the opt-in
 `DemoGuideCaptureUITests` driver (skipped in normal test runs), Python tools and
 completeness gate; use a fresh credential-free simulator for its destructive
-fixture/recovery scenarios. Capture opts into a versioned 15 Jan 2025, 09:41 UTC
+fixture/recovery scenarios. The separate [Widgets & Watch catalog](docs/ios/widgets-watch/README.md)
+uses `ios/NeoGym/Gallery/project.yml` (not the production spec) and
+`Scripts/capture-surface-gallery.py` to render production views with fictional,
+inert inputs in disposable simulators. Its 45 captures and per-image manifest are
+visual fixtures, not system-hosted widgets/watch faces/Live Activities or verified
+workflows; the 255 legacy iPhone captures keep their original provenance.
+`NEOGYM_GALLERY` is defined only by the capture spec: it exposes fixture entry
+views, replaces rest timers with frozen display inputs and compiles inert intents.
+Never enable it in shipping targets or construct live services in the capture apps. Capture opts into a versioned 15 Jan 2025, 09:41 UTC
 profile (`Sources/NeoGymKit/Resources/gallery-capture.json`) through
 `NEOGYM_DEMO_CAPTURE=1`; `AppClock` freezes domain dates only while that demo is
 active, never SDK/Auth/HealthKit clocks, and Exit clears the override. Ordinary

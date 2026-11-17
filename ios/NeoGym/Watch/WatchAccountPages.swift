@@ -5,11 +5,11 @@ import UniformTypeIdentifiers
 
 /// Page 3: who is signed in, Health access, Sign out. The diagnostics page appears
 /// only with Debug mode on (a watch-only setting), behind this page.
-struct WatchAccountPage: View {
-    static let debugModeKey = "watchDebugMode.v1"
+struct WatchAccountPage<Runtime: WatchPageRuntime, Account: WatchPageAccount>: View {
+    static var debugModeKey: String { "watchDebugMode.v1" }
 
-    @ObservedObject var runtime: WatchEnergyRuntime
-    @ObservedObject var account: WatchAccountModel
+    @ObservedObject var runtime: Runtime
+    @ObservedObject var account: Account
     let actions: WatchAccountActions
     @AppStorage(Self.debugModeKey) private var debugMode = false
 
@@ -78,10 +78,10 @@ struct WatchAccountPage: View {
 
 /// Not signed in: connect from the iPhone, restore a saved sign-in, or wait while the
 /// session opens or clears.
-struct WatchConnectionView: View {
-    @ObservedObject var runtime: WatchEnergyRuntime
-    @ObservedObject var account: WatchAccountModel
-    @ObservedObject var assisted: WatchAssistedSignInModel
+struct WatchConnectionView<Runtime: WatchPageRuntime, Account: WatchPageAccount, Assisted: WatchPageAssistedSignIn>: View {
+    @ObservedObject var runtime: Runtime
+    @ObservedObject var account: Account
+    @ObservedObject var assisted: Assisted
     let actions: WatchAccountActions
 
     var body: some View {
@@ -153,7 +153,7 @@ struct WatchConnectionView: View {
                 .disabled(assisted.isConnecting || account.isRecovering)
         } else {
             Button("Try again") {
-                if let context = runtime.connectivity.currentContext() { account.receiveContext(context) }
+                if let context = runtime.currentPhoneContext() { account.receiveContext(context) }
             }
             .buttonStyle(.watchCapsule(.primary))
         }
@@ -174,8 +174,9 @@ struct WatchConnectionView: View {
 /// Debug-only diagnostics: the saved watch events, widget provider receipts and the
 /// share sheet export. The content and safety rules are unchanged from the former
 /// Events page.
-struct WatchDiagnosticsPage: View {
-    @ObservedObject var runtime: WatchEnergyRuntime
+struct WatchDiagnosticsPage<Runtime: WatchPageRuntime>: View {
+    @ObservedObject var runtime: Runtime
+    var receiptStore: WatchWidgetProviderReceiptStore = .shared
     @State private var widgetReceipts: [WatchWidgetProviderReceipt] = []
 
     var body: some View {
@@ -192,10 +193,10 @@ struct WatchDiagnosticsPage: View {
                         + "The logs are attached as a text file."
                 )
                 Button("Read widget receipts") {
-                    widgetReceipts = WatchWidgetProviderReceiptStore.shared.load()
+                    widgetReceipts = receiptStore.load()
                 }
                 .font(.caption2)
-                if !WatchWidgetProviderReceiptStore.shared.isAvailable {
+                if !receiptStore.isAvailable {
                     Text("Widget diagnostics container unavailable.")
                         .font(.caption2).foregroundStyle(.secondary)
                 } else if widgetReceipts.isEmpty {
@@ -236,7 +237,7 @@ struct WatchDiagnosticsPage: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .onAppear { widgetReceipts = WatchWidgetProviderReceiptStore.shared.load() }
+        .onAppear { widgetReceipts = receiptStore.load() }
     }
 
     private func eventSymbol(_ outcome: WatchEventOutcome) -> String {

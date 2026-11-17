@@ -10,6 +10,7 @@ frontend/.vinxi
 frontend/.wrangler
 frontend/src/routeTree.gen.ts
 ios/NeoGym/NeoGym.xcodeproj
+ios/NeoGym/Gallery/NeoGymGallery.xcodeproj
 ios/NeoGym/.build
 ios/NeoGym/DerivedData
 

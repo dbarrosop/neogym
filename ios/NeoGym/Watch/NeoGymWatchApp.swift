@@ -88,9 +88,3 @@ private struct WatchHomeView: View {
         )
     }
 }
-
-/// Account actions that need the home view's watchOS activity assertion.
-struct WatchAccountActions {
-    let restoreSavedSignIn: @MainActor () -> Void
-    let signOut: @MainActor () -> Void
-}

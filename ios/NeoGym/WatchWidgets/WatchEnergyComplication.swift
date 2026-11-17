@@ -2,10 +2,12 @@ import NeoGymKit
 import SwiftUI
 import WidgetKit
 
+#if !NEOGYM_GALLERY
 @main
 struct NeoGymWatchWidgetBundle: WidgetBundle {
     var body: some Widget { WatchEnergyComplication() }
 }
+#endif
 
 /// The latest token-free snapshot (any date). Its presence tells "connected" apart
 /// from "not connected"; the content is decided at each entry's date.
@@ -210,3 +212,16 @@ private extension WatchEnergySnapshot {
         )
     }
 }
+
+#if NEOGYM_GALLERY
+/// Uses the production family views, not a widget provider or App Group read.
+struct ComplicationGalleryView: View {
+    let content: WatchComplicationContent
+    let circular: Bool
+
+    var body: some View {
+        if circular { CircularIntake(content: content) }
+        else { RectangularBalance(content: content) }
+    }
+}
+#endif

@@ -3,16 +3,16 @@ import SwiftUI
 
 /// The display for today's same-owner snapshot, or nil before the first read today.
 @MainActor
-private func todayDisplay(_ runtime: WatchEnergyRuntime) -> EnergyBalanceDisplay? {
+private func todayDisplay<Runtime: WatchPageRuntime>(_ runtime: Runtime) -> EnergyBalanceDisplay? {
     guard let snapshot = runtime.snapshot else { return nil }
-    let display = EnergyBalanceDisplay(snapshot.displayInput, at: Date())
+    let display = EnergyBalanceDisplay(snapshot.displayInput, at: runtime.displayDate)
     return display.isCurrentDay ? display : nil
 }
 
 /// Page 1: balance so far with the resting / active split, then in and out, in the
 /// same words and numbers as the phone's Today card.
-struct WatchTodayPage: View {
-    @ObservedObject var runtime: WatchEnergyRuntime
+struct WatchTodayPage<Runtime: WatchPageRuntime>: View {
+    @ObservedObject var runtime: Runtime
 
     var body: some View {
         let display = todayDisplay(runtime)
@@ -74,9 +74,9 @@ struct WatchTodayPage: View {
 }
 
 /// Page 2: the end-of-day estimate, the 7-day average net and Refresh.
-struct WatchEndOfDayPage: View {
-    @ObservedObject var runtime: WatchEnergyRuntime
-    @ObservedObject var account: WatchAccountModel
+struct WatchEndOfDayPage<Runtime: WatchPageRuntime, Account: WatchPageAccount>: View {
+    @ObservedObject var runtime: Runtime
+    @ObservedObject var account: Account
 
     var body: some View {
         let display = todayDisplay(runtime)
@@ -108,7 +108,7 @@ struct WatchEndOfDayPage: View {
                     .padding(.horizontal, 4)
 
                 Button {
-                    Task { await runtime.refresh(trigger: .manual) }
+                    Task { await runtime.refreshFromPage() }
                 } label: {
                     Label("Refresh", systemImage: "arrow.clockwise")
                 }
@@ -136,9 +136,9 @@ struct WatchEndOfDayPage: View {
 }
 
 /// Before the first read: NeoGym asks for read-only active and resting energy.
-struct WatchHealthAccessPage: View {
-    @ObservedObject var runtime: WatchEnergyRuntime
-    @ObservedObject var account: WatchAccountModel
+struct WatchHealthAccessPage<Runtime: WatchPageRuntime, Account: WatchPageAccount>: View {
+    @ObservedObject var runtime: Runtime
+    @ObservedObject var account: Account
 
     var body: some View {
         WatchMessageView(
