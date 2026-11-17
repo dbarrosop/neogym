@@ -113,10 +113,10 @@ public extension NutritionTimeline {
 
 /// The Monday-to-Sunday strip above the day log.
 public enum NutritionWeekStrip {
-    public static func days(containing date: String, calendar: Calendar = .current) -> [String] {
+    public static func days(containing date: String, calendar: Calendar = AppClock.calendar) -> [String] {
         var calendar = calendar
         calendar.firstWeekday = 2
-        let anchor = IntakeGrouping.localDateToDate(date, calendar: calendar) ?? Date()
+        let anchor = IntakeGrouping.localDateToDate(date, calendar: calendar) ?? AppClock.now()
         let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
         return (0..<7).compactMap { offset in
             calendar.date(byAdding: .day, value: offset, to: start).map {
@@ -126,7 +126,7 @@ public enum NutritionWeekStrip {
     }
 
     /// Exact date range for the week's calorie read (no warm-up days).
-    public static func range(containing date: String, calendar: Calendar = .current) -> ChartHistoryRange {
+    public static func range(containing date: String, calendar: Calendar = AppClock.calendar) -> ChartHistoryRange {
         let days = days(containing: date, calendar: calendar)
         return ChartHistoryRange(from: days.first ?? date, through: days.last ?? date)
     }

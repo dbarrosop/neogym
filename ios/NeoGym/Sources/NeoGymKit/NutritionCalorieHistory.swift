@@ -11,13 +11,13 @@ public struct ChartHistoryRange: Equatable, Sendable {
         self.through = through
     }
 
-    public init(visibleStart: Date, endExclusive: Date, calendar: Calendar = .current) {
+    public init(visibleStart: Date, endExclusive: Date, calendar: Calendar = AppClock.calendar) {
         let start = calendar.date(byAdding: .day, value: -6, to: visibleStart) ?? visibleStart
         from = DateOnly.formatLocalISO(start, calendar: calendar)
         through = DateOnly.formatLocalISO(endExclusive.addingTimeInterval(-1), calendar: calendar)
     }
 
-    public static func recentDays(_ count: Int, now: Date = Date(), calendar: Calendar = .current) -> Self {
+    public static func recentDays(_ count: Int, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) -> Self {
         let today = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -max(count - 1, 0), to: today) ?? today
         let end = calendar.dateInterval(of: .day, for: now)?.end ?? today
@@ -27,7 +27,7 @@ public struct ChartHistoryRange: Equatable, Sendable {
     /// Exact cache keys for today's default chart and the preceding seven local days.
     /// Each read is SDK-scoped and capped by its configured stale-if-error age.
     public static func recentCacheCandidates(
-        _ count: Int, now: Date = Date(), calendar: Calendar = .current
+        _ count: Int, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar
     ) -> [Self] {
         (0...7).compactMap { offset in
             calendar.date(byAdding: .day, value: -offset, to: now).map {

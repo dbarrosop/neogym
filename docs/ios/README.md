@@ -1,6 +1,6 @@
 # NeoGym iPhone — illustrated demo guide
 
-**251 actual simulator screenshots · all 15 section roots · 46 verified walkthroughs.**
+**255 actual simulator screenshots · all 15 section roots · 46 verified walkthroughs.**
 
 This is a tour of the current iPhone app, driven through its normal SwiftUI screens
 with the isolated, interactive demo dataset. It is useful both for agents checking
@@ -25,17 +25,32 @@ an account. It is **not** evidence that Apple has approved demo-only review acce
 - **[Demo implementation and isolation contract](../developers/ios-demo.md)** —
   build/install commands, launch arguments, data behavior and App Review caveats.
 - **[Capture manifest](capture-manifest.json)** — machine-readable coverage,
-  timestamps, source revision, image dimensions/hashes and verification results.
+  per-image timestamps/dimensions/hashes, recorded workflow outcomes and offline
+  catalog/tooling verification. The incremental catalog spans multiple app/tooling
+  revisions; it has no single catalog-wide source revision or tooling hash set.
 
 The 97 visual rows are curated from the 46 recorded walkthroughs, not 97 new
 independent capture runs. Shared images retain their original provenance and are
-marked **Reused view**. Every one of the 251 original captures appears on the page.
+marked **Reused view**. Every one of the 255 original captures appears on the page.
 
 The images were captured on **iPhone 17, iOS 27.0, English, portrait**, with Dark as
 the default. Light and System preferences are demonstrated separately. The
-simulator status bar is cosmetically set to 9:41; **the app's dates and clock are
-not frozen**. Samples and newly created records are fictional. Screenshots use the
-original **1206 × 2622** resolution, with lossless PNG recompression only.
+simulator status bar is cosmetically set to 9:41 with full Wi-Fi and battery.
+**All 255 published images are legacy captures**, without the fixed capture
+profile or frozen app dates/clock. The 54 images refreshed on **16 Nov 2026** show
+no cellular signal (four grey dots); the 201 images from **15 Nov 2026** show full
+cellular bars. Rows that reuse views from both dates, such as
+[Add daily energy, including duplicate-date validation](gallery.html#create-energy),
+therefore mix cellular states and app dates. These retained images have not been
+recaptured to unify their status bars.
+
+The capture tooling now supports a versioned **15 Jan 2025, 09:41 UTC** profile
+with explicit cellular overrides and preserves unchanged images/provenance.
+Adopting it and unifying the published cellular state require a separate reviewed
+full-baseline refresh, not re-dating or relabelling old images. See the
+[capture instructions](capture.md). Samples and newly created records are fictional.
+Screenshots use the original **1206 × 2622** resolution, with lossless PNG
+recompression only.
 
 ## Enter and leave demo
 
@@ -120,10 +135,10 @@ it again appends food after confirmation rather than treating the slot as done.
 | Workflow | What to do / what is shown | Walkthrough |
 |---|---|---|
 | Navigate dates and plan | Previous/next date, week strip, calendar picker, selected-plan menu, no-plan/empty-day states, clear-day confirmation | [Log navigation](workflows.md#log-navigation) |
-| Log a food | Open +, use Food, select from the wheel, set grams, save; edit/delete the standalone snapshot | [Food logging](workflows.md#log-food) |
-| Log a meal | Use Meal; inspect ingredient amounts; save a logged group; edit its name/ordering and delete the group with its children | [Meal logging](workflows.md#log-meal) |
-| Edit a meal's logged child | Tap a food inside the expanded meal; change its grams; delete only that snapshot, preserving the meal and reusable food | [Grouped food](workflows.md#log-child) |
-| Log an ad-hoc item | Use Custom; enter name, amount and per-100g nutrients; edit/delete it without adding to the food catalog | [Custom logging](workflows.md#log-ad-hoc) |
+| Log a food | Open +, use Food, tap Change to search the two-line food list, set grams and inspect the macro preview; edit/delete the standalone snapshot | [Food logging](workflows.md#log-food) |
+| Log a meal | Use Meal; search the meal list with the current choice checked; inspect ingredient amounts; save, edit and delete the logged group | [Meal logging](workflows.md#log-meal) |
+| Edit a meal's logged child | Tap a food inside the expanded meal; change grams and compare live nutrition totals with the saved amount; delete only that snapshot | [Grouped food](workflows.md#log-child) |
+| Log an ad-hoc item | Use Custom; enter name, amount and per-100g nutrients; edit its snapshot nutrients and inspect the recalculated preview without changing the food catalog | [Custom logging](workflows.md#log-ad-hoc) |
 | Log planned intake | From plan supports meals and direct foods; timeline Log acts on a whole slot; an occupied slot asks first | [Plan logging](workflows.md#log-plan) |
 | Browse foods | Search, public/owned details and no-result state | [Food library](workflows.md#food-browse) |
 | Maintain foods | Create, edit and delete a private food | [Food CRUD](workflows.md#food-crud) |
@@ -131,6 +146,18 @@ it again appends food after confirmation rather than treating the slot as done.
 | Maintain meals | Create/edit/delete; choose, reorder and remove ingredients; create/edit a food inside the picker | [Meal CRUD](workflows.md#meal-crud) |
 | Browse plans | Search, meal/food slot cards, macros and Use for today | [Plan library](workflows.md#plan-browse) |
 | Maintain plans | Create mixed slots; create a meal inside its picker; move a row's time; label a meal; retime/merge slots; edit/delete the plan | [Plan CRUD](workflows.md#plan-crud) |
+
+The log and entry editor show kcal and protein/carbs/fat together, with fiber and
+sugar below. Changing the amount or custom nutrients recalculates the preview;
+the editor compares changed totals with the saved amount. Energy estimates use
+whole kcal, not decimal precision.
+
+The published [Choose food](screenshots/20-log-food-search-picker.png) and
+[Choose meal](screenshots/20-log-meal-search-picker.png) images predate the
+single-choice glyph correction and have not been recaptured. Current Change
+lists show a checkmark only on the selected row, with no add glyph on other
+rows; editor Add lists still show pluses. The retained images are not fresh
+visual evidence of that correction.
 
 Logged food uses its stored nutrient snapshot, not today's edited catalog values.
 A grouped child's time belongs to its logged meal; editing that child does not

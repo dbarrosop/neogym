@@ -257,11 +257,11 @@ public enum IntakeGrouping {
         return meal
     }
 
-    public static func formatLocalDate(_ date: Date = Date(), calendar: Calendar = .current) -> String {
+    public static func formatLocalDate(_ date: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) -> String {
         DateOnly.formatLocalISO(date, calendar: calendar)
     }
 
-    public static func currentTimeInputValue(_ date: Date = Date(), calendar: Calendar = .current) -> String {
+    public static func currentTimeInputValue(_ date: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) -> String {
         let components = calendar.dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
     }
@@ -283,15 +283,15 @@ public enum IntakeGrouping {
         return components.year == year && components.month == month && components.day == day
     }
 
-    public static func localDateToDate(_ value: String, calendar: Calendar = .current) -> Date? {
+    public static func localDateToDate(_ value: String, calendar: Calendar = AppClock.calendar) -> Date? {
         guard isValidLocalDate(value) else { return nil }
         let parts = value.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
         return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
-    public static func addLocalDateDays(_ value: String, days: Int, calendar: Calendar = .current) -> String {
-        let start = localDateToDate(value, calendar: calendar) ?? Date()
+    public static func addLocalDateDays(_ value: String, days: Int, calendar: Calendar = AppClock.calendar) -> String {
+        let start = localDateToDate(value, calendar: calendar) ?? AppClock.now()
         let date = calendar.date(byAdding: .day, value: days, to: start) ?? start
         return formatLocalDate(date, calendar: calendar)
     }
@@ -299,7 +299,7 @@ public enum IntakeGrouping {
     public static func formatLocalDateLabel(
         _ value: String,
         locale: Locale = .current,
-        calendar: Calendar = .current
+        calendar: Calendar = AppClock.calendar
     ) -> String {
         guard let date = localDateToDate(value, calendar: calendar) else { return value }
         let formatter = DateFormatter()

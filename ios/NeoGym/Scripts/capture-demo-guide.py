@@ -41,10 +41,24 @@ def read_json(path):
         raise ValueError(f"Cannot read JSON from {path}: {error}") from error
 
 
+CAPTURE_PROFILE = read_json(REPO / "ios/NeoGym/Sources/NeoGymKit/Resources/gallery-capture.json")
+
+
 def atomic_json(path, value):
+    content = json.dumps(value, indent=2, ensure_ascii=False) + "\n"
+    if path.exists() and path.read_text() == content:
+        return
     temporary = path.with_name(path.name + ".tmp")
-    temporary.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+    temporary.write_text(content)
     temporary.replace(path)
+
+
+def upsert_record(records, record):
+    for index, previous in enumerate(records):
+        if previous["id"] == record["id"]:
+            records[index] = record
+            return
+    records.append(record)
 
 
 def lossless_png(data):
@@ -99,15 +113,26 @@ class Guide:
             "locale": "en_US",
             "appearance": "Dark unless the screenshot explicitly demonstrates Light/System",
             "statusBar": "9:41, full signal and battery (cosmetic simulator override)",
-            "data": "Fictional populated demo; local dates are not frozen",
+            "data": "Fictional populated demo; versioned capture clock/profile recorded per image",
             "screenshots": [],
             "workflows": [],
         }
         self.workflow = None
         self.steps = []
         self.checks = []
+        self.prepare_device()
+
+    def prepare_device(self):
+        xcrun("simctl", "ui", self.device, "appearance", "dark")
+        xcrun("simctl", "ui", self.device, "content_size", CAPTURE_PROFILE["contentSize"])
+        flags = [value for key, item in CAPTURE_PROFILE["statusBar"].items()
+                 for value in ("--" + key, str(item))]
+        xcrun("simctl", "status_bar", self.device, "override", *flags)
 
     def call(self, action, **values):
+        if action == "launch":
+            values["environment"] = {**values.get("environment", {}),
+                                     "NEOGYM_DEMO_CAPTURE": "1", "TZ": CAPTURE_PROFILE["timeZone"]}
         request = {"id": str(uuid.uuid4()), "action": action, **values}
         atomic_json(self.root / "request.json", request)
         deadline = time.monotonic() + 90
@@ -144,7 +169,8 @@ class Guide:
         return self.call("query", element=self.element(label, kind, **values))["elements"]
 
     def exists(self, label, kind="button", timeout=1.0, **values):
-        return self.call("exists", element=self.element(label, kind, **values), timeout=timeout)
+        return self.call("exists", element=self.element(label, kind, **values), timeout=timeout,
+                         **({"presenceOnly": True} if kind == "keyboard" else {}))
 
     def expect(self, label, kind="text", **values):
         result = self.exists(label, kind, timeout=12, **values)
@@ -243,20 +269,25 @@ class Guide:
         data = lossless_png(captured)
         width, height = struct.unpack(">II", data[16:24])
         destination = self.output / "screenshots" / (name + ".png")
-        destination.write_bytes(data)
+        if not destination.exists() or destination.read_bytes() != data:
+            destination.write_bytes(data)
+        previous = next((item for item in self.manifest["screenshots"] if item["id"] == name), None)
         record = {
             "id": name, "title": title, "file": str(destination.relative_to(self.output)),
             "capturedSha256": hashlib.sha256(captured).hexdigest(),
             "workflow": self.workflow, "capturedAt": result["capturedAt"],
             "width": width, "height": height, "sha256": hashlib.sha256(data).hexdigest(),
-            "steps": list(self.steps),
+            "steps": list(self.steps), "captureProfile": CAPTURE_PROFILE,
         }
+        # Keep the first identical capture's provenance; wall-clock timestamps and
+        # different PNG chunk/compression layouts are not a new visual baseline.
+        if previous and previous["sha256"] == record["sha256"] and previous.get("captureProfile") == CAPTURE_PROFILE:
+            record["capturedAt"] = previous["capturedAt"]
+            record["capturedSha256"] = previous["capturedSha256"]
         trees = REPO / ".nhost-code" / "tmp" / "demo-guide" / "trees"
         trees.mkdir(parents=True, exist_ok=True)
         (trees / (name + ".txt")).write_text(result["tree"])
-        self.manifest["screenshots"] = [
-            item for item in self.manifest["screenshots"] if item["id"] != name
-        ] + [record]
+        upsert_record(self.manifest["screenshots"], record)
         self.save()
         print("CAPTURED " + name, flush=True)
         return result["tree"]
@@ -269,9 +300,7 @@ class Guide:
         self.steps = []
         self.checks = []
         record = {"id": name, "title": title, "status": "in_progress"}
-        self.manifest["workflows"] = [
-            item for item in self.manifest["workflows"] if item["id"] != name
-        ] + [record]
+        upsert_record(self.manifest["workflows"], record)
         self.save()
         print("WORKFLOW " + name, flush=True)
         try:
@@ -302,7 +331,8 @@ def optimize_screenshots(output):
         optimized = lossless_png(original)
         record.setdefault("capturedSha256", hashlib.sha256(original).hexdigest())
         record["sha256"] = hashlib.sha256(optimized).hexdigest()
-        path.write_bytes(optimized)
+        if optimized != original:
+            path.write_bytes(optimized)
     manifest["pngStorage"] = "Original resolution; lossless IDAT recompression only"
     atomic_json(output / "capture-manifest.json", manifest)
 
@@ -337,6 +367,17 @@ def validate_catalog(output):
         raise ValueError("Duplicate screenshot IDs")
     if len({row["file"] for row in screenshots.values()}) != len(screenshots):
         raise ValueError("Screenshots must have distinct files")
+    profiles = {}
+    for row in screenshots.values():
+        profile = json.dumps(row.get("captureProfile"), sort_keys=True)
+        profiles.setdefault(profile, []).append(row["id"])
+    if len(profiles) > 1:
+        details = "\n".join(profile + ": " + ", ".join(sorted(identifiers))
+                            for profile, identifiers in sorted(profiles.items()))
+        raise ValueError("Mixed capture profiles: publish only a complete, reviewed baseline (--group all). "
+                         "If that run has already completed, review obsolete conditional issue evidence "
+                         "per docs/ios/capture.md; never relabel old captures.\n"
+                         "Screenshot IDs by captureProfile (null = legacy):\n" + details)
     missing = required_images - screenshots.keys()
     if missing:
         raise ValueError("Missing screenshots: " + ", ".join(sorted(missing)))

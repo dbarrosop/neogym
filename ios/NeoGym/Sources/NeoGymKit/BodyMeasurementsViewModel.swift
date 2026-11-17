@@ -20,9 +20,9 @@ public final class BodyMeasurementsListViewModel: ObservableObject {
     public init(
         repository: any BodyMeasurementsRepositoryProtocol,
         healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
-        calendar: Calendar = .current,
+        calendar: Calendar = AppClock.calendar,
         healthRefreshLookbackDays: Int = 7,
-        now: @escaping @Sendable () -> Date = Date.init,
+        now: @escaping @Sendable () -> Date = AppClock.now,
         userId: String? = nil,
         defaults: UserDefaults = .standard
     ) {
@@ -205,7 +205,7 @@ public final class BodyMeasurementsChartViewModel: ObservableObject {
     private let calendar: Calendar
     private var requestGeneration = 0
 
-    public init(repository: any BodyMeasurementsRepositoryProtocol, calendar: Calendar = .current) {
+    public init(repository: any BodyMeasurementsRepositoryProtocol, calendar: Calendar = AppClock.calendar) {
         self.repository = repository
         self.calendar = calendar
     }

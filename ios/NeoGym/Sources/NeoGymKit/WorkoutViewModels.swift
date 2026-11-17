@@ -77,7 +77,7 @@ public final class WorkoutDetailViewModel: ObservableObject {
     public init(
         workoutId: String,
         repository: any WorkoutsRepositoryProtocol,
-        now: @escaping @Sendable () -> Date = Date.init
+        now: @escaping @Sendable () -> Date = AppClock.now
     ) {
         self.workoutId = workoutId
         self.repository = repository

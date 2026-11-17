@@ -79,6 +79,7 @@ final class DemoGuideCaptureUITests: XCTestCase {
             ?? ["--demo", "--demo-screen", request["screen"] as? String ?? "today"]
         if request["reset"] as? Bool == true { arguments.append("--demo-reset") }
         app.launchArguments = arguments + ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launchEnvironment = request["environment"] as? [String: String] ?? [:]
         app.launch()
         return ["running": true]
     }
@@ -91,6 +92,9 @@ final class DemoGuideCaptureUITests: XCTestCase {
     private func exists(_ request: [String: Any]) -> [String: Any] {
         let target = element(request)
         let found = target.waitForExistence(timeout: request["timeout"] as? Double ?? 5)
+        // A keyboard can disappear immediately after Return. Presence-only
+        // probes must not resolve it again for properties after that snapshot.
+        if request["presenceOnly"] as? Bool == true { return ["exists": found] }
         return ["exists": found, "hittable": found && target.isHittable, "enabled": found && target.isEnabled]
     }
 

@@ -84,7 +84,7 @@ struct NutritionSlotMacroLine: View {
                 .fill(dot)
                 .frame(width: 7, height: 7)
             Text(
-                "\(label) \(Text(MetricFormat.whole(grams)).fontWeight(.semibold).foregroundStyle(valueColor)) g"
+                "\(label) \(Text(NutritionMacroText.whole(grams)).fontWeight(.semibold).foregroundStyle(valueColor)) g"
             )
         }
     }
@@ -355,7 +355,7 @@ struct NutritionWeekStripView: View {
 
     private func dayButton(_ day: String) -> some View {
         let isSelected = day == selected
-        let date = IntakeGrouping.localDateToDate(day) ?? Date()
+        let date = IntakeGrouping.localDateToDate(day) ?? AppClock.now()
         let kcal = kcalByDate[day]
         return Button {
             onSelect(day)

@@ -123,7 +123,7 @@ struct TodayView: View {
     private var today: String { IntakeGrouping.formatLocalDate() }
 
     private var dateHeading: String {
-        Date().formatted(.dateTime.weekday(.wide).day().month(.wide))
+        AppClock.now().formatted(.dateTime.weekday(.wide).day().month(.wide))
     }
 
     private var nutritionSummary: TodayNutritionSummary? {

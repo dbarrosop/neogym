@@ -150,7 +150,7 @@ extension DemoState {
             insert(.ingredients, [
                 "mealId": .string(id), "foodId": .string(ingredient.foodId), "grams": .demoNumber(ingredient.grams),
                 "position": .number(Double(ingredient.position))
-            ], id: ingredient.id ?? UUID().uuidString)
+            ], id: ingredient.id)
         }
     }
 }

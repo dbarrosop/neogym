@@ -24,7 +24,8 @@ let package = Package(
             dependencies: [
                 .product(name: "Nhost", package: "nhost-swift")
             ],
-            path: "Sources/NeoGymKit"
+            path: "Sources/NeoGymKit",
+            resources: [.process("Resources")]
         ),
         .testTarget(
             name: "NeoGymKitTests",

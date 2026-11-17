@@ -52,8 +52,8 @@ public struct MuscleSetProgressRow: Decodable, Sendable, Equatable, Identifiable
 public final class MuscleSetProgressViewModel: ProgressHistoryViewModel<MuscleSetProgressRow> {
     public init(
         repository: any SessionsRepositoryProtocol,
-        calendar: Calendar = .current,
-        clock: @escaping @Sendable () -> Date = Date.init
+        calendar: Calendar = AppClock.calendar,
+        clock: @escaping @Sendable () -> Date = AppClock.now
     ) {
         super.init(cachedSnapshot: { from, through, zone in
             try await repository.cachedMuscleSetProgress(fromDay: from, throughDay: through, timeZone: zone)

@@ -75,7 +75,7 @@ public struct StrengthWeeklyOverview: Sendable, Equatable {
     public let bestWeek: StrengthWeeklyVolume?
 
     /// `weekCount` includes the current week.
-    public init?(progress: StrengthProgress, now: Date = Date(), calendar: Calendar = .current, weekCount: Int = 8) {
+    public init?(progress: StrengthProgress, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar, weekCount: Int = 8) {
         guard !progress.weeklyVolume.isEmpty else { return nil }
         let current = Self.currentWeekStart(now: now, calendar: calendar) ?? now
         thisWeek = progress.weeklyVolume.last { $0.weekStart == current }
@@ -84,7 +84,7 @@ public struct StrengthWeeklyOverview: Sendable, Equatable {
     }
 
     /// The start of the week that is still in progress, whose volume is partial.
-    public static func currentWeekStart(now: Date = Date(), calendar: Calendar = .current) -> Date? {
+    public static func currentWeekStart(now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar) -> Date? {
         calendar.dateInterval(of: .weekOfYear, for: now)?.start
     }
 }
@@ -129,7 +129,7 @@ public struct CalorieTrend: Sendable, Equatable {
     public var latestNetAverage: Double? { netAverage.last?.value }
     public var isEmpty: Bool { consumed.isEmpty && consumedToday == nil }
 
-    public init(history: NutritionCalorieHistory, today: String, calendar: Calendar = .current) {
+    public init(history: NutritionCalorieHistory, today: String, calendar: Calendar = AppClock.calendar) {
         let logged = history.consumedChartPoints.filter { $0.value > 0 }
         let loggedDays = Set(logged.map(\.logDate))
         consumed = logged.filter { $0.logDate < today }.map(Point.init)

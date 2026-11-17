@@ -25,8 +25,8 @@ public final class NutritionDaysListViewModel: ObservableObject {
 
     public init(
         repository: any NutritionFoodMealRepositoryProtocol,
-        calendar: Calendar = .current,
-        now: @escaping @Sendable () -> Date = Date.init
+        calendar: Calendar = AppClock.calendar,
+        now: @escaping @Sendable () -> Date = AppClock.now
     ) {
         self.repository = repository
         self.calendar = calendar

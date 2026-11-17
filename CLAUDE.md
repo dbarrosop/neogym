@@ -364,7 +364,16 @@ screenshots, recorded canonical walkthroughs and explicit coverage boundaries.
 Its [capture instructions](docs/ios/capture.md) document the opt-in
 `DemoGuideCaptureUITests` driver (skipped in normal test runs), Python tools and
 completeness gate; use a fresh credential-free simulator for its destructive
-fixture/recovery scenarios.
+fixture/recovery scenarios. Capture opts into a versioned 15 Jan 2025, 09:41 UTC
+profile (`Sources/NeoGymKit/Resources/gallery-capture.json`) through
+`NEOGYM_DEMO_CAPTURE=1`; `AppClock` freezes domain dates only while that demo is
+active, never SDK/Auth/HealthKit clocks, and Exit clears the override. Ordinary
+use stays real-time. Keep unchanged PNGs/provenance/order and, after baseline
+adoption, refresh only affected groups; a profile/runtime baseline migration
+belongs in a separate reviewed change. Until the one-time profile baseline lands,
+any group refresh produces frozen-profile frames: publish only a reviewed full
+`--group all` baseline (updating manifest `data`/`statusBar` summaries), or defer
+publication; `validate` rejects mixed legacy/profile or profile-version catalogs.
 Do not treat the demo as Apple-approved replacement review access: usable review
 credentials are still required unless Apple explicitly approves otherwise.
 

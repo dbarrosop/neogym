@@ -109,7 +109,7 @@ public struct TodayNutritionSummary: Sendable, Equatable {
     public let planned: MacroTotals?
     public let nextSlot: TodayPlannedSlot?
 
-    public init(day: NutritionDay?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) {
+    public init(day: NutritionDay?, now: Date = AppClock.now(), calendar: Calendar = AppClock.calendar, locale: Locale = .current) {
         hasDay = day != nil
         eaten = day?.loggedTotals ?? .empty
         let plan = day?.nutritionPlan
@@ -176,7 +176,7 @@ public struct TodayBalanceSummary: Sendable, Equatable {
     public let energyUpdatedAt: Date?
     public let projection: DailyEnergyProjection?
 
-    public init(payload: NutritionOverviewPayload, today: String, calendar: Calendar = .current) {
+    public init(payload: NutritionOverviewPayload, today: String, calendar: Calendar = AppClock.calendar) {
         self.today = today
         let balance = payload.balance(for: today)
         let energy = payload.energyByDate[today]
@@ -270,7 +270,7 @@ public struct BodyTrendSummary: Sendable, Equatable {
     public var priorWeekAverageKg: Double? { weight.priorWeekAverage }
     public var weekChangeKg: Double? { weight.weekChange }
 
-    public init(points: [BodyMeasurementChartPoint], today: String, calendar: Calendar = .current) {
+    public init(points: [BodyMeasurementChartPoint], today: String, calendar: Calendar = AppClock.calendar) {
         let sorted = points.sorted { $0.measuredOn < $1.measuredOn }
         weight = BodyMetricTrend(
             readings: sorted.compactMap { point in point.weightKg.map { BodyReading(day: point.measuredOn, value: $0) } },

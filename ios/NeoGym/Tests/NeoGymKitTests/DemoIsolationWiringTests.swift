@@ -36,6 +36,61 @@ final class DemoIsolationWiringTests: XCTestCase {
         XCTAssertTrue(shell.contains("environment.isDemo ? .disabled : .live"))
     }
 
+    func testCaptureClockIsOptInAndClearedBeforeReturningToLiveMode() throws {
+        let demo = try source("App/DemoModeView.swift")
+        XCTAssertTrue(demo.contains("try DemoCaptureProfile.requested()"))
+        XCTAssertTrue(demo.contains("AppClock.useDemoCapture(isDemo ? captureProfile : nil)"))
+        XCTAssertTrue(demo.contains("AppClock.useDemoCapture(captureProfile)"))
+        let exitStart = try XCTUnwrap(demo.range(of: "func exitDemo()"))
+        let exitEnd = try XCTUnwrap(demo.range(of: "struct AppModeView"))
+        let exit = demo[exitStart.lowerBound..<exitEnd.lowerBound]
+        XCTAssertTrue(exit.contains("AppClock.useDemoCapture(nil)"))
+        XCTAssertTrue(demo.contains("now: AppClock.now(), calendar: AppClock.calendar"))
+        let driver = try source("UITests/DemoGuideCaptureUITests.swift")
+        XCTAssertTrue(driver.contains("app.launchEnvironment = request[\"environment\"]"))
+    }
+
+    func testOnlyCaptureModeOverridesSwiftUIEnvironment() throws {
+        let demo = try source("App/DemoModeView.swift")
+        let modifierStart = try XCTUnwrap(demo.range(of: "private struct DemoCaptureEnvironment: ViewModifier"))
+        let composition = demo[..<modifierStart.lowerBound]
+        XCTAssertTrue(composition.contains(".modifier(DemoCaptureEnvironment())"))
+        for key in ["calendar", "timeZone", "locale"] {
+            XCTAssertFalse(composition.contains(".environment(\\.\(key),"), key)
+        }
+        let modifier = demo[modifierStart.lowerBound...]
+        let captureStart = try XCTUnwrap(modifier.range(of: "if let profile = AppClock.captureProfile {"))
+        let fallbackStart = try XCTUnwrap(modifier.range(of: "} else {", range: captureStart.upperBound..<modifier.endIndex))
+        let capture = modifier[captureStart.upperBound..<fallbackStart.lowerBound]
+        for override in [
+            ".environment(\\.calendar, profile.calendar)",
+            ".environment(\\.timeZone, profile.timeZone)",
+            ".environment(\\.locale, profile.locale)",
+            ".transaction { $0.disablesAnimations = true }"
+        ] {
+            XCTAssertTrue(capture.contains(override), override)
+        }
+        // Ordinary demo must inherit SwiftUI's updating values, not fixed .current snapshots.
+        XCTAssertTrue(modifier[fallbackStart.lowerBound...].hasPrefix("} else {\n            content\n        }"))
+    }
+
+    func testInvalidLaunchOptionsRetainCaptureProfileForPublicDemoReentry() throws {
+        let demo = try source("App/DemoModeView.swift")
+        let profileStart = try XCTUnwrap(demo.range(of: "captureProfile = try DemoCaptureProfile.requested()"))
+        let optionsStart = try XCTUnwrap(demo.range(of: "let options = try DemoLaunchOptions(arguments: arguments)"))
+        let initEnd = try XCTUnwrap(demo.range(of: "func takeLaunchReset()"))
+        XCTAssertLessThan(profileStart.lowerBound, optionsStart.lowerBound)
+        let launchHandling = demo[optionsStart.lowerBound..<initEnd.lowerBound]
+        // An invalid screen must clear the active clock, not the process's opt-in.
+        XCTAssertFalse(launchHandling.contains("captureProfile ="))
+        XCTAssertTrue(launchHandling.contains("options = nil"))
+        XCTAssertTrue(launchHandling.contains("AppClock.useDemoCapture(nil)"))
+        let entryStart = try XCTUnwrap(demo.range(of: "func enterDemo()"))
+        let exitStart = try XCTUnwrap(demo.range(of: "func exitDemo()"))
+        let entry = demo[entryStart.lowerBound..<exitStart.lowerBound]
+        XCTAssertTrue(entry.contains("AppClock.useDemoCapture(captureProfile)"))
+    }
+
     func testAllPhoneEnergyWidgetWritesGoThroughTheEffectBoundary() throws {
         for path in ["App/Today/TodayView.swift", "App/DailyEnergyViews.swift", "App/Shell/NutritionNavigationView.swift", "App/Shell/ProgressNavigationView.swift"] {
             let view = try source(path)

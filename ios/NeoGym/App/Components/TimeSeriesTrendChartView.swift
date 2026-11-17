@@ -60,8 +60,8 @@ struct TimeSeriesTrendChartView: View {
         accessibilityLabel: String = "Time series chart",
         accessibilityValue: String? = nil,
         initialPeriod: TimeSeriesChartPeriod = .last90Days,
-        now: Date = Date(),
-        calendar: Calendar = .current,
+        now: Date = AppClock.now(),
+        calendar: Calendar = AppClock.calendar,
         onVisibleRangeChange: ((Date, Date) -> Void)? = nil
     ) {
         self.init(
@@ -88,8 +88,8 @@ struct TimeSeriesTrendChartView: View {
         maxPointMarkers: Int = 31,
         chartHeight: CGFloat = 240,
         initialPeriod: TimeSeriesChartPeriod = .last90Days,
-        now: Date = Date(),
-        calendar: Calendar = .current,
+        now: Date = AppClock.now(),
+        calendar: Calendar = AppClock.calendar,
         onVisibleRangeChange: ((Date, Date) -> Void)? = nil
     ) {
         self.panels = panels
@@ -142,7 +142,7 @@ struct TimeSeriesTrendChartView: View {
         .onChange(of: customStart) { _, _ in notifyVisibleRangeChange() }
         .onChange(of: customEnd) { _, _ in notifyVisibleRangeChange() }
         // Refresh preset ranges if the view remains mounted across a local midnight.
-        .onChange(of: Calendar.current.startOfDay(for: Date())) { _, _ in notifyVisibleRangeChange() }
+        .onChange(of: AppClock.calendar.startOfDay(for: AppClock.now())) { _, _ in notifyVisibleRangeChange() }
     }
 
     private func notifyVisibleRangeChange() {
@@ -178,15 +178,15 @@ struct TimeSeriesTrendChartView: View {
     }
 
     private var dateRange: (start: Date, endExclusive: Date)? {
-        let calendar = Calendar.current
-        if period == .last8Weeks, let currentWeek = calendar.dateInterval(of: .weekOfYear, for: Date()) {
+        let calendar = AppClock.calendar
+        if period == .last8Weeks, let currentWeek = calendar.dateInterval(of: .weekOfYear, for: AppClock.now()) {
             let start = calendar.date(byAdding: .weekOfYear, value: -7, to: currentWeek.start) ?? currentWeek.start
-            let endExclusive = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeek.start) ?? Date()
+            let endExclusive = calendar.date(byAdding: .weekOfYear, value: 1, to: currentWeek.start) ?? AppClock.now()
             return (start, endExclusive)
         }
         if let days = period.days {
-            let end = calendar.startOfDay(for: Date())
-            let endExclusive = calendar.dateInterval(of: .day, for: end)?.end ?? Date()
+            let end = calendar.startOfDay(for: AppClock.now())
+            let endExclusive = calendar.dateInterval(of: .day, for: end)?.end ?? AppClock.now()
             let start = calendar.date(byAdding: .day, value: -days + 1, to: end) ?? end
             return (start, endExclusive)
         }

@@ -13,7 +13,7 @@ import unittest
 import zlib
 from html.parser import HTMLParser
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 TOOLS = runpy.run_path(str(Path(__file__).with_name("capture-demo-guide.py")))
 WORKFLOWS = runpy.run_path(str(Path(__file__).with_name("demo-guide-workflows.py")))
@@ -65,6 +65,36 @@ class CaptureToolTests(unittest.TestCase):
         for value in [None, "not numeric"]:
             with self.assertRaisesRegex(AssertionError, "saved demo value was not numeric"):
                 WORKFLOWS["persisted_number"](value)
+
+    def test_keyboard_presence_probe_does_not_request_transient_properties(self):
+        guide = TOOLS["Guide"].__new__(TOOLS["Guide"])
+        with patch.object(guide, "call", return_value={"exists": False}) as call:
+            self.assertEqual(guide.exists(None, kind="keyboard", timeout=0.2), {"exists": False})
+            call.assert_called_once_with("exists", element={"type": "keyboard"},
+                                         timeout=0.2, presenceOnly=True)
+
+    def test_ordinary_existence_probe_keeps_interaction_properties(self):
+        guide = TOOLS["Guide"].__new__(TOOLS["Guide"])
+        with patch.object(guide, "call", return_value={"exists": True, "enabled": True}) as call:
+            self.assertTrue(guide.exists("Delete entry")["enabled"])
+            call.assert_called_once_with("exists", element={"type": "button", "label": "Delete entry"}, timeout=1.0)
+
+    def test_log_navigation_finds_yesterday_across_the_monday_boundary(self):
+        for today, yesterday, previous_week in [
+            ("2026-11-16", "Sunday, November 15", True),
+            ("2026-11-17", "Monday, November 16", False),
+            ("2026-11-22", "Saturday, November 21", False),
+        ]:
+            guide = Mock()
+            guide.state.return_value = {"preparedThrough": today}
+            guide.tap.side_effect = RuntimeError("stop after selecting yesterday")
+            with self.assertRaisesRegex(RuntimeError, "stop after selecting yesterday"):
+                WORKFLOWS["log_navigation"](guide)
+            guide.tap.assert_called_once_with(yesterday, match="prefix")
+            if previous_week:
+                guide.call.assert_called_once_with("drag", x=0.15, y=0.355, toX=0.85, toY=0.355)
+            else:
+                guide.call.assert_not_called()
 
     def test_rejects_non_png_input(self):
         with self.assertRaisesRegex(ValueError, "Expected a PNG"):
@@ -119,6 +149,78 @@ class CaptureToolTests(unittest.TestCase):
             self.assertIn("- Saved locally", document)
             self.assertIn("screenshots/sample-image.png", document)
             self.assertIn("Use Back after deletion.", document)
+
+
+class DeterministicCaptureTests(unittest.TestCase):
+    def guide(self, output):
+        guide = TOOLS["Guide"].__new__(TOOLS["Guide"])
+        guide.output = Path(output)
+        (guide.output / "screenshots").mkdir()
+        guide.path = guide.output / "capture-manifest.json"
+        guide.root = guide.output / "driver"
+        guide.root.mkdir()
+        guide.manifest = {"screenshots": [], "workflows": []}
+        guide.workflow, guide.steps, guide.checks = "sample", ["Open sample"], []
+        return guide
+
+    def test_device_profile_pins_signal_font_size_and_appearance(self):
+        guide = TOOLS["Guide"].__new__(TOOLS["Guide"])
+        guide.device = "dedicated-simulator"
+        with patch.dict(guide.prepare_device.__globals__, {"xcrun": Mock()}) as namespace:
+            guide.prepare_device()
+            calls = namespace["xcrun"].call_args_list
+        self.assertEqual(calls[0].args, ("simctl", "ui", guide.device, "appearance", "dark"))
+        self.assertEqual(calls[1].args[-2:], ("content_size", "large"))
+        flags = calls[2].args
+        self.assertEqual(flags[flags.index("--cellularBars") + 1], "4")
+        self.assertEqual(flags[flags.index("--time") + 1], "9:41")
+
+    def test_every_launch_including_public_entry_receives_capture_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            guide = self.guide(directory)
+            requests = []
+            def respond(path, value):
+                requests.append(value)
+                (guide.root / "response.json").write_text(json.dumps({
+                    "id": value["id"], "ok": True, "result": {"running": True}}))
+            with patch.dict(guide.call.__globals__, {"atomic_json": respond}):
+                guide.call("launch", arguments=[], environment={"CUSTOM": "keep"})
+            self.assertEqual(requests[0]["environment"], {
+                "CUSTOM": "keep", "NEOGYM_DEMO_CAPTURE": "1", "TZ": "UTC"})
+
+    def test_identical_recapture_preserves_manifest_order_provenance_and_image_file(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            guide = self.guide(directory)
+            captured = guide.output / "capture.png"
+            captured.write_bytes(png(width=64, height=64)[0])
+            guide.call = Mock(return_value={"path": str(captured), "capturedAt": "2026-11-16T10:00:00Z", "tree": "sample"})
+            guide.shot("sample", "Sample")
+            guide.manifest["screenshots"].append({"id": "later"})
+            guide.save()
+            image = guide.output / "screenshots/sample.png"
+            original = guide.path.read_bytes(), image.read_bytes(), image.stat().st_mtime_ns
+            guide.call.return_value["capturedAt"] = "2030-02-20T18:30:00Z"
+            guide.shot("sample", "Sample")
+            self.assertEqual((guide.path.read_bytes(), image.read_bytes(), image.stat().st_mtime_ns), original)
+            self.assertEqual(guide.manifest["screenshots"][0]["captureProfile"], TOOLS["CAPTURE_PROFILE"])
+            # Actual visual changes still replace the image and capture timestamp.
+            captured.write_bytes(png(width=65, height=64)[0])
+            guide.shot("sample", "Sample")
+            self.assertNotEqual(image.read_bytes(), original[1])
+            self.assertEqual(guide.manifest["screenshots"][0]["capturedAt"], "2030-02-20T18:30:00Z")
+
+    def test_replaying_a_workflow_keeps_its_position_and_final_manifest_bytes(self):
+        with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stdout(io.StringIO()):
+            guide = self.guide(directory)
+            def workflow(current):
+                current.step("Open sample")
+                current.require("Fixture is stable", True)
+            guide.run_workflow("sample", "Sample", workflow)
+            guide.manifest["workflows"].append({"id": "later", "status": "passed"})
+            guide.save()
+            first = guide.path.read_bytes()
+            guide.run_workflow("sample", "Sample", workflow)
+            self.assertEqual(guide.path.read_bytes(), first)
 
 
 class GalleryParser(HTMLParser):
@@ -212,6 +314,18 @@ class WorkflowGalleryTests(unittest.TestCase):
         parser.feed(document)
         self.assertEqual(parser.scripts, 1)
 
+    def test_nutrition_rows_include_search_and_live_preview_steps(self):
+        manifest = json.loads((TOOLS["DEFAULT_OUTPUT"] / "capture-manifest.json").read_text())
+        rows = {row["id"]: [item["id"] for item in row["images"]]
+                for section in TOOLS["GALLERY"]["build_sections"](manifest) for row in section["rows"]}
+        for row, before, after in [
+            ("log-meal", "20-log-meal-sheet", "20-log-meal-search-picker"),
+            ("edit-logged-food", "20-log-entry-edit", "20-log-entry-edit-adjusted"),
+            ("edit-logged-child", "20-log-group-child-edit", "20-log-group-child-edit-adjusted"),
+            ("edit-custom-intake", "20-log-ad-hoc-edit", "20-log-ad-hoc-edit-adjusted"),
+        ]:
+            self.assertLess(rows[row].index(before), rows[row].index(after))
+
     def test_published_catalog_covers_all_captures_without_fallback_rows(self):
         manifest = json.loads((TOOLS["DEFAULT_OUTPUT"] / "capture-manifest.json").read_text())
         sections = TOOLS["GALLERY"]["build_sections"](manifest)
@@ -249,6 +363,51 @@ class CatalogValidationTests(unittest.TestCase):
 
     def test_accepts_a_complete_catalog(self):
         self.validate()
+
+    def test_accepts_a_uniform_capture_profile_regardless_of_key_order(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"][0]["captureProfile"] = profile
+        self.manifest["screenshots"][1]["captureProfile"] = dict(reversed(list(profile.items())))
+        self.validate()
+
+    def test_rejects_mixed_legacy_and_profile_captures(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"][1]["captureProfile"] = profile
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn("complete, reviewed baseline (--group all)", str(raised.exception))
+        self.assertIn("null = legacy", str(raised.exception))
+        self.assertIn("null: 01-today", str(raised.exception))
+        self.assertIn(json.dumps(profile, sort_keys=True) + ": sample", str(raised.exception))
+
+    def test_rejects_mixed_capture_profile_versions(self):
+        profile = TOOLS["CAPTURE_PROFILE"]
+        newer = {**profile, "version": profile["version"] + 1}
+        self.manifest["screenshots"][0]["captureProfile"] = profile
+        self.manifest["screenshots"][1]["captureProfile"] = newer
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn(json.dumps(profile, sort_keys=True) + ": 01-today", str(raised.exception))
+        self.assertIn(json.dumps(newer, sort_keys=True) + ": sample", str(raised.exception))
+
+    def test_reports_retained_legacy_issue_evidence_after_a_full_refresh(self):
+        issue_id = "sample-deleted-detail-issue"
+        record = {**self.manifest["screenshots"][1], "id": issue_id,
+                  "file": "screenshots/" + issue_id + ".png"}
+        for image in self.manifest["screenshots"]:
+            image["captureProfile"] = TOOLS["CAPTURE_PROFILE"]
+        self.manifest["screenshots"].append(record)
+        self.manifest["knownIssues"] = [{"id": "delete-navigation", "screenshots": [issue_id]}]
+        image = self.output / record["file"]
+        image.write_bytes((self.output / "screenshots/sample.png").read_bytes())
+        with self.assertRaisesRegex(ValueError, "Mixed capture profiles") as raised:
+            self.validate()
+        self.assertIn("null: " + issue_id, str(raised.exception))
+        self.assertIn("If that run has already completed", str(raised.exception))
+        self.assertIn("obsolete conditional issue evidence per docs/ios/capture.md", str(raised.exception))
+        self.assertIn("never relabel old captures", str(raised.exception))
+        self.assertEqual(json.loads((self.output / "capture-manifest.json").read_text()), self.manifest)
+        self.assertTrue(image.exists())
 
     def test_rejects_failed_workflows(self):
         self.manifest["workflows"][1]["status"] = "failed"

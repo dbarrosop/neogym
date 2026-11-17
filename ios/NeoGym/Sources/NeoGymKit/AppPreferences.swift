@@ -71,7 +71,7 @@ public struct RestTimerSchedule: Equatable, Sendable {
 
     public static func start(
         seconds: Int,
-        now: Date = Date(),
+        now: Date = AppClock.now(),
         label: String? = nil,
         sessionId: String? = nil
     ) -> RestTimerSchedule {
@@ -94,11 +94,11 @@ public struct RestTimerSchedule: Equatable, Sendable {
     }
 
     /// Whole seconds left, rounded up so the last second still shows "0:01".
-    public func remainingSeconds(at now: Date = Date()) -> Int {
+    public func remainingSeconds(at now: Date = AppClock.now()) -> Int {
         max(0, Int(ceil(endDate.timeIntervalSince(now))))
     }
 
-    public func isFinished(at now: Date = Date()) -> Bool {
+    public func isFinished(at now: Date = AppClock.now()) -> Bool {
         remainingSeconds(at: now) == 0
     }
 }

@@ -9,20 +9,32 @@ final class AppModeController: ObservableObject {
     @Published private(set) var isDemo = false
     @Published private(set) var configurationError: String?
     let options: DemoLaunchOptions?
+    let captureProfile: DemoCaptureProfile?
     let defaults: UserDefaults?
     private var pendingLaunchReset = false
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         defaults = UserDefaults(suiteName: Self.defaultsSuite)
         do {
+            captureProfile = try DemoCaptureProfile.requested()
+        } catch {
+            captureProfile = nil
+            options = nil
+            AppClock.useDemoCapture(nil)
+            configurationError = error.localizedDescription
+            return
+        }
+        do {
             let options = try DemoLaunchOptions(arguments: arguments)
             self.options = options
             pendingLaunchReset = options.reset
             isDemo = options.enabled || defaults?.bool(forKey: Self.activeKey) == true
+            AppClock.useDemoCapture(isDemo ? captureProfile : nil)
             if options.enabled { defaults?.set(true, forKey: Self.activeKey) }
             if isDemo, defaults == nil { configurationError = "Demo preferences are unavailable." }
         } catch {
             options = nil
+            AppClock.useDemoCapture(nil)
             configurationError = error.localizedDescription
         }
     }
@@ -35,12 +47,14 @@ final class AppModeController: ObservableObject {
     func enterDemo() {
         guard defaults != nil else { configurationError = "Demo preferences are unavailable."; return }
         defaults?.set(true, forKey: Self.activeKey)
+        AppClock.useDemoCapture(captureProfile)
         isDemo = true
     }
 
     func exitDemo() {
         defaults?.set(false, forKey: Self.activeKey)
         configurationError = nil
+        AppClock.useDemoCapture(nil)
         isDemo = false
     }
 }
@@ -92,7 +106,7 @@ private final class DemoRuntime: ObservableObject {
                 throw DemoError.incompatibleData
             }
             let url = support.appendingPathComponent("NeoGymDemo", isDirectory: true).appendingPathComponent("state-v1.json")
-            let store = try DemoStore(fileURL: url, reset: reset)
+            let store = try DemoStore(fileURL: url, reset: reset, now: AppClock.now(), calendar: AppClock.calendar)
             self.store = store
             session = try DemoIdentity.session()
             environment = .demo(store: store, screen: screen)
@@ -161,6 +175,7 @@ private struct DemoModeView: View {
         .environmentObject(connectivity)
         .environment(\.demoActions, DemoActions(reset: { Task { await runtime.load(reset: true) } }, exit: exitDemo))
         .defaultAppStorage(defaults)
+        .modifier(DemoCaptureEnvironment())
         .background(NeoGymTheme.background)
         .tint(NeoGymTheme.accentText)
         .preferredColorScheme(AppAppearance(storedValue: appearance).colorScheme)
@@ -173,6 +188,20 @@ private struct DemoModeView: View {
         Task {
             await runtime.stop()
             exit()
+        }
+    }
+}
+
+private struct DemoCaptureEnvironment: ViewModifier {
+    func body(content: Content) -> some View {
+        if let profile = AppClock.captureProfile {
+            content
+                .environment(\.calendar, profile.calendar)
+                .environment(\.timeZone, profile.timeZone)
+                .environment(\.locale, profile.locale)
+                .transaction { $0.disablesAnimations = true }
+        } else {
+            content
         }
     }
 }

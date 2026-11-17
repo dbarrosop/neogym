@@ -385,6 +385,7 @@ See [the guide](README.md) for scope, limitations and the simulator setup. A pas
 **Verified outcomes**
 
 - Ad-hoc logging did not create a reusable food
+- Custom snapshot edits persist without changing the reusable food catalog
 
 **Screenshots**
 
@@ -392,6 +393,7 @@ See [the guide](README.md) for scope, limitations and the simulator setup. A pas
 |---|---|
 | [`20-log-ad-hoc-added`](screenshots/20-log-ad-hoc-added.png) | Nutrition Log: standalone ad-hoc item |
 | [`20-log-ad-hoc-edit`](screenshots/20-log-ad-hoc-edit.png) | Ad-hoc entry: editable snapshot nutrients as well as grams |
+| [`20-log-ad-hoc-edit-adjusted`](screenshots/20-log-ad-hoc-edit-adjusted.png) | Ad-hoc entry: changing snapshot nutrients recalculates the preview |
 | [`20-log-ad-hoc-filled`](screenshots/20-log-ad-hoc-filled.png) | Ad-hoc log: complete nutrient snapshot |
 | [`20-log-ad-hoc-sheet`](screenshots/20-log-ad-hoc-sheet.png) | Log intake: ad-hoc name, per-100 g nutrients, grams and time |
 | [`20-log-ad-hoc-updated`](screenshots/20-log-ad-hoc-updated.png) | Nutrition Log: renamed ad-hoc snapshot |
@@ -443,10 +445,11 @@ See [the guide](README.md) for scope, limitations and the simulator setup. A pas
 | [`20-log-entry-delete-confirmation`](screenshots/20-log-entry-delete-confirmation.png) | Log entry: destructive confirmation |
 | [`20-log-entry-deleted`](screenshots/20-log-entry-deleted.png) | Nutrition Log: standalone entry removed |
 | [`20-log-entry-edit`](screenshots/20-log-entry-edit.png) | Log entry: standalone time, grams, position and Delete |
+| [`20-log-entry-edit-adjusted`](screenshots/20-log-entry-edit-adjusted.png) | Log entry: 175 g recalculates calories and macros against saved totals |
 | [`20-log-entry-updated`](screenshots/20-log-entry-updated.png) | Nutrition Log: updated logged quantity |
 | [`20-log-food-added`](screenshots/20-log-food-added.png) | Nutrition Log: newly logged standalone food |
 | [`20-log-food-filled`](screenshots/20-log-food-filled.png) | Log food: 150 grams ready to append |
-| [`20-log-food-search-picker`](screenshots/20-log-food-search-picker.png) | Log food: filtered wheel and nutrition preview |
+| [`20-log-food-search-picker`](screenshots/20-log-food-search-picker.png) | Choose food: searchable list, name over macros per 100 g |
 | [`20-log-food-sheet`](screenshots/20-log-food-sheet.png) | Log intake: food mode, grams and time |
 
 <a id="log-plan"></a>
@@ -504,6 +507,7 @@ See [the guide](README.md) for scope, limitations and the simulator setup. A pas
 | [`20-log-group-child-delete-confirmation`](screenshots/20-log-group-child-delete-confirmation.png) | Logged meal child: single-snapshot deletion confirmation |
 | [`20-log-group-child-deleted`](screenshots/20-log-group-child-deleted.png) | Nutrition Log: meal remains with its other logged ingredients |
 | [`20-log-group-child-edit`](screenshots/20-log-group-child-edit.png) | Logged meal child: grams and ordering, with time owned by the meal |
+| [`20-log-group-child-edit-adjusted`](screenshots/20-log-group-child-edit-adjusted.png) | Logged meal child: live nutrition totals compared with the saved 200 g |
 | [`20-log-group-child-updated`](screenshots/20-log-group-child-updated.png) | Nutrition Log: one meal ingredient's logged amount updated |
 
 <a id="log-meal"></a>
@@ -528,6 +532,7 @@ See [the guide](README.md) for scope, limitations and the simulator setup. A pas
 | [`20-log-meal-delete-confirmation`](screenshots/20-log-meal-delete-confirmation.png) | Logged meal: group and child deletion confirmation |
 | [`20-log-meal-deleted`](screenshots/20-log-meal-deleted.png) | Nutrition Log: logged meal and children removed |
 | [`20-log-meal-edit`](screenshots/20-log-meal-edit.png) | Logged meal: group editor |
+| [`20-log-meal-search-picker`](screenshots/20-log-meal-search-picker.png) | Choose meal: ingredient search finds the current meal, marked with a check |
 | [`20-log-meal-sheet`](screenshots/20-log-meal-sheet.png) | Log intake: meal mode and ingredient quantities |
 | [`20-log-meal-updated`](screenshots/20-log-meal-updated.png) | Nutrition Log: renamed logged meal |
 
