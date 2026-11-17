@@ -92,8 +92,10 @@ struct WatchEndOfDayPage<Runtime: WatchPageRuntime, Account: WatchPageAccount>: 
                             WatchValueRow(label: "Burned", value: burned,
                                           accessibilityValue: "about \(burned.dropFirst(2)) kilocalories")
                         }
-                    } else {
-                        Text("Needs resting energy from recent days.")
+                    } else if let message = WatchEndOfDayEstimate.unavailableMessage(
+                        snapshot: runtime.snapshot, at: runtime.displayDate
+                    ) {
+                        Text(message)
                             .font(WatchType.caption)
                             .foregroundStyle(WatchPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)

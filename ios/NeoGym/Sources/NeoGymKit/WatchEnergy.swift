@@ -75,6 +75,21 @@ public struct WatchEnergySnapshot: Codable, Equatable, Sendable {
     }
 }
 
+/// Explain the first missing input without mistaking an unread day for missing history.
+public enum WatchEndOfDayEstimate {
+    public static func unavailableMessage(
+        snapshot: WatchEnergySnapshot?, at date: Date, calendar: Calendar = .current
+    ) -> String? {
+        guard let snapshot, snapshot.localDate == DateOnly.formatLocalISO(date, calendar: calendar) else {
+            return "No numbers yet today."
+        }
+        guard snapshot.burnedKcal != nil else { return "Needs today's energy." }
+        guard snapshot.restingBaseline != nil else { return "Needs resting energy from recent days." }
+        // Invalid numeric inputs can also prevent a projection; don't blame valid history.
+        return snapshot.projection == nil ? "Estimate unavailable." : nil
+    }
+}
+
 /// Optimistic display only for a known imported/missing server row. A manual
 /// row (or old snapshot with unknown provenance) always keeps server values.
 public enum WatchLocalEnergyPolicy {

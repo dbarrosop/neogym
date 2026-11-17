@@ -248,6 +248,13 @@ net. Historical day/detail screens and charts retain recorded values only. The
 **watch complication** and the iPhone **Lock Screen** widgets show actual
 balance so far only, never estimates.
 
+The watch End of day card distinguishes missing inputs with host-tested
+`WatchEndOfDayEstimate` copy: no current-day snapshot shows "No numbers yet today.",
+a current snapshot without an energy row shows "Needs today's energy.", and only
+an energy row without a resting baseline asks for "resting energy from recent
+days." A projection rejected for invalid numeric inputs instead shows the neutral
+"Estimate unavailable." Existing estimate/average/Refresh behavior is unchanged.
+
 Native daily intake and watch reads include seven previous energy dates plus
 today. The native overview read behind Today keeps future-dated nutrition logs in its browsing list
 but separately selects recent past/current `balanceDays`, and excludes future
