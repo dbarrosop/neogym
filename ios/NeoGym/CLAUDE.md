@@ -744,9 +744,17 @@ section records how the iPhone app implements it.
   `Meal.matchesSearch`, shared with the Meals library. Both the choice row and
   paired macro values stack at accessibility text sizes. Its Macro preview and `EditLogEntrySheet`'s Nutrition card share
   `NutritionMacroPreview`: kcal with P · C · F in whole grams (protein first, as
-  on the log's slots), fiber and sugar below; while editing it recalculates
-  from the entry's snapshot per 100 g × typed grams and shows the saved totals
-  ("Was 110 kcal · P 14 · C 6 · F 3 at 150 g") once the rounded values differ.
+  on the log's slots), fiber and sugar below. Host-tested NeoGymKit
+  `NutritionEntryPreview` owns edit totals, the "per 100 g, as logged" caption
+  and the optional saved totals ("Was 110 kcal · P 14 · C 6 · F 3 at 150 g").
+  It accepts the timeline's `IntakeEntry` projection (`NutritionLogEntry.intakeEntry`),
+  which is also the edit sheet's input; helper tests should use that boundary.
+  Food-backed entries use the immutable snapshot, even after catalog edits or
+  deletion; ad-hoc entries use the typed per-100 g nutrients. Both multiply by
+  the typed grams. Saved totals appear only when the displayed whole
+  kcal/protein/carbs/fat differ, not for fiber/sugar alone or sub-rounding
+  changes. `NutritionMacroText.whole` preserves the previews' existing visible
+  rounding and is shared by the comparison and rendering.
   Amount and custom-nutrient fields provide a focus-scoped keyboard Done action.
   `FoodPickerView` / `MealPickerView` (wheels) are no longer used; workout
   labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):

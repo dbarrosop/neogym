@@ -80,19 +80,13 @@ struct NutritionChoiceRow: View {
 /// quieter line and, when editing, the saved totals it would replace
 /// ("Was 110 kcal · P 14 · C 6 · F 3 at 150 g").
 struct NutritionMacroPreview: View {
-    struct Saved {
-        let totals: MacroTotals
-        /// The saved amount, such as "150 g".
-        let amount: String
-    }
-
     let totals: MacroTotals
-    var saved: Saved?
+    var saved: NutritionEntryPreview.Saved?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             AdaptiveRow(spacing: NeoGymTheme.spacingSM, alignment: .firstTextBaseline) {
-                MetricValueText(value: MetricFormat.whole(totals.kcal), unit: "kcal", size: .title2.weight(.bold))
+                MetricValueText(value: NutritionMacroText.whole(totals.kcal), unit: "kcal", size: .title2.weight(.bold))
                 Spacer(minLength: 0)
                 Text(MacroTotalsStrip.macroLine(totals))
                     .font(.subheadline)
@@ -103,8 +97,8 @@ struct NutritionMacroPreview: View {
                 .font(.footnote)
                 .monospacedDigit()
                 .foregroundStyle(NeoGymTheme.textSecondary)
-            if let changedFrom {
-                Text("Was \(MetricFormat.whole(changedFrom.totals.kcal)) kcal · \(Self.macros(changedFrom.totals)) at \(changedFrom.amount)")
+            if let saved {
+                Text("Was \(NutritionEntryPreview.summary(saved.totals)) at \(saved.amount)")
                     .font(.footnote)
                     .monospacedDigit()
                     .foregroundStyle(NeoGymTheme.textTertiary)
@@ -115,25 +109,11 @@ struct NutritionMacroPreview: View {
         .accessibilityLabel(accessibilityText)
     }
 
-    /// The saved totals, only once the shown (rounded) values differ from them.
-    private var changedFrom: Saved? {
-        guard let saved, Self.summary(saved.totals) != Self.summary(totals) else { return nil }
-        return saved
-    }
-
-    private static func macros(_ totals: MacroTotals) -> String {
-        "P \(MetricFormat.whole(totals.protein)) · C \(MetricFormat.whole(totals.carbs)) · F \(MetricFormat.whole(totals.fat))"
-    }
-
-    private static func summary(_ totals: MacroTotals) -> String {
-        "\(MetricFormat.whole(totals.kcal)) \(macros(totals))"
-    }
-
     private var accessibilityText: String {
         var text = "\(MetricFormat.whole(totals.kcal)) kilocalories. \(NutritionMacroText.slotAccessibility(totals)). "
             + "Fiber \(NutritionMacroText.grams(totals.fiber)) grams, sugar \(NutritionMacroText.grams(totals.sugar)) grams."
-        if let changedFrom {
-            text += " Was \(MetricFormat.whole(changedFrom.totals.kcal)) kilocalories at \(changedFrom.amount)."
+        if let saved {
+            text += " Was \(MetricFormat.whole(saved.totals.kcal)) kilocalories at \(saved.amount)."
         }
         return text
     }

@@ -5,6 +5,12 @@ import Foundation
 /// and each row shows its amount and macros under the name
 /// ("45 g · P 33 · C 6.8 · F 2").
 public enum NutritionMacroText {
+    /// Whole kcal/grams in form previews. Keep Foundation's default rounding,
+    /// shared by the visible values and the saved-versus-current comparison.
+    public static func whole(_ value: Double, locale: Locale = .current) -> String {
+        value.formatted(.number.precision(.fractionLength(0)).locale(locale))
+    }
+
     /// Grams of one macro on a row: one decimal below 10 g, whole grams from
     /// 10 g, trailing zeros dropped (`6.8`, `2`, `0`, `33`).
     public static func grams(_ value: Double, locale: Locale = .current) -> String {

@@ -634,7 +634,7 @@ struct EditLogEntrySheet: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.entry.snapshotFoodName)
                                 .font(.subheadline.weight(.semibold))
-                            Text(per100gCaption)
+                            Text(preview.per100gCaption)
                                 .font(.footnote)
                                 .monospacedDigit()
                                 .foregroundStyle(NeoGymTheme.textSecondary)
@@ -668,11 +668,8 @@ struct EditLogEntrySheet: View {
 
                 Section {
                     NutritionMacroPreview(
-                        totals: previewTotals,
-                        saved: NutritionMacroPreview.Saved(
-                            totals: NutritionMath.loggedEntryMacroTotals(item.entry.loggedSnapshot),
-                            amount: "\(NutritionLogAmount.editableNumber(item.entry.grams)) g"
-                        )
+                        totals: preview.totals,
+                        saved: preview.changedFrom
                     )
                 } header: {
                     Text("Nutrition")
@@ -750,10 +747,11 @@ struct EditLogEntrySheet: View {
         .navigationViewStyle(.stack)
     }
 
-    /// Per 100 g: the saved snapshot, or the custom values being edited.
-    private var per100gFields: MacroFields {
-        if item.entry.isAdHoc {
-            return MacroFields(
+    private var preview: NutritionEntryPreview {
+        NutritionEntryPreview(
+            entry: item.entry,
+            grams: grams,
+            adHocPer100g: MacroFields(
                 kcalPer100g: .string(kcal),
                 fatPer100g: .string(fat),
                 carbsPer100g: .string(carbs),
@@ -761,21 +759,7 @@ struct EditLogEntrySheet: View {
                 fiberPer100g: .string(fiber),
                 sugarPer100g: .string(sugar)
             )
-        }
-        return MacroFields(
-            kcalPer100g: item.entry.snapshotKcalPer100g,
-            fatPer100g: item.entry.snapshotFatPer100g,
-            carbsPer100g: item.entry.snapshotCarbsPer100g,
-            proteinPer100g: item.entry.snapshotProteinPer100g,
-            fiberPer100g: item.entry.snapshotFiberPer100g,
-            sugarPer100g: item.entry.snapshotSugarPer100g
         )
-    }
-
-    /// What the entry adds up to at the grams being typed, as the database
-    /// will save it (snapshot per 100 g × grams).
-    private var previewTotals: MacroTotals {
-        NutritionMath.macrosForGrams(input: per100gFields, grams: .string(grams))
     }
 
     private var nutritionFooter: String {
@@ -784,13 +768,6 @@ struct EditLogEntrySheet: View {
         }
         return "Updates as you change the amount. Uses the values saved when this was logged, "
             + "so later edits to the food don't change it."
-    }
-
-    /// "73 kcal · P 9 · C 4 · F 2 per 100 g, as logged".
-    private var per100gCaption: String {
-        let per100 = NutritionMath.macrosForGrams(input: per100gFields, grams: .number(100))
-        return "\(MetricFormat.whole(per100.kcal)) kcal · P \(MetricFormat.whole(per100.protein))"
-            + " · C \(MetricFormat.whole(per100.carbs)) · F \(MetricFormat.whole(per100.fat)) per 100 g, as logged"
     }
 
     private func adHocDraft(nextTime: String?) -> AdHocFoodDraftValues {

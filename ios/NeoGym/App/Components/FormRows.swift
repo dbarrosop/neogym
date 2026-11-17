@@ -301,7 +301,7 @@ struct MacroTotalsStrip: View {
     /// "P 33 · C 6 · F 2": whole grams, protein first, numbers emphasised.
     static func macroLine(_ totals: MacroTotals) -> AttributedString {
         func part(_ label: String, _ value: Double) -> AttributedString {
-            var number = AttributedString(MetricFormat.whole(value))
+            var number = AttributedString(NutritionMacroText.whole(value))
             number.font = .subheadline.weight(.semibold)
             number.foregroundColor = NeoGymTheme.text
             return AttributedString("\(label) ") + number
