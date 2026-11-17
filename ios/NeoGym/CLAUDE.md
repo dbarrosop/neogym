@@ -758,8 +758,9 @@ section records how the iPhone app implements it.
   (also in slot headers). Keep speech on the same formatter: rounding exact
   half grams away from zero would disagree with the visible half-to-even values.
   Amount and custom-nutrient fields provide a focus-scoped keyboard Done action.
-  `FoodPickerView` / `MealPickerView` (wheels) are no longer used; workout
-  labels and journal labels share `LabelChipsEditor` (`App/LabelInputView.swift`):
+  The old `FoodPickerView` / `MealPickerView` wheels were removed; do not
+  reintroduce them. Workout labels and journal labels share `LabelChipsEditor`
+  (`App/LabelInputView.swift`):
   accent-soft chips with a remove button, an inline "Add label" field with
   normalized typed creation, and matching existing labels shown only while the
   field is focused. Strength set editing intentionally uses a sheet with native
