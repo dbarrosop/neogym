@@ -11,7 +11,7 @@ The app uses the same email OTP auth shape as the web app for sign-in/sign-up.
 models, daily energy models/import helpers, and testable form validation;
 iPhone SwiftUI under `App/` owns its layout, navigation, and presentation;
 watch app SwiftUI and connectivity live under `Watch/`; the token-free
-rectangular complication lives under `WatchWidgets/` in the separate
+rectangular and circular complications live under `WatchWidgets/` in the separate
 `NeoGymWatchWidgets` extension, without Keychain or HealthKit access.
 
 ## Offline iPhone demo
@@ -135,7 +135,8 @@ can shadow `/usr/bin/xcrun`; with both `SDKROOT` and `DEVELOPER_DIR` unset,
 that shim fails with `unable to find sdk: 'macosx'`. For `swift build`/`swift
 test`, keep Xcode's `DEVELOPER_DIR` set (or use `/usr/bin/xcrun` or plain
 `swift`) while unsetting Nix overrides such as `SDKROOT`, `CC`, `CXX`, `LD`,
-`AR`, and `LDFLAGS`.
+`AR`, and `LDFLAGS`. For an explicit host SDK, SwiftPM uses `swift test --sdk PATH`
+(or `swift build --sdk PATH`), not the compiler's single-dash `-sdk` flag.
 
 Swift 6 SwiftUI `.onReceive` closures inherit `MainActor` isolation and can trap
 if a publisher emits off the main thread. `NSCalendarDayChanged` is an
@@ -165,7 +166,7 @@ watch assets must remain included in `sources` (do not exclude
 `Assets.car` and `CFBundleIcons/CFBundlePrimaryIcon/CFBundleIconName = AppIcon`.
 Use `xcodebuild -project NeoGym.xcodeproj -scheme NeoGymWatch -destination
 'generic/platform=watchOS Simulator' build` after generation.
-`Watch/` alone is compiled into the watch target (not `App/` or `Shared/`).
+`Watch/` plus the shared `WidgetUI/` are compiled into the watch target (not `App/` or `Shared/`).
 `WatchHomeView` forwards live PAT handoff messages to `WatchAssistedSignInModel`;
 only the view holds a watchOS expiring activity for the sign-in. The model
 checks the request nonce, age, expiry and definitive phone user ID. Rejected
@@ -174,11 +175,21 @@ failure so the phone can offer retry; a duplicate for the same in-flight request
 does not send a premature failure before its final result. The account
 stores the PAT in a private device-only Keychain item and signs in via Auth
 `/signin/pat`; it rejects a different-user result and clears the session.
-The `WatchWidgets/WatchEnergyComplication.swift` rectangular view tints only
-its icons (green cutlery, red flame, teal hand-drawn two-pan balance), not the
-calorie text. Consumed/burned values share the same bold typography without
-visible “in/out”; preserve their full VoiceOver labels. This icon is specific
-to the complication; the watch app Energy page still uses its SF Symbol.
+`WatchWidgets/WatchEnergyComplication.swift` has rectangular and circular
+families driven by NeoGymKit `WatchComplicationContent` (not connected / waiting
+for today / balance, fresh or stale after an hour). Full colour tints only the
+title (accent) and ring (Chart 1); tinted faces tint those via
+`widgetAccentable()` and keep numbers white. No green, red or teal glyphs; the
+two-pan `BalanceScaleIcon` in `WidgetUI/` marks balance (it is shared with the
+iPhone Lock Screen rectangular widget). Keep full VoiceOver labels. An earlier-day
+snapshot means today's values have not synced; the circular waiting-state label
+must not claim that no food has been logged today.
+`Watch/` and `WidgetUI/` are compiled into the watch app; `WatchWidgets/` and
+`WidgetUI/` into its widget extension; `Widgets/`, `Shared/` and `WidgetUI/`
+into the iPhone widget extension. `WidgetUI/WatchPalette.swift` is
+`#if os(watchOS)` (the watch is always dark); the iPhone widget reads copied
+theme colour sets from `Widgets/Assets.xcassets` through `WidgetTheme`, so keep
+those colour sets in step with `App/Assets.xcassets/Theme`.
 
 `WatchEnergyRuntime.init` is the watch composition point: it creates one
 `NhostClientFactory.makeProductionWatchClient()` client with a watch-only
@@ -246,10 +257,19 @@ imported under another account. If account validation fails transiently while th
 profile remains, a later eligible wake/open retries `/user` and the pending
 import. Ineligible deliveries record a skipped energy refresh; observer-query and
 background-delivery registration failures record only typed stage, source, and
-numeric error code (when available). Energy's Refresh control also retries
-validation and shows the profile warning; a still-failing or auth-rejected read
-cannot sync.
-Signed-in watch users can swipe to a third Events page: `WatchEventStore` keeps
+numeric error code (when available). The End of day page's Refresh control also
+retries validation and shows the profile warning; a still-failing or auth-rejected
+read cannot sync. Before Health access is requested, the Allow Health access page
+shows that same profile warning with a local Retry action calling account refresh.
+Allow stays disabled until profile validation succeeds; Health-permission errors
+remain separate notes.
+Signed-in watch pages are vertical: Today, End of day, Account (with an Allow
+Health access page first until access was requested). `WatchCapsuleButtonStyle`
+reads `isEnabled` inside its rendered child view: disabled capsules dim the
+whole label and fill to 40%, while enabled presses retain 70% opacity.
+Account's watch-only Debug mode switch (`watchDebugMode.v1`, default off)
+reveals a Diagnostics page
+behind it; recording never depends on the switch. `WatchEventStore` keeps
 at most 300 typed, timestamped, non-sensitive outcomes in watch-app-only
 UserDefaults (not the widget App Group). It records watchOS background schedule
 requested/accepted/failed with numeric codes, actual wakes
@@ -298,16 +318,16 @@ An accepted schedule does not guarantee a wake; a reload request does not prove
 the complication updated. `WatchWidgetProviderReceiptStore` is a separate,
 widget-written, 64-item bounded atomic file in the watch App Group; it records
 only `getTimeline`/`getSnapshot` time, local date and the snapshot update time
-(or absence). The Events page reads it on demand. A provider receipt shows a
+(or absence). The Diagnostics page reads it on demand. A provider receipt shows a
 request and App Group read, **not** an actual watch-face render; a missing
-receipt can also mean a diagnostic-file write failure. The Events-page
+receipt can also mean a diagnostic-file write failure. The Diagnostics-page
 `ShareLink` exports a temporary `.txt` attachment with events and these
 receipts through the watchOS system share sheet only on user action (no
 automatic send). `ShareLink` cannot prefill Mail's recipient; retain the .txt
 file attachment rather than switching to a `mailto:` body on watchOS. Never
 log or export tokens, user identifiers, email/name, URLs, Health values, or raw
 localized/server error text.
-A snapshot-save failure remains visible in the watch Energy page and does not
+A snapshot-save failure remains visible on the watch End of day page and does not
 request a reload. `WatchRefreshSchedule` coalesces duplicate hourly requests, prefers a
 best-effort 15-minute fallback for pending Health events without advancing
 failure backoff, and asks for 15/30/60-minute retries after backend
@@ -319,8 +339,13 @@ scheduling nor WidgetKit reload guarantees a wake or fresh display. After a
 successful fresh backend read the watch saves the new snapshot timestamp.
 Only a previously server-confirmed imported or absent row can receive a local
 Health estimate; manual and legacy unknown-provenance rows remain server-only.
-The estimate retains server intake and is labeled pending on the watch and in
-the widget until a fresh backend reconciliation. It requests `reloadTimelines`
+The estimate retains server intake; `WatchLocalEnergyPolicy.overlay` merges a
+pending estimate with a backend read after a failed sync or a newer local read.
+Only energy totals and their timestamp stay local; intake, resting baseline,
+plan kcal and 7-day average net always use that fresh backend result (including
+nil values). The watch app's End of day page labels it
+"Health estimate <time>" until a fresh backend reconciliation. Neither
+complication family marks provisional estimates. The app requests `reloadTimelines`
 only when displayed values, owner or pending status change, or after clearing
 on sign-out. `WatchWidgetReloadGate` allows at most one background app request
 per 15 minutes, persisting the time and deferred flag in watch-only defaults;
@@ -337,10 +362,10 @@ backend read (or the failure retry scheduling and deferred widget reload),
 unless watchOS expires it first. Expiration cancels follow-up work and releases
 the task exactly once; neither a completed upload nor a reload request proves
 a WidgetKit render.
-The widget shows the age of the
-last timeline snapshot; unchanged-value reads may not update that age until
+The complication shows "Balance at <time>" once its snapshot is an hour old, from
+a pre-scheduled timeline entry; an unchanged-value read keeps the old time until
 WidgetKit asks for another timeline. Foreground return explicitly awaits the
-uncached `/user` revalidation and calls Energy refresh even when the account
+uncached `/user` revalidation and calls energy refresh even when the account
 name is unchanged, coalescing with the existing account-state-driven refresh.
 The phone's `LiveAppView` owns the lazy `LiveAppRuntime` in the `WindowGroup`
 live branch. `LiveAppRuntime.init` creates `AuthStore`, binds it to
@@ -395,9 +420,10 @@ failure and later foreground opens, with Sign out available to erase it even
 without a session. Transient profile/network or energy failures, malformed
 response bodies alone, and HTTP 400s outside the refresh endpoint do not trigger
 PAT sign-in. An expired/invalid PAT requires new phone pairing; there is no OTP
-fallback. Reauthentication and Auth-error screens offer Connect using iPhone
-with a definitive same-user phone hint even when the SDK retains the rejected
-session. Healthy sessions and pending local clearing still refuse replacement.
+fallback. The reauthentication ("Sign in again") and Auth-error ("Couldn't sign in")
+screens offer **Connect** with a definitive same-user phone hint even when the
+SDK retains the rejected session. Healthy sessions and pending local clearing
+still refuse replacement.
 Restore saved sign-in is shown only for a locally valid, owner-eligible saved
 PAT; local validity does not guarantee Auth will accept it.
 Sign-out and known signed-out or
@@ -472,10 +498,21 @@ changes.
   current-range refresh. Previous-range results are visibly labeled and kept
   on network failure, never copied into app storage; the SDK enforces scope
   and age on every read. Do not add weaker app-owned user cache keys.
-- `NeoGymWidgets` contains both the rest timer Live Activity and the medium
-  Energy Balance widget. Energy Balance math, captions, the dependency-free
-  token-free aggregate DTO/store, and live-fetch/fallback orchestration live in
-  host-testable `NeoGymKit` and use the `group.io.nhost.dbarroso.neogym` App Group. The app
+- `NeoGymWidgets` contains the rest timer Live Activity and the Balance widget
+  (small, medium, Lock Screen inline/rectangular/circular). Balance math, the
+  `EnergyBalanceDisplay` formatter, the numeric token-free v2 aggregate DTO/store
+  (`energyBalanceWidgetSnapshot.v2`; the old string v1 key is removed on save or
+  clear), and live-fetch/fallback orchestration live in host-testable
+  `NeoGymKit` and use the `group.io.nhost.dbarroso.neogym` App Group. Every family
+  opens Today with `neogym://today` (`AppDeepLink`); `LiveAppView` sends those
+  links to NeoGymKit's `AppDeepLinkRouter`, taken by `AppShellView`, and only
+  other URLs to the auth callback router. The router retains the latest pending
+  destination while no shell is mounted. Its stable `pendingLinks` publisher
+  delivers on the next main-queue turn (after `@Published` stores the value);
+  the shell must successfully `take` a link before navigating so stale or
+  duplicate deliveries cannot replay it after a tab switch. Keep the cold/warm,
+  re-subscription and latest-pending regression tests in `AppDeepLinkRouterTests`.
+  The app
   writes snapshots only after a fresh backend nutrition overview emission on Today (not
   an offline cached fallback) and clears/reloads them on sign-out, definitive
   signed-out bootstrap, auth errors, and user switches before new user data is
@@ -604,12 +641,25 @@ section records how the iPhone app implements it.
   `RestTimerSystemEffects` (`App/Shell/RestTimerController.swift`) mirrors the
   schedule into a local notification and a Live Activity (updated, not restarted,
   on +30 s), guards delayed notification authorization and orders activity cleanup
-  after earlier operations. `RestTimerAccessory` is the `.tabViewBottomAccessory`
+  after earlier operations. The activity's content state carries the end date,
+  total duration, exercise, next set number, target and session ID; it turns
+  stale at the end date ("Rest over", Open session via `neogym://session/<id>`).
+  When the app sees the rest finish it ends the activity with that content and a
+  10-minute dismissal; Skip, sign-out and the next rest end it immediately. The
+  Live Activity's +30 s and Skip are `LiveActivityIntent`s in `Shared/` (compiled
+  into app and extension, run in the app process). `LiveRestTimerIntents`
+  (`App/Shell/RestTimerIntentHandler.swift`) routes them to the attached live
+  scope's controller, or, with no controller (background launch, or restoring),
+  to `RestTimerController.extendPersisted`/`cancelPersisted` for the stored owner,
+  then awaits notification scheduling and the ActivityKit work before the intent
+  returns. Demo detaches it. `RestTimerAccessory` is the `.tabViewBottomAccessory`
   content, enabled while a session is in the Train stack or a rest runs: it
   shows the countdown with +30 s and Skip (only Skip in the inline placement)
   and opens the session on tap. Logging a set starts the default rest
-  (`RestTimerPreference`, set under Me › Account) labelled "<exercise> · set N
-  next". `SessionDetailView` reports its display name with `noteSession`.
+  (`RestTimerPreference`, set under Me › Account) with a `RestTimerSetContext`
+  (`afterLogging`): "<exercise> · set N next" plus the next set's target from the
+  set just logged ("95 kg × 10", "/side" for per-side weights).
+  `SessionDetailView` reports its display name with `noteSession`.
 - **Tokens and surfaces**: colours are asset-catalog colour sets with Any/Dark
   variants (`App/Assets.xcassets/Theme/*`, plus `AccentColor` = `#3463E0`)
   exposed only through `NeoGymTheme` (`background`, `surface`, `inset`, `fill`,
@@ -824,7 +874,8 @@ section records how the iPhone app implements it.
   `MacroSummaryView` grids;
   the daily intake balance is read-only, with calories in from logged snapshots
   and calories out from the same date's `daily_energy` row. Today, Progress ›
-  Energy list/detail, the Log, watch app and medium iPhone widget also show
+  Energy list/detail, the Log, the watch app's End of day page and the small/medium
+  iPhone Balance widgets also show
   `DailyEnergyProjection`: prior seven local dates' mean positive resting kcal,
   floored at resting already recorded today, plus today's recorded active kcal;
   estimated net subtracts this from food already logged. Require today's row and
@@ -838,19 +889,24 @@ section records how the iPhone app implements it.
   includes today. Daily intake/watch reads fetch today plus seven prior energy
   dates and explicitly select today by date. The watch snapshot's optional
   resting baseline survives eligible local provisional updates, but is ignored
-  by complication display/reload identity; the watch complication stays actuals-only.
-  Both widget snapshot additions are optional for old-snapshot compatibility.
-  The medium iPhone widget gives Net a softly tinted panel, with green cutlery
-  and red flame icons beside neutral consumed/burned values. Estimates sit below
-  their recorded metrics; the 7-day average and sync time share a quiet footer.
-  Keep shared kcal units in the header, no calculation prose, and full labels,
-  units, captions and estimates in VoiceOver. Retain large-total and text-size previews.
-  The medium iPhone widget uses the host-tested live-refresh orchestrator's
-  `timeline` plan: estimates expire in a scheduled next-local-midnight entry
-  while recorded values remain available, even without another provider run.
-  Use calendar-day boundaries, not fixed 24-hour intervals, for that entry.
+  by complication display/reload identity; the watch complication and Lock Screen
+  widgets stay actuals-only. The watch snapshot's optional plan kcal (circular
+  ring) does trigger a reload; its optional 7-day average (watch app only) does
+  not. Home Screen widgets follow the design board: balance so far with the
+  resting/active bar (Chart 1/Chart 2, 45 % active and 20 % empty-track opacity
+  in accented mode), In/Out, "End of day ≈ …"; medium adds the legend, the 7-day
+  average and Refresh. In accented mode, the signed-out icon keeps its glyph
+  opaque over a 20 % tile; full-colour rendering keeps the opaque accent tile.
+  `EnergyBalanceWidgetLiveRefreshOrchestrator.timeline` adds a calendar-day
+  next-local-midnight entry for a same-day snapshot: estimates drop and "today so
+  far" becomes "<weekday> so far" without another provider run. The Lock Screen
+  inline intake-only fallback names that weekday too, and its VoiceOver label
+  describes intake for the same day rather than only an unavailable balance.
+  The Lock Screen circular widget keeps historical intake/plan progress but
+  replaces the target caption with that weekday and names it in the spoken label;
+  it never presents those prior-day values as today's.
   Timeline tests inject both calendar and locale; `en_US_POSIX` numeric fixtures
-  use ungrouped values such as `2100 kcal`, unlike `en_US`'s `2,100 kcal`.
+  use ungrouped values such as `2100`, unlike `en_US`'s `2,100`.
   See `docs/developers/energy.md` from the repo root. Do not introduce a new
   chart or macro tile style unless these primitives cannot express the need.
 - **Accessibility and previews**: add accessibility labels for icon-only actions,

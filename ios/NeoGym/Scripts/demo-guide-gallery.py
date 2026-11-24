@@ -395,6 +395,9 @@ footer { border-top: 1px solid #2e2e33; }
 <p class="eyebrow">NeoGym · iPhone demo guide</p>
 <h1>Every workflow, screen by screen.</h1>
 <p class="stats">$row_count visual workflow rows · $image_count original screenshots · $workflow_count source walkthroughs</p>
+<p><a href="widgets-watch/gallery.html">Widgets &amp; Watch · 45 production-view visual fixtures</a> —
+separate simulator fixture apps, not system-hosted surfaces or verified interactive workflows.
+<a href="widgets-watch/README.md">Scope and reproduction</a>. The iPhone walkthrough counts below are unchanged.</p>
 <p>One workflow per row, read <strong>left to right</strong>. Scroll each strip sideways for the remaining screens.
 Click a screenshot to open the full-resolution PNG in a new tab.</p>
 <p class="muted">These visual sequences are assembled from recorded simulator walkthroughs, not new continuous recordings.

@@ -36,6 +36,15 @@ final class RestTimerWiringTests: XCTestCase {
         XCTAssertTrue(effects.contains("removeDeliveredNotifications(withIdentifiers: [Self.notificationIdentifier])"))
     }
 
+    func testLiveActivityIntentsWaitForNotificationAndActivityWork() throws {
+        let effects = try source("App/Shell/RestTimerController.swift")
+        let pendingWork = #"func waitForPendingWork\(\) async \{\s*await notificationTask\?\.value\s*await activityTask\?\.value\s*\}"#
+        XCTAssertNotNil(effects.range(of: pendingWork, options: .regularExpression))
+        let handler = try source("App/Shell/RestTimerIntentHandler.swift")
+        XCTAssertTrue(handler.contains("await effects.waitForPendingWork()"), "The live controller must await both mirrors")
+        XCTAssertTrue(handler.contains("await mirror.waitForPendingWork()"), "The persisted fallback must await both mirrors")
+    }
+
     func testLiveActivityCleanupIsOrderedBehindEarlierOperations() throws {
         let effects = try source("App/Shell/RestTimerController.swift")
         let prior = try XCTUnwrap(effects.range(of: "await previousTask?.value"))
@@ -44,6 +53,50 @@ final class RestTimerWiringTests: XCTestCase {
         XCTAssertLessThan(prior.lowerBound, end.lowerBound)
         XCTAssertLessThan(end.lowerBound, create.lowerBound)
         XCTAssertTrue(effects.contains("guard revision == activityRevision"))
-        XCTAssertTrue(effects.contains("mirrorActivity(nil)"))
+        XCTAssertTrue(effects.contains("mirrorActivity(.cleared)"))
+    }
+
+    func testFinishedRestEndsAsRestOverAndTheNextRestReplacesIt() throws {
+        let effects = try source("App/Shell/RestTimerController.swift")
+        XCTAssertTrue(effects.contains("mirrorActivity(.finished(lastSchedule))"))
+        XCTAssertTrue(effects.contains("static let restOverDismissal: TimeInterval = 10 * 60"))
+        XCTAssertTrue(effects.contains("await activity.end(content, dismissalPolicy: policy)"))
+        XCTAssertTrue(effects.contains("staleDate: schedule.endDate"), "The activity turns stale at the end date")
+        let attributes = try source("Shared/RestTimerActivityAttributes.swift")
+        for field in ["var duration: TimeInterval?", "var exerciseName: String?", "var target: String?", "var sessionId: String?"] {
+            XCTAssertTrue(attributes.contains(field), field)
+        }
+    }
+
+    func testLiveActivityButtonsAreAppIntentsRoutedToTheAccountTimer() throws {
+        let intents = try source("Shared/RestTimerIntents.swift")
+        XCTAssertEqual(intents.components(separatedBy: ": LiveActivityIntent").count - 1, 2)
+        let handler = try source("App/Shell/RestTimerIntentHandler.swift")
+        XCTAssertTrue(handler.contains("RestTimerIntentRouter.handler"))
+        XCTAssertTrue(handler.contains("timer.extend()"))
+        XCTAssertTrue(handler.contains("RestTimerController.extendPersisted()"))
+        XCTAssertTrue(handler.contains("await mirror.waitForPendingWork()"))
+        let app = try source("App/NeoGymApp.swift")
+        XCTAssertTrue(app.contains("LiveRestTimerIntents.install()"))
+        XCTAssertTrue(app.contains("LiveRestTimerIntents.attach(scope: restTimers, effects: restEffects)"))
+        XCTAssertTrue(app.contains("LiveRestTimerIntents.detach(scope: restTimers)"))
+        let widget = try source("Widgets/RestTimerLiveActivityWidget.swift")
+        XCTAssertTrue(widget.contains("Button(intent: ExtendRestTimerIntent())"))
+        XCTAssertTrue(widget.contains("Button(intent: SkipRestTimerIntent())"))
+        XCTAssertTrue(widget.contains("context.isStale"))
+        XCTAssertTrue(widget.contains("Text(\"Open session\")"))
+    }
+
+    func testWidgetsAndLiveActivityOpenTheirDestinationsNotTheAuthCallback() throws {
+        let app = try source("App/NeoGymApp.swift")
+        XCTAssertNotNil(app.range(
+            of: #"if let link = AppDeepLink\(url: url\) \{\s*deepLinks.open\(link\)\s*\} else \{\s*authCallbackURLRouter.open\(url\)"#,
+            options: .regularExpression
+        ))
+        let widget = try source("Widgets/EnergyBalanceWidget.swift")
+        XCTAssertTrue(widget.contains(".widgetURL(AppDeepLink.todayURL)"))
+        let shell = try source("App/Shell/AppShellView.swift")
+        XCTAssertTrue(shell.contains("case .today: selection = .today"))
+        XCTAssertTrue(shell.contains("case let .session(id): openSession(id)"))
     }
 }

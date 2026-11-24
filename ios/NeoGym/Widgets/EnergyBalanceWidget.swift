@@ -3,6 +3,8 @@ import NeoGymKit
 import SwiftUI
 import WidgetKit
 
+/// Today's balance so far on the Home Screen (small, medium) and Lock Screen (inline,
+/// rectangular, circular): the same numbers as Today's Balance card.
 struct EnergyBalanceWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(
@@ -11,9 +13,9 @@ struct EnergyBalanceWidget: Widget {
         ) { entry in
             EnergyBalanceWidgetView(entry: entry)
         }
-        .configurationDisplayName("Energy Balance")
-        .description("See today’s calories in, calories out, net balance, and 7-day average.")
-        .supportedFamilies([.systemMedium])
+        .configurationDisplayName("Balance")
+        .description("Today’s balance so far: food in, energy out and the end-of-day estimate.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryRectangular, .accessoryCircular])
         .contentMarginsDisabled()
     }
 }
@@ -22,6 +24,7 @@ struct EnergyBalanceTimelineEntry: TimelineEntry {
     let content: EnergyBalanceWidgetTimelineEntry
 
     var date: Date { content.date }
+    var display: EnergyBalanceDisplay? { content.display }
 }
 
 private struct SendableTimelineCompletion: @unchecked Sendable {
@@ -80,277 +83,421 @@ struct EnergyBalanceTimelineProvider: TimelineProvider {
     }
 }
 
-private struct EnergyBalanceWidgetView: View {
+struct EnergyBalanceWidgetView: View {
     let entry: EnergyBalanceTimelineEntry
+    @Environment(\.widgetFamily) private var family
 
     var body: some View {
-        Group {
-            if let snapshot = entry.content.snapshot {
-                populatedView(snapshot)
-            } else {
-                emptyView
+        content
+            .widgetURL(AppDeepLink.todayURL)
+            .containerBackground(for: .widget) {
+                if isAccessory { Color.clear } else { WidgetTheme.surface }
             }
-        }
-        .widgetURL(URL(string: "neogym://"))
-        .energyBalanceWidgetBackground()
     }
 
-    private func populatedView(_ snapshot: EnergyBalanceWidgetSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text("Energy")
-                    .font(.system(size: 13, weight: .semibold))
-                Text("kcal")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+    @ViewBuilder
+    private var content: some View {
+        switch family {
+        case .accessoryInline:
+            InlineBalanceView(display: entry.display)
+        case .accessoryRectangular:
+            RectangularBalanceView(display: entry.display)
+        case .accessoryCircular:
+            CircularIntakeView(display: entry.display)
+        case .systemMedium:
+            if let display = entry.display { MediumBalanceView(display: display) } else { SignedOutBalanceView() }
+        default:
+            if let display = entry.display { SmallBalanceView(display: display) } else { SignedOutBalanceView() }
+        }
+    }
+
+    private var isAccessory: Bool {
+        [.accessoryInline, .accessoryRectangular, .accessoryCircular].contains(family)
+    }
+}
+
+// MARK: - Home Screen
+
+/// "+251 kcal": the number is accentable in tinted Home Screen modes.
+private struct BalanceFigure: View {
+    let display: EnergyBalanceDisplay
+    let size: CGFloat
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(display.balance)
+                .font(.system(size: size, weight: .bold))
+                .tracking(-0.02 * size)
+                .foregroundStyle(WidgetTheme.text)
+                .widgetAccentable()
+            Text("kcal")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(WidgetTheme.textSecondary)
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(display.balanceAccessibility)
+    }
+}
+
+private struct HomeSplitBar: View {
+    let display: EnergyBalanceDisplay
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    var body: some View {
+        EnergySplitBar(
+            split: display.split, restingColor: WidgetTheme.chart1, activeColor: WidgetTheme.chart2,
+            trackColor: WidgetTheme.fill, accented: renderingMode == .accented
+        )
+        .frame(height: 6)
+        .widgetAccentable()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(display.splitAccessibility ?? "")
+        .accessibilityHidden(display.splitAccessibility == nil)
+    }
+}
+
+private struct SmallBalanceView: View {
+    let display: EnergyBalanceDisplay
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Balance").font(.system(size: 13, weight: .semibold))
                 Spacer(minLength: 4)
-                refreshButton
+                Text(display.updatedTime)
+                    .font(.system(size: 12))
+                    .monospacedDigit()
+                    .foregroundStyle(WidgetTheme.textSecondary)
+                    .accessibilityLabel("Updated \(display.updatedTime)")
             }
+            BalanceFigure(display: display, size: 34).padding(.top, 4)
+            Text(display.periodCaption)
+                .font(.system(size: 12))
+                .foregroundStyle(WidgetTheme.textSecondary)
+                .padding(.top, 3)
+            HomeSplitBar(display: display)
+                .padding(.top, 9)
+            Text(display.inOut)
+                .font(.system(size: 12))
+                .padding(.top, 7)
+                .accessibilityLabel(display.inOutAccessibility)
+            if let endOfDay = display.endOfDayNet {
+                Text("End of day \(endOfDay)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(WidgetTheme.textSecondary)
+                    .padding(.top, 2)
+                    .accessibilityLabel(display.endOfDayAccessibility ?? endOfDay)
+            }
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(WidgetTheme.text)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 14)
+    }
+}
 
-            HStack(alignment: .center, spacing: 12) {
-                netSummary(snapshot)
-                    .frame(maxWidth: .infinity)
+private struct MediumBalanceView: View {
+    let display: EnergyBalanceDisplay
 
-                VStack(alignment: .leading, spacing: 8) {
-                    energyMetric(
-                        symbol: "fork.knife", color: .green, label: "Consumed",
-                        value: snapshot.consumedValue, caption: snapshot.consumedCaption
-                    )
-                    energyMetric(
-                        symbol: "flame.fill", color: .red, label: "Burned",
-                        value: snapshot.burnedValue, caption: snapshot.burnedCaption,
-                        estimate: entry.content.estimatedBurnedValue
-                    )
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text("Balance").font(.system(size: 13, weight: .semibold))
+                Text(display.periodHeader)
+                    .font(.system(size: 12))
+                    .foregroundStyle(WidgetTheme.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                RefreshBalanceButton()
+            }
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 9) {
+                    BalanceFigure(display: display, size: 36)
+                    HomeSplitBar(display: display)
+                    HStack(spacing: 9) {
+                        LegendLabel(color: WidgetTheme.chart1, text: "Resting \(display.resting)")
+                        LegendLabel(color: WidgetTheme.chart2, text: "Active \(display.active)")
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(WidgetTheme.textSecondary)
+                    .accessibilityHidden(true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(spacing: 6) {
+                    ValueRow(label: "In", value: display.consumed)
+                        .accessibilityLabel(display.inAccessibility)
+                    ValueRow(label: "Out", value: display.burned)
+                        .accessibilityLabel(display.outAccessibility)
+                    WidgetTheme.fill.frame(height: 1).padding(.vertical, 2)
+                    if let endOfDay = display.endOfDayNet {
+                        ValueRow(label: "End of day", value: endOfDay)
+                            .accessibilityLabel(display.endOfDayAccessibility ?? endOfDay)
+                    }
+                    ValueRow(label: "7-day avg", value: display.sevenDayAverage, weight: .medium)
+                        .accessibilityLabel(display.sevenDayAverageAccessibility)
+                }
+                .frame(maxWidth: .infinity)
             }
-
-            footer(snapshot)
+            .frame(maxHeight: .infinity)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .accessibilityElement(children: .contain)
+        .foregroundStyle(WidgetTheme.text)
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 14)
     }
+}
 
-    private func netSummary(_ snapshot: EnergyBalanceWidgetSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 5) {
-                Image(systemName: "plusminus")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.teal)
-                Text("Net")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            Text(compactValue(snapshot.netValue))
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .tracking(-0.5)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-            if let estimate = entry.content.estimatedNetValue {
-                estimateValue(estimate)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.teal.opacity(0.09), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Net today")
-        .accessibilityValue(accessibilityValue(
-            snapshot.netValue, caption: snapshot.netCaption, estimate: entry.content.estimatedNetValue
-        ))
-        .accessibilityHint(entry.content.estimatedNetValue == nil ? "" : "Net estimate uses food already logged.")
-    }
+private struct ValueRow: View {
+    let label: String
+    let value: String
+    var weight: Font.Weight = .semibold
 
-    private func energyMetric(
-        symbol: String, color: Color, label: String, value: String, caption: String, estimate: String? = nil
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 8) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(color)
-                    .frame(width: 22)
-                Text(compactValue(value))
-                    .font(.system(size: 22, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            if let estimate {
-                estimateValue(estimate)
-                    .padding(.leading, 30)
-            }
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(label)
-        .accessibilityValue(accessibilityValue(value, caption: caption, estimate: estimate))
-        .accessibilityHint(estimate == nil ? "" : "Recent resting energy plus activity so far.")
-    }
-
-    private func estimateValue(_ value: String) -> some View {
-        Text("Est. \(compactValue(value))")
-            .font(.system(size: 11, weight: .medium))
-            .monospacedDigit()
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-    }
-
-    private func footer(_ snapshot: EnergyBalanceWidgetSnapshot) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                Text("7-day avg")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                Text(compactValue(snapshot.sevenDayValue))
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Seven-day average net")
-            .accessibilityValue(accessibilityValue(snapshot.sevenDayValue, caption: snapshot.sevenDayCaption))
-
+    var body: some View {
+        HStack {
+            Text(label).foregroundStyle(WidgetTheme.textSecondary)
             Spacer(minLength: 4)
+            Text(value).fontWeight(weight)
+        }
+        .font(.system(size: 13))
+        .accessibilityElement(children: .ignore)
+    }
+}
 
-            HStack(spacing: 3) {
-                Image(systemName: "clock")
-                    .font(.system(size: 9))
-                Text(snapshot.lastSyncedText.replacingOccurrences(of: "Last synced ", with: ""))
-                    .font(.system(size: 10))
-                    .monospacedDigit()
-            }
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(snapshot.lastSyncedText)
+private struct LegendLabel: View {
+    let color: Color
+    let text: String
+
+    var body: some View {
+        HStack(spacing: 5) {
+            RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 7, height: 7)
+            Text(text)
         }
     }
+}
 
-    private var emptyView: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "bolt.heart.fill")
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(.teal)
-                .frame(width: 44, height: 44)
-                .background(.teal.opacity(0.09), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Sign in to NeoGym")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Open the app to sync")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .padding(14)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var refreshButton: some View {
+/// The existing refresh intent: fetch now, falling back to the cached snapshot.
+private struct RefreshBalanceButton: View {
+    var body: some View {
         Button(intent: RefreshEnergyBalanceIntent()) {
             Image(systemName: "arrow.clockwise")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(WidgetTheme.accentText)
+                .widgetAccentable()
                 .frame(width: 28, height: 28)
-                .background(.quaternary.opacity(0.5), in: Circle())
+                .background(WidgetTheme.fill, in: Circle())
                 .contentShape(.circle)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Refresh energy balance")
-        .accessibilityHint("Attempts to fetch fresh server data for this widget")
-    }
-
-    private func compactValue(_ value: String) -> String {
-        value.hasSuffix(" kcal") ? String(value.dropLast(" kcal".count)) : value
-    }
-
-    private func accessibilityValue(_ value: String, caption: String, estimate: String? = nil) -> String {
-        [value, caption, estimate.map { "Estimated \($0)" }]
-            .compactMap { $0 }.joined(separator: ". ")
+        .accessibilityLabel("Refresh balance")
+        .accessibilityHint("Fetches today’s numbers now, or keeps the last ones")
     }
 }
+
+/// Signed out or never synced: one message and the app icon, never zeros.
+private struct SignedOutBalanceView: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: "dumbbell.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 34, height: 34)
+                .background(
+                    WidgetTheme.accentFill.opacity(renderingMode == .accented ? 0.2 : 1),
+                    in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                )
+                .widgetAccentable()
+                .accessibilityHidden(true)
+            Spacer(minLength: 8)
+            Text("Sign in to NeoGym")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(WidgetTheme.text)
+            Text("Open the app to see today’s balance.")
+                .font(.system(size: 12))
+                .foregroundStyle(WidgetTheme.textSecondary)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 14)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Lock Screen
+
+/// Beside the date. The Lock Screen draws accessories in one vibrant colour, so the
+/// words carry the meaning.
+private struct InlineBalanceView: View {
+    let display: EnergyBalanceDisplay?
+
+    var body: some View {
+        if let display {
+            Label(display.inlineText, systemImage: "scalemass")
+                .accessibilityLabel(display.inlineAccessibility)
+        } else {
+            Label("Open NeoGym", systemImage: "dumbbell")
+        }
+    }
+}
+
+private struct RectangularBalanceView: View {
+    let display: EnergyBalanceDisplay?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let display {
+                HStack(spacing: 5) {
+                    BalanceScaleIcon()
+                        .stroke(style: BalanceScaleIcon.stroke(for: 13))
+                        .frame(width: 13, height: 13)
+                    Text(display.isCurrentDay ? "Balance so far" : "Balance \(display.dayLabel)")
+                }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                Text(display.balanceWithUnit)
+                    .font(.system(size: 22, weight: .bold))
+                    .widgetAccentable()
+                Text(display.inOut)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("NeoGym").font(.system(size: 13, weight: .semibold)).foregroundStyle(.secondary)
+                Text("Sign in").font(.system(size: 17, weight: .bold))
+                Text("Open the app on iPhone").font(.system(size: 13)).foregroundStyle(.secondary)
+            }
+        }
+        .monospacedDigit()
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background {
+            AccessoryWidgetBackground().clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(display.map { "\($0.balanceAccessibility). \($0.inOutAccessibility)" } ?? "Sign in to NeoGym")
+    }
+}
+
+/// Food in against the day's plan; historical snapshots name their weekday below the total.
+private struct CircularIntakeView: View {
+    let display: EnergyBalanceDisplay?
+
+    var body: some View {
+        Gauge(value: display?.planProgress ?? 0) {
+            Text("In")
+        } currentValueLabel: {
+            VStack(spacing: 0) {
+                Text(display?.consumed ?? KcalText.missing)
+                    .font(.system(size: 15, weight: .bold))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+                Text(display?.circularIntakeCaption ?? "kcal in")
+                    .font(.system(size: 10))
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+            }
+            .lineLimit(1)
+        }
+        .gaugeStyle(.accessoryCircularCapacity)
+        .widgetAccentable()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(display?.circularIntakeAccessibility ?? "Sign in to NeoGym")
+    }
+}
+
+// MARK: - Previews
 
 private extension EnergyBalanceWidgetSnapshot {
-    static let placeholder = preview()
-    static let largeValues = preview(
-        consumed: "12,850 kcal", burned: "52,180 kcal", net: "−39,330 kcal",
-        average: "−10,210 kcal", estimatedBurned: "≈58,000 kcal", estimatedNet: "≈−45,150 kcal"
+    static let placeholder = EnergyBalanceWidgetSnapshot(
+        localDate: DateOnly.todayLocalISO(),
+        userMarker: "preview",
+        generatedAt: Calendar.current.date(bySettingHour: 13, minute: 40, second: 0, of: Date()) ?? Date(),
+        consumedKcal: 1_461,
+        burnedKcal: 1_210,
+        activeKcal: 531,
+        restingKcal: 679,
+        sevenDayAverageNet: -371,
+        planKcal: 2_243,
+        estimatedBurnedKcal: 2_312,
+        estimatedNetKcal: -851
     )
-
-    private static func preview(
-        consumed: String = "1,850 kcal", burned: String = "2,180 kcal", net: String = "−330 kcal",
-        average: String = "−210 kcal", estimatedBurned: String = "≈2,360 kcal", estimatedNet: String = "≈−510 kcal"
-    ) -> EnergyBalanceWidgetSnapshot {
-        EnergyBalanceWidgetSnapshot(
-            localDate: DateOnly.todayLocalISO(),
-            userMarker: "preview",
-            generatedAtISO8601: "2026-07-11T12:30:00Z",
-            generatedAtText: "Jul 11, 12:30 PM",
-            lastSyncedText: "Last synced 12:30 PM",
-            consumedValue: consumed,
-            consumedCaption: "As of 12:15 PM",
-            burnedValue: burned,
-            burnedCaption: "Active plus resting",
-            netValue: net,
-            netCaption: "Deficit",
-            netState: "deficit",
-            sevenDayValue: average,
-            sevenDayCaption: "Deficit",
-            sevenDayState: "deficit",
-            estimatedBurnedValue: estimatedBurned,
-            estimatedNetValue: estimatedNet
-        )
-    }
+    static let noEnergy = EnergyBalanceWidgetSnapshot(
+        localDate: DateOnly.todayLocalISO(), userMarker: "preview", generatedAt: Date(),
+        consumedKcal: 640, burnedKcal: nil
+    )
 }
 
-private extension View {
-    func energyBalanceWidgetBackground() -> some View {
-        containerBackground(for: .widget) {
-            Rectangle()
-                .fill(.background)
-                .overlay {
-                    LinearGradient(
-                        colors: [.teal.opacity(0.04), .clear],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                }
-        }
-    }
+private func previewEntry(_ snapshot: EnergyBalanceWidgetSnapshot?) -> EnergyBalanceTimelineEntry {
+    EnergyBalanceTimelineEntry(content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: snapshot))
 }
 
-#if DEBUG
-struct EnergyBalanceWidget_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: .placeholder)
-            ))
-            .previewDisplayName("Live or cached data")
+#Preview("Small", as: .systemSmall) {
+    EnergyBalanceWidget()
+} timeline: {
+    previewEntry(.placeholder)
+    previewEntry(.noEnergy)
+    previewEntry(nil)
+}
 
-            EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: .largeValues)
-            ))
-            .previewDisplayName("Large totals")
+#Preview("Medium", as: .systemMedium) {
+    EnergyBalanceWidget()
+} timeline: {
+    previewEntry(.placeholder)
+    previewEntry(.noEnergy)
+    previewEntry(nil)
+}
 
-            EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: .placeholder)
-            ))
-            .environment(\.dynamicTypeSize, .accessibility3)
-            .previewDisplayName("Accessibility text size")
+#Preview("Lock Screen rectangular", as: .accessoryRectangular) {
+    EnergyBalanceWidget()
+} timeline: {
+    previewEntry(.placeholder)
+}
 
-            EnergyBalanceWidgetView(entry: EnergyBalanceTimelineEntry(
-                content: EnergyBalanceWidgetTimelineEntry(date: .now, snapshot: nil)
-            ))
-            .previewDisplayName("Empty state")
+#Preview("Lock Screen circular", as: .accessoryCircular) {
+    EnergyBalanceWidget()
+} timeline: {
+    previewEntry(.placeholder)
+    EnergyBalanceTimelineEntry(content: EnergyBalanceWidgetTimelineEntry(
+        date: Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now,
+        snapshot: .placeholder
+    ))
+}
+
+#Preview("Lock Screen inline", as: .accessoryInline) {
+    EnergyBalanceWidget()
+} timeline: {
+    previewEntry(.placeholder)
+}
+
+#if NEOGYM_GALLERY
+/// Family dispatch only: every layout below is the shipping view above. The host
+/// does not instantiate a TimelineProvider, SDK client, snapshot store or intent.
+struct BalanceGalleryView: View {
+    let display: EnergyBalanceDisplay?
+    let family: WidgetFamily
+
+    @ViewBuilder var body: some View {
+        switch family {
+        case .accessoryInline: InlineBalanceView(display: display)
+        case .accessoryRectangular: RectangularBalanceView(display: display)
+        case .accessoryCircular: CircularIntakeView(display: display)
+        case .systemMedium:
+            if let display { MediumBalanceView(display: display) } else { SignedOutBalanceView() }
+        default:
+            if let display { SmallBalanceView(display: display) } else { SignedOutBalanceView() }
         }
-        .previewContext(WidgetPreviewContext(family: .systemMedium))
     }
 }
 #endif

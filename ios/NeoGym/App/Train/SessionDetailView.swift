@@ -267,7 +267,10 @@ extension SessionDetailView {
                 reps: draft.reps,
                 weight: draft.weight,
                 onInserted: {
-                    restTimer.start(label: "\(row.exercise.name) · set \(nextNumber + 1) next", sessionId: viewModel.sessionId)
+                    restTimer.start(sessionId: viewModel.sessionId, context: .afterLogging(
+                        exerciseName: row.exercise.name, loggedSetNumber: nextNumber,
+                        weight: draft.weight, reps: draft.reps, doubleWeight: row.exercise.doubleWeight
+                    ))
                     onMutated()
                 }
             )

@@ -9,6 +9,12 @@ an account. It is **not** evidence that Apple has approved demo-only review acce
 
 ## Start here
 
+- **[Widgets & Watch visual fixtures](widgets-watch/gallery.html)** — a separate
+  45-image companion catalog for the redesigned iPhone Balance widgets, rest Live
+  Activity regions, watch pages and complications. It renders production views
+  with fictional inputs in isolated simulator apps, **not system-hosted surfaces
+  or verified interactive workflows**. See its [scope and reproduction guide](widgets-watch/README.md).
+  The legacy iPhone captures and counts below are unchanged.
 - **[All workflows on one HTML page](gallery.html)** — 97 visual workflow rows,
   grouped into Getting started, Today, Train, Nutrition, Progress and Me. Each row
   shows its screenshots left to right, reusing list/detail/editor views where

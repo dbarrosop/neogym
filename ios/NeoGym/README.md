@@ -18,8 +18,11 @@ ios/NeoGym/
 │   ├── Info.plist              # URL scheme, HealthKit usage, launch screen
 │   ├── LaunchScreen.storyboard # required so iOS uses modern full-screen sizing
 │   └── Assets.xcassets/
+├── Widgets/                    # iPhone Balance widget + rest timer Live Activity
+├── Shared/                     # app + widget: Live Activity attributes and App Intents
+├── WidgetUI/                   # SwiftUI shared by the iPhone widget and both watch targets
 ├── Watch/                      # companion SwiftUI, HealthKit energy sync, private connectivity
-├── WatchWidgets/               # watch-face Energy complication, token-free snapshot only
+├── WatchWidgets/               # watch-face Balance complication, token-free snapshot only
 ├── Sources/NeoGymKit/          # host-testable auth/session and hint policy
 └── Tests/NeoGymKitTests/
 ```
@@ -127,9 +130,11 @@ and `NeoGym.app/PlugIns/NeoGymWidgets.appex`.
 A paired iPhone is required for companion installation; the watch subsequently
 uses its own internet connection and privately rotating Nhost SDK session.
 
-The watch signs in **only** through the signed-in iPhone. Tap **Connect using
-iPhone** on the watch, then **Me › Account › Apple Watch → Connect watch**
-on the phone with both apps open and reachable. The phone creates a 90-day
+The watch signs in **only** through the signed-in iPhone. Tap **Connect** under
+**Connect your iPhone** on the watch, then **Me › Account › Apple Watch → Connect watch**
+on the phone with both apps open and reachable. If the watch shows **Try again**
+instead, tap it after opening the signed-in phone app to re-read its account hint,
+then tap **Connect** once it appears. The phone creates a 90-day
 app-user Auth PAT and sends it in one nonce-bound live WatchConnectivity message.
 The watch keeps the PAT in a separate device-only Keychain item, calls
 `/signin/pat` to create its own SDK session, and automatically repeats that
@@ -145,9 +150,9 @@ fallback. Transient network, profile and energy errors and malformed responses
 alone do not trigger PAT sign-in. A recovered energy refresh can reconcile once
 more after fresh account validation, without an unbounded retry loop. No OTP
 is entered on the watch and no phone session is copied. After 90 days,
-reconnect from the phone. With a matching signed-in phone hint, both Session
-expired and Authentication failed screens show **Connect using iPhone**, even
-if the rejected SDK session is still stored; no preliminary Sign out is needed.
+reconnect from the phone. With a matching signed-in phone hint, both **Sign in
+again** and **Couldn't sign in** screens show **Connect**, even if the rejected
+SDK session is still stored; no preliminary Sign out is needed.
 Healthy sessions and pending local clearing cannot be replaced. **Restore saved
 sign-in** is shown only while a locally valid, owner-eligible PAT remains saved;
 Auth may still reject it. If iOS suppresses
@@ -157,10 +162,15 @@ the credential. Known phone sign-out/account switches clear the local watch PAT;
 a phone sign-out while the watch is offline cannot revoke it instantly. The PAT
 can sign in as the full user until expiry or server revocation; it is distinct
 from a privileged Nhost Cloud dashboard PAT. Watch-only sign-out erases it.
-Signed-in users swipe between Energy (today's consumed, total burned, active/resting, and
-Net = consumed minus burned kcal) and Profile (a locally cached name/email,
-revalidated by uncached Auth `GET /user` in the background, plus watch-only
-sign-out; blank names become “Athlete”), and Events (recent timestamped
+Signed-in users page vertically between Today (balance so far = consumed minus
+burned, the resting/active bar, In and Out), End of day (the ≈ Net/Burned
+estimate, the 7-day average net, Refresh and the sync time) and Account (a
+locally cached name, revalidated by uncached Auth `GET /user` in the background,
+"Signed in from iPhone", Health status and watch-only sign-out; blank names
+become “Athlete”). An Allow Health access page comes first until read access has
+been requested; account states without a session use a message layout (icon,
+title, one line, buttons). Turn on **Debug mode** under Account to reveal
+Diagnostics behind it (recent timestamped
 background scheduling, wake, Health sync, observer-query and background-delivery
 registration failures, backend read, snapshot save, Auth refresh exchanges
 and SDK session-write notifications, and complication reload-request outcomes). The last 300 events stay on the watch, not in its
@@ -207,28 +217,26 @@ session (including PAT sign-in), not necessarily that a preceding refresh
 belongs to it. Missing terminal/write events cannot prove persistence failed
 if watchOS suspended the app. Older events retain numeric-only detail. Separately, the watch widget writes
 up to 64 timestamp-only provider receipts to an atomic App Group file when
-`getTimeline` or `getSnapshot` reads the shared snapshot. In Events, tap
+`getTimeline` or `getSnapshot` reads the shared snapshot. In Diagnostics, tap
 **Read widget receipts** to inspect the latest six; the `.txt` export includes
 all retained receipts and watch-app events. A receipt gives the widget request
 time and the snapshot's last-updated time (or absence), not confirmation that
-the watch face rendered it. In Events, **Share logs** exports the plain-text
+the watch face rendered it. In Diagnostics, **Share logs** exports the plain-text
 `NeoGym-Watch-Events.txt` attachment through the watchOS share sheet. Mail is
 a destination only if available; the recipient cannot be prefilled by
 `ShareLink` and nothing is sent automatically. Neither events nor receipts
 contain account details, tokens, URLs, Health values or raw error messages.
 “Accepted” means watchOS accepted a background request, not that it woke the
 app; “Requested” means WidgetKit was asked to reload, not that the watch face
-rendered new data. Snapshot-save failure is shown on the Energy page and logged
+rendered new data. Snapshot-save failure is shown on the End of day page and logged
 rather than silently claiming a fresh complication.
-Consumed and Burned use icons rather than visible labels on the watch page; Net uses a
-balance-scale icon and equally prominent value. The Energy title carries a
-small `(kcal)` unit, while an icon-only refresh button sits beside the sync
-time. Missing backend energy leaves total burn and Net unavailable until a local
-provisional Health estimate is available; absent active/resting components on
-an existing row are shown as `—` but count as zero in the total.
+Pages use the same words and numbers as the phone's Today card. Missing backend
+energy leaves the balance and Out unavailable (`—`) until a local provisional
+Health estimate is available; absent active/resting components on an existing
+row count as zero.
 The watch app syncs active and resting HealthKit statistics for
 the last seven local dates to private backend daily energy only after the user
-taps Sync Apple Health; manual energy rows are not overwritten. WatchKit's
+taps **Allow** on the Allow Health access page; manual energy rows are not overwritten. WatchKit's
 preferred hourly background task and HealthKit observer delivery are
 best-effort, not a guaranteed hourly schedule. Pending observer deliveries
 request a coalesced, 15-minute preferred fallback wake; accepted requests do
@@ -243,32 +251,35 @@ transient account-validation failure, the app requests another background wake
 with 15/30/60-minute backoff. It coalesces duplicate hourly requests and
 re-arms after account bootstrap but before energy reconciliation so an
 interrupted sync is less likely to omit the next request. watchOS may still defer or skip that wake. Returning from
-the background explicitly awaits the fresh `/user` read then refreshes Energy,
+the background explicitly awaits the fresh `/user` read then refreshes energy,
 including when the account name did not change; tapping the widget opens the
-app, not an on-visible widget sync. The rectangular watch complication shows
-intake, total burn, active/resting, and Net from the watch app's token-free,
-today-only App Group snapshot after a fresh backend fetch or a labeled local
-Apple Health estimate. On observer delivery, the watch reads local HealthKit
+app, not an on-visible widget sync. The watch complication's rectangular family
+shows "Balance so far", the balance and "In · Out"; its circular family shows food
+in against today's plan kcal as a ring with a compact number ("1.5k IN"). Both
+read the watch app's token-free App Group snapshot after a fresh backend fetch
+or a local Apple Health estimate. On observer delivery, the watch reads local HealthKit
 before its network reconciliation and saves an estimate only when its same-owner,
 same-day backend snapshot says today's row is imported or absent. Manually
 edited rows and older snapshots with unknown provenance are not overlaid;
 intake remains the last known server value. This is provisional until a fresh
-backend read, and phone-side manual edits made since the last server read may
-briefly supersede it. A file-backed watchOS background URLSession upload sends
-one idempotent GraphQL upsert for the last seven dates instead of holding a
-chain of GraphQL calls through suspension. Hasura inserts missing dates and
+backend read: the watch app's End of day page labels it "Health estimate <time>",
+but neither complication family marks provisional values. Phone-side manual
+edits made since the last server read may briefly supersede it. A file-backed
+watchOS background URLSession upload sends one idempotent GraphQL upsert for the
+last seven dates instead of holding a chain of GraphQL calls through suspension. Hasura inserts missing dates and
 updates only conflicts still marked "Imported from Apple Health"; owner
 permissions come from a freshly checked SDK bearer token, never the widget.
 The system may defer transfers or deliver them after the short-lived bearer
 expires; failures keep the private pending marker for a later retry. A delivered
 transfer requests a fresh backend read; only successful reconciliation, read
 and snapshot save clear the pending marker. URLSession transfer completion
-cannot prove a WidgetKit render. Only its cutlery,
-flame, and custom two-pan balance icons are colored green, red, and teal;
-consumed and burned use equal bold type with no visible “in/out” words.
-VoiceOver still identifies each metric. A small clock/relative age indicates
-when the currently rendered widget snapshot was fetched, or a Health icon
-indicates a provisional estimate awaiting server sync. The app saves the
+cannot prove a WidgetKit render. Full colour tints only the title (accent) and
+ring (Chart 1); tinted faces take the face colour for those, and numbers stay
+white. VoiceOver identifies each metric. The provider reads the latest snapshot
+of any date. The rectangular title changes to its time ("Balance at 13:40") once
+the snapshot is an hour old; a previous day's snapshot shows "—" with "Open NeoGym
+to sync", and no snapshot (never connected, or cleared on sign-out) shows "Not
+connected". The app saves the
 latest successful fetch timestamp even if values are unchanged, but requests
 a WidgetKit reload only for changed displayed values/provisional status or
 cleared snapshots. To avoid exhausting background reload opportunities during
@@ -276,7 +287,7 @@ HealthKit callback bursts, background requests are limited to one per 15 minutes
 a suppressed request is recorded as coalesced and retained for the next eligible
 wake or foreground return. Foreground updates and session clearing bypass the
 limit. Provider receipts prove a timeline was generated, not that WidgetKit
-rendered it. The age may lag until WidgetKit's next timeline request. Scrolling into view
+rendered it. The stale label comes from pre-scheduled timeline entries. Scrolling into view
 does not force an app sync. Neither Keychain nor HealthKit is available to the
 watch widget. Signing watch app/widget requires App Group provisioning, plus HealthKit
 background delivery on the watch app ID; test refreshes and permission on paired
@@ -297,7 +308,7 @@ promise: its 20-second local deadline releases the assertion without cancelling
 the request; system-reported expiry can cancel PAT sign-in or a name read, while local
 session clearing must complete. A PAT sign-in forces a fresh `/user` read even
 when the SDK already persisted a same-account session. On a paired test device,
-terminate the iPhone app, tap **Connect using iPhone** on the watch, then open
+terminate the iPhone app, tap **Connect** on the watch, then open
 **Me › Account** on the phone; when iOS delivers the request, confirm the
 **Apple Watch** row shows **Request waiting** without a second tap (tap it to
 open Connect Apple Watch). Repeat after a
@@ -305,7 +316,7 @@ force-quit and retry from the watch if iOS suppressed background delivery. Then
 sign in with the phone-issued PAT, edit the server-side name,
 background/reopen the watch, and check that it shows the new name; repeat with
 phone unreachable, watch offline/retry, watch sign-out, and a later phone
-sign-out/account switch. Check Events for accepted scheduling versus actual
+sign-out/account switch. With Debug mode on, check Diagnostics for accepted scheduling versus actual
 background wakes, Auth refresh request/response versus session-write events,
 and snapshot-save failures. Tap **Share logs** on the
 paired watch, pick an available destination, and inspect the resulting `.txt`
@@ -317,13 +328,13 @@ Compare local workout time to export UTC (e.g. 06:19 UTC+2 = 04:19Z). No
 `Background wake` event is required for a HealthKit delivery. A missing
 acknowledgement log can mean watchOS suspended or terminated the app before it
 could record the callback; older timed-out events do not prove a sync completed. Verify that scrolling into
-the widget shows an advancing snapshot age but does not claim a new sync. Tap
-the widget to open NeoGym, and check that account revalidation is followed by a
-fresh Energy read. With unchanged energy/intake values and the same provisional status, expect a
+the widget does not claim a new sync, and that an hour-old snapshot switches to
+"Balance at <time>". Tap the widget to open NeoGym, and check that account
+revalidation is followed by a fresh energy read. With unchanged energy/intake values and the same provisional status, expect a
 successful snapshot save but **no** WidgetKit reload request; after a value or
 provisional-status change, expect a reload request or a coalesced background
 request and verify the widget's actual display separately. Leave NeoGym closed
-while the watch face stays stale, then open Events and export the receipts: a
+while the watch face stays stale, then open Diagnostics and export the receipts: a
 missing pre-open timeline points to deferred WidgetKit scheduling, a pre-open
 read of an old/missing snapshot points to shared-store visibility/date issues,
 and a pre-open read of the latest snapshot without a new face display points
@@ -378,7 +389,7 @@ closed; the upload script reuses the complete non-upload path before calling
 The phone/widget shared Keychain remains unused by watch. Watch app and watch
 widget use the same App Group **identifier** for a separate, watch-local
 snapshot; App Group files do not sync across devices (unlike a user-initiated
-Events-page share). `swift test` and offline verifier fixtures do not prove signing or provisioning; on a machine without
+Diagnostics-page share). `swift test` and offline verifier fixtures do not prove signing or provisioning; on a machine without
 Apple signing, report signed archive/IPA checks as blocked.
 
 On paired development-signed iPhone/watch hardware, install the phone app and
@@ -534,7 +545,7 @@ The iPhone no longer reads active/resting energy from HealthKit. Opening or
 refreshing Today and Progress › Energy fetches `daily_energy` from the
 backend; manual Energy logging still works. The watch app is the only HealthKit
 energy uploader for now, so without a synced watch, energy must be entered
-manually. The iPhone Energy Balance widget also reads the backend, never
+manually. The iPhone Balance widget also reads the backend, never
 HealthKit.
 
 Opening the Train tab (and pulling to refresh Sessions) also reads HealthKit

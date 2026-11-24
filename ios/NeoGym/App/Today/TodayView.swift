@@ -207,8 +207,7 @@ struct TodayView: View {
         let snapshot = EnergyBalanceWidgetSnapshot(
             summary: overviewModel.energyBalanceOverviewSummary(locale: locale),
             userMarker: currentUserId,
-            generatedAt: Date(),
-            locale: locale
+            generatedAt: Date()
         )
         widgetUpdates.save(snapshot)
     }

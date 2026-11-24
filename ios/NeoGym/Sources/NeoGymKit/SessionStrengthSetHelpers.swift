@@ -70,3 +70,18 @@ public enum StrengthSetFormatting {
         weight.rounded() == weight ? String(format: "%.0f", weight) : String(format: "%.1f", weight)
     }
 }
+
+public extension RestTimerSetContext {
+    /// The rest after logging set `loggedSetNumber`: the next set's target is
+    /// prefilled from the set just logged, like the session's next-set row.
+    static func afterLogging(
+        exerciseName: String, loggedSetNumber: Int, weight: Double, reps: Int, doubleWeight: Bool
+    ) -> RestTimerSetContext {
+        let next = loggedSetNumber + 1
+        let target = StrengthSetFormatting.setSummary(
+            SessionStrengthSet(id: "next", setNumber: next, reps: reps, weight: weight),
+            doubleWeight: doubleWeight, includeSideSuffix: true
+        )
+        return RestTimerSetContext(exerciseName: exerciseName, nextSetNumber: next, target: target)
+    }
+}

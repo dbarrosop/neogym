@@ -1,0 +1,478 @@
+{
+  "schemaVersion": 1,
+  "profile": {
+    "id": "widgets-watch-fixtures.v1",
+    "referenceDate": "2025-01-15T13:40:00Z",
+    "locale": "en_US",
+    "timeZone": "UTC",
+    "dynamicType": "large",
+    "data": "Fictional, in-memory display inputs; controls are inert; no system integration is exercised."
+  },
+  "scenes": [
+    {
+      "id": "balance-small",
+      "platform": "phone",
+      "title": "Balance \u00b7 Small",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "small",
+      "width": 170,
+      "height": 170
+    },
+    {
+      "id": "balance-medium",
+      "platform": "phone",
+      "title": "Balance \u00b7 Medium",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "medium",
+      "width": 364,
+      "height": 170
+    },
+    {
+      "id": "balance-inline",
+      "platform": "phone",
+      "title": "Balance \u00b7 Lock Screen inline",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "inline",
+      "width": 330,
+      "height": 34
+    },
+    {
+      "id": "balance-rectangular",
+      "platform": "phone",
+      "title": "Balance \u00b7 Lock Screen rectangular",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 172,
+      "height": 84
+    },
+    {
+      "id": "balance-circular",
+      "platform": "phone",
+      "title": "Balance \u00b7 Lock Screen circular",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 76,
+      "height": 76
+    },
+    {
+      "id": "balance-small-light",
+      "platform": "phone",
+      "title": "Balance \u00b7 small \u00b7 Light",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "light",
+      "family": "small",
+      "width": 170,
+      "height": 170
+    },
+    {
+      "id": "balance-small-signed-out",
+      "platform": "phone",
+      "title": "Balance \u00b7 small \u00b7 signed out",
+      "kind": "balance",
+      "variant": "signed-out",
+      "appearance": "dark",
+      "family": "small",
+      "width": 170,
+      "height": 170
+    },
+    {
+      "id": "balance-medium-light",
+      "platform": "phone",
+      "title": "Balance \u00b7 medium \u00b7 Light",
+      "kind": "balance",
+      "variant": "populated",
+      "appearance": "light",
+      "family": "medium",
+      "width": 364,
+      "height": 170
+    },
+    {
+      "id": "balance-medium-signed-out",
+      "platform": "phone",
+      "title": "Balance \u00b7 medium \u00b7 signed out",
+      "kind": "balance",
+      "variant": "signed-out",
+      "appearance": "dark",
+      "family": "medium",
+      "width": 364,
+      "height": 170
+    },
+    {
+      "id": "balance-small-no-energy",
+      "platform": "phone",
+      "title": "Balance \u00b7 no energy row",
+      "kind": "balance",
+      "variant": "no-energy",
+      "appearance": "dark",
+      "family": "small",
+      "width": 170,
+      "height": 170
+    },
+    {
+      "id": "balance-inline-yesterday",
+      "platform": "phone",
+      "title": "Balance \u00b7 inline \u00b7 prior-day snapshot",
+      "kind": "balance",
+      "variant": "yesterday",
+      "appearance": "dark",
+      "family": "inline",
+      "width": 330,
+      "height": 34
+    },
+    {
+      "id": "balance-circular-yesterday",
+      "platform": "phone",
+      "title": "Balance \u00b7 circular \u00b7 prior-day snapshot",
+      "kind": "balance",
+      "variant": "yesterday",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 76,
+      "height": 76
+    },
+    {
+      "id": "balance-circular-no-plan",
+      "platform": "phone",
+      "title": "Balance \u00b7 intake without a plan",
+      "kind": "balance",
+      "variant": "no-plan",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 76,
+      "height": 76
+    },
+    {
+      "id": "rest-lock-screen-running",
+      "platform": "phone",
+      "title": "Rest \u00b7 lock-screen \u00b7 running",
+      "kind": "rest",
+      "variant": "running",
+      "appearance": "dark",
+      "region": "lock-screen",
+      "width": 370,
+      "height": 180
+    },
+    {
+      "id": "rest-lock-screen-over",
+      "platform": "phone",
+      "title": "Rest \u00b7 lock-screen \u00b7 over",
+      "kind": "rest",
+      "variant": "over",
+      "appearance": "dark",
+      "region": "lock-screen",
+      "width": 370,
+      "height": 180
+    },
+    {
+      "id": "rest-expanded-running",
+      "platform": "phone",
+      "title": "Rest \u00b7 expanded \u00b7 running",
+      "kind": "rest",
+      "variant": "running",
+      "appearance": "dark",
+      "region": "expanded",
+      "width": 370,
+      "height": 205
+    },
+    {
+      "id": "rest-expanded-over",
+      "platform": "phone",
+      "title": "Rest \u00b7 expanded \u00b7 over",
+      "kind": "rest",
+      "variant": "over",
+      "appearance": "dark",
+      "region": "expanded",
+      "width": 370,
+      "height": 205
+    },
+    {
+      "id": "rest-compact-running",
+      "platform": "phone",
+      "title": "Rest \u00b7 compact \u00b7 running",
+      "kind": "rest",
+      "variant": "running",
+      "appearance": "dark",
+      "region": "compact",
+      "width": 150,
+      "height": 38
+    },
+    {
+      "id": "rest-compact-over",
+      "platform": "phone",
+      "title": "Rest \u00b7 compact \u00b7 over",
+      "kind": "rest",
+      "variant": "over",
+      "appearance": "dark",
+      "region": "compact",
+      "width": 150,
+      "height": 38
+    },
+    {
+      "id": "rest-minimal-running",
+      "platform": "phone",
+      "title": "Rest \u00b7 minimal \u00b7 running",
+      "kind": "rest",
+      "variant": "running",
+      "appearance": "dark",
+      "region": "minimal",
+      "width": 42,
+      "height": 42
+    },
+    {
+      "id": "rest-minimal-over",
+      "platform": "phone",
+      "title": "Rest \u00b7 minimal \u00b7 over",
+      "kind": "rest",
+      "variant": "over",
+      "appearance": "dark",
+      "region": "minimal",
+      "width": 42,
+      "height": 42
+    },
+    {
+      "id": "watch-today",
+      "platform": "watch",
+      "title": "Today \u00b7 balance so far",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "today"
+    },
+    {
+      "id": "watch-end-of-day",
+      "platform": "watch",
+      "title": "End of day \u00b7 estimate and average",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "end-of-day"
+    },
+    {
+      "id": "watch-account",
+      "platform": "watch",
+      "title": "Account \u00b7 profile and Health",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "account"
+    },
+    {
+      "id": "watch-account-debug",
+      "platform": "watch",
+      "title": "Account \u00b7 Debug mode controls",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "account-debug"
+    },
+    {
+      "id": "watch-health",
+      "platform": "watch",
+      "title": "Allow Health access",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "health"
+    },
+    {
+      "id": "watch-connect",
+      "platform": "watch",
+      "title": "Connect from iPhone",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "connect"
+    },
+    {
+      "id": "watch-reauthenticate",
+      "platform": "watch",
+      "title": "Sign in again \u00b7 saved credential available",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "reauthenticate"
+    },
+    {
+      "id": "watch-auth-error",
+      "platform": "watch",
+      "title": "Could not sign in",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "auth-error"
+    },
+    {
+      "id": "watch-phone-signed-out",
+      "platform": "watch",
+      "title": "Signed out on iPhone",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "phone-signed-out"
+    },
+    {
+      "id": "watch-clearing",
+      "platform": "watch",
+      "title": "Clearing watch session",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "clearing"
+    },
+    {
+      "id": "watch-error",
+      "platform": "watch",
+      "title": "Local session error layout",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "error"
+    },
+    {
+      "id": "watch-diagnostics",
+      "platform": "watch",
+      "title": "Diagnostics \u00b7 fictional events",
+      "kind": "watch-page",
+      "variant": "populated",
+      "appearance": "dark",
+      "page": "diagnostics"
+    },
+    {
+      "id": "watch-today-empty",
+      "platform": "watch",
+      "title": "Today \u00b7 before first snapshot",
+      "kind": "watch-page",
+      "variant": "signed-out",
+      "appearance": "dark",
+      "page": "today-empty"
+    },
+    {
+      "id": "watch-end-of-day-pending",
+      "platform": "watch",
+      "title": "End of day \u00b7 provisional Health estimate",
+      "kind": "watch-page",
+      "variant": "pending",
+      "appearance": "dark",
+      "page": "end-of-day-pending"
+    },
+    {
+      "id": "watch-end-of-day-error",
+      "platform": "watch",
+      "title": "End of day \u00b7 refresh failure with retained values",
+      "kind": "watch-page",
+      "variant": "error",
+      "appearance": "dark",
+      "page": "end-of-day-error"
+    },
+    {
+      "id": "complication-rectangular-populated",
+      "platform": "watch",
+      "title": "Rectangular complication \u00b7 fresh",
+      "kind": "complication",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 190,
+      "height": 76
+    },
+    {
+      "id": "complication-rectangular-yesterday",
+      "platform": "watch",
+      "title": "Rectangular complication \u00b7 waiting for today",
+      "kind": "complication",
+      "variant": "yesterday",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 190,
+      "height": 76
+    },
+    {
+      "id": "complication-rectangular-signed-out",
+      "platform": "watch",
+      "title": "Rectangular complication \u00b7 not connected",
+      "kind": "complication",
+      "variant": "signed-out",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 190,
+      "height": 76
+    },
+    {
+      "id": "complication-circular-populated",
+      "platform": "watch",
+      "title": "Circular complication \u00b7 fresh",
+      "kind": "complication",
+      "variant": "populated",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "complication-circular-yesterday",
+      "platform": "watch",
+      "title": "Circular complication \u00b7 waiting for today",
+      "kind": "complication",
+      "variant": "yesterday",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "complication-circular-signed-out",
+      "platform": "watch",
+      "title": "Circular complication \u00b7 not connected",
+      "kind": "complication",
+      "variant": "signed-out",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 64,
+      "height": 64
+    },
+    {
+      "id": "complication-rectangular-stale",
+      "platform": "watch",
+      "title": "Rectangular complication \u00b7 over an hour old",
+      "kind": "complication",
+      "variant": "stale",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 190,
+      "height": 76
+    },
+    {
+      "id": "complication-rectangular-no-energy",
+      "platform": "watch",
+      "title": "Rectangular complication \u00b7 no energy row",
+      "kind": "complication",
+      "variant": "no-energy",
+      "appearance": "dark",
+      "family": "rectangular",
+      "width": 190,
+      "height": 76
+    },
+    {
+      "id": "complication-circular-no-plan",
+      "platform": "watch",
+      "title": "Circular complication \u00b7 no selected plan",
+      "kind": "complication",
+      "variant": "no-plan",
+      "appearance": "dark",
+      "family": "circular",
+      "width": 64,
+      "height": 64
+    }
+  ]
+}

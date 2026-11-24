@@ -31,7 +31,7 @@ public final class WatchAssistedSignInModel: ObservableObject {
         let attempt = WatchAssistedSignInAttempt(id: UUID(), userID: userID, startedAt: now())
         self.attempt = attempt
         received = nil
-        status = "Open NeoGym on your iPhone, then Me → Profile → Connect Apple Watch."
+        status = "Open NeoGym on your iPhone: Me › Account › Apple Watch."
         send(.request(attempt.id)) { [weak self] in
             guard let self, self.attempt == attempt else { return }
             self.status = "iPhone unavailable. Open NeoGym on both devices and try again."

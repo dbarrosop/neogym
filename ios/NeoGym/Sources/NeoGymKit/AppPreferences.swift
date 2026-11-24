@@ -52,6 +52,25 @@ public enum RestTimerPreference {
     }
 }
 
+/// The set a rest leads into, for the Live Activity: "Leg Extensions · set 3 next"
+/// while running, "Leg Extensions · set 3" once the rest is over, and the next set's
+/// target prefilled from the set just logged ("95 kg × 10").
+public struct RestTimerSetContext: Codable, Equatable, Hashable, Sendable {
+    public let exerciseName: String
+    public let nextSetNumber: Int
+    public let target: String?
+
+    public init(exerciseName: String, nextSetNumber: Int, target: String? = nil) {
+        self.exerciseName = exerciseName
+        self.nextSetNumber = nextSetNumber
+        self.target = target
+    }
+
+    /// The session's rest pill wording: "Leg Extensions · set 3 next".
+    public var runningLabel: String { "\(exerciseName) · set \(nextSetNumber) next" }
+    public var finishedLabel: String { "\(exerciseName) · set \(nextSetNumber)" }
+}
+
 /// One running rest, independent of any UI or notification plumbing.
 public struct RestTimerSchedule: Equatable, Sendable {
     public let endDate: Date
@@ -61,26 +80,34 @@ public struct RestTimerSchedule: Equatable, Sendable {
     public let label: String?
     /// The session the rest belongs to, so the shell can reopen it.
     public let sessionId: String?
+    /// The next set, when the rest started from logging one.
+    public let context: RestTimerSetContext?
 
-    public init(endDate: Date, duration: Int, label: String? = nil, sessionId: String? = nil) {
+    public init(
+        endDate: Date, duration: Int, label: String? = nil, sessionId: String? = nil,
+        context: RestTimerSetContext? = nil
+    ) {
         self.endDate = endDate
         self.duration = duration
-        self.label = label
+        self.label = label ?? context?.runningLabel
         self.sessionId = sessionId
+        self.context = context
     }
 
     public static func start(
         seconds: Int,
         now: Date = AppClock.now(),
         label: String? = nil,
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        context: RestTimerSetContext? = nil
     ) -> RestTimerSchedule {
         let length = max(seconds, 1)
         return RestTimerSchedule(
             endDate: now.addingTimeInterval(TimeInterval(length)),
             duration: length,
             label: label,
-            sessionId: sessionId
+            sessionId: sessionId,
+            context: context
         )
     }
 
@@ -89,9 +116,14 @@ public struct RestTimerSchedule: Equatable, Sendable {
             endDate: endDate.addingTimeInterval(TimeInterval(seconds)),
             duration: duration + seconds,
             label: label,
-            sessionId: sessionId
+            sessionId: sessionId,
+            context: context
         )
     }
+
+    /// When the countdown started, accounting for extensions: the Live Activity's
+    /// progress bar runs from here to `endDate`.
+    public var startDate: Date { endDate.addingTimeInterval(-TimeInterval(duration)) }
 
     /// Whole seconds left, rounded up so the last second still shows "0:01".
     public func remainingSeconds(at now: Date = AppClock.now()) -> Int {

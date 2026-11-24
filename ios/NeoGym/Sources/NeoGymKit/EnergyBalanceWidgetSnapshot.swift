@@ -3,129 +3,84 @@ import Foundation
 public enum EnergyBalanceWidgetConstants {
     public static let appGroupIdentifier = NhostSessionConfig.appGroupIdentifier
     public static let widgetKind = "EnergyBalanceWidget"
-    public static let snapshotDefaultsKey = "energyBalanceWidgetSnapshot.v1"
+    public static let snapshotDefaultsKey = "energyBalanceWidgetSnapshot.v2"
+    /// Pre-redesign preformatted string snapshots. Never read; removed on save and clear.
+    public static let legacySnapshotDefaultsKeys = ["energyBalanceWidgetSnapshot.v1"]
 }
 
+/// Token-free aggregate numbers for one local date. The widget formats them with
+/// `EnergyBalanceDisplay` at each timeline entry's date, so a snapshot carried past
+/// local midnight is labelled with its own day instead of "today so far".
 public struct EnergyBalanceWidgetSnapshot: Codable, Equatable, Sendable {
+    public static let currentSchemaVersion = 2
+
     public let schemaVersion: Int
     public let localDate: String
     public let userMarker: String?
-    public let generatedAtISO8601: String
-    public let generatedAtText: String
-    public let lastSyncedText: String
-    public let consumedValue: String
-    public let consumedCaption: String
-    public let burnedValue: String
-    public let burnedCaption: String
-    public let netValue: String
-    public let netCaption: String
-    public let netState: String?
-    public let sevenDayValue: String
-    public let sevenDayCaption: String
-    public let sevenDayState: String?
-    public let emptyTitle: String
-    public let emptyMessage: String
-    public let estimatedBurnedValue: String?
-    public let estimatedNetValue: String?
+    public let generatedAt: Date
+    public let consumedKcal: Double
+    /// Nil when the date has no `daily_energy` row: unknown, not zero.
+    public let burnedKcal: Double?
+    public let activeKcal: Double?
+    public let restingKcal: Double?
+    public let sevenDayAverageNet: Double?
+    /// The selected nutrition plan's kcal for this date, when the day has one.
+    public let planKcal: Double?
+    public let estimatedBurnedKcal: Double?
+    public let estimatedNetKcal: Double?
 
     public init(
-        schemaVersion: Int = 1,
         localDate: String,
         userMarker: String?,
-        generatedAtISO8601: String,
-        generatedAtText: String,
-        lastSyncedText: String,
-        consumedValue: String,
-        consumedCaption: String,
-        burnedValue: String,
-        burnedCaption: String,
-        netValue: String,
-        netCaption: String,
-        netState: String?,
-        sevenDayValue: String,
-        sevenDayCaption: String,
-        sevenDayState: String?,
-        emptyTitle: String = "Open NeoGym to sync",
-        emptyMessage: String = "Load the Nutrition overview to refresh your energy balance.",
-        estimatedBurnedValue: String? = nil,
-        estimatedNetValue: String? = nil
+        generatedAt: Date,
+        consumedKcal: Double,
+        burnedKcal: Double?,
+        activeKcal: Double? = nil,
+        restingKcal: Double? = nil,
+        sevenDayAverageNet: Double? = nil,
+        planKcal: Double? = nil,
+        estimatedBurnedKcal: Double? = nil,
+        estimatedNetKcal: Double? = nil
     ) {
-        self.schemaVersion = schemaVersion
+        schemaVersion = Self.currentSchemaVersion
         self.localDate = localDate
         self.userMarker = userMarker
-        self.generatedAtISO8601 = generatedAtISO8601
-        self.generatedAtText = generatedAtText
-        self.lastSyncedText = lastSyncedText
-        self.consumedValue = consumedValue
-        self.consumedCaption = consumedCaption
-        self.burnedValue = burnedValue
-        self.burnedCaption = burnedCaption
-        self.netValue = netValue
-        self.netCaption = netCaption
-        self.netState = netState
-        self.sevenDayValue = sevenDayValue
-        self.sevenDayCaption = sevenDayCaption
-        self.sevenDayState = sevenDayState
-        self.emptyTitle = emptyTitle
-        self.emptyMessage = emptyMessage
-        self.estimatedBurnedValue = estimatedBurnedValue
-        self.estimatedNetValue = estimatedNetValue
+        self.generatedAt = generatedAt
+        self.consumedKcal = consumedKcal
+        self.burnedKcal = burnedKcal
+        self.activeKcal = activeKcal
+        self.restingKcal = restingKcal
+        self.sevenDayAverageNet = sevenDayAverageNet
+        self.planKcal = planKcal
+        self.estimatedBurnedKcal = estimatedBurnedKcal
+        self.estimatedNetKcal = estimatedNetKcal
     }
 
-    public init(
-        summary: EnergyBalanceOverviewSummary,
-        userMarker: String?,
-        generatedAt: Date,
-        locale: Locale = .current
-    ) {
+    public init(summary: EnergyBalanceOverviewSummary, userMarker: String?, generatedAt: Date) {
         self.init(
             localDate: summary.date,
             userMarker: userMarker,
-            generatedAtISO8601: Self.iso8601String(generatedAt),
-            generatedAtText: Self.formattedGeneratedAt(generatedAt, locale: locale),
-            lastSyncedText: Self.formattedLastSyncedText(generatedAt, locale: locale),
-            consumedValue: summary.consumedValue,
-            consumedCaption: summary.consumedCaption,
-            burnedValue: summary.burnedValue,
-            burnedCaption: summary.burnedCaption,
-            netValue: summary.netTodayValue,
-            netCaption: summary.netTodayCaption,
-            netState: summary.net.map { _ in Self.widgetBalanceState(summary.netState) },
-            sevenDayValue: summary.sevenDayAverageValue,
-            sevenDayCaption: summary.sevenDayAverageCaption,
-            sevenDayState: summary.sevenDayAverageState.map(Self.widgetBalanceState),
-            estimatedBurnedValue: summary.projection?.burnedValue(locale: locale),
-            estimatedNetValue: summary.projection?.netValue(locale: locale)
+            generatedAt: generatedAt,
+            consumedKcal: summary.caloriesIn,
+            burnedKcal: summary.caloriesOut,
+            activeKcal: summary.activeKcal,
+            restingKcal: summary.restingKcal,
+            sevenDayAverageNet: summary.sevenDayAverageNet,
+            planKcal: summary.planKcal,
+            estimatedBurnedKcal: summary.projection?.estimatedBurnedKcal,
+            estimatedNetKcal: summary.projection?.estimatedNetKcal
         )
     }
 
-    public static func formattedGeneratedAt(_ date: Date, locale: Locale = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
+    public var netKcal: Double? { burnedKcal.map { consumedKcal - $0 } }
 
-    public static func formattedLastSyncedText(_ date: Date, locale: Locale = .current) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-        return "Last synced \(formatter.string(from: date))"
-    }
-
-    public static func iso8601String(_ date: Date) -> String {
-        ISO8601DateFormatter().string(from: date)
-    }
-
-    private static func widgetBalanceState(_ state: DailyCalorieBalanceState) -> String {
-        switch state {
-        case .deficit: "deficit"
-        case .surplus: "surplus"
-        case .balanced: "balanced"
-        case .intakeOnly: "unavailable"
-        }
+    public var displayInput: EnergyBalanceDisplayInput {
+        EnergyBalanceDisplayInput(
+            localDate: localDate, updatedAt: generatedAt, consumedKcal: consumedKcal,
+            burnedKcal: burnedKcal, activeKcal: activeKcal, restingKcal: restingKcal,
+            sevenDayAverageNet: sevenDayAverageNet, planKcal: planKcal,
+            estimatedBurnedKcal: estimatedBurnedKcal, estimatedNetKcal: estimatedNetKcal
+        )
     }
 }
 
@@ -144,8 +99,11 @@ public struct EnergyBalanceWidgetSnapshotStore: Sendable {
     }
 
     public func load() -> EnergyBalanceWidgetSnapshot? {
-        guard let data = userDefaults?.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(EnergyBalanceWidgetSnapshot.self, from: data)
+        guard let data = userDefaults?.data(forKey: key),
+              let snapshot = try? JSONDecoder().decode(EnergyBalanceWidgetSnapshot.self, from: data),
+              snapshot.schemaVersion == EnergyBalanceWidgetSnapshot.currentSchemaVersion
+        else { return nil }
+        return snapshot
     }
 
     @discardableResult
@@ -157,6 +115,7 @@ public struct EnergyBalanceWidgetSnapshotStore: Sendable {
         }
 
         guard let data = try? JSONEncoder().encode(snapshot) else { return false }
+        removeLegacySnapshots(from: userDefaults)
         userDefaults.set(data, forKey: key)
         return true
     }
@@ -165,7 +124,14 @@ public struct EnergyBalanceWidgetSnapshotStore: Sendable {
     public func clear() -> Bool {
         guard let userDefaults else { return false }
         userDefaults.removeObject(forKey: key)
+        removeLegacySnapshots(from: userDefaults)
         return true
+    }
+
+    private func removeLegacySnapshots(from defaults: UserDefaults) {
+        for legacyKey in EnergyBalanceWidgetConstants.legacySnapshotDefaultsKeys where legacyKey != key {
+            defaults.removeObject(forKey: legacyKey)
+        }
     }
 
     private var userDefaults: UserDefaults? {
