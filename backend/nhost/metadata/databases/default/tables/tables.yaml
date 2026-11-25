@@ -49,4 +49,5 @@
 - "!include public_workouts.yaml"
 - "!include storage_buckets.yaml"
 - "!include storage_files.yaml"
+- "!include storage_files_to_delete.yaml"
 - "!include storage_virus.yaml"
