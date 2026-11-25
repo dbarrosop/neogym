@@ -1,0 +1,6 @@
+function:
+  name: claim_progress_photo_sweep
+  schema: public
+configuration:
+  custom_name: claimProgressPhotoSweep
+  exposed_as: mutation

@@ -187,6 +187,34 @@ erDiagram
 
 `workout_labels` uses the same "public-or-user-owned" visibility pattern as `exercises` and `workouts`: `is_public = true ⇔ user_id IS NULL`, enforced by a CHECK constraint. `journal_labels` is strictly private per-user — no `is_public` column, `user_id NOT NULL` — see [`permissions.md`](permissions.md) pattern A.
 
+## Progress photos
+
+```mermaid
+erDiagram
+    STORAGE_FILES["storage.files"]
+    AUTH_USERS["auth.users"]
+
+    PROGRESS_PHOTO_LABELS {
+        text value PK
+        text name
+        int position UK
+    }
+    PROGRESS_PHOTOS {
+        uuid id PK, FK
+        uuid user_id FK
+        text label FK
+        date taken_on
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    STORAGE_FILES ||--o| PROGRESS_PHOTOS : "backs (CASCADE delete)"
+    AUTH_USERS ||--o{ PROGRESS_PHOTOS : "owns (CASCADE delete)"
+    PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "labels (RESTRICT delete)"
+```
+
+`progress_photos.id` is both the primary key and a cascading FK to `storage.files.id`. It also has a cascading owner FK to `auth.users.id` and a restricted FK from `label` to the ordered, admin-managed `progress_photo_labels.value`. Date and angle are not a uniqueness key. Triggers reject links to expired, incomplete, queued, retired, wrong-owner or noncanonical file metadata and prevent identity changes. `progress_photo_file_ids` permanently reserves initialized progress UUIDs independent of file and account deletion; its last-attempt timestamp marks a cleanup claim. Account deletion removes the photo row but **not** the file row or bytes. See the [progress-photo API and cleanup contract](progress-photos.md).
+
 ## Nutrition
 
 Nutrition is a separate private/user-catalog domain for calorie intake. See [`nutrition.md`](nutrition.md) for invariants and operational caveats; this section is the schema map.
@@ -264,6 +292,9 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 |---|---|---|
 | `health_workouts.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Imported private workout snapshots are removed with the account. |
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
+| `progress_photos.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Account deletion removes the photo row but leaves the Storage file row and bytes for separate cleanup. |
+| `progress_photos.id` → `storage.files.id` | `ON DELETE CASCADE` | Deleting the Storage file row removes the linked photo row; it does not prove the bytes are gone. |
+| `progress_photos.label` → `progress_photo_labels.value` | `ON DELETE RESTRICT` | A label cannot be deleted while a photo references it. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
 | `workout_sessions.workout_id` → `workouts.id` | `ON DELETE SET NULL` | Deleting a workout detaches every session it seeded — they become ad-hoc, keeping their logged entries. The init migration used `CASCADE`, which silently destroyed session history; migration `1790000460000` switched to `SET NULL` to match the "template, not a contract" framing in [`sessions.md`](sessions.md). |
@@ -279,7 +310,7 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 
 ## Triggers
 
-There are a handful of meaningful triggers; the rest are stock `updated_at` setters on every `BEFORE UPDATE`.
+The table summarizes domain-specific triggers; standard `updated_at` setters are omitted.
 
 | Table | Trigger | Fires on | What it does |
 |---|---|---|---|
@@ -291,5 +322,9 @@ There are a handful of meaningful triggers; the rest are stock `updated_at` sett
 | `nutrition_log_entries` | `populate_public_nutrition_log_entry_food_snapshot` | `BEFORE INSERT` | Branches on `source`. Food-backed rows require a non-null `food_id` and copy food name plus per-100g nutrients into trusted `snapshot_*` columns, overwriting client input. Ad-hoc rows preserve user-supplied standalone snapshots and are validated by table checks. |
 | `nutrition_log_entries` | `guard_public_nutrition_log_entry_snapshot_immutability` | `BEFORE UPDATE OF source, snapshot_*` | Rejects `source` changes and protects food-backed snapshot/name columns while allowing ad-hoc snapshot edits and ordinary grams/position/slot_time corrections. |
 | `nutrition_log_entries` | `check_public_nutrition_log_entry_plan_food_provenance` | `BEFORE INSERT OR UPDATE OF nutrition_plan_food_id, nutrition_log_meal_id, food_id` | Allows `nutrition_plan_food_id` only on standalone log entries and rejects rows whose `food_id` differs from the referenced direct plan-food slot. |
+| `progress_photos` | `check_progress_photo_file` | `BEFORE INSERT OR UPDATE OF id, user_id` | On insert, locks the file with `FOR SHARE` and requires a completed, owner-matching progress upload less than 45 minutes old, with the canonical filename, JPEG MIME type, allowed size, and no custom metadata. On update, rejects changing the file ID or owner. |
+| `progress_photos` | `check_progress_photo_file_retirement` | `BEFORE INSERT` | Locks the file with `FOR SHARE` and rejects linking a UUID without a reservation, already claimed by the sweep or queued for cleanup. |
+| `storage.files` | `reserve_progress_photo_file_id` | `AFTER INSERT` | Permanently reserves progress file UUIDs, rejects progress inserts with UUIDs queued for cleanup, and blocks reserved UUIDs from reuse in any bucket. |
+| `storage.files` | `keep_progress_photo_file_identity` | `BEFORE UPDATE OF id, bucket_id, uploaded_by_user_id` | Rejects changes to a progress file's ID, bucket or uploader, moving another file into the progress bucket, and reassigning another file's ID to a reserved UUID. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.

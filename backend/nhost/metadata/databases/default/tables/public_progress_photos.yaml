@@ -1,0 +1,79 @@
+table:
+  name: progress_photos
+  schema: public
+configuration:
+  column_config:
+    created_at:
+      custom_name: createdAt
+    taken_on:
+      custom_name: takenOn
+    updated_at:
+      custom_name: updatedAt
+    user_id:
+      custom_name: userId
+  custom_column_names:
+    created_at: createdAt
+    taken_on: takenOn
+    updated_at: updatedAt
+    user_id: userId
+  custom_name: progressPhoto
+  custom_root_fields:
+    delete: deleteProgressPhotos
+    delete_by_pk: deleteProgressPhoto
+    insert: insertProgressPhotos
+    insert_one: insertProgressPhoto
+    select: progressPhotos
+    select_aggregate: progressPhotosAggregate
+    select_by_pk: progressPhoto
+    update: updateProgressPhotos
+    update_by_pk: updateProgressPhoto
+object_relationships:
+  - name: angle
+    using:
+      foreign_key_constraint_on: label
+  - name: file
+    using:
+      foreign_key_constraint_on: id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        file:
+          bucket_id:
+            _eq: progress_photos
+          is_uploaded:
+            _eq: true
+          uploaded_by_user_id:
+            _eq: X-Hasura-User-Id
+      set:
+        user_id: x-hasura-user-id
+      columns:
+        - id
+        - label
+        - taken_on
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - id
+        - user_id
+        - label
+        - taken_on
+        - created_at
+        - updated_at
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+update_permissions:
+  - role: user
+    permission:
+      columns:
+        - label
+        - taken_on
+      filter:
+        user_id:
+          _eq: X-Hasura-User-Id
+      check: null

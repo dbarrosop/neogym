@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "allowJs": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "types": ["node"],
     "skipLibCheck": true,
     "noEmit": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
     "isolatedModules": true,
-    "strictNullChecks": false
+    "strict": true
   }
 }

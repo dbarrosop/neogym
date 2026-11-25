@@ -1,3 +1,4 @@
+- "!include public_claim_progress_photo_sweep.yaml"
 - "!include public_exercise_strength_report.yaml"
 - "!include public_muscle_set_progress.yaml"
 - "!include public_strength_progress.yaml"

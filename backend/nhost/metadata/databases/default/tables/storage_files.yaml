@@ -52,6 +52,14 @@ object_relationships:
   - name: bucket
     using:
       foreign_key_constraint_on: bucket_id
+  - name: uploader
+    using:
+      manual_configuration:
+        column_mapping:
+          uploaded_by_user_id: id
+        remote_table:
+          name: users
+          schema: auth
 array_relationships:
   - name: exercisesAsImage1
     using:
@@ -67,6 +75,30 @@ array_relationships:
         table:
           name: exercises
           schema: public
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        bucket_id:
+          _eq: progress_photos
+        uploader:
+          id:
+            _eq: X-Hasura-User-Id
+        name:
+          _eq: progress-photo.jpg
+        mime_type:
+          _eq: image/jpeg
+        size:
+          _gte: 1
+          _lte: 5242880
+      set:
+        uploaded_by_user_id: x-hasura-user-id
+      columns:
+        - id
+        - bucket_id
+        - name
+        - size
+        - mime_type
 select_permissions:
   - role: public
     permission:
@@ -103,6 +135,23 @@ select_permissions:
         - metadata
       filter:
         _or:
-          - _and:
-              - bucket_id:
-                  _eq: exercise_images
+          - bucket_id:
+              _eq: exercise_images
+          - bucket_id:
+              _eq: progress_photos
+            uploaded_by_user_id:
+              _eq: X-Hasura-User-Id
+            uploader:
+              id:
+                _eq: X-Hasura-User-Id
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        bucket_id:
+          _eq: progress_photos
+        uploaded_by_user_id:
+          _eq: X-Hasura-User-Id
+        uploader:
+          id:
+            _eq: X-Hasura-User-Id

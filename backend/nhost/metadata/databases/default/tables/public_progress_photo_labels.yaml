@@ -1,0 +1,23 @@
+table:
+  name: progress_photo_labels
+  schema: public
+configuration:
+  custom_name: progressPhotoLabel
+  custom_root_fields:
+    delete: deleteProgressPhotoLabels
+    delete_by_pk: deleteProgressPhotoLabel
+    insert: insertProgressPhotoLabels
+    insert_one: insertProgressPhotoLabel
+    select: progressPhotoLabels
+    select_aggregate: progressPhotoLabelsAggregate
+    select_by_pk: progressPhotoLabel
+    update: updateProgressPhotoLabels
+    update_by_pk: updateProgressPhotoLabel
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        - value
+        - name
+        - position
+      filter: {}
