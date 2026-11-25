@@ -33,7 +33,7 @@ object_relationships:
       foreign_key_constraint_on: label
   - name: file
     using:
-      foreign_key_constraint_on: id
+      foreign_key_constraint_on: file_id
   - name: user
     using:
       foreign_key_constraint_on: user_id
@@ -41,17 +41,11 @@ insert_permissions:
   - role: user
     permission:
       check:
-        file:
-          bucket_id:
-            _eq: progress_photos
-          is_uploaded:
-            _eq: true
-          uploaded_by_user_id:
-            _eq: X-Hasura-User-Id
+        user_id:
+          _eq: X-Hasura-User-Id
       set:
         user_id: x-hasura-user-id
       columns:
-        - id
         - label
         - taken_on
 select_permissions:

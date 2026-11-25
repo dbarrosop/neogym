@@ -52,6 +52,14 @@ object_relationships:
   - name: bucket
     using:
       foreign_key_constraint_on: bucket_id
+  - name: progressPhoto
+    using:
+      manual_configuration:
+        column_mapping:
+          id: id
+        remote_table:
+          name: progress_photos
+          schema: public
   - name: uploader
     using:
       manual_configuration:
@@ -81,6 +89,9 @@ insert_permissions:
       check:
         bucket_id:
           _eq: progress_photos
+        progressPhoto:
+          user_id:
+            _eq: X-Hasura-User-Id
         uploader:
           id:
             _eq: X-Hasura-User-Id

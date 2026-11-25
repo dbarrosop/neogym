@@ -200,7 +200,8 @@ erDiagram
         int position UK
     }
     PROGRESS_PHOTOS {
-        uuid id PK, FK
+        uuid id PK
+        uuid file_id FK, UK
         uuid user_id FK
         text label FK
         date taken_on
@@ -209,11 +210,11 @@ erDiagram
     }
 
     STORAGE_FILES ||--o| PROGRESS_PHOTOS : "backs (CASCADE delete)"
-    AUTH_USERS ||--o{ PROGRESS_PHOTOS : "owns (CASCADE delete)"
+    AUTH_USERS |o--o{ PROGRESS_PHOTOS : "owns (SET NULL on delete)"
     PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "labels (RESTRICT delete)"
 ```
 
-`progress_photos.id` is both the primary key and a cascading FK to `storage.files.id`. It also has a cascading owner FK to `auth.users.id` and a restricted FK from `label` to the ordered, admin-managed `progress_photo_labels.value`. Date and angle are not a uniqueness key. Triggers reject links to expired, incomplete, queued, retired, wrong-owner or noncanonical file metadata and prevent identity changes. `progress_photo_file_ids` permanently reserves initialized progress UUIDs independent of file and account deletion; its last-attempt timestamp marks a cleanup claim. Account deletion removes the photo row but **not** the file row or bytes. See the [progress-photo API and cleanup contract](progress-photos.md).
+`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately revoking access; scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
 
 ## Nutrition
 
@@ -292,8 +293,8 @@ Most cascades are `ON DELETE CASCADE` from a private/user-owned root, so deletin
 |---|---|---|
 | `health_workouts.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Imported private workout snapshots are removed with the account. |
 | `daily_energy.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Daily energy is a private user-owned metric stream; deleting the account removes the user's energy history with the rest of their private data. |
-| `progress_photos.user_id` → `auth.users.id` | `ON DELETE CASCADE` | Account deletion removes the photo row but leaves the Storage file row and bytes for separate cleanup. |
-| `progress_photos.id` → `storage.files.id` | `ON DELETE CASCADE` | Deleting the Storage file row removes the linked photo row; it does not prove the bytes are gone. |
+| `progress_photos.user_id` → `auth.users.id` | `ON DELETE SET NULL` | Account deletion hides the photo immediately; a `pg_cron` job removes the remaining rows. |
+| `progress_photos.file_id` → `storage.files.id` | `ON DELETE CASCADE` | Deleting the Storage file row removes its reservation; it does not prove the bytes are gone. |
 | `progress_photos.label` → `progress_photo_labels.value` | `ON DELETE RESTRICT` | A label cannot be deleted while a photo references it. |
 | `workout_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Deleting a catalog exercise that's used in any workout/session is forbidden — the user has to remove or replace it first. |
 | `workout_session_exercises.exercise_id` → `exercises.id` | `ON DELETE RESTRICT` | Same reason, for session-level rows. |
@@ -322,9 +323,7 @@ The table summarizes domain-specific triggers; standard `updated_at` setters are
 | `nutrition_log_entries` | `populate_public_nutrition_log_entry_food_snapshot` | `BEFORE INSERT` | Branches on `source`. Food-backed rows require a non-null `food_id` and copy food name plus per-100g nutrients into trusted `snapshot_*` columns, overwriting client input. Ad-hoc rows preserve user-supplied standalone snapshots and are validated by table checks. |
 | `nutrition_log_entries` | `guard_public_nutrition_log_entry_snapshot_immutability` | `BEFORE UPDATE OF source, snapshot_*` | Rejects `source` changes and protects food-backed snapshot/name columns while allowing ad-hoc snapshot edits and ordinary grams/position/slot_time corrections. |
 | `nutrition_log_entries` | `check_public_nutrition_log_entry_plan_food_provenance` | `BEFORE INSERT OR UPDATE OF nutrition_plan_food_id, nutrition_log_meal_id, food_id` | Allows `nutrition_plan_food_id` only on standalone log entries and rejects rows whose `food_id` differs from the referenced direct plan-food slot. |
-| `progress_photos` | `check_progress_photo_file` | `BEFORE INSERT OR UPDATE OF id, user_id` | On insert, locks the file with `FOR SHARE` and requires a completed, owner-matching progress upload less than 45 minutes old, with the canonical filename, JPEG MIME type, allowed size, and no custom metadata. On update, rejects changing the file ID or owner. |
-| `progress_photos` | `check_progress_photo_file_retirement` | `BEFORE INSERT` | Locks the file with `FOR SHARE` and rejects linking a UUID without a reservation, already claimed by the sweep or queued for cleanup. |
-| `storage.files` | `reserve_progress_photo_file_id` | `AFTER INSERT` | Permanently reserves progress file UUIDs, rejects progress inserts with UUIDs queued for cleanup, and blocks reserved UUIDs from reuse in any bucket. |
-| `storage.files` | `keep_progress_photo_file_identity` | `BEFORE UPDATE OF id, bucket_id, uploaded_by_user_id` | Rejects changes to a progress file's ID, bucket or uploader, moving another file into the progress bucket, and reassigning another file's ID to a reserved UUID. |
+| `storage.files` | `attach_progress_photo_upload` | `AFTER INSERT` (progress bucket) | Rejects IDs queued for deletion, then claims a current, unused reservation with the same ID and matching uploader before any bytes are accepted. |
+| `storage.files` | `keep_progress_photo_file_identity` | `BEFORE UPDATE OF id, bucket_id, uploaded_by_user_id, metadata` | Prevents reassigning progress file identity, moving a file into/out of the bucket, or persisting custom Storage metadata. |
 
 The `pg_jsonschema` extension (`CREATE EXTENSION` in migration `1790000400000`) provides the three functions used here: `jsonschema_is_valid`, `jsonb_matches_schema`, `jsonschema_validation_errors`.

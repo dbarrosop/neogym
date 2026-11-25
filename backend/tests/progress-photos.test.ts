@@ -8,9 +8,6 @@ import { fileURLToPath } from "node:url";
 const HASURA = "https://local.hasura.local.nhost.run/v1/graphql";
 const CONSTELLATION = "https://local.graphql.local.nhost.run/v1";
 const STORAGE = "https://local.storage.local.nhost.run/v1/files";
-const METADATA = "https://local.hasura.local.nhost.run/v1/metadata";
-const SWEEP =
-	"https://local.functions.local.nhost.run/v1/progress-photos/sweep";
 const AUTH = "https://local.auth.local.nhost.run/v1";
 const BUCKET = "progress_photos";
 const FILENAME = "progress-photo.jpg";
@@ -49,9 +46,11 @@ interface Photo {
 }
 
 const files = new Set<string>();
+const reservations = new Set<string>();
 const emails = new Set<string>();
 let admin: Record<string, string>;
 let minio: string;
+let postgres: string;
 let owner: Account;
 let other: Account;
 
@@ -190,17 +189,16 @@ async function upload(
 	bucket = BUCKET,
 	bytes = JPEG,
 	headers = admin,
-	id = crypto.randomUUID(),
+	id: string = crypto.randomUUID(),
 	name = FILENAME,
 	mime = "application/octet-stream",
-	metadata?: Record<string, unknown>,
 ) {
 	files.add(id);
 	const form = new FormData();
 	form.append("bucket-id", bucket);
 	form.append(
 		"metadata[]",
-		new Blob([JSON.stringify({ id, metadata })], { type: "application/json" }),
+		new Blob([JSON.stringify({ id })], { type: "application/json" }),
 		"",
 	);
 	form.append("file[]", new File([bytes], name, { type: mime }));
@@ -213,356 +211,6 @@ async function upload(
 		}),
 	};
 }
-
-async function uploadedFixture(
-	bucket = BUCKET,
-	headers: Record<string, string> = bearer(owner),
-) {
-	const { id, response } = await upload(bucket, JPEG, headers);
-	expect(response.status).toBe(201);
-	const body = (await response.json()) as {
-		processedFiles: Array<{
-			id: string;
-			mimeType: string;
-			isUploaded: boolean;
-			size: number;
-			metadata: unknown;
-		}>;
-	};
-	expect(body.processedFiles).toHaveLength(1);
-	expect(body.processedFiles[0]).toMatchObject({
-		id,
-		mimeType: "image/jpeg",
-		isUploaded: true,
-		size: JPEG.length,
-		metadata: null,
-	});
-	expect(objectExists(id)).toBe(true);
-	return id;
-}
-
-async function setFile(id: string, fields: Record<string, unknown>) {
-	return adminGql(
-		`mutation Set($id: uuid!, $set: files_set_input!) {
-		updateFile(pk_columns: { id: $id }, _set: $set) { id }
-	}`,
-		{ id, set: fields },
-	);
-}
-
-const INSERT = `mutation Link($object: progressPhoto_insert_input!) {
-	insertProgressPhoto(object: $object) { id userId label takenOn }
-}`;
-const PHOTO = `query Read($id: uuid!) { progressPhoto(id: $id) { id userId label takenOn angle { name } file { id } } }`;
-const FILE = `query Read($id: uuid!) { file(id: $id) { id isUploaded } }`;
-const ROOTS = `query Roots { __schema { mutationType { fields { name } } } }`;
-const DATE = "2024-02-29";
-
-async function deleteAccount(id: string) {
-	await adminGql(`mutation Remove($id: uuid!) { deleteUser(id: $id) { id } }`, {
-		id,
-	});
-}
-
-async function deleteFixture(id: string, headers = admin) {
-	const response = await fetchLocal(`${STORAGE}/${id}`, {
-		method: "DELETE",
-		headers,
-	});
-	assert(
-		response.status === 204 || (headers === admin && response.status === 404),
-		`synthetic fixture cleanup failed: ${response.status}`,
-	);
-	assert(!objectExists(id), "fixture cleanup did not remove the object");
-	files.delete(id);
-}
-
-beforeAll(async () => {
-	minio = localContainer("minio");
-	const graphql = localContainer("graphql");
-	const result = Bun.spawnSync([
-		"docker",
-		"exec",
-		graphql,
-		"printenv",
-		"HASURA_GRAPHQL_ADMIN_SECRET",
-	]);
-	const secret = result.stdout.toString().trim();
-	assert(
-		result.exitCode === 0 && secret,
-		"local Hasura admin credential unavailable",
-	);
-	admin = { "x-hasura-admin-secret": secret };
-	owner = await fixtureAccount();
-	other = await fixtureAccount();
-});
-
-afterAll(async () => {
-	const cleanup = await Promise.allSettled([
-		...[...files].map((id) => deleteFixture(id)),
-		...[...emails].map(async (email) => {
-			await adminGql(
-				`mutation Remove($email: citext!) { deleteUsers(where: { email: { _eq: $email } }) { affected_rows } }`,
-				{ email },
-			);
-		}),
-	]);
-	for (const result of cleanup)
-		if (result.status === "rejected") throw result.reason;
-});
-
-test("both GraphQL endpoints expose only scoped file and photo writes", async () => {
-	for (const url of [HASURA, CONSTELLATION]) {
-		type Roots = {
-			__schema: { mutationType: { fields: Array<{ name: string }> } | null };
-		};
-		const rootNames = (result: GraphQL<Roots>) =>
-			result.data?.__schema?.mutationType?.fields.map(({ name }) => name) ?? [];
-		const allowed = await gql<Roots>(url, ROOTS, {}, admin);
-		const denied = await gql<Roots>(url, ROOTS, {}, bearer(owner));
-		expect(allowed.errors).toBeUndefined();
-		expect(denied.errors).toBeUndefined();
-		for (const name of [
-			"insertProgressPhoto",
-			"updateProgressPhoto",
-			"insertFile",
-			"deleteFile",
-		]) {
-			expect(rootNames(allowed)).toContain(name);
-			expect(rootNames(denied)).toContain(name);
-		}
-		for (const name of [
-			"insertProgressPhotoLabel",
-			"deleteProgressPhoto",
-			"updateFile",
-			"claimProgressPhotoSweep",
-		]) {
-			expect(rootNames(allowed)).toContain(name);
-			expect(rootNames(denied)).not.toContain(name);
-		}
-		const labels = await gql<{
-			progressPhotoLabels: Array<{ value: string; name: string }>;
-		}>(
-			url,
-			`{ progressPhotoLabels(order_by: { position: asc }) { value name } }`,
-			{},
-			bearer(owner),
-		);
-		expect(labels.data?.progressPhotoLabels).toEqual([
-			{ value: "front", name: "Front" },
-			{ value: "back", name: "Back" },
-		]);
-		expect(
-			(await gql(url, `{ progressPhotoLabels { value } }`)).errors,
-		).toBeDefined();
-	}
-});
-
-test("owner-only photo and byte reads; deleting the file removes the row and the object", async () => {
-	const id = await uploadedFixture();
-	const input = { id, label: "front", takenOn: DATE };
-	const object = { ...input, userId: owner.id };
-	const linked = await gql<{ insertProgressPhoto: Photo }>(
-		HASURA,
-		INSERT,
-		{ object: input },
-		bearer(owner),
-	);
-	expect(linked.errors).toBeUndefined();
-	expect(linked.data?.insertProgressPhoto).toEqual(object);
-	for (const url of [HASURA, CONSTELLATION]) {
-		const own = await gql<{ progressPhoto: Photo }>(
-			url,
-			PHOTO,
-			{ id },
-			bearer(owner),
-		);
-		expect(own.errors).toBeUndefined();
-		expect(own.data?.progressPhoto).toMatchObject({
-			...object,
-			angle: { name: "Front" },
-			file: { id },
-		});
-		const foreign = await gql<{ progressPhoto: Photo | null }>(
-			url,
-			PHOTO,
-			{ id },
-			bearer(other),
-		);
-		expect(foreign.errors).toBeUndefined();
-		expect(foreign.data?.progressPhoto).toBeNull();
-		expect((await gql(url, PHOTO, { id })).errors).toBeDefined();
-		for (const headers of [bearer(other), {}]) {
-			const unreadable = await gql<{ file: null }>(url, FILE, { id }, headers);
-			expect(unreadable.errors).toBeUndefined();
-			expect(unreadable.data?.file).toBeNull();
-		}
-	}
-	for (const [method, suffix, mime] of [
-		["GET", "", "image/jpeg"],
-		["HEAD", "", "image/jpeg"],
-		["GET", "?w=2&f=webp", "image/webp"],
-	]) {
-		const response = await fetchLocal(`${STORAGE}/${id}${suffix}`, {
-			method,
-			headers: bearer(owner),
-		});
-		expect(response.status).toBe(200);
-		expect(response.headers.get("cache-control")).toBe("private, no-store");
-		expect(response.headers.get("content-type")).toBe(mime);
-		if (method === "GET" && !suffix)
-			expect(new Uint8Array(await response.arrayBuffer())).toEqual(JPEG);
-		else await response.body?.cancel();
-		for (const headers of [bearer(other), {}]) {
-			const denied = await fetchLocal(`${STORAGE}/${id}${suffix}`, {
-				method,
-				headers,
-			});
-			expect(denied.status).toBe(404);
-			await denied.body?.cancel();
-		}
-	}
-	expect(
-		(
-			await fetchLocal(`${STORAGE}/${id}/presignedurl`, {
-				headers: bearer(owner),
-			})
-		).status,
-	).toBe(403);
-	const replacement = new FormData();
-	replacement.append("file", new File(["Not a JPEG"], FILENAME));
-	expect(
-		(
-			await fetchLocal(`${STORAGE}/${id}`, {
-				method: "PUT",
-				headers: bearer(owner),
-				body: replacement,
-			})
-		).ok,
-	).toBe(false);
-	for (const headers of [{}, bearer(other)]) {
-		const denied = await fetchLocal(`${STORAGE}/${id}`, {
-			method: "DELETE",
-			headers,
-		});
-		expect(denied.ok).toBe(false);
-	}
-	expect(objectExists(id)).toBe(true);
-	await deleteFixture(id, bearer(owner));
-	const after = await adminGql<{ progressPhoto: null }>(PHOTO, { id });
-	expect(after.progressPhoto).toBeNull();
-});
-
-test("date and angle can be corrected without reassigning the file or owner", async () => {
-	const id = await uploadedFixture();
-	const input = { id, label: "front", takenOn: DATE };
-	for (const url of [HASURA, CONSTELLATION]) {
-		expect(
-			(await gql(url, INSERT, { object: input }, bearer(other))).errors,
-		).toBeDefined();
-		expect(
-			(
-				await gql(
-					url,
-					INSERT,
-					{ object: { ...input, userId: other.id } },
-					bearer(owner),
-				)
-			).errors,
-		).toBeDefined();
-	}
-	const linked = await gql<{ insertProgressPhoto: Photo }>(
-		CONSTELLATION,
-		INSERT,
-		{ object: input },
-		bearer(owner),
-	);
-	expect(linked.errors).toBeUndefined();
-	expect(linked.data?.insertProgressPhoto).toEqual({
-		...input,
-		userId: owner.id,
-	});
-	const update = `mutation Correct($id: uuid!, $set: progressPhoto_set_input!) {
-		updateProgressPhoto(pk_columns: { id: $id }, _set: $set) { id userId label takenOn }
-	}`;
-	expect(
-		(await gql(HASURA, update, { id, set: { userId: other.id } }, admin))
-			.errors,
-	).toBeDefined();
-	for (const url of [HASURA, CONSTELLATION]) {
-		const foreign = await gql<{ updateProgressPhoto: null }>(
-			url,
-			update,
-			{ id, set: { label: "back" } },
-			bearer(other),
-		);
-		expect(foreign.errors).toBeUndefined();
-		expect(foreign.data?.updateProgressPhoto).toBeNull();
-		for (const set of [
-			{ userId: other.id },
-			{ id: crypto.randomUUID() },
-			{ createdAt: new Date().toISOString() },
-		]) {
-			expect(
-				(await gql(url, update, { id, set }, bearer(owner))).errors,
-			).toBeDefined();
-		}
-	}
-	const result = await gql<{ updateProgressPhoto: Photo }>(
-		CONSTELLATION,
-		update,
-		{ id, set: { label: "back", takenOn: "2024-02-28" } },
-		bearer(owner),
-	);
-	expect(result.errors).toBeUndefined();
-	expect(result.data?.updateProgressPhoto).toEqual({
-		id,
-		userId: owner.id,
-		label: "back",
-		takenOn: "2024-02-28",
-	});
-	await deleteFixture(id);
-});
-
-test("link invariant rejects invalid file state, owner, dates, and labels", async () => {
-	const id = await uploadedFixture();
-	const object = { id, userId: owner.id, label: "front", takenOn: DATE };
-	const link = (input: Record<string, unknown>) =>
-		gql(HASURA, INSERT, { object: input }, admin);
-	for (const invalid of [
-		{ userId: other.id },
-		{ takenOn: "infinity" },
-		{ takenOn: "10000-01-01" },
-		{ label: "unseeded" },
-		{ id: crypto.randomUUID() },
-	]) {
-		expect((await link({ ...object, ...invalid })).errors).toBeDefined();
-	}
-	for (const [invalid, restore] of [
-		[{ isUploaded: false }, { isUploaded: true }],
-		[{ metadata: { test: true } }, { metadata: null }],
-		[{ name: "other.jpg" }, { name: FILENAME }],
-		[{ mimeType: "image/png" }, { mimeType: "image/jpeg" }],
-		[{ size: 0 }, { size: JPEG.length }],
-		[{ size: MAX_BYTES + 1 }, { size: JPEG.length }],
-		[{ createdAt: "2024-01-01T00:00Z" }, null],
-	] as const) {
-		await setFile(id, invalid);
-		expect((await link(object)).errors).toBeDefined();
-		if (restore) await setFile(id, restore);
-	}
-	const publicId = await uploadedFixture("exercise_images", admin);
-	await setFile(publicId, { uploadedByUserId: owner.id });
-	expect((await link({ ...object, id: publicId })).errors).toBeDefined();
-	const publicRead = await fetchLocal(`${STORAGE}/${publicId}`);
-	expect(publicRead.status).toBe(200);
-	expect(new Uint8Array(await publicRead.arrayBuffer())).toEqual(JPEG);
-	const oversize = new Uint8Array(MAX_BYTES + 1);
-	oversize.set(JPEG);
-	const result = await upload(BUCKET, oversize, bearer(owner));
-	expect(result.response.status).toBe(400);
-	expect(objectExists(result.id)).toBe(false);
-});
 
 function expiredBearer(account: Account) {
 	// Keep the genuine session's claims, but create a signed, already-expired
@@ -602,484 +250,559 @@ function expiredBearer(account: Account) {
 	return { authorization: `Bearer ${input}.${signature}` };
 }
 
+beforeAll(async () => {
+	minio = localContainer("minio");
+	postgres = localContainer("postgres");
+	const graphql = localContainer("graphql");
+	const result = Bun.spawnSync([
+		"docker",
+		"exec",
+		graphql,
+		"printenv",
+		"HASURA_GRAPHQL_ADMIN_SECRET",
+	]);
+	const secret = result.stdout.toString().trim();
+	assert(
+		result.exitCode === 0 && secret,
+		"local Hasura admin credential unavailable",
+	);
+	admin = { "x-hasura-admin-secret": secret };
+	owner = await fixtureAccount();
+	other = await fixtureAccount();
+});
+
+const DATE = "2024-02-29";
+const INSERT = `mutation Reserve($object: progressPhoto_insert_input!) {
+	insertProgressPhoto(object: $object) { id userId label takenOn }
+}`;
+const PHOTO = `query Photo($id: uuid!) {
+	progressPhoto(id: $id) { id userId label takenOn angle { name } file { id isUploaded progressPhoto { id } } }
+}`;
+const FILE = `query File($id: uuid!) { file(id: $id) { id isUploaded } }`;
 const INSERT_FILE = `mutation Init($object: files_insert_input!) {
 	insertFile(object: $object) { id isUploaded uploadedByUserId }
 }`;
 const DELETE_FILE = `mutation Remove($id: uuid!) { deleteFile(id: $id) { id } }`;
-const fileInput = (id: string, bucketId = BUCKET) => ({
+const EDIT = `mutation Edit($id: uuid!, $set: progressPhoto_set_input!) {
+	updateProgressPhoto(pk_columns: { id: $id }, _set: $set) { id userId label takenOn }
+}`;
+const ROOTS = `query Roots { __schema { mutationType { fields { name } } } }`;
+const fileInput = (id: string) => ({
 	id,
-	bucketId,
+	bucketId: BUCKET,
 	name: FILENAME,
 	size: JPEG.length,
 	mimeType: "image/jpeg",
 });
-const photoInput = (id: string) => ({ id, label: "back", takenOn: DATE });
+const photoInput = (label = "front") => ({ label, takenOn: DATE });
 
-async function link(id: string, headers = bearer(owner), url = HASURA) {
-	return gql<{ insertProgressPhoto: Photo }>(
+type PhotoAndFile = Photo & {
+	file: {
+		id: string;
+		isUploaded: boolean;
+		progressPhoto: { id: string };
+	} | null;
+};
+
+async function reserve(account = owner, url = HASURA, label = "front") {
+	const response = await gql<{ insertProgressPhoto: Photo }>(
 		url,
 		INSERT,
-		{ object: photoInput(id) },
+		{ object: photoInput(label) },
+		bearer(account),
+	);
+	assert(
+		response.data?.insertProgressPhoto && !response.errors,
+		`reservation failed: ${response.errors?.[0]?.extensions?.code}`,
+	);
+	const photo = response.data.insertProgressPhoto;
+	assert(/^[a-f0-9-]{36}$/.test(photo.id));
+	reservations.add(photo.id);
+	expect(photo).toMatchObject({ userId: account.id, ...photoInput(label) });
+	return photo.id;
+}
+
+async function photo(
+	id: string,
+	headers: Record<string, string> = bearer(owner),
+	url = HASURA,
+) {
+	return gql<{ progressPhoto: PhotoAndFile | null }>(
+		url,
+		PHOTO,
+		{ id },
 		headers,
 	);
 }
 
-test("Storage rejects noncanonical content, filenames, bucket, unsigned and expired requests", async () => {
-	const signed = bearer(owner);
-	const expired = expiredBearer(owner);
-	const fixtures = [
-		await upload(BUCKET, JPEG, {}),
-		await upload(BUCKET, JPEG, expired),
-		await upload("exercise_images", JPEG, signed),
-		await upload(BUCKET, new Uint8Array(), signed),
-		await upload(BUCKET, JPEG, signed, undefined, "other.jpg"),
-		await upload(
-			BUCKET,
-			new TextEncoder().encode("not a JPEG"),
-			signed,
-			undefined,
-			FILENAME,
-			"image/jpeg",
-		),
-	];
-	for (const { id, response } of fixtures) {
-		expect(response.ok).toBe(false);
-		expect(objectExists(id)).toBe(false);
-	}
-	// Invalid content was rejected before initialization; the untouched ID remains usable.
-	const { id } = fixtures[fixtures.length - 1];
-	expect((await upload(BUCKET, JPEG, signed, id)).response.status).toBe(201);
-	for (const url of [HASURA, CONSTELLATION]) {
-		const response = await post(
-			url,
-			{ query: INSERT, variables: { object: photoInput(id) } },
-			expired,
+async function uploadedFixture(id: string, account = owner) {
+	const { response } = await upload(BUCKET, JPEG, bearer(account), id);
+	expect(response.status).toBe(201);
+	const body = (await response.json()) as { processedFiles: unknown[] };
+	expect(body.processedFiles).toMatchObject([
+		{
+			id,
+			mimeType: "image/jpeg",
+			isUploaded: true,
+			size: JPEG.length,
+			metadata: null,
+		},
+	]);
+	expect(objectExists(id)).toBe(true);
+}
+
+async function initializeFixture(id: string, account = owner) {
+	files.add(id);
+	const result = await gql<{
+		insertFile: { id: string; isUploaded: boolean; uploadedByUserId: string };
+	}>(HASURA, INSERT_FILE, { object: fileInput(id) }, bearer(account));
+	expect(result.errors).toBeUndefined();
+	expect(result.data?.insertFile).toEqual({
+		id,
+		isUploaded: false,
+		uploadedByUserId: account.id,
+	});
+}
+
+async function deleteFixture(id: string, headers = admin) {
+	const response = await fetchLocal(`${STORAGE}/${id}`, {
+		method: "DELETE",
+		headers,
+	});
+	assert(
+		response.status === 204 || (headers === admin && response.status === 404),
+		`synthetic fixture cleanup failed: ${response.status}`,
+	);
+	assert(!objectExists(id), "fixture cleanup did not remove the object");
+	files.delete(id);
+}
+
+function sql(statements: string): string {
+	const result = Bun.spawnSync([
+		"docker",
+		"exec",
+		postgres,
+		"psql",
+		"-XqAt",
+		"-v",
+		"ON_ERROR_STOP=1",
+		"-U",
+		"postgres",
+		"-d",
+		"local",
+		"-c",
+		statements,
+	]);
+	assert(result.exitCode === 0, "local pg_cron fixture SQL failed");
+	return result.stdout.toString().trim();
+}
+
+function uuid(id: string): string {
+	assert(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id));
+	return `'${id}'::uuid`;
+}
+
+function backdate(
+	table: "public.progress_photos" | "storage.files",
+	id: string,
+) {
+	sql(
+		`UPDATE ${table} SET created_at = now() - interval '2 hours' WHERE id = ${uuid(id)}`,
+	);
+}
+
+afterAll(async () => {
+	const cleanup = await Promise.allSettled(
+		[...files].map((id) => deleteFixture(id)),
+	);
+	if (reservations.size) {
+		await adminGql(
+			`mutation Cleanup($ids: [uuid!]!) { deleteProgressPhotos(where: { id: { _in: $ids } }) { affected_rows } }`,
+			{ ids: [...reservations] },
 		);
-		const rejected = (await response.json()) as GraphQL<{
-			insertProgressPhoto: Photo;
-		}>;
-		assert(
-			[400, 401, 403].includes(response.status) || rejected.errors?.length,
-			`expired link was not rejected (${url === HASURA ? "Hasura" : "Constellation"}, HTTP ${response.status})`,
+	}
+	for (const email of emails) {
+		await adminGql(
+			`mutation Remove($email: citext!) { deleteUsers(where: { email: { _eq: $email } }) { affected_rows } }`,
+			{ email },
 		);
-		expect(rejected.data?.insertProgressPhoto).toBeUndefined();
 	}
-	for (const method of ["GET", "DELETE"]) {
-		expect(
-			(await fetchLocal(`${STORAGE}/${id}`, { method, headers: expired })).ok,
-		).toBe(false);
-	}
-	await deleteFixture(id, signed);
+	for (const result of cleanup)
+		if (result.status === "rejected") throw result.reason;
 });
 
-test("generic file inserts are scoped and pending IDs cannot be linked or reused", async () => {
+test("signed-in users reserve with a date and a catalog label, never choose the owner or file ID", async () => {
 	for (const url of [HASURA, CONSTELLATION]) {
-		const id = crypto.randomUUID();
-		files.add(id);
-		const object = fileInput(id);
-		for (const invalid of [
+		type Schema = {
+			__schema: { mutationType: { fields: Array<{ name: string }> } };
+		};
+		const roots = async (headers: Record<string, string>) => {
+			const result = await gql<Schema>(url, ROOTS, {}, headers);
+			expect(result.errors).toBeUndefined();
+			return result.data?.__schema.mutationType.fields.map(({ name }) => name);
+		};
+		const adminRoots = await roots(admin);
+		const userRoots = await roots(bearer(owner));
+		for (const name of [
+			"insertProgressPhoto",
+			"updateProgressPhoto",
+			"insertFile",
+			"deleteFile",
+		])
+			expect(userRoots).toContain(name);
+		for (const name of [
+			"insertProgressPhotoLabel",
+			"deleteProgressPhoto",
+			"updateFile",
+		]) {
+			expect(adminRoots).toContain(name);
+			expect(userRoots).not.toContain(name);
+		}
+		const labels = await gql<{ progressPhotoLabels: unknown[] }>(
+			url,
+			`{ progressPhotoLabels(order_by: { position: asc }) { value name } }`,
+			{},
+			bearer(owner),
+		);
+		expect(labels.data?.progressPhotoLabels).toEqual([
+			{ value: "front", name: "Front" },
+			{ value: "back", name: "Back" },
+		]);
+		for (const object of [
+			{ ...photoInput(), id: crypto.randomUUID() },
+			{ ...photoInput(), userId: other.id },
+			{ ...photoInput(), fileId: crypto.randomUUID() },
+			photoInput("not-a-label"),
+			{ ...photoInput(), takenOn: "2025-02-29" },
+			{ ...photoInput(), takenOn: "infinity" },
+		])
+			expect(
+				(await gql(url, INSERT, { object }, bearer(owner))).errors,
+			).toBeDefined();
+		expect(
+			(await gql(url, INSERT, { object: photoInput() })).errors,
+		).toBeDefined();
+		const id = await reserve(owner, url);
+		expect(
+			(await photo(id, bearer(owner), url)).data?.progressPhoto,
+		).toMatchObject({ id, file: null });
+		expect(
+			(await photo(id, bearer(other), url)).data?.progressPhoto,
+		).toBeNull();
+	}
+});
+
+test("Storage and direct file initialization require a matching, live reservation", async () => {
+	const id = await reserve();
+	const expired = await reserve();
+	backdate("public.progress_photos", expired);
+	const absent = crypto.randomUUID();
+	for (const [fileId, headers] of [
+		[absent, bearer(owner)],
+		[id, bearer(other)],
+		[expired, bearer(owner)],
+		[id, {}],
+		[id, expiredBearer(owner)],
+	] as const) {
+		expect((await upload(BUCKET, JPEG, headers, fileId)).response.ok).toBe(
+			false,
+		);
+		expect(objectExists(fileId)).toBe(false);
+	}
+	for (const url of [HASURA, CONSTELLATION]) {
+		for (const [fileId, headers] of [
+			[absent, bearer(owner)],
+			[id, bearer(other)],
+			[expired, bearer(owner)],
+		] as const) {
+			expect(
+				(await gql(url, INSERT_FILE, { object: fileInput(fileId) }, headers))
+					.errors,
+			).toBeDefined();
+		}
+		for (const extra of [
 			{ uploadedByUserId: other.id },
 			{ isUploaded: true },
 			{ metadata: {} },
 			{ etag: "fake" },
-			{ bucketId: "exercise_images" },
-			{ mimeType: "image/png" },
-			{ name: "other.jpg" },
-			{ size: 0 },
 		]) {
 			expect(
 				(
 					await gql(
 						url,
 						INSERT_FILE,
-						{ object: { ...object, ...invalid } },
+						{ object: { ...fileInput(id), ...extra } },
 						bearer(owner),
 					)
 				).errors,
 			).toBeDefined();
 		}
-		const pending = await gql(url, INSERT_FILE, { object }, bearer(owner));
-		expect(pending.errors).toBeUndefined();
-		expect(pending.data).toEqual({
-			insertFile: { id, isUploaded: false, uploadedByUserId: owner.id },
-		});
-		expect((await link(id, bearer(owner), url)).errors).toBeDefined();
-		const foreign = await gql(url, DELETE_FILE, { id }, bearer(other));
-		expect(foreign.errors).toBeUndefined();
-		expect(foreign.data).toEqual({ deleteFile: null });
-		expect((await gql(url, DELETE_FILE, { id }, bearer(owner))).data).toEqual({
-			deleteFile: { id },
-		});
-		expect(
-			(await gql(url, INSERT_FILE, { object }, bearer(owner))).errors,
-		).toBeDefined();
-		expect((await upload(BUCKET, JPEG, bearer(owner), id)).response.ok).toBe(
-			false,
-		);
-		expect(objectExists(id)).toBe(false);
 	}
-});
-
-test("same day and angle submissions sort by creation then ID; retry never adds or revives rows", async () => {
-	const older = await uploadedFixture();
-	const newer = await uploadedFixture();
-	for (const id of [older, newer]) {
-		const result = await link(id);
-		expect(result.errors).toBeUndefined();
-		expect((await link(id)).errors).toBeDefined();
-	}
-	const list = `query List($date: date!, $label: String!) {
-		progressPhotos(where: {takenOn: {_eq: $date}, label: {_eq: $label}},
-			order_by: [{takenOn: desc}, {createdAt: desc}, {id: desc}], limit: 2) { id }
-	}`;
-	for (const url of [HASURA, CONSTELLATION]) {
+	// The database guard also applies to the server's own admin-role inserts.
+	for (const fileId of [absent, expired]) {
 		const result = await gql(
-			url,
-			list,
-			{ date: DATE, label: "back" },
-			bearer(owner),
+			HASURA,
+			INSERT_FILE,
+			{ object: { ...fileInput(fileId), uploadedByUserId: owner.id } },
+			admin,
 		);
-		expect(result.errors).toBeUndefined();
-		expect(result.data).toEqual({
-			progressPhotos: [{ id: newer }, { id: older }],
-		});
+		expect(result.errors?.[0]?.extensions?.code).toBe("permission-error");
 	}
-	await adminGql(
-		`mutation Tie($ids: [uuid!]!, $at: timestamptz!) {
-		updateProgressPhotos(where: {id: {_in: $ids}}, _set: {createdAt: $at}) { affected_rows }
-	}`,
-		{ ids: [older, newer], at: "2024-03-01T00:00:00Z" },
-	);
-	const expected = [older, newer]
-		.sort()
-		.reverse()
-		.map((id) => ({ id }));
-	for (const url of [HASURA, CONSTELLATION]) {
-		const result = await gql(
-			url,
-			list,
-			{ date: DATE, label: "back" },
-			bearer(owner),
-		);
-		expect(result.errors).toBeUndefined();
-		expect(result.data).toEqual({ progressPhotos: expected });
-	}
-	await deleteFixture(older, bearer(owner));
-	const retired = await adminGql<{ filesToDelete: { id: string }[] }>(
-		`query Retired($id: uuid!) { filesToDelete(where: {id: {_eq: $id}}) { id } }`,
-		{ id: older },
-	);
-	expect(retired.filesToDelete).toEqual([]); // Ordinary REST deletion has acknowledged its queue entry.
-	expect((await upload(BUCKET, JPEG, bearer(owner), older)).response.ok).toBe(
+	await initializeFixture(id);
+	expect((await photo(id)).data?.progressPhoto?.file).toMatchObject({
+		id,
+		isUploaded: false,
+	});
+	expect((await upload(BUCKET, JPEG, bearer(owner), id)).response.ok).toBe(
 		false,
 	);
-	expect((await link(older)).errors).toBeDefined();
-	expect(objectExists(older)).toBe(false);
-	await deleteFixture(newer, bearer(owner));
+	await deleteFixture(id, bearer(owner));
+	expect((await photo(id)).data?.progressPhoto).toBeNull();
+	expect((await upload(BUCKET, JPEG, bearer(owner), id)).response.ok).toBe(
+		false,
+	);
 });
 
-test("custom REST metadata cannot be linked and the public exercise bucket is not writable", async () => {
-	const { id, response } = await upload(
-		BUCKET,
-		JPEG,
-		bearer(owner),
-		undefined,
-		FILENAME,
-		undefined,
-		{ note: true },
+test("a completed upload appears through the relationship, with private bytes and no share or replace", async () => {
+	const id = await reserve();
+	await uploadedFixture(id);
+	expect((await upload(BUCKET, JPEG, bearer(owner), id)).response.ok).toBe(
+		false,
 	);
-	expect(response.status).toBe(201);
-	expect((await link(id)).errors).toBeDefined();
-	await deleteFixture(id, bearer(owner));
-
-	const exercise = await uploadedFixture("exercise_images", admin);
-	await setFile(exercise, { uploadedByUserId: owner.id });
+	for (const set of [
+		{ metadata: { custom: "not allowed" } },
+		{ uploadedByUserId: other.id },
+		{ bucketId: "exercise_images" },
+	]) {
+		const result = await gql(
+			HASURA,
+			`mutation Set($id: uuid!, $set: files_set_input!) {
+				updateFile(pk_columns: { id: $id }, _set: $set) { id }
+			}`,
+			{ id, set },
+			admin,
+		);
+		expect(result.errors?.[0]?.extensions?.code).toBe("permission-error");
+	}
+	for (const url of [HASURA, CONSTELLATION]) {
+		expect(
+			(await photo(id, bearer(owner), url)).data?.progressPhoto,
+		).toMatchObject({
+			id,
+			...photoInput(),
+			file: { id, isUploaded: true, progressPhoto: { id } },
+		});
+		expect(
+			(await photo(id, bearer(other), url)).data?.progressPhoto,
+		).toBeNull();
+		expect(
+			(await gql<{ file: unknown }>(url, FILE, { id }, bearer(other))).data
+				?.file,
+		).toBeNull();
+		expect((await photo(id, {}, url)).errors).toBeDefined();
+	}
+	for (const suffix of ["", "?w=4&f=webp"]) {
+		const path = `${STORAGE}/${id}${suffix}`;
+		for (const method of ["GET", "HEAD"]) {
+			const response = await fetchLocal(path, {
+				method,
+				headers: bearer(owner),
+			});
+			expect(response.status).toBe(200);
+			expect(response.headers.get("cache-control")).toBe("private, no-store");
+			expect(
+				(await fetchLocal(path, { method, headers: bearer(other) })).status,
+			).toBe(404);
+			expect((await fetchLocal(path, { method })).status).toBe(404);
+		}
+	}
 	expect(
 		(
-			await fetchLocal(`${STORAGE}/${exercise}`, {
-				method: "DELETE",
+			await fetchLocal(`${STORAGE}/${id}/presignedurl`, {
+				headers: bearer(owner),
+			})
+		).status,
+	).toBe(403);
+	expect(
+		(
+			await fetchLocal(`${STORAGE}/${id}`, {
+				method: "PUT",
 				headers: bearer(owner),
 			})
 		).ok,
 	).toBe(false);
 	expect(
-		(await gql(HASURA, DELETE_FILE, { id: exercise }, bearer(owner))).data,
-	).toEqual({ deleteFile: null });
-	expect(objectExists(exercise)).toBe(true);
-	await deleteFixture(exercise);
+		(
+			await fetchLocal(`${STORAGE}/${id}`, {
+				method: "DELETE",
+				headers: bearer(other),
+			})
+		).ok,
+	).toBe(false);
+	for (const url of [HASURA, CONSTELLATION]) {
+		expect(
+			(
+				await gql<{ deleteFile: unknown }>(
+					url,
+					DELETE_FILE,
+					{ id },
+					bearer(other),
+				)
+			).data?.deleteFile,
+		).toBeNull();
+	}
+	await deleteFixture(id, bearer(owner));
+	expect((await photo(id)).data?.progressPhoto).toBeNull();
 });
 
-async function metadata<T>(
-	type: string,
-	args: Record<string, unknown>,
-): Promise<T> {
-	const response = await post(METADATA, { type, args }, admin);
-	assert(response.ok, `${type} fixture operation failed: ${response.status}`);
-	return response.json() as Promise<T>;
-}
-
-async function scheduleSweep(payload: Record<string, unknown>) {
-	type Trigger = {
-		name: string;
-		webhook: string;
-		headers: { name: string; value_from_env: string }[];
-		retry_conf: { timeout_seconds: number };
-	};
-	const { cron_triggers: triggers } = await metadata<{
-		cron_triggers: Trigger[];
-	}>("get_cron_triggers", {});
-	const trigger = triggers.find(({ name }) => name === "progress_photo_sweep");
-	assert(trigger, "progress-photo sweep cron must be installed");
-	expect(trigger.webhook).toBe("{{NHOST_FUNCTIONS_URL}}/progress-photos/sweep");
-	expect(trigger.headers).toEqual([
-		{ name: "nhost-webhook-secret", value_from_env: "NHOST_WEBHOOK_SECRET" },
-	]);
-	const { event_id: eventId } = await metadata<{ event_id: string }>(
-		"create_scheduled_event",
-		{
-			webhook: trigger.webhook,
-			headers: trigger.headers,
-			retry_conf: trigger.retry_conf,
-			schedule_at: new Date(Date.now() + 1000).toISOString(),
-			payload,
-		},
-	);
-	assert(/^[a-f0-9-]{36}$/.test(eventId), "expected a local schedule ID");
-	return eventId;
-}
-
-async function scheduledStatus(eventId: string) {
-	const postgres = localContainer("postgres");
-	// Select only HTTP status: Hasura's full invocation log can contain the webhook header.
-	for (let attempt = 0; attempt < 25; attempt++) {
-		const query = `SELECT status FROM hdb_catalog.hdb_scheduled_event_invocation_logs WHERE event_id = '${eventId}'`;
-		const result = Bun.spawnSync([
-			"docker",
-			"exec",
-			"-e",
-			"PGOPTIONS=-c default_transaction_read_only=on",
-			postgres,
-			"psql",
-			"-X",
-			"-U",
-			"postgres",
-			"-d",
-			"local",
-			"-v",
-			"ON_ERROR_STOP=1",
-			"-Atc",
-			query,
-		]);
-		assert(result.exitCode === 0, "local scheduled invocation read failed");
-		const status = result.stdout.toString().trim();
-		if (status) return Number(status);
-		await Bun.sleep(500);
-	}
-	throw new Error(
-		"scheduler did not record a local delivery within its test budget",
-	);
-}
-
-async function checkDeletedOwner(
-	account: Account,
-	id: string,
-	unlinked: string,
-) {
-	const headers = bearer(account);
-	await deleteAccount(account.id);
+test("same-day reservations remain distinct and only date and angle can be corrected", async () => {
+	const first = await reserve();
+	const second = await reserve(owner, CONSTELLATION);
+	const pending = await reserve();
+	await initializeFixture(pending);
+	expect(first).not.toBe(second);
+	await uploadedFixture(first);
+	await uploadedFixture(second);
 	for (const url of [HASURA, CONSTELLATION]) {
-		const denied = await gql<{ file: null }>(url, FILE, { id }, headers);
-		expect(denied.errors).toBeUndefined();
-		expect(denied.data?.file).toBeNull();
-		expect((await link(unlinked, headers, url)).errors).toBeDefined();
-	}
-	expect(
-		(await adminGql<{ progressPhoto: null }>(PHOTO, { id })).progressPhoto,
-	).toBeNull();
-	for (const method of ["GET", "DELETE"]) {
-		expect(
-			(await fetchLocal(`${STORAGE}/${id}`, { method, headers })).status,
-		).toBe(404);
-	}
-	const denied = await upload(BUCKET, JPEG, headers);
-	expect(denied.response.ok).toBe(false);
-	expect(objectExists(denied.id)).toBe(false);
-	expect(objectExists(id)).toBe(true);
-}
-
-async function holdAttachment(id: string) {
-	assert(files.has(id), "attachment transaction must target a suite fixture");
-	const config = Bun.spawnSync([
-		"docker",
-		"exec",
-		localContainer("graphql"),
-		"printenv",
-		"HASURA_GRAPHQL_DATABASE_URL",
-	]);
-	const mapped = Bun.spawnSync([
-		"docker",
-		"port",
-		localContainer("postgres"),
-		"5432/tcp",
-	]);
-	const port = /^0\.0\.0\.0:(\d+)$/m.exec(mapped.stdout.toString())?.[1];
-	assert(
-		config.exitCode === 0 && mapped.exitCode === 0 && port,
-		"local fixture database is unavailable",
-	);
-	const url = new URL(config.stdout.toString().trim());
-	url.hostname = "127.0.0.1";
-	url.port = port;
-	const sql = new Bun.SQL({ url: url.href, max: 1, connectionTimeout: 5 });
-	const ready = Promise.withResolvers<void>();
-	const release = Promise.withResolvers<boolean>();
-	const rollback = new Error("fixture rollback requested");
-	const result = sql
-		.begin(async (tx) => {
-			await tx`SET LOCAL idle_in_transaction_session_timeout = '25s'`;
-			// Other transactions still see a stale unlinked file until this commits.
-			// Make it recent just for the real link trigger, then age it again.
-			await tx`UPDATE storage.files SET created_at = now() WHERE id = ${id}`;
-			await tx`INSERT INTO public.progress_photos (id, user_id, label, taken_on)
-			VALUES (${id}, ${owner.id}, 'back', ${DATE})`;
-			await tx`UPDATE storage.files SET created_at = now() - interval '61 minutes' WHERE id = ${id}`;
-			ready.resolve();
-			if (!(await release.promise)) throw rollback;
-		})
-		.then(
-			() => true,
-			(error: unknown) => {
-				ready.reject(
-					new Error("fixture attachment transaction could not open"),
-				);
-				return error === rollback;
-			},
+		const list = await gql<{ progressPhotos: Array<{ id: string }> }>(
+			url,
+			`query Ready($ids: [uuid!]!) {
+			progressPhotos(where: { id: { _in: $ids }, file: { isUploaded: { _eq: true } } },
+				order_by: [{ takenOn: desc }, { createdAt: desc }, { id: desc }]) { id }
+		}`,
+			{ ids: [first, second, pending] },
+			bearer(owner),
 		);
-	try {
-		await ready.promise;
-	} catch (error) {
-		await sql.close({ timeout: 2 });
-		throw error;
-	}
-	return async (commit: boolean) => {
-		release.resolve(commit);
-		try {
-			assert(
-				await result,
-				"fixture attachment transaction did not close cleanly",
-			);
-		} finally {
-			await sql.close({ timeout: 2 });
-		}
-	};
-}
-
-test("authenticated Node sweep deletes only stale unlinked fixtures and ignores the scheduler payload", async () => {
-	const unauthorized: Record<string, string>[] = [
-		{},
-		bearer(owner),
-		{ "nhost-webhook-secret": "not-the-scheduler" },
-	];
-	for (const headers of unauthorized) {
-		expect((await post(SWEEP, {}, headers)).status).toBe(401);
-	}
-	const account = await fixtureAccount();
-	const linked = await uploadedFixture();
-	const recent = await uploadedFixture();
-	const contended = await uploadedFixture();
-	const gap = await uploadedFixture();
-	const deletedOwner = await uploadedFixture(BUCKET, bearer(account));
-	const deletedOwnerUnlinked = await uploadedFixture(BUCKET, bearer(account));
-	const expired = await uploadedFixture();
-	const incomplete = crypto.randomUUID();
-	files.add(incomplete);
-	expect(
-		(
-			await gql(
-				HASURA,
-				INSERT_FILE,
-				{ object: fileInput(incomplete) },
-				bearer(owner),
-			)
-		).errors,
-	).toBeUndefined();
-	const exercise = await uploadedFixture("exercise_images", admin);
-	expect((await link(linked)).errors).toBeUndefined();
-	expect((await link(deletedOwner, bearer(account))).errors).toBeUndefined();
-	await checkDeletedOwner(account, deletedOwner, deletedOwnerUnlinked);
-	// Never ask the test scheduler to sweep unrelated development records.
-	const scope = await adminGql<{ files: { id: string }[] }>(
-		`{ files(where: {bucketId: {_eq: "progress_photos"}}) { id } }`,
-	);
-	assert(
-		scope.files.every(({ id }) => files.has(id)),
-		"sweep test requires a fixture-only progress bucket",
-	);
-	const stale = new Date(Date.now() - 61 * 60 * 1000).toISOString();
-	for (const id of [
-		linked,
-		contended,
-		deletedOwner,
-		deletedOwnerUnlinked,
-		expired,
-		incomplete,
-		exercise,
-	])
-		await setFile(id, { createdAt: stale });
-	await setFile(gap, {
-		createdAt: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
-	});
-	expect((await link(gap)).errors).toBeDefined();
-	const expiredLink = link(expired);
-	const closeAttachment = await holdAttachment(contended);
-	let eventId: string | undefined;
-	let commit = false;
-	try {
-		eventId = await scheduleSweep({
-			id: exercise,
-			bucket: "exercise_images",
-			cutoff: "9999-01-01",
-		});
-		const [status, rejected] = await Promise.all([
-			scheduledStatus(eventId),
-			expiredLink,
-		]);
-		expect(status).toBe(200);
-		expect(rejected.errors).toBeDefined();
-		for (const id of [
-			deletedOwner,
-			deletedOwnerUnlinked,
-			expired,
-			incomplete,
+		expect(list.data?.progressPhotos).toEqual([{ id: second }, { id: first }]);
+		for (const set of [
+			{ userId: other.id },
+			{ fileId: second },
+			{ id: second },
 		]) {
-			expect((await adminGql<{ file: null }>(FILE, { id })).file).toBeNull();
-			expect(objectExists(id)).toBe(false);
-			files.delete(id);
+			expect(
+				(await gql(url, EDIT, { id: first, set }, bearer(owner))).errors,
+			).toBeDefined();
 		}
-		commit = true;
-	} finally {
-		try {
-			await closeAttachment(commit);
-		} finally {
-			if (eventId)
-				await metadata("delete_scheduled_event", {
-					type: "one_off",
-					event_id: eventId,
-				});
-		}
+		const set = { label: "back", takenOn: "2024-01-01" };
+		expect(
+			(
+				await gql<{ updateProgressPhoto: unknown }>(
+					url,
+					EDIT,
+					{ id: first, set },
+					bearer(other),
+				)
+			).data?.updateProgressPhoto,
+		).toBeNull();
+		expect(
+			(
+				await gql<{ updateProgressPhoto: Photo }>(
+					url,
+					EDIT,
+					{ id: first, set },
+					bearer(owner),
+				)
+			).data?.updateProgressPhoto,
+		).toMatchObject({ id: first, userId: owner.id, ...set });
+		// Restore for the next endpoint's ordering assertion.
+		await gql(url, EDIT, { id: first, set: photoInput() }, bearer(owner));
 	}
-	expect(
-		(
-			await gql<{ progressPhoto: Photo }>(
-				HASURA,
-				PHOTO,
-				{ id: contended },
-				bearer(owner),
-			)
-		).data?.progressPhoto?.id,
-	).toBe(contended);
-	for (const id of [linked, recent, gap, contended, exercise]) {
-		expect(objectExists(id)).toBe(true);
-		await deleteFixture(id);
+});
+
+test("upload format and bucket permissions are unchanged for progress and exercise images", async () => {
+	const id = await reserve();
+	const oversized = new Uint8Array(MAX_BYTES + 1);
+	oversized.set(JPEG);
+	for (const attempt of [
+		await upload(BUCKET, oversized, bearer(owner), id),
+		await upload(
+			BUCKET,
+			new TextEncoder().encode("not JPEG"),
+			bearer(owner),
+			id,
+			FILENAME,
+			"image/jpeg",
+		),
+		await upload(BUCKET, JPEG, bearer(owner), id, "invalid.jpg"),
+		await upload("exercise_images", JPEG, bearer(owner), id),
+	])
+		expect(attempt.response.ok).toBe(false);
+	expect(objectExists(id)).toBe(false);
+	await uploadedFixture(id);
+	const publicFixture = await upload("exercise_images");
+	expect(publicFixture.response.status).toBe(201);
+	const response = await fetchLocal(`${STORAGE}/${publicFixture.id}`);
+	expect(response.status).toBe(200);
+	expect(new Uint8Array(await response.arrayBuffer())).toEqual(JPEG);
+});
+
+test("pg_cron expiry removes stale reservations and queues incomplete files, not ready or recent ones", async () => {
+	const stale = await reserve();
+	const incomplete = await reserve();
+	const ready = await reserve();
+	const fresh = await reserve();
+	await initializeFixture(incomplete);
+	await uploadedFixture(ready);
+	backdate("public.progress_photos", stale);
+	backdate("public.progress_photos", incomplete);
+	backdate("storage.files", incomplete);
+	backdate("public.progress_photos", ready);
+	backdate("storage.files", ready);
+	const jobs = sql(
+		`SELECT jobname FROM cron.job WHERE active AND jobname IN ('neogym-progress-photo-deleted-owners','neogym-progress-photo-expiry') ORDER BY jobname`,
+	);
+	expect(jobs.split("\n")).toEqual([
+		"neogym-progress-photo-deleted-owners",
+		"neogym-progress-photo-expiry",
+	]);
+	// Exercise the cron command with rollback so the test only persists changes to its own fixtures.
+	const state = sql(`BEGIN;
+		SELECT public.delete_expired_progress_photo_reservations();
+		SELECT json_build_array(
+			(SELECT count(*) FROM public.progress_photos WHERE id IN (${uuid(stale)}, ${uuid(incomplete)})),
+			(SELECT count(*) FROM storage.files WHERE id = ${uuid(incomplete)}),
+			(SELECT count(*) FROM storage.files_to_delete WHERE id = ${uuid(incomplete)}),
+			(SELECT count(*) FROM public.progress_photos WHERE id IN (${uuid(ready)}, ${uuid(fresh)}))
+		);
+		ROLLBACK;`);
+	expect(JSON.parse(state)).toEqual([0, 0, 1, 2]);
+});
+
+test("account deletion revokes bearer access and the second pg_cron job removes its reservations and queues files", async () => {
+	const departed = await fixtureAccount();
+	const bare = await reserve(departed);
+	const attached = await reserve(departed);
+	await initializeFixture(attached, departed);
+	const retained = await reserve();
+	await adminGql(`mutation Remove($id: uuid!) { deleteUser(id: $id) { id } }`, {
+		id: departed.id,
+	});
+	for (const url of [HASURA, CONSTELLATION]) {
+		expect(
+			(await photo(attached, bearer(departed), url)).data?.progressPhoto,
+		).toBeNull();
+		expect(
+			(
+				await gql<{ file: unknown }>(
+					url,
+					FILE,
+					{ id: attached },
+					bearer(departed),
+				)
+			).data?.file,
+		).toBeNull();
 	}
-}, 30000);
+	expect((await upload(BUCKET, JPEG, bearer(departed), bare)).response.ok).toBe(
+		false,
+	);
+	const state = sql(`BEGIN;
+		SELECT public.delete_progress_photos_without_uploader();
+		SELECT json_build_array(
+			(SELECT count(*) FROM public.progress_photos WHERE id IN (${uuid(bare)}, ${uuid(attached)})),
+			(SELECT count(*) FROM storage.files WHERE id = ${uuid(attached)}),
+			(SELECT count(*) FROM storage.files_to_delete WHERE id = ${uuid(attached)}),
+			(SELECT count(*) FROM public.progress_photos WHERE id = ${uuid(retained)})
+		);
+		ROLLBACK;`);
+	expect(JSON.parse(state)).toEqual([0, 0, 1, 1]);
+});

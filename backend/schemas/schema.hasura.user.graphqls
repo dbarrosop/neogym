@@ -1687,6 +1687,10 @@ unique or primary key constraints on table "progress_photos"
 """
 enum progressPhoto_constraint {
   """
+  unique or primary key constraint on columns "file_id"
+  """
+  progress_photos_file_id_key
+  """
   unique or primary key constraint on columns "id"
   """
   progress_photos_pkey
@@ -3549,6 +3553,10 @@ type files {
   ): jsonb
   mimeType: String
   name: String
+  """
+  An object relationship
+  """
+  progressPhoto: progressPhoto
   size: Int
   updatedAt: timestamptz!
   uploadedByUserId: uuid
@@ -8317,12 +8325,12 @@ type progressPhoto {
   """
   An object relationship
   """
-  file: files!
+  file: files
   id: uuid!
   label: String!
   takenOn: date!
   updatedAt: timestamptz!
-  userId: uuid!
+  userId: uuid
 }
 """
 columns and relationships of "progress_photo_labels"
@@ -16272,6 +16280,7 @@ input files_bool_exp {
   metadata: jsonb_comparison_exp
   mimeType: String_comparison_exp
   name: String_comparison_exp
+  progressPhoto: progressPhoto_bool_exp
   size: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   uploadedByUserId: uuid_comparison_exp
@@ -16286,6 +16295,7 @@ input files_insert_input {
   id: uuid
   mimeType: String
   name: String
+  progressPhoto: progressPhoto_obj_rel_insert_input
   size: Int
 }
 """
@@ -16320,6 +16330,7 @@ input files_order_by {
   metadata: order_by
   mimeType: order_by
   name: order_by
+  progressPhoto: progressPhoto_order_by
   size: order_by
   updatedAt: order_by
   uploadedByUserId: order_by
@@ -19001,9 +19012,18 @@ input type for inserting data into table "progress_photos"
 """
 input progressPhoto_insert_input {
   file: files_obj_rel_insert_input
-  id: uuid
   label: String
   takenOn: date
+}
+"""
+input type for inserting object relation for remote table "progress_photos"
+"""
+input progressPhoto_obj_rel_insert_input {
+  data: progressPhoto_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: progressPhoto_on_conflict
 }
 """
 on_conflict condition type for table "progress_photos"

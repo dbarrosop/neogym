@@ -3168,41 +3168,6 @@ enum order_by {
   desc_nulls_last
 }
 """
-unique or primary key constraints on table "progress_photo_file_ids"
-"""
-enum progressPhotoFileId_constraint {
-  """
-  unique or primary key constraint on columns "id"
-  """
-  progress_photo_file_ids_pkey
-}
-"""
-select columns of table "progress_photo_file_ids"
-"""
-enum progressPhotoFileId_select_column {
-  """
-  column name
-  """
-  id
-  """
-  column name
-  """
-  lastSweepAttemptAt
-}
-"""
-update columns of table "progress_photo_file_ids"
-"""
-enum progressPhotoFileId_update_column {
-  """
-  column name
-  """
-  id
-  """
-  column name
-  """
-  lastSweepAttemptAt
-}
-"""
 unique or primary key constraints on table "progress_photo_labels"
 """
 enum progressPhotoLabel_constraint {
@@ -3254,6 +3219,10 @@ unique or primary key constraints on table "progress_photos"
 """
 enum progressPhoto_constraint {
   """
+  unique or primary key constraint on columns "file_id"
+  """
+  progress_photos_file_id_key
+  """
   unique or primary key constraint on columns "id"
   """
   progress_photos_pkey
@@ -3266,6 +3235,10 @@ enum progressPhoto_select_column {
   column name
   """
   createdAt
+  """
+  column name
+  """
+  file_id
   """
   column name
   """
@@ -3295,6 +3268,10 @@ enum progressPhoto_update_column {
   column name
   """
   createdAt
+  """
+  column name
+  """
+  file_id
   """
   column name
   """
@@ -7370,6 +7347,10 @@ type files {
   ): jsonb
   mimeType: String
   name: String
+  """
+  An object relationship
+  """
+  progressPhoto: progressPhoto
   size: Int
   updatedAt: timestamptz!
   uploadedByUserId: uuid
@@ -9038,35 +9019,6 @@ mutation root
 """
 type mutation_root {
   """
-  execute VOLATILE function "claim_progress_photo_sweep" which returns "progress_photo_file_ids"
-  """
-  claimProgressPhotoSweep(
-    """
-    distinct select on columns
-    """
-    distinct_on: [progressPhotoFileId_select_column!]
-
-    """
-    limit the number of rows returned
-    """
-    limit: Int
-
-    """
-    skip the first n rows. Use only with order_by
-    """
-    offset: Int
-
-    """
-    sort the rows by one or more columns
-    """
-    order_by: [progressPhotoFileId_order_by!]
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): [progressPhotoFileId!]!
-  """
   delete single row from the table: "auth.oauth2_auth_requests"
   """
   deleteAuthOauth2AuthRequest(id: uuid!): authOauth2AuthRequests
@@ -9760,19 +9712,6 @@ type mutation_root {
     """
     where: muscleSetProgressRows_bool_exp!
   ): muscleSetProgressRows_mutation_response
-  """
-  delete data from the table: "progress_photo_file_ids"
-  """
-  delete_progressPhotoFileId(
-    """
-    filter the rows which have to be deleted
-    """
-    where: progressPhotoFileId_bool_exp!
-  ): progressPhotoFileId_mutation_response
-  """
-  delete single row from the table: "progress_photo_file_ids"
-  """
-  delete_progressPhotoFileId_by_pk(id: uuid!): progressPhotoFileId
   """
   delete data from the table: "workout_strength_history_rows"
   """
@@ -11274,34 +11213,6 @@ type mutation_root {
     """
     object: muscleSetProgressRows_insert_input!
   ): muscleSetProgressRows
-  """
-  insert data into the table: "progress_photo_file_ids"
-  """
-  insert_progressPhotoFileId(
-    """
-    the rows to be inserted
-    """
-    objects: [progressPhotoFileId_insert_input!]!
-
-    """
-    upsert condition
-    """
-    on_conflict: progressPhotoFileId_on_conflict
-  ): progressPhotoFileId_mutation_response
-  """
-  insert a single row into the table: "progress_photo_file_ids"
-  """
-  insert_progressPhotoFileId_one(
-    """
-    the row to be inserted
-    """
-    object: progressPhotoFileId_insert_input!
-
-    """
-    upsert condition
-    """
-    on_conflict: progressPhotoFileId_on_conflict
-  ): progressPhotoFileId
   """
   insert data into the table: "workout_strength_history_rows"
   """
@@ -13562,38 +13473,6 @@ type mutation_root {
     updates: [nutritionPlans_updates!]!
   ): [nutritionPlans_mutation_response]
   """
-  update data of the table: "progress_photo_file_ids"
-  """
-  update_progressPhotoFileId(
-    """
-    sets the columns of the filtered rows to the given values
-    """
-    _set: progressPhotoFileId_set_input
-
-    """
-    filter the rows which have to be updated
-    """
-    where: progressPhotoFileId_bool_exp!
-  ): progressPhotoFileId_mutation_response
-  """
-  update single row of the table: "progress_photo_file_ids"
-  """
-  update_progressPhotoFileId_by_pk(
-    """
-    sets the columns of the filtered rows to the given values
-    """
-    _set: progressPhotoFileId_set_input
-  pk_columns: progressPhotoFileId_pk_columns_input!): progressPhotoFileId
-  """
-  update multiples rows of table: "progress_photo_file_ids"
-  """
-  update_progressPhotoFileId_many(
-    """
-    updates to execute, in order
-    """
-    updates: [progressPhotoFileId_updates!]!
-  ): [progressPhotoFileId_mutation_response]
-  """
   update multiples rows of table: "progress_photo_labels"
   """
   update_progressPhotoLabel_many(
@@ -14986,7 +14865,8 @@ type progressPhoto {
   """
   An object relationship
   """
-  file: files!
+  file: files
+  file_id: uuid
   id: uuid!
   label: String!
   takenOn: date!
@@ -14994,57 +14874,8 @@ type progressPhoto {
   """
   An object relationship
   """
-  user: users!
-  userId: uuid!
-}
-"""
-columns and relationships of "progress_photo_file_ids"
-"""
-type progressPhotoFileId {
-  id: uuid!
-  lastSweepAttemptAt: timestamptz
-}
-"""
-aggregated selection of "progress_photo_file_ids"
-"""
-type progressPhotoFileId_aggregate {
-  aggregate: progressPhotoFileId_aggregate_fields
-  nodes: [progressPhotoFileId!]!
-}
-"""
-aggregate fields of "progress_photo_file_ids"
-"""
-type progressPhotoFileId_aggregate_fields {
-  count(columns: [progressPhotoFileId_select_column!], distinct: Boolean): Int!
-  max: progressPhotoFileId_max_fields
-  min: progressPhotoFileId_min_fields
-}
-"""
-aggregate max on columns
-"""
-type progressPhotoFileId_max_fields {
-  id: uuid
-  lastSweepAttemptAt: timestamptz
-}
-"""
-aggregate min on columns
-"""
-type progressPhotoFileId_min_fields {
-  id: uuid
-  lastSweepAttemptAt: timestamptz
-}
-"""
-response of any mutation on the table "progress_photo_file_ids"
-"""
-type progressPhotoFileId_mutation_response {
-  """
-  number of rows affected by the mutation
-  """
-  affected_rows: Int!
-  """
-  data from the rows affected by the mutation
-  """
-  returning: [progressPhotoFileId!]!
+  user: users
+  userId: uuid
 }
 """
 columns and relationships of "progress_photo_labels"
@@ -15174,6 +15005,7 @@ aggregate max on columns
 """
 type progressPhoto_max_fields {
   createdAt: timestamptz
+  file_id: uuid
   id: uuid
   label: String
   takenOn: date
@@ -15185,6 +15017,7 @@ aggregate min on columns
 """
 type progressPhoto_min_fields {
   createdAt: timestamptz
+  file_id: uuid
   id: uuid
   label: String
   takenOn: date
@@ -18003,68 +17836,6 @@ type query_root {
   fetch data from the table: "progress_photos" using primary key columns
   """
   progressPhoto(id: uuid!): progressPhoto
-  """
-  fetch data from the table: "progress_photo_file_ids"
-  """
-  progressPhotoFileId(
-    """
-    distinct select on columns
-    """
-    distinct_on: [progressPhotoFileId_select_column!]
-
-    """
-    limit the number of rows returned
-    """
-    limit: Int
-
-    """
-    skip the first n rows. Use only with order_by
-    """
-    offset: Int
-
-    """
-    sort the rows by one or more columns
-    """
-    order_by: [progressPhotoFileId_order_by!]
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): [progressPhotoFileId!]!
-  """
-  fetch aggregated fields from the table: "progress_photo_file_ids"
-  """
-  progressPhotoFileId_aggregate(
-    """
-    distinct select on columns
-    """
-    distinct_on: [progressPhotoFileId_select_column!]
-
-    """
-    limit the number of rows returned
-    """
-    limit: Int
-
-    """
-    skip the first n rows. Use only with order_by
-    """
-    offset: Int
-
-    """
-    sort the rows by one or more columns
-    """
-    order_by: [progressPhotoFileId_order_by!]
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): progressPhotoFileId_aggregate!
-  """
-  fetch data from the table: "progress_photo_file_ids" using primary key columns
-  """
-  progressPhotoFileId_by_pk(id: uuid!): progressPhotoFileId
   """
   fetch data from the table: "progress_photo_labels" using primary key columns
   """
@@ -22554,87 +22325,6 @@ type subscription_root {
   fetch data from the table: "progress_photos" using primary key columns
   """
   progressPhoto(id: uuid!): progressPhoto
-  """
-  fetch data from the table: "progress_photo_file_ids"
-  """
-  progressPhotoFileId(
-    """
-    distinct select on columns
-    """
-    distinct_on: [progressPhotoFileId_select_column!]
-
-    """
-    limit the number of rows returned
-    """
-    limit: Int
-
-    """
-    skip the first n rows. Use only with order_by
-    """
-    offset: Int
-
-    """
-    sort the rows by one or more columns
-    """
-    order_by: [progressPhotoFileId_order_by!]
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): [progressPhotoFileId!]!
-  """
-  fetch aggregated fields from the table: "progress_photo_file_ids"
-  """
-  progressPhotoFileId_aggregate(
-    """
-    distinct select on columns
-    """
-    distinct_on: [progressPhotoFileId_select_column!]
-
-    """
-    limit the number of rows returned
-    """
-    limit: Int
-
-    """
-    skip the first n rows. Use only with order_by
-    """
-    offset: Int
-
-    """
-    sort the rows by one or more columns
-    """
-    order_by: [progressPhotoFileId_order_by!]
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): progressPhotoFileId_aggregate!
-  """
-  fetch data from the table: "progress_photo_file_ids" using primary key columns
-  """
-  progressPhotoFileId_by_pk(id: uuid!): progressPhotoFileId
-  """
-  fetch data from the table in a streaming manner: "progress_photo_file_ids"
-  """
-  progressPhotoFileId_stream(
-    """
-    maximum number of rows returned in a single batch
-    """
-    batch_size: Int!
-
-    """
-    cursor to stream the results returned by the query
-    """
-    cursor: [progressPhotoFileId_stream_cursor_input]!
-
-    """
-    filter the rows returned
-    """
-    where: progressPhotoFileId_bool_exp
-  ): [progressPhotoFileId!]!
   """
   fetch data from the table: "progress_photo_labels" using primary key columns
   """
@@ -29544,6 +29234,7 @@ input files_bool_exp {
   metadata: jsonb_comparison_exp
   mimeType: String_comparison_exp
   name: String_comparison_exp
+  progressPhoto: progressPhoto_bool_exp
   size: Int_comparison_exp
   updatedAt: timestamptz_comparison_exp
   uploadedByUserId: uuid_comparison_exp
@@ -29588,6 +29279,7 @@ input files_insert_input {
   metadata: jsonb
   mimeType: String
   name: String
+  progressPhoto: progressPhoto_obj_rel_insert_input
   size: Int
   updatedAt: timestamptz
   uploadedByUserId: uuid
@@ -29654,6 +29346,7 @@ input files_order_by {
   metadata: order_by
   mimeType: order_by
   name: order_by
+  progressPhoto: progressPhoto_order_by
   size: order_by
   updatedAt: order_by
   uploadedByUserId: order_by
@@ -32645,81 +32338,6 @@ input nutritionPlans_updates {
   where: nutritionPlans_bool_exp!
 }
 """
-Boolean expression to filter rows from the table "progress_photo_file_ids". All fields are combined with a logical 'AND'.
-"""
-input progressPhotoFileId_bool_exp {
-  _and: [progressPhotoFileId_bool_exp!]
-  _not: progressPhotoFileId_bool_exp
-  _or: [progressPhotoFileId_bool_exp!]
-  id: uuid_comparison_exp
-  lastSweepAttemptAt: timestamptz_comparison_exp
-}
-"""
-input type for inserting data into table "progress_photo_file_ids"
-"""
-input progressPhotoFileId_insert_input {
-  id: uuid
-  lastSweepAttemptAt: timestamptz
-}
-"""
-on_conflict condition type for table "progress_photo_file_ids"
-"""
-input progressPhotoFileId_on_conflict {
-  constraint: progressPhotoFileId_constraint!
-  update_columns: [progressPhotoFileId_update_column!]! = []
-  where: progressPhotoFileId_bool_exp
-}
-"""
-Ordering options when selecting data from "progress_photo_file_ids".
-"""
-input progressPhotoFileId_order_by {
-  id: order_by
-  lastSweepAttemptAt: order_by
-}
-"""
-primary key columns input for table: progress_photo_file_ids
-"""
-input progressPhotoFileId_pk_columns_input {
-  id: uuid!
-}
-"""
-input type for updating data in table "progress_photo_file_ids"
-"""
-input progressPhotoFileId_set_input {
-  id: uuid
-  lastSweepAttemptAt: timestamptz
-}
-"""
-Streaming cursor of the table "progressPhotoFileId"
-"""
-input progressPhotoFileId_stream_cursor_input {
-  """
-  Stream column input with initial value
-  """
-  initial_value: progressPhotoFileId_stream_cursor_value_input!
-  """
-  cursor ordering
-  """
-  ordering: cursor_ordering
-}
-"""
-Initial value of the column from where the streaming should start
-"""
-input progressPhotoFileId_stream_cursor_value_input {
-  id: uuid
-  lastSweepAttemptAt: timestamptz
-}
-input progressPhotoFileId_updates {
-  """
-  sets the columns of the filtered rows to the given values
-  """
-  _set: progressPhotoFileId_set_input
-  """
-  filter the rows which have to be updated
-  """
-  where: progressPhotoFileId_bool_exp!
-}
-"""
 Boolean expression to filter rows from the table "progress_photo_labels". All fields are combined with a logical 'AND'.
 """
 input progressPhotoLabel_bool_exp {
@@ -32829,6 +32447,7 @@ input progressPhoto_bool_exp {
   angle: progressPhotoLabel_bool_exp
   createdAt: timestamptz_comparison_exp
   file: files_bool_exp
+  file_id: uuid_comparison_exp
   id: uuid_comparison_exp
   label: String_comparison_exp
   takenOn: date_comparison_exp
@@ -32843,12 +32462,23 @@ input progressPhoto_insert_input {
   angle: progressPhotoLabel_obj_rel_insert_input
   createdAt: timestamptz
   file: files_obj_rel_insert_input
+  file_id: uuid
   id: uuid
   label: String
   takenOn: date
   updatedAt: timestamptz
   user: users_obj_rel_insert_input
   userId: uuid
+}
+"""
+input type for inserting object relation for remote table "progress_photos"
+"""
+input progressPhoto_obj_rel_insert_input {
+  data: progressPhoto_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: progressPhoto_on_conflict
 }
 """
 on_conflict condition type for table "progress_photos"
@@ -32865,6 +32495,7 @@ input progressPhoto_order_by {
   angle: progressPhotoLabel_order_by
   createdAt: order_by
   file: files_order_by
+  file_id: order_by
   id: order_by
   label: order_by
   takenOn: order_by
@@ -32883,6 +32514,7 @@ input type for updating data in table "progress_photos"
 """
 input progressPhoto_set_input {
   createdAt: timestamptz
+  file_id: uuid
   id: uuid
   label: String
   takenOn: date
@@ -32907,6 +32539,7 @@ Initial value of the column from where the streaming should start
 """
 input progressPhoto_stream_cursor_value_input {
   createdAt: timestamptz
+  file_id: uuid
   id: uuid
   label: String
   takenOn: date

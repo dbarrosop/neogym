@@ -2520,6 +2520,8 @@ export type Files = {
   metadata?: Maybe<Scalars['jsonb']['output']>;
   mimeType?: Maybe<Scalars['String']['output']>;
   name?: Maybe<Scalars['String']['output']>;
+  /** An object relationship */
+  progressPhoto?: Maybe<ProgressPhoto>;
   size?: Maybe<Scalars['Int']['output']>;
   updatedAt: Scalars['timestamptz']['output'];
   uploadedByUserId?: Maybe<Scalars['uuid']['output']>;
@@ -2588,6 +2590,7 @@ export type Files_Bool_Exp = {
   metadata?: InputMaybe<Jsonb_Comparison_Exp>;
   mimeType?: InputMaybe<String_Comparison_Exp>;
   name?: InputMaybe<String_Comparison_Exp>;
+  progressPhoto?: InputMaybe<ProgressPhoto_Bool_Exp>;
   size?: InputMaybe<Int_Comparison_Exp>;
   updatedAt?: InputMaybe<Timestamptz_Comparison_Exp>;
   uploadedByUserId?: InputMaybe<Uuid_Comparison_Exp>;
@@ -2607,6 +2610,7 @@ export type Files_Insert_Input = {
   id?: InputMaybe<Scalars['uuid']['input']>;
   mimeType?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
+  progressPhoto?: InputMaybe<ProgressPhoto_Obj_Rel_Insert_Input>;
   size?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -2645,6 +2649,7 @@ export type Files_Order_By = {
   metadata?: InputMaybe<Order_By>;
   mimeType?: InputMaybe<Order_By>;
   name?: InputMaybe<Order_By>;
+  progressPhoto?: InputMaybe<ProgressPhoto_Order_By>;
   size?: InputMaybe<Order_By>;
   updatedAt?: InputMaybe<Order_By>;
   uploadedByUserId?: InputMaybe<Order_By>;
@@ -9068,12 +9073,12 @@ export type ProgressPhoto = {
   angle: ProgressPhotoLabel;
   createdAt: Scalars['timestamptz']['output'];
   /** An object relationship */
-  file: Files;
+  file?: Maybe<Files>;
   id: Scalars['uuid']['output'];
   label: Scalars['String']['output'];
   takenOn: Scalars['date']['output'];
   updatedAt: Scalars['timestamptz']['output'];
-  userId: Scalars['uuid']['output'];
+  userId?: Maybe<Scalars['uuid']['output']>;
 };
 
 /** columns and relationships of "progress_photo_labels" */
@@ -9143,6 +9148,8 @@ export type ProgressPhoto_Bool_Exp = {
 
 /** unique or primary key constraints on table "progress_photos" */
 export enum ProgressPhoto_Constraint {
+  /** unique or primary key constraint on columns "file_id" */
+  ProgressPhotosFileIdKey = 'progress_photos_file_id_key',
   /** unique or primary key constraint on columns "id" */
   ProgressPhotosPkey = 'progress_photos_pkey'
 }
@@ -9150,7 +9157,6 @@ export enum ProgressPhoto_Constraint {
 /** input type for inserting data into table "progress_photos" */
 export type ProgressPhoto_Insert_Input = {
   file?: InputMaybe<Files_Obj_Rel_Insert_Input>;
-  id?: InputMaybe<Scalars['uuid']['input']>;
   label?: InputMaybe<Scalars['String']['input']>;
   takenOn?: InputMaybe<Scalars['date']['input']>;
 };
@@ -9162,6 +9168,13 @@ export type ProgressPhoto_Mutation_Response = {
   affected_rows: Scalars['Int']['output'];
   /** data from the rows affected by the mutation */
   returning: Array<ProgressPhoto>;
+};
+
+/** input type for inserting object relation for remote table "progress_photos" */
+export type ProgressPhoto_Obj_Rel_Insert_Input = {
+  data: ProgressPhoto_Insert_Input;
+  /** upsert condition */
+  on_conflict?: InputMaybe<ProgressPhoto_On_Conflict>;
 };
 
 /** on_conflict condition type for table "progress_photos" */

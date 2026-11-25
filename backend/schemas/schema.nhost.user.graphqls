@@ -1690,6 +1690,10 @@ enum progressPhoto_constraint {
   unique or primary key constraint on columns "id"
   """
   progress_photos_pkey
+  """
+  unique or primary key constraint on columns "file_id"
+  """
+  progress_photos_file_id_key
 }
 """
 select columns of table "progress_photos"
@@ -3452,6 +3456,10 @@ type files {
     """
     path: String
   ): jsonb
+  """
+  An object relationship
+  """
+  progressPhoto: progressPhoto
   """
   An array relationship
   """
@@ -8356,7 +8364,7 @@ columns and relationships of "progress_photos"
 """
 type progressPhoto {
   id: uuid!
-  userId: uuid!
+  userId: uuid
   label: String!
   takenOn: date!
   createdAt: timestamptz!
@@ -8368,7 +8376,7 @@ type progressPhoto {
   """
   An object relationship
   """
-  file: files!
+  file: files
 }
 """
 columns and relationships of "progress_photo_labels"
@@ -16377,6 +16385,7 @@ input files_bool_exp {
   isUploaded: Boolean_comparison_exp
   uploadedByUserId: uuid_comparison_exp
   metadata: jsonb_comparison_exp
+  progressPhoto: progressPhoto_bool_exp
   exercisesAsImage1: exercises_bool_exp
   exercisesAsImage1_aggregate: exercises_aggregate_bool_exp
   exercisesAsImage2: exercises_bool_exp
@@ -16391,6 +16400,7 @@ input files_insert_input {
   name: String
   size: Int
   mimeType: String
+  progressPhoto: progressPhoto_obj_rel_insert_input
   exercisesAsImage1: exercises_arr_rel_insert_input
   exercisesAsImage2: exercises_arr_rel_insert_input
 }
@@ -16427,6 +16437,7 @@ input files_order_by {
   isUploaded: order_by
   uploadedByUserId: order_by
   metadata: order_by
+  progressPhoto: progressPhoto_order_by
   exercisesAsImage1_aggregate: exercises_aggregate_order_by
   exercisesAsImage2_aggregate: exercises_aggregate_order_by
 }
@@ -19162,10 +19173,19 @@ input progressPhoto_bool_exp {
 input type for inserting data into table "progress_photos"
 """
 input progressPhoto_insert_input {
-  id: uuid
   label: String
   takenOn: date
   file: files_obj_rel_insert_input
+}
+"""
+input type for inserting object relation for remote table "progress_photos"
+"""
+input progressPhoto_obj_rel_insert_input {
+  data: progressPhoto_insert_input!
+  """
+  upsert condition
+  """
+  on_conflict: progressPhoto_on_conflict
 }
 """
 on_conflict condition type for table "progress_photos"

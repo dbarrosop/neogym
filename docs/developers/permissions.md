@@ -347,14 +347,14 @@ Nhost stores uploaded files in S3-compatible storage. This is the only table whe
 |---|---|---|---|---|
 | `public` | `select` | `id`, `name`, `size`, `bucket_id`, `etag`, `created_at`, `updated_at`, `is_uploaded`, `mime_type`, `uploaded_by_user_id`, `metadata` | filter: `bucket_id eq exercise_images` | Public catalog images are visible to unauthenticated visitors (so the marketing/landing flow works, and the app doesn't have to forge auth headers for image `<img src>`). Files in any other bucket are hidden from public. |
 | `user` | `select` | Same as public | `exercise_images`, or `progress_photos` with `uploaded_by_user_id eq self` and a matching `uploader` Auth row | The same Hasura file rule protects GraphQL rows and Storage REST reads; a deleted account's unexpired JWT does not confer access. |
-| `user` | `insert` | `id`, `bucket_id`, `name`, `size`, `mime_type`; preset `uploaded_by_user_id` | Progress bucket only; existing uploader; canonical JPEG filename, MIME and size | Initializes metadata only. `is_uploaded`, `etag` and `metadata` cannot be set by a generic file mutation. |
+| `user` | `insert` | `id`, `bucket_id`, `name`, `size`, `mime_type`; preset `uploaded_by_user_id` | Progress bucket only; matching reservation and existing uploader; canonical JPEG filename, MIME and size | Initializes metadata only. `is_uploaded`, `etag` and `metadata` cannot be set by a generic file mutation. |
 | `user` | `delete` | — | Progress bucket only; uploader is caller with a matching Auth row | REST removes the object; a GraphQL metadata delete relies on Storage's cleanup queue. Both cascade the photo row. |
 
-No user update or replacement. The file grants apply to GraphQL and Storage REST; they confer no access to other buckets. The `auth.*`, `storage.buckets`, `storage.virus`, `storage.files_to_delete` and progress UUID registry remain admin-only.
+No user update or replacement. The file grants apply to GraphQL and Storage REST; they confer no access to other buckets. The `auth.*`, `storage.buckets`, `storage.virus`, `storage.files_to_delete` remain admin-only.
 
 ### Progress photos
 
-`progress_photo_labels` is an admin-managed catalog with user select only. `progress_photos` has owner-only select, owner-preset insert of `id`, `label`, `taken_on`, and owner-only updates of `label` and `taken_on`. An insert requires a recent completed file belonging to the caller in the dedicated bucket and the database verifies its canonical metadata and cleanup state. There is no direct user photo-row delete, no app-role sweep, and no public access to either table.
+`progress_photo_labels` is an admin-managed catalog with user select only. `progress_photos` has owner-only select, owner-preset insert of `label` and `taken_on`, a server-assigned UUID, and owner-only updates of `label` and `taken_on`. The file insert rule follows the reservation by UUID; the database requires the reservation to be unexpired and unused and attaches the file atomically. The `file` relationship is null until Storage initializes the upload; galleries filter on `file.isUploaded`. There is no direct user photo-row delete and no public access to either table.
 
 ## What `user` role is *not* allowed to touch
 

@@ -1,14 +1,1 @@
-- name: progress_photo_sweep
-  webhook: '{{NHOST_FUNCTIONS_URL}}/progress-photos/sweep'
-  schedule: '*/15 * * * *'
-  include_in_metadata: true
-  payload: {}
-  headers:
-    - name: nhost-webhook-secret
-      value_from_env: NHOST_WEBHOOK_SECRET
-  retry_conf:
-    num_retries: 0
-    retry_interval_seconds: 60
-    timeout_seconds: 45
-    tolerance_seconds: 300
-  comment: Retires expired, unlinked progress photos.
+[]
