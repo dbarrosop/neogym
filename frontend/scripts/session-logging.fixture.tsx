@@ -354,6 +354,7 @@ function exercise(name: string, position = 0, kind = "strength"): Exercise {
                     "x-label": "Duration",
                     "x-format": "duration_seconds",
                   },
+                  distance_km: { type: "number", "x-label": "Distance", "x-unit": "km" },
                 },
               },
             }
@@ -509,6 +510,11 @@ async function logEntry(name: string, number: number) {
     dialog.querySelector('label[for="metric-duration_s"]')?.textContent,
     "Durationh:mm:ss",
   );
+  assert.equal(duration.getAttribute("aria-required"), "true");
+  assert.equal(
+    dialog.querySelector('label[for="metric-distance_km"]')?.textContent,
+    "DistancekmOptional",
+  );
   await settle(() => fill(duration, "1:00"));
   const readsBefore = detailReads;
   await settle(() => button("Add entry", dialog).click());
@@ -652,9 +658,14 @@ try {
   await settle(() => options.click());
   const menu = container.querySelector<HTMLElement>('[role="menu"]');
   assert(menu);
+  const menuItems = [...menu.querySelectorAll('[role="menuitem"]')];
   assert.deepEqual(
-    [...menu.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent),
+    menuItems.map((item) => item.textContent),
     ["Exercise details", "Remove from session"],
+  );
+  assert(
+    menuItems.every((item) => item.classList.contains("min-h-11")),
+    "Menu actions need 44 px targets",
   );
   await settle(() => button("Exercise details", menu).click());
   assert.deepEqual(navigations.at(-1), {
@@ -867,6 +878,19 @@ try {
   await logEntry("Intervals", 1);
   assert(button("Add entry", card("Intervals")));
   await logEntry("Intervals", 2);
+  const entry = button("Edit entry 2", card("Intervals"));
+  assert(entry.closest('ol[aria-label="Logged entries"]'));
+  assert(!entry.closest("table"));
+  assert(entry.classList.contains("min-h-11") && !entry.classList.contains("absolute"));
+  const metric = document.getElementById(
+    entry.getAttribute("aria-describedby")?.split(" ")[0] ?? "",
+  );
+  assert(metric && entry.contains(metric));
+  assert.equal(metric.textContent, "Duration: 1:00");
+  await settle(() => metric.dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
+  const editEntry = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(editEntry?.textContent?.includes("Edit entry 2"));
+  await settle(() => button("Cancel", editEntry ?? document.body).click());
   await settle(() => button("Collapse Intervals").click());
   assert(collapsed("Intervals").querySelector('[aria-label="In progress"]'));
 

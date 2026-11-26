@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useId } from "react";
 import { Button } from "@/components/ui/button";
 import {
   type CardioMetrics,
@@ -19,62 +20,70 @@ interface CardioEntriesListProps {
   onSelect: (entry: CardioEntry) => void;
 }
 
-/**
- * Logged cardio entries as the session's set table: one column per metric in
- * schema order, each row one native button that opens the entry to edit.
- */
+/** Logged cardio entries, visually tabular with one in-flow edit button per row. */
 export function CardioEntriesList({ entries, schema, onSelect }: CardioEntriesListProps) {
+  const descriptionId = useId();
   if (entries.length === 0) {
     return <p className="px-4 pb-1 text-[13px] text-muted-foreground">No entries logged yet.</p>;
   }
   const specs = iterateMetrics(schema);
+  // Identical tracks keep headers and values aligned, even without CSS subgrid.
+  // Wide schemas scroll as a single unit; long labels can wrap within a track.
+  const tracks = specs.map(() => "minmax(6rem, 1fr)");
+  const tickTrack = specs.length > 0 ? "3.5rem" : "minmax(3.5rem, 1fr)";
+  const gridStyle = { gridTemplateColumns: ["3.5rem", ...tracks, tickTrack].join(" ") };
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm tabular-nums">
-        <thead>
-          <tr className="border-b text-left text-[12px] text-muted-foreground">
-            <th scope="col" className="w-14 py-2 pl-4 font-semibold">
-              Entry
-            </th>
-            {specs.map((spec) => (
-              <th key={spec.key} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">
-                {spec.label}
-              </th>
-            ))}
-            <th scope="col" className="w-14 pr-4">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr
-              key={entry.id}
-              className="relative h-11 border-b border-border/70 focus-within:bg-surface-inset hover:bg-surface-inset"
-            >
-              <td className="pl-4 font-semibold text-muted-foreground">{entry.entryNumber}</td>
-              {specs.map((spec) => (
-                <td key={spec.key} className="px-3 font-semibold whitespace-nowrap">
-                  {formatMetricValue(entry.metrics[spec.key], spec)}
-                </td>
-              ))}
-              <td className="w-14">
-                {/* One native button spans the row without replacing its table semantics. */}
+      <div
+        className="w-full text-sm tabular-nums"
+        style={{ minWidth: `${7 + specs.length * 6}rem` }}
+      >
+        <div
+          aria-hidden="true"
+          className="grid items-center border-b py-2 text-left font-semibold text-[12px] text-muted-foreground"
+          style={gridStyle}
+        >
+          <span className="pl-4">Entry</span>
+          {specs.map((spec) => (
+            <span key={spec.key} className="wrap-anywhere px-3">
+              {spec.label}
+            </span>
+          ))}
+        </div>
+        {/* biome-ignore lint/a11y/noRedundantRoles: Safari drops list semantics when the CSS reset removes list markers. */}
+        <ol aria-label="Logged entries" role="list">
+          {entries.map((entry) => {
+            const ids = specs.map((_, index) => `${descriptionId}-${entry.id}-${index}`);
+            return (
+              <li key={entry.id} className="border-b border-border/70">
+                {/* Keep this in flow: Safari can size an absolute button on a tr to the page. */}
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="absolute inset-0 size-full justify-end rounded-none px-4 text-positive hover:bg-transparent hover:text-positive dark:hover:bg-transparent"
+                  className="grid h-auto min-h-11 w-full gap-0 rounded-none px-0 py-0 text-left whitespace-normal hover:bg-surface-inset focus-visible:bg-surface-inset has-[>svg]:px-0"
+                  style={gridStyle}
                   aria-label={`Edit entry ${entry.entryNumber}`}
+                  aria-describedby={ids.length > 0 ? ids.join(" ") : undefined}
                   onClick={() => onSelect(entry)}
                 >
-                  <Check strokeWidth={2.6} aria-hidden="true" />
+                  <span className="pl-4 text-muted-foreground">{entry.entryNumber}</span>
+                  {specs.map((spec, index) => (
+                    <span key={spec.key} id={ids[index]} className="wrap-anywhere px-3">
+                      <span className="sr-only">{spec.label}: </span>
+                      {formatMetricValue(entry.metrics[spec.key], spec)}
+                    </span>
+                  ))}
+                  <Check
+                    strokeWidth={2.6}
+                    aria-hidden="true"
+                    className="mr-4 justify-self-end text-positive"
+                  />
                 </Button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
     </div>
   );
 }

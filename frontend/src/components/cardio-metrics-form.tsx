@@ -166,6 +166,9 @@ export function CardioMetricsForm({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+          {specs.length > 0 && specs.every((spec) => !spec.required) && (
+            <p className="text-sm text-muted-foreground">Enter at least one value.</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             {specs.map((spec, idx) => (
               <MetricInput
@@ -246,9 +249,10 @@ function MetricInput({ spec, value, invalid, onChange, inputRef }: MetricInputPr
   const durationPlaceholder = unit === "mm:ss" ? "0:00" : "0:00:00";
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <Label htmlFor={id} className="gap-1.5">
+      <Label htmlFor={id} className="flex-wrap gap-x-1.5 gap-y-0">
         {spec.label}
         {unit ? <span className="font-medium text-muted-foreground">{unit}</span> : null}
+        {!spec.required && <span className="font-normal text-muted-foreground">Optional</span>}
       </Label>
       <Input
         id={id}

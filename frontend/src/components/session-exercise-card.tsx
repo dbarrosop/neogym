@@ -56,18 +56,20 @@ export function OpenCardHeader({
 }) {
   const navigate = useNavigate();
   return (
-    <div className="flex items-center gap-2.5 py-1.5 pr-1.5 pl-4">
-      <Link
-        to="/train/exercises/$exerciseId"
-        params={{ exerciseId }}
-        className="min-w-0 flex-1 truncate text-[15px] font-semibold underline-offset-2 hover:underline"
-      >
-        {exerciseName}
-      </Link>
-      <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
-        <Tag>{formatMuscle(primaryMuscle)}</Tag>
-        {tags}
-      </span>
+    <div className="flex items-start gap-2.5 py-1.5 pr-1.5 pl-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-1 py-1">
+        <Link
+          to="/train/exercises/$exerciseId"
+          params={{ exerciseId }}
+          className="wrap-anywhere text-[15px] font-semibold underline-offset-2 hover:underline"
+        >
+          {exerciseName}
+        </Link>
+        <span className="flex flex-wrap gap-1.5">
+          <Tag>{formatMuscle(primaryMuscle)}</Tag>
+          {tags}
+        </span>
+      </div>
       <span className="flex shrink-0">
         {onCollapse ? (
           <Button
