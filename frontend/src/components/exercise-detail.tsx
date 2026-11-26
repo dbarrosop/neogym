@@ -35,7 +35,6 @@ import {
 import { gqlRequest } from "@/lib/graphql";
 import { useStartSession } from "@/lib/hooks/use-start-session";
 import { metricFormat } from "@/lib/metric-format";
-import { summarizeCardioEntries } from "@/lib/session-logging";
 import { formatSetsSummary } from "@/lib/set-summary";
 import { estimateOneRepMax } from "@/lib/strength-metrics";
 import { useLocalToday } from "@/lib/use-local-today";
@@ -613,7 +612,11 @@ function StrengthProgressChart({
           name: "Volume",
           legendLabel: "Volume (kg)",
           color: "chart-1",
-          points: points.map((point) => ({ date: point.date, value: point.volume })),
+          points: points.map((point) => ({
+            date: point.date,
+            value: point.volume,
+            session: { id: point.sessionId, startedAt: point.time },
+          })),
           format: metricFormat.volume,
         },
         {
@@ -622,7 +625,11 @@ function StrengthProgressChart({
           legendLabel: "Est. 1RM (kg)",
           color: "chart-2",
           axis: "right",
-          points: points.map((point) => ({ date: point.date, value: point.oneRm })),
+          points: points.map((point) => ({
+            date: point.date,
+            value: point.oneRm,
+            session: { id: point.sessionId, startedAt: point.time },
+          })),
           format: metricFormat.estimatedOneRepMax,
         },
       ]}
@@ -713,7 +720,11 @@ function CardioProgressChart({
           id: primary.key,
           name: primary.label,
           color: "chart-1",
-          points: points.map((point) => ({ date: point.date, value: point.value })),
+          points: points.map((point) => ({
+            date: point.date,
+            value: point.value,
+            session: { id: point.sessionId, startedAt: point.time },
+          })),
           format,
         },
       ]}
@@ -740,6 +751,7 @@ function CardioHistory({
     );
   }
   const average = aggregationForFormat(primary.format) === "average";
+  const specs = iterateMetrics(schema);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm tabular-nums">
@@ -759,14 +771,13 @@ function CardioHistory({
         </thead>
         <tbody>
           {entries.map((entry) => {
-            const cardioEntries = (entry.workoutSessionCardioEntries ?? []).map((e) => ({
-              metrics: (e.metrics ?? {}) as Record<string, unknown>,
-            }));
             const [point] = buildCardioProgress([entry], primary);
             return (
               <tr key={entry.id} className="h-14 border-t">
                 <SessionCell entry={entry} exerciseName={exerciseName} />
-                <td className="px-2">{summarizeCardioEntries(cardioEntries, schema) ?? "—"}</td>
+                <td className="px-2 py-2.5">
+                  <CardioHistoryEntries entries={entry.workoutSessionCardioEntries} specs={specs} />
+                </td>
                 <td className="pr-5 text-right font-semibold whitespace-nowrap">
                   {point ? formatMetricValue(point.value, primary) : "—"}
                 </td>
@@ -776,6 +787,40 @@ function CardioHistory({
         </tbody>
       </table>
     </div>
+  );
+}
+
+function CardioHistoryEntries({
+  entries,
+  specs,
+}: {
+  entries: ExerciseHistoryEntry["workoutSessionCardioEntries"];
+  specs: readonly CardioMetricSpec[];
+}) {
+  if (!entries || entries.length === 0) {
+    return "—";
+  }
+  return (
+    <ul className="space-y-2">
+      {entries.map((entry) => {
+        const metrics = (entry.metrics ?? {}) as Record<string, unknown>;
+        return (
+          <li key={entry.id}>
+            <p className="text-xs text-muted-foreground">Entry {entry.entryNumber}</p>
+            <div className="flex flex-wrap gap-x-2.5 gap-y-0.5">
+              {specs.map((spec) => {
+                const value = metrics[spec.key];
+                return typeof value === "number" && Number.isFinite(value) ? (
+                  <span key={spec.key}>
+                    {spec.label}: {formatMetricValue(value, spec)}
+                  </span>
+                ) : null;
+              })}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

@@ -73,6 +73,7 @@ let historyUnavailable = false;
 let detailReads = 0;
 let detailGate: Promise<void> | null = null;
 let strengthInserts = 0;
+let exerciseDeletes = 0;
 
 function field(selection: SelectionSetNode | undefined, name: string): FieldNode {
   const node = selection?.selections.find(
@@ -206,6 +207,14 @@ mock.module("@/lib/graphql", () => ({
           );
         }
         return Promise.resolve({ deleteWorkoutSessionStrengthSet: { id } });
+      }
+      case "DeleteWorkoutSessionExercise": {
+        const { id } = variables;
+        exerciseDeletes++;
+        session.workoutSessionExercises = session.workoutSessionExercises.filter(
+          (item) => item.id !== id,
+        );
+        return Promise.resolve({ deleteWorkoutSessionExercise: { id } });
       }
       case "DeleteWorkoutSession":
         assert.equal(variables["id"], session.id);
@@ -475,6 +484,29 @@ async function openSession(
     }
   }
 }
+async function requestExerciseRemoval(name: string) {
+  const trigger = button(`Options for ${name}`);
+  await settle(() => {
+    trigger.focus();
+    trigger.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  });
+  const menu = container.querySelector<HTMLElement>('[role="menu"]');
+  assert(menu);
+  const first = button("Exercise details", menu);
+  assert.equal(document.activeElement, first);
+  await settle(() =>
+    first.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+  );
+  const remove = button("Remove from session", menu);
+  assert.equal(document.activeElement, remove);
+  await settle(() => remove.click());
+  const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+  assert(dialog);
+  assert(dialog.textContent?.includes(`Remove ${name}?`));
+  assert.equal(document.activeElement, button("Cancel", dialog));
+  return dialog;
+}
+
 async function logSet(name: string, number: number) {
   const form = card(name).querySelector<HTMLFormElement>(`form[aria-label="Log set ${number}"]`);
   assert(form);
@@ -672,18 +704,21 @@ try {
     to: "/train/exercises/$exerciseId",
     params: { exerciseId: "Squat" },
   });
-  await settle(() => options.click());
-  await settle(() =>
-    button(
-      "Remove from session",
-      container.querySelector<HTMLElement>('[role="menu"]') ?? container,
-    ).click(),
-  );
-  const removeDialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
-  assert(removeDialog);
-  assert(removeDialog.textContent?.includes("Remove Squat?"));
+  const removeDialog = await requestExerciseRemoval("Squat");
   await settle(() => button("Cancel", removeDialog).click());
-  assert(!document.querySelector('[role="alertdialog"]'));
+  await waitFor(
+    () => !document.querySelector('[role="alertdialog"]') && document.activeElement === options,
+  );
+  const escapeDialog = await requestExerciseRemoval("Squat");
+  await settle(() =>
+    button("Cancel", escapeDialog).dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  await waitFor(
+    () => !document.querySelector('[role="alertdialog"]') && document.activeElement === options,
+  );
+  assert.equal(exerciseDeletes, 0);
   assert(card("Squat"));
   assert(button("Log set").classList.contains("h-11"));
   const firstWeight = card("Squat").querySelector<HTMLInputElement>(
@@ -737,6 +772,48 @@ try {
   await settle(() => button("Collapse Squat").click());
   assert(collapsed("Squat").querySelector('[aria-label="In progress"]'));
   assert(!collapsed("Squat").querySelector('[aria-label="Done"]'));
+
+  await openSession([exercise("Squat")], [], true);
+  const firstSetRead = Promise.withResolvers<void>();
+  detailGate = firstSetRead.promise;
+  const firstSetReps = card("Squat").querySelector<HTMLInputElement>(
+    'input[aria-label="Reps for set 1"]',
+  );
+  const firstSetWeight = card("Squat").querySelector<HTMLInputElement>(
+    'input[aria-label="Weight in kg for set 1"]',
+  );
+  const firstSetForm = firstSetReps?.closest("form");
+  assert(firstSetReps && firstSetWeight && firstSetForm);
+  await settle(() => {
+    fill(firstSetWeight, "50");
+    fill(firstSetReps, "8");
+  });
+  await settle(() =>
+    firstSetForm.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })),
+  );
+  await waitFor(() => session.workoutSessionExercises[0]?.workoutSessionStrengthSets.length === 1);
+  assert.equal(card("Squat").querySelector('[aria-label="Edit set 1"]'), null);
+  const staleRemove = await requestExerciseRemoval("Squat");
+  assert(staleRemove.textContent?.includes("permanently deletes any logged sets"));
+  assert(staleRemove.textContent?.includes("The workout template is not changed."));
+  await settle(() => {
+    firstSetRead.resolve();
+    detailGate = null;
+  });
+  await waitFor(() => !!card("Squat").querySelector('[aria-label="Edit set 1"]'));
+  assert(staleRemove.textContent?.includes("permanently deletes any logged sets"));
+  await settle(() => button("Cancel", staleRemove).click());
+  assert.equal(exerciseDeletes, 0);
+
+  await openSession([exercise("Intervals", 0, "cardio")]);
+  const cardioRemove = await requestExerciseRemoval("Intervals");
+  assert(cardioRemove.textContent?.includes("permanently deletes any logged cardio entries"));
+  await settle(() => button("Remove exercise", cardioRemove).click());
+  await waitFor(() => exerciseDeletes === 1 && !document.querySelector('[role="alertdialog"]'));
+  // The header is stable even when removing the last exercise adds an empty-state button.
+  const header = container.querySelector("header");
+  assert(header);
+  await waitFor(() => document.activeElement === button("Add exercise", header));
 
   // A successful insert must stay pending until the session refetch supplies
   // the next number/prefill, even when the user clicks or submits with Enter again.

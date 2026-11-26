@@ -22,6 +22,8 @@ interface ConfirmActionDialogProps {
   isPending: boolean;
   cancelLabel?: ReactNode;
   pendingLabel?: ReactNode;
+  /** For separately controlled triggers, where Radix has no DialogTrigger to restore. */
+  returnFocus?: (invoker: HTMLElement | null) => HTMLElement | null;
   /** Filled red confirm button (deletes, removals); otherwise the primary fill. */
   destructive?: boolean;
 }
@@ -40,9 +42,11 @@ export function ConfirmActionDialog({
   isPending,
   cancelLabel = "Cancel",
   pendingLabel = "Working…",
+  returnFocus,
   destructive = false,
 }: ConfirmActionDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const invokerRef = useRef<HTMLElement | null>(null);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -51,7 +55,17 @@ export function ConfirmActionDialog({
         className="max-w-[420px]"
         onOpenAutoFocus={(event) => {
           event.preventDefault();
+          const active = document.activeElement;
+          invokerRef.current = returnFocus && active instanceof HTMLElement ? active : null;
           cancelRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          const target = returnFocus?.(invokerRef.current);
+          invokerRef.current = null;
+          if (target?.isConnected) {
+            event.preventDefault();
+            target.focus();
+          }
         }}
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}

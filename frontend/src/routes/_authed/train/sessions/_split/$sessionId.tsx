@@ -2,7 +2,7 @@ import type { ResultOf } from "@graphql-typed-document-node/core";
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Dumbbell, Loader2, Plus, Trash2 } from "lucide-react";
-import { type SubmitEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type Ref, type SubmitEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CardioEntriesList } from "@/components/cardio-entries-list";
 import { CardioMetricsForm } from "@/components/cardio-metrics-form";
@@ -49,7 +49,6 @@ import {
   cardioLastTimeCaption,
   exerciseStatus,
   removeExerciseDescription,
-  type SessionChildNoun,
   summarizeCardioEntries,
 } from "@/lib/session-logging";
 import { sessionDisplayName } from "@/lib/sessions";
@@ -298,8 +297,7 @@ type SessionExerciseRow = SessionDetail["workoutSessionExercises"][number];
 interface RemoveRequest {
   id: string;
   name: string;
-  childCount: number;
-  childNoun: SessionChildNoun;
+  isCardio: boolean;
 }
 
 function useSessionMutations(sessionId: string) {
@@ -395,6 +393,8 @@ function SessionDetailRoute() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [confirmingRemove, setConfirmingRemove] = useState<RemoveRequest | null>(null);
+  const addExerciseButton = useRef<HTMLButtonElement>(null);
+  const removedExercise = useRef(false);
 
   if (isLoading) {
     return <DetailSkeleton />;
@@ -433,6 +433,7 @@ function SessionDetailRoute() {
         workout={session.workout ?? null}
         onEditDate={() => setEditingDate(true)}
         onAddExercise={() => setPickerOpen(true)}
+        addExerciseButton={addExerciseButton}
         isAdding={mutations.addExercises.isPending}
       />
       {totals.hasStrength ? <SessionTotals totals={totals} /> : null}
@@ -452,7 +453,10 @@ function SessionDetailRoute() {
               priorSessionsByExercise={priorSessionsByExercise}
               priorCardioByExercise={priorCardioByExercise}
               onMutated={mutations.invalidateAll}
-              onConfirmRemove={setConfirmingRemove}
+              onConfirmRemove={(request) => {
+                removedExercise.current = false;
+                setConfirmingRemove(request);
+              }}
             />
           );
         })}
@@ -520,6 +524,9 @@ function SessionDetailRoute() {
         description={
           confirmingRemove ? removeExerciseDescription({ ...confirmingRemove, fromWorkout }) : null
         }
+        returnFocus={(invoker) =>
+          !removedExercise.current && invoker?.isConnected ? invoker : addExerciseButton.current
+        }
         confirmLabel="Remove exercise"
         pendingLabel="Removing…"
         destructive
@@ -527,7 +534,10 @@ function SessionDetailRoute() {
         onConfirm={() => {
           if (confirmingRemove) {
             mutations.removeExercise.mutate(confirmingRemove.id, {
-              onSuccess: () => setConfirmingRemove(null),
+              onSuccess: () => {
+                removedExercise.current = true;
+                setConfirmingRemove(null);
+              },
             });
           }
         }}
@@ -613,6 +623,7 @@ function SessionHeader({
   workout,
   onEditDate,
   onAddExercise,
+  addExerciseButton,
   isAdding,
 }: {
   sessionId: string;
@@ -621,6 +632,7 @@ function SessionHeader({
   workout: { id: string; name: string } | null;
   onEditDate: () => void;
   onAddExercise: () => void;
+  addExerciseButton: Ref<HTMLButtonElement>;
   isAdding: boolean;
 }) {
   const started = new Date(startedAt);
@@ -660,7 +672,13 @@ function SessionHeader({
       </div>
       <div className="flex flex-wrap gap-2">
         <StartRestButton sessionId={sessionId} />
-        <Button type="button" variant="outline" onClick={onAddExercise} disabled={isAdding}>
+        <Button
+          ref={addExerciseButton}
+          type="button"
+          variant="outline"
+          onClick={onAddExercise}
+          disabled={isAdding}
+        >
           <Plus />
           Add exercise
         </Button>
@@ -731,9 +749,6 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   const isCardio = we.exercise.kind === "cardio";
   const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.cardio?.metricsSchema) : null;
-  const childCount = isCardio
-    ? we.workoutSessionCardioEntries.length
-    : we.workoutSessionStrengthSets.length;
 
   // Memoize on the raw query slice so the reference stays stable when
   // react-query's structural sharing returns the same data — without this,
@@ -760,8 +775,7 @@ function ExerciseRow({
       onConfirmRemove({
         id: we.id,
         name: we.exercise.name,
-        childCount,
-        childNoun: isCardio ? "entry" : "set",
+        isCardio,
       }),
   };
 

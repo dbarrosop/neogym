@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { Window as TestWindow } from "happy-dom";
 import { act, type ComponentProps } from "react";
 import type { TrendChartProps } from "@/components/charts/trend-chart";
+import { buildTrendChartModel } from "@/components/charts/trend-chart-model";
 import {
   ExerciseCategories_Enum,
   type ExerciseDetailQuery,
@@ -104,6 +105,20 @@ const container = document.createElement("div");
 document.body.append(container);
 const root = createRoot(container);
 
+function show(id: string) {
+  act(() => {
+    root.render(
+      <QueryClientProvider client={client}>
+        <ExerciseDetail key={id} exerciseId={id} />
+      </QueryClientProvider>,
+    );
+  });
+}
+function latestChart() {
+  const props = charts.at(-1);
+  assert(props);
+  return buildTrendChartModel({ ...props, locale: "en-GB" });
+}
 function progress() {
   const section = container.querySelector<HTMLElement>('section[aria-label="Progress"]');
   assert(section, "Missing Progress card");
@@ -124,13 +139,7 @@ function choosePeriod(label: string) {
 }
 
 try {
-  act(() => {
-    root.render(
-      <QueryClientProvider client={client}>
-        <ExerciseDetail exerciseId="rdl" />
-      </QueryClientProvider>,
-    );
-  });
+  show("rdl");
   const text = progress().textContent ?? "";
   assert(text.includes("7 sessions"), text);
   // Tiles: the latest session against the one before it; declines stay neutral.
@@ -183,6 +192,105 @@ try {
       "140 × 6 · 7 · 6",
       "172.7 kg",
       "2,660 kg",
+    ],
+  );
+
+  const rdl = data.exercise;
+  assert(rdl);
+  const morning = rdl.workoutSessionExercises.at(-1);
+  assert(morning);
+  // Supply observations in reverse time order on the same local date.
+  const evening = {
+    ...morning,
+    id: "evening",
+    workoutSession: { ...morning.workoutSession, id: "pm", startedAt: "2026-11-12T16:00:00+01:00" },
+    workoutSessionStrengthSets: [{ id: "pm-set", setNumber: 1, reps: 1, weight: 160 }],
+  };
+  client.setQueryData(["exercises", "detail", "two-sessions"], {
+    exercise: { ...rdl, workoutSessionExercises: [evening, morning] },
+  });
+  show("two-sessions");
+  const strength = latestChart();
+  assert.deepEqual(
+    strength.rows.map((row) => [row.x, row.date, row.values]),
+    [
+      [0, "2026-11-12", { s0: 2660, s1: 140 * (1 + 7 / 30) }],
+      [1, "2026-11-12", { s0: 160, s1: 160 }],
+    ],
+  );
+  assert.deepEqual(
+    strength.rows.map((row) => row.entries.length),
+    [2, 2],
+  );
+  assert(strength.label.includes("latest 160 kg"));
+
+  client.setQueryData(["exercises", "detail", "run"], {
+    exercise: {
+      ...rdl,
+      id: "run",
+      name: "Treadmill Running",
+      kind: "cardio",
+      category: ExerciseCategories_Enum.Cardio,
+      strength: null,
+      cardio: {
+        metricsSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["duration_s"],
+          properties: {
+            distance_km: {
+              "x-label": "Distance",
+              "x-unit": "km",
+              "x-format": "decimal",
+              "x-order": 1,
+            },
+            duration_s: { "x-label": "Duration", "x-format": "duration_seconds", "x-order": 2 },
+            hr: {
+              "x-label": "Avg Heart Rate",
+              "x-unit": "bpm",
+              "x-format": "average",
+              "x-order": 3,
+            },
+          },
+        },
+      },
+      workoutSessionExercises: [
+        {
+          ...evening,
+          workoutSessionStrengthSets: [],
+          workoutSessionCardioEntries: [
+            { id: "pm1", entryNumber: 1, metrics: { distance_km: 2, duration_s: 600, hr: 140 } },
+            { id: "pm2", entryNumber: 2, metrics: { duration_s: 360, hr: 155 } },
+          ],
+        },
+        {
+          ...morning,
+          workoutSessionStrengthSets: [],
+          workoutSessionCardioEntries: [
+            { id: "am", entryNumber: 1, metrics: { distance_km: 1, duration_s: 310 } },
+          ],
+        },
+      ],
+    },
+  });
+  show("run");
+  const cardio = latestChart();
+  assert.deepEqual(
+    cardio.rows.map((row) => [row.x, row.date, row.entries[0]?.value]),
+    [
+      [0, "2026-11-12", 1],
+      [1, "2026-11-12", 2],
+    ],
+  );
+  assert(cardio.label.includes("lowest 1 km, highest 2 km"));
+  const intervals = container.querySelectorAll(
+    'section[aria-label="History"] tbody tr:first-child li',
+  );
+  assert.deepEqual(
+    [...intervals].map((row) => row.textContent),
+    [
+      "Entry 1Distance: 2 kmDuration: 10:00Avg Heart Rate: 140 bpm",
+      "Entry 2Duration: 6:00Avg Heart Rate: 155 bpm",
     ],
   );
 } finally {

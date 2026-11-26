@@ -38,7 +38,7 @@ async function render(props: TrendChartProps) {
   await settle(() =>
     root.render(
       <ResponsiveContainer width={640} height={240}>
-        <TrendChart {...props} />
+        <TrendChart key={props.title} {...props} />
       </ResponsiveContainer>,
     ),
   );
@@ -269,6 +269,53 @@ try {
     all(".recharts-xAxis-tick-labels text").map((text) => text.textContent),
     ["8 Oct", "22 Oct", "12 Nov"],
   );
+
+  // Two observations on one date get two keyboard stops and their own readings.
+  await render({
+    title: "Same-day session volumes",
+    period: "session",
+    xScale: "index",
+    locale,
+    series: [
+      {
+        id: "volume",
+        name: "Volume",
+        color: "chart-1",
+        points: [
+          {
+            date: day(12),
+            value: 200,
+            session: { id: "later", startedAt: new Date(2026, 10, 12, 16).getTime() },
+          },
+          {
+            date: day(12),
+            value: 100,
+            session: { id: "earlier", startedAt: new Date(2026, 10, 12, 8).getTime() },
+          },
+        ],
+        format: metricFormat.volume,
+      },
+    ],
+  });
+  const sameDay = one('svg[role="application"]');
+  const dots = all("circle.trend-chart-dot-line");
+  assert.equal(dots.length, 2);
+  assert.notEqual(dots[0]?.getAttribute("cx"), dots[1]?.getAttribute("cx"));
+  await settle(() => sameDay.dispatchEvent(new window.FocusEvent("focusin", { bubbles: true })));
+  const sameDayTooltip = one(".recharts-tooltip-wrapper");
+  assert(
+    sameDayTooltip.textContent?.includes("Thu 12 Nov · 08:00"),
+    sameDayTooltip.textContent ?? "Missing same-day tooltip",
+  );
+  assert(sameDayTooltip.textContent?.includes("Volume100 kg"));
+  assert(!sameDayTooltip.textContent?.includes("Volume200 kg"));
+  await settle(() =>
+    sameDay.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+    ),
+  );
+  assert(sameDayTooltip.textContent?.includes("Thu 12 Nov · 16:00"));
+  assert(sameDayTooltip.textContent?.includes("Volume200 kg"));
 
   // 4. Weekly volume, dense daily history and baseline-only minis.
   const dense = Array.from({ length: 40 }, (_, index) => ({

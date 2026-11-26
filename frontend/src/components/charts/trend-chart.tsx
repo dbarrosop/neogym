@@ -75,9 +75,20 @@ function TrendTooltip({
     period === "week"
       ? formatWeekOf(row.date, { locale })
       : formatChartDate(row.date, { weekday: true, locale });
+  const time =
+    row.sessionTime === undefined
+      ? null
+      : new Date(row.sessionTime).toLocaleTimeString(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
   return (
     <div className="space-y-0.5 rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
-      <p className="text-muted-foreground">{partial ? `${date} · so far` : date}</p>
+      <p className="text-muted-foreground">
+        {date}
+        {time ? ` · ${time}` : ""}
+        {partial ? " · so far" : ""}
+      </p>
       {row.entries.map((entry) => {
         const line = model.lines[entry.seriesIndex];
         if (!line) {

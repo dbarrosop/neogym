@@ -4,7 +4,6 @@ import {
   addExercisesDescription,
   cardioLastTimeCaption,
   exerciseStatus,
-  pluralChild,
   removeExerciseDescription,
   summarizeCardioEntries,
 } from "./session-logging";
@@ -77,34 +76,20 @@ describe("summarizeCardioEntries", () => {
 });
 
 describe("removeExerciseDescription", () => {
-  it("counts the logged children and mentions the template for workout sessions", () => {
-    expect(removeExerciseDescription({ childCount: 3, childNoun: "set", fromWorkout: true })).toBe(
-      "Its 3 logged sets are deleted with it. The workout template is not changed.",
+  it("warns about all child deletes independently of any displayed count", () => {
+    expect(removeExerciseDescription({ isCardio: false, fromWorkout: true })).toBe(
+      "This permanently deletes any logged sets for this exercise in this session. The workout template is not changed.",
     );
-    expect(
-      removeExerciseDescription({ childCount: 1, childNoun: "entry", fromWorkout: false }),
-    ).toBe("Its 1 logged entry is deleted with it.");
-  });
-
-  it("says the removal only affects this session when nothing is logged", () => {
-    expect(removeExerciseDescription({ childCount: 0, childNoun: "set", fromWorkout: false })).toBe(
-      "It's removed from this session only.",
+    expect(removeExerciseDescription({ isCardio: true, fromWorkout: false })).toBe(
+      "This permanently deletes any logged cardio entries for this exercise in this session.",
     );
-  });
-});
-
-describe("pluralChild", () => {
-  it("pluralises sets and entries", () => {
-    expect(pluralChild("set", 1)).toBe("set");
-    expect(pluralChild("set", 2)).toBe("sets");
-    expect(pluralChild("entry", 2)).toBe("entries");
   });
 });
 
 describe("addExercisesDescription", () => {
-  it("points to the workout for reordering only when there is one", () => {
+  it("explains that appending to a session leaves its workout template alone", () => {
     expect(addExercisesDescription(true)).toBe(
-      "Added to the end of the session. Reorder on the workout.",
+      "Added to the end of the session. The workout template is not changed.",
     );
     expect(addExercisesDescription(false)).toBe("Added to the end of the session.");
   });

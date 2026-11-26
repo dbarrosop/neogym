@@ -68,39 +68,21 @@ export function cardioLastTimeCaption(
   return hasLoggedEntries ? `last ${summary}` : `Last time ${summary}`;
 }
 
-export type SessionChildNoun = "set" | "entry";
-
-export function pluralChild(noun: SessionChildNoun, count: number): string {
-  if (count === 1) {
-    return noun;
-  }
-  return noun === "entry" ? "entries" : "sets";
-}
-
-/**
- * Remove-exercise confirmation body (Web · Dialogs): "Its 3 logged sets are
- * deleted with it. The workout template is not changed." The template
- * sentence only applies to sessions started from a workout.
- */
+/** Warn about child deletes even when an in-flight write has not reached the view. */
 export function removeExerciseDescription({
-  childCount,
-  childNoun,
+  isCardio,
   fromWorkout,
 }: {
-  childCount: number;
-  childNoun: SessionChildNoun;
+  isCardio: boolean;
   fromWorkout: boolean;
 }): string {
-  const consequence =
-    childCount > 0
-      ? `Its ${childCount} logged ${pluralChild(childNoun, childCount)} ${childCount === 1 ? "is" : "are"} deleted with it.`
-      : "It's removed from this session only.";
+  const consequence = `This permanently deletes any logged ${isCardio ? "cardio entries" : "sets"} for this exercise in this session.`;
   return fromWorkout ? `${consequence} The workout template is not changed.` : consequence;
 }
 
-/** Add exercises dialog body; reordering only exists on the workout template. */
+/** Session additions never change the template or its order. */
 export function addExercisesDescription(fromWorkout: boolean): string {
   return fromWorkout
-    ? "Added to the end of the session. Reorder on the workout."
+    ? "Added to the end of the session. The workout template is not changed."
     : "Added to the end of the session.";
 }

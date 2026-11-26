@@ -27,6 +27,11 @@ export type TrendSeriesStyle = "line" | "daily" | "average";
 
 export type TrendAxisSide = "left" | "right";
 
+export interface TrendChartPoint extends TrendPoint {
+  /** Optional observation identity for indexed session charts. */
+  session?: { id: string; startedAt: number };
+}
+
 export interface TrendChartSeries {
   /** Stable key, unique within the chart. */
   id: string;
@@ -38,7 +43,7 @@ export interface TrendChartSeries {
   style?: TrendSeriesStyle;
   axis?: TrendAxisSide;
   /** Readings; only the last may be `partial` (today or this week). */
-  points: readonly TrendPoint[];
+  points: readonly TrendChartPoint[];
   /** The metric formatter (`metricFormat.*`) for tooltips and the summary. */
   format: (value: number) => string;
   /** Leave the series out of the legend. */
@@ -90,9 +95,10 @@ export interface TrendChartRow {
   /** Day number (time scale) or position (index scale). */
   x: number;
   date: string;
+  sessionTime?: number;
   /** Plotted values by line key; null where the series has no reading. */
   values: Record<string, number | null>;
-  /** What the tooltip lists for this date. */
+  /** What the tooltip lists for this observation. */
   entries: TrendChartEntry[];
 }
 
@@ -152,15 +158,25 @@ export function chartColor(color: ChartColor): string {
 }
 
 interface SplitSeries {
-  complete: TrendPoint[];
-  partial: TrendPoint | null;
+  complete: TrendChartPoint[];
+  partial: TrendChartPoint | null;
+}
+
+type PointKey = (point: TrendChartPoint) => string;
+
+function comparePoints(left: TrendChartPoint, right: TrendChartPoint): number {
+  return (
+    left.date.localeCompare(right.date) ||
+    (left.session?.startedAt ?? 0) - (right.session?.startedAt ?? 0) ||
+    (left.session?.id ?? "").localeCompare(right.session?.id ?? "")
+  );
 }
 
 /** Valid points in date order; only the last one's `partial` flag counts. */
 function splitSeries(series: TrendChartSeries): SplitSeries {
   const valid = series.points
     .filter((point) => Number.isFinite(point.value) && Number.isFinite(dayNumber(point.date)))
-    .sort((left, right) => left.date.localeCompare(right.date));
+    .sort(comparePoints);
   const last = valid.at(-1);
   if (last?.partial) {
     return { complete: valid.slice(0, -1), partial: last };
@@ -200,7 +216,7 @@ function axisValues(split: SplitSeries[], lines: readonly TrendChartSeries[], si
         ? [...item.complete, ...(item.partial ? [item.partial] : [])]
         : [],
     )
-    .sort((left, right) => left.date.localeCompare(right.date))
+    .sort(comparePoints)
     .map((point) => point.value);
 }
 
@@ -287,44 +303,45 @@ function summaryNote(options: TrendChartModelOptions, startAligned: boolean): st
 
 interface XLayout {
   xDomain: [number, number];
-  xOf: (date: string) => number;
   dateAt: (x: number) => string;
-  /** Dates plotted inside the domain. */
-  dates: string[];
+  rows: Map<string, TrendChartRow>;
 }
 
-function layoutX(options: TrendChartModelOptions, split: SplitSeries[]): XLayout {
-  const dates = [
-    ...new Set(
-      split
-        .flatMap((item) => [...item.complete, ...(item.partial ? [item.partial] : [])])
-        .map((point) => point.date),
-    ),
-  ].sort();
-  if ((options.xScale ?? "time") === "index") {
-    const positions = new Map(dates.map((date, index) => [date, index]));
+function layoutX(options: TrendChartModelOptions, split: SplitSeries[], keyFor: PointKey): XLayout {
+  const points = split
+    .flatMap(({ complete, partial }) => (partial ? [...complete, partial] : complete))
+    .sort(comparePoints);
+  const positions = [...new Map(points.map((point) => [keyFor(point), point])).entries()];
+  const rows = new Map<string, TrendChartRow>();
+  if (options.xScale === "index") {
+    positions.forEach(([key, { date, session }], index) => {
+      rows.set(key, {
+        x: index,
+        date,
+        ...(session ? { sessionTime: session.startedAt } : {}),
+        values: {},
+        entries: [],
+      });
+    });
     return {
-      xDomain: [0, Math.max(dates.length - 1, 0)],
-      xOf: (date) => positions.get(date) ?? 0,
-      dateAt: (x) => dates[Math.round(x)] ?? "",
-      dates,
+      xDomain: [0, Math.max(positions.length - 1, 0)],
+      dateAt: (x) => positions[Math.round(x)]?.[1].date ?? "",
+      rows,
     };
   }
-  const first = dayNumber(options.domain?.start ?? dates[0] ?? "");
-  const last = dayNumber(options.domain?.end ?? dates.at(-1) ?? "");
+  const first = dayNumber(options.domain?.start ?? positions[0]?.[1].date ?? "");
+  const last = dayNumber(options.domain?.end ?? positions.at(-1)?.[1].date ?? "");
   const xDomain: [number, number] = [
     Number.isFinite(first) ? first : 0,
     Number.isFinite(last) ? last : 0,
   ];
-  return {
-    xDomain,
-    xOf: dayNumber,
-    dateAt: dateFromDayNumber,
-    dates: dates.filter((date) => {
-      const x = dayNumber(date);
-      return x >= xDomain[0] && x <= xDomain[1];
-    }),
-  };
+  for (const [key, { date }] of positions) {
+    const x = dayNumber(date);
+    if (x >= xDomain[0] && x <= xDomain[1]) {
+      rows.set(key, { x, date, values: {}, entries: [] });
+    }
+  }
+  return { xDomain, dateAt: dateFromDayNumber, rows };
 }
 
 function buildLine(
@@ -332,25 +349,25 @@ function buildLine(
   seriesIndex: number,
   { complete, partial }: SplitSeries,
   rows: Map<string, TrendChartRow>,
+  keyFor: PointKey,
 ): TrendLineModel {
   const key = `s${seriesIndex}`;
-  const shown = complete.filter((point) => rows.has(point.date));
-  for (const point of shown) {
-    const row = rows.get(point.date);
+  for (const point of complete) {
+    const row = rows.get(keyFor(point));
     if (row) {
       row.values[key] = point.value;
       row.entries.push({ seriesIndex, value: point.value, partial: false });
     }
   }
-  const partialRow = partial ? rows.get(partial.date) : undefined;
+  const partialRow = partial ? rows.get(keyFor(partial)) : undefined;
   let partialKey: string | null = null;
   if (partial && partialRow) {
     partialKey = `${key}p`;
     partialRow.values[partialKey] = partial.value;
     partialRow.entries.push({ seriesIndex, value: partial.value, partial: true });
     // The dashed segment starts at the last complete reading.
-    const lastComplete = shown.at(-1);
-    const anchorRow = lastComplete ? rows.get(lastComplete.date) : undefined;
+    const lastComplete = complete.at(-1);
+    const anchorRow = lastComplete ? rows.get(keyFor(lastComplete)) : undefined;
     if (lastComplete && anchorRow) {
       anchorRow.values[partialKey] = lastComplete.value;
     }
@@ -366,8 +383,8 @@ function buildLine(
     color: chartColor(series.color),
     style,
     axis: series.axis ?? "left",
-    dotRadius: shown.length > DENSE_POINTS ? denseRadius : radius,
-    count: shown.length,
+    dotRadius: complete.length > DENSE_POINTS ? denseRadius : radius,
+    count: complete.length,
   };
 }
 
@@ -396,21 +413,18 @@ function chartLabel(options: TrendChartModelOptions, split: SplitSeries[], start
 
 /** Everything <TrendChart> draws, from its props. */
 export function buildTrendChartModel(options: TrendChartModelOptions): TrendChartModel {
-  const layout = layoutX(options, options.series.map(splitSeries));
+  const keyFor: PointKey = (point) =>
+    options.xScale === "index" && point.session ? `session:${point.session.id}` : point.date;
+  const observations = options.series.map(splitSeries);
+  const layout = layoutX(options, observations, keyFor);
+  const { rows } = layout;
   // Only what is plotted feeds the axes and the spoken summary.
-  const shown = new Set(layout.dates);
-  const split = options.series.map((series) => {
-    const { complete, partial } = splitSeries(series);
-    return {
-      complete: complete.filter((point) => shown.has(point.date)),
-      partial: partial && shown.has(partial.date) ? partial : null,
-    };
-  });
-  const rows = new Map<string, TrendChartRow>(
-    layout.dates.map((date) => [date, { x: layout.xOf(date), date, values: {}, entries: [] }]),
-  );
+  const split = observations.map(({ complete, partial }) => ({
+    complete: complete.filter((point) => rows.has(keyFor(point))),
+    partial: partial && rows.has(keyFor(partial)) ? partial : null,
+  }));
   const lines = options.series.map((series, index) =>
-    buildLine(series, index, split[index] ?? { complete: [], partial: null }, rows),
+    buildLine(series, index, split[index] ?? { complete: [], partial: null }, rows, keyFor),
   );
   const axes = buildAxes(options, split);
   return {
