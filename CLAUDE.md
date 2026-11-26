@@ -733,7 +733,10 @@ Auth, database and provenance clocks are real. Locale/time zone, scale, reduced
 motion, fresh contexts and pinned Inter are explicit. Verify quiet recaptures on
 the same browser/host with the same profile, and preserve the PNGs, manifest and
 provenance on byte-identical runs. Fixture/profile/browser/font changes require a
-new complete reviewed baseline. Failed attempts and incomplete catalogs cannot
+new complete reviewed baseline. When changing `fixtures.ts`, `seed.sql` or the
+`now`, `energyUpdatedTime` or `account` fields in `profile.json`, bump
+`fixtureVersion` in `profile.json`; the fixed date and profile comparison do
+not detect fixture source edits. Failed attempts and incomplete catalogs cannot
 pass publication. Diagnostics stay in ignored scratch space, never docs.
 
 See [web capture instructions](docs/web/capture.md) for opt-in browser installation,

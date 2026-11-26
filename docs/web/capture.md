@@ -115,8 +115,13 @@ An existing scratch catalog must have the same capture profile, including the
 fixture version, fixed browser date, actual browser, origin, tool/font versions
 and viewport settings. A profile change (including the move from real to fixed
 clock capture) requires a **new full baseline**, not mixed old/new images. A new
-calendar day no longer changes the profile. For an affected-group refresh on the
-same profile, copy the published manifest and screenshots into scratch first,
+calendar day no longer changes the profile, and the capture does not hash
+fixture sources. When changing `frontend/scripts/gallery/fixtures.ts`, `seed.sql`,
+or the `now`, `energyUpdatedTime`, or `account` fields in `profile.json`, bump
+`fixtureVersion` in `profile.json` in the same change and capture a new full
+baseline. Without the bump, old and new fixture data can be mixed in one catalog
+and still validate. For an affected-group refresh on the same profile, copy the
+published manifest and screenshots into scratch first,
 then rerun the group. A targeted run starts from the seed and skips mutations
 from preceding workflows; use a full run when those earlier writes are part of
 the view you need (for example, exercise history after editing a set).
@@ -181,7 +186,8 @@ prove the chosen scroll position is useful or the UI is accessible.
 
 If the run uncovered a genuine app bug, fix and test the app rather than faking
 its result in the capture driver. Update `catalog.json` and the workflow driver
-in the same change. When retiring a superseded frame, remove it from the registry
+in the same change. If a workflow changes the fixture data, bump `fixtureVersion`
+and refresh the full baseline as described above. When retiring a superseded frame, remove it from the registry
 and recapture into a fresh scratch catalog (or remove its manifest entry and PNG
 from a same-profile scratch copy). Use a `layoutOverrides` entry to reuse a
 context frame or omit a scrolled view when a wider layout already shows it.

@@ -82,7 +82,9 @@ This catalog does **not** cover exhaustive CRUD, cardio entry, every
 empty/loading/error state, tablet breakpoints, all themes, keyboard/screen-reader
 behavior, production deployment or cross-browser compatibility. It does not
 exercise account creation, OTP resend, or PKCE email changes, or claim cloud
-email delivery.
+email delivery. Retained frames show the captured revision: mobile auth
+field sizing and the open session card header may differ from the current app
+until those frames are refreshed.
 
 Apple Health tags come from fictional fixture notes and demonstrate read-only
 presentation. The web cannot import Apple Health or connect an Apple Watch;
