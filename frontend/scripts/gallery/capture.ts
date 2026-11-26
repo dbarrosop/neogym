@@ -254,22 +254,19 @@ export async function main() {
   }
   const unlock = await lockGallery(REPO);
   try {
-    await runCapture(options, galleryPostgres(REPO));
+    await runCapture(options);
   } finally {
     await unlock();
   }
 }
 
-async function runCapture(options: RunOptions, database: string) {
+async function runCapture(options: RunOptions) {
   const executablePath = process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"];
   // Full software raster avoids incremental/GPU antialiasing differences at card corners.
   const browser = await chromium.launch({
     args: fixture.rasterArgs,
     ...(executablePath ? { executablePath } : {}),
   });
-  // TLS bypass is confined to a tooling request context with hard-coded local
-  // backend URLs. Browser requests are separately allowlisted before navigation.
-  const localRequest = await request.newContext({ ignoreHTTPSErrors: true, timeout: 30_000 });
   try {
     const manifest = await loadManifest(options.output, {
       version: fixture.version,
@@ -297,12 +294,20 @@ async function runCapture(options: RunOptions, database: string) {
       startedAt: new Date().toISOString(),
     };
     await saveManifest(options.output, manifest);
-    await (Object.keys(VIEWPORTS) as (keyof typeof VIEWPORTS)[])
-      .filter((profile) => options.profile === "all" || options.profile === profile)
-      .reduce(async (previous, profile) => {
-        await previous;
-        await captureProfile(browser, localRequest, options, profile, manifest, database);
-      }, Promise.resolve());
+    const database = galleryPostgres(REPO);
+    // TLS bypass is confined to a tooling request context with hard-coded local
+    // backend URLs. Browser requests are separately allowlisted before navigation.
+    const localRequest = await request.newContext({ ignoreHTTPSErrors: true, timeout: 30_000 });
+    try {
+      await (Object.keys(VIEWPORTS) as (keyof typeof VIEWPORTS)[])
+        .filter((profile) => options.profile === "all" || options.profile === profile)
+        .reduce(async (previous, profile) => {
+          await previous;
+          await captureProfile(browser, localRequest, options, profile, manifest, database);
+        }, Promise.resolve());
+    } finally {
+      await localRequest.dispose();
+    }
     if (previousRun?.status === "passed" && previousEvidence === evidence(manifest)) {
       manifest.lastRun = previousRun;
     } else {
@@ -314,7 +319,6 @@ async function runCapture(options: RunOptions, database: string) {
       `CAPTURE COMPLETE ${options.output}; validate and render before publishing\n`,
     );
   } finally {
-    await localRequest.dispose();
     await browser.close();
   }
 }

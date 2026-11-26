@@ -127,7 +127,9 @@ from preceding workflows; use a full run when those earlier writes are part of
 the view you need (for example, exercise history after editing a set).
 Byte-identical images retain their files and provenance;
 fully unchanged passing runs also retain the manifest, including the earlier
-recorded verification times. A subsequent failed run still marks scratch failed.
+recorded verification times. Once the capture opens a compatible scratch catalog,
+it marks the attempt failed before looking for this checkout’s Postgres container.
+If discovery fails, older images stay in place but cannot be published.
 
 A partial fresh catalog is useful for diagnosis but intentionally fails the
 publication gate. The latest capture attempt must pass, and every required

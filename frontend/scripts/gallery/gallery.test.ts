@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildSchema, parse, validate } from "graphql";
 import { AREAS } from "../../src/lib/navigation";
 import {
@@ -121,6 +122,17 @@ for (const [name, document] of [
     expect(validate(schema, parse(document)).map((error) => error.message)).toEqual([]);
   });
 }
+
+test("failed local database discovery blocks publication of older passing evidence", () => {
+  const result = Bun.spawnSync(
+    [process.execPath, fileURLToPath(new URL("./capture-preflight.fixture.ts", import.meta.url))],
+    { stdout: "pipe", stderr: "pipe", timeout: 10_000 },
+  );
+  expect({ exitCode: result.exitCode, stderr: result.stderr.toString() }).toEqual({
+    exitCode: 0,
+    stderr: "",
+  });
+}, 15_000);
 
 test("shared gallery and iOS renderer tooling checks", () => {
   const root = new URL("../../..", import.meta.url).pathname;
