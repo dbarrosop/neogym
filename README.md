@@ -72,6 +72,9 @@ All run from `frontend/` and require `nix develop ../ --command` as a prefix unl
 | `bun run codegen` | Dump role schemas/diffs, then generate typed GraphQL operations into `src/gql/` (requires backend up) |
 | `bun run codegen:graphql-schema` | Refresh only the Hasura/Nhost schema dumps and diffs |
 | `bun run codegen:graphql` | Generate types offline from the checked-in Nhost user-role SDL |
+| `bun run gallery:serve` | Start the local-only app capture server (browse `http://localhost:5173`) |
+| `bun run gallery:capture --output ../.nhost-code/tmp/web-gallery` | Opt-in desktop/mobile capture against local Nhost |
+| `bun run gallery:validate` / `bun run gallery:render` | Validate/render the retained web catalog offline |
 
 Backend (from `backend/`):
 
@@ -121,6 +124,22 @@ store after the remote request attempt. Native PKCE email change uses
 `auth.redirections.allowedUrls` for both local config and production overlays.
 After changing auth redirect config, restart the local Nhost stack because the
 CLI does not hot-reload `nhost.toml`.
+
+## Visual app guides
+
+- **[Web gallery](docs/web/gallery.html)** — 66 actual Chromium screenshots,
+  desktop and mobile layouts, all 14 web section roots and representative logging,
+  Journal CRUD and appearance workflows. [Guide](docs/web/README.md) ·
+  [Capture/refresh instructions](docs/web/capture.md).
+- **[iPhone gallery](docs/ios/gallery.html)** — the separate native demo catalog.
+  [Guide](docs/ios/README.md) · [Capture instructions](docs/ios/capture.md).
+
+Both are dependency-free generated HTML with adjacent PNGs, not app routes or
+production build outputs. Open them directly in a browser. Web capture is opt-in
+Playwright against local Nhost with disposable accounts/private fictional data;
+iPhone capture uses XCTest and the isolated demo runtime. They share the Python
+renderer in `tools/gallery.py`, not a data/auth runtime. See each guide for what
+its retained evidence does and does not cover.
 
 ## Project layout
 

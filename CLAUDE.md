@@ -678,6 +678,49 @@ Today replaces Nutrition › Overview: today's training, nutrition so far agains
 - **Widgets & Watch: migrated** (the Design canvas's *Widgets & Watch* page). iPhone Balance widget in all five families (`Widgets/EnergyBalanceWidget.swift`), the rest timer Live Activity with Rest over and App Intent buttons (`Widgets/RestTimerLiveActivityWidget.swift`, `Shared/RestTimerIntents.swift`), the watch complication's rectangular and circular families (`WatchWidgets/`), and the watch app's Today / End of day / Account pages with message-layout states (`Watch/`). Formatting is NeoGymKit `EnergyBalanceDisplay`; shared glyph/bar/watch palette are in `WidgetUI/`.
 - Update this list as areas migrate.
 
+## Visual galleries
+
+The [web guide](docs/web/README.md) and [iPhone guide](docs/ios/README.md) are
+static documentation, not app routes or production build outputs. Their generated
+`gallery.html` pages work through `file://` with adjacent `screenshots/`. Shared
+HTML/CSS/JS and frame rendering live in `tools/gallery.py`; the iOS adapter keeps
+its own layout/copy and original 1206 × 2622 defaults. Shared renderer changes
+must preserve the current iOS HTML byte-for-byte unless explicitly redesigning it;
+never refresh iOS images/provenance as a side effect of web work.
+
+The web capture lives in `frontend/scripts/gallery/`: `catalog.json` is the
+canonical profile/root/frame registry; Playwright drives the normal frontend,
+creates a new local OTP account per profile through MailHog, and seeds only that
+user's private fixtures through user-role GraphQL. There is no production demo or
+auth bypass, admin secret, database reset, public-data write or stored browser
+session. Backend URLs are fixed local endpoints; browser network calls are
+allowlisted. `bun run gallery:serve` forces local Nhost and uses port 5173; browse
+`http://localhost:5173`, the origin allowed by local Constellation CORS. An
+arbitrary capture port/hostname will fail CORS; do not bypass browser security to
+hide it. Disposable accounts/fixtures remain in the local DB after capture.
+
+The initial `docs/web/` baseline has 66 viewport PNGs / 38 recorded walkthroughs /
+42 visual rows, covering all 14 web roots at 1440 × 1000 and 390 × 844 plus
+representative strength/rest, planned-slot, Journal CRUD and appearance flows.
+Mobile is Chromium emulation, not Safari/device validation. Auth/server/browser
+clocks remain real and fixtures are relative to the recorded UTC date; en-US,
+UTC, scale 1, reduced motion, fresh contexts and a pinned local Inter font are
+explicit. Do not claim frozen dates or byte-identical recaptures. A changed
+profile/date/browser/font requires a new reviewed complete baseline rather than
+mixing evidence. Same-profile partial refreshes preserve unchanged images,
+provenance and order; failed latest attempts and incomplete catalogs cannot pass
+publication. Failure diagnostics stay in ignored scratch space, never docs.
+
+See [web capture instructions](docs/web/capture.md) for opt-in browser installation,
+local setup and scratch-first publication. `tools/web-gallery.py validate|render`
+works offline and checks complete retained evidence; it does not rerun workflows.
+Run both Python tooling suites plus frontend `bun run check` after tooling changes.
+The first web capture also exposed two Journal/Constellation compatibility cases:
+`useJournalEntries` sends explicit `where: {}` for an unfiltered list, and
+`journalEntryInsert` omits an empty nested labels relationship. Preserve their
+regression tests; do not globally rewrite omitted GraphQL variables, whose defaults
+can have different semantics.
+
 ## Conventions
 
 - **Path alias**: `@/*` → `frontend/src/*`. Wired in `tsconfig.json` (paths) and `vite.config.ts` (`resolve.alias`).
