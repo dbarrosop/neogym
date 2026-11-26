@@ -32,7 +32,10 @@ class WebGalleryTests(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.output = Path(self.temporary.name)
         (self.output / "screenshots").mkdir()
-        profile = {"version": 1, "viewports": TOOLS["REGISTRY"]["profiles"]}
+        fixture = TOOLS["FIXTURE"]
+        profile = {"version": fixture["version"], "fixtureVersion": fixture["fixtureVersion"],
+                   "fixedBrowserTime": fixture["now"], "fixtureDate": fixture["now"][:10],
+                   "rasterArgs": fixture["rasterArgs"], "viewports": TOOLS["REGISTRY"]["profiles"]}
         self.manifest = {"schemaVersion": 1, "platform": "web", "captureProfile": profile,
                          "lastRun": {"status": "passed"},
                          "screenshots": [], "workflows": [], "knownIssues": []}
@@ -55,11 +58,23 @@ class WebGalleryTests(unittest.TestCase):
     def test_complete_catalog_and_separate_crud_rows(self):
         manifest, sections = TOOLS["validate_catalog"](self.output)
         rows = [row for section in sections for row in section["rows"]]
-        self.assertEqual(len(manifest["workflows"]), 38)
-        self.assertEqual(len(manifest["screenshots"]), 66)
-        self.assertEqual(len(rows), 42)
+        self.assertEqual(len(manifest["workflows"]), 50)
+        self.assertEqual(len(manifest["screenshots"]), 99)
+        self.assertEqual(len(rows), 54)
+        self.assertIn("mobile-root-overview", [row["id"] for row in rows])
         self.assertEqual([row["id"] for row in rows if row["id"].startswith("mobile-journal-")],
                          ["mobile-journal-create", "mobile-journal-edit", "mobile-journal-delete"])
+
+    def test_desktop_today_summary_reuses_the_root_while_mobile_shows_both_cards(self):
+        _, sections = TOOLS["validate_catalog"](self.output)
+        rows = {row["id"]: row for _, _, section_rows in TOOLS["layout"]() for row in section_rows}
+        self.assertEqual(rows["desktop-today-summary"]["images"], ["desktop-root-today-root"])
+        self.assertEqual(rows["mobile-today-summary"]["images"],
+                         ["mobile-today-summary-balance", "mobile-today-summary-body"])
+        self.assertIn("desktop-today-summary", [row["id"] for section in sections for row in section["rows"]])
+        TOOLS["render_workflows"](self.output, self.manifest)
+        self.assertIn("(screenshots/desktop-root-today-root.png) (reused view)",
+                      (self.output / "workflows.md").read_text())
 
     def test_renderer_uses_actual_web_dimensions_and_escapes_titles(self):
         self.manifest["screenshots"][0]["title"] = '<script>alert("bad")</script>'
@@ -93,6 +108,17 @@ class WebGalleryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Missing or misassigned"):
             TOOLS["validate_catalog"](self.output)
 
+    def test_retired_frame_cannot_remain_in_the_manifest(self):
+        source = next(image for image in self.manifest["screenshots"]
+                      if image["id"] == "mobile-session-edit")
+        retired_id = "mobile-session-returned"
+        retired = {**source, "id": retired_id, "file": "screenshots/" + retired_id + ".png"}
+        (self.output / retired["file"]).write_bytes((self.output / source["file"]).read_bytes())
+        self.manifest["screenshots"].append(retired)
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Unregistered workflows or frames: " + retired_id):
+            TOOLS["validate_catalog"](self.output)
+
     def test_failed_latest_attempt_cannot_reuse_old_passing_evidence(self):
         self.manifest["lastRun"]["status"] = "failed"
         self.save()
@@ -118,6 +144,12 @@ class WebGalleryTests(unittest.TestCase):
     def test_orphan_files_are_rejected(self):
         (self.output / "screenshots/orphan.png").write_bytes(IMAGES["mobile"])
         with self.assertRaisesRegex(ValueError, "Orphan"):
+            TOOLS["validate_catalog"](self.output)
+
+    def test_real_clock_baselines_cannot_be_relabeled_as_fixed(self):
+        self.manifest["captureProfile"]["fixedBrowserTime"] = "2025-01-16T09:41:00.000Z"
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Unknown fixed capture profile"):
             TOOLS["validate_catalog"](self.output)
 
     def test_mixed_profiles_are_rejected(self):

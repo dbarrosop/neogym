@@ -127,17 +127,18 @@ CLI does not hot-reload `nhost.toml`.
 
 ## Visual app guides
 
-- **[Web gallery](docs/web/gallery.html)** — 66 actual Chromium screenshots,
-  desktop and mobile layouts, all 14 web section roots and representative logging,
-  Journal CRUD and appearance workflows. [Guide](docs/web/README.md) ·
+- **[Web gallery](docs/web/gallery.html)** — real Chromium screenshots in desktop
+  and mobile layouts, covering every web section plus verification, training,
+  nutrition, progress, journal and appearance workflows. [Guide](docs/web/README.md) ·
   [Capture/refresh instructions](docs/web/capture.md).
 - **[iPhone gallery](docs/ios/gallery.html)** — the separate native demo catalog.
   [Guide](docs/ios/README.md) · [Capture instructions](docs/ios/capture.md).
 
 Both are dependency-free generated HTML with adjacent PNGs, not app routes or
 production build outputs. Open them directly in a browser. Web capture is opt-in
-Playwright against local Nhost with disposable accounts/private fictional data;
-iPhone capture uses XCTest and the isolated demo runtime. They share the Python
+Playwright against local Nhost with a reserved fictional account, resettable
+private fixtures and a fixed browser clock; iPhone capture uses XCTest and the
+isolated demo runtime. They share the Python
 renderer in `tools/gallery.py`, not a data/auth runtime. See each guide for what
 its retained evidence does and does not cover.
 

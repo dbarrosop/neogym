@@ -1,16 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { buildSchema, parse, validate } from "graphql";
+import { AREAS } from "../../src/lib/navigation";
 import {
   captureOrigin,
   LOCAL_AUTH,
   LOCAL_GRAPHQL,
   LOCAL_MAIL,
   LOCAL_STORAGE,
+  newOTP,
   otpFromMail,
 } from "./backend";
 import catalog from "./catalog.json";
-import { upsert, type WorkflowRecord } from "./driver";
+import { recordedPath, upsert, type WorkflowRecord } from "./driver";
 import { dateBefore, exerciseFixtures, foodFixtures, SEED_DOCUMENTS } from "./fixtures";
 import { CHECK_DOCUMENTS } from "./workflows";
 
@@ -48,6 +50,23 @@ describe("frontend gallery safety and registry", () => {
     expect(otpFromMail("Sign in", '<h1 style="color: #484848">No code</h1>')).toBeNull();
   });
 
+  test("rejects stale codes when the same fictional address signs in again", () => {
+    function mail(id: string, code: string) {
+      return { ID: id, To: [], Content: { Headers: {}, Body: `<p>${code}</p>` } };
+    }
+    const previous = new Set(["old"]);
+    const old = mail("old", "222222");
+    expect(newOTP([old], previous)).toBeNull();
+    expect(newOTP([old, mail("fresh", "333333")], previous)).toBe("333333");
+  });
+
+  test("walkthrough paths preserve the route but not freshly allocated IDs", () => {
+    expect(recordedPath("/nutrition/meals/f26ac88d-4dcd-48e8-a0ae-b4248918bc1c/edit")).toBe(
+      "/nutrition/meals/:fixture-id/edit",
+    );
+    expect(recordedPath("/nutrition/log/2025-01-15")).toBe("/nutrition/log/2025-01-15");
+  });
+
   test("backend endpoints are fixed to the CLI's local environment", () => {
     for (const endpoint of [LOCAL_AUTH, LOCAL_GRAPHQL, LOCAL_MAIL, LOCAL_STORAGE]) {
       expect(endpoint).toStartWith("https://local.");
@@ -55,10 +74,11 @@ describe("frontend gallery safety and registry", () => {
     }
   });
 
-  test("registers the actual fourteen web roots and both layouts", () => {
-    expect(catalog.roots).toHaveLength(14);
-    expect(new Set(catalog.roots.map((root) => root.path)).size).toBe(14);
-    expect(catalog.roots.some((root) => root.path === "/progress/overview")).toBe(false);
+  test("registers the real web section roots in navigation order and both layouts", () => {
+    const paths = AREAS.flatMap((area) =>
+      area.sections.length > 0 ? area.sections.map((section) => section.to) : [area.to],
+    );
+    expect(catalog.roots.map((root) => root.path)).toEqual(paths);
     expect(catalog.profiles.desktop.width).toBeGreaterThanOrEqual(1100);
     expect(catalog.profiles.mobile.width).toBeLessThan(768);
   });

@@ -8,20 +8,24 @@ These are retained results, not a new run of the browser workflows.
 
 <a id="desktop-public-auth"></a>
 
-## Inspect public sign-in and sign-up · desktop
+## Inspect sign-up and verify a sign-in code · desktop
 
 **Status:** passed
 
 1. Open /signin
+2. Return to sign-in and request a code for the seeded local account
+3. Enter the code from local MailHog; the last digit submits automatically
 
 **Verified outcomes**
 
-- Public authentication screens render; screenshots contain no OTP or credentials
+- The empty code step showed Change, disabled Verify and a resend countdown
+- Local verification succeeded and the app opened Today without pressing Verify
 
 **Screenshots**
 
 - [Public sign-in: email OTP request](screenshots/desktop-public-auth-signin.png)
 - [Public sign-up: display name and email](screenshots/desktop-public-auth-signup.png)
+- [Sign-in: empty verification code with Change and resend countdown](screenshots/desktop-public-auth-code.png)
 
 <a id="desktop-root-today"></a>
 
@@ -151,6 +155,22 @@ These are retained results, not a new run of the browser workflows.
 
 - [Meals: desktop section root](screenshots/desktop-root-meals-root.png)
 
+<a id="desktop-root-overview"></a>
+
+## Overview · desktop
+
+**Status:** passed
+
+1. Open /progress/overview
+
+**Verified outcomes**
+
+- The real route and its data requests settled without browser or GraphQL errors
+
+**Screenshots**
+
+- [Overview: desktop section root](screenshots/desktop-root-overview-root.png)
+
 <a id="desktop-root-muscles"></a>
 
 ## Muscles · desktop
@@ -247,27 +267,66 @@ These are retained results, not a new run of the browser workflows.
 
 - [Account: desktop section root](screenshots/desktop-root-account-root.png)
 
-<a id="desktop-session"></a>
+<a id="desktop-today-summary"></a>
 
-## Log a strength set and use the cross-area rest timer · desktop
+## Read Today’s balance and body trend · desktop
 
 **Status:** passed
 
-1. Open /train/sessions/01a1e9ee-06e6-7536-9187-4d53b0693ed3
-2. Log the prefilled second working set
-3. Extend rest, switch to Today, and return using the timer link
+1. Open /today
+2. Inspect the body trend, then open its full Progress section
 
 **Verified outcomes**
 
-- A fresh backend read contains exactly two Bench press sets
-- The timer survived area navigation, linked to the originating session, and cleared on Skip
+- Balance distinguishes the stamped actual totals from the estimated end of day
+- Body renders both metrics and its Trend link opens Progress › Body
+
+**Screenshots**
+
+- [Today: desktop section root](screenshots/desktop-root-today-root.png) (reused view)
+
+<a id="desktop-session"></a>
+
+## Log and edit a strength set, with rest across tabs · desktop
+
+**Status:** passed
+
+1. Open /train/sessions/:fixture-id
+2. Log the prefilled second working set
+3. Extend rest, advance the clock ten seconds, and switch to Today
+4. Return using the timer link, then Skip the rest
+5. Tap the saved second set, change its reps to 8, and save
+
+**Verified outcomes**
+
+- A fresh backend read contains exactly two Bench press sets, with 8 reps on set 2
+- Rest extended from 1:30 to 2:00, reached 1:50 after ten seconds, survived navigation and cleared on Skip
 
 **Screenshots**
 
 - [Session: inline next-set controls and earlier history](screenshots/desktop-session-before.png)
 - [Session: saved set and running rest timer](screenshots/desktop-session-logged.png)
 - [Today: the session's rest timer remains available](screenshots/desktop-session-today.png)
-- [Session: returned from Today and skipped the rest](screenshots/desktop-session-returned.png)
+- [Session: edit the saved set in place after returning from Today](screenshots/desktop-session-edit.png)
+
+<a id="desktop-exercise-detail"></a>
+
+## Open exercise details from a session · desktop
+
+**Status:** passed
+
+1. Open /train/sessions/:fixture-id
+2. Open the exercise options and choose Exercise details
+
+**Verified outcomes**
+
+- Exercise details opened the matching catalog route with a strength progress chart
+
+**Screenshots**
+
+- [Session: Bench press and earlier sets in the Recent panel](screenshots/desktop-exercise-detail-recent.png)
+- [Session: exercise details and removal sit behind Options](screenshots/desktop-exercise-detail-options.png)
+- [Exercise detail: muscles and instructions](screenshots/desktop-exercise-detail-details.png)
 
 <a id="desktop-plan-log"></a>
 
@@ -275,7 +334,7 @@ These are retained results, not a new run of the browser workflows.
 
 **Status:** passed
 
-1. Open /nutrition/log/2026-11-17
+1. Open /nutrition/log/2025-01-15
 2. Log the planned 07:15 slot and inspect the append confirmation
 
 **Verified outcomes**
@@ -287,7 +346,71 @@ These are retained results, not a new run of the browser workflows.
 
 - [Nutrition: planned breakfast beside existing intake](screenshots/desktop-plan-log-before.png)
 - [Nutrition: confirmation before appending planned intake](screenshots/desktop-plan-log-confirm.png)
-- [Nutrition: appended breakfast, with its planned slot still available](screenshots/desktop-plan-log-logged.png)
+- [Nutrition: appended breakfast and its per-food macro rows](screenshots/desktop-plan-log-logged.png)
+
+<a id="desktop-plan-edit"></a>
+
+## Move a planned food into an existing time slot · desktop
+
+**Status:** passed
+
+1. Open /nutrition/plans/:fixture-id/edit
+2. Use Banana’s row menu to move it into the existing 12:30 slot
+3. Save the plan and inspect the mixed lunch slot on its detail page
+
+**Verified outcomes**
+
+- Backend confirms the shared lunch time and positions, with Banana still at 120 g
+
+**Screenshots**
+
+- [Plan editor: Banana in its original afternoon slot](screenshots/desktop-plan-edit-slot.png)
+- [Plan editor: choose a destination time for one planned food](screenshots/desktop-plan-edit-move.png)
+- [Plan editor: the existing lunch slot now contains both meal and food](screenshots/desktop-plan-edit-merged.png)
+- [Plan detail: saved lunch shows the meal, food and slot macros](screenshots/desktop-plan-edit-saved.png)
+
+<a id="desktop-meal-edit"></a>
+
+## Edit a meal used by a nutrition plan · desktop
+
+**Status:** passed
+
+1. Open /nutrition/meals/:fixture-id/edit
+2. Open the current ingredient’s food picker, then close it without changing the food
+3. Change the ingredient amount and inspect the recalculated live totals
+4. Save the meal without changing its plan reference
+
+**Verified outcomes**
+
+- The editor named the referencing plan and disabled Delete
+- A fresh backend read confirms 70 g of oats and all three ingredients
+
+**Screenshots**
+
+- [Meal editor: search foods from an existing ingredient row](screenshots/desktop-meal-edit-ingredients.png)
+- [Meal editor: the linked Training day plan blocks deletion](screenshots/desktop-meal-edit-delete-guard.png)
+- [Meal detail: the saved ingredient portions and nutrition totals](screenshots/desktop-meal-edit-saved.png)
+
+<a id="desktop-progress-calories"></a>
+
+## Open Calories from Progress Overview · desktop
+
+**Status:** passed
+
+1. Open /progress
+2. Follow See all energy to compare consumed and net calories
+3. Switch the Calories period to 90 days without changing the energy-out period
+
+**Verified outcomes**
+
+- Progress lands on Overview and its Energy link opens both populated Calories charts
+- Changing Calories to 90 days left the energy-out trend on 30 days
+
+**Screenshots**
+
+- [Progress Overview: Energy card and its See all link](screenshots/desktop-progress-calories-overview-energy.png)
+- [Calories: starting period and consumed calories so far](screenshots/desktop-progress-calories-consumed.png)
+- [Calories: net calories and their 7-day average over the wider period](screenshots/desktop-progress-calories-net.png)
 
 <a id="desktop-journal-crud"></a>
 
@@ -339,20 +462,24 @@ These are retained results, not a new run of the browser workflows.
 
 <a id="mobile-public-auth"></a>
 
-## Inspect public sign-in and sign-up · mobile
+## Inspect sign-up and verify a sign-in code · mobile
 
 **Status:** passed
 
 1. Open /signin
+2. Return to sign-in and request a code for the seeded local account
+3. Enter the code from local MailHog; the last digit submits automatically
 
 **Verified outcomes**
 
-- Public authentication screens render; screenshots contain no OTP or credentials
+- The empty code step showed Change, disabled Verify and a resend countdown
+- Local verification succeeded and the app opened Today without pressing Verify
 
 **Screenshots**
 
 - [Public sign-in: email OTP request](screenshots/mobile-public-auth-signin.png)
 - [Public sign-up: display name and email](screenshots/mobile-public-auth-signup.png)
+- [Sign-in: empty verification code with Change and resend countdown](screenshots/mobile-public-auth-code.png)
 
 <a id="mobile-root-today"></a>
 
@@ -482,6 +609,22 @@ These are retained results, not a new run of the browser workflows.
 
 - [Meals: mobile section root](screenshots/mobile-root-meals-root.png)
 
+<a id="mobile-root-overview"></a>
+
+## Overview · mobile
+
+**Status:** passed
+
+1. Open /progress/overview
+
+**Verified outcomes**
+
+- The real route and its data requests settled without browser or GraphQL errors
+
+**Screenshots**
+
+- [Overview: mobile section root](screenshots/mobile-root-overview-root.png)
+
 <a id="mobile-root-muscles"></a>
 
 ## Muscles · mobile
@@ -578,27 +721,69 @@ These are retained results, not a new run of the browser workflows.
 
 - [Account: mobile section root](screenshots/mobile-root-account-root.png)
 
-<a id="mobile-session"></a>
+<a id="mobile-today-summary"></a>
 
-## Log a strength set and use the cross-area rest timer · mobile
+## Read Today’s balance and body trend · mobile
 
 **Status:** passed
 
-1. Open /train/sessions/01a1e9ee-88b9-73cf-b5e7-86b27b5a6bc4
-2. Log the prefilled second working set
-3. Extend rest, switch to Today, and return using the timer link
+1. Open /today
+2. Inspect the body trend, then open its full Progress section
 
 **Verified outcomes**
 
-- A fresh backend read contains exactly two Bench press sets
-- The timer survived area navigation, linked to the originating session, and cleared on Skip
+- Balance distinguishes the stamped actual totals from the estimated end of day
+- Body renders both metrics and its Trend link opens Progress › Body
+
+**Screenshots**
+
+- [Today: recorded balance and the separate end-of-day estimate](screenshots/mobile-today-summary-balance.png)
+- [Today: weight and body fat with latest readings and weekly averages](screenshots/mobile-today-summary-body.png)
+
+<a id="mobile-session"></a>
+
+## Log and edit a strength set, with rest across tabs · mobile
+
+**Status:** passed
+
+1. Open /train/sessions/:fixture-id
+2. Log the prefilled second working set
+3. Extend rest, advance the clock ten seconds, and switch to Today
+4. Return using the timer link, then Skip the rest
+5. Tap the saved second set, change its reps to 8, and save
+
+**Verified outcomes**
+
+- A fresh backend read contains exactly two Bench press sets, with 8 reps on set 2
+- Rest extended from 1:30 to 2:00, reached 1:50 after ten seconds, survived navigation and cleared on Skip
 
 **Screenshots**
 
 - [Session: inline next-set controls and earlier history](screenshots/mobile-session-before.png)
 - [Session: saved set and running rest timer](screenshots/mobile-session-logged.png)
 - [Today: the session's rest timer remains available](screenshots/mobile-session-today.png)
-- [Session: returned from Today and skipped the rest](screenshots/mobile-session-returned.png)
+- [Session: edit the saved set in place after returning from Today](screenshots/mobile-session-edit.png)
+
+<a id="mobile-exercise-detail"></a>
+
+## Open exercise details from a session · mobile
+
+**Status:** passed
+
+1. Open /train/sessions/:fixture-id
+2. Open the exercise options and choose Exercise details
+
+**Verified outcomes**
+
+- On mobile, the exercise instructions are above the Progress card
+- Exercise details opened the matching catalog route with a strength progress chart
+
+**Screenshots**
+
+- [Session: Bench press and earlier sets in the Recent panel](screenshots/mobile-exercise-detail-recent.png)
+- [Session: exercise details and removal sit behind Options](screenshots/mobile-exercise-detail-options.png)
+- [Exercise detail: muscles and instructions](screenshots/mobile-exercise-detail-details.png)
+- [Exercise detail: volume and estimated 1RM over earlier sessions](screenshots/mobile-exercise-detail-progress.png)
 
 <a id="mobile-plan-log"></a>
 
@@ -606,7 +791,7 @@ These are retained results, not a new run of the browser workflows.
 
 **Status:** passed
 
-1. Open /nutrition/log/2026-11-17
+1. Open /nutrition/log/2025-01-15
 2. Log the planned 07:15 slot and inspect the append confirmation
 
 **Verified outcomes**
@@ -618,7 +803,71 @@ These are retained results, not a new run of the browser workflows.
 
 - [Nutrition: planned breakfast beside existing intake](screenshots/mobile-plan-log-before.png)
 - [Nutrition: confirmation before appending planned intake](screenshots/mobile-plan-log-confirm.png)
-- [Nutrition: appended breakfast, with its planned slot still available](screenshots/mobile-plan-log-logged.png)
+- [Nutrition: appended breakfast and its per-food macro rows](screenshots/mobile-plan-log-logged.png)
+
+<a id="mobile-plan-edit"></a>
+
+## Move a planned food into an existing time slot · mobile
+
+**Status:** passed
+
+1. Open /nutrition/plans/:fixture-id/edit
+2. Use Banana’s row menu to move it into the existing 12:30 slot
+3. Save the plan and inspect the mixed lunch slot on its detail page
+
+**Verified outcomes**
+
+- Backend confirms the shared lunch time and positions, with Banana still at 120 g
+
+**Screenshots**
+
+- [Plan editor: Banana in its original afternoon slot](screenshots/mobile-plan-edit-slot.png)
+- [Plan editor: choose a destination time for one planned food](screenshots/mobile-plan-edit-move.png)
+- [Plan editor: the existing lunch slot now contains both meal and food](screenshots/mobile-plan-edit-merged.png)
+- [Plan detail: saved lunch shows the meal, food and slot macros](screenshots/mobile-plan-edit-saved.png)
+
+<a id="mobile-meal-edit"></a>
+
+## Edit a meal used by a nutrition plan · mobile
+
+**Status:** passed
+
+1. Open /nutrition/meals/:fixture-id/edit
+2. Open the current ingredient’s food picker, then close it without changing the food
+3. Change the ingredient amount and inspect the recalculated live totals
+4. Save the meal without changing its plan reference
+
+**Verified outcomes**
+
+- The editor named the referencing plan and disabled Delete
+- A fresh backend read confirms 70 g of oats and all three ingredients
+
+**Screenshots**
+
+- [Meal editor: search foods from an existing ingredient row](screenshots/mobile-meal-edit-ingredients.png)
+- [Meal editor: the linked Training day plan blocks deletion](screenshots/mobile-meal-edit-delete-guard.png)
+- [Meal detail: the saved ingredient portions and nutrition totals](screenshots/mobile-meal-edit-saved.png)
+
+<a id="mobile-progress-calories"></a>
+
+## Open Calories from Progress Overview · mobile
+
+**Status:** passed
+
+1. Open /progress
+2. Follow See all energy to compare consumed and net calories
+3. Switch the Calories period to 90 days without changing the energy-out period
+
+**Verified outcomes**
+
+- Progress lands on Overview and its Energy link opens both populated Calories charts
+- Changing Calories to 90 days left the energy-out trend on 30 days
+
+**Screenshots**
+
+- [Progress Overview: Energy card and its See all link](screenshots/mobile-progress-calories-overview-energy.png)
+- [Calories: starting period and consumed calories so far](screenshots/mobile-progress-calories-consumed.png)
+- [Calories: net calories and their 7-day average over the wider period](screenshots/mobile-progress-calories-net.png)
 
 <a id="mobile-journal-crud"></a>
 

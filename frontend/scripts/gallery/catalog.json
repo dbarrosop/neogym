@@ -68,6 +68,13 @@
       "heading": "Nutrition"
     },
     {
+      "id": "overview",
+      "area": "progress",
+      "title": "Overview",
+      "path": "/progress/overview",
+      "heading": "Progress"
+    },
+    {
       "id": "muscles",
       "area": "progress",
       "title": "Muscles",
@@ -114,20 +121,56 @@
     {
       "id": "public-auth",
       "area": "getting-started",
-      "title": "Inspect public sign-in and sign-up",
-      "frames": ["signin", "signup"]
+      "title": "Inspect sign-up and verify a sign-in code",
+      "frames": ["signin", "signup", "code"]
+    },
+    {
+      "id": "today-summary",
+      "area": "today",
+      "title": "Read Today’s balance and body trend",
+      "frames": ["balance", "body"],
+      "layoutOverrides": {
+        "desktop": { "frames": [], "context": ["root-today-root"] }
+      }
     },
     {
       "id": "session",
       "area": "train",
-      "title": "Log a strength set and use the cross-area rest timer",
-      "frames": ["before", "logged", "today", "returned"]
+      "title": "Log and edit a strength set, with rest across tabs",
+      "frames": ["before", "logged", "today", "edit"]
+    },
+    {
+      "id": "exercise-detail",
+      "area": "train",
+      "title": "Open exercise details from a session",
+      "frames": ["recent", "options", "details", "progress"],
+      "layoutOverrides": {
+        "desktop": { "frames": ["recent", "options", "details"] }
+      }
     },
     {
       "id": "plan-log",
       "area": "nutrition",
       "title": "Append a planned slot beside existing intake",
       "frames": ["before", "confirm", "logged"]
+    },
+    {
+      "id": "plan-edit",
+      "area": "nutrition",
+      "title": "Move a planned food into an existing time slot",
+      "frames": ["slot", "move", "merged", "saved"]
+    },
+    {
+      "id": "meal-edit",
+      "area": "nutrition",
+      "title": "Edit a meal used by a nutrition plan",
+      "frames": ["ingredients", "delete-guard", "saved"]
+    },
+    {
+      "id": "progress-calories",
+      "area": "progress",
+      "title": "Open Calories from Progress Overview",
+      "frames": ["overview-energy", "consumed", "net"]
     },
     {
       "id": "journal-crud",

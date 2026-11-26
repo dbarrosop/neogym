@@ -712,27 +712,29 @@ must preserve the current iOS HTML byte-for-byte unless explicitly redesigning i
 never refresh iOS images/provenance as a side effect of web work.
 
 The web capture lives in `frontend/scripts/gallery/`: `catalog.json` is the
-canonical profile/root/frame registry; Playwright drives the normal frontend,
-creates a new local OTP account per profile through MailHog, and seeds only that
-user's private fixtures through user-role GraphQL. There is no production demo or
-auth bypass, admin secret, database reset, public-data write or stored browser
-session. Backend URLs are fixed local endpoints; browser network calls are
-allowlisted. `bun run gallery:serve` forces local Nhost and uses port 5173; browse
-`http://localhost:5173`, the origin allowed by local Constellation CORS. An
-arbitrary capture port/hostname will fail CORS; do not bypass browser security to
-hide it. Disposable accounts/fixtures remain in the local DB after capture.
+canonical root/frame registry and `profile.json` pins the browser date and
+reserved fictional account. The opt-in seed checks this checkout's local Docker
+ownership and fixture ID/email/marker before resetting only that account and its
+private data. It fixes the account and visible energy timestamps; Playwright
+signs in through real OTP/MailHog and writes the remaining fixtures through
+user-role GraphQL. There is no production demo, auth bypass, admin secret,
+database reset, shared-data write or stored developer session. Browser endpoints
+are local and allowlisted. `bun run gallery:serve` uses `http://localhost:5173`,
+the origin allowed by local Constellation CORS; do not bypass browser security.
+The last layout's gallery data remains in the local DB until the next refresh.
 
-The initial `docs/web/` baseline has 66 viewport PNGs / 38 recorded walkthroughs /
-42 visual rows, covering all 14 web roots at 1440 × 1000 and 390 × 844 plus
-representative strength/rest, planned-slot, Journal CRUD and appearance flows.
-Mobile is Chromium emulation, not Safari/device validation. Auth/server/browser
-clocks remain real and fixtures are relative to the recorded UTC date; en-US,
-UTC, scale 1, reduced motion, fresh contexts and a pinned local Inter font are
-explicit. Do not claim frozen dates or byte-identical recaptures. A changed
-profile/date/browser/font requires a new reviewed complete baseline rather than
-mixing evidence. Same-profile partial refreshes preserve unchanged images,
-provenance and order; failed latest attempts and incomplete catalogs cannot pass
-publication. Failure diagnostics stay in ignored scratch space, never docs.
+The `docs/web/` gallery covers all web roots at 1440 × 1000 and 390 × 844 plus
+representative OTP verification, strength logging/editing and exercise details,
+nutrition log and editors, Progress Overview and Calories, Journal CRUD and
+appearance. Keep the registry and captured walkthroughs in sync when those
+flows change. Mobile is Chromium emulation, not Safari/device validation.
+Playwright fixes its application date and explicitly advances it for rest;
+Auth, database and provenance clocks are real. Locale/time zone, scale, reduced
+motion, fresh contexts and pinned Inter are explicit. Verify quiet recaptures on
+the same browser/host with the same profile, and preserve the PNGs, manifest and
+provenance on byte-identical runs. Fixture/profile/browser/font changes require a
+new complete reviewed baseline. Failed attempts and incomplete catalogs cannot
+pass publication. Diagnostics stay in ignored scratch space, never docs.
 
 See [web capture instructions](docs/web/capture.md) for opt-in browser installation,
 local setup and scratch-first publication. `tools/web-gallery.py validate|render`

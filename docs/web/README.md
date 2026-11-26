@@ -8,9 +8,9 @@ with fictional private data. It is static documentation, separate from the deplo
 app: open `gallery.html` directly in a browser, keeping `screenshots/` beside it.
 Viewing needs no backend, dev server, Playwright or internet connection.
 
-The initial catalog contains **66 original viewport screenshots**, **38 recorded
-walkthroughs** and **42 visual rows**. Journal create/edit/delete rows reuse their
-original context frames rather than copying or recreating screenshots. Each row
+The catalog contains **99 original viewport screenshots**, **50 recorded
+walkthroughs** and **54 visual rows**. The desktop Today summary and Journal
+create/edit/delete rows reuse context frames rather than duplicating screenshots. Each row
 reads left to right; search filters by words, and Screen size changes presentation
 size without changing the original PNGs.
 
@@ -26,11 +26,13 @@ means Chromium viewport emulation, not an iPhone/Safari or physical-device test.
 Both start in Dark appearance, use en-US/UTC and reduced motion, and load pinned
 Inter locally. The Appearance walkthrough also captures Light.
 
-The manifest records browser/tool/font versions, viewport settings, fixture date,
-per-image capture time/hash and source Git revision/dirty state. Application,
-Auth and server clocks remain real. History is relative to the fixture date;
-this is not a frozen-date or bit-for-bit reproducibility claim. A dirty source
-revision identifies a capture from an uncommitted worktree, not a released build.
+The capture profile fixes the browser date at **15 January 2025, 09:41 UTC** and
+resets the same reserved fictional account and private history before each layout.
+Auth and the database still use real time. The manifest records the fixed profile,
+browser/tool/font versions, viewport settings, and each image’s actual capture
+time, hash, and Git source. Identical reruns on the same render environment leave
+the published evidence unchanged. A dirty source identifies an uncommitted
+worktree, not a released build.
 
 ## Coverage
 
@@ -41,20 +43,31 @@ Every implemented web section root appears in both layouts:
 | Today | Today |
 | Train | Sessions, Workouts, Exercises |
 | Nutrition | Log, Plans, Foods, Meals |
-| Progress | Muscles, Strength, Body, Energy |
+| Progress | Overview, Muscles, Strength, Body, Energy |
 | Me | Journal, Account |
 
 The following representative workflows add intermediate states and assertions:
 
-- **Public authentication screens:** sign-in and sign-up. Setup then creates a
-  disposable account through the real email OTP UI and local MailHog; screenshots
-  do not expose the OTP or session credentials.
+- **Email verification:** browse sign-in and sign-up, then request a code for the
+  seeded account on Sign in. Inspect the empty code step (Change, Verify and the
+  resend countdown), then enter the fresh local MailHog code and verify automatic
+  navigation to Today. No screenshot shows a code or session credentials.
+- **Today: Balance and Body:** distinguish recorded energy from the end-of-day
+  estimate, inspect weight and body-fat trends, and follow Trend to Progress.
 - **Strength logging and rest:** log a prefilled second set, extend rest, switch
-  to Today, return through the timer link and Skip. A fresh backend read confirms
-  two sets; UI assertions check timer continuity/navigation.
+  to Today, then return through the timer link and Skip. Open the saved row,
+  edit its reps, and verify the two sets and updated count on the backend.
+- **Exercise details:** inspect recent sets, open the exercise from its session
+  Options menu, and read its strength chart. Mobile checks that instructions
+  come before Progress.
 - **Planned nutrition logging:** an occupied breakfast slot asks before appending
   its planned meal. Backend reads verify three new food snapshots and one meal
   group, and the planned slot remains available.
+- **Nutrition editors:** move a food into an existing plan slot and verify both
+  items' saved time and position. Change an ingredient in a meal, inspect live
+  totals, and check that the plan reference prevents deletion.
+- **Progress Overview and Calories:** follow the Energy shortcut, inspect the
+  Consumed and Net charts, and change only the Calories period.
 - **Journal create/edit/delete:** save Markdown, edit the title, confirm deletion
   and return to the list. Fresh backend reads confirm each outcome.
 - **Appearance:** select Light, navigate to Today, then restore Dark.
@@ -65,11 +78,11 @@ outcomes. File validation verifies retained evidence; it does not rerun workflow
 
 ## Boundaries
 
-This first catalog does **not** cover exhaustive CRUD, cardio entry, every
+This catalog does **not** cover exhaustive CRUD, cardio entry, every
 empty/loading/error state, tablet breakpoints, all themes, keyboard/screen-reader
 behavior, production deployment or cross-browser compatibility. It does not
-exercise PKCE email changes or claim cloud email delivery. Progress Overview is
-not implemented on the web.
+exercise account creation, OTP resend, or PKCE email changes, or claim cloud
+email delivery.
 
 Apple Health tags come from fictional fixture notes and demonstrate read-only
 presentation. The web cannot import Apple Health or connect an Apple Watch;
@@ -80,7 +93,7 @@ The browser runs do not replace backend permission/integrity tests.
 
 ```text
 Normal local frontend + local Nhost
-    ↓ Playwright signs up, seeds private fixtures and drives actual controls
+    ↓ Reset the gallery fixture; Playwright signs in and drives actual controls
 PNG files + capture-manifest.json
     ↓ Python validates coverage, results, profiles, hashes and dimensions
 Offline gallery.html + workflows.md

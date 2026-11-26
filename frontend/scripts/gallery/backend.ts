@@ -58,6 +58,7 @@ export class CaptureBackend {
 }
 
 interface MailMessage {
+  ID: string;
   To: { Mailbox: string; Domain: string }[];
   Content: { Headers: Record<string, string[]>; Body: string };
 }
@@ -78,18 +79,22 @@ export function otpFromMail(subject: string, body: string): string | null {
   return OTP_PATTERN.exec(subject)?.[1] ?? OTP_HTML.exec(decoded)?.[1] ?? null;
 }
 
-export async function readOTP(
-  request: APIRequestContext,
-  email: string,
-  deadline = Date.now() + 30_000,
-): Promise<string> {
-  const response = await request.get(`${LOCAL_MAIL}/api/v2/messages?limit=100`);
+export async function galleryMail(request: APIRequestContext, email: string) {
+  const response = await request.get(`${LOCAL_MAIL}/api/v2/search`, {
+    params: { kind: "to", query: email, limit: 100 },
+  });
   if (!response.ok()) {
     throw new Error(`Local MailHog returned HTTP ${response.status()}`);
   }
-  const messages = (await response.json()) as { items: MailMessage[] };
-  for (const message of messages.items) {
-    if (!message.To.some((to) => `${to.Mailbox}@${to.Domain}` === email)) {
+  const messages = (await response.json()) as { items: MailMessage[] | null };
+  return (messages.items ?? []).filter((message) =>
+    message.To.some((to) => `${to.Mailbox}@${to.Domain}` === email),
+  );
+}
+
+export function newOTP(messages: readonly MailMessage[], previous: ReadonlySet<string>) {
+  for (const message of messages) {
+    if (previous.has(message.ID)) {
       continue;
     }
     const subject = message.Content.Headers["Subject"]?.join(" ") ?? "";
@@ -98,9 +103,22 @@ export async function readOTP(
       return code;
     }
   }
+  return null;
+}
+
+export async function readOTP(
+  request: APIRequestContext,
+  email: string,
+  previous: ReadonlySet<string>,
+  deadline = Date.now() + 30_000,
+): Promise<string> {
+  const code = newOTP(await galleryMail(request, email), previous);
+  if (code) {
+    return code;
+  }
   if (Date.now() >= deadline) {
-    throw new Error("No OTP arrived for the new local capture account");
+    throw new Error("No new OTP arrived for the local capture account");
   }
   await new Promise((resolve) => setTimeout(resolve, 200));
-  return readOTP(request, email, deadline);
+  return readOTP(request, email, previous, deadline);
 }
