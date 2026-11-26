@@ -3,9 +3,8 @@ import { type ReactNode, useId } from "react";
 import { BRAND_HEADLINE, BRAND_HIGHLIGHTS, BRAND_PLATFORMS } from "@/components/shell/brand-copy";
 import { BrandMark } from "@/components/shell/brand-mark";
 
-/** 46 px email/name fields on the sign-in and sign-up forms. */
-export const AUTH_INPUT_CLASS =
-  "h-[46px] rounded-[10px] bg-card px-3.5 text-[15px] md:text-[15px] dark:bg-card";
+/** 46 px auth fields; keep Input's 16 px text on phones to avoid focus zoom. */
+export const AUTH_INPUT_CLASS = "h-[46px] rounded-[10px] bg-card px-3.5 dark:bg-card";
 
 /** 46 px full-width primary action (Send code, Verify). */
 export const AUTH_SUBMIT_CLASS = "h-[46px] w-full rounded-[10px] font-semibold text-[15px]";
