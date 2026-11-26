@@ -79,8 +79,10 @@ days, so they add up to it. The trend reads its own date-bounded range
 days at a time with a "7 of 41 days" count from `dailyEnergyEntriesAggregate`
 and Load more over 30-row pages. If a next page fails, the footer offers
 Retry for that page and keeps the expanded history window and trend visible.
-Failed background refetches on web Energy and Body show Retry alongside any
-loaded data rather than clearing their charts or resetting the history window.
+The Energy trend and Calories card load even while history is pending, empty
+or unavailable. Each chart's Retry refreshes its own range. Failed background
+refetches on web Energy and Body show Retry alongside any loaded data rather
+than clearing their charts or resetting the history window.
 
 The web Energy trend draws active (Chart 2, orange) and resting (Chart 1, blue)
 lines with a dot per day from zero, today's partial row dashed to open dots, as

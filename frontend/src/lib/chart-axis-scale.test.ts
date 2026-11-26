@@ -84,6 +84,16 @@ describe("chart axis scale", () => {
     expect(axisLabel(fractional, 5, enGB)).toBe("5");
   });
 
+  test("close ticks keep distinct labels, including compact-range and start-aligned axes", () => {
+    const volume = required(roundedAxisScale([12_000, 12_025, 12_050]));
+    expect(axisLabels(volume, enGB)).toEqual(["12,000", "12,025", "12,050"]);
+    const [left, right] = required(startAlignedAxisScales([71.234, 71.24], [12_000, 12_018]));
+    for (const scale of [left, right]) {
+      expect(new Set(axisLabels(scale, enGB)).size).toBe(3);
+    }
+    expect(axisLabels(axisScale(-0.002, 0.002), enGB)).toEqual(["−0.002", "0", "+0.002"]);
+  });
+
   test("the Energy board's axes: 0 · 1,000 · 2,000 out, 1,000 · 2,000 · 3,000 consumed", () => {
     const out = required(roundedAxisScale([531, 679, 1_346, 1_892], { includeZero: true }));
     expect(axisLabels(out, enGB)).toEqual(["0", "1,000", "2,000"]);

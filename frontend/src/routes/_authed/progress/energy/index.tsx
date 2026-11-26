@@ -65,13 +65,6 @@ function DailyEnergyRoute() {
     />
   );
 
-  const calories = (
-    <CaloriesCard
-      days={search.calories ?? 30}
-      periodControl={periodControl("calories", "Calories period")}
-    />
-  );
-
   const listError =
     list.error && !list.isFetchNextPageError ? (
       <ErrorState
@@ -82,53 +75,37 @@ function DailyEnergyRoute() {
       />
     ) : null;
 
-  // Board order: energy trend, Calories, then the day list.
-  function renderMain() {
+  function renderHistory() {
     if (list.isPending) {
       return (
-        <SkeletonState className="flex flex-col gap-5">
-          <Skeleton className="h-[380px] w-full rounded-xl" />
+        <SkeletonState>
           <Skeleton className="h-60 w-full rounded-xl" />
         </SkeletonState>
       );
     }
     if (!list.data) {
-      return (
-        <>
-          {listError}
-          {calories}
-        </>
-      );
+      return null;
     }
     const rows = list.data.pages.flatMap((page) => page.dailyEnergyEntries);
     const total = list.data.pages.at(-1)?.dailyEnergyEntriesAggregate.aggregate?.count ?? 0;
     if (Math.max(total, rows.length) === 0) {
       return (
-        <>
-          {listError}
-          <EmptyState
-            icon={Flame}
-            title="No energy days yet"
-            description="Log active and resting kilocalories to see what you burn. The NeoGym Apple Watch app imports them from Apple Health."
-          />
-          {calories}
-        </>
+        <EmptyState
+          icon={Flame}
+          title="No energy days yet"
+          description="Log active and resting kilocalories to see what you burn. The NeoGym Apple Watch app imports them from Apple Health."
+        />
       );
     }
     return (
-      <>
-        {listError}
-        <EnergyTrendCard days={search.days ?? 30} periodControl={periodControl("days", "Period")} />
-        {calories}
-        <EnergyHistory
-          rows={rows}
-          total={total}
-          hasMoreRemote={list.hasNextPage}
-          isFetchingMore={list.isFetchingNextPage}
-          loadError={list.isFetchNextPageError ? list.error.message : undefined}
-          fetchMore={() => list.fetchNextPage()}
-        />
-      </>
+      <EnergyHistory
+        rows={rows}
+        total={total}
+        hasMoreRemote={list.hasNextPage}
+        isFetchingMore={list.isFetchingNextPage}
+        loadError={list.isFetchNextPageError ? list.error.message : undefined}
+        fetchMore={() => list.fetchNextPage()}
+      />
     );
   }
 
@@ -147,7 +124,18 @@ function DailyEnergyRoute() {
         }
       />
       <div className={`grid items-start gap-5 ${SIDE_BY_SIDE}`}>
-        <div className="flex min-w-0 flex-col gap-5">{renderMain()}</div>
+        <div className="flex min-w-0 flex-col gap-5">
+          <EnergyTrendCard
+            days={search.days ?? 30}
+            periodControl={periodControl("days", "Period")}
+          />
+          <CaloriesCard
+            days={search.calories ?? 30}
+            periodControl={periodControl("calories", "Calories period")}
+          />
+          {listError}
+          {renderHistory()}
+        </div>
         <div className={`flex flex-col gap-4 ${SIDE_COLUMN}`}>
           <TodayEnergyEstimate variant="energy" />
           <QuickDailyEnergyForm />
@@ -172,34 +160,31 @@ function EnergyTrendCard({ days, periodControl }: { days: number; periodControl:
         : null,
     [query.data, today, range.start, range.end],
   );
-  let body: ReactNode;
-  if (trend) {
-    body = <EnergyTrendSummary trend={trend} domain={range} periodControl={periodControl} />;
-  } else {
-    body = (
-      <>
-        <div className="flex justify-end">{periodControl}</div>
-        {query.error ? (
-          <ErrorState
-            title="Couldn't load the energy trend"
-            message={query.error.message}
-            onRetry={() => query.refetch()}
-            isRetrying={query.isFetching}
-          />
-        ) : (
-          <SkeletonState>
-            <Skeleton className="h-[300px] w-full rounded-lg" />
-          </SkeletonState>
-        )}
-      </>
-    );
-  }
   return (
     <section
       aria-label="Energy trend"
       className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-5"
     >
-      {body}
+      {query.error ? (
+        <ErrorState
+          title="Couldn't load the energy trend"
+          message={query.error.message}
+          onRetry={() => query.refetch()}
+          isRetrying={query.isFetching}
+        />
+      ) : null}
+      {trend ? (
+        <EnergyTrendSummary trend={trend} domain={range} periodControl={periodControl} />
+      ) : (
+        <>
+          <div className="flex justify-end">{periodControl}</div>
+          {query.isPending ? (
+            <SkeletonState>
+              <Skeleton className="h-[300px] w-full rounded-lg" />
+            </SkeletonState>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }

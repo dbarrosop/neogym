@@ -131,26 +131,6 @@ export function CaloriesCard({
   const today = useLocalToday();
   const range = chartWindow(days, today);
   const { query, trend } = useCalorieHistory(range);
-  let body: ReactNode;
-  if (query.isPending) {
-    body = (
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-7">
-        <Skeleton className="h-[230px] w-full rounded-lg" />
-        <Skeleton className="h-[230px] w-full rounded-lg" />
-      </div>
-    );
-  } else if (query.error || !trend) {
-    body = (
-      <ErrorState
-        title="Couldn't load calories"
-        message={query.error?.message}
-        onRetry={() => query.refetch()}
-        isRetrying={query.isFetching}
-      />
-    );
-  } else {
-    body = <CalorieCharts trend={trend} domain={range} />;
-  }
   return (
     <section
       aria-labelledby={titleId}
@@ -168,7 +148,21 @@ export function CaloriesCard({
         </div>
         {periodControl}
       </div>
-      {body}
+      {query.error ? (
+        <ErrorState
+          title="Couldn't load calories"
+          message={query.error.message}
+          onRetry={() => query.refetch()}
+          isRetrying={query.isFetching}
+        />
+      ) : null}
+      {query.isPending ? (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-7">
+          <Skeleton className="h-[230px] w-full rounded-lg" />
+          <Skeleton className="h-[230px] w-full rounded-lg" />
+        </div>
+      ) : null}
+      {trend ? <CalorieCharts trend={trend} domain={range} /> : null}
     </section>
   );
 }

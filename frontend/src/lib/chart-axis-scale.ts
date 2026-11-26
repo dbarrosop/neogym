@@ -189,8 +189,8 @@ function pad2(value: number) {
 }
 
 /**
- * An axis label: grouped digits below 10,000 (`2,000`), thousands as `k`
- * above (`50k`), and an explicit sign when the axis crosses zero (`+400`,
+ * An axis label: grouped digits (`2,000`), thousands as `k` for large
+ * ticks when the step can be distinguished, and an explicit sign when the axis crosses zero (`+400`,
  * `−1,200`). Durations read `35:00`, and every label reads h:mm:ss once the
  * axis reaches an hour (`0:00:00 · 2:00:00 · 4:00:00`).
  */
@@ -210,7 +210,7 @@ export function axisLabel(
   const magnitude = Math.max(Math.abs(scale.min), Math.abs(max));
   const snapped = Math.abs(value) < scale.step * 1e-6 ? 0 : value;
   let digits: string;
-  if (magnitude >= 10_000) {
+  if (magnitude >= 10_000 && scale.step >= 100) {
     digits = `${labelFormat(locale, 1, false).format(Math.abs(snapped) / 1000)}k`;
   } else {
     // Start-aligned steps are not round: whole numbers from a step of 5.
@@ -220,7 +220,10 @@ export function axisLabel(
     } else if (scale.step >= 0.1) {
       decimals = 1;
     }
-    digits = labelFormat(locale, decimals, true, scale.fixedDecimals).format(Math.abs(snapped));
+    // Compact steps smaller than 0.1k use full values. For very close
+    // readings, keep enough decimal places to distinguish adjacent ticks.
+    const precision = Math.min(20, Math.max(decimals, Math.ceil(-Math.log10(scale.step))));
+    digits = labelFormat(locale, precision, true, scale.fixedDecimals).format(Math.abs(snapped));
   }
   if (snapped < 0 && digits !== "0") {
     return `${MINUS}${digits}`;

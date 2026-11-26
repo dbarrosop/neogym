@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { type DocumentNode, getOperationAST } from "graphql";
 import { Window } from "happy-dom";
 import { act, type ReactNode } from "react";
+import type { TrendChartProps } from "@/components/charts/trend-chart";
 
 const dom = new Window({ url: "http://localhost" });
 const window = dom as unknown as typeof globalThis.window;
@@ -26,8 +27,11 @@ mock.module("@tanstack/react-router", () => ({
 }));
 mock.module("@/lib/nhost/auth-provider", () => ({ useAuth: () => ({ user: { id: "me" } }) }));
 mock.module("@/lib/use-local-today", () => ({ useLocalToday: () => "2026-06-30" }));
-mock.module("@/components/charts/trend-chart", () => ({ TrendChart: () => <div>Chart</div> }));
-mock.module("@/components/calories-card", () => ({ CaloriesCard: () => <div>Calories</div> }));
+mock.module("@/components/charts/trend-chart", () => ({
+  TrendChart: ({ title, series }: TrendChartProps) => (
+    <figure aria-label={title} data-last={series[0]?.points.at(-1)?.value} />
+  ),
+}));
 mock.module("@/components/today-energy-estimate", () => ({ TodayEnergyEstimate: () => null }));
 mock.module("@/components/progress/quick-entry-forms", () => ({
   QuickDailyEnergyForm: () => null,
@@ -35,6 +39,12 @@ mock.module("@/components/progress/quick-entry-forms", () => ({
 }));
 
 let failEnergyOffset: number | null = 30;
+const firstListRead = Promise.withResolvers<never>();
+let listPending = true;
+let failRange = false;
+let failCalories = false;
+let rangeActive = 500;
+let consumed = 2400;
 let failBody = false;
 const offsets: number[] = [];
 const energyRows = Array.from({ length: 42 }, (_, index) => ({
@@ -51,6 +61,9 @@ mock.module("@/lib/graphql", () => ({
         assert(variables);
         const { offset, limit } = variables;
         offsets.push(offset);
+        if (listPending) {
+          return firstListRead.promise;
+        }
         if (offset === failEnergyOffset) {
           return Promise.reject(new Error("Failed to fetch"));
         }
@@ -60,7 +73,31 @@ mock.module("@/lib/graphql", () => ({
         });
       }
       case "DailyEnergyRange":
-        return Promise.resolve({ dailyEnergyEntries: energyRows.slice(0, 5).toReversed() });
+        if (failRange) {
+          return Promise.reject(new Error("Range failed"));
+        }
+        return Promise.resolve({
+          dailyEnergyEntries: energyRows
+            .slice(0, 5)
+            .toReversed()
+            .map((row) => ({
+              ...row,
+              activeKcal: rangeActive,
+            })),
+        });
+      case "CalorieHistory":
+        if (failCalories) {
+          return Promise.reject(new Error("Calories failed"));
+        }
+        return Promise.resolve({
+          nutritionDays: [
+            {
+              logDate: "2026-06-29",
+              nutritionLogEntries: [{ grams: 100, snapshotKcalPer100g: consumed }],
+            },
+          ],
+          dailyEnergyEntries: energyRows.slice(0, 1),
+        });
       case "BodyMeasurements":
         if (failBody) {
           return Promise.reject(new Error("Failed to fetch"));
@@ -85,6 +122,7 @@ const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query
 const { Route: Energy } = await import("@/routes/_authed/progress/energy/index");
 const { Route: Body } = await import("@/routes/_authed/progress/body/index");
 const { dailyEnergyListQueryKey } = await import("@/lib/hooks/use-daily-energy");
+const { CALORIE_HISTORY_QUERY_KEY } = await import("@/lib/hooks/use-calorie-history");
 const { bodyMeasurementsQueryKey } = await import("@/lib/hooks/use-body-measurements");
 const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 const container = document.createElement("div");
@@ -117,6 +155,9 @@ function section(label: string) {
   return element;
 }
 
+const chartReading = (title: string) =>
+  container.querySelector(`figure[aria-label^="${title}"]`)?.getAttribute("data-last");
+
 try {
   const EnergyPage = Energy.options.component;
   assert(EnergyPage);
@@ -127,10 +168,29 @@ try {
       </QueryClientProvider>,
     ),
   );
-  await waitFor(() => container.textContent?.includes("7 of 42 days") === true);
-  await waitFor(() => container.textContent?.includes("Average out") === true);
-  const history = section("Energy days");
+  // Both uncached charts request data without waiting for any history page.
+  await waitFor(
+    () =>
+      chartReading("Active and resting") === "500" &&
+      chartReading("Calories consumed") === "2400" &&
+      chartReading("Net calories") === "300",
+  );
   const trend = section("Energy trend");
+  assert(trend.querySelector('input[type="radio"]:checked'));
+  assert(container.querySelector('section[aria-labelledby] input[type="radio"]:checked'));
+  assert.equal(container.querySelector('section[aria-label="Energy days"]'), null);
+  await settle(() => {
+    listPending = false;
+    firstListRead.reject(new Error("History failed"));
+  });
+  await waitFor(() => container.textContent?.includes("Couldn't load energy days") === true);
+  assert.equal(section("Energy trend"), trend);
+  assert.equal(chartReading("Active and resting"), "500");
+  assert.equal(chartReading("Net calories"), "300");
+  offsets.length = 0;
+  await settle(() => button("Retry").click());
+  await waitFor(() => container.textContent?.includes("7 of 42 days") === true);
+  const history = section("Energy days");
   for (const count of [14, 21, 28, 30]) {
     // biome-ignore lint/performance/noAwaitInLoops: each click advances a single visible page.
     await settle(() => button("Load more", history).click());
@@ -157,6 +217,37 @@ try {
   await settle(() => button("Retry").click());
   await waitFor(() => !container.querySelector('[role="alert"]'));
   assert(history.textContent?.includes("35 of 42 days"));
+
+  const listRequests = offsets.length;
+  failRange = true;
+  await settle(() => client.invalidateQueries({ queryKey: ["daily_energy", "range"] }));
+  await waitFor(() => trend.textContent?.includes("Couldn't load the energy trend") === true);
+  assert.equal(chartReading("Active and resting"), "500");
+  assert(trend.querySelector('input[type="radio"]:checked'));
+  failRange = false;
+  rangeActive = 650;
+  await settle(() => button("Retry", trend).click());
+  await waitFor(
+    () => chartReading("Active and resting") === "650" && !trend.querySelector('[role="alert"]'),
+  );
+
+  const calories = container
+    .querySelector('figure[aria-label^="Calories consumed"]')
+    ?.closest("section");
+  assert(calories);
+  failCalories = true;
+  await settle(() => client.invalidateQueries({ queryKey: CALORIE_HISTORY_QUERY_KEY }));
+  await waitFor(() => calories.textContent?.includes("Couldn't load calories") === true);
+  assert.equal(chartReading("Calories consumed"), "2400");
+  assert.equal(chartReading("Net calories"), "300");
+  failCalories = false;
+  consumed = 2300;
+  await settle(() => button("Retry", calories).click());
+  await waitFor(
+    () => chartReading("Calories consumed") === "2300" && chartReading("Net calories") === "200",
+  );
+  assert(!calories.querySelector('[role="alert"]'));
+  assert.equal(offsets.length, listRequests, "Chart retries leave the history query alone");
 
   const BodyPage = Body.options.component;
   assert(BodyPage);
