@@ -51,7 +51,7 @@ try {
     seedGalleryAccount: () => assert.fail("Do not seed if DB discovery fails"),
   }));
   // The real discovery rejects this before running Docker or reaching a database.
-  delete process.env["DOCKER_CONTEXT"];
+  process.env["DOCKER_CONTEXT"] = "";
   process.env["DOCKER_HOST"] = "tcp://127.0.0.1:2375";
   process.argv = process.argv.slice(0, 2).concat("--output", output, "--group", "roots");
   const { main } = await import("./capture");
