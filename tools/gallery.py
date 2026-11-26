@@ -105,6 +105,7 @@ def render_row(row, workflows, issues, occurrences):
 
 
 def render_gallery_html(manifest, layout, page, frame_width=220, image_ratio="1206 / 2622"):
+    """Use image_ratio=None to reserve each frame's intrinsic width/height ratio."""
     sections = build_sections(manifest, layout)
     rows = [row for section in sections for row in section["rows"]]
     occurrences = Counter(item["id"] for row in rows for item in row["images"])
@@ -119,7 +120,9 @@ def render_gallery_html(manifest, layout, page, frame_width=220, image_ratio="12
                        f'<h2 id="heading-{identifier}">{title} <span>{len(section["rows"])} workflows</span></h2>'
                        f'{rendered_rows}</section>')
     return Template(page).substitute(
-        style=Template(STYLE).substitute(frame_width=frame_width, image_ratio=image_ratio), script=SCRIPT,
+        style=Template(STYLE).substitute(
+            frame_width=frame_width,
+            image_ratio_rule="" if image_ratio is None else f"aspect-ratio: {image_ratio}; "), script=SCRIPT,
         row_count=len(rows), image_count=len(manifest["screenshots"]), workflow_count=len(workflows),
         navigation="\n".join(navigation), content="\n".join(content))
 
@@ -163,7 +166,7 @@ h3 a:hover { color: #9bb5ff; text-decoration: underline; }
   scrollbar-color: #71717a #18181b; scrollbar-width: auto; }
 figure { flex: 0 0 min(var(--frame-width), calc(100vw - 48px)); width: min(var(--frame-width), calc(100vw - 48px)); margin: 0; }
 figure > a { display: block; border: 1px solid #3f3f46; border-radius: 12px; overflow: hidden; background: #18181b; }
-img { width: 100%; height: auto; aspect-ratio: $image_ratio; display: block; }
+img { width: 100%; height: auto; ${image_ratio_rule}display: block; }
 figcaption { margin-top: 12px; font-size: 13px; overflow-wrap: anywhere; }
 .frame-number { color: #9bb5ff; font-weight: 700; font-variant-numeric: tabular-nums; margin-right: 4px; }
 code { display: block; color: #a1a1aa; font-size: 11px; margin-top: 8px; overflow-wrap: anywhere; }

@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import zlib
 from pathlib import Path
+from unittest.mock import patch
 
 TOOLS = runpy.run_path(str(Path(__file__).with_name("web-gallery.py")))
 REPO = Path(__file__).resolve().parents[1]
@@ -63,14 +64,22 @@ class WebGalleryTests(unittest.TestCase):
     def test_renderer_uses_actual_web_dimensions_and_escapes_titles(self):
         self.manifest["screenshots"][0]["title"] = '<script>alert("bad")</script>'
         document = TOOLS["SHARED"]["render_gallery_html"](
-            self.manifest, TOOLS["layout"](), TOOLS["PAGE"], frame_width=440, image_ratio="auto")
+            self.manifest, TOOLS["layout"](), TOOLS["PAGE"], frame_width=440, image_ratio=None)
         self.assertIn('width="1440" height="1000"', document)
         self.assertIn('width="390" height="844"', document)
-        self.assertIn("aspect-ratio: auto", document)
+        self.assertNotIn("aspect-ratio:", document)
         self.assertIn("&lt;script&gt;", document)
         self.assertNotIn('<script>alert("bad")</script>', document)
         self.assertEqual(document.count("<script>"), 1)
         self.assertIn("Reused view", document)
+
+    def test_render_command_uses_intrinsic_image_ratios(self):
+        with patch("sys.argv", ["web-gallery.py", "render", "--output", str(self.output)]):
+            TOOLS["main"]()
+        document = (self.output / "gallery.html").read_text()
+        self.assertIn('width="1440" height="1000"', document)
+        self.assertIn('width="390" height="844"', document)
+        self.assertNotIn("aspect-ratio:", document)
 
     def test_missing_or_failed_workflow_is_not_publishable(self):
         self.manifest["workflows"][0]["status"] = "failed"

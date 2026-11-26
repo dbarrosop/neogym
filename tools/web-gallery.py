@@ -206,7 +206,7 @@ def main():
     manifest, sections = validate_catalog(args.output)
     rows = sum(len(section["rows"]) for section in sections)
     if args.action == "render":
-        document = SHARED["render_gallery_html"](manifest, layout(), PAGE, frame_width=440, image_ratio="auto")
+        document = SHARED["render_gallery_html"](manifest, layout(), PAGE, frame_width=440, image_ratio=None)
         (args.output / "gallery.html").write_text(document)
         render_workflows(args.output, manifest)
     print("Validated {} PNGs, {} passing walkthroughs, {} visual rows; 14 roots × 2 layouts.".format(

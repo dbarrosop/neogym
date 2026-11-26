@@ -132,6 +132,10 @@ and `workflows.md`; guide/capture links resolve after publication.
 Open the scratch HTML directly in a browser. Review the actual PNGs, especially
 mobile form actions, timer controls, scrolled content, chart labels and dialogs.
 Test search, the no-results state, Screen size, navigation and original-image links.
+Web frames reserve their intrinsic proportions through each image's `width` and
+`height` attributes. Keep the shared renderer's web `image_ratio=None` opt-out:
+author CSS `aspect-ratio: auto` overrides those hints and collapses unloaded lazy
+images, shifting section and row navigation targets as images load.
 Viewport screenshots are not full-page coverage; a passing file gate does not
 prove the chosen scroll position is useful or the UI is accessible.
 
