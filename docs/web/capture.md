@@ -7,7 +7,10 @@ Do not edit `gallery.html`, `workflows.md` or image provenance by hand.
 
 ## 1. Start local dependencies
 
-Use the repository's Nix toolchain. From the repository root:
+Use the repository's Nix toolchain, including its `flake.lock`-pinned `python3`
+for web gallery tooling and tests; these web commands need no host Python
+installation. Native capture/release commands are unchanged. From the repository
+root:
 
 ```sh
 # If the local backend is not already running:
@@ -118,8 +121,8 @@ From the repository root:
 
 ```sh
 OUT=.nhost-code/tmp/web-gallery-baseline
-python3 tools/web-gallery.py validate --output "$OUT"
-python3 tools/web-gallery.py render --output "$OUT"
+nix develop . --command python3 tools/web-gallery.py validate --output "$OUT"
+nix develop . --command python3 tools/web-gallery.py render --output "$OUT"
 ```
 
 Both commands require a complete catalog. Validation checks the canonical registry,
@@ -152,8 +155,8 @@ For the first baseline, with an empty `docs/web/screenshots/`:
 OUT=.nhost-code/tmp/web-gallery-baseline
 cp -R "$OUT/screenshots" docs/web/
 cp "$OUT/capture-manifest.json" docs/web/
-python3 tools/web-gallery.py render
-python3 tools/web-gallery.py validate
+nix develop . --command python3 tools/web-gallery.py render
+nix develop . --command python3 tools/web-gallery.py validate
 ```
 
 For a later refresh, synchronize the **reviewed scratch screenshot set** and
@@ -170,15 +173,22 @@ be refreshed as a side effect.
 ## Checks
 
 ```sh
-# Offline Python checks; no browser/backend required
-python3 -m unittest discover -s tools -p 'test_web_gallery.py'
-python3 -m unittest discover -s ios/NeoGym/Scripts -p 'test_demo_guide.py'
-python3 tools/web-gallery.py validate
+# Offline Python checks from the repository root; no browser/backend required
+nix develop . --command python3 -m unittest discover -s tools -p 'test_web_gallery.py'
+nix develop . --command python3 -m unittest discover -s ios/NeoGym/Scripts -p 'test_demo_guide.py'
+nix develop . --command python3 tools/web-gallery.py validate
 
 # Required frontend gate, from frontend/
 nix develop .. --command bun run check
 nix develop .. --command bun run build
 ```
+
+The shared renderer and native scripts must also remain Python 3.9-compatible.
+After shared-renderer or native-script changes, follow the additional
+[macOS compatibility checks](../../CLAUDE.md#toolchain) outside the devshell:
+`/usr/bin/python3` is an `xcrun` shim that can select Nix Python inside it, so
+verify the actual 3.9 version before running the web and native suites. This is
+not a macOS system-Python requirement on Linux.
 
 `bun run check` includes the gallery registry/safety/schema-document tests and
 shared/Python renderer regressions, but it does **not** launch a browser or create

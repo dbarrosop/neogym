@@ -10,7 +10,7 @@ NeoGym — a TanStack Start (React 19 + Vite 8 + Nitro) frontend talking to an N
 
 ```
 .
-├── flake.nix          # Nix devshell — provides bun + biome + constellation + XcodeGen on Darwin
+├── flake.nix          # Nix devshell — provides bun + biome + python3 + constellation + XcodeGen on Darwin
 ├── ios/NeoGym/        # SwiftUI app shell, XcodeGen spec, and host-testable NeoGymKit package
 ├── frontend/          # TanStack Start app (Vite default port 5173, bound to 0.0.0.0 for LAN/mobile)
 │   ├── src/
@@ -51,12 +51,24 @@ Before changing anything in the sessions or exercises data model, read the match
 
 ## Toolchain
 
-`bun`, `biome`, `wrangler`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
+`bun`, `biome`, `wrangler`, `python3`, `constellation` (from `nixops.packages`), and Darwin-available XcodeGen are NOT assumed to be on the host — they come from `flake.nix`. Run frontend commands via the devshell:
 
 ```sh
 cd frontend
 nix develop ../ --command bun run <script>
 nix develop ../ --command bunx <pkg>
+```
+
+The devshell's `python3` is pinned through `flake.lock` and runs the gallery renderer regressions included in `bun run check`. Run standalone **web gallery** Python tooling/tests through the devshell too (`nix develop . --command python3 ...` from the repository root), not a host interpreter. This does not migrate the native capture/release commands documented under `docs/ios/` and `ios/NeoGym/`.
+
+Keep the shared `tools/gallery.py` renderer and native Python scripts compatible with Python 3.9. On macOS, `/usr/bin/python3` is an `xcrun` shim: inside `nix develop` it can select Nix's Python too, even with `PYTHONPATH` unset. An absolute `/usr/bin/python3` path alone is therefore not a Python 3.9 check. Outside the devshell it currently supplies native tooling's Python 3.9 floor.
+
+After shared-renderer or native-script changes, run these additional offline compatibility checks from the repository root in a **fresh macOS terminal outside all Nix/direnv shells**. The version assertion must pass; if the host interpreter changes, explicitly select and verify a Python 3.9 interpreter instead. These checks supplement the Nix gates; they are not part of `bun run check` and do not require macOS system Python on Linux.
+
+```sh
+/usr/bin/python3 -c 'import os, sys; assert not os.environ.get("IN_NIX_SHELL"), "Exit the Nix shell first"; assert sys.version_info[:2] == (3, 9), sys.version; print(sys.version)' &&
+/usr/bin/python3 -m unittest discover -s tools -p 'test_web_gallery.py' &&
+/usr/bin/python3 -m unittest discover -s ios/NeoGym/Scripts -p 'test_*.py'
 ```
 
 **Don't `curl | bash` install bun.** The user wants the toolchain to come from Nix. If XcodeGen is unavailable in the pinned Nixpkgs on a Darwin host, use the documented Homebrew fallback (`brew install xcodegen`) but keep `ios/NeoGym/project.yml` as the source of truth and do not commit generated `.xcodeproj` output.
