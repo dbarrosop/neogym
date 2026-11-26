@@ -1,18 +1,21 @@
--- Do not discard reservations while progress objects or queue work may remain.
--- First close uploads, drain/purge with Storage, and verify bytes independently.
 LOCK TABLE storage.files IN SHARE ROW EXCLUSIVE MODE;
+
+-- Do not stop cleanup while progress file metadata still exists. Check queued
+-- and live object bytes separately before running the down migrations.
 DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM storage.files WHERE bucket_id = 'progress_photos')
-     OR EXISTS (SELECT 1 FROM storage.files_to_delete JOIN public.progress_photo_file_ids USING (id)) THEN
-    RAISE EXCEPTION 'Purge progress files and drain their cleanup queue before dropping reservations';
+  IF EXISTS (SELECT 1 FROM storage.files WHERE bucket_id = 'progress_photos') THEN
+    RAISE EXCEPTION 'Purge progress photo files through Storage before stopping cleanup';
   END IF;
 END $$;
 
-DROP FUNCTION public.claim_progress_photo_sweep();
-DROP TRIGGER check_progress_photo_file_retirement ON public.progress_photos;
-DROP FUNCTION public.check_progress_photo_file_retirement();
+-- Unschedule only this feature's jobs; keep the shared extension installed.
+SET LOCAL ROLE postgres;
+SELECT cron.unschedule('neogym-progress-photo-expiry');
+SELECT cron.unschedule('neogym-progress-photo-deleted-owners');
+DROP TRIGGER attach_progress_photo_upload ON storage.files;
 DROP TRIGGER keep_progress_photo_file_identity ON storage.files;
+RESET ROLE;
+DROP FUNCTION public.delete_expired_progress_photo_reservations();
+DROP FUNCTION public.delete_progress_photos_without_uploader();
+DROP FUNCTION public.attach_progress_photo_upload();
 DROP FUNCTION public.keep_progress_photo_file_identity();
-DROP TRIGGER reserve_progress_photo_file_id ON storage.files;
-DROP FUNCTION public.reserve_progress_photo_file_id();
-DROP TABLE public.progress_photo_file_ids;

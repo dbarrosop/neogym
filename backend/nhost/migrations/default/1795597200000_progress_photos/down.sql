@@ -8,6 +8,5 @@ DO $$ BEGIN
 END $$;
 
 DROP TABLE public.progress_photos;
-DROP FUNCTION public.check_progress_photo_file();
 DROP TABLE public.progress_photo_labels;
 DELETE FROM storage.buckets WHERE id = 'progress_photos';

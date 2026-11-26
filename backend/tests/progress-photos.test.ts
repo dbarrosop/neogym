@@ -774,11 +774,13 @@ test("pg_cron expiry removes stale reservations and queues incomplete files, not
 	backdate("public.progress_photos", ready);
 	backdate("storage.files", ready);
 	const jobs = sql(
-		`SELECT jobname FROM cron.job WHERE active AND jobname IN ('neogym-progress-photo-deleted-owners','neogym-progress-photo-expiry') ORDER BY jobname`,
+		`SELECT jobname, schedule FROM cron.job
+		 WHERE active AND jobname IN ('neogym-progress-photo-deleted-owners', 'neogym-progress-photo-expiry')
+		 ORDER BY jobname`,
 	);
 	expect(jobs.split("\n")).toEqual([
-		"neogym-progress-photo-deleted-owners",
-		"neogym-progress-photo-expiry",
+		"neogym-progress-photo-deleted-owners|5 0 * * *",
+		"neogym-progress-photo-expiry|0 0 * * *",
 	]);
 	// Exercise the cron command with rollback so the test only persists changes to its own fixtures.
 	const state = sql(`BEGIN;
