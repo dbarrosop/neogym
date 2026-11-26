@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { MealForm, type MealFormValues } from "@/components/meal-form";
 import { LibraryDetailSkeleton } from "@/components/nutrition-library";
@@ -77,11 +77,16 @@ export const Route = createFileRoute("/_authed/nutrition/meals/$mealId_/edit")({
 
 function EditMealRoute() {
   const { mealId } = Route.useParams();
+  return <MealEditor key={mealId} mealId={mealId} />;
+}
+
+function MealEditor({ mealId }: { mealId: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [baseline, setBaseline] = useState<MealFormValues | null>(null);
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery({
+  const { data, error, refetch, isFetching, isFetchedAfterMount } = useQuery({
     queryKey: ["nutrition", "meals", "edit", mealId],
     queryFn: () => gqlRequest(EditMealQuery, { id: mealId }),
     // Plan edits don't invalidate meals; re-check the plans that block delete on every visit.
@@ -89,7 +94,7 @@ function EditMealRoute() {
   });
 
   const meal = data?.meal ?? null;
-  const initialValues = useMemo<MealFormValues | null>(() => {
+  const latestValues = useMemo<MealFormValues | null>(() => {
     if (!meal) {
       return null;
     }
@@ -105,6 +110,18 @@ function EditMealRoute() {
     };
   }, [meal]);
 
+  // Start the draft and ingredient diff from the same fresh recipe. Later
+  // plan-reference refreshes can update the delete guard without resetting it.
+  useEffect(() => {
+    if (isFetchedAfterMount && !error && latestValues) {
+      setBaseline((current) => current ?? latestValues);
+    }
+  }, [isFetchedAfterMount, error, latestValues]);
+  const recipeChanged =
+    baseline !== null &&
+    latestValues !== null &&
+    JSON.stringify(baseline.ingredients) !== JSON.stringify(latestValues.ingredients);
+
   const saveMutation = useMutation({
     mutationFn: (values: MealFormValues) =>
       gqlRequest(SaveMealMutation, {
@@ -113,7 +130,7 @@ function EditMealRoute() {
           name: values.name,
           description: values.description === "" ? null : values.description,
         },
-        ...buildMealIngredientDiff(mealId, initialValues?.ingredients ?? [], values.ingredients),
+        ...buildMealIngredientDiff(mealId, baseline?.ingredients ?? [], values.ingredients),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["nutrition", "meals"] });
@@ -147,14 +164,14 @@ function EditMealRoute() {
   const deleteBlockedReason = meal ? mealDeleteBlockedReason(meal.nutritionPlanMeals) : null;
 
   function renderContent() {
-    if (isLoading) {
+    if (!baseline && !error && (!isFetchedAfterMount || latestValues)) {
       return (
         <PageShell maxWidth="2xl">
           <LibraryDetailSkeleton />
         </PageShell>
       );
     }
-    if (error) {
+    if (!baseline && error) {
       return (
         <PageShell maxWidth="2xl">
           <ErrorState
@@ -166,7 +183,7 @@ function EditMealRoute() {
         </PageShell>
       );
     }
-    if (!meal || !initialValues) {
+    if (!meal || !baseline) {
       return (
         <PageShell maxWidth="2xl">
           <EmptyState title="Meal not found" description="It may have been deleted." />
@@ -185,16 +202,38 @@ function EditMealRoute() {
             actionLabel="Delete meal"
             onAction={() => setConfirmDelete(true)}
             disabled={
-              deleteBlockedReason !== null || deleteMutation.isPending || saveMutation.isPending
+              error !== null ||
+              deleteBlockedReason !== null ||
+              deleteMutation.isPending ||
+              saveMutation.isPending
             }
           />
         }
       >
+        {recipeChanged ? (
+          <ErrorState
+            title="This recipe changed while you were editing"
+            message="Cancel and reopen the editor to use the latest ingredients."
+          />
+        ) : null}
+        {error ? (
+          <ErrorState
+            title="Couldn’t refresh this meal"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
+        ) : null}
         <MealForm
-          initialValues={initialValues}
+          initialValues={baseline}
           submitLabel="Save"
           isSubmitting={saveMutation.isPending}
-          onSubmit={(values) => saveMutation.mutate(values)}
+          submitDisabled={recipeChanged}
+          onSubmit={(values) => {
+            if (!recipeChanged) {
+              saveMutation.mutate(values);
+            }
+          }}
           onCancel={() =>
             navigate({ to: "/nutrition/meals/$mealId", params: { mealId }, replace: true })
           }
@@ -213,7 +252,11 @@ function EditMealRoute() {
         description="This meal template will be deleted. Days already logged keep their snapshot. This can't be undone."
         confirmLabel="Delete meal"
         pendingLabel="Deleting…"
-        onConfirm={() => deleteMutation.mutate()}
+        onConfirm={() => {
+          if (!error && deleteBlockedReason === null) {
+            deleteMutation.mutate();
+          }
+        }}
         isPending={deleteMutation.isPending}
         destructive={true}
       />

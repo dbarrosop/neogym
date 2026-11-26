@@ -17,6 +17,7 @@ import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import { useIsSplit } from "@/lib/hooks/use-is-split";
 import { formatKcalNumber, formatNumber } from "@/lib/metric-format";
+import { useAuth } from "@/lib/nhost/auth-provider";
 import { macroLineLabel } from "@/lib/nutrition";
 import { cn } from "@/lib/utils";
 
@@ -83,8 +84,10 @@ function MealsIndexRoute() {
   const navigate = Route.useNavigate();
   const search = searchParams.q ?? "";
 
+  const { user } = useAuth();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["nutrition", "meals", "index"],
+    queryKey: ["nutrition", "meals", "index", user?.id],
+    enabled: Boolean(user),
     queryFn: () => gqlRequest(MealsIndexQuery),
   });
 

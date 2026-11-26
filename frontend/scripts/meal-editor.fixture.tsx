@@ -71,11 +71,18 @@ const meals: Record<string, unknown> = {
 };
 
 type Document = { definitions: Array<{ name?: { value: string } }> };
+type Variables = { id?: string; [key: string]: unknown };
+let editMealRead: Promise<{ meal: unknown }> | null = null;
+const saves: Variables[] = [];
 mock.module("@/lib/graphql", () => ({
-  gqlRequest: (document: Document, variables?: { id?: string }) => {
+  gqlRequest: (document: Document, variables?: Variables) => {
     const operation = document.definitions[0]?.name?.value;
     if (operation === "EditMeal") {
-      return Promise.resolve({ meal: meals[variables?.id ?? ""] ?? null });
+      return editMealRead ?? Promise.resolve({ meal: meals[variables?.id ?? ""] ?? null });
+    }
+    if (operation === "SaveMeal" && variables) {
+      saves.push(variables);
+      return Promise.resolve({ updateMeal: { id: variables.id } });
     }
     if (operation === "MealFormFoods") {
       return Promise.resolve({ foods });
@@ -88,11 +95,13 @@ const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
 const { Route: EditMeal } = await import("@/routes/_authed/nutrition/meals/$mealId_.edit");
 
-const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+const client = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { gcTime: 0 } },
+});
 let container = document.createElement("div");
 let root = createRoot(container);
 
-async function show(mealId: string) {
+async function mount(mealId: string) {
   const Component = EditMeal.options.component;
   assert(Component);
   currentMealId = mealId;
@@ -108,6 +117,10 @@ async function show(mealId: string) {
       </QueryClientProvider>,
     );
   });
+}
+
+async function show(mealId: string) {
+  await mount(mealId);
   await waitFor(() => container.querySelector('[aria-label="Grams of Skyr natural"]'));
 }
 
@@ -218,6 +231,59 @@ try {
   const confirm = await waitFor(() => document.querySelector('[role="alertdialog"]'));
   assert.equal(confirm.querySelector("h2")?.textContent, "Delete Recovery shake?");
   assert(confirm.textContent?.includes("This can't be undone."));
+  await act(() => {
+    const cancel = [...confirm.querySelectorAll("button")].find(
+      (el) => el.textContent === "Cancel",
+    );
+    assert(cancel);
+    cancel.click();
+  });
+
+  // Even a fresh cache hit must not initialize the draft before the mount read.
+  client.setQueryDefaults(["nutrition", "meals", "edit", "shake"], {
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const fresh = Promise.withResolvers<{ meal: unknown }>();
+  editMealRead = fresh.promise;
+  await mount("shake");
+  assert.equal(container.querySelector("form"), null);
+  const newRecipe = {
+    id: "shake",
+    name: "Recovery shake",
+    description: null,
+    mealIngredients: [
+      { id: "new-i1", foodId: "oats", grams: 80, position: 2 },
+      { id: "new-i2", foodId: "skyr", grams: 325, position: 3 },
+    ],
+    nutritionPlanMeals: [],
+  };
+  await act(() => fresh.resolve({ meal: newRecipe }));
+  const form = await waitFor(() => container.querySelector("form"));
+  assert.deepEqual(rowTexts(), [["303 kcal"], ["205 kcal"]]);
+  const name = container.querySelector('input[maxlength="160"]');
+  assert(name instanceof window.HTMLInputElement);
+  await typeInto(name, "My new name");
+  await act(() => form.requestSubmit());
+  await waitFor(() => saves[0]);
+  assert.deepEqual(saves[0]?.["set"], { name: "My new name", description: null });
+  assert.equal(saves[0]?.["hasDeleteIngredients"], false);
+  assert.equal(saves[0]?.["hasInsertIngredients"], false);
+  assert.equal(saves[0]?.["hasIngredientUpdates"], false);
+
+  await mount("shake");
+  const grams = await waitFor(() =>
+    container.querySelector<HTMLInputElement>('input[aria-label="Grams of Rolled oats"]'),
+  );
+  await typeInto(grams, "90");
+  editMealRead = Promise.resolve({
+    meal: { ...newRecipe, mealIngredients: newRecipe.mealIngredients.slice(1) },
+  });
+  await act(() => client.invalidateQueries({ queryKey: ["nutrition", "meals", "edit", "shake"] }));
+  await waitFor(() =>
+    container.textContent?.includes("This recipe changed while you were editing"),
+  );
+  assert.equal(grams.value, "90", "A conflicting refresh keeps the draft visible");
+  assert(buttonByText("Save").disabled);
 } finally {
   act(() => root.unmount());
   client.clear();

@@ -174,7 +174,7 @@ function PlanSlotCard({
     <section
       aria-label={`Time slot ${slot.label}`}
       data-plan-slot={slot.time}
-      className="rounded-[14px] border bg-card"
+      className="@container/plan-slot rounded-[14px] border bg-card"
     >
       <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 tabular-nums">
         <SlotTimeControl
@@ -331,11 +331,11 @@ function SlotTimeControl({
 
 /**
  * Web-PlanEditor `.er`: handle | KIND | picker | grams | kcal | actions from
- * 760 px. Below that the picker takes its own line (its name would not fit
- * beside the grams), then grams | kcal | the row menu.
+ * 600 px of slot width, not viewport width. Below that the picker takes its
+ * own line, followed by grams | kcal | the row menu.
  */
 const ROW_GRID =
-  "grid min-h-[52px] grid-cols-[minmax(0,1fr)_60px_36px] items-center gap-x-2.5 gap-y-2 border-t px-4 py-2 min-[760px]:grid-cols-[28px_60px_minmax(0,1fr)_100px_70px_76px] min-[760px]:py-1.5";
+  "grid min-h-[52px] grid-cols-[minmax(0,1fr)_60px_36px] items-center gap-x-2.5 gap-y-2 border-t px-4 py-2 @min-[600px]/plan-slot:grid-cols-[28px_60px_minmax(0,1fr)_100px_70px_76px] @min-[600px]/plan-slot:py-1.5";
 
 function PlanEntryRow({
   entry,
@@ -393,14 +393,14 @@ function PlanEntryRow({
         ref={sortable.setActivatorNodeRef}
         type="button"
         aria-label={`Reorder ${name}`}
-        className="hidden h-9 w-7 cursor-grab touch-none place-items-center rounded-[7px] text-tertiary-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing disabled:opacity-50 min-[760px]:grid"
+        className="hidden h-9 w-7 cursor-grab touch-none place-items-center rounded-[7px] text-tertiary-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing disabled:opacity-50 @min-[600px]/plan-slot:grid"
         {...sortable.attributes}
         {...sortable.listeners}
       >
         <GripVertical aria-hidden="true" className="size-4" />
       </button>
-      <KindTag kind={entry.kind} className="hidden min-[760px]:block" />
-      <div ref={pickerRef} className="col-span-full min-w-0 min-[760px]:col-span-1">
+      <KindTag kind={entry.kind} className="hidden @min-[600px]/plan-slot:block" />
+      <div ref={pickerRef} className="col-span-full min-w-0 @min-[600px]/plan-slot:col-span-1">
         <EntryPicker
           entry={entry}
           slotLabel={slotLabel}
@@ -410,6 +410,11 @@ function PlanEntryRow({
           disabled={disabled}
           onUpdate={actions.updateEntry}
         />
+        {entry.kind === "meal" && entry.label.trim() ? (
+          <span className="mt-1 block wrap-anywhere text-xs text-muted-foreground">
+            {entry.label.trim()}
+          </span>
+        ) : null}
       </div>
       {entry.kind === "food" ? (
         <div className="flex items-center gap-1.5">
@@ -446,7 +451,7 @@ function PlanEntryRow({
           aria-label={`Remove ${name}`}
           onClick={() => actions.removeEntry(entry.clientId)}
           disabled={disabled}
-          className="hidden size-9 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 min-[760px]:grid"
+          className="hidden size-9 place-items-center rounded-[8px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 @min-[600px]/plan-slot:grid"
         >
           <X aria-hidden="true" className="size-4" />
         </button>

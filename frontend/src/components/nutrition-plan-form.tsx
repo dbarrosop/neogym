@@ -253,25 +253,37 @@ function usePlanDraft(initialEntries: NutritionPlanFormEntryValues[]) {
   }
 
   function addSlot(existingTimes: string[]) {
-    const time = suggestedPlanSlotTime([
-      ...existingTimes,
-      ...pendingSlots.map((slot) => slot.time),
-    ]);
-    setPendingSlots((current) => [...current, { id: createClientId("slot"), time }]);
+    const time = suggestedPlanSlotTime(existingTimes);
+    if (!existingTimes.includes(time)) {
+      setPendingSlots((current) => [...current, { id: createClientId("slot"), time }]);
+    }
+  }
+
+  function consumePendingAt(time: string) {
+    setPendingSlots((current) => current.filter((slot) => slot.time !== time));
   }
 
   function retimeSlot(slot: PlanSlotView, time: string) {
-    const pendingId = slot.pendingId;
-    if (pendingId) {
-      setPendingSlots((current) =>
-        current.map((item) => (item.id === pendingId ? { id: pendingId, time } : item)),
-      );
+    const targetIsPending = pendingSlots.some((item) => item.time === time);
+    if (slot.pendingId) {
+      const targetIsOccupied = entries.some((entry) => planSlotTimeKey(entry.slotTime) === time);
+      if (targetIsPending || targetIsOccupied) {
+        removePendingSlot(slot.pendingId);
+        announceMerge(time);
+      } else {
+        setPendingSlots((current) =>
+          current.map((item) => (item.id === slot.pendingId ? { ...item, time } : item)),
+        );
+      }
       return;
     }
     const result = retimePlanDraftSlot(entries, slot.time, time);
-    setEntries(result.entries);
-    if (result.merged) {
-      announceMerge(time);
+    if (result.changed) {
+      setEntries(result.entries);
+      consumePendingAt(time);
+      if (result.merged || targetIsPending) {
+        announceMerge(time);
+      }
     }
   }
 
@@ -291,9 +303,12 @@ function usePlanDraft(initialEntries: NutritionPlanFormEntryValues[]) {
 
   function moveEntryToTime(clientId: string, time: string) {
     const result = movePlanDraftEntryToTime(entries, clientId, time, idOf);
-    setEntries(result.entries);
-    if (result.merged) {
-      announceMerge(time);
+    if (result.changed) {
+      setEntries(result.entries);
+      consumePendingAt(time);
+      if (result.merged || pendingSlots.some((slot) => slot.time === time)) {
+        announceMerge(time);
+      }
     }
   }
 
@@ -333,18 +348,15 @@ function buildSlotViews(
     totals: slot.totals,
     sortKey: slot.sortKey,
   }));
-  const savedTimes = new Set(saved.map((slot) => slot.time));
-  const pending = pendingSlots
-    .filter((slot) => !savedTimes.has(slot.time))
-    .map((slot) => ({
-      key: `pending:${slot.id}`,
-      time: slot.time,
-      label: formatTimeOfDay(slot.time),
-      pendingId: slot.id,
-      entries: [],
-      totals: EMPTY_MACRO_TOTALS,
-      sortKey: slot.time,
-    }));
+  const pending = pendingSlots.map((slot) => ({
+    key: `pending:${slot.id}`,
+    time: slot.time,
+    label: formatTimeOfDay(slot.time),
+    pendingId: slot.id,
+    entries: [],
+    totals: EMPTY_MACRO_TOTALS,
+    sortKey: slot.time,
+  }));
   return [...saved, ...pending]
     .toSorted((left, right) => left.sortKey.localeCompare(right.sortKey))
     .map(({ sortKey: _sortKey, ...slot }) => slot);

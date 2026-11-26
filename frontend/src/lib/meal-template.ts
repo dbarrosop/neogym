@@ -109,6 +109,14 @@ export function buildMealIngredientDiff(
   initial: readonly MealIngredientValues[],
   next: readonly MealIngredientValues[],
 ): MealIngredientDiff {
+  // The form renumbers positions on submit. If rows and quantities haven't
+  // changed, preserve the stored positions (including any gaps).
+  const sameRecipe =
+    initial.length === next.length &&
+    initial.every((row, index) => {
+      const draft = next[index];
+      return draft?.id === row.id && draft?.foodId === row.foodId && draft?.grams === row.grams;
+    });
   const existingById = new Map(
     initial
       .filter((ingredient): ingredient is MealIngredientValues & { id: string } =>
@@ -124,10 +132,15 @@ export function buildMealIngredientDiff(
     const existing = ingredient.id ? existingById.get(ingredient.id) : undefined;
     if (existing && existing.foodId === ingredient.foodId) {
       preservedIds.add(existing.id);
-      ingredientUpdates.push({
-        where: { id: { _eq: existing.id } },
-        _set: { grams: ingredient.grams, position: ingredient.position },
-      });
+      if (
+        !sameRecipe &&
+        (existing.grams !== ingredient.grams || existing.position !== ingredient.position)
+      ) {
+        ingredientUpdates.push({
+          where: { id: { _eq: existing.id } },
+          _set: { grams: ingredient.grams, position: ingredient.position },
+        });
+      }
       continue;
     }
     insertIngredients.push({

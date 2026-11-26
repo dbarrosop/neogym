@@ -57,9 +57,19 @@ mock.module("@tanstack/react-router", () => ({
     );
   },
 }));
+let owner: string | null = "test-user";
+let requests = 0;
+let response: (() => Promise<never>) | null = null;
+mock.module("@/lib/nhost/auth-provider", () => ({
+  useAuth: () => ({ user: owner ? { id: owner } : null }),
+}));
 mock.module("@/lib/graphql", () => ({
   gqlRequest: () => {
-    throw new Error("Library panels must render the seeded query data");
+    requests++;
+    if (!response) {
+      throw new Error("Library panels must render the seeded query data");
+    }
+    return response();
   },
 }));
 
@@ -85,8 +95,8 @@ const skyr = food("skyr", "Skyr natural", 63);
 const client = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
 });
-client.setQueryData(["nutrition", "foods", "index"], { foods: [oats, skyr] });
-client.setQueryData(["nutrition", "meals", "index"], {
+client.setQueryData(["nutrition", "foods", "index", owner], { foods: [oats, skyr] });
+client.setQueryData(["nutrition", "meals", "index", owner], {
   meals: [
     {
       id: "breakfast",
@@ -150,6 +160,52 @@ function tableLinks() {
   }));
 }
 
+async function checkCacheIsolation(
+  kind: "meals" | "foods",
+  route: typeof Foods | typeof Meals,
+  panelName: string,
+  privateTitle: string,
+) {
+  wide = true;
+  currentSearch = { selected: kind === "meals" ? "breakfast" : "skyr" };
+  const assertPrivateHidden = () => {
+    assert.equal(panel(panelName), null);
+    assert(!container.textContent?.includes(privateTitle));
+  };
+
+  owner = null;
+  const before = requests;
+  await show(route);
+  assert.equal(requests, before, "Don't query the library before the user is known");
+  assertPrivateHidden();
+
+  owner = "another-user";
+  const pending = Promise.withResolvers<never>();
+  response = () => pending.promise;
+  await show(route);
+  assert.equal(requests, before + 1);
+  assertPrivateHidden();
+  assert.equal(container.querySelector('[role="alert"]'), null);
+
+  await act(async () => {
+    pending.reject(new Error("Fixture refresh failed"));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  assert(container.querySelector('[role="alert"]'));
+  assertPrivateHidden();
+
+  // A failure revalidating the same account still keeps that account's rows and panel.
+  owner = "test-user";
+  response = () => Promise.reject(new Error("Fixture refresh failed"));
+  await show(route);
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ["nutrition", kind, "index", owner] });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  });
+  assert(container.querySelector('[role="alert"]'));
+  assert.equal(panel(panelName)?.querySelector("h2")?.textContent, privateTitle);
+  assert(container.querySelector("table")?.textContent?.includes(privateTitle));
+}
 try {
   // Wide: the first row is selected by default and rows select instead of navigating.
   await show(Foods);
@@ -248,6 +304,9 @@ try {
     ["Rolled oatspublic", "P 3 · C 2 · F 1 g", "379"],
     ["Skyr natural", "P 3 · C 2 · F 1 g", "63"],
   ]);
+
+  await checkCacheIsolation("meals", Meals, "Selected meal", "Breakfast");
+  await checkCacheIsolation("foods", Foods, "Selected food", "Skyr natural");
 } finally {
   act(() => root.unmount());
   client.clear();

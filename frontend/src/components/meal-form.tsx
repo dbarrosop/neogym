@@ -53,6 +53,7 @@ interface MealFormProps {
   initialValues: MealFormValues;
   submitLabel: string;
   isSubmitting: boolean;
+  submitDisabled?: boolean;
   onSubmit: (values: MealFormValues) => void;
   onCancel: () => void;
   extraActions?: ReactNode;
@@ -161,6 +162,7 @@ export function MealForm({
   initialValues,
   submitLabel,
   isSubmitting,
+  submitDisabled = false,
   onSubmit,
   onCancel,
   extraActions,
@@ -219,7 +221,7 @@ export function MealForm({
   const gramsError =
     submitted && hasInvalidGrams ? "Ingredient grams must be greater than zero." : null;
   const formError = nameError ?? ingredientsError ?? missingFoodError ?? gramsError ?? null;
-  const canSubmit = !isSubmitting && !isLoading;
+  const canSubmit = !isSubmitting && !isLoading && !submitDisabled;
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -290,7 +292,7 @@ export function MealForm({
         <FormActions
           submitLabel={submitLabel}
           isSubmitting={isSubmitting}
-          submitDisabled={isLoading}
+          submitDisabled={isLoading || submitDisabled}
           onCancel={onCancel}
           extraActions={extraActions}
           className="border-border border-t pt-4"

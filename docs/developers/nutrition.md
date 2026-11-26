@@ -30,7 +30,7 @@ Users can read public foods and their private foods, but can insert/update/delet
 
 In the web plan editor, changing a time with Enter or tabbing into a card that disappears after a retime or merge restores focus to the resulting slot's Time field. Focus already moving outside the edited card is left alone. Closing a move prompt returns focus to the entry's row menu at its new time, or at its original time on Cancel.
 
-Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed. Both the web and iOS meal editors read the referencing plans and disable Delete up front, naming them; the FK error remains the fallback.
+Template FKs intentionally restrict deletion: a food used by any `meal_ingredients` or `nutrition_plan_foods` row cannot be deleted until that reference is removed, and a meal used by any `nutrition_plan_meals` row cannot be deleted until the slot is removed. Both the web and iOS meal editors read the referencing plans and disable Delete up front, naming them; the FK error remains the fallback. The web editor starts the draft from a fresh recipe on entry and diffs changes against that same snapshot. A rename does not rewrite the ingredients; if a later read finds a changed recipe, cancel and reopen before saving.
 
 ## Daily logs
 

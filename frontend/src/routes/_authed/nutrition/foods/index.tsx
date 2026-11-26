@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import { useIsSplit } from "@/lib/hooks/use-is-split";
+import { useAuth } from "@/lib/nhost/auth-provider";
 import { cn } from "@/lib/utils";
 
 const FoodsIndexQuery = graphql(`
@@ -107,8 +108,10 @@ function FoodsIndexRoute() {
   const search = searchParams.q ?? "";
   const visibility: Visibility | null = searchParams.visibility ?? null;
 
+  const { user } = useAuth();
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ["nutrition", "foods", "index"],
+    queryKey: ["nutrition", "foods", "index", user?.id],
+    enabled: Boolean(user),
     queryFn: () => gqlRequest(FoodsIndexQuery),
   });
 

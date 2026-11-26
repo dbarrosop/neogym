@@ -176,8 +176,16 @@ try {
                 id: "m1",
                 mealId: "dinner",
                 slotTime: "17:30:00",
-                label: "",
+                label: "Training dinner",
                 position: 0,
+              },
+              {
+                kind: "meal",
+                id: "m2",
+                mealId: "dinner",
+                slotTime: "17:30:00",
+                label: "Recovery dinner",
+                position: 1,
               },
             ],
           }}
@@ -226,6 +234,21 @@ try {
   // An empty slot appears an hour after the latest one and is not saved until it has an entry.
   await settle(() => button("Add time slot").click());
   assert(slot("18:30").textContent?.includes("Empty, not saved"));
+  await settle(() => button("Add time slot").click());
+  const emptyTime = slot("19:30").querySelector<HTMLInputElement>('input[type="time"]');
+  assert(emptyTime);
+  await type(emptyTime, "18:30");
+  await settle(() =>
+    emptyTime.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true })),
+  );
+  assert.equal(slots().filter((card) => card.dataset["planSlot"] === "18:30").length, 1);
+  assert.equal(document.activeElement, slot("18:30").querySelector('input[type="time"]'));
+  await setSlotTime("18:30", "17:30");
+  assert.equal(slots().length, 2, "Retiming an empty slot onto an occupied slot absorbs it");
+  await setSlotTime("17:30", "18:30");
+  await setSlotTime("18:30", "17:30");
+  assert.equal(slots().length, 2, "The old empty source does not reappear");
+  await settle(() => button("Add time slot").click());
   await setSlotTime("18:30", "20:00");
   await settle(() => button(`Add food at ${formatTimeOfDay("20:00")}`).click());
   assert(!slot("20:00").textContent?.includes("Empty, not saved"));
@@ -255,9 +278,24 @@ try {
   await type(promptTime, "17:30");
   await settle(() => button("Move", prompt).click());
   await waitFor(() => !document.querySelector('[role="dialog"]'));
-  assert.deepEqual(rowNames(slot("17:30")), ["Dinner", "Kvarg naturell"]);
+  assert.deepEqual(rowNames(slot("17:30")), ["Dinner", "Dinner", "Kvarg naturell"]);
   assert.equal(document.activeElement, button("More actions for Kvarg naturell", slot("17:30")));
   assert.deepEqual(rowNames(slot("09:30")), ["White bread", "Jam"]);
+
+  assert(slot("17:30").textContent?.includes("Training dinner"));
+  assert(slot("17:30").textContent?.includes("Recovery dinner"));
+  await settle(() => button("More actions for Training dinner").click());
+  await settle(() => button("Edit label “Training dinner”…").click());
+  const labelDialog = document.querySelector('[role="dialog"]');
+  assert(labelDialog);
+  const label = labelDialog.querySelector<HTMLInputElement>('input[type="text"]');
+  assert(label);
+  await type(label, "After training");
+  await settle(() => button("Save", labelDialog).click());
+  await waitFor(() => !document.querySelector('[role="dialog"]'));
+  assert(slot("17:30").textContent?.includes("After training"));
+  assert(slot("17:30").textContent?.includes("Recovery dinner"));
+  assert.deepEqual(rowNames(slot("17:30")), ["Dinner", "Dinner", "Kvarg naturell"]);
 
   // Move down keeps the entry inside its slot.
   await settle(() => button("More actions for White bread").click());
@@ -279,8 +317,13 @@ try {
       ["jam", "09:30", 0, "f2"],
       ["bread", "09:30", 1, "f1"],
       ["dinner", "17:30", 0, "m1"],
-      ["kvarg", "17:30", 1, "f3"],
+      ["dinner", "17:30", 1, "m2"],
+      ["kvarg", "17:30", 2, "f3"],
     ],
+  );
+  assert.deepEqual(
+    submissions[0]?.entries.filter((entry) => entry.kind === "meal").map((entry) => entry.label),
+    ["After training", "Recovery dinner"],
   );
 } finally {
   act(() => root.unmount());
