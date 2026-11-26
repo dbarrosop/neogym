@@ -57,6 +57,7 @@ object_relationships:
       manual_configuration:
         column_mapping:
           id: id
+        insertion_order: null
         remote_table:
           name: progress_photos
           schema: public
@@ -65,6 +66,7 @@ object_relationships:
       manual_configuration:
         column_mapping:
           uploaded_by_user_id: id
+        insertion_order: null
         remote_table:
           name: users
           schema: auth
@@ -87,29 +89,25 @@ insert_permissions:
   - role: user
     permission:
       check:
-        bucket_id:
-          _eq: progress_photos
-        progressPhoto:
-          user_id:
-            _eq: X-Hasura-User-Id
-        uploader:
-          id:
-            _eq: X-Hasura-User-Id
-        name:
-          _eq: progress-photo.jpg
-        mime_type:
-          _eq: image/jpeg
-        size:
-          _gte: 1
-          _lte: 5242880
+        _or:
+          - _and:
+              - bucket_id:
+                  _eq: progress_photos
+              - mime_type:
+                  _eq: image/jpeg
+              - name:
+                  _eq: progress-photo.jpg
+              - progressPhoto:
+                  user_id:
+                    _eq: X-Hasura-User-Id
       set:
-        uploaded_by_user_id: x-hasura-user-id
+        uploaded_by_user_id: X-Hasura-User-Id
       columns:
         - id
         - bucket_id
+        - mime_type
         - name
         - size
-        - mime_type
 select_permissions:
   - role: public
     permission:
@@ -152,9 +150,6 @@ select_permissions:
               _eq: progress_photos
             uploaded_by_user_id:
               _eq: X-Hasura-User-Id
-            uploader:
-              id:
-                _eq: X-Hasura-User-Id
 delete_permissions:
   - role: user
     permission:
@@ -163,6 +158,3 @@ delete_permissions:
           _eq: progress_photos
         uploaded_by_user_id:
           _eq: X-Hasura-User-Id
-        uploader:
-          id:
-            _eq: X-Hasura-User-Id

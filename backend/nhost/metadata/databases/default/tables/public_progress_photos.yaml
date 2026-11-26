@@ -40,9 +40,7 @@ object_relationships:
 insert_permissions:
   - role: user
     permission:
-      check:
-        user_id:
-          _eq: X-Hasura-User-Id
+      check: {}
       set:
         user_id: x-hasura-user-id
       columns:
