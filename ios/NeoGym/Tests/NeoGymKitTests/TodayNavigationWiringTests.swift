@@ -86,7 +86,16 @@ final class TodayNavigationWiringTests: XCTestCase {
             let deferredAppend = #"(?s)private func openRouteAfterCurrentTransition\(_ route: "# + area
                 + #"Route\)\s*\{.*?DispatchQueue\.main\.async\s*\{\s*path\.append\(route\)\s*\}"#
             XCTAssertNotNil(source.range(of: deferredAppend, options: .regularExpression))
-            XCTAssertFalse(source.contains("path.removeLast()"), "The create view already dismisses its own route")
+            var outsideRetirement = source
+            if area == "Progress" {
+                // Allow only the guarded photo form retirement to pop a route.
+                let retirement = #"private func retirePhotoForm\(_ route: ProgressRoute\) \{\s*"#
+                    + #"guard path\.last == route else \{ return \}\s*switch route \{\s*"#
+                    + #"case \.progressPhotoCreate, \.progressPhotoEdit: path\.removeLast\(\)\s*default: break\s*\}\s*\}"#
+                let range = try XCTUnwrap(source.range(of: retirement, options: .regularExpression))
+                outsideRetirement.removeSubrange(range)
+            }
+            XCTAssertFalse(outsideRetirement.contains("path.removeLast()"), "The create view already dismisses its own route")
         }
     }
 }

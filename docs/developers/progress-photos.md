@@ -1,6 +1,6 @@
 # Private progress photos — backend API
 
-These endpoints are available to signed-in users once deployed. The web client exposes them under **Progress › Body › Progress photos**; there are no iPhone, Watch or agent photo screens. Verify hosted privacy and operations before enabling production writes.
+These endpoints are available to signed-in users once deployed. The web and signed-in iPhone clients expose them under **Progress › Body › Progress photos**; there are no demo, Watch, widget or agent photo screens. Verify hosted privacy and operations before enabling production writes.
 
 The web client has four screens:
 
@@ -16,6 +16,41 @@ The web filters and forms accept values from the current server catalog even if 
 Photo requests are client-only. GraphQL goes through the app's `gqlRequest` and bytes through the SDK's `nhost.storage` client (`uploadFiles`, `getFile`, `deleteFile`), all with `cache: "no-store"`; the SDK attaches the bearer token and refreshes the session as for every other request. Gallery tiles load near the viewport through a private Storage transform (`w=480&h=600`); the viewer fetches the original prepared JPEG.
 
 The web app keeps photo rows and image bytes only in its in-memory query cache, under owner-scoped `progress_photos` keys (`photoKeys` in `frontend/src/lib/progress-photos/api.ts`). Returning to the gallery reuses loaded pages and thumbnails; image bytes are never refetched because files are not replaced, and inactive entries are evicted after the cache's usual five minutes. Uploads, edits and deletes invalidate rows (a delete drops every cached photo list, so none shows the deleted photo while reloading, and forgets its row and bytes once the viewer has unmounted). `PhotoCacheGuard`, mounted at the root, drops every entry that isn't the signed-in user's on sign-out and account switches, cancelling in-flight reads; the photo routes remount per user, so drafts don't carry over. Object URLs belong to the component that displays them and are revoked on unmount. Leaving the check-in form aborts its in-flight preparation or upload; the browser may suspend work in a hidden tab, and this is not a background upload queue. Hiding the tab or `pagehide` does not clear anything: on a real unload the page's memory is released, and a back-forward cache restore returns the same signed-in user to the same page. The app's service worker does not cache photo API traffic.
+
+## iPhone client
+
+On iPhone, the text-only Body shortcut is independent of charts, measurements,
+and HealthKit. The gallery shows one page of up to 16 ready records, with
+catalog-based filtering and pull-to-refresh. Previous and Next replace the
+page rather than appending photos as the web gallery does. Only the most
+recent 64 page-start cursors are kept for Previous; changing the angle or
+pulling to refresh starts again at the newest page. The viewer reads a fitted
+original; the grid reads 480 × 600 Storage transforms on demand, at most three
+at a time. The metadata editor cannot replace the file. Dates are Gregorian
+calendar strings, defaulting to today in the device's current time zone;
+neither the selected file nor the UTC upload instant supplies the date.
+
+The single-item system PhotosPicker transfers a provider-owned file to the
+preparer. NeoGym does not request library permission or copy that file into its
+own storage. It reads at most 25 MiB plus an overflow byte, accepts JPEG, PNG and
+common HEIC/HEIF stills, and checks declared pixels (40 megapixels, 12,000 px per
+edge) before decoding. ImageIO applies orientation and resamples the pixels
+into a fresh JPEG up to 2,560 px per edge and 5 MiB. Original EXIF, GPS and other
+source metadata are not copied. There is no app-owned temporary media file,
+queue or photo cache.
+
+Photo GraphQL bypasses the iPhone app's SDK persistent GraphQL cache (both reads
+and writes). Both APIs use uncached HTTPS with redirects disabled and the
+current matching SDK-managed bearer. Route requests can stop waiting for an
+already-issued SDK refresh without discarding a rotated token. The top photo
+route owns its work and data; navigation, tab changes, account loss and actual
+backgrounding discard it. Scene deactivation covers the content early for the
+App Switcher, but a transient inactive PhotosPicker keeps its selection host
+alive. Returning from background re-reads the gallery/viewer; a create or edit
+form is discarded, not replayed. If a write already reached the server, it may
+still finish. Check the gallery before starting another submission. Verify
+real HEIC transfers and App Switcher snapshots on physical iPhone before
+publication; simulator behavior is not device acceptance.
 
 ## Reserve, upload, read
 

@@ -10,13 +10,17 @@ public struct AppRepositories: Sendable {
     public let body: any BodyMeasurementsRepositoryProtocol
     public let energy: any DailyEnergyRepositoryProtocol
     public let journal: any JournalRepositoryProtocol
+    public let progressPhotos: (any ProgressPhotoRepositoryProtocol)?
 
-    public static func live(graphQL: any GraphQLServicing) -> AppRepositories {
+    public static func live(
+        graphQL: any GraphQLServicing,
+        progressPhotos: (any ProgressPhotoRepositoryProtocol)? = nil
+    ) -> AppRepositories {
         AppRepositories(
             workouts: WorkoutsRepository(graphQL: graphQL), sessions: SessionsRepository(graphQL: graphQL),
             exercises: ExercisesRepository(graphQL: graphQL), nutrition: NutritionFoodMealRepository(graphQL: graphQL),
             body: BodyMeasurementsRepository(graphQL: graphQL), energy: DailyEnergyRepository(graphQL: graphQL),
-            journal: JournalRepository(graphQL: graphQL)
+            journal: JournalRepository(graphQL: graphQL), progressPhotos: progressPhotos
         )
     }
 
@@ -24,7 +28,8 @@ public struct AppRepositories: Sendable {
         AppRepositories(
             workouts: DemoWorkoutsRepository(store: store), sessions: DemoSessionsRepository(store: store),
             exercises: DemoExercisesRepository(store: store), nutrition: DemoNutritionRepository(store: store),
-            body: DemoBodyRepository(store: store), energy: DemoEnergyRepository(store: store), journal: DemoJournalRepository(store: store)
+            body: DemoBodyRepository(store: store), energy: DemoEnergyRepository(store: store), journal: DemoJournalRepository(store: store),
+            progressPhotos: nil
         )
     }
 }

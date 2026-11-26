@@ -24,6 +24,19 @@ final class DemoModeUITests: XCTestCase {
         XCTAssertFalse(app.buttons["Change email"].exists)
     }
 
+    func testBodyKeepsMeasurementLoggingAndOmitsProgressPhotosInDemo() {
+        launch(screen: "progress/body", reset: true)
+        XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 10))
+        let measurement = app.navigationBars.buttons["Log measurement"]
+        XCTAssertTrue(measurement.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["progressPhotos.open"].exists)
+        XCTAssertFalse(app.staticTexts["Progress photos"].exists)
+        measurement.tap()
+        XCTAssertTrue(app.navigationBars.buttons["Cancel"].waitForExistence(timeout: 10))
+        app.navigationBars.buttons["Cancel"].tap()
+        XCTAssertTrue(measurement.waitForExistence(timeout: 10))
+    }
+
     func testDemoBannerLeavesNativeToolbarBackAndCreateUsable() {
         launch(screen: "today", reset: true)
         let quickLog = app.navigationBars.buttons["Quick log"]

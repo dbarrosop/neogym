@@ -15,6 +15,8 @@ struct ProgressNavigationView: View {
     let currentUserId: String?
     /// Bumped by the shell after training mutations elsewhere.
     let trainingRevision: Int
+    let progressPhotos: (any ProgressPhotoRepositoryProtocol)?
+    @Binding var selectedTab: AppTab
     @Binding var path: [ProgressRoute]
     @Binding var section: ProgressSection
     let onSessionStarted: (String) -> Void
@@ -36,6 +38,8 @@ struct ProgressNavigationView: View {
         nutritionRepository: any NutritionFoodMealRepositoryProtocol,
         currentUserId: String?,
         trainingRevision: Int,
+        progressPhotos: (any ProgressPhotoRepositoryProtocol)?,
+        selectedTab: Binding<AppTab>,
         path: Binding<[ProgressRoute]>,
         section: Binding<ProgressSection>,
         onSessionStarted: @escaping (String) -> Void
@@ -49,6 +53,8 @@ struct ProgressNavigationView: View {
         self.nutritionRepository = nutritionRepository
         self.currentUserId = currentUserId
         self.trainingRevision = trainingRevision
+        self.progressPhotos = progressPhotos
+        _selectedTab = selectedTab
         _path = path
         _section = section
         self.onSessionStarted = onSessionStarted
@@ -66,6 +72,10 @@ struct ProgressNavigationView: View {
                     routeDestination(for: route)
                         .screenBackground()
                 }
+        }
+        .environment(\.privateProgressPhotos, progressPhotos)
+        .onChange(of: selectedTab) {
+            if selectedTab != .progress, let route = path.last { retirePhotoForm(route) }
         }
     }
 
@@ -101,7 +111,8 @@ struct ProgressNavigationView: View {
                 repository: bodyRepository,
                 healthImporter: bodyHealthImporter,
                 userId: currentUserId,
-                reloadToken: reloadToken
+                reloadToken: reloadToken,
+                showsProgressPhotos: progressPhotos != nil
             )
         case .energy:
             DailyEnergyListView(
@@ -150,6 +161,10 @@ struct ProgressNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        case .progressPhotoGallery, .progressPhotoCreate, .progressPhotoDetail, .progressPhotoEdit:
+            PhotoRouteBoundary(route: route, path: $path, selectedTab: $selectedTab, onBackground: { retirePhotoForm(route) }) { repository, scope in
+                photoDestination(route, repository: repository, scope: scope)
+            }
         case let .energyDetail(entryId):
             DailyEnergyDetailView(
                 entryId: entryId,
@@ -167,6 +182,46 @@ struct ProgressNavigationView: View {
                 },
                 onFinished: invalidateLists
             )
+        }
+    }
+
+    @ViewBuilder
+    private func photoDestination(_ route: ProgressRoute, repository: any ProgressPhotoRepositoryProtocol,
+                                  scope: ProgressPhotoRouteScope) -> some View {
+        switch route {
+        case .progressPhotoGallery:
+            ProgressPhotoGallery(repository: repository, scope: scope)
+        case .progressPhotoCreate:
+            ProgressPhotoCreate(repository: repository, scope: scope) { id in
+                guard selectedTab == .progress, path.suffix(2).elementsEqual([.progressPhotoGallery, .progressPhotoCreate]) else {
+                    return
+                }
+                // The resulting stack is gallery → viewer, without racing a
+                // second navigation against SwiftUI's in-progress dismissal.
+                path = Array(path.dropLast()) + [.progressPhotoDetail(id)]
+            }
+        case let .progressPhotoDetail(id):
+            ProgressPhotoRecord(repository: repository, scope: scope, id: id, title: "Progress photo") { photo in
+                ProgressPhotoViewer(repository: repository, scope: scope, photo: photo)
+            }
+        case let .progressPhotoEdit(id):
+            ProgressPhotoRecord(repository: repository, scope: scope, id: id, title: "Edit progress photo") { photo in
+                ProgressPhotoEdit(repository: repository, scope: scope, photo: photo) {
+                    guard path.last == route else { return }
+                    let count = path.suffix(2).elementsEqual([.progressPhotoDetail(id), route]) ? 2 : 1
+                    path = Array(path.dropLast(count))
+                }
+            }
+        default:
+            EmptyView()
+        }
+    }
+
+    private func retirePhotoForm(_ route: ProgressRoute) {
+        guard path.last == route else { return }
+        switch route {
+        case .progressPhotoCreate, .progressPhotoEdit: path.removeLast()
+        default: break
         }
     }
 

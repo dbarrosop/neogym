@@ -14,7 +14,10 @@ struct AppShellEnvironment {
 
     static func live(_ environment: AppEnvironment, ownerId: String?) -> AppShellEnvironment {
         AppShellEnvironment(
-            repositories: .live(graphQL: environment.graphQLService), storageBaseURL: environment.client.serviceURLs.storage,
+            repositories: .live(
+                graphQL: environment.graphQLService,
+                progressPhotos: ownerId.flatMap { ProgressPhotoRepository(client: environment.client, owner: $0) }
+            ), storageBaseURL: environment.client.serviceURLs.storage,
             bodyHealthImporter: bodyImporter(), workoutHealthImporter: workoutImporter(),
             healthWorkoutRepository: HealthWorkoutRepository(client: environment.client, ownerUserId: ownerId ?? "")
         )
@@ -68,6 +71,7 @@ struct EnergyWidgetUpdates {
 
 extension EnvironmentValues {
     @Entry var demoActions: DemoActions?
+    @Entry var privateProgressPhotos: (any ProgressPhotoRepositoryProtocol)?
     @Entry var energyWidgetUpdates = EnergyWidgetUpdates.live
     /// Live mode only; demo has no widgets or Live Activities to open it.
     @Entry var appDeepLinks: AppDeepLinkRouter?

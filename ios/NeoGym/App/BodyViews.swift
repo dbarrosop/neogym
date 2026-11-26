@@ -6,13 +6,15 @@ struct BodyMeasurementsListView: View {
     let repository: any BodyMeasurementsRepositoryProtocol
     let healthImporter: (any BodyMeasurementsHealthImporting)?
     let reloadToken: Int
+    let showsProgressPhotos: Bool
     @State private var window = EntryHistoryWindow()
 
     init(
         repository: any BodyMeasurementsRepositoryProtocol,
         healthImporter: (any BodyMeasurementsHealthImporting)? = nil,
         userId: String? = nil,
-        reloadToken: Int
+        reloadToken: Int,
+        showsProgressPhotos: Bool = false
     ) {
         _viewModel = StateObject(wrappedValue: BodyMeasurementsListViewModel(
             repository: repository,
@@ -22,12 +24,21 @@ struct BodyMeasurementsListView: View {
         self.repository = repository
         self.healthImporter = healthImporter
         self.reloadToken = reloadToken
+        self.showsProgressPhotos = showsProgressPhotos
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: NeoGymTheme.spacingSM) {
                 AreaSectionHeader()
+                if showsProgressPhotos {
+                    NavigationLink(value: ProgressRoute.progressPhotoGallery) {
+                        ListRow(title: "Progress photos")
+                    }
+                    .buttonStyle(.plain)
+                    .cardSurface()
+                    .accessibilityIdentifier("progressPhotos.open")
+                }
                 content
             }
             .frame(maxWidth: NeoGymTheme.contentMaxWidth)

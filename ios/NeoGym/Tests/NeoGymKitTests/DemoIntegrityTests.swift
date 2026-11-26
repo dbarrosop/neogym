@@ -101,6 +101,7 @@ final class DemoIntegrityTests: XCTestCase {
 
     func testPublicCatalogItemsCannotBeEditedOrDeleted() async throws {
         let repositories = AppRepositories.demo(store: try DemoStore())
+        XCTAssertNil(repositories.progressPhotos, "Demo never receives a photo repository")
         do {
             try await repositories.workouts.deleteWorkout(id: "demo-workout-public")
             XCTFail("Public template deleted")

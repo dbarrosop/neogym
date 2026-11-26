@@ -112,6 +112,23 @@ navigation issues and live-only coverage boundaries. See its
 [capture instructions](../../docs/ios/capture.md) for the opt-in, skipped-by-default
 `DemoGuideCaptureUITests` driver and Python reproduction/validation tools.
 
+## Private progress photos (signed-in iPhone only)
+
+Open **Progress › Body › Progress photos** to add one library photo, enter an
+angle and a date (today or earlier), filter the gallery, or view, correct and
+confirm deletion of a stored photo. Separate uploads may share a date and
+angle. Photos do not change measurement or Health data. Demo keeps Body
+measurement logging and has no photo shortcut or picker.
+
+The app uses the system's single-photo picker, prepares a size-bounded JPEG
+without source metadata, and keeps the draft and display bytes in memory only.
+The gallery/viewer read again after backgrounding; a create/edit draft is lost.
+If an upload was interrupted, check the gallery before starting a new one.
+Deletion removes access; Storage's physical cleanup is separate. See the
+[API and hosted acceptance](../../docs/developers/progress-photos.md). Confirm
+HEIC transfer and App Switcher redaction on a physical iPhone with disposable
+fixtures before publication; don't run signed-in smoke against production.
+
 ## Embedded Apple Watch companion (Phase 2)
 
 `NeoGymWatch` is a watchOS 27 companion embedded in the existing iPhone app
