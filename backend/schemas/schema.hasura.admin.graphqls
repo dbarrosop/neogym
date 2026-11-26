@@ -3175,10 +3175,16 @@ enum progressPhotoLabel_constraint {
   unique or primary key constraint on columns "value"
   """
   progress_photo_labels_pkey
+}
+enum progressPhotoLabel_enum {
   """
-  unique or primary key constraint on columns "position"
+  Back
   """
-  progress_photo_labels_position_key
+  back
+  """
+  Front
+  """
+  front
 }
 """
 select columns of table "progress_photo_labels"
@@ -3187,11 +3193,7 @@ enum progressPhotoLabel_select_column {
   """
   column name
   """
-  name
-  """
-  column name
-  """
-  position
+  comment
   """
   column name
   """
@@ -3204,11 +3206,7 @@ enum progressPhotoLabel_update_column {
   """
   column name
   """
-  name
-  """
-  column name
-  """
-  position
+  comment
   """
   column name
   """
@@ -12598,11 +12596,6 @@ type mutation_root {
   """
   updateProgressPhotoLabel(
     """
-    increments the numeric columns with given value of the filtered values
-    """
-    _inc: progressPhotoLabel_inc_input
-
-    """
     sets the columns of the filtered rows to the given values
     """
     _set: progressPhotoLabel_set_input
@@ -12611,11 +12604,6 @@ type mutation_root {
   update data of the table: "progress_photo_labels"
   """
   updateProgressPhotoLabels(
-    """
-    increments the numeric columns with given value of the filtered values
-    """
-    _inc: progressPhotoLabel_inc_input
-
     """
     sets the columns of the filtered rows to the given values
     """
@@ -14868,7 +14856,7 @@ type progressPhoto {
   file: files
   file_id: uuid
   id: uuid!
-  label: String!
+  label: progressPhotoLabel_enum!
   takenOn: date!
   updatedAt: timestamptz!
   """
@@ -14881,8 +14869,7 @@ type progressPhoto {
 columns and relationships of "progress_photo_labels"
 """
 type progressPhotoLabel {
-  name: String!
-  position: Int!
+  comment: String
   value: String!
 }
 """
@@ -14896,38 +14883,22 @@ type progressPhotoLabel_aggregate {
 aggregate fields of "progress_photo_labels"
 """
 type progressPhotoLabel_aggregate_fields {
-  avg: progressPhotoLabel_avg_fields
   count(columns: [progressPhotoLabel_select_column!], distinct: Boolean): Int!
   max: progressPhotoLabel_max_fields
   min: progressPhotoLabel_min_fields
-  stddev: progressPhotoLabel_stddev_fields
-  stddev_pop: progressPhotoLabel_stddev_pop_fields
-  stddev_samp: progressPhotoLabel_stddev_samp_fields
-  sum: progressPhotoLabel_sum_fields
-  var_pop: progressPhotoLabel_var_pop_fields
-  var_samp: progressPhotoLabel_var_samp_fields
-  variance: progressPhotoLabel_variance_fields
-}
-"""
-aggregate avg on columns
-"""
-type progressPhotoLabel_avg_fields {
-  position: Float
 }
 """
 aggregate max on columns
 """
 type progressPhotoLabel_max_fields {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 """
 aggregate min on columns
 """
 type progressPhotoLabel_min_fields {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 """
@@ -14942,48 +14913,6 @@ type progressPhotoLabel_mutation_response {
   data from the rows affected by the mutation
   """
   returning: [progressPhotoLabel!]!
-}
-"""
-aggregate stddev on columns
-"""
-type progressPhotoLabel_stddev_fields {
-  position: Float
-}
-"""
-aggregate stddev_pop on columns
-"""
-type progressPhotoLabel_stddev_pop_fields {
-  position: Float
-}
-"""
-aggregate stddev_samp on columns
-"""
-type progressPhotoLabel_stddev_samp_fields {
-  position: Float
-}
-"""
-aggregate sum on columns
-"""
-type progressPhotoLabel_sum_fields {
-  position: Int
-}
-"""
-aggregate var_pop on columns
-"""
-type progressPhotoLabel_var_pop_fields {
-  position: Float
-}
-"""
-aggregate var_samp on columns
-"""
-type progressPhotoLabel_var_samp_fields {
-  position: Float
-}
-"""
-aggregate variance on columns
-"""
-type progressPhotoLabel_variance_fields {
-  position: Float
 }
 """
 aggregated selection of "progress_photos"
@@ -15007,7 +14936,6 @@ type progressPhoto_max_fields {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: String
   takenOn: date
   updatedAt: timestamptz
   userId: uuid
@@ -15019,7 +14947,6 @@ type progressPhoto_min_fields {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: String
   takenOn: date
   updatedAt: timestamptz
   userId: uuid
@@ -32344,22 +32271,24 @@ input progressPhotoLabel_bool_exp {
   _and: [progressPhotoLabel_bool_exp!]
   _not: progressPhotoLabel_bool_exp
   _or: [progressPhotoLabel_bool_exp!]
-  name: String_comparison_exp
-  position: Int_comparison_exp
+  comment: String_comparison_exp
   value: String_comparison_exp
 }
 """
-input type for incrementing numeric columns in table "progress_photo_labels"
+Boolean expression to compare columns of type "progressPhotoLabel_enum". All fields are combined with logical 'AND'.
 """
-input progressPhotoLabel_inc_input {
-  position: Int
+input progressPhotoLabel_enum_comparison_exp {
+  _eq: progressPhotoLabel_enum
+  _in: [progressPhotoLabel_enum!]
+  _is_null: Boolean
+  _neq: progressPhotoLabel_enum
+  _nin: [progressPhotoLabel_enum!]
 }
 """
 input type for inserting data into table "progress_photo_labels"
 """
 input progressPhotoLabel_insert_input {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 """
@@ -32384,8 +32313,7 @@ input progressPhotoLabel_on_conflict {
 Ordering options when selecting data from "progress_photo_labels".
 """
 input progressPhotoLabel_order_by {
-  name: order_by
-  position: order_by
+  comment: order_by
   value: order_by
 }
 """
@@ -32398,8 +32326,7 @@ input progressPhotoLabel_pk_columns_input {
 input type for updating data in table "progress_photo_labels"
 """
 input progressPhotoLabel_set_input {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 """
@@ -32419,15 +32346,10 @@ input progressPhotoLabel_stream_cursor_input {
 Initial value of the column from where the streaming should start
 """
 input progressPhotoLabel_stream_cursor_value_input {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 input progressPhotoLabel_updates {
-  """
-  increments the numeric columns with given value of the filtered values
-  """
-  _inc: progressPhotoLabel_inc_input
   """
   sets the columns of the filtered rows to the given values
   """
@@ -32449,7 +32371,7 @@ input progressPhoto_bool_exp {
   file: files_bool_exp
   file_id: uuid_comparison_exp
   id: uuid_comparison_exp
-  label: String_comparison_exp
+  label: progressPhotoLabel_enum_comparison_exp
   takenOn: date_comparison_exp
   updatedAt: timestamptz_comparison_exp
   user: users_bool_exp
@@ -32464,7 +32386,7 @@ input progressPhoto_insert_input {
   file: files_obj_rel_insert_input
   file_id: uuid
   id: uuid
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   user: users_obj_rel_insert_input
@@ -32516,7 +32438,7 @@ input progressPhoto_set_input {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   userId: uuid
@@ -32541,7 +32463,7 @@ input progressPhoto_stream_cursor_value_input {
   createdAt: timestamptz
   file_id: uuid
   id: uuid
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   userId: uuid

@@ -1665,6 +1665,16 @@ enum order_by {
   """
   desc_nulls_last
 }
+enum progressPhotoLabel_enum {
+  """
+  Back
+  """
+  back
+  """
+  Front
+  """
+  front
+}
 """
 select columns of table "progress_photo_labels"
 """
@@ -1672,11 +1682,7 @@ enum progressPhotoLabel_select_column {
   """
   column name
   """
-  name
-  """
-  column name
-  """
-  position
+  comment
   """
   column name
   """
@@ -8327,7 +8333,7 @@ type progressPhoto {
   """
   file: files
   id: uuid!
-  label: String!
+  label: progressPhotoLabel_enum!
   takenOn: date!
   updatedAt: timestamptz!
   userId: uuid
@@ -8336,8 +8342,7 @@ type progressPhoto {
 columns and relationships of "progress_photo_labels"
 """
 type progressPhotoLabel {
-  name: String!
-  position: Int!
+  comment: String
   value: String!
 }
 """
@@ -18958,16 +18963,24 @@ input progressPhotoLabel_bool_exp {
   _and: [progressPhotoLabel_bool_exp!]
   _not: progressPhotoLabel_bool_exp
   _or: [progressPhotoLabel_bool_exp!]
-  name: String_comparison_exp
-  position: Int_comparison_exp
+  comment: String_comparison_exp
   value: String_comparison_exp
+}
+"""
+Boolean expression to compare columns of type "progressPhotoLabel_enum". All fields are combined with logical 'AND'.
+"""
+input progressPhotoLabel_enum_comparison_exp {
+  _eq: progressPhotoLabel_enum
+  _in: [progressPhotoLabel_enum!]
+  _is_null: Boolean
+  _neq: progressPhotoLabel_enum
+  _nin: [progressPhotoLabel_enum!]
 }
 """
 Ordering options when selecting data from "progress_photo_labels".
 """
 input progressPhotoLabel_order_by {
-  name: order_by
-  position: order_by
+  comment: order_by
   value: order_by
 }
 """
@@ -18987,8 +19000,7 @@ input progressPhotoLabel_stream_cursor_input {
 Initial value of the column from where the streaming should start
 """
 input progressPhotoLabel_stream_cursor_value_input {
-  name: String
-  position: Int
+  comment: String
   value: String
 }
 """
@@ -19002,7 +19014,7 @@ input progressPhoto_bool_exp {
   createdAt: timestamptz_comparison_exp
   file: files_bool_exp
   id: uuid_comparison_exp
-  label: String_comparison_exp
+  label: progressPhotoLabel_enum_comparison_exp
   takenOn: date_comparison_exp
   updatedAt: timestamptz_comparison_exp
   userId: uuid_comparison_exp
@@ -19012,7 +19024,7 @@ input type for inserting data into table "progress_photos"
 """
 input progressPhoto_insert_input {
   file: files_obj_rel_insert_input
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
 }
 """
@@ -19056,7 +19068,7 @@ input progressPhoto_pk_columns_input {
 input type for updating data in table "progress_photos"
 """
 input progressPhoto_set_input {
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
 }
 """
@@ -19078,7 +19090,7 @@ Initial value of the column from where the streaming should start
 input progressPhoto_stream_cursor_value_input {
   createdAt: timestamptz
   id: uuid
-  label: String
+  label: progressPhotoLabel_enum
   takenOn: date
   updatedAt: timestamptz
   userId: uuid

@@ -1,6 +1,7 @@
 table:
   name: progress_photo_labels
   schema: public
+is_enum: true
 configuration:
   custom_name: progressPhotoLabel
   custom_root_fields:
@@ -18,6 +19,5 @@ select_permissions:
     permission:
       columns:
         - value
-        - name
-        - position
+        - comment
       filter: {}

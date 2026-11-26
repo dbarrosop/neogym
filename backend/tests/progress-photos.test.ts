@@ -36,7 +36,7 @@ interface Account {
 }
 interface GraphQL<T> {
 	data?: T;
-	errors?: Array<{ extensions?: { code?: string } }>;
+	errors?: Array<{ message: string; extensions?: { code?: string } }>;
 }
 interface Photo {
 	id: string;
@@ -276,7 +276,7 @@ const INSERT = `mutation Reserve($object: progressPhoto_insert_input!) {
 	insertProgressPhoto(object: $object) { id userId label takenOn }
 }`;
 const PHOTO = `query Photo($id: uuid!) {
-	progressPhoto(id: $id) { id userId label takenOn angle { name } file { id isUploaded progressPhoto { id } } }
+	progressPhoto(id: $id) { id userId label takenOn angle { comment } file { id isUploaded progressPhoto { id } } }
 }`;
 const FILE = `query File($id: uuid!) { file(id: $id) { id isUploaded } }`;
 const INSERT_FILE = `mutation Init($object: files_insert_input!) {
@@ -431,6 +431,32 @@ afterAll(async () => {
 		if (result.status === "rejected") throw result.reason;
 });
 
+test("both GraphQL endpoints expose the seeded photo labels as an enum", async () => {
+	for (const url of [HASURA, CONSTELLATION]) {
+		const result = await gql<{
+			labelEnum: { kind: string; enumValues: Array<{ name: string }> };
+			progressPhotoLabels: Array<{ value: string; comment: string }>;
+		}>(
+			url,
+			`{
+				labelEnum: __type(name: "progressPhotoLabel_enum") { kind enumValues { name } }
+				progressPhotoLabels(order_by: { value: asc }) { value comment }
+			}`,
+			{},
+			bearer(owner),
+		);
+		expect(result.errors).toBeUndefined();
+		expect(result.data?.labelEnum.kind).toBe("ENUM");
+		expect(
+			result.data?.labelEnum.enumValues.map(({ name }) => name).sort(),
+		).toEqual(["back", "front"]);
+		expect(result.data?.progressPhotoLabels).toEqual([
+			{ value: "back", comment: "Back" },
+			{ value: "front", comment: "Front" },
+		]);
+	}
+});
+
 test("signed-in users reserve with a date and a catalog label, never choose the owner or file ID", async () => {
 	for (const url of [HASURA, CONSTELLATION]) {
 		type Schema = {
@@ -458,21 +484,20 @@ test("signed-in users reserve with a date and a catalog label, never choose the 
 			expect(adminRoots).toContain(name);
 			expect(userRoots).not.toContain(name);
 		}
-		const labels = await gql<{ progressPhotoLabels: unknown[] }>(
+		const invalidLabel = await gql(
 			url,
-			`{ progressPhotoLabels(order_by: { position: asc }) { value name } }`,
-			{},
+			INSERT,
+			{ object: photoInput("side") },
 			bearer(owner),
 		);
-		expect(labels.data?.progressPhotoLabels).toEqual([
-			{ value: "front", name: "Front" },
-			{ value: "back", name: "Back" },
-		]);
+		expect(invalidLabel.errors?.[0]?.message).toContain(
+			"progressPhotoLabel_enum",
+		);
+		expect(invalidLabel.errors?.[0]?.message).toContain("side");
 		for (const object of [
 			{ ...photoInput(), id: crypto.randomUUID() },
 			{ ...photoInput(), userId: other.id },
 			{ ...photoInput(), fileId: crypto.randomUUID() },
-			photoInput("not-a-label"),
 			{ ...photoInput(), takenOn: "2025-02-29" },
 			{ ...photoInput(), takenOn: "infinity" },
 		])

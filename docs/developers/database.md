@@ -196,8 +196,7 @@ erDiagram
 
     PROGRESS_PHOTO_LABELS {
         text value PK
-        text name
-        int position UK
+        text comment
     }
     PROGRESS_PHOTOS {
         uuid id PK
@@ -214,7 +213,7 @@ erDiagram
     PROGRESS_PHOTO_LABELS ||--o{ PROGRESS_PHOTOS : "labels (RESTRICT delete)"
 ```
 
-`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately revoking access; scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
+`progress_photos` is the upload reservation: it assigns the UUID and stores the uploader, calendar date and admin label before an upload starts. `progress_photo_labels` is a Hasura enum table with a text key and optional comment; the FK still enforces allowed values in Postgres. `file_id` starts null and is a unique cascading FK to `storage.files.id`; when set, it must equal the reservation UUID. Storage initialization atomically sets `file_id` on the current matching reservation. GraphQL follows `file` without a second write from the client. Date and angle are not a uniqueness key. Account deletion nulls `user_id`, immediately revoking access; scheduled PostgreSQL jobs remove expired pending uploads and rows left by deleted uploaders. Storage's own queue handles byte removal after SQL deletion. See the [progress-photo API](progress-photos.md).
 
 ## Nutrition
 
