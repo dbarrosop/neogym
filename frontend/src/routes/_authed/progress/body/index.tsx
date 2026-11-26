@@ -111,6 +111,13 @@ function BodyRoute() {
           </Button>
         }
       />
+      <Link
+        to="/progress/body/photos"
+        preload={false}
+        className="inline-flex min-h-11 items-center text-sm font-medium text-link underline underline-offset-4"
+      >
+        Progress photos
+      </Link>
       <div className={`grid items-start gap-5 ${SIDE_BY_SIDE}`}>
         {renderContent()}
         <div className={SIDE_COLUMN}>
