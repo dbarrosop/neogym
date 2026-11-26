@@ -34,9 +34,9 @@ export function AppSidebar({ footer }: { footer?: ReactNode }) {
               to={to}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex h-10 items-center gap-2.5 rounded-[10px] px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                "flex h-10 items-center gap-2.5 rounded-[10px] px-3 text-sm font-medium text-soft-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
                 active &&
-                  "bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent",
+                  "bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-[0_1px_2px_rgb(0_0_0/0.45),0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent",
               )}
             >
               <Icon className={cn("size-[18px]", active && "text-link")} />

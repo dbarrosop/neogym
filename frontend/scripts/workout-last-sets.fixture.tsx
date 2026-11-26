@@ -41,7 +41,10 @@ mock.module("@/lib/nhost/auth-provider", () => ({
 mock.module("@/lib/hooks/use-start-session", () => ({
   useStartSession: () => ({ isPending: false, mutate: () => undefined }),
 }));
-mock.module("@/components/storage-image", () => ({ AlternatingStorageImage: () => null }));
+mock.module("@/components/storage-image", () => ({
+  AlternatingStorageImage: () => null,
+  StorageImage: () => null,
+}));
 
 const schema = buildSchema(
   readFileSync(

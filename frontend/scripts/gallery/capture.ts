@@ -1,5 +1,4 @@
 import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -12,16 +11,23 @@ import {
   request,
 } from "@playwright/test";
 import packageJSON from "../../package.json";
-import { CaptureBackend, captureOrigin, LOCAL_AUTH, readOTP } from "./backend";
+import { CaptureBackend, captureOrigin, galleryMail, LOCAL_AUTH, readOTP } from "./backend";
 import catalog from "./catalog.json";
 import { GalleryDriver, guardNetwork, type Manifest, saveManifest } from "./driver";
 import { seedFixtures } from "./fixtures";
+import fixture from "./profile.json";
+import { galleryDate, galleryPostgres, lockGallery, seedGalleryAccount } from "./seed";
 import {
   captureAppearance,
+  captureExerciseDetail,
   captureJournal,
+  captureMealEdit,
+  capturePlanEdit,
   capturePlanLog,
+  captureProgressCalories,
   captureRoots,
   captureSession,
+  captureTodaySummary,
 } from "./workflows";
 
 const REPO = resolve(import.meta.dir, "../../..");
@@ -35,30 +41,44 @@ const OPTIONS = {
   help: { type: "boolean", default: false },
 } as const;
 
-async function authenticate(page: Page, localRequest: APIRequestContext): Promise<string> {
-  // New disposable account on every profile run; never reuse a developer session.
-  const email = `gallery-${randomUUID()}@example.com`;
-  await page.getByLabel("Display name").fill("Alex Morgan - Gallery");
+async function authenticate(
+  page: Page,
+  localRequest: APIRequestContext,
+  record?: GalleryDriver,
+): Promise<string> {
+  const { email } = fixture.account;
+  const previous = new Set((await galleryMail(localRequest, email)).map((message) => message.ID));
   await page.getByLabel("Email", { exact: true }).fill(email);
-  const sending = page.waitForResponse(`${LOCAL_AUTH}/signup/otp/email`);
+  const sending = page.waitForResponse(`${LOCAL_AUTH}/signin/otp/email`);
   await page.getByRole("button", { name: "Send code", exact: true }).click();
   const sent = await sending;
   if (!sent.ok()) {
-    throw new Error(`Local OTP signup returned HTTP ${sent.status()}`);
+    throw new Error(`Local OTP sign-in returned HTTP ${sent.status()}`);
   }
-  await expect(page.getByRole("heading", { name: "Enter your code", exact: true })).toBeVisible();
-  const code = await readOTP(localRequest, email);
+  const input = page.getByRole("textbox", { name: "Verification code", exact: true });
+  await expect(input).toHaveValue("");
+  if (record) {
+    record.step("Return to sign-in and request a code for the seeded local account");
+    await expect(page.getByRole("button", { name: "Change email", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Verify", exact: true })).toBeDisabled();
+    await expect(page.getByText("Resend in", { exact: false })).toBeVisible();
+    await record.shot("code", "Sign-in: empty verification code with Change and resend countdown");
+    record.step("Enter the code from local MailHog; the last digit submits automatically");
+  }
+  const code = await readOTP(localRequest, email, previous);
   const verification = page.waitForResponse((response) =>
     response.url().startsWith(`${LOCAL_AUTH}/signin/otp/email/verify`),
   );
-  await page.locator("input[autocomplete='one-time-code']").fill(code);
+  await input.fill(code);
   const response = await verification;
   if (!response.ok()) {
     throw new Error(`Local OTP verification returned HTTP ${response.status()}`);
   }
-  const body = (await response.json()) as { session?: { accessToken: string } };
-  if (!body.session?.accessToken) {
-    throw new Error("Local OTP verification returned no session");
+  const body = (await response.json()) as {
+    session?: { accessToken: string; user?: { id: string } };
+  };
+  if (!body.session?.accessToken || body.session.user?.id !== fixture.account.id) {
+    throw new Error("Local OTP verification did not return the reserved fixture session");
   }
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   return body.session.accessToken;
@@ -123,7 +143,9 @@ async function captureProfile(
   options: RunOptions,
   profile: keyof typeof VIEWPORTS,
   manifest: Manifest,
+  database: string,
 ) {
+  seedGalleryAccount(database);
   const context = await browser.newContext({
     viewport: VIEWPORTS[profile],
     deviceScaleFactor: 1,
@@ -139,6 +161,9 @@ async function captureProfile(
   try {
     const unexpected = await guardNetwork(context, options.origin);
     const page = await context.newPage();
+    // Freeze Date, but keep timers, animation frames and requests running. Auth,
+    // MailHog, and PostgreSQL still see real time outside this browser context.
+    await page.clock.setFixedTime(new Date(fixture.now));
     page.setDefaultTimeout(20_000);
     const guide = new GalleryDriver(
       page,
@@ -149,30 +174,46 @@ async function captureProfile(
       sourceState(),
       unexpected,
     );
+    let token: string;
     if (options.group === "all" || options.group === "public-auth") {
-      await guide.run("public-auth", "Inspect public sign-in and sign-up", async () => {
+      const auth = catalog.workflows.find(({ id }) => id === "public-auth");
+      if (!auth) {
+        throw new Error("Missing public authentication workflow");
+      }
+      token = await guide.run(auth.id, auth.title, async () => {
         await guide.open("/signin", "Welcome back");
         await guide.shot("signin", "Public sign-in: email OTP request");
         await page.getByRole("link", { name: "Create an account", exact: true }).click();
         await expect(page.getByLabel("Display name")).toBeVisible();
         await guide.shot("signup", "Public sign-up: display name and email");
+        await page.getByRole("link", { name: "Sign in", exact: true }).click();
+        const accessToken = await authenticate(page, localRequest, guide);
+        guide.check("The empty code step showed Change, disabled Verify and a resend countdown");
         guide.check(
-          "Public authentication screens render; screenshots contain no OTP or credentials",
+          "Local verification succeeded and the app opened Today without pressing Verify",
         );
+        return accessToken;
       });
+      if (options.group === "public-auth") {
+        return;
+      }
     } else {
-      await guide.open("/signup");
+      await guide.open("/signin", "Welcome back");
+      token = await authenticate(page, localRequest);
     }
-    // Authentication is real, but not recorded as proof of cloud/email delivery.
-    const token = await authenticate(page, localRequest);
     const backend = new CaptureBackend(localRequest, token);
-    const ids = await seedFixtures(backend, String(manifest.captureProfile["fixtureDate"]));
+    const ids = await seedFixtures(backend, galleryDate);
     if (options.group === "all" || options.group === "roots") {
       await captureRoots(guide);
     }
     const actions: Record<string, () => Promise<void>> = {
+      "today-summary": () => captureTodaySummary(guide),
       session: () => captureSession(guide, backend, ids),
+      "exercise-detail": () => captureExerciseDetail(guide, ids),
       "plan-log": () => capturePlanLog(guide, backend, ids),
+      "plan-edit": () => capturePlanEdit(guide, backend, ids),
+      "meal-edit": () => captureMealEdit(guide, backend, ids),
+      "progress-calories": () => captureProgressCalories(guide),
       "journal-crud": () => captureJournal(guide, backend),
       appearance: () => captureAppearance(guide),
     };
@@ -197,7 +238,7 @@ export async function main() {
   const { values } = parseArgs({ options: OPTIONS, strict: true });
   if (values.help) {
     process.stdout.write(
-      "gallery:capture [--origin http://localhost:5173] [--output DIR] [--profile all|desktop|mobile] [--group all|roots|public-auth|session|plan-log|journal-crud|appearance]\n",
+      `gallery:capture [--origin http://localhost:5173] [--output DIR] [--profile all|desktop|mobile] [--group all|roots|${catalog.workflows.map(({ id }) => id).join("|")}]\n`,
     );
     return;
   }
@@ -211,18 +252,30 @@ export async function main() {
   if (!groups.has(options.group) || !["all", ...Object.keys(VIEWPORTS)].includes(options.profile)) {
     throw new Error("Unknown gallery group or profile; use --help");
   }
+  const unlock = await lockGallery(REPO);
+  try {
+    await runCapture(options);
+  } finally {
+    await unlock();
+  }
+}
+
+async function runCapture(options: RunOptions) {
   const executablePath = process.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"];
-  const browser = await chromium.launch(executablePath ? { executablePath } : {});
-  // TLS bypass is confined to a tooling request context with hard-coded local
-  // backend URLs. Browser requests are separately allowlisted before navigation.
-  const localRequest = await request.newContext({ ignoreHTTPSErrors: true, timeout: 30_000 });
+  // Full software raster avoids incremental/GPU antialiasing differences at card corners.
+  const browser = await chromium.launch({
+    args: fixture.rasterArgs,
+    ...(executablePath ? { executablePath } : {}),
+  });
   try {
     const manifest = await loadManifest(options.output, {
-      version: 1,
-      fixtureVersion: 1,
-      fixtureDate: new Date().toISOString().slice(0, 10),
-      clock: "Real browser/Auth/server clocks; fictional history is relative to fixtureDate",
+      version: fixture.version,
+      fixtureVersion: fixture.fixtureVersion,
+      fixtureDate: galleryDate,
+      fixedBrowserTime: fixture.now,
+      clock: "Fixed browser Date; real Auth, database, timers, and capture provenance clocks",
       browser: browser.version(),
+      rasterArgs: fixture.rasterArgs,
       origin: options.origin,
       playwright: packageJSON.devDependencies["@playwright/test"],
       platform: process.platform,
@@ -232,6 +285,8 @@ export async function main() {
       deviceScaleFactor: 1,
       viewports: VIEWPORTS,
     });
+    const previousRun = manifest.lastRun;
+    const previousEvidence = evidence(manifest);
     manifest.lastRun = {
       status: "failed",
       group: options.group,
@@ -239,22 +294,37 @@ export async function main() {
       startedAt: new Date().toISOString(),
     };
     await saveManifest(options.output, manifest);
-    await (Object.keys(VIEWPORTS) as (keyof typeof VIEWPORTS)[])
-      .filter((profile) => options.profile === "all" || options.profile === profile)
-      .reduce(async (previous, profile) => {
-        await previous;
-        await captureProfile(browser, localRequest, options, profile, manifest);
-      }, Promise.resolve());
-    manifest.lastRun.status = "passed";
-    manifest.lastRun.finishedAt = new Date().toISOString();
+    const database = galleryPostgres(REPO);
+    // TLS bypass is confined to a tooling request context with hard-coded local
+    // backend URLs. Browser requests are separately allowlisted before navigation.
+    const localRequest = await request.newContext({ ignoreHTTPSErrors: true, timeout: 30_000 });
+    try {
+      await (Object.keys(VIEWPORTS) as (keyof typeof VIEWPORTS)[])
+        .filter((profile) => options.profile === "all" || options.profile === profile)
+        .reduce(async (previous, profile) => {
+          await previous;
+          await captureProfile(browser, localRequest, options, profile, manifest, database);
+        }, Promise.resolve());
+    } finally {
+      await localRequest.dispose();
+    }
+    if (previousRun?.status === "passed" && previousEvidence === evidence(manifest)) {
+      manifest.lastRun = previousRun;
+    } else {
+      manifest.lastRun.status = "passed";
+      manifest.lastRun.finishedAt = new Date().toISOString();
+    }
     await saveManifest(options.output, manifest);
     process.stdout.write(
       `CAPTURE COMPLETE ${options.output}; validate and render before publishing\n`,
     );
   } finally {
-    await localRequest.dispose();
     await browser.close();
   }
+}
+
+function evidence(manifest: Manifest) {
+  return JSON.stringify([manifest.screenshots, manifest.workflows, manifest.knownIssues]);
 }
 
 if (import.meta.main) {

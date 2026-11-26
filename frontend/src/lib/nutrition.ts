@@ -18,11 +18,15 @@ export interface NormalizedMacros {
 
 export type NutrientKey = keyof NormalizedMacros;
 
+/**
+ * Per-100 g nutrient inputs in display order: Energy first, then the macros
+ * in the P · C · F order the design uses everywhere, then fiber and sugar.
+ */
 export const NUTRIENT_FIELDS: { key: NutrientKey; label: string; suffix: string }[] = [
-  { key: "kcalPer100g", label: "Calories", suffix: "kcal" },
-  { key: "fatPer100g", label: "Fat", suffix: "g" },
-  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
+  { key: "kcalPer100g", label: "Energy", suffix: "kcal" },
   { key: "proteinPer100g", label: "Protein", suffix: "g" },
+  { key: "carbsPer100g", label: "Carbs", suffix: "g" },
+  { key: "fatPer100g", label: "Fat", suffix: "g" },
   { key: "fiberPer100g", label: "Fiber", suffix: "g" },
   { key: "sugarPer100g", label: "Sugar", suffix: "g" },
 ];
@@ -236,9 +240,9 @@ const PLAN_ENTRY_KIND_ORDER = {
 
 const MACRO_LABELS: Record<keyof NormalizedMacros, string> = {
   kcalPer100g: "kcal",
-  fatPer100g: "fat",
-  carbsPer100g: "carbs",
   proteinPer100g: "protein",
+  carbsPer100g: "carbs",
+  fatPer100g: "fat",
   fiberPer100g: "fiber",
   sugarPer100g: "sugar",
 };
@@ -285,9 +289,9 @@ export function normalizeNumeric(value: unknown): number {
 export function normalizeMacros(input: MacroFields): NormalizedMacros {
   return {
     kcalPer100g: normalizeNumeric(input.kcalPer100g),
-    fatPer100g: normalizeNumeric(input.fatPer100g),
-    carbsPer100g: normalizeNumeric(input.carbsPer100g),
     proteinPer100g: normalizeNumeric(input.proteinPer100g),
+    carbsPer100g: normalizeNumeric(input.carbsPer100g),
+    fatPer100g: normalizeNumeric(input.fatPer100g),
     fiberPer100g: normalizeNumeric(input.fiberPer100g),
     sugarPer100g: normalizeNumeric(input.sugarPer100g),
   };
@@ -563,6 +567,45 @@ export function formatMacro(value: unknown, unit: "g" | "kcal"): string {
     maximumFractionDigits: precision,
     minimumFractionDigits: 0,
   })} ${unit}`;
+}
+
+/** Rounds to tenths half away from zero; 6.85 gives 6.9 despite float error. */
+function roundToTenths(value: number): number {
+  const scaled = Number((Math.abs(value) * 10).toPrecision(12));
+  return (Math.sign(value) * Math.round(scaled)) / 10;
+}
+
+/**
+ * Grams of one macro on a food/entry row, without the unit: one decimal below
+ * 10 g, whole grams from 10 g, trailing zeros dropped ("6.8", "0.5", "2",
+ * "45"). Mirrors iOS `NutritionMacroText.grams`.
+ */
+export function formatMacroGrams(value: unknown): string {
+  const tenths = roundToTenths(normalizeNumeric(value));
+  const fractionDigits = Math.abs(tenths) < 10 ? 1 : 0;
+  return tenths.toLocaleString(undefined, {
+    maximumFractionDigits: fractionDigits,
+    minimumFractionDigits: 0,
+  });
+}
+
+/** Whole grams for a slot or day total ("45", "106"); iOS slot lines use the same. */
+export function formatWholeGrams(value: unknown): string {
+  return normalizeNumeric(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+}
+
+export type MacroGramsPrecision = "whole" | "tenths";
+
+/**
+ * Spoken form of a P · C · F line: "Protein 45 grams, carbs 106 grams, fat 6
+ * grams". Uses the same precision as the visible line.
+ */
+export function macroLineLabel(
+  totals: Pick<MacroTotals, "protein" | "carbs" | "fat">,
+  precision: MacroGramsPrecision = "whole",
+): string {
+  const format = precision === "whole" ? formatWholeGrams : formatMacroGrams;
+  return `Protein ${format(totals.protein)} grams, carbs ${format(totals.carbs)} grams, fat ${format(totals.fat)} grams`;
 }
 
 export function macrosForGrams(input: MacroFields, grams: unknown): MacroTotals {
@@ -1055,9 +1098,9 @@ export function formatTimeOfDay(value: unknown): string {
 export function macroTotalsSummary(totals: MacroTotals): string {
   return [
     formatMacro(totals.kcal, "kcal"),
-    `${formatMacro(totals.fat, "g")} fat`,
-    `${formatMacro(totals.carbs, "g")} carbs`,
     `${formatMacro(totals.protein, "g")} protein`,
+    `${formatMacro(totals.carbs, "g")} carbs`,
+    `${formatMacro(totals.fat, "g")} fat`,
     `${formatMacro(totals.fiber, "g")} fiber`,
     `${formatMacro(totals.sugar, "g")} sugar`,
   ].join(" · ");

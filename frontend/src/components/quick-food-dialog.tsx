@@ -171,7 +171,8 @@ export function QuickFoodDialog({ open, mode, onOpenChange, onSaved }: QuickFood
         {canSubmit ? (
           <FoodForm
             initialValues={initialValues}
-            submitLabel={isCreate ? "Create food" : "Save food"}
+            submitLabel={isCreate ? "Create food" : "Save"}
+            nameCaption={isCreate ? undefined : null}
             isSubmitting={isSubmitting}
             onSubmit={(values) => {
               if (isCreate) {

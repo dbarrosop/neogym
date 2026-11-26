@@ -31,8 +31,12 @@
   --border: #e4e4e7;
   --input: #d4d4d8;
   --ring: #3463e0;
+  /* Stronger-than-separator grey for dashed planned slots and empty states (3.43:1 on card). */
+  --border-strong: #8a8a92;
 
   --surface-inset: #f7f7f8;
+  /* Nav items, field labels, tags and chips: one step closer to text than secondary. */
+  --soft-foreground: #3f3f46;
   --tertiary-foreground: #6a6a73;
   --link: #3463e0;
   --accent-soft: #e9effd;
@@ -42,13 +46,19 @@
   --positive-soft: #e8f7ee;
   --warning-soft: #fdf0e3;
   --warning-soft-foreground: #9a4a0b;
+  /* Error banners: tinted surface with readable red text. */
+  --destructive-soft: #fdecec;
+  --destructive-soft-foreground: #b91c1c;
   --glass: rgb(255 255 255 / 0.9);
 
-  --chart-1: #3463e0;
-  --chart-2: #ee8a2a;
-  --chart-3: #52525b;
-  --chart-4: #15803d;
-  --chart-5: #a1a1aa;
+  /* Macro colours: protein uses --primary, fat uses --muted-foreground. */
+  --carbs: #ee8a2a;
+  /* Secondary-muscle share of a muscle-set bar; lighter than the accent fill. */
+  --muscle-secondary: #6c8be8;
+
+  /* Chart 1 blue (weight, resting, consumed, volume); Chart 2 orange (body fat, active, net, Est. 1RM). */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
   --chart-grid: #e4e4e7;
   --chart-muted: #a1a1aa;
 
@@ -82,8 +92,10 @@
   --border: #2e2e33;
   --input: #3f3f46;
   --ring: #6e93ff;
+  --border-strong: #46464d;
 
   --surface-inset: #202024;
+  --soft-foreground: #d4d4d8;
   --tertiary-foreground: #8b8b94;
   --link: #6e93ff;
   --accent-soft: #1e2a4d;
@@ -93,14 +105,16 @@
   --positive-soft: #14321f;
   --warning-soft: #3a2410;
   --warning-soft-foreground: #f5a35a;
+  --destructive-soft: #2a1416;
+  --destructive-soft-foreground: #fca5a5;
   --glass: rgb(24 24 27 / 0.9);
 
-  --chart-1: #6e93ff;
-  --chart-2: #f5a35a;
-  --chart-3: #a1a1aa;
-  --chart-4: #4ade80;
-  --chart-5: #71717a;
-  --chart-grid: #26262b;
+  --carbs: #f5a35a;
+  --muscle-secondary: #4a66b0;
+
+  --chart-1: #5e87f5;
+  --chart-2: #d9732c;
+  --chart-grid: #2e2e33;
   --chart-muted: #71717a;
 
   --sidebar: #0e0e10;
@@ -138,7 +152,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-border-strong: var(--border-strong);
   --color-surface-inset: var(--surface-inset);
+  --color-soft-foreground: var(--soft-foreground);
   --color-tertiary-foreground: var(--tertiary-foreground);
   --color-link: var(--link);
   --color-accent-soft: var(--accent-soft);
@@ -148,12 +164,13 @@
   --color-positive-soft: var(--positive-soft);
   --color-warning-soft: var(--warning-soft);
   --color-warning-soft-foreground: var(--warning-soft-foreground);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-destructive-soft-foreground: var(--destructive-soft-foreground);
   --color-glass: var(--glass);
+  --color-carbs: var(--carbs);
+  --color-muscle-secondary: var(--muscle-secondary);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-chart-grid: var(--chart-grid);
   --color-chart-muted: var(--chart-muted);
   --color-sidebar: var(--sidebar);
@@ -176,6 +193,5 @@
   body {
     @apply bg-background text-foreground antialiased;
     min-height: 100dvh;
-    font-feature-settings: "cv11", "ss01";
   }
 }

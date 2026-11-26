@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "fixtureVersion": 3,
+  "now": "2025-01-15T09:41:00.000Z",
+  "energyUpdatedTime": "09:32:00Z",
+  "rasterArgs": ["--disable-gpu", "--disable-partial-raster"],
+  "account": {
+    "id": "c3a11000-0000-4000-8000-000000000001",
+    "email": "alex.gallery@example.com",
+    "displayName": "Alex Morgan - Gallery",
+    "createdAt": "2024-12-11T09:41:00.000Z",
+    "marker": "neogym-web-gallery"
+  }
+}

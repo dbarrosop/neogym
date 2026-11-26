@@ -81,10 +81,16 @@ export function DayNavigator({ date, children }: { date: string; children?: Reac
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          <Button asChild size="icon" variant="outline" aria-label="Previous day">
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Button
+            asChild
+            size="icon"
+            variant="outline"
+            className="size-[38px]"
+            aria-label="Previous day"
+          >
             <Link to="/nutrition/log/$date" params={{ date: addLocalDateDays(date, -1) }}>
               <ChevronLeft />
             </Link>
@@ -111,7 +117,13 @@ export function DayNavigator({ date, children }: { date: string; children?: Reac
               className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
             />
           </div>
-          <Button asChild size="icon" variant="outline" aria-label="Next day">
+          <Button
+            asChild
+            size="icon"
+            variant="outline"
+            className="size-[38px]"
+            aria-label="Next day"
+          >
             <Link to="/nutrition/log/$date" params={{ date: addLocalDateDays(date, 1) }}>
               <ChevronRight />
             </Link>
@@ -153,7 +165,7 @@ function WeekStrip({ date, today }: { date: string; today: string }) {
   }
 
   return (
-    <nav aria-label="Week" className="grid grid-cols-7 gap-1 rounded-xl border bg-card p-1">
+    <nav aria-label="Week" className="grid grid-cols-7 gap-1 rounded-[14px] border bg-card p-1">
       {days.map((day) => {
         const active = day === date;
         const kcal = kcalByDay.get(day);
@@ -167,7 +179,7 @@ function WeekStrip({ date, today }: { date: string; today: string }) {
               kcal ? `, ${kcalFormat.format(kcal)} kilocalories logged` : ", nothing logged"
             }`}
             className={cn(
-              "flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-center transition-colors hover:bg-muted/60",
+              "flex flex-col items-center gap-0.5 rounded-[10px] py-1.5 text-center transition-colors hover:bg-muted/60",
               active && "bg-primary text-primary-foreground hover:bg-primary",
             )}
           >

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("Orange stays fill-only and chart lines and labels pass contrast in both themes", () => {
+test("Body, Energy and Calories charts colour series by metric and pass contrast in both themes", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -14,6 +14,7 @@ test("Orange stays fill-only and chart lines and labels pass contrast in both th
     output: result.stdout.toString() + result.stderr.toString(),
   }).toEqual({
     exitCode: 0,
-    output: "Orange stays fill-only; Body and exercise trend lines and labels pass contrast.\n",
+    output:
+      "Body, Energy and Calories charts colour series by metric in Chart 1/2 with legible labels; no grey series.\n",
   });
 }, 30_000);

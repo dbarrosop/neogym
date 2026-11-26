@@ -73,6 +73,7 @@ let historyUnavailable = false;
 let detailReads = 0;
 let detailGate: Promise<void> | null = null;
 let strengthInserts = 0;
+let exerciseDeletes = 0;
 
 function field(selection: SelectionSetNode | undefined, name: string): FieldNode {
   const node = selection?.selections.find(
@@ -207,6 +208,14 @@ mock.module("@/lib/graphql", () => ({
         }
         return Promise.resolve({ deleteWorkoutSessionStrengthSet: { id } });
       }
+      case "DeleteWorkoutSessionExercise": {
+        const { id } = variables;
+        exerciseDeletes++;
+        session.workoutSessionExercises = session.workoutSessionExercises.filter(
+          (item) => item.id !== id,
+        );
+        return Promise.resolve({ deleteWorkoutSessionExercise: { id } });
+      }
       case "DeleteWorkoutSession":
         assert.equal(variables["id"], session.id);
         return Promise.resolve({ deleteWorkoutSession: { id: session.id } });
@@ -314,6 +323,15 @@ function collapsed(name: string) {
   assert(element, `Missing collapsed card: ${name}`);
   return element;
 }
+function recentDate(day: string) {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+function recentPanel(name: string) {
+  return card(name).querySelector("dl")?.textContent;
+}
 function fill(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
   assert(setter);
@@ -345,6 +363,7 @@ function exercise(name: string, position = 0, kind = "strength"): Exercise {
                     "x-label": "Duration",
                     "x-format": "duration_seconds",
                   },
+                  distance_km: { type: "number", "x-label": "Distance", "x-unit": "km" },
                 },
               },
             }
@@ -446,13 +465,60 @@ async function openSession(
       </QueryClientProvider>,
     ),
   );
-  await waitFor(() => client.isFetching() === 0);
+  // The history query starts only after the detail query renders, so idle
+  // fetching alone can be observed before it begins.
+  await waitFor(
+    () =>
+      client.isFetching() === 0 &&
+      client
+        .getQueryCache()
+        .findAll({ queryKey: ["sessions", "prior-per-exercise"] })
+        .some((query) => query.state.status !== "pending"),
+  );
+  // The cache can settle a tick before React renders the history-backed
+  // prefill and Recent panel, so flush once more before asserting on them.
+  await settle();
   if (!historyUnavailable) {
     for (const query of client.getQueryCache().findAll()) {
       assert.equal(query.state.error, null, `Failed fixture query: ${query.queryHash}`);
     }
   }
 }
+async function requestExerciseRemoval(name: string) {
+  const trigger = button(`Options for ${name}`);
+  await settle(() => {
+    trigger.focus();
+    trigger.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  });
+  const menu = container.querySelector<HTMLElement>('[role="menu"]');
+  assert(menu);
+  const first = button("Exercise details", menu);
+  assert.equal(document.activeElement, first);
+  await settle(() =>
+    first.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })),
+  );
+  const remove = button("Remove from session", menu);
+  assert.equal(document.activeElement, remove);
+  for (const action of [first, remove]) {
+    assert(action.classList.contains("focus-visible:outline-2"));
+    assert(action.classList.contains("focus-visible:outline-link"));
+  }
+  await settle(() =>
+    remove.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })),
+  );
+  assert.equal(document.activeElement, first);
+  await settle(() =>
+    first.dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true })),
+  );
+  assert.equal(document.activeElement, remove);
+  await settle(() => remove.click());
+  const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
+  assert(dialog);
+  assert(dialog.textContent?.includes(`Remove ${name}?`));
+  assert.equal(document.activeElement, button("Cancel", dialog));
+  return dialog;
+}
+
 async function logSet(name: string, number: number) {
   const form = card(name).querySelector<HTMLFormElement>(`form[aria-label="Log set ${number}"]`);
   assert(form);
@@ -481,11 +547,21 @@ async function logEntry(name: string, number: number) {
   const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
   assert(dialog);
   assert(dialog.textContent?.includes(`Add entry ${number}`));
-  const duration = dialog.querySelector<HTMLInputElement>('input[aria-label="Duration seconds"]');
+  // Durations are one "mm:ss" field, labelled by its visible label.
+  const duration = dialog.querySelector<HTMLInputElement>("#metric-duration_s");
   assert(duration);
-  await settle(() => fill(duration, "60"));
+  assert.equal(
+    dialog.querySelector('label[for="metric-duration_s"]')?.textContent,
+    "Durationh:mm:ss",
+  );
+  assert.equal(duration.getAttribute("aria-required"), "true");
+  assert.equal(
+    dialog.querySelector('label[for="metric-distance_km"]')?.textContent,
+    "DistancekmOptional",
+  );
+  await settle(() => fill(duration, "1:00"));
   const readsBefore = detailReads;
-  await settle(() => button("Log entry", dialog).click());
+  await settle(() => button("Add entry", dialog).click());
   await waitFor(
     () =>
       detailReads > readsBefore &&
@@ -594,7 +670,7 @@ try {
   await logSet("Squat", 1);
   seedReports();
   await settle(() => button("Delete session").click());
-  const deleteDialog = document.querySelector<HTMLElement>('[role="dialog"]');
+  const deleteDialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
   assert(deleteDialog);
   await settle(() => button("Delete session", deleteDialog).click());
   await waitFor(() => navigations.length === 1 && client.isMutating() === 0);
@@ -615,10 +691,47 @@ try {
     "Decrease Reps for set 1",
     "Increase Reps for set 1",
     "Collapse Squat",
-    "Remove Squat from session",
+    "Options for Squat",
   ]) {
     assert(button(label).classList.contains("size-11"), `${label} needs a 44 px target`);
   }
+  // Removing lives in the options menu (as on iOS), never one tap from Collapse.
+  assert(!container.querySelector('[aria-label="Remove Squat from session"]'));
+  const options = button("Options for Squat");
+  assert.equal(options.getAttribute("aria-haspopup"), "menu");
+  await settle(() => options.click());
+  const menu = container.querySelector<HTMLElement>('[role="menu"]');
+  assert(menu);
+  const menuItems = [...menu.querySelectorAll('[role="menuitem"]')];
+  assert.deepEqual(
+    menuItems.map((item) => item.textContent),
+    ["Exercise details", "Remove from session"],
+  );
+  assert(
+    menuItems.every((item) => item.classList.contains("min-h-11")),
+    "Menu actions need 44 px targets",
+  );
+  await settle(() => button("Exercise details", menu).click());
+  assert.deepEqual(navigations.at(-1), {
+    to: "/train/exercises/$exerciseId",
+    params: { exerciseId: "Squat" },
+  });
+  const removeDialog = await requestExerciseRemoval("Squat");
+  await settle(() => button("Cancel", removeDialog).click());
+  await waitFor(
+    () => !document.querySelector('[role="alertdialog"]') && document.activeElement === options,
+  );
+  const escapeDialog = await requestExerciseRemoval("Squat");
+  await settle(() =>
+    button("Cancel", escapeDialog).dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    ),
+  );
+  await waitFor(
+    () => !document.querySelector('[role="alertdialog"]') && document.activeElement === options,
+  );
+  assert.equal(exerciseDeletes, 0);
+  assert(card("Squat"));
   assert(button("Log set").classList.contains("h-11"));
   const firstWeight = card("Squat").querySelector<HTMLInputElement>(
     'input[aria-label="Weight in kg for set 1"]',
@@ -639,14 +752,18 @@ try {
   // Each row has one full-row native edit button, not a pencil-only target.
   for (const number of [1, 2]) {
     const edit = button(`Edit set ${number}`, card("Squat"));
-    const row = edit.closest("tr");
+    const row = edit.closest("li");
     assert(row);
     assert.equal(row.querySelectorAll("button").length, 1);
-    assert(row.classList.contains("relative"));
-    assert(row.classList.contains("h-12"));
-    assert(edit.classList.contains("absolute"));
-    assert(edit.classList.contains("inset-0"));
-    assert(edit.classList.contains("size-full"));
+    assert(edit.classList.contains("min-h-11"));
+    assert(edit.classList.contains("w-full"));
+    assert(
+      !edit.classList.contains("absolute"),
+      "Set hit targets must stay in normal flow on Safari",
+    );
+    assert(!edit.closest("table"));
+    assert(edit.textContent?.includes("Weight: 50 kgReps: 8"));
+    assert(edit.querySelector("svg"), "The tick stays inside its own row button");
     // biome-ignore lint/performance/noAwaitInLoops: Open and dismiss each real set dialog.
     await settle(() => {
       edit.focus();
@@ -667,6 +784,48 @@ try {
   await settle(() => button("Collapse Squat").click());
   assert(collapsed("Squat").querySelector('[aria-label="In progress"]'));
   assert(!collapsed("Squat").querySelector('[aria-label="Done"]'));
+
+  await openSession([exercise("Squat")], [], true);
+  const firstSetRead = Promise.withResolvers<void>();
+  detailGate = firstSetRead.promise;
+  const firstSetReps = card("Squat").querySelector<HTMLInputElement>(
+    'input[aria-label="Reps for set 1"]',
+  );
+  const firstSetWeight = card("Squat").querySelector<HTMLInputElement>(
+    'input[aria-label="Weight in kg for set 1"]',
+  );
+  const firstSetForm = firstSetReps?.closest("form");
+  assert(firstSetReps && firstSetWeight && firstSetForm);
+  await settle(() => {
+    fill(firstSetWeight, "50");
+    fill(firstSetReps, "8");
+  });
+  await settle(() =>
+    firstSetForm.dispatchEvent(new window.Event("submit", { bubbles: true, cancelable: true })),
+  );
+  await waitFor(() => session.workoutSessionExercises[0]?.workoutSessionStrengthSets.length === 1);
+  assert.equal(card("Squat").querySelector('[aria-label="Edit set 1"]'), null);
+  const staleRemove = await requestExerciseRemoval("Squat");
+  assert(staleRemove.textContent?.includes("permanently deletes any logged sets"));
+  assert(staleRemove.textContent?.includes("The workout template is not changed."));
+  await settle(() => {
+    firstSetRead.resolve();
+    detailGate = null;
+  });
+  await waitFor(() => !!card("Squat").querySelector('[aria-label="Edit set 1"]'));
+  assert(staleRemove.textContent?.includes("permanently deletes any logged sets"));
+  await settle(() => button("Cancel", staleRemove).click());
+  assert.equal(exerciseDeletes, 0);
+
+  await openSession([exercise("Intervals", 0, "cardio")]);
+  const cardioRemove = await requestExerciseRemoval("Intervals");
+  assert(cardioRemove.textContent?.includes("permanently deletes any logged cardio entries"));
+  await settle(() => button("Remove exercise", cardioRemove).click());
+  await waitFor(() => exerciseDeletes === 1 && !document.querySelector('[role="alertdialog"]'));
+  // The header is stable even when removing the last exercise adds an empty-state button.
+  const header = container.querySelector("header");
+  assert(header);
+  await waitFor(() => document.activeElement === button("Add exercise", header));
 
   // A successful insert must stay pending until the session refetch supplies
   // the next number/prefill, even when the user clicks or submits with Enter again.
@@ -808,6 +967,19 @@ try {
   await logEntry("Intervals", 1);
   assert(button("Add entry", card("Intervals")));
   await logEntry("Intervals", 2);
+  const entry = button("Edit entry 2", card("Intervals"));
+  assert(entry.closest('ol[aria-label="Logged entries"]'));
+  assert(!entry.closest("table"));
+  assert(entry.classList.contains("min-h-11") && !entry.classList.contains("absolute"));
+  const metric = document.getElementById(
+    entry.getAttribute("aria-describedby")?.split(" ")[0] ?? "",
+  );
+  assert(metric && entry.contains(metric));
+  assert.equal(metric.textContent, "Duration: 1:00");
+  await settle(() => metric.dispatchEvent(new window.MouseEvent("click", { bubbles: true })));
+  const editEntry = document.querySelector<HTMLElement>('[role="dialog"]');
+  assert(editEntry?.textContent?.includes("Edit entry 2"));
+  await settle(() => button("Cancel", editEntry ?? document.body).click());
   await settle(() => button("Collapse Intervals").click());
   assert(collapsed("Intervals").querySelector('[aria-label="In progress"]'));
 
@@ -840,14 +1012,18 @@ try {
       ?.value,
     "60",
   );
-  assert(card("Squat").textContent?.includes("Last time 60 × 8"));
+  // The open card's Recent panel replaces per-set "last" captions.
+  assert.equal(recentPanel("Squat"), `${recentDate("2026-05-20")}60 × 8 · 8 · 8`);
+  assert(!card("Squat").textContent?.includes("Last time"));
   const earlierSection = container.querySelector('section[aria-label="Earlier Workout sessions"]');
   assert(earlierSection);
-  assert.equal(earlierSection.querySelectorAll("li").length, 5);
+  assert.equal(earlierSection.querySelectorAll("li").length, 3);
   assert(!earlierSection.textContent?.includes("4 sets"));
-  assert(earlierSection.textContent?.includes("3 sets"));
   await logSet("Squat", 1);
-  assert(card("Squat").querySelector("tbody tr")?.textContent?.includes("60 × 8"));
+  assert.equal(
+    button("Edit set 1", card("Squat")).textContent,
+    "1Weight: 50 kgReps: 8Volume: 400 kg",
+  );
   assert(card("Squat").querySelector('form[aria-label="Log set 2"]'));
   await logSet("Squat", 2);
   await logSet("Squat", 3);
@@ -863,6 +1039,8 @@ try {
   ).workoutSessionStrengthSets;
   await openSession([completed, exercise("Lunge", 1)], [], true, historyOptions);
   assert(collapsed("Squat").querySelector('[aria-label="Done"]'));
+  // Collapsed: this session's sets, then last time's reference.
+  assert(collapsed("Squat").textContent?.includes("50 kg × 8 · 8 · 8last 60 × 8 · 8 · 8"));
   assert(card("Lunge"));
 
   // With no logged same-workout history, fall back to earlier exercise history.
@@ -877,7 +1055,10 @@ try {
   await openSession([exercise("Lunge"), exercise("Squat", 1)], [], true, fallbackOptions);
   assert(collapsed("Squat").textContent?.includes("Last time 90 kg × 8 · 8 · 8 · 8"));
   await settle(() => collapsed("Squat").click());
-  assert(card("Squat").textContent?.includes("Last time 90 × 8"));
+  assert.equal(
+    recentPanel("Squat"),
+    [27, 26, 25].map((day) => `${recentDate(`2026-05-${day}`)}90 × 8 · 8 · 8 · 8`).join(""),
+  );
 
   // Ad-hoc sessions use the newest earlier logged exercise occurrence, not a workout preference.
   await openSession([exercise("Squat")], [], false, historyOptions);

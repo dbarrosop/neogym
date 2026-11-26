@@ -48,7 +48,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed left-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 gap-4 overflow-y-auto rounded-lg border border-border/60 bg-background p-5 shadow-2xl shadow-black/40 duration-200",
+          "fixed left-1/2 z-50 grid w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 gap-4.5 overflow-y-auto rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-2xl shadow-black/40 duration-200",
           // Mobile: anchored near top so the on-screen keyboard doesn't cover it.
           // Use static units (vh, rem) — `dvh` and `env(safe-area-inset-top)` recompute
           // when the keyboard opens, causing visible jitter on iOS during input focus.
@@ -63,10 +63,10 @@ function DialogContent({
         <FormPageBoundary>{children}</FormPageBoundary>
         {showClose ? (
           <DialogPrimitive.Close
-            className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
+            className="absolute top-3.5 right-3.5 grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             aria-label="Close"
           >
-            <X className="h-4 w-4" />
+            <X className="size-4" />
           </DialogPrimitive.Close>
         ) : null}
       </DialogPrimitive.Content>
@@ -78,7 +78,7 @@ function DialogHeader({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-1.5 text-left", className)}
+      className={cn("flex flex-col gap-1 text-left", className)}
       {...props}
     />
   );
@@ -101,7 +101,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("text-lg font-semibold tracking-tight", className)}
+      className={cn("text-lg leading-snug font-semibold tracking-[-0.01em]", className)}
       {...props}
     />
   );
@@ -114,7 +114,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm leading-normal text-muted-foreground", className)}
       {...props}
     />
   );

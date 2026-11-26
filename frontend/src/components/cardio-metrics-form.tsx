@@ -18,10 +18,11 @@ import {
   type CardioMetricSpec,
   type CardioMetrics,
   type CardioMetricsSchema,
+  durationInputNotation,
   iterateMetrics,
+  orderMetricsForForm,
   parseField,
   seedFieldStates,
-  shouldShowHoursInput,
 } from "@/lib/cardio-schema";
 
 type CollectResult = { ok: true; out: CardioMetrics } | { ok: false; key: string; message: string };
@@ -80,7 +81,8 @@ export function CardioMetricsForm({
   onSubmit,
   onDelete,
 }: CardioMetricsFormProps) {
-  const specs = useMemo(() => iterateMetrics(schema), [schema]);
+  // Required fields come first in the dialog; the stored shape is unchanged.
+  const specs = useMemo(() => orderMetricsForForm(iterateMetrics(schema)), [schema]);
   const zod = useMemo(() => buildZodSchemaFromMetricsSchema(schema), [schema]);
   const firstInputRef = useRef<HTMLInputElement | null>(null);
   const [values, setValues] = useState<Record<string, CardioFieldState>>({});
@@ -89,7 +91,7 @@ export function CardioMetricsForm({
   // any field — once they start correcting, the negative-state cue is stale.
   const [invalidKey, setInvalidKey] = useState<string | null>(null);
   const wasOpenRef = useRef(false);
-  const submitLabel = mode === "edit" ? "Save" : "Log entry";
+  const submitLabel = mode === "edit" ? "Save" : "Add entry";
 
   // Seed only on the false→true edge of `open`. A reference change in
   // initialMetrics/previousMetrics while the dialog is open (e.g., react-query
@@ -106,9 +108,6 @@ export function CardioMetricsForm({
 
   function focusInvalid(key: string) {
     setInvalidKey(key);
-    // The duration control's first visible input id is `metric-${key}` (h
-    // when showHours, otherwise m), so this works for both scalar and
-    // duration shapes.
     requestAnimationFrame(() => {
       document.getElementById(`metric-${key}`)?.focus();
     });
@@ -155,16 +154,21 @@ export function CardioMetricsForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="md:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>
             {mode === "edit"
               ? `Edit entry ${editingEntryNumber ?? ""}`
               : `Add entry ${nextEntryNumber}`}
           </DialogTitle>
-          <DialogDescription>{exerciseName}</DialogDescription>
+          <DialogDescription>
+            {exerciseName} · fields come from the exercise’s metrics
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+          {specs.length > 0 && specs.every((spec) => !spec.required) && (
+            <p className="text-sm text-muted-foreground">Enter at least one value.</p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             {specs.map((spec, idx) => (
               <MetricInput
@@ -191,13 +195,13 @@ export function CardioMetricsForm({
                 onClick={onDelete}
                 disabled={isPending}
               >
-                <Trash2 className="mr-1 h-4 w-4" />
+                <Trash2 />
                 Delete
               </Button>
             ) : null}
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
@@ -206,7 +210,7 @@ export function CardioMetricsForm({
             <Button type="submit" disabled={isPending}>
               {isPending ? (
                 <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  <Loader2 className="animate-spin" />
                   Saving…
                 </>
               ) : (
@@ -228,108 +232,41 @@ interface MetricInputProps {
   inputRef?: React.RefObject<HTMLInputElement | null> | undefined;
 }
 
-function MetricInput({ spec, value, invalid, onChange, inputRef }: MetricInputProps) {
-  const labelSuffix = spec.unit ? ` (${spec.unit})` : "";
-  const optionalBadge = spec.required ? null : (
-    <span className="text-muted-foreground ml-1 text-[10px] uppercase tracking-wide">optional</span>
-  );
-  // The shared Input has aria-invalid: styling, so a boolean `true` paints the
-  // red ring; undefined keeps the default border. Same convention as the rest
-  // of the codebase.
-  const ariaInvalid = invalid ? true : undefined;
-  const ariaRequired = spec.required ? true : undefined;
-
-  if (spec.format === "duration_seconds") {
-    const parts = (value as { h: string; m: string; s: string } | undefined) ?? {
-      h: "",
-      m: "",
-      s: "",
-    };
-    const showH = shouldShowHoursInput(spec);
-    const id = `metric-${spec.key}`;
-    return (
-      <div className="col-span-2 space-y-1.5">
-        <Label htmlFor={id} className="text-xs">
-          {spec.label}
-          {optionalBadge}
-        </Label>
-        <div className={`grid ${showH ? "grid-cols-3" : "grid-cols-2"} gap-2`}>
-          {showH ? (
-            <Input
-              id={id}
-              ref={inputRef}
-              type="number"
-              inputMode="numeric"
-              min="0"
-              step="1"
-              placeholder="h"
-              aria-label={`${spec.label} hours`}
-              aria-invalid={ariaInvalid}
-              aria-required={ariaRequired}
-              value={parts.h}
-              onChange={(e) => onChange({ ...parts, h: e.target.value })}
-              className="text-right tabular-nums"
-            />
-          ) : null}
-          <Input
-            id={showH ? undefined : id}
-            ref={showH ? undefined : inputRef}
-            type="number"
-            inputMode="numeric"
-            min="0"
-            step="1"
-            placeholder="min"
-            aria-label={`${spec.label} minutes`}
-            aria-invalid={ariaInvalid}
-            // When hours is hidden minutes is the first/required sub-input;
-            // when hours is shown, hours carries aria-required and minutes is
-            // optional from an a11y standpoint.
-            aria-required={showH ? undefined : ariaRequired}
-            value={parts.m}
-            onChange={(e) => onChange({ ...parts, m: e.target.value })}
-            className="text-right tabular-nums"
-          />
-          <Input
-            type="number"
-            inputMode="numeric"
-            min="0"
-            step="1"
-            placeholder="sec"
-            aria-label={`${spec.label} seconds`}
-            aria-invalid={ariaInvalid}
-            value={parts.s}
-            onChange={(e) => onChange({ ...parts, s: e.target.value })}
-            className="text-right tabular-nums"
-          />
-        </div>
-      </div>
-    );
+function inputModeFor(spec: CardioMetricSpec): "numeric" | "decimal" | "text" {
+  if (spec.format === "integer" || spec.format === "average") {
+    return "numeric";
   }
+  // A duration needs the colon, which numeric keypads lack.
+  return spec.format === "duration_seconds" ? "text" : "decimal";
+}
 
-  const text = typeof value === "string" ? value : "";
+function MetricInput({ spec, value, invalid, onChange, inputRef }: MetricInputProps) {
   const id = `metric-${spec.key}`;
-  const isIntegerLike = spec.format === "integer" || spec.format === "average";
+  const isDuration = spec.format === "duration_seconds";
+  // Durations are typed as one "mm:ss" (or "h:mm:ss") value; the notation sits
+  // where other fields show their unit.
+  const unit = isDuration ? durationInputNotation(spec) : spec.unit;
+  const durationPlaceholder = unit === "mm:ss" ? "0:00" : "0:00:00";
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-xs">
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <Label htmlFor={id} className="flex-wrap gap-x-1.5 gap-y-0">
         {spec.label}
-        {labelSuffix}
-        {optionalBadge}
+        {unit ? <span className="font-medium text-muted-foreground">{unit}</span> : null}
+        {!spec.required && <span className="font-normal text-muted-foreground">Optional</span>}
       </Label>
       <Input
         id={id}
         ref={inputRef}
-        type={isIntegerLike ? "number" : "text"}
-        inputMode={isIntegerLike ? "numeric" : "decimal"}
-        pattern={isIntegerLike ? undefined : "[0-9]*[.,]?[0-9]*"}
-        step={isIntegerLike ? "1" : undefined}
-        min={spec.minimum === undefined ? undefined : String(spec.minimum)}
-        aria-invalid={ariaInvalid}
-        aria-required={ariaRequired}
-        value={text}
+        type="text"
+        inputMode={inputModeFor(spec)}
+        autoComplete="off"
+        // The shared Input paints the red ring for aria-invalid.
+        aria-invalid={invalid ? true : undefined}
+        aria-required={spec.required ? true : undefined}
+        value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(e.target.value)}
         className="text-right tabular-nums"
-        placeholder="0"
+        placeholder={isDuration ? durationPlaceholder : "0"}
       />
     </div>
   );

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { Loader2, Plus } from "lucide-react";
+import { Dumbbell, Loader2, Plus } from "lucide-react";
 import { useMemo } from "react";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ function SessionsLayout() {
             <Button asChild>
               <Link to="/train/workouts">
                 <Plus />
-                Start session
+                <ActionLabel>Start session</ActionLabel>
               </Link>
             </Button>
           }
@@ -111,8 +111,16 @@ function sessionCounts(session: SessionSummary) {
 }
 
 function SessionList({ activePath }: { activePath: string }) {
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    useSessionsIndex();
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useSessionsIndex();
   const sessions = useMemo(() => data?.pages.flatMap((p) => p.workoutSessions) ?? [], [data]);
   const groups = useMemo(() => groupByWeek(sessions), [sessions]);
 
@@ -132,18 +140,32 @@ function SessionList({ activePath }: { activePath: string }) {
     );
   }
   if (error) {
-    return <ErrorState title="Couldn't load sessions" message={error.message} />;
+    return (
+      <ErrorState
+        title="Couldn't load sessions"
+        message={error.message}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
+    );
   }
   if (sessions.length === 0) {
     return (
       <EmptyState
+        icon={Dumbbell}
         title="No sessions yet"
-        description="Pick a workout or open an exercise and start a session. It shows up here."
-      >
-        <Button asChild>
-          <Link to="/train/workouts">Choose a workout</Link>
-        </Button>
-      </EmptyState>
+        description="Start one from a workout, or from any exercise for an ad-hoc session."
+        actions={
+          <>
+            <Button asChild>
+              <Link to="/train/workouts">Browse workouts</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link to="/train/exercises">Exercises</Link>
+            </Button>
+          </>
+        }
+      />
     );
   }
 
@@ -151,7 +173,7 @@ function SessionList({ activePath }: { activePath: string }) {
     <nav aria-label="Sessions" className="flex flex-col gap-1 rounded-xl border bg-card p-2">
       {groups.map((group) => (
         <div key={group.key} className="flex flex-col gap-0.5">
-          <h2 className="px-2.5 pt-2.5 pb-1 text-[13px] font-semibold text-muted-foreground">
+          <h2 className="px-3 pt-2 pb-1 text-[13px] font-semibold text-muted-foreground">
             {group.label} · {group.sessions.length}
           </h2>
           {group.sessions.map((session) => {
@@ -165,23 +187,25 @@ function SessionList({ activePath }: { activePath: string }) {
                 params={{ sessionId: session.id }}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-muted/60",
+                  "flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 transition-colors hover:bg-muted/60",
                   active &&
                     "bg-accent-soft/60 ring-1 ring-primary/40 ring-inset hover:bg-accent-soft/60",
                 )}
               >
                 <span
                   className={cn(
-                    "grid size-10 shrink-0 place-items-center rounded-lg bg-surface-inset text-center leading-none",
+                    "flex size-10 shrink-0 flex-col items-center justify-center rounded-[10px] bg-surface-inset text-center leading-none",
                     active && "bg-accent-soft text-accent-soft-foreground",
                   )}
                 >
                   <span className="text-[10px] font-semibold uppercase opacity-70">
                     {date.toLocaleDateString(undefined, { weekday: "short" })}
                   </span>
-                  <span className="text-[15px] font-semibold tabular-nums">{date.getDate()}</span>
+                  <span className="mt-0.5 text-[15px] font-bold tabular-nums">
+                    {date.getDate()}
+                  </span>
                 </span>
-                <span className="flex min-w-0 flex-col">
+                <span className="flex min-w-0 flex-col gap-px">
                   <strong className="truncate text-sm font-semibold">
                     {sessionDisplayName({
                       workoutName: session.workout?.name,

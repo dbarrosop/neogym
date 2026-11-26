@@ -1,12 +1,25 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { type ReactNode, useId, useState } from "react";
 import { toast } from "sonner";
 import { BodyMeasurementForm } from "@/components/body-measurement-form";
 import { DailyEnergyForm } from "@/components/daily-energy-form";
 import { graphql } from "@/gql";
-import { type DailyEnergyFormValues, dailyEnergyMutationErrorMessage } from "@/lib/daily-energy";
+import {
+  type BodyMeasurementFormValues,
+  bodyMeasurementInput,
+  bodyMeasurementMutationError,
+} from "@/lib/body-measurements";
+import {
+  type DailyEnergyFormValues,
+  dailyEnergyInput,
+  dailyEnergyMutationError,
+} from "@/lib/daily-energy";
 import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import {
+  useInvalidateBodyMeasurements,
+  useInvalidateDailyEnergy,
+} from "@/lib/hooks/use-progress-entry-invalidation";
 
 const QuickInsertBodyMeasurementMutation = graphql(`
   mutation QuickInsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {
@@ -30,45 +43,41 @@ function QuickFormCard({
   note,
 }: {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   note: string;
 }) {
+  const titleId = useId();
   return (
-    <section aria-label={title} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
-      <h2 className="text-base font-semibold">{title}</h2>
+    <section
+      aria-labelledby={titleId}
+      className="flex min-w-0 flex-col gap-3.5 rounded-xl border bg-card p-5"
+    >
+      <h2 id={titleId} className="text-[17px] font-semibold">
+        {title}
+      </h2>
       {children}
-      <p className="text-[12px] text-muted-foreground">{note}</p>
+      <p className="text-[13px] leading-normal text-muted-foreground">{note}</p>
     </section>
   );
 }
 
-/** Inline "log measurement" card for the Body page; stays on the page after saving. */
+/** Inline "Log measurement" card for the Body page; stays on the page after saving. */
 export function QuickBodyMeasurementForm() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateBodyMeasurements();
   const [formKey, setFormKey] = useState(0);
   const mutation = useMutation({
-    mutationFn: (values: {
-      measuredOn: string;
-      weightKg: string;
-      bodyFatPct: string;
-      notes: string;
-    }) =>
-      gqlRequest(QuickInsertBodyMeasurementMutation, {
-        obj: {
-          measuredOn: values.measuredOn,
-          weightKg: values.weightKg ? values.weightKg : null,
-          bodyFatPct: values.bodyFatPct ? values.bodyFatPct : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+    mutationFn: (values: BodyMeasurementFormValues) =>
+      gqlRequest(QuickInsertBodyMeasurementMutation, { obj: bodyMeasurementInput(values) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       toast.success("Measurement saved");
       setFormKey((key) => key + 1);
     },
-    onError: (e) => toast.error(`Failed to save: ${e.message}`),
   });
+  const reset = () => {
+    mutation.reset();
+    setFormKey((key) => key + 1);
+  };
   return (
     <QuickFormCard
       title="Log measurement"
@@ -76,51 +85,59 @@ export function QuickBodyMeasurementForm() {
     >
       <BodyMeasurementForm
         key={formKey}
+        variant="quick"
         initialValues={{ measuredOn: todayLocalISO(), weightKg: "", bodyFatPct: "", notes: "" }}
         submitLabel="Save"
         isSubmitting={mutation.isPending}
+        serverError={mutation.error ? bodyMeasurementMutationError(mutation.error, "save") : null}
+        onEdit={() => {
+          if (mutation.isError) {
+            mutation.reset();
+          }
+        }}
         onSubmit={(values) => mutation.mutate(values)}
-        onCancel={() => setFormKey((key) => key + 1)}
+        onCancel={reset}
       />
     </QuickFormCard>
   );
 }
 
-/** Inline "log energy" card for the Energy page; stays on the page after saving. */
+/** Inline "Log energy" card for the Energy page; stays on the page after saving. */
 export function QuickDailyEnergyForm() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateDailyEnergy();
   const [formKey, setFormKey] = useState(0);
   const mutation = useMutation({
     mutationFn: (values: DailyEnergyFormValues) =>
-      gqlRequest(QuickInsertDailyEnergyMutation, {
-        obj: {
-          energyOn: values.energyOn,
-          activeKcal: values.activeKcal ? values.activeKcal : null,
-          restingKcal: values.restingKcal ? values.restingKcal : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+      gqlRequest(QuickInsertDailyEnergyMutation, { obj: dailyEnergyInput(values) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
-      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       toast.success("Energy saved");
       setFormKey((key) => key + 1);
     },
-    onError: (e) => toast.error(dailyEnergyMutationErrorMessage(e, "save")),
   });
+  const reset = () => {
+    mutation.reset();
+    setFormKey((key) => key + 1);
+  };
   return (
     <QuickFormCard
       title="Log energy"
-      note="Active and resting kilocalories for one date. The NeoGym Apple Watch app can import them from Apple Health."
+      note="One row per date, at least one value. The NeoGym Apple Watch app imports these from Apple Health."
     >
       <DailyEnergyForm
         key={formKey}
+        variant="quick"
         initialValues={{ energyOn: todayLocalISO(), activeKcal: "", restingKcal: "", notes: "" }}
         submitLabel="Save"
         isSubmitting={mutation.isPending}
+        serverError={mutation.error ? dailyEnergyMutationError(mutation.error, "save") : null}
+        onEdit={() => {
+          if (mutation.isError) {
+            mutation.reset();
+          }
+        }}
         onSubmit={(values) => mutation.mutate(values)}
-        onCancel={() => setFormKey((key) => key + 1)}
+        onCancel={reset}
       />
     </QuickFormCard>
   );

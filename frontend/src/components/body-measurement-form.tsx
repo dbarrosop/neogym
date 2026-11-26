@@ -1,15 +1,19 @@
-import { type ChangeEvent, type ReactNode, type SubmitEvent, useId, useState } from "react";
-import { FormActions, FormSection } from "@/components/patterns/form-actions";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { type ChangeEvent, type ReactNode, type SubmitEvent, useState } from "react";
+import {
+  EntryFormLayout,
+  type EntryFormVariant,
+  EntryNumberField,
+} from "@/components/entry-form-fields";
+import { FormActions } from "@/components/patterns/form-actions";
+import {
+  acceptsBodyMeasurementInput,
+  type BodyMeasurementFormValues,
+  validateBodyMeasurementFormValues,
+} from "@/lib/body-measurements";
 import { useFormPageFormId } from "@/lib/form-page-context";
+import type { EntryFormError } from "@/lib/progress-entries";
 
-export interface BodyMeasurementFormValues {
-  measuredOn: string;
-  weightKg: string;
-  bodyFatPct: string;
-  notes: string;
-}
+export type { BodyMeasurementFormValues } from "@/lib/body-measurements";
 
 interface BodyMeasurementFormProps {
   initialValues: BodyMeasurementFormValues;
@@ -18,17 +22,13 @@ interface BodyMeasurementFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   extraActions?: ReactNode;
+  /** `page` (default) for the full-page editor, `quick` for the Body page card. */
+  variant?: EntryFormVariant;
+  /** The last failed save (`bodyMeasurementMutationError`), shown inline. */
+  serverError?: EntryFormError | null;
+  /** Called on every edit, so the caller can clear `serverError`. */
+  onEdit?: () => void;
 }
-
-const NUMERIC = /^\d{0,3}([.,]\d{0,2})?$/;
-
-// Mirror the DB CHECK constraints in
-// backend/nhost/migrations/default/1790000000000_body_measurements/up.sql so
-// the user gets inline feedback rather than a generic Hasura error toast.
-const WEIGHT_MIN = 0;
-const WEIGHT_MAX = 500;
-const FAT_MIN = 0;
-const FAT_MAX = 100;
 
 export function BodyMeasurementForm({
   initialValues,
@@ -37,6 +37,9 @@ export function BodyMeasurementForm({
   onCancel,
   isSubmitting,
   extraActions,
+  variant = "page",
+  serverError = null,
+  onEdit,
 }: BodyMeasurementFormProps) {
   const formId = useFormPageFormId();
   const [measuredOn, setMeasuredOn] = useState(initialValues.measuredOn);
@@ -44,126 +47,74 @@ export function BodyMeasurementForm({
   const [bodyFatPct, setBodyFatPct] = useState(initialValues.bodyFatPct);
   const [notes, setNotes] = useState(initialValues.notes);
   const [error, setError] = useState<string | null>(null);
-  const dateId = useId();
-  const weightId = useId();
-  const fatId = useId();
-  const notesId = useId();
+  const hasValue = weightKg.trim() !== "" || bodyFatPct.trim() !== "";
 
-  const trimmedWeight = weightKg.trim();
-  const trimmedFat = bodyFatPct.trim();
-  const hasValue = trimmedWeight !== "" || trimmedFat !== "";
+  function edited<T>(setter: (value: T) => void) {
+    return (value: T) => {
+      setter(value);
+      onEdit?.();
+    };
+  }
 
-  function handleNumeric(setter: (v: string) => void) {
-    return (e: ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value;
-      if (v === "" || NUMERIC.test(v)) {
-        setter(v);
+  function numeric(setter: (value: string) => void) {
+    return (event: ChangeEvent<HTMLInputElement>) => {
+      if (acceptsBodyMeasurementInput(event.target.value)) {
+        edited(setter)(event.target.value);
       }
     };
   }
 
-  function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!hasValue) {
-      setError("Enter a weight, a body-fat %, or both.");
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = validateBodyMeasurementFormValues({ measuredOn, weightKg, bodyFatPct, notes });
+    if (!result.success) {
+      setError(result.message);
       return;
     }
-    const normalizedWeight = trimmedWeight.replace(",", ".");
-    const normalizedFat = trimmedFat.replace(",", ".");
-    if (trimmedWeight) {
-      const w = Number(normalizedWeight);
-      if (!Number.isFinite(w) || w <= WEIGHT_MIN || w >= WEIGHT_MAX) {
-        setError(`Weight must be greater than 0 and less than ${WEIGHT_MAX} kg.`);
-        return;
-      }
-    }
-    if (trimmedFat) {
-      const f = Number(normalizedFat);
-      if (!Number.isFinite(f) || f < FAT_MIN || f >= FAT_MAX) {
-        setError(`Body fat must be at least ${FAT_MIN} % and less than ${FAT_MAX} %.`);
-        return;
-      }
-    }
     setError(null);
-    onSubmit({
-      measuredOn,
-      weightKg: normalizedWeight,
-      bodyFatPct: normalizedFat,
-      notes: notes.trim(),
-    });
+    onSubmit(result.values);
   }
 
   return (
-    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
-      <FormSection>
-        <div className="space-y-1.5">
-          <label htmlFor={dateId} className="text-sm font-medium">
-            Date
-          </label>
-          <Input
-            id={dateId}
-            type="date"
-            value={measuredOn}
-            onChange={(e) => setMeasuredOn(e.target.value)}
-            required
+    <EntryFormLayout
+      variant={variant}
+      formId={formId}
+      onSubmit={handleSubmit}
+      date={measuredOn}
+      onDateChange={edited(setMeasuredOn)}
+      dateError={serverError?.field === "date" ? serverError.message : null}
+      fields={
+        <>
+          <EntryNumberField
+            label="Weight"
+            unit="kg"
+            placeholder="70.85"
+            value={weightKg}
+            onChange={numeric(setWeightKg)}
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <label htmlFor={weightId} className="text-sm font-medium">
-              Weight
-              <span className="ml-1 text-xs font-normal text-muted-foreground">kg</span>
-            </label>
-            <Input
-              id={weightId}
-              inputMode="decimal"
-              autoComplete="off"
-              placeholder="78.4"
-              value={weightKg}
-              onChange={handleNumeric(setWeightKg)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor={fatId} className="text-sm font-medium">
-              Body fat
-              <span className="ml-1 text-xs font-normal text-muted-foreground">%</span>
-            </label>
-            <Input
-              id={fatId}
-              inputMode="decimal"
-              autoComplete="off"
-              placeholder="18.5"
-              value={bodyFatPct}
-              onChange={handleNumeric(setBodyFatPct)}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor={notesId} className="text-sm font-medium">
-            Notes
-            <span className="ml-2 text-xs font-normal text-muted-foreground">Optional</span>
-          </label>
-          <Textarea
-            id={notesId}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Anything worth remembering about this reading."
-            rows={3}
+          <EntryNumberField
+            label="Body fat"
+            unit="%"
+            placeholder="12.6"
+            value={bodyFatPct}
+            onChange={numeric(setBodyFatPct)}
           />
-        </div>
-
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      </FormSection>
-
-      <FormActions
-        submitLabel={submitLabel}
-        isSubmitting={isSubmitting}
-        submitDisabled={!hasValue}
-        onCancel={onCancel}
-        extraActions={extraActions}
-      />
-    </form>
+        </>
+      }
+      notes={notes}
+      onNotesChange={edited(setNotes)}
+      notesPlaceholder="Anything worth remembering about this reading."
+      error={error ?? (serverError && serverError.field !== "date" ? serverError.message : null)}
+      caption="One entry per date with at least one value."
+      actions={
+        <FormActions
+          submitLabel={submitLabel}
+          isSubmitting={isSubmitting}
+          submitDisabled={!hasValue}
+          onCancel={onCancel}
+          extraActions={extraActions}
+        />
+      }
+    />
   );
 }

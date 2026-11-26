@@ -54,10 +54,11 @@ export const AREAS: readonly Area[] = [
   {
     id: "progress",
     label: "Progress",
-    to: "/progress",
+    to: "/progress/overview",
     Icon: ChartLine,
     match: ["/progress"],
     sections: [
+      { label: "Overview", to: "/progress/overview", match: ["/progress/overview"] },
       { label: "Muscles", to: "/progress/muscles", match: ["/progress/muscles"] },
       { label: "Strength", to: "/progress/strength", match: ["/progress/strength"] },
       { label: "Body", to: "/progress/body", match: ["/progress/body"] },

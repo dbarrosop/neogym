@@ -1,17 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { EntryDetailCard, EntryDetailSkeleton } from "@/components/entry-detail";
 import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
-import { PageShell } from "@/components/patterns/page-shell";
-import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
+import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
-import { formatDailyEnergyValue } from "@/lib/daily-energy";
 import { formatDateLong } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import { formatKcal } from "@/lib/metric-format";
+import { numericOrNull } from "@/lib/rolling-average";
 
 const DailyEnergyByIdQuery = graphql(`
   query DailyEnergyById($id: uuid!) {
@@ -30,86 +30,67 @@ export const Route = createFileRoute("/_authed/progress/energy/$id")({
   component: DailyEnergyDetailRoute,
 });
 
+function kcal(value: unknown) {
+  const number = numericOrNull(value);
+  return number === null ? "—" : formatKcal(number);
+}
+
 function DailyEnergyDetailRoute() {
   const { id } = Route.useParams();
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["daily_energy", id],
     queryFn: () => gqlRequest(DailyEnergyByIdQuery, { id }),
   });
 
   function renderContent() {
     if (isLoading) {
-      return <DetailSkeleton />;
+      return <EntryDetailSkeleton />;
     }
     if (error) {
-      return <ErrorState title="Failed to load energy day" message={error.message} />;
+      return (
+        <ErrorState
+          title="Couldn't load this energy day"
+          message={error.message}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      );
     }
     if (!data?.dailyEnergyEntry) {
       return <EmptyState title="Energy day not found." />;
     }
     const entry = data.dailyEnergyEntry;
     return (
-      <Card className="border-border/60">
-        <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <p className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
-                Energy day
-                {isHealthImport(entry.notes) ? <HealthSourceTag /> : null}
-              </p>
-              <CardTitle className="text-2xl tabular-nums tracking-tight">
-                {formatDateLong(entry.energyOn)}
-              </CardTitle>
-            </div>
-            <Button asChild size="icon" variant="ghost" aria-label="Edit energy day">
+      <>
+        <PageHeader
+          eyebrow={
+            <span className="flex flex-wrap items-center gap-2">
+              Energy day
+              {isHealthImport(entry.notes) ? <HealthSourceTag /> : null}
+            </span>
+          }
+          title={formatDateLong(entry.energyOn)}
+          actions={
+            <Button asChild variant="outline">
               <Link to="/progress/energy/$id/edit" params={{ id: entry.id }}>
-                <Pencil className="h-4 w-4" />
+                <Pencil />
+                Edit
               </Link>
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <dl className="grid grid-cols-2 gap-3">
-            <Stat label="Active" value={formatDailyEnergyValue(entry.activeKcal)} />
-            <Stat label="Resting" value={formatDailyEnergyValue(entry.restingKcal)} />
-          </dl>
-          <TodayEnergyEstimate date={entry.energyOn} />
-          {visibleNotes(entry.notes) ? (
-            <div className="space-y-1.5">
-              <p className="text-[13px] font-semibold text-muted-foreground">Notes</p>
-              <p className="whitespace-pre-wrap text-sm">{entry.notes}</p>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+          }
+        />
+        <EntryDetailCard
+          stats={[
+            { label: "Active", value: kcal(entry.activeKcal) },
+            { label: "Resting", value: kcal(entry.restingKcal) },
+          ]}
+          notes={visibleNotes(entry.notes)}
+        >
+          <TodayEnergyEstimate date={entry.energyOn} variant="log" />
+        </EntryDetailCard>
+      </>
     );
   }
 
-  return <PageShell maxWidth="2xl">{renderContent()}</PageShell>;
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-0.5 rounded-md border border-border bg-surface-inset p-3">
-      <dt className="text-[10px] uppercase tracking-wider text-muted-foreground/80">{label}</dt>
-      <dd className="text-xl font-medium tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-function DetailSkeleton() {
-  return (
-    <SkeletonState>
-      <Card className="border-border/60">
-        <CardHeader className="space-y-2">
-          <Skeleton className="h-3 w-20" />
-          <Skeleton className="h-7 w-48" />
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-16 w-full" />
-        </CardContent>
-      </Card>
-    </SkeletonState>
-  );
+  return <PageShell contentClassName="max-w-[760px]">{renderContent()}</PageShell>;
 }

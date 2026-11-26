@@ -30,7 +30,9 @@ mock.module("@tanstack/react-router", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { FormActions } = await import("@/components/patterns/form-actions");
-const { DangerZone, FormPage } = await import("@/components/patterns/form-page");
+const { DangerZone, FormPage, FormPageAside } = await import("@/components/patterns/form-page");
+const { FormSection } = await import("@/components/patterns/form-actions");
+const { ConfirmActionDialog } = await import("@/components/patterns/confirm-action-dialog");
 const { Dialog, DialogContent, DialogDescription, DialogTitle } = await import(
   "@/components/ui/dialog"
 );
@@ -58,6 +60,24 @@ function DemoForm({ name, disabled = false }: { name: string; disabled?: boolean
         submitDisabled={disabled}
         onCancel={() => cancelled.push(name)}
       />
+    </form>
+  );
+}
+
+function SectionsForm() {
+  const formId = useFormPageFormId();
+  return (
+    <form id={formId} aria-label="meal">
+      <FormSection card title="Details">
+        <input aria-label="Meal name" defaultValue="Breakfast" />
+      </FormSection>
+      <FormSection card title="Ingredients">
+        <input aria-label="Grams" defaultValue="30" />
+      </FormSection>
+      <FormPageAside>
+        <aside aria-label="Live meal totals">373 kcal</aside>
+      </FormPageAside>
+      <FormActions submitLabel="Save" isSubmitting={false} onCancel={() => undefined} />
     </form>
   );
 }
@@ -138,6 +158,7 @@ try {
   const deleteButton = [...document.querySelectorAll("button")].find(
     (button) => button.textContent === "Delete entry",
   );
+  assert.equal(deleteButton?.querySelector("svg"), null, "The delete card button is text only");
   await settle(() => deleteButton?.click());
   assert.equal(deleteRequests, 1, "The delete card only requests confirmation");
   assert.equal(document.querySelector("h1")?.textContent, "Edit entry");
@@ -146,6 +167,58 @@ try {
     "MeJournalNew",
     "The sticky header carries the breadcrumb trail",
   );
+
+  // Section layout: no wrapping card, a form-owned aside portals into the side column.
+  await settle(() =>
+    root.render(
+      <FormPage title="Edit meal" width="split" layout="sections">
+        <SectionsForm />
+      </FormPage>,
+    ),
+  );
+  const aside = document.querySelector('[data-slot="form-page-aside"]');
+  assert.equal(
+    aside?.querySelector('aside[aria-label="Live meal totals"]')?.textContent,
+    "373 kcal",
+    "FormPageAside renders in the page's side column",
+  );
+  const sections = document.querySelectorAll("section[aria-labelledby]");
+  assert.equal(sections.length, 2, "Each FormSection card is a labelled section");
+  assert.equal(
+    sections[0]?.parentElement?.querySelector(":scope > .rounded-xl.border.bg-card.p-4"),
+    null,
+    "Section layout does not wrap the form in another card",
+  );
+  assert(document.querySelector(".max-w-\\[1180px\\]"), "The split width is 1180 px");
+
+  // Destructive confirmations are alert dialogs: no close button, focus on Cancel.
+  let confirmed = 0;
+  await settle(() =>
+    root.render(
+      <ConfirmActionDialog
+        open={true}
+        onOpenChange={() => undefined}
+        title="Delete Lower A?"
+        description="This can't be undone."
+        confirmLabel="Delete workout"
+        onConfirm={() => {
+          confirmed += 1;
+        }}
+        isPending={false}
+        destructive={true}
+      />,
+    ),
+  );
+  const alert = document.querySelector('[role="alertdialog"]');
+  assert(alert, "Confirmations use role alertdialog");
+  assert.equal(alert.querySelector('[aria-label="Close"]'), null, "No close button");
+  assert.equal(document.activeElement?.textContent, "Cancel", "Focus starts on Cancel");
+  const confirm = [...alert.querySelectorAll("button")].find(
+    (button) => button.textContent === "Delete workout",
+  );
+  assert(confirm?.className.includes("bg-destructive-fill"), "Confirm is the filled red button");
+  await settle(() => confirm?.click());
+  assert.equal(confirmed, 1);
 } finally {
   act(() => root.unmount());
   await dom.happyDOM.close();

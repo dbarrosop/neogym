@@ -116,7 +116,6 @@ export function formatMetricValue(
 
 const DECIMAL_RE = /^\d+([.,]\d+)?$/;
 const INTEGER_RE = /^\d+$/;
-const POSITIVE_INTEGER_RE = /^\d+$/;
 
 export function parseDecimalInput(raw: string): number | null {
   const trimmed = raw.trim();
@@ -136,58 +135,70 @@ export function parseIntegerInput(raw: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-// Accepts "h", "m", "s" as separate components (each can be empty/zero) and
-// returns total seconds. Returns null if any component is non-numeric.
-export function durationPartsToSeconds(parts: {
-  h?: string;
-  m?: string;
-  s?: string;
-}): number | null {
-  const h = parseDurationPart(parts.h);
-  const m = parseDurationPart(parts.m);
-  const s = parseDurationPart(parts.s);
-  if (h === null || m === null || s === null) {
-    return null;
-  }
-  return h * 3600 + m * 60 + s;
-}
-
-function parseDurationPart(v: string | undefined): number | null {
-  if (v === undefined) {
-    return 0;
-  }
-  const trimmed = v.trim();
-  if (trimmed === "") {
-    return 0;
-  }
-  if (!POSITIVE_INTEGER_RE.test(trimmed)) {
-    return null;
-  }
-  return Number.parseInt(trimmed, 10);
-}
-
-export function secondsToDurationParts(totalSeconds: number): {
-  h: number;
-  m: number;
-  s: number;
-} {
-  const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
-  return {
-    h: Math.floor(safe / 3600),
-    m: Math.floor((safe % 3600) / 60),
-    s: safe % 60,
-  };
-}
-
-// Hours input is shown only when the cap actually exceeds 1 hour. At exactly
-// 3600s (the interval template) min+sec cover the whole range; exposing h then
-// invites typing the intended minutes into the hours slot. Shared between the
-// seeder and the input so the two can't drift at the boundary.
+// Hours are allowed only when the cap actually exceeds 1 hour. At exactly
+// 3600s (the interval template) "mm:ss" covers the whole range ("60:00");
+// offering "h:mm:ss" there invites typing the intended minutes into the hours
+// slot. Shared between the seeder, the parser and the input so the three
+// can't drift at the boundary.
 export function shouldShowHoursInput(spec: Pick<CardioMetricSpec, "maximum">): boolean {
   return (spec.maximum ?? Number.POSITIVE_INFINITY) > 3600;
 }
 
-export type CardioFieldState = string | { h: string; m: string; s: string };
+/** The single duration field's notation, shown beside its label and as its placeholder. */
+export function durationInputNotation(spec: Pick<CardioMetricSpec, "maximum">): string {
+  return shouldShowHoursInput(spec) ? "h:mm:ss" : "mm:ss";
+}
+
+/**
+ * A stored duration as the text the duration field edits: "9:48", "1:02:03"
+ * when hours are allowed, or "66:40" when they are not (minutes may exceed
+ * 59 so a value above an hour is never silently truncated). Zero or missing
+ * reads as an empty field.
+ */
+export function formatDurationInput(
+  totalSeconds: number,
+  spec: Pick<CardioMetricSpec, "maximum">,
+): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+    return "";
+  }
+  if (shouldShowHoursInput(spec)) {
+    return formatSecondsAsDuration(totalSeconds);
+  }
+  const safe = Math.floor(totalSeconds);
+  return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
+}
+
+const DURATION_PART_RE = /^\d+$/;
+
+/**
+ * Total seconds from the duration field: "9:48" (m:ss), "1:02:03" (h:mm:ss)
+ * or a bare "45" read as whole minutes. Seconds (and minutes after an hour)
+ * must be below 60. Returns `null` for anything else.
+ */
+export function parseDurationInput(raw: string): number | null {
+  const parts = raw.trim().split(":");
+  if (parts.length > 3 || parts.some((part) => !DURATION_PART_RE.test(part))) {
+    return null;
+  }
+  const values = parts.map((part) => Number.parseInt(part, 10));
+  if (values.length === 1) {
+    return (values[0] ?? 0) * 60;
+  }
+  const [first = 0, second = 0, third] = values;
+  if (third === undefined) {
+    return second < 60 ? first * 60 + second : null;
+  }
+  return second < 60 && third < 60 ? first * 3600 + second * 60 + third : null;
+}
+
+/** Form field order: required fields first, then optional, each keeping schema order. */
+export function orderMetricsForForm(specs: readonly CardioMetricSpec[]): CardioMetricSpec[] {
+  return [...specs.filter((spec) => spec.required), ...specs.filter((spec) => !spec.required)];
+}
+
+/** Each field edits text; a duration is one "mm:ss" (or "h:mm:ss") value. */
+export type CardioFieldState = string;
 
 export function seedFieldStates(
   specs: CardioMetricSpec[],
@@ -198,7 +209,7 @@ export function seedFieldStates(
     const v = seed?.[spec.key];
     const numericValue = typeof v === "number" ? v : null;
     if (spec.format === "duration_seconds") {
-      next[spec.key] = seedDurationField(spec, numericValue ?? 0);
+      next[spec.key] = formatDurationInput(numericValue ?? 0, spec);
     } else {
       next[spec.key] = numericValue === null ? "" : String(numericValue);
     }
@@ -206,52 +217,16 @@ export function seedFieldStates(
   return next;
 }
 
-function seedDurationField(
-  spec: CardioMetricSpec,
-  totalSeconds: number,
-): { h: string; m: string; s: string } {
-  if (!shouldShowHoursInput(spec)) {
-    // The hours input is hidden, so the form represents the duration as
-    // (m, s) with m allowed to exceed 60. Folding hours into m avoids the
-    // boundary bug where a stored 3600s value would otherwise split into
-    // h=1/m=0/s=0, then hide h, and seed the visible inputs as all empty —
-    // a silent edit of that entry would save 0s instead of 3600s.
-    const safe = Number.isFinite(totalSeconds) && totalSeconds > 0 ? Math.floor(totalSeconds) : 0;
-    const m = Math.floor(safe / 60);
-    const s = safe % 60;
-    return {
-      h: "",
-      m: m > 0 ? String(m) : "",
-      s: s > 0 ? String(s) : "",
-    };
-  }
-  const parts = secondsToDurationParts(totalSeconds);
-  return {
-    h: parts.h > 0 ? String(parts.h) : "",
-    m: parts.m > 0 ? String(parts.m) : "",
-    s: parts.s > 0 ? String(parts.s) : "",
-  };
-}
-
 export function parseField(
   spec: CardioMetricSpec,
   raw: CardioFieldState | undefined,
 ): number | "empty" | "invalid" {
-  if (spec.format === "duration_seconds") {
-    const parts = (raw as { h: string; m: string; s: string } | undefined) ?? {
-      h: "",
-      m: "",
-      s: "",
-    };
-    if (!parts.h && !parts.m && !parts.s) {
-      return "empty";
-    }
-    const seconds = durationPartsToSeconds(parts);
-    return seconds === null ? "invalid" : seconds;
-  }
   const text = typeof raw === "string" ? raw.trim() : "";
   if (!text) {
     return "empty";
+  }
+  if (spec.format === "duration_seconds") {
+    return parseDurationInput(text) ?? "invalid";
   }
   const wantsInteger = spec.format === "integer" || spec.format === "average";
   const parsed = wantsInteger ? parseIntegerInput(text) : parseDecimalInput(text);

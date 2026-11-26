@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { DailyEnergyForm, type DailyEnergyFormValues } from "@/components/daily-energy-form";
+import { DailyEnergyForm } from "@/components/daily-energy-form";
 import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
@@ -10,8 +10,13 @@ import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/que
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
-import { dailyEnergyMutationErrorMessage } from "@/lib/daily-energy";
+import {
+  type DailyEnergyFormValues,
+  dailyEnergyInput,
+  dailyEnergyMutationError,
+} from "@/lib/daily-energy";
 import { gqlRequest } from "@/lib/graphql";
+import { useInvalidateDailyEnergy } from "@/lib/hooks/use-progress-entry-invalidation";
 
 const EditDailyEnergyQuery = graphql(`
   query EditDailyEnergy($id: uuid!) {
@@ -48,10 +53,10 @@ export const Route = createFileRoute("/_authed/progress/energy/$id_/edit")({
 function EditDailyEnergyRoute() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateDailyEnergy();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["daily_energy", id, "edit"],
     queryFn: () => gqlRequest(EditDailyEnergyQuery, { id }),
   });
@@ -76,57 +81,47 @@ function EditDailyEnergyRoute() {
 
   const saveMutation = useMutation({
     mutationFn: (values: DailyEnergyFormValues) =>
-      gqlRequest(UpdateDailyEnergyMutation, {
-        id,
-        set: {
-          energyOn: values.energyOn,
-          activeKcal: values.activeKcal ? values.activeKcal : null,
-          restingKcal: values.restingKcal ? values.restingKcal : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+      gqlRequest(UpdateDailyEnergyMutation, { id, set: dailyEnergyInput(values) }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
-      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
-    },
-    onError: (e) => {
-      toast.error(dailyEnergyMutationErrorMessage(e, "save"));
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => gqlRequest(DeleteDailyEnergyMutation, { id }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
-      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       navigate({ to: "/progress/energy", replace: true });
     },
     onError: (e) => {
-      toast.error(dailyEnergyMutationErrorMessage(e, "delete"));
+      toast.error(dailyEnergyMutationError(e, "delete").message);
     },
   });
 
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="2xl">
+        <PageShell contentClassName="max-w-[760px]">
           <EditSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="2xl">
-          <ErrorState title="Failed to load energy day" message={error.message} />
+        <PageShell contentClassName="max-w-[760px]">
+          <ErrorState
+            title="Couldn't load this energy day"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!entry || !initialValues) {
       return (
-        <PageShell maxWidth="2xl">
+        <PageShell contentClassName="max-w-[760px]">
           <EmptyState title="Energy day not found." />
         </PageShell>
       );
@@ -134,11 +129,12 @@ function EditDailyEnergyRoute() {
     return (
       <FormPage
         title="Edit energy day"
-        width="2xl"
+        width="form"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this energy day"
-            description="Removes it from your energy history and estimates."
+            description="Removes it from the Energy trend, Calories and Today."
             actionLabel="Delete energy day"
             onAction={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending || saveMutation.isPending}
@@ -147,8 +143,16 @@ function EditDailyEnergyRoute() {
       >
         <DailyEnergyForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
+          serverError={
+            saveMutation.error ? dailyEnergyMutationError(saveMutation.error, "save") : null
+          }
+          onEdit={() => {
+            if (saveMutation.isError) {
+              saveMutation.reset();
+            }
+          }}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() => navigate({ to: "/progress/energy/$id", params: { id }, replace: true })}
         />
@@ -164,7 +168,7 @@ function EditDailyEnergyRoute() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Delete this energy day?"
-        description="This entry will be removed from your energy history."
+        description="It will be removed from the Energy trend, Calories and Today. This can't be undone."
         confirmLabel="Delete energy day"
         pendingLabel="Deleting…"
         destructive

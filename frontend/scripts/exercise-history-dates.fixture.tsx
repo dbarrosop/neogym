@@ -30,7 +30,10 @@ mock.module("@tanstack/react-router", () => ({
 mock.module("@/lib/hooks/use-start-session", () => ({
   useStartSession: () => ({ isPending: false, mutate: () => undefined }),
 }));
-mock.module("@/components/storage-image", () => ({ AlternatingStorageImage: () => null }));
+mock.module("@/components/storage-image", () => ({
+  AlternatingStorageImage: () => null,
+  StorageImage: () => null,
+}));
 mock.module("@/lib/graphql", () => ({
   gqlRequest: () => {
     throw new Error("Exercise history must render the seeded query data");

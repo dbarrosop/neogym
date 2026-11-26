@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Apple, ChefHat, ClipboardList, Clock, Plus, Search, Sparkles } from "lucide-react";
+import { Apple, ChefHat, Plus, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { FoodPicker, type FoodPickerOption } from "@/components/food-picker";
 import { MealPicker } from "@/components/meal-picker";
+import { ActionLabel } from "@/components/patterns/page-shell";
+import { KindTag } from "@/components/patterns/tag";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { formatKcal } from "@/lib/metric-format";
 import {
   type AdHocNutritionDraft,
   adHocNutritionDraftTotals,
@@ -30,7 +33,7 @@ import {
   formatTimeOfDay,
   groupPlanEntriesByTimeSlot,
   intakeDraftMacroTotals,
-  macroTotalsSummary,
+  type MacroTotals,
   mergePlanEntriesByTime,
   NUTRIENT_FIELDS,
   normalizeNumeric,
@@ -39,6 +42,7 @@ import {
   timeToInputValue,
   validateAdHocNutritionDraft,
 } from "@/lib/nutrition";
+import { macroCells } from "@/lib/nutrition-rows";
 import { cn } from "@/lib/utils";
 
 const LogFoodMutation = graphql(`
@@ -333,12 +337,12 @@ export function LogIntakeDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" size="sm" variant={triggerVariant} disabled={disabled}>
+        <Button type="button" variant={triggerVariant} disabled={disabled}>
           <LogIntakeTriggerIcon initialSourceKind={initialSourceKind} />
-          {buttonLabel}
+          <ActionLabel>{buttonLabel}</ActionLabel>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-3xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto md:max-w-[560px]">
         <LogIntakeDialogContents
           mode={mode}
           onModeChange={setMode}
@@ -362,7 +366,7 @@ export function LogIntakeDialog({
           draftItems={draftItems}
           adHocDraft={adHocDraft}
           adHocValidationMessage={adHocValidation.message}
-          previewSummary={macroTotalsSummary(previewTotals)}
+          previewTotals={previewTotals}
           onGramsChange={updateDraftGrams}
           onAdHocDraftChange={updateAdHocDraft}
           canSave={canSave}
@@ -542,7 +546,7 @@ function LogIntakeDialogContents({
   draftItems,
   adHocDraft,
   adHocValidationMessage,
-  previewSummary,
+  previewTotals,
   onGramsChange,
   onAdHocDraftChange,
   canSave,
@@ -572,7 +576,7 @@ function LogIntakeDialogContents({
   draftItems: DraftItem[];
   adHocDraft: AdHocNutritionDraft;
   adHocValidationMessage: string;
-  previewSummary: string;
+  previewTotals: MacroTotals;
   onGramsChange: (key: string, grams: string) => void;
   onAdHocDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
   canSave: boolean;
@@ -580,17 +584,24 @@ function LogIntakeDialogContents({
   onCancel: () => void;
   onSave: () => void;
 }) {
+  const isMealSource = selectedSource?.kind === "meal" || selectedSource?.kind === "plan-meal";
+  const plannedTime =
+    selectedSource && "plannedSlotTime" in selectedSource
+      ? formatTimeOfDay(selectedSource.plannedSlotTime)
+      : null;
+  const hasPreview = mode === "ad-hoc" || selectedSource !== null;
+  const confirmLabel = isMealSource ? "Log meal" : "Log food";
   return (
     <>
       <DialogHeader>
         <DialogTitle>Log intake</DialogTitle>
         <DialogDescription>
-          Choose a food, meal, or selected-plan suggestion. Actual eaten time defaults to now and
-          stays editable; source templates are never rewritten.
+          Choose a food, meal or selected-plan suggestion. Time eaten defaults to now and stays
+          editable; templates are never rewritten.
         </DialogDescription>
       </DialogHeader>
 
-      <div className="space-y-5">
+      <div className="flex flex-col gap-4">
         <LogIntakeSourceTabs
           mode={mode}
           onModeChange={onModeChange}
@@ -613,8 +624,17 @@ function LogIntakeDialogContents({
           onAdHocDraftChange={onAdHocDraftChange}
         />
 
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_12rem]">
-          <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-3">
+          <AmountField
+            mode={mode}
+            isMealSource={isMealSource}
+            draftItems={draftItems}
+            adHocDraft={adHocDraft}
+            onGramsChange={onGramsChange}
+            onAdHocDraftChange={onAdHocDraftChange}
+            disabled={isPending}
+          />
+          <div className={FIELD_CLASS}>
             <Label htmlFor="log-intake-time">Time eaten</Label>
             <Input
               id="log-intake-time"
@@ -622,41 +642,30 @@ function LogIntakeDialogContents({
               value={slotTime}
               onChange={(event) => onSlotTimeChange(event.target.value)}
               disabled={isPending}
+              className="tabular-nums"
               required
             />
-            <p className="text-xs text-muted-foreground">
-              Defaults to now. Planned slot times are shown as suggestions only.
-            </p>
           </div>
-
-          {selectedSource && "plannedSlotTime" in selectedSource ? (
-            <div className="rounded-md border border-border bg-surface-inset p-3 text-sm">
-              <p className="flex items-center gap-2 font-medium">
-                <Clock className="h-4 w-4 text-primary" />
-                Planned {formatTimeOfDay(selectedSource.plannedSlotTime)}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                The logged entry will use{" "}
-                {slotTime ? formatTimeOfDay(slotTime) : "your chosen time"}.
-              </p>
-            </div>
-          ) : null}
         </div>
 
-        {mode === "ad-hoc" ? (
-          <AdHocDraftReview
-            previewSummary={previewSummary}
-            validationMessage={adHocValidationMessage}
-          />
-        ) : (
-          <DraftReview
-            selectedSource={selectedSource}
+        {isMealSource && selectedSource ? (
+          <MealDraftItems
+            title={selectedSource.meal.name}
             draftItems={draftItems}
-            previewSummary={previewSummary}
             disabled={isPending}
             onGramsChange={onGramsChange}
           />
-        )}
+        ) : null}
+
+        {hasPreview ? <IntakePreview totals={previewTotals} /> : null}
+        {mode === "ad-hoc" && adHocValidationMessage ? (
+          <p className="text-[13px] text-destructive">{adHocValidationMessage}</p>
+        ) : null}
+
+        <p className="text-[13px] leading-normal text-muted-foreground">
+          {plannedTime ? `Planned for ${plannedTime}. ` : ""}Planned slot times are suggestions
+          only. Custom logs a one-off item with its own per-100 g values.
+        </p>
       </div>
 
       <DialogFooter>
@@ -664,10 +673,74 @@ function LogIntakeDialogContents({
           Cancel
         </Button>
         <Button type="button" onClick={onSave} disabled={isPending || !canSave}>
-          {isPending ? "Logging…" : "Log intake"}
+          {isPending ? "Logging…" : confirmLabel}
         </Button>
       </DialogFooter>
     </>
+  );
+}
+
+const FIELD_CLASS = "flex min-w-0 flex-col gap-1.5";
+
+/**
+ * "Grams eaten" beside the time: the chosen food's grams, the custom item's
+ * grams, or (for a meal, whose grams are per ingredient below) nothing.
+ */
+function AmountField({
+  mode,
+  isMealSource,
+  draftItems,
+  adHocDraft,
+  onGramsChange,
+  onAdHocDraftChange,
+  disabled,
+}: {
+  mode: DialogMode;
+  isMealSource: boolean;
+  draftItems: DraftItem[];
+  adHocDraft: AdHocNutritionDraft;
+  onGramsChange: (key: string, grams: string) => void;
+  onAdHocDraftChange: (key: keyof AdHocNutritionDraft, value: string) => void;
+  disabled: boolean;
+}) {
+  if (isMealSource || mode === "meal") {
+    return null;
+  }
+  const item = mode === "ad-hoc" ? null : (draftItems[0] ?? null);
+  const value = mode === "ad-hoc" ? adHocDraft.grams : (item?.grams ?? "");
+  return (
+    <div className={FIELD_CLASS}>
+      <Label htmlFor="log-intake-grams">Grams eaten</Label>
+      <Input
+        id="log-intake-grams"
+        type="text"
+        inputMode="decimal"
+        pattern={DECIMAL_INPUT_PATTERN}
+        value={value}
+        placeholder="100"
+        onChange={(event) =>
+          mode === "ad-hoc"
+            ? onAdHocDraftChange("grams", event.target.value)
+            : item && onGramsChange(item.key, event.target.value)
+        }
+        disabled={disabled || (mode !== "ad-hoc" && !item)}
+        className="text-right tabular-nums"
+        required
+      />
+    </div>
+  );
+}
+
+/** "180 kcal · P 30 · C 12 · F 0.6" for what will be logged. */
+function IntakePreview({ totals }: { totals: MacroTotals }) {
+  const cells = macroCells(totals);
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-[10px] bg-background px-3.5 py-3 text-sm tabular-nums">
+      <strong>{formatKcal(totals.kcal)}</strong>
+      <span className="text-soft-foreground">
+        {cells.map((cell) => `${cell.letter} ${cell.value}`).join(" · ")}
+      </span>
+    </div>
   );
 }
 
@@ -728,54 +801,44 @@ function LogIntakeSourceTabs({
 }) {
   return (
     <Tabs value={mode} onValueChange={(value) => onModeChange(value as DialogMode)}>
-      <TabsList>
-        <TabsTrigger value="food">
-          <Apple className="h-3.5 w-3.5" /> Food
-        </TabsTrigger>
-        <TabsTrigger value="meal">
-          <ChefHat className="h-3.5 w-3.5" /> Meal
-        </TabsTrigger>
-        {hasPlanSource ? (
-          <TabsTrigger value="plan">
-            <ClipboardList className="h-3.5 w-3.5" /> From plan
-          </TabsTrigger>
-        ) : null}
-        <TabsTrigger value="ad-hoc">
-          <Sparkles className="h-3.5 w-3.5" /> Custom
-        </TabsTrigger>
+      <TabsList aria-label="Source" className="w-fit">
+        <TabsTrigger value="food">Food</TabsTrigger>
+        <TabsTrigger value="meal">Meal</TabsTrigger>
+        {hasPlanSource ? <TabsTrigger value="plan">From plan</TabsTrigger> : null}
+        <TabsTrigger value="ad-hoc">Custom</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="food" className="space-y-3">
-        <div className="space-y-2">
-          <Label>Food</Label>
-          <FoodPicker
-            foods={foods}
-            value={foodId}
-            onChange={(nextFoodId) => {
-              onModeChange("food");
-              onFoodIdChange(nextFoodId);
-            }}
-            disabled={disabled}
-          />
-        </div>
+      <TabsContent value="food" className={FIELD_CLASS}>
+        <Label htmlFor="log-intake-food">Food</Label>
+        <FoodPicker
+          id="log-intake-food"
+          mode="select"
+          foods={foods}
+          value={foodId}
+          onChange={(nextFoodId) => {
+            onModeChange("food");
+            onFoodIdChange(nextFoodId);
+          }}
+          disabled={disabled}
+        />
       </TabsContent>
 
-      <TabsContent value="meal" className="space-y-3">
-        <div className="space-y-2">
-          <Label>Meal template</Label>
-          <MealPicker
-            meals={meals}
-            value={mealId}
-            onChange={(nextMealId) => {
-              onModeChange("meal");
-              onMealIdChange(nextMealId);
-            }}
-            disabled={disabled}
-          />
-        </div>
+      <TabsContent value="meal" className={FIELD_CLASS}>
+        <Label htmlFor="log-intake-meal">Meal</Label>
+        <MealPicker
+          id="log-intake-meal"
+          mode="select"
+          meals={meals}
+          value={mealId}
+          onChange={(nextMealId) => {
+            onModeChange("meal");
+            onMealIdChange(nextMealId);
+          }}
+          disabled={disabled}
+        />
       </TabsContent>
 
-      <TabsContent value="ad-hoc" className="space-y-3">
+      <TabsContent value="ad-hoc">
         <AdHocNutritionFields
           draft={adHocDraft}
           onDraftChange={(key, value) => {
@@ -787,7 +850,7 @@ function LogIntakeSourceTabs({
       </TabsContent>
 
       {hasPlanSource ? (
-        <TabsContent value="plan" className="space-y-3">
+        <TabsContent value="plan">
           <PlanSourcePicker
             planName={selectedPlanName ?? "selected plan"}
             entries={planEntries}
@@ -832,8 +895,8 @@ function PlanSourcePicker({
   const shownSlots = groupPlanEntriesByTimeSlot(shownEntries) as PlanTimeSlot<PlanEntry>[];
 
   return (
-    <div className="space-y-3">
-      <div className="space-y-2">
+    <div className="flex flex-col gap-3">
+      <div className={FIELD_CLASS}>
         <Label htmlFor="log-intake-plan-search">Plan suggestions from {planName}</Label>
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -849,14 +912,14 @@ function PlanSourcePicker({
       </div>
 
       {shownEntries.length === 0 ? (
-        <p className="rounded-md border border-border border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-[10px] border-[1.5px] border-border-strong border-dashed px-3 py-6 text-center text-sm text-muted-foreground">
           No selected-plan entries match this search.
         </p>
       ) : (
-        <div className="max-h-64 space-y-2 overflow-y-auto rounded-md border border-border p-2">
+        <div className="flex max-h-64 flex-col gap-2 overflow-y-auto rounded-[10px] border p-2">
           {shownSlots.map((slot) => (
-            <section key={slot.key} className="overflow-hidden rounded-md border border-border">
-              <div className="bg-surface-inset px-3 py-2 text-xs font-medium text-muted-foreground">
+            <section key={slot.key} className="overflow-hidden rounded-[10px] border">
+              <div className="bg-surface-inset px-3 py-2 text-xs font-semibold text-muted-foreground tabular-nums">
                 {slot.label}
               </div>
               <ul className="divide-y divide-border">
@@ -897,25 +960,28 @@ function PlanSourcePickerRow({
         type="button"
         onClick={onSelect}
         disabled={disabled}
+        aria-pressed={selected}
         className={cn(
-          "flex w-full items-start justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50",
-          selected && "bg-primary/10 text-primary hover:bg-primary/15",
+          "flex min-h-11 w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50",
+          selected && "bg-accent-soft/60 ring-1 ring-primary/40 ring-inset hover:bg-accent-soft/60",
         )}
       >
-        <span className="min-w-0 space-y-1">
-          <span className="block truncate text-sm font-medium">{title}</span>
-          {entry.kind === "meal" && entry.label && subtitle ? (
-            <span className="block truncate text-xs text-muted-foreground">
-              Template: {subtitle}
-            </span>
-          ) : null}
-          {entry.kind === "food" ? (
-            <span className="block text-xs text-muted-foreground">
-              {formatMacro(entry.grams, "g")}
-            </span>
-          ) : null}
+        <span className="flex min-w-0 items-center gap-2">
+          <KindTag kind={entry.kind} />
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-medium">{title}</span>
+            {entry.kind === "meal" && entry.label && subtitle ? (
+              <span className="block truncate text-xs text-muted-foreground">
+                Template: {subtitle}
+              </span>
+            ) : null}
+          </span>
         </span>
-        {selected ? <span className="text-xs font-medium">Selected</span> : null}
+        {entry.kind === "food" ? (
+          <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums">
+            {formatMacro(entry.grams, "g")}
+          </span>
+        ) : null}
       </button>
     </li>
   );
@@ -931,164 +997,100 @@ function AdHocNutritionFields({
   disabled: boolean;
 }) {
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem]">
-        <div className="space-y-1.5">
-          <Label htmlFor="log-intake-ad-hoc-name">Food name</Label>
-          <Input
-            id="log-intake-ad-hoc-name"
-            value={draft.name}
-            onChange={(event) => onDraftChange("name", event.target.value)}
-            placeholder="e.g. Restaurant noodles"
-            maxLength={160}
-            disabled={disabled}
-            required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="log-intake-ad-hoc-grams">Grams eaten</Label>
-          <Input
-            id="log-intake-ad-hoc-grams"
-            type="text"
-            inputMode="decimal"
-            pattern={DECIMAL_INPUT_PATTERN}
-            value={draft.grams}
-            onChange={(event) => onDraftChange("grams", event.target.value)}
-            disabled={disabled}
-            required
-          />
-        </div>
+    <div className="flex flex-col gap-4">
+      <div className={FIELD_CLASS}>
+        <Label htmlFor="log-intake-ad-hoc-name">Food name</Label>
+        <Input
+          id="log-intake-ad-hoc-name"
+          value={draft.name}
+          onChange={(event) => onDraftChange("name", event.target.value)}
+          placeholder="e.g. Restaurant noodles"
+          maxLength={160}
+          disabled={disabled}
+          required
+        />
       </div>
 
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-medium">Nutrition per 100 g</h3>
-          <p className="text-xs text-muted-foreground">
-            Saved only on this log entry; it will not create or update reusable foods.
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-3 text-[13px] font-semibold text-soft-foreground">
+          Nutrition per 100 g
+        </legend>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(140px,100%),1fr))] gap-3">
           {NUTRIENT_FIELDS.map((field) => (
-            <div key={field.key} className="space-y-1.5">
-              <Label htmlFor={`log-intake-ad-hoc-${field.key}`}>{field.label}</Label>
-              <div className="relative">
-                <Input
-                  id={`log-intake-ad-hoc-${field.key}`}
-                  type="text"
-                  inputMode="decimal"
-                  pattern={DECIMAL_INPUT_PATTERN}
-                  value={draft[field.key]}
-                  onChange={(event) => onDraftChange(field.key, event.target.value)}
-                  className="pr-12"
-                  disabled={disabled}
-                  required
-                />
-                <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs text-muted-foreground">
-                  {field.suffix}
-                </span>
-              </div>
+            <div key={field.key} className={FIELD_CLASS}>
+              <Label htmlFor={`log-intake-ad-hoc-${field.key}`}>
+                {field.label}{" "}
+                <span className="font-medium text-muted-foreground">{field.suffix}</span>
+              </Label>
+              <Input
+                id={`log-intake-ad-hoc-${field.key}`}
+                type="text"
+                inputMode="decimal"
+                pattern={DECIMAL_INPUT_PATTERN}
+                value={draft[field.key]}
+                onChange={(event) => onDraftChange(field.key, event.target.value)}
+                className="text-right tabular-nums"
+                disabled={disabled}
+                required
+              />
             </div>
           ))}
         </div>
-      </div>
+      </fieldset>
     </div>
   );
 }
 
-function AdHocDraftReview({
-  previewSummary,
-  validationMessage,
-}: {
-  previewSummary: string;
-  validationMessage: string;
-}) {
-  return (
-    <div className="space-y-2 rounded-md border border-border p-3">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Review custom food</p>
-        <p className="text-xs text-muted-foreground">{previewSummary}</p>
-      </div>
-      {validationMessage ? <p className="text-xs text-destructive">{validationMessage}</p> : null}
-    </div>
-  );
-}
-
-function DraftReview({
-  selectedSource,
+/** A meal's ingredients with editable grams; the meal template itself never changes. */
+function MealDraftItems({
+  title,
   draftItems,
-  previewSummary,
   disabled,
   onGramsChange,
 }: {
-  selectedSource: SelectedSource | null;
+  title: string;
   draftItems: DraftItem[];
-  previewSummary: string;
   disabled: boolean;
   onGramsChange: (key: string, grams: string) => void;
 }) {
-  if (!selectedSource) {
+  if (draftItems.length === 0) {
     return (
-      <div className="rounded-md border border-border border-dashed px-3 py-8 text-center text-sm text-muted-foreground">
-        Choose a food, meal, or selected-plan entry to review grams and macros before logging.
-      </div>
+      <p className="rounded-[10px] border-[1.5px] border-border-strong border-dashed px-3 py-4 text-sm text-muted-foreground">
+        This meal has no ingredients to log.
+      </p>
     );
   }
-
   return (
-    <div className="space-y-3 rounded-md border border-border p-3">
-      <div className="space-y-1">
-        <p className="text-sm font-medium">Review {selectedSource.title}</p>
-        {"subtitle" in selectedSource && selectedSource.subtitle ? (
-          <p className="text-xs text-muted-foreground">Template: {selectedSource.subtitle}</p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">{previewSummary}</p>
-      </div>
-
-      {draftItems.length === 0 ? (
-        <p className="rounded-md border border-border border-dashed px-3 py-4 text-sm text-muted-foreground">
-          This meal has no ingredients to log.
-        </p>
-      ) : (
-        <div className="overflow-hidden rounded-md border border-border">
-          <ul className="divide-y divide-border">
-            {draftItems.map((item) => {
-              const parsedGrams = parseMacroInput(item.grams);
-              const itemTotals = intakeDraftMacroTotals([
-                { food: item.food, grams: parsedGrams ?? 0 },
-              ]);
-              return (
-                <li
-                  key={item.key}
-                  className="grid gap-3 px-3 py-3 sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center"
-                >
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-medium">{item.food.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {macroTotalsSummary(itemTotals)}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`log-intake-grams-${item.key}`} className="text-xs">
-                      Grams
-                    </Label>
-                    <Input
-                      id={`log-intake-grams-${item.key}`}
-                      type="text"
-                      inputMode="decimal"
-                      pattern={DECIMAL_INPUT_PATTERN}
-                      value={item.grams}
-                      onChange={(event) => onGramsChange(item.key, event.target.value)}
-                      disabled={disabled}
-                      aria-label={`Grams for ${item.food.name}`}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      )}
-    </div>
+    <section aria-label={`Ingredients of ${title}`} className="flex flex-col gap-1.5">
+      <h3 className="text-[13px] font-semibold text-soft-foreground">Ingredients · {title}</h3>
+      <ul className="divide-y rounded-[10px] border">
+        {draftItems.map((item) => {
+          const itemTotals = intakeDraftMacroTotals([
+            { food: item.food, grams: parseMacroInput(item.grams) ?? 0 },
+          ]);
+          return (
+            <li key={item.key} className="flex items-center gap-2 px-3 py-1.5 text-sm">
+              <span className="min-w-0 flex-1 truncate">{item.food.name}</span>
+              <Input
+                id={`log-intake-grams-${item.key}`}
+                type="text"
+                inputMode="decimal"
+                pattern={DECIMAL_INPUT_PATTERN}
+                value={item.grams}
+                onChange={(event) => onGramsChange(item.key, event.target.value)}
+                disabled={disabled}
+                aria-label={`Grams for ${item.food.name}`}
+                className="h-9 w-20 text-right tabular-nums"
+              />
+              <span className="text-[13px] text-muted-foreground">g</span>
+              <span className="w-[72px] shrink-0 text-right text-[13px] text-muted-foreground tabular-nums">
+                {formatKcal(itemTotals.kcal)}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

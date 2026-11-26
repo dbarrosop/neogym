@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
+import { buildMealIngredientDiff } from "@/lib/meal-template";
 import { normalizeNumeric } from "@/lib/nutrition";
 
 const InlineCreateMealMutation = graphql(`
@@ -104,15 +105,6 @@ type MealIngredientInput = {
   position: number;
 };
 
-type MealIngredientInsertInput = MealIngredientInput & {
-  mealId: string;
-};
-
-type MealIngredientUpdateInput = {
-  where: { id: { _eq: string } };
-  _set: { grams: number; position: number };
-};
-
 export function mealFormValuesFromOption(meal: MealPickerOption): MealFormValues {
   return {
     name: meal.name,
@@ -141,50 +133,13 @@ function nestedIngredientInsertData(values: MealFormValues): MealIngredientInput
   }));
 }
 
+/** Ingredient save variables for an edited meal; foods themselves are never written. */
 function buildInlineMealSaveVariables(
   mealId: string,
   initialValues: MealFormValues,
   nextValues: MealFormValues,
 ) {
-  const existingById = new Map(
-    initialValues.ingredients
-      .filter((ingredient): ingredient is typeof ingredient & { id: string } =>
-        Boolean(ingredient.id),
-      )
-      .map((ingredient) => [ingredient.id, ingredient]),
-  );
-  const preservedIds = new Set<string>();
-  const insertIngredients: MealIngredientInsertInput[] = [];
-  const ingredientUpdates: MealIngredientUpdateInput[] = [];
-
-  for (const ingredient of nextValues.ingredients) {
-    const existing = ingredient.id ? existingById.get(ingredient.id) : null;
-    if (existing?.id && existing.foodId === ingredient.foodId) {
-      preservedIds.add(existing.id);
-      ingredientUpdates.push({
-        where: { id: { _eq: existing.id } },
-        _set: { grams: ingredient.grams, position: ingredient.position },
-      });
-      continue;
-    }
-    insertIngredients.push({
-      mealId,
-      foodId: ingredient.foodId,
-      grams: ingredient.grams,
-      position: ingredient.position,
-    });
-  }
-
-  const deleteIngredientIds = Array.from(existingById.keys()).filter((id) => !preservedIds.has(id));
-
-  return {
-    deleteIngredientIds,
-    hasDeleteIngredients: deleteIngredientIds.length > 0,
-    insertIngredients,
-    hasInsertIngredients: insertIngredients.length > 0,
-    ingredientUpdates,
-    hasIngredientUpdates: ingredientUpdates.length > 0,
-  };
+  return buildMealIngredientDiff(mealId, initialValues.ingredients, nextValues.ingredients);
 }
 
 export const __testing = {
@@ -271,13 +226,14 @@ export function QuickMealDialog({ open, mode, onOpenChange, onSaved }: QuickMeal
         <DialogHeader>
           <DialogTitle>{isCreate ? "Create meal" : `Edit ${mode.meal.name}`}</DialogTitle>
           <DialogDescription>
-            Build or adjust a private meal template without leaving the plan draft. Ingredients keep
-            their add, reorder, remove, and live-total behavior.
+            {isCreate
+              ? "Build a private meal template without leaving the plan draft."
+              : "Changes apply to every plan that uses this meal. Days already logged keep their snapshot."}
           </DialogDescription>
         </DialogHeader>
         <MealForm
           initialValues={initialValues}
-          submitLabel={isCreate ? "Create meal" : "Save meal"}
+          submitLabel={isCreate ? "Create meal" : "Save"}
           isSubmitting={isSubmitting}
           onSubmit={(values) => {
             if (isCreate) {

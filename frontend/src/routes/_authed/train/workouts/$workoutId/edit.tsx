@@ -2,18 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkoutForm, type WorkoutFormValues } from "@/components/workout-form";
 import { graphql } from "@/gql";
@@ -37,6 +29,7 @@ const EditWorkoutQuery = graphql(`
           name
           kind
           primaryMuscleGroup
+          image1FileId
           strength { doubleWeight }
         }
       }
@@ -115,7 +108,7 @@ function EditWorkoutRoute() {
   const { user } = useAuth();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["workouts", "edit", workoutId],
     queryFn: () => gqlRequest(EditWorkoutQuery, { id: workoutId }),
   });
@@ -149,6 +142,7 @@ function EditWorkoutRoute() {
         kind: we.exercise.kind ?? "strength",
         primaryMuscleGroup: we.exercise.primaryMuscleGroup,
         doubleWeight: we.exercise.strength?.doubleWeight ?? false,
+        image1FileId: we.exercise.image1FileId ?? null,
       })),
       labels: workout.workoutLabels.map((wl) => ({ id: wl.label.id, name: wl.label.name })),
     };
@@ -266,22 +260,30 @@ function EditWorkoutRoute() {
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="3xl">
+        <PageShell maxWidth="4xl">
           <EditSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-destructive">Failed to load: {error.message}</p>
+        <PageShell maxWidth="4xl">
+          <ErrorState
+            title="Couldn't load this workout"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!workout || !initialValues) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-muted-foreground">Workout not found.</p>
+        <PageShell maxWidth="4xl">
+          <EmptyState
+            title="Workout not found"
+            description="It may have been deleted or is not shared with you."
+          />
         </PageShell>
       );
     }
@@ -292,11 +294,12 @@ function EditWorkoutRoute() {
     return (
       <FormPage
         title="Edit workout"
-        width="3xl"
+        width="wide"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this workout"
-            description="Sessions you logged with it stay in your history as ad-hoc sessions."
+            description="Sessions started from it stay in your history as ad-hoc sessions."
             actionLabel="Delete workout"
             onAction={() => setConfirmDelete(true)}
             disabled={deleteMutation.isPending || saveMutation.isPending}
@@ -305,7 +308,7 @@ function EditWorkoutRoute() {
       >
         <WorkoutForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
           labelSuggestions={data?.labels ?? []}
           onSubmit={(values) => saveMutation.mutate(values)}
@@ -321,55 +324,34 @@ function EditWorkoutRoute() {
     <>
       {renderContent()}
 
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this workout?</DialogTitle>
-            <DialogDescription>
-              {workout?.name
-                ? `"${workout.name}" and its exercise list will be removed.`
-                : "This will remove the workout and its exercise list."}{" "}
-              Past sessions you've logged with it stay intact.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete workout"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title={workout?.name ? `Delete ${workout.name}?` : "Delete this workout?"}
+        description="Its exercise list is removed. Sessions started from it stay in your history as ad-hoc sessions. This can't be undone."
+        confirmLabel="Delete workout"
+        pendingLabel="Deleting…"
+        destructive
+        isPending={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
     </>
   );
 }
 
 function EditSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-20 w-full" />
+    <div className="flex flex-col gap-5" role="status" aria-label="Loading">
+      <div className="grid gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2">
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-16 w-full" />
+        <Skeleton className="h-20 w-full sm:col-span-2" />
+      </div>
+      <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
         {[0, 1, 2].map((i) => (
           <Skeleton key={i} className="h-12 w-full" />
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

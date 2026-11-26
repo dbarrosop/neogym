@@ -49,6 +49,19 @@ describe("area-scoped breadcrumb routes", () => {
     expect(labelsFor("/me/account")).toEqual(["Me", "Account"]);
   });
 
+  it("nests Progress sections under the area, Overview first", () => {
+    expect(labelsFor("/progress")).toEqual(["Progress"]);
+    expect(labelsFor("/progress/overview")).toEqual(["Progress", "Overview"]);
+    expect(labelsFor("/progress/muscles")).toEqual(["Progress", "Muscles"]);
+    expect(labelsFor("/progress/strength")).toEqual(["Progress", "Strength"]);
+    expect(labelsFor("/progress/body/m-1/edit")).toEqual([
+      "Progress",
+      "Body",
+      "Measurement",
+      "Edit",
+    ]);
+  });
+
   it("drops the legacy top-level paths", () => {
     expect(__testing.matchPattern("/sessions")).toBeNull();
     expect(__testing.matchPattern("/profile")).toBeNull();

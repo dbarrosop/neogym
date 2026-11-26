@@ -18,8 +18,12 @@ function AuthedLayout() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <div className="h-2 w-32 animate-pulse rounded-full bg-muted" />
+      <div className="flex min-h-dvh items-center justify-center" aria-busy="true">
+        <div
+          role="status"
+          aria-label="Loading"
+          className="h-2 w-32 animate-pulse rounded-full bg-muted"
+        />
       </div>
     );
   }

@@ -17,9 +17,14 @@ function InputOTP({ className, containerClassName, ...props }: ComponentProps<ty
 }
 
 function InputOTPGroup({ className, ...props }: ComponentProps<"div">) {
-  return <div className={cn("flex items-center", className)} {...props} />;
+  return <div className={cn("flex items-center gap-2", className)} {...props} />;
 }
 
+/**
+ * One digit box: 44×54 px on phones and 52×60 px from 768 px, radius 12, 24 px
+ * semibold digits. The active box gets a 2 px accent border (border plus an
+ * inset ring, so the digit doesn't shift).
+ */
 function InputOTPSlot({
   index,
   className,
@@ -34,8 +39,8 @@ function InputOTPSlot({
   return (
     <div
       className={cn(
-        "relative flex h-11 w-11 items-center justify-center border-y border-r border-input text-base shadow-sm transition-all first:rounded-l-md first:border-l last:rounded-r-md",
-        isActive && "z-10 ring-2 ring-ring ring-offset-background",
+        "relative flex h-[54px] w-11 min-w-0 items-center justify-center rounded-[12px] border border-input bg-card font-semibold text-2xl text-foreground tabular-nums transition-[border-color,box-shadow] md:h-[60px] md:w-[52px]",
+        isActive && "z-10 border-primary ring-1 ring-primary ring-inset",
         className,
       )}
       {...props}
@@ -43,7 +48,7 @@ function InputOTPSlot({
       {char}
       {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="h-4 w-px animate-caret-blink bg-foreground duration-1000" />
+          <div className="h-6 w-px animate-caret-blink bg-foreground duration-1000" />
         </div>
       )}
     </div>

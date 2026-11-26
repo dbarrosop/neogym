@@ -59,7 +59,7 @@ function NewMealRoute() {
   });
 
   return (
-    <FormPage title="New meal" width="4xl">
+    <FormPage title="New meal" width="split" layout="sections">
       <MealForm
         initialValues={EMPTY_MEAL}
         submitLabel="Create meal"

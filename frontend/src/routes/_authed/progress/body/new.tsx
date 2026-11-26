@@ -1,14 +1,16 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
-import {
-  BodyMeasurementForm,
-  type BodyMeasurementFormValues,
-} from "@/components/body-measurement-form";
+import { BodyMeasurementForm } from "@/components/body-measurement-form";
 import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
+import {
+  type BodyMeasurementFormValues,
+  bodyMeasurementInput,
+  bodyMeasurementMutationError,
+} from "@/lib/body-measurements";
 import { todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import { useInvalidateBodyMeasurements } from "@/lib/hooks/use-progress-entry-invalidation";
 
 const InsertBodyMeasurementMutation = graphql(`
   mutation InsertBodyMeasurement($obj: bodyMeasurements_insert_input!) {
@@ -24,21 +26,13 @@ export const Route = createFileRoute("/_authed/progress/body/new")({
 
 function NewBodyMeasurementRoute() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateBodyMeasurements();
 
   const createMutation = useMutation({
     mutationFn: (values: BodyMeasurementFormValues) =>
-      gqlRequest(InsertBodyMeasurementMutation, {
-        obj: {
-          measuredOn: values.measuredOn,
-          weightKg: values.weightKg ? values.weightKg : null,
-          bodyFatPct: values.bodyFatPct ? values.bodyFatPct : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+      gqlRequest(InsertBodyMeasurementMutation, { obj: bodyMeasurementInput(values) }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ["body_measurements"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       const id = res.insertBodyMeasurement?.id;
       if (id) {
         navigate({ to: "/progress/body/$id", params: { id }, replace: true });
@@ -46,13 +40,10 @@ function NewBodyMeasurementRoute() {
         navigate({ to: "/progress/body", replace: true });
       }
     },
-    onError: (e) => {
-      toast.error(`Failed to save: ${e.message}`);
-    },
   });
 
   return (
-    <FormPage title="New measurement" width="2xl">
+    <FormPage title="New measurement" width="form" layout="sections">
       <BodyMeasurementForm
         initialValues={{
           measuredOn: todayLocalISO(),
@@ -60,8 +51,16 @@ function NewBodyMeasurementRoute() {
           bodyFatPct: "",
           notes: "",
         }}
-        submitLabel="Save measurement"
+        submitLabel="Create measurement"
         isSubmitting={createMutation.isPending}
+        serverError={
+          createMutation.error ? bodyMeasurementMutationError(createMutation.error, "save") : null
+        }
+        onEdit={() => {
+          if (createMutation.isError) {
+            createMutation.reset();
+          }
+        }}
         onSubmit={(values) => createMutation.mutate(values)}
         onCancel={() => navigate({ to: "/progress/body", replace: true })}
       />

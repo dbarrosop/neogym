@@ -29,9 +29,6 @@ export const SEED_DOCUMENTS = {
   measurements: `mutation GalleryMeasurements($objects: [bodyMeasurements_insert_input!]!) {
     insertBodyMeasurements(objects: $objects) { affected_rows }
   }`,
-  energy: `mutation GalleryEnergy($objects: [dailyEnergy_insert_input!]!) {
-    insertDailyEnergyEntries(objects: $objects) { affected_rows }
-  }`,
   journal: `mutation GalleryJournal($objects: [journalEntries_insert_input!]!) {
     insertJournalEntries(objects: $objects) { affected_rows }
   }`,
@@ -41,11 +38,16 @@ export interface FixtureIDs {
   session: string;
   workout: string;
   bench: string;
+  breakfast: string;
+  plan: string;
   day: string;
   today: string;
 }
 
 type NamedID = { id: string; name: string };
+
+// The wider Calories window needs 90 visible local dates plus six warm-up days.
+const CALORIE_HISTORY_DAYS = 96;
 
 export function dateBefore(today: string, days: number): string {
   const date = new Date(`${today}T12:00:00Z`);
@@ -229,7 +231,7 @@ async function seedNutrition(backend: CaptureBackend, today: string) {
   const { insertNutritionDays } = await backend.query<{
     insertNutritionDays: { returning: { id: string; logDate: string }[] };
   }>(SEED_DOCUMENTS.days, {
-    objects: Array.from({ length: 35 }, (_, index) => ({
+    objects: Array.from({ length: CALORIE_HISTORY_DAYS }, (_, index) => ({
       logDate: dateBefore(today, index),
       nutritionPlanId: insertNutritionPlan.id,
     })),
@@ -266,7 +268,7 @@ async function seedNutrition(backend: CaptureBackend, today: string) {
             {
               nutritionDayId: day.id,
               foodId: rice,
-              grams: 240,
+              grams: 180 + (Number(day.logDate.slice(-2)) % 7) * 20,
               position: 3,
               slotTime: "12:30",
               source: "food",
@@ -278,28 +280,20 @@ async function seedNutrition(backend: CaptureBackend, today: string) {
   if (!current) {
     throw new Error("Gallery nutrition fixture missing");
   }
-  return current.id;
+  return { day: current.id, plan: insertNutritionPlan.id, breakfast: breakfast.id };
 }
 
 export async function seedFixtures(backend: CaptureBackend, today: string): Promise<FixtureIDs> {
-  // Every insert uses the new account's real bearer and user permissions. No admin
-  // secret, SQL, public writes, upserts, or shared-data resets are used.
+  // Training, nutrition, body and journal fixtures exercise the real user-role API.
+  // The capture-only account and timestamped energy rows were seeded before login.
   const training = await seedTraining(backend, today);
-  const day = await seedNutrition(backend, today);
+  const nutrition = await seedNutrition(backend, today);
   await backend.query(SEED_DOCUMENTS.measurements, {
     objects: Array.from({ length: 36 }, (_, index) => ({
       measuredOn: dateBefore(today, index),
       weightKg: 81.2 + index * 0.025 + Math.sin(index) * 0.3,
       bodyFatPct: 19.5 + index * 0.015,
       notes: index % 3 === 0 ? "Imported from Apple Health" : "Morning measurement",
-    })),
-  });
-  await backend.query(SEED_DOCUMENTS.energy, {
-    objects: Array.from({ length: 35 }, (_, index) => ({
-      energyOn: dateBefore(today, index),
-      activeKcal: index === 0 ? 240 : 450 + (index % 5) * 85,
-      restingKcal: index === 0 ? 780 : 1750 + (index % 3) * 25,
-      notes: "Imported from Apple Health",
     })),
   });
   await backend.query(SEED_DOCUMENTS.journal, {
@@ -317,5 +311,5 @@ export async function seedFixtures(backend: CaptureBackend, today: string): Prom
       },
     ],
   });
-  return { ...training, today, day };
+  return { ...training, ...nutrition, today };
 }

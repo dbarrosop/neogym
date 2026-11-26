@@ -59,7 +59,7 @@ function NewJournalEntryRoute() {
   });
 
   return (
-    <FormPage title="New entry" width="3xl">
+    <FormPage title="New entry" width="wide">
       <JournalEntryForm
         initialValues={{
           entryDate: todayLocalISO(),
@@ -67,7 +67,7 @@ function NewJournalEntryRoute() {
           body: "",
           labels: [],
         }}
-        submitLabel="Save entry"
+        submitLabel="Create entry"
         isSubmitting={createMutation.isPending}
         labelSuggestions={labelsData?.journalLabels ?? []}
         onSubmit={(values) => createMutation.mutate(values)}

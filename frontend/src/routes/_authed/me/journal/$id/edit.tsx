@@ -79,7 +79,7 @@ function EditJournalEntryRoute() {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["journal_entries", id, "edit"],
     queryFn: () => gqlRequest(EditJournalEntryQuery, { id }),
   });
@@ -172,7 +172,12 @@ function EditJournalEntryRoute() {
     if (error) {
       return (
         <PageShell maxWidth="2xl">
-          <ErrorState title="Failed to load entry" message={error.message} />
+          <ErrorState
+            title="Couldn't load entry"
+            message={error.message}
+            onRetry={() => void refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
@@ -186,7 +191,7 @@ function EditJournalEntryRoute() {
     return (
       <FormPage
         title="Edit entry"
-        width="3xl"
+        width="wide"
         danger={
           <DangerZone
             title="Delete this entry"
@@ -199,7 +204,7 @@ function EditJournalEntryRoute() {
       >
         <JournalEntryForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
           labelSuggestions={data?.journalLabels ?? []}
           onSubmit={(values) => saveMutation.mutate(values)}
@@ -217,7 +222,7 @@ function EditJournalEntryRoute() {
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Delete this entry?"
-        description="The entry and its label associations will be removed. Your custom labels stay available for future entries."
+        description="The entry and its label associations will be removed. Your custom labels stay available for future entries. This can't be undone."
         confirmLabel="Delete entry"
         pendingLabel="Deleting…"
         destructive

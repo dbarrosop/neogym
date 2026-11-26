@@ -1,4 +1,5 @@
 import { Heart } from "lucide-react";
+import { Tag } from "@/components/patterns/tag";
 
 /** The note the iPhone and watch apps write on rows they import from Apple Health. */
 export const HEALTH_IMPORT_NOTE = "Imported from Apple Health";
@@ -13,14 +14,15 @@ export function visibleNotes(notes: string | null | undefined): string {
 }
 
 /**
- * Source tag for rows imported on iPhone (Body) or Apple Watch (Energy).
- * The web can show them but never triggers an import itself.
+ * Source tag for rows imported on iPhone (Body) or Apple Watch (Energy): the
+ * neutral 22 px tag with a red heart. The web can show these rows but never
+ * triggers an import itself.
  */
-export function HealthSourceTag() {
+export function HealthSourceTag({ className }: { className?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-px text-[11px] font-medium whitespace-nowrap text-muted-foreground">
-      <Heart className="size-3 fill-current text-destructive" aria-hidden="true" />
+    <Tag className={className}>
+      <Heart className="fill-current text-destructive" aria-hidden="true" />
       Apple Health
-    </span>
+    </Tag>
   );
 }

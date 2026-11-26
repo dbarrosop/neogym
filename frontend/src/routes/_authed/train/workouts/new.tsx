@@ -87,7 +87,7 @@ function NewWorkoutRoute() {
   });
 
   return (
-    <FormPage title="New workout" width="3xl">
+    <FormPage title="New workout" width="wide" layout="sections">
       <WorkoutForm
         initialValues={{ name: "", description: "", exercises: [], labels: [] }}
         submitLabel="Create workout"

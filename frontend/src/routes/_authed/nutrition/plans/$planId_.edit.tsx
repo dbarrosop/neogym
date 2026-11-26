@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { ClipboardList } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -7,18 +8,11 @@ import {
   type NutritionPlanFormEntryValues,
   type NutritionPlanFormValues,
 } from "@/components/nutrition-plan-form";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { DangerZone, FormPage } from "@/components/patterns/form-page";
 import { PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
@@ -249,7 +243,7 @@ function EditNutritionPlanRoute() {
   const queryClient = useQueryClient();
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["nutrition", "plans", "edit", planId],
     queryFn: () => gqlRequest(EditNutritionPlanQuery, { id: planId }),
   });
@@ -339,29 +333,46 @@ function EditNutritionPlanRoute() {
   function renderContent() {
     if (isLoading) {
       return (
-        <PageShell maxWidth="3xl">
+        <PageShell maxWidth="5xl">
           <EditNutritionPlanSkeleton />
         </PageShell>
       );
     }
     if (error) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-destructive">Failed to load: {error.message}</p>
+        <PageShell maxWidth="5xl">
+          <ErrorState
+            title="Couldn't load this plan"
+            message={error.message}
+            onRetry={() => refetch()}
+            isRetrying={isFetching}
+          />
         </PageShell>
       );
     }
     if (!plan || !initialValues) {
       return (
-        <PageShell maxWidth="3xl">
-          <p className="text-sm text-muted-foreground">Plan not found.</p>
+        <PageShell maxWidth="5xl">
+          <EmptyState
+            icon={ClipboardList}
+            title="Plan not found"
+            description="It may have been deleted."
+            actions={
+              <Button asChild variant="outline">
+                <Link to="/nutrition/plans" replace={true}>
+                  Back to plans
+                </Link>
+              </Button>
+            }
+          />
         </PageShell>
       );
     }
     return (
       <FormPage
         title="Edit plan"
-        width="5xl"
+        width="wide"
+        layout="sections"
         danger={
           <DangerZone
             title="Delete this plan"
@@ -374,7 +385,7 @@ function EditNutritionPlanRoute() {
       >
         <NutritionPlanForm
           initialValues={initialValues}
-          submitLabel="Save changes"
+          submitLabel="Save"
           isSubmitting={saveMutation.isPending}
           onSubmit={(values) => saveMutation.mutate(values)}
           onCancel={() =>
@@ -388,53 +399,31 @@ function EditNutritionPlanRoute() {
   return (
     <>
       {renderContent()}
-      <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <DialogContent className="md:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete this plan?</DialogTitle>
-            <DialogDescription>
-              {plan?.name
-                ? `"${plan.name}" will be removed from your private daily plan templates.`
-                : "This plan will be removed from your private daily plan templates."}{" "}
-              Days that selected this plan are detached by the database; historical logs remain.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setConfirmDelete(false)}
-              disabled={deleteMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "Deleting…" : "Delete plan"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog
+        open={confirmDelete}
+        onOpenChange={(open) => {
+          if (!deleteMutation.isPending) {
+            setConfirmDelete(open);
+          }
+        }}
+        title={plan?.name ? `Delete ${plan.name}?` : "Delete this plan?"}
+        description="Days that selected it no longer show its planned slots; food already logged from it keeps its snapshot values. This can't be undone."
+        confirmLabel="Delete plan"
+        pendingLabel="Deleting…"
+        onConfirm={() => deleteMutation.mutate()}
+        isPending={deleteMutation.isPending}
+        destructive={true}
+      />
     </>
   );
 }
 
 function EditNutritionPlanSkeleton() {
   return (
-    <Card className="border-border/60">
-      <CardHeader className="space-y-3">
-        <Skeleton className="h-3 w-16" />
-        <Skeleton className="h-7 w-48" />
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Skeleton className="h-9 w-full" />
-        <Skeleton className="h-28 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </CardContent>
-    </Card>
+    <SkeletonState className="flex flex-col gap-5">
+      <Skeleton className="h-7 w-48" />
+      <Skeleton className="h-40 w-full rounded-[14px]" />
+      <Skeleton className="h-56 w-full rounded-[14px]" />
+    </SkeletonState>
   );
 }

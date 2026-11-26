@@ -11,7 +11,6 @@ import { PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { Segmented } from "@/components/patterns/segmented";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { ThemeSegmented } from "@/components/theme-toggle";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -64,30 +63,26 @@ function ProfileRoute() {
     return null;
   }
 
-  const initials = (user.displayName || user.email || "?")
-    .split(" ")
-    .map((part) => part[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  // One initial, as in the sidebar account row.
+  const initial = (user.displayName || user.email || "?").charAt(0).toUpperCase();
 
   return (
     <PageShell maxWidth="3xl">
       <PageHeader title="Me" tabs={<AreaTabs area="me" />} />
       <section
         aria-label="Profile"
-        className="flex items-center gap-4 rounded-xl border bg-card p-5"
+        className="flex items-center gap-3.5 rounded-xl border bg-card px-5 py-4"
       >
-        <Avatar className="size-14">
-          <AvatarImage src={user.avatarUrl || undefined} alt="" />
-          <AvatarFallback className="bg-accent-soft text-xl font-bold text-accent-soft-foreground">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
+        {/* No AvatarImage: Auth's default Gravatar URL (d=blank) loads a transparent image that would hide the initial. */}
+        <span
+          aria-hidden="true"
+          className="grid size-13 shrink-0 place-items-center rounded-full bg-accent-soft text-[22px] font-bold text-accent-soft-foreground"
+        >
+          {initial}
+        </span>
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h2 className="truncate text-xl font-semibold">{user.displayName || "Athlete"}</h2>
-          <p className="truncate text-sm text-muted-foreground">
+          <h2 className="truncate text-lg font-bold">{user.displayName || "Athlete"}</h2>
+          <p className="truncate text-[13px] text-muted-foreground">
             {user.email} · signs in with an email code
           </p>
         </div>
@@ -129,12 +124,17 @@ function ProfileRoute() {
           <LogOut />
           Sign out
         </Button>
-        <p className="text-[12px] text-muted-foreground">
-          User ID <code className="font-mono">{user.id}</code>
+        <p className="text-[12px] text-muted-foreground tabular-nums">
+          User ID <span title={user.id}>{shortUserId(user.id)}</span>
         </p>
       </div>
     </PageShell>
   );
+}
+
+/** "6f1c…a92e": the first and last four characters of the user ID. */
+function shortUserId(id: string) {
+  return id.length > 10 ? `${id.slice(0, 4)}…${id.slice(-4)}` : id;
 }
 
 function RestDefaultSegmented() {
@@ -155,7 +155,7 @@ function RestDefaultSegmented() {
 function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section aria-labelledby={`settings-${title}`} className="flex flex-col gap-2">
-      <h2 id={`settings-${title}`} className="px-1 text-[13px] font-semibold text-muted-foreground">
+      <h2 id={`settings-${title}`} className="text-[13px] font-semibold text-muted-foreground">
         {title}
       </h2>
       <div className="divide-y rounded-xl border bg-card">{children}</div>
@@ -173,9 +173,9 @@ function SettingsRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-14 flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
-      <div className="flex flex-col">
-        <span className="text-sm font-medium">{label}</span>
+    <div className="flex min-h-[52px] flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-2">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-semibold">{label}</span>
         {hint ? <span className="text-[12px] text-muted-foreground">{hint}</span> : null}
       </div>
       <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">

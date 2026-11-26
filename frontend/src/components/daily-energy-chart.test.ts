@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("Energy chart keeps active/resting colours consistent and legible in both themes", () => {
+test("Energy trend colours lines by metric, dashes today's partial row and averages full days", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -15,6 +15,6 @@ test("Energy chart keeps active/resting colours consistent and legible in both t
   }).toEqual({
     exitCode: 0,
     output:
-      "Energy uses an orange active fill and accent resting line with legible labels and nullable tooltips.\n",
+      "Energy draws orange active and blue resting lines from zero with today's partial row dashed, full-day averages and nullable tooltips.\n",
   });
 }, 30_000);

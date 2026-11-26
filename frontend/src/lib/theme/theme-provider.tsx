@@ -15,6 +15,9 @@ export const THEME_STORAGE_KEY = "neogym-theme";
 /** Dark is the default appearance; Light and System are opt-in under Me › Account. */
 export const DEFAULT_THEME: Theme = "dark";
 
+/** Browser chrome colour per theme: the page background token (`--background`). */
+export const THEME_COLORS = { light: "#f4f4f6", dark: "#09090b" } as const;
+
 interface ThemeContextType {
   theme: Theme;
   resolvedTheme: "light" | "dark";
@@ -42,6 +45,10 @@ function applyThemeClass(resolved: "light" | "dark") {
   const root = document.documentElement;
   root.classList.toggle("dark", resolved === "dark");
   root.style.colorScheme = resolved;
+  // Keep the mobile browser/PWA chrome in step with the page background.
+  for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+    meta.setAttribute("content", THEME_COLORS[resolved]);
+  }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

@@ -1,35 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Plus, Scale } from "lucide-react";
+import { useId, useMemo, useState } from "react";
 import { z } from "zod";
-import { BodyMetricsChart, type BodyMetricsPoint } from "@/components/body-metrics-chart";
+import { BodyMetricTrendColumn } from "@/components/body-metrics-chart";
 import { HealthSourceTag, isHealthImport, visibleNotes } from "@/components/health-source-tag";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
-import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { ListFooter } from "@/components/patterns/list-footer";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Segmented } from "@/components/patterns/segmented";
 import { QuickBodyMeasurementForm } from "@/components/progress/quick-entry-forms";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { graphql } from "@/gql";
-import type { BodyMeasurementsQuery as BodyMeasurementsData } from "@/gql/graphql";
-import { formatDateShort, parseDateOnly } from "@/lib/dates";
-import { gqlRequest } from "@/lib/graphql";
-import { addLocalDateDays } from "@/lib/nutrition";
+import type { BodyMeasurementsQuery } from "@/gql/graphql";
+import { buildBodyTrend } from "@/lib/body-trend";
+import { formatDateShort } from "@/lib/dates";
+import { useBodyMeasurements } from "@/lib/hooks/use-body-measurements";
+import { metricFormat } from "@/lib/metric-format";
+import {
+  ENTRY_HISTORY_PAGE_SIZE,
+  entryHistoryWindow,
+  nextEntryHistoryLimit,
+} from "@/lib/progress-entries";
+import { chartWindow, chartWindowFrom, numericOrNull } from "@/lib/rolling-average";
 import { useLocalToday } from "@/lib/use-local-today";
-
-const BodyMeasurementsQuery = graphql(`
-  query BodyMeasurements {
-    bodyMeasurements(order_by: { measuredOn: desc }) {
-      id
-      measuredOn
-      weightKg
-      bodyFatPct
-      notes
-    }
-  }
-`);
 
 const PERIODS = [
   { value: 30, label: "30 d" },
@@ -48,223 +42,188 @@ export const Route = createFileRoute("/_authed/progress/body/")({
   component: BodyRoute,
 });
 
-type Measurement = BodyMeasurementsData["bodyMeasurements"][number];
+type Measurement = BodyMeasurementsQuery["bodyMeasurements"][number];
 
-const TABLE_PAGE = 20;
-
-function numberOrNull(value: unknown): number | null {
-  return value === null || value === undefined ? null : Number(value);
-}
-
-function average(values: number[]): number | null {
-  return values.length > 0 ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
-}
+// The side "Log measurement" card sits beside the content once the page has
+// room for both (560 + 20 + 280 px, as on the board); below that it follows the
+// list and the header carries the Log action instead.
+const SIDE_BY_SIDE = "@min-[860px]:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]";
+// Wrapped below the content, the card keeps its board width (340 px) unless
+// the page is phone-narrow.
+const SIDE_COLUMN = "min-w-0 @min-[560px]:max-w-[340px] @min-[860px]:max-w-none";
 
 function BodyRoute() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const today = useLocalToday();
-  const days: PeriodDays = search.days ?? 90;
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["body_measurements"],
-    queryFn: () => gqlRequest(BodyMeasurementsQuery),
-  });
-  const measurements = useMemo(() => data?.bodyMeasurements ?? [], [data]);
+  const query = useBodyMeasurements();
 
-  const chartPoints = useMemo<BodyMetricsPoint[]>(() => {
-    const since = days > 0 ? addLocalDateDays(today, -days) : "";
-    return measurements
-      .filter((m) => m.measuredOn >= since)
-      .map((m) => ({ m, time: parseDateOnly(m.measuredOn)?.getTime() ?? null }))
-      .filter((x): x is { m: Measurement; time: number } => x.time !== null)
-      .sort((a, b) => a.time - b.time)
-      .map(({ m, time }) => ({
-        date: time,
-        weightKg: numberOrNull(m.weightKg),
-        bodyFatPct: numberOrNull(m.bodyFatPct),
-      }));
-  }, [measurements, days, today]);
-
-  const content = (() => {
-    if (isLoading) {
+  function renderContent() {
+    if (query.isPending) {
       return (
-        <div className="flex flex-col gap-5">
-          <Skeleton className="h-80 w-full rounded-xl" />
+        <SkeletonState className="flex flex-col gap-5">
+          <Skeleton className="h-[330px] w-full rounded-xl" />
           <Skeleton className="h-60 w-full rounded-xl" />
+        </SkeletonState>
+      );
+    }
+    const error = query.error ? (
+      <ErrorState
+        title="Couldn't load body measurements"
+        message={query.error.message}
+        onRetry={() => query.refetch()}
+        isRetrying={query.isFetching}
+      />
+    ) : null;
+    if (!query.data) {
+      return error;
+    }
+    const measurements = query.data.bodyMeasurements;
+    if (measurements.length === 0) {
+      return (
+        <div className="flex min-w-0 flex-col gap-5">
+          {error}
+          <EmptyState
+            icon={Scale}
+            title="No measurements yet"
+            description="Log weight or body fat to see your trend here."
+          />
         </div>
       );
     }
-    if (error) {
-      return <ErrorState title="Couldn't load body measurements" message={error.message} />;
-    }
-    if (measurements.length === 0) {
-      return (
-        <EmptyState
-          title="No measurements yet"
-          description="Log weight or body fat to see your trend here."
-        />
-      );
-    }
     return (
-      <div className="flex flex-col gap-5">
-        <section
-          aria-label="Body trend"
-          className="flex flex-col gap-4 rounded-xl border bg-card p-5"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <BodyStats measurements={measurements} today={today} />
-            <Segmented
-              label="Chart period"
-              options={PERIODS}
-              value={days}
-              onChange={(value) =>
-                navigate({ search: (prev) => ({ ...prev, days: value }), replace: true })
-              }
-            />
-          </div>
-          {chartPoints.length >= 2 ? (
-            <BodyMetricsChart points={chartPoints} />
-          ) : (
-            <p className="rounded-lg bg-surface-inset px-3 py-8 text-center text-sm text-muted-foreground">
-              Not enough measurements in this period to draw a trend.
-            </p>
-          )}
-        </section>
+      <div className="flex min-w-0 flex-col gap-5">
+        {error}
+        <BodyTrendCard measurements={measurements} />
         <MeasurementsTable measurements={measurements} />
       </div>
     );
-  })();
+  }
 
   return (
-    <PageShell maxWidth="6xl">
+    <PageShell maxWidth="6xl" contentClassName="@container">
       <PageHeader
         title="Progress"
         tabs={<AreaTabs area="progress" />}
         actions={
-          <Button asChild className="lg:hidden">
+          <Button asChild className="@min-[860px]:hidden">
             <Link to="/progress/body/new">
               <Plus />
-              Log measurement
+              <ActionLabel>Log measurement</ActionLabel>
             </Link>
           </Button>
         }
       />
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {content}
-        <aside className="hidden lg:sticky lg:top-6 lg:block">
+      <div className={`grid items-start gap-5 ${SIDE_BY_SIDE}`}>
+        {renderContent()}
+        <div className={SIDE_COLUMN}>
           <QuickBodyMeasurementForm />
-        </aside>
+        </div>
       </div>
     </PageShell>
   );
 }
 
-function BodyStats({ measurements, today }: { measurements: Measurement[]; today: string }) {
-  const weekStart = addLocalDateDays(today, -6);
-  const priorStart = addLocalDateDays(today, -13);
-  const weights = measurements
-    .filter((m) => m.weightKg !== null && m.weightKg !== undefined)
-    .map((m) => ({ day: m.measuredOn, value: Number(m.weightKg) }));
-  const current = average(weights.filter((w) => w.day >= weekStart).map((w) => w.value));
-  const prior = average(
-    weights.filter((w) => w.day >= priorStart && w.day < weekStart).map((w) => w.value),
+function BodyTrendCard({ measurements }: { measurements: Measurement[] }) {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const titleId = useId();
+  const today = useLocalToday();
+  const days: PeriodDays = search.days ?? 30;
+  // "All" starts at the oldest measurement (newest first, so the last row).
+  const oldest = measurements.at(-1)?.measuredOn ?? today;
+  const range =
+    days === 0
+      ? chartWindowFrom(oldest.localeCompare(today) < 0 ? oldest : today, today)
+      : chartWindow(days, today);
+  const trend = useMemo(
+    () => buildBodyTrend(measurements, { today, start: range.start, end: range.end }),
+    [measurements, today, range.start, range.end],
   );
-  const latestWeight = weights[0];
-  const latestFat = measurements.find((m) => m.bodyFatPct !== null && m.bodyFatPct !== undefined);
   return (
-    <dl className="flex flex-wrap gap-x-10 gap-y-3">
-      <div className="flex flex-col gap-0.5">
-        <dt className="text-[13px] text-muted-foreground">
-          {current === null ? "Weight · latest" : "Weight · 7-day avg"}
-        </dt>
-        <dd className="text-[28px] leading-tight font-semibold tabular-nums">
-          {current === null
-            ? `${latestWeight ? latestWeight.value.toFixed(1) : "—"} kg`
-            : `${current.toFixed(1)} kg`}
-        </dd>
-        {current !== null && prior !== null ? (
-          <dd className="text-[13px] font-medium text-muted-foreground tabular-nums">
-            {current - prior >= 0 ? "+" : "−"}
-            {Math.abs(current - prior).toFixed(1)} kg vs prior 7 days
-          </dd>
-        ) : null}
+    <section
+      aria-labelledby={titleId}
+      className="flex min-w-0 flex-col gap-[18px] rounded-xl border bg-card p-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id={titleId} className="text-[15px] font-semibold">
+          Weight &amp; body fat
+        </h2>
+        <Segmented
+          label="Period"
+          options={PERIODS}
+          value={days}
+          onChange={(value) =>
+            navigate({ search: (prev) => ({ ...prev, days: value }), replace: true })
+          }
+        />
       </div>
-      {latestFat ? (
-        <div className="flex flex-col gap-0.5">
-          <dt className="text-[13px] text-muted-foreground">Body fat · latest</dt>
-          <dd className="text-[28px] leading-tight font-semibold tabular-nums">
-            {Number(latestFat.bodyFatPct).toFixed(1)} %
-          </dd>
-          <dd className="text-[13px] text-muted-foreground">
-            {formatDateShort(latestFat.measuredOn)}
-          </dd>
-        </div>
-      ) : null}
-    </dl>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(300px,100%),1fr))] gap-7">
+        <BodyMetricTrendColumn kind="weight" metric={trend.weight} domain={range} />
+        <BodyMetricTrendColumn kind="bodyFat" metric={trend.bodyFat} domain={range} />
+      </div>
+    </section>
   );
 }
 
+function formatted(value: unknown, format: (value: number) => string) {
+  const number = numericOrNull(value);
+  return number === null ? "—" : format(number);
+}
+
 function MeasurementsTable({ measurements }: { measurements: Measurement[] }) {
-  const [limit, setLimit] = useState(TABLE_PAGE);
-  const visible = measurements.slice(0, limit);
+  const [limit, setLimit] = useState(ENTRY_HISTORY_PAGE_SIZE);
+  const history = entryHistoryWindow(measurements, limit);
   return (
     <section aria-label="Measurements" className="overflow-hidden rounded-xl border bg-card">
       <table className="w-full text-sm tabular-nums">
         <thead>
-          <tr className="text-left text-[12px] text-muted-foreground">
-            <th scope="col" className="py-2.5 pl-4 font-medium">
+          <tr className="border-b text-left text-xs text-muted-foreground">
+            <th scope="col" className="px-4 py-2.5 font-semibold">
               Date
             </th>
-            <th scope="col" className="text-right font-medium">
+            <th scope="col" className="px-4 py-2.5 text-right font-semibold">
               Weight
             </th>
-            <th scope="col" className="pr-4 text-right font-medium sm:pr-0">
+            <th scope="col" className="px-4 py-2.5 text-right font-semibold">
               Body fat
             </th>
-            <th scope="col" className="hidden pr-4 pl-6 font-medium sm:table-cell">
+            <th scope="col" className="hidden px-4 py-2.5 font-semibold sm:table-cell">
               Notes
             </th>
           </tr>
         </thead>
         <tbody>
-          {visible.map((m) => (
-            <tr key={m.id} className="border-t hover:bg-muted/40">
-              <td className="py-2.5 pl-4">
-                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          {history.visible.map((m) => (
+            <tr key={m.id} className="h-[46px] border-b last:border-b-0 hover:bg-muted/40">
+              <td className="px-4 py-2">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <Link
                     to="/progress/body/$id"
                     params={{ id: m.id }}
-                    className="font-medium hover:text-link"
+                    className="font-medium whitespace-nowrap hover:text-link"
                   >
                     {formatDateShort(m.measuredOn)}
                   </Link>
                   {isHealthImport(m.notes) ? <HealthSourceTag /> : null}
                 </span>
               </td>
-              <td className="text-right">
-                {m.weightKg === null || m.weightKg === undefined
-                  ? "—"
-                  : `${Number(m.weightKg).toFixed(2)} kg`}
+              <td className="px-4 text-right font-semibold whitespace-nowrap">
+                {formatted(m.weightKg, metricFormat.weight)}
               </td>
-              <td className="pr-4 text-right sm:pr-0">
-                {m.bodyFatPct === null || m.bodyFatPct === undefined
-                  ? "—"
-                  : `${Number(m.bodyFatPct).toFixed(1)} %`}
+              <td className="px-4 text-right whitespace-nowrap">
+                {formatted(m.bodyFatPct, metricFormat.bodyFat)}
               </td>
-              <td className="hidden max-w-0 truncate pr-4 pl-6 text-muted-foreground sm:table-cell">
+              <td className="hidden max-w-0 truncate px-4 text-muted-foreground sm:table-cell">
                 {visibleNotes(m.notes)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      {measurements.length > limit ? (
-        <div className="border-t px-4 py-2">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setLimit((v) => v + 40)}>
-            Show more
-          </Button>
-        </div>
-      ) : null}
+      <ListFooter
+        shown={history.shown}
+        total={history.total}
+        noun="entries"
+        onLoadMore={() => setLimit(nextEntryHistoryLimit)}
+      />
     </section>
   );
 }

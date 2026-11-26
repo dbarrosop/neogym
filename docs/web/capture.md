@@ -51,18 +51,25 @@ nix develop .. --command bun run gallery:capture \
   --output ../.nhost-code/tmp/web-gallery-baseline
 ```
 
-The default is all groups in both profiles, serially. Each profile uses a fresh
-browser context and a **new disposable local app account** named Alex Morgan -
-Gallery, with an address of the form `gallery-<random UUID>@example.com`. Signup
-and OTP verification use the real UI and MailHog. Only that user's private
-fixtures are inserted, using the ordinary user bearer; no admin secret, production
-session, real personal data or persistent credential file is used.
+The default is all groups in both layouts, serially. Each layout uses a fresh
+browser context and resets **only the reserved fictional gallery account**
+`alex.gallery@example.com` and its private data. Do not use that account for
+anything you want to keep. The opt-in seed uses Postgres inside this checkout’s
+local Nhost Docker container. It checks the Compose ownership label and refuses
+an existing ID or email without the exact fixture identity and marker. It does
+not run in migrations, normal seeds, or production. Other users, public data,
+database volumes and MailHog messages are left alone.
 
-Private fixtures cover strength exercises with their required sidecars, a workout,
-sessions, foods/meals/a plan and logs, measurements, energy and journal entries.
-They remain in the local database after capture. There is no automatic account,
-mailbox, shared-data or database cleanup. Normal `dev-env-down` removes them only
-when an operator intentionally wants a destructive local reset.
+The seed fixes the account ID, creation time and energy row timestamps. Playwright
+then signs in via the real OTP flow and only reads mail that arrived for this
+request. Training, nutrition, measurements and journal fixtures are inserted
+through real user-role GraphQL, as are the subsequent app writes. The database
+can allocate fresh row IDs; walkthroughs record route shapes rather than those
+IDs, and the IDs aren’t rendered. No admin secret, production session or
+persistent credential file is used. The last layout’s
+fictional rows remain until the next capture. Do not run captures concurrently;
+a workspace lock enforces this. If the process was forcibly killed, remove
+`.nhost-code/tmp/web-gallery.lock` only after confirming it is no longer running.
 
 Browser traffic is allowlisted to the local frontend/Auth/GraphQL/Storage origins.
 Google Fonts CSS is replaced with the pinned local Inter font; Gravatar is
@@ -72,11 +79,15 @@ and incomplete workflows stop capture. Service workers and stored developer
 sessions are not reused. TLS verification is relaxed only in the local tooling
 contexts, whose network destinations are restricted.
 
-Capture waits for data, fonts and consecutive matching rendered frames. It records
-original viewport PNGs, without browser chrome, resizing or compositing. Screenshot
-animations/carets are disabled, but **Date/Auth/server clocks are not frozen**.
-The manifest's UTC fixture date controls only seeded relative history; timers,
-current-time labels and source data can still change pixels.
+[`profile.json`](../../frontend/scripts/gallery/profile.json) pins the fixture and
+browser date at **15 January 2025, 09:41 UTC**. Playwright freezes JavaScript `Date`
+in its capture page while timers and requests keep running; the rest walkthrough
+explicitly advances the clock ten seconds. Nhost, MailHog, and capture provenance
+still use real time. The profile uses full software rasterization to avoid
+GPU or incremental-raster differences around rounded corners. Capture waits for
+data, fonts, success toasts to dismiss, and consecutive matching rendered frames.
+It records original viewport PNGs, without browser chrome, resizing or
+compositing. Animations, accidental chart hover and carets are not recorded.
 
 Local Auth rate limits still apply. Avoid rapid repeated full runs while debugging;
 a 429 is a real setup failure, not a reason to disable backend rate limits. A
@@ -95,18 +106,30 @@ nix develop .. --command bun run gallery:capture \
   --output ../.nhost-code/tmp/web-gallery-mobile-check --profile mobile --group roots
 ```
 
-Groups: `all`, `roots`, `public-auth`, `session`, `plan-log`, `journal-crud`,
-`appearance`. Profiles: `all`, `desktop`, `mobile`. Use `--help` for options.
-`--origin` accepts only a bare local HTTP origin; it does not change backend CORS
-or permit cloud capture.
+Use `--help` for the registered groups and options. Profiles: `all`, `desktop`,
+`mobile`. The `public-auth` group resets the reserved account and verifies sign-in
+but skips the user-role fixture writes. `--origin` accepts only a bare local HTTP
+origin; it does not change backend CORS or permit cloud capture.
 
-An existing scratch catalog must have the same capture profile, including fixture
-date, actual browser, origin, tool/font versions and viewport settings. A new day
-or profile change requires a **new full baseline**, not mixed old/new images. For
-an affected-group refresh on the same profile/date, copy the published manifest
-and screenshots into scratch first, then rerun that group. Byte-identical images
-retain their original file and capture provenance; replacements update in place,
-preserving registry order. Unchanged walkthroughs retain their earlier checks.
+An existing scratch catalog must have the same capture profile, including the
+fixture version, fixed browser date, actual browser, origin, tool/font versions
+and viewport settings. A profile change (including the move from real to fixed
+clock capture) requires a **new full baseline**, not mixed old/new images. A new
+calendar day no longer changes the profile, and the capture does not hash
+fixture sources. When changing `frontend/scripts/gallery/fixtures.ts`, `seed.sql`,
+or the `now`, `energyUpdatedTime`, or `account` fields in `profile.json`, bump
+`fixtureVersion` in `profile.json` in the same change and capture a new full
+baseline. Without the bump, old and new fixture data can be mixed in one catalog
+and still validate. For an affected-group refresh on the same profile, copy the
+published manifest and screenshots into scratch first,
+then rerun the group. A targeted run starts from the seed and skips mutations
+from preceding workflows; use a full run when those earlier writes are part of
+the view you need (for example, exercise history after editing a set).
+Byte-identical images retain their files and provenance;
+fully unchanged passing runs also retain the manifest, including the earlier
+recorded verification times. Once the capture opens a compatible scratch catalog,
+it marks the attempt failed before looking for this checkout’s Postgres container.
+If discovery fails, older images stay in place but cannot be published.
 
 A partial fresh catalog is useful for diagnosis but intentionally fails the
 publication gate. The latest capture attempt must pass, and every required
@@ -114,6 +137,27 @@ workflow/frame must exist with passing results. An older passing run cannot hide
 a failed newer attempt. Failure screenshots go into the scratch output's sibling
 `web-gallery-diagnostics/`, not the publication directory; keep diagnostics private,
 especially if authentication setup failed.
+
+### Check that a rerun is quiet
+
+Run twice in the same scratch catalog under the same browser/host and capture
+profile. After the first pass, save hashes and the manifest; after the second,
+compare both. Run from `frontend/` and use the same argument set for both passes:
+
+```sh
+OUT=../.nhost-code/tmp/web-gallery-baseline
+nix develop .. --command bun run gallery:capture --output "$OUT"
+cp "$OUT/capture-manifest.json" "$OUT/first-pass.json"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \; | sort > "$OUT/first-pass.sha256"
+nix develop .. --command bun run gallery:capture --output "$OUT"
+cmp "$OUT/first-pass.json" "$OUT/capture-manifest.json"
+find "$OUT/screenshots" -name '*.png' -exec shasum -a 256 {} \; | sort > "$OUT/second-pass.sha256"
+cmp "$OUT/first-pass.sha256" "$OUT/second-pass.sha256"
+```
+
+Investigate an unexpected diff rather than accepting image churn. Different
+browser builds, host rendering stacks or public catalog seeds can still change
+pixels; the reproducibility check compares the same environment.
 
 ## 3. Validate, render and review
 
@@ -143,9 +187,14 @@ Viewport screenshots are not full-page coverage; a passing file gate does not
 prove the chosen scroll position is useful or the UI is accessible.
 
 If the run uncovered a genuine app bug, fix and test the app rather than faking
-its result in the capture driver. Add a workflow/frame in `catalog.json` and its
-implementation in `workflows.ts` together. Do not silently remove a failing frame
-or weaken the required registry to make publication pass.
+its result in the capture driver. Update `catalog.json` and the workflow driver
+in the same change. If a workflow changes the fixture data, bump `fixtureVersion`
+and refresh the full baseline as described above. When retiring a superseded frame, remove it from the registry
+and recapture into a fresh scratch catalog (or remove its manifest entry and PNG
+from a same-profile scratch copy). Use a `layoutOverrides` entry to reuse a
+context frame or omit a scrolled view when a wider layout already shows it.
+Validation rejects unregistered workflows and frames so obsolete evidence cannot
+linger. Do not remove a failing frame just to make publication pass.
 
 ## 4. Publish reviewed evidence
 
@@ -165,10 +214,9 @@ then render and validate. Do not leave orphan PNGs. Preserve existing guide file
 unchanged images, provenance and frame order. Review the Git diff before committing;
 never publish browser storage, OTPs, tokens, traces, mailboxes or diagnostics.
 
-The initial baseline has 66 PNGs, 38 source walkthroughs and 42 visual rows.
-Changing coverage may legitimately change these counts, but update the guide in
-the same change. `docs/ios/` images and its manifest are independent and must not
-be refreshed as a side effect.
+If coverage changes, update the reported counts in the guide in the same change.
+`docs/ios/` images and its manifest are independent and must not be refreshed as
+a side effect.
 
 ## Checks
 
@@ -200,9 +248,11 @@ cross-browser guarantee.
 
 | File | Responsibility |
 |---|---|
-| `frontend/scripts/gallery/catalog.json` | Profiles, 14 roots and required canonical workflow frames |
+| `frontend/scripts/gallery/catalog.json` | Profiles, section roots and required canonical workflow frames |
 | `frontend/scripts/gallery/capture.ts` | CLI, isolated Chromium contexts, local OTP setup and provenance |
-| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests and MailHog OTP parsing |
+| `frontend/scripts/gallery/profile.json` | Fixed browser time, raster settings, fixture version and reserved fictional account |
+| `frontend/scripts/gallery/seed.ts`, `seed.sql` | Workspace-scoped reset, account and energy fixture |
+| `frontend/scripts/gallery/backend.ts` | Fixed local endpoints, user GraphQL requests and fresh MailHog OTP |
 | `frontend/scripts/gallery/fixtures.ts` | Private user-role fixture mutations and relative dates |
 | `frontend/scripts/gallery/driver.ts` | Readiness/network checks, screenshots and manifest updates |
 | `frontend/scripts/gallery/workflows.ts` | Real UI actions and fresh backend outcome checks |

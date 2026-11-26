@@ -6,7 +6,9 @@ import { Window as TestWindow } from "happy-dom";
 import { act, type ReactNode } from "react";
 import type { WebStrengthProgressQuery } from "@/gql/graphql";
 import { localTimeZone } from "@/lib/dates";
-import { addLocalDateDays, formatLocalDate, localDateToDate } from "@/lib/nutrition";
+import { formatChartDate } from "@/lib/metric-format";
+import { formatLocalDate, localDateToDate } from "@/lib/nutrition";
+import { strengthPeriodStart } from "@/lib/strength-progress";
 
 setSystemTime(new Date(2026, 2, 8, 23, 59)); // Sunday, after the US DST transition.
 const dom = new TestWindow({ url: "http://localhost" });
@@ -17,6 +19,9 @@ Object.assign(globalThis, {
   navigator: window.navigator,
   HTMLElement: window.HTMLElement,
   Node: window.Node,
+  ResizeObserver: window.ResizeObserver,
+  requestAnimationFrame: window.requestAnimationFrame.bind(window),
+  cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 mock.module("@tanstack/react-router", () => ({
@@ -70,6 +75,7 @@ mock.module("@/lib/graphql", () => ({
 
 const { createRoot } = await import("react-dom/client");
 const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
+const { ResponsiveContainer } = await import("recharts");
 const { Route } = await import("@/routes/_authed/progress/strength");
 const Strength = Route.options.component;
 assert(Strength);
@@ -85,25 +91,33 @@ async function settle(action: () => unknown = () => undefined) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
 }
+function weeklyChartLabel() {
+  return container
+    .querySelector('section[aria-labelledby="weekly-volume"] svg[role="application"]')
+    ?.getAttribute("aria-label");
+}
 async function waitForDay(day: string) {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: Flush real React Query notifications between polls.
     await settle();
-    const query = client.getQueryState(["progress", "strength", day, 12, "test-user"]);
+    const query = client.getQueryState(["progress", "strength", day, 8, "test-user"]);
     assert.equal(query?.error ?? null, null);
-    if (query?.status === "success" && container.querySelectorAll("ol > li").length === 12) {
+    if (query?.status === "success" && weeklyChartLabel()) {
       return;
     }
   }
   assert.fail(`Strength did not load ${day}`);
 }
-function assertWeek(monday: string, volume: number) {
-  const date = localDateToDate(monday);
-  assert(date);
-  const label = date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-  assert.equal(
-    container.querySelector("ol > li:last-child")?.getAttribute("title"),
-    `Week of ${label}: ${volume} kg (so far)`,
+/** The weekly chart opens on the first week with volume and ends with this week, partial. */
+function assertWeeks(firstWeek: string, thisWeekVolume: number) {
+  const label = weeklyChartLabel() ?? "";
+  assert.match(
+    label,
+    new RegExp(`^Weekly strength volume, weeks? of ${formatChartDate(firstWeek)}`),
+  );
+  assert(
+    label.endsWith(`This week so far: ${thisWeekVolume} kg.`),
+    `Unexpected weekly summary: ${label}`,
   );
 }
 function assertRecent(names: string[]) {
@@ -119,12 +133,14 @@ try {
   await settle(() =>
     root.render(
       <QueryClientProvider client={client}>
-        <Strength />
+        <ResponsiveContainer width={640} height={240}>
+          <Strength />
+        </ResponsiveContainer>
       </QueryClientProvider>,
     ),
   );
   await waitForDay("2026-03-08");
-  assertWeek("2026-03-02", 400);
+  assertWeeks("2026-02-23", 400);
   assertRecent(["Monday cutoff", "Sunday cutoff", "Sunday lift"]);
 
   await settle(() => {
@@ -132,7 +148,7 @@ try {
     window.dispatchEvent(new window.Event("focus"));
   });
   await waitForDay("2026-03-09");
-  assertWeek("2026-03-09", 500);
+  assertWeeks("2026-02-23", 500);
   assertRecent(["Monday cutoff", "Monday lift", "Sunday lift"]);
 
   await settle(() => {
@@ -140,15 +156,18 @@ try {
     document.dispatchEvent(new window.Event("visibilitychange"));
   });
   await waitForDay("2026-03-23");
-  assertWeek("2026-03-23", 600);
+  assertWeeks("2026-02-23", 600);
   assertRecent(["Wake lift"]);
   assert.deepEqual(
     requests,
-    ["2026-03-08", "2026-03-09", "2026-03-23"].map((through) => ({
-      from: addLocalDateDays(through, -(12 * 7 - 1)),
-      through,
-      timeZone: localTimeZone(),
-    })),
+    [
+      ["2026-01-12", "2026-03-08"],
+      ["2026-01-19", "2026-03-09"],
+      ["2026-02-02", "2026-03-23"],
+    ].map(([from, through]) => {
+      assert.equal(from, strengthPeriodStart(through ?? "", 8));
+      return { from, through, timeZone: localTimeZone() };
+    }),
   );
 } finally {
   act(() => root.unmount());

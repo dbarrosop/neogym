@@ -1,36 +1,29 @@
 import type { ResultOf } from "@graphql-typed-document-node/core";
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  ChevronDown,
-  ChevronUp,
-  Circle,
-  CircleCheck,
-  CircleDot,
-  History,
-  Loader2,
-  Pencil,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
-import {
-  Fragment,
-  type ReactNode,
-  type SubmitEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Dumbbell, Loader2, Plus, Trash2 } from "lucide-react";
+import { type Ref, type SubmitEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CardioEntriesList } from "@/components/cardio-entries-list";
 import { CardioMetricsForm } from "@/components/cardio-metrics-form";
+import { CardioTag } from "@/components/exercise-kind-tag";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
-import { NumberStepper } from "@/components/patterns/number-stepper";
+import { ConfirmActionDialog } from "@/components/patterns/confirm-action-dialog";
 import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { Tag } from "@/components/patterns/tag";
+import {
+  CardFootnote,
+  type CardHeaderInfo,
+  CollapsedExercise,
+  ExerciseMedia,
+  LoggedSetsTable,
+  NextSetForm,
+  OpenCard,
+  OpenCardHeader,
+  type RecentRow,
+  type SetRow,
+} from "@/components/session-exercise-card";
 import { StartRestButton } from "@/components/shell/rest-timer";
-import { AlternatingStorageImage } from "@/components/storage-image";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -48,13 +41,18 @@ import {
   asCardioMetricsSchema,
   type CardioMetrics,
   type CardioMetricsSchema,
-  formatMetricValue,
-  iterateMetrics,
 } from "@/lib/cardio-schema";
 import { gqlRequest } from "@/lib/graphql";
 import { useRestTimer } from "@/lib/rest-timer";
+import {
+  addExercisesDescription,
+  cardioLastTimeCaption,
+  exerciseStatus,
+  removeExerciseDescription,
+  summarizeCardioEntries,
+} from "@/lib/session-logging";
 import { sessionDisplayName } from "@/lib/sessions";
-import { cn, formatMuscle } from "@/lib/utils";
+import { formatLastTimeCaption, formatSetsSummary } from "@/lib/set-summary";
 
 const SessionDetailQuery = graphql(`
   query SessionDetail($id: uuid!) {
@@ -257,7 +255,7 @@ const EarlierWorkoutSessionsQuery = graphql(`
     workoutSessions(
       where: { workoutId: { _eq: $workoutId }, startedAt: { _lt: $before } }
       order_by: { startedAt: desc }
-      limit: 5
+      limit: 3
     ) {
       id
       startedAt
@@ -293,17 +291,71 @@ function invalidateSessionReports(queryClient: QueryClient) {
   queryClient.invalidateQueries({ queryKey: ["progress"] });
 }
 
-function SessionDetailRoute() {
-  const { sessionId } = Route.useParams();
+type SessionDetail = NonNullable<ResultOf<typeof SessionDetailQuery>["workoutSession"]>;
+type SessionExerciseRow = SessionDetail["workoutSessionExercises"][number];
+
+interface RemoveRequest {
+  id: string;
+  name: string;
+  isCardio: boolean;
+}
+
+function useSessionMutations(sessionId: string) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const queryKey = ["sessions", "detail", sessionId];
-  const { data, isLoading, error } = useQuery({
-    queryKey,
-    queryFn: () => gqlRequest(SessionDetailQuery, { id: sessionId }),
+  function invalidateAll() {
+    queryClient.invalidateQueries({ queryKey: ["sessions", "index"] });
+    invalidateSessionReports(queryClient);
+    return queryClient.invalidateQueries({ queryKey: ["sessions", "detail", sessionId] });
+  }
+
+  const updateSession = useMutation({
+    mutationFn: (vars: { startedAt: string }) =>
+      gqlRequest(UpdateSessionMutation, { id: sessionId, startedAt: vars.startedAt }),
+    onSuccess: () => void invalidateAll(),
+    onError: (e) => toast.error(`Failed to update session: ${e.message}`),
   });
 
+  const deleteSession = useMutation({
+    mutationFn: () => gqlRequest(DeleteSessionMutation, { id: sessionId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      invalidateSessionReports(queryClient);
+      // Replace — the session no longer exists, so back must skip its detail page.
+      navigate({ to: "/train/sessions", replace: true });
+    },
+    onError: (e) => toast.error(`Failed to delete: ${e.message}`),
+  });
+
+  const addExercises = useMutation({
+    mutationFn: (vars: { picks: PickerSelection[]; basePosition: number }) =>
+      gqlRequest(InsertSessionExercisesMutation, {
+        objs: vars.picks.map((p, i) => ({
+          workoutSessionId: sessionId,
+          exerciseId: p.exerciseId,
+          position: vars.basePosition + i + 1,
+        })),
+      }),
+    onSuccess: () => invalidateAll(),
+    onError: (e) => toast.error(`Failed to add: ${e.message}`),
+  });
+
+  const removeExercise = useMutation({
+    mutationFn: (id: string) => gqlRequest(DeleteSessionExerciseMutation, { id }),
+    onSuccess: () => invalidateAll(),
+    onError: (e) => toast.error(`Failed to remove: ${e.message}`),
+  });
+
+  return { invalidateAll, updateSession, deleteSession, addExercises, removeExercise };
+}
+
+function SessionDetailRoute() {
+  const { sessionId } = Route.useParams();
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["sessions", "detail", sessionId],
+    queryFn: () => gqlRequest(SessionDetailQuery, { id: sessionId }),
+  });
   const session = data?.workoutSession;
 
   const exerciseIds = useMemo(
@@ -327,49 +379,7 @@ function SessionDetailRoute() {
 
   const priorSessionsByExercise = useMemo(() => buildPriorSessionsMap(priorData), [priorData]);
   const priorCardioByExercise = useMemo(() => buildPriorCardioMap(priorData), [priorData]);
-
-  function invalidateAll() {
-    queryClient.invalidateQueries({ queryKey: ["sessions", "index"] });
-    invalidateSessionReports(queryClient);
-    return queryClient.invalidateQueries({ queryKey });
-  }
-
-  const updateSessionMutation = useMutation({
-    mutationFn: (vars: { startedAt: string }) =>
-      gqlRequest(UpdateSessionMutation, { id: sessionId, startedAt: vars.startedAt }),
-    onSuccess: () => void invalidateAll(),
-    onError: (e) => toast.error(`Failed to update session: ${e.message}`),
-  });
-
-  const deleteSessionMutation = useMutation({
-    mutationFn: () => gqlRequest(DeleteSessionMutation, { id: sessionId }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["sessions"] });
-      invalidateSessionReports(queryClient);
-      // Replace — the session no longer exists, so back must skip its detail page.
-      navigate({ to: "/train/sessions", replace: true });
-    },
-    onError: (e) => toast.error(`Failed to delete: ${e.message}`),
-  });
-
-  const addExercisesMutation = useMutation({
-    mutationFn: (vars: { picks: PickerSelection[]; basePosition: number }) =>
-      gqlRequest(InsertSessionExercisesMutation, {
-        objs: vars.picks.map((p, i) => ({
-          workoutSessionId: sessionId,
-          exerciseId: p.exerciseId,
-          position: vars.basePosition + i + 1,
-        })),
-      }),
-    onSuccess: () => invalidateAll(),
-    onError: (e) => toast.error(`Failed to add: ${e.message}`),
-  });
-
-  const removeExerciseMutation = useMutation({
-    mutationFn: (id: string) => gqlRequest(DeleteSessionExerciseMutation, { id }),
-    onSuccess: () => invalidateAll(),
-    onError: (e) => toast.error(`Failed to remove: ${e.message}`),
-  });
+  const mutations = useSessionMutations(sessionId);
 
   const totals = useMemo(() => sessionTotals(session), [session]);
   // Open the first exercise below last time's count. Without a nonempty
@@ -379,31 +389,25 @@ function SessionDetailRoute() {
     [session, priorSessionsByExercise, priorCardioByExercise],
   );
   const [expandedOverrides, setExpandedOverrides] = useState<Record<string, boolean>>({});
-
   const [editingDate, setEditingDate] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [confirmingRemoveExercise, setConfirmingRemoveExercise] = useState<{
-    id: string;
-    name: string;
-    childCount: number;
-    childNoun: "set" | "entry";
-  } | null>(null);
-
-  const selectedExerciseIds = useMemo(
-    () => new Set(session?.workoutSessionExercises.map((we) => we.exercise.id) ?? []),
-    [session],
-  );
-  const maxPosition = useMemo(() => {
-    const positions = session?.workoutSessionExercises.map((we) => we.position) ?? [];
-    return positions.length > 0 ? Math.max(...positions) : 0;
-  }, [session]);
+  const [confirmingRemove, setConfirmingRemove] = useState<RemoveRequest | null>(null);
+  const addExerciseButton = useRef<HTMLButtonElement>(null);
+  const removedExercise = useRef(false);
 
   if (isLoading) {
     return <DetailSkeleton />;
   }
   if (error) {
-    return <ErrorState title="Couldn't load this session" message={error.message} />;
+    return (
+      <ErrorState
+        title="Couldn't load this session"
+        message={error.message}
+        onRetry={() => refetch()}
+        isRetrying={isFetching}
+      />
+    );
   }
   if (!session) {
     return (
@@ -418,6 +422,7 @@ function SessionDetailRoute() {
     workoutName: session.workout?.name,
     exerciseNames: session.workoutSessionExercises.map((we) => we.exercise.name),
   });
+  const fromWorkout = !!session.workoutId;
 
   return (
     <div className="flex flex-col gap-4">
@@ -428,7 +433,8 @@ function SessionDetailRoute() {
         workout={session.workout ?? null}
         onEditDate={() => setEditingDate(true)}
         onAddExercise={() => setPickerOpen(true)}
-        isAdding={addExercisesMutation.isPending}
+        addExerciseButton={addExerciseButton}
+        isAdding={mutations.addExercises.isPending}
       />
       {totals.hasStrength ? <SessionTotals totals={totals} /> : null}
 
@@ -446,21 +452,26 @@ function SessionDetailRoute() {
               }
               priorSessionsByExercise={priorSessionsByExercise}
               priorCardioByExercise={priorCardioByExercise}
-              onMutated={invalidateAll}
-              onConfirmRemove={setConfirmingRemoveExercise}
+              onMutated={mutations.invalidateAll}
+              onConfirmRemove={(request) => {
+                removedExercise.current = false;
+                setConfirmingRemove(request);
+              }}
             />
           );
         })}
         {session.workoutSessionExercises.length === 0 ? (
           <EmptyState
+            icon={Dumbbell}
             title="No exercises yet"
             description="Add exercises to this session to start logging sets."
-          >
-            <Button type="button" onClick={() => setPickerOpen(true)}>
-              <Plus />
-              Add exercise
-            </Button>
-          </EmptyState>
+            actions={
+              <Button type="button" onClick={() => setPickerOpen(true)}>
+                <Plus />
+                Add exercise
+              </Button>
+            }
+          />
         ) : null}
       </div>
 
@@ -485,56 +496,50 @@ function SessionDetailRoute() {
         </Button>
       </div>
 
-      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="md:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Add exercises</DialogTitle>
-            <DialogDescription>
-              Add to this session only. The original workout isn't changed.
-            </DialogDescription>
-          </DialogHeader>
-          <ExercisePicker
-            alreadySelected={selectedExerciseIds}
-            onConfirm={(picks) => {
-              if (picks.length === 0) {
-                setPickerOpen(false);
-                return;
-              }
-              addExercisesMutation.mutate(
-                { picks, basePosition: maxPosition },
-                { onSuccess: () => setPickerOpen(false) },
-              );
-            }}
-            onCancel={() => setPickerOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <ConfirmDialog
-        open={!!confirmingRemoveExercise}
-        onOpenChange={(open) => {
-          if (!open) {
-            setConfirmingRemoveExercise(null);
-          }
-        }}
-        title={
-          confirmingRemoveExercise ? `Remove ${confirmingRemoveExercise.name}?` : "Remove exercise?"
-        }
-        description={
-          confirmingRemoveExercise && confirmingRemoveExercise.childCount > 0
-            ? `${confirmingRemoveExercise.childCount} logged ${pluralChild(confirmingRemoveExercise.childNoun, confirmingRemoveExercise.childCount)} will be deleted with it. This can't be undone.`
-            : "It will be removed from this session only."
-        }
-        confirmLabel="Remove"
-        destructive
-        isPending={removeExerciseMutation.isPending}
-        onConfirm={() => {
-          if (!confirmingRemoveExercise) {
+      <AddExercisesDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        fromWorkout={fromWorkout}
+        alreadySelected={new Set(exerciseIds)}
+        onConfirm={(picks) => {
+          if (picks.length === 0) {
+            setPickerOpen(false);
             return;
           }
-          removeExerciseMutation.mutate(confirmingRemoveExercise.id, {
-            onSuccess: () => setConfirmingRemoveExercise(null),
-          });
+          mutations.addExercises.mutate(
+            { picks, basePosition: maxPosition(session) },
+            { onSuccess: () => setPickerOpen(false) },
+          );
+        }}
+      />
+
+      <ConfirmActionDialog
+        open={!!confirmingRemove}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmingRemove(null);
+          }
+        }}
+        title={confirmingRemove ? `Remove ${confirmingRemove.name}?` : "Remove exercise?"}
+        description={
+          confirmingRemove ? removeExerciseDescription({ ...confirmingRemove, fromWorkout }) : null
+        }
+        returnFocus={(invoker) =>
+          !removedExercise.current && invoker?.isConnected ? invoker : addExerciseButton.current
+        }
+        confirmLabel="Remove exercise"
+        pendingLabel="Removing…"
+        destructive
+        isPending={mutations.removeExercise.isPending}
+        onConfirm={() => {
+          if (confirmingRemove) {
+            mutations.removeExercise.mutate(confirmingRemove.id, {
+              onSuccess: () => {
+                removedExercise.current = true;
+                setConfirmingRemove(null);
+              },
+            });
+          }
         }}
       />
 
@@ -543,29 +548,33 @@ function SessionDetailRoute() {
         onOpenChange={setEditingDate}
         startedAt={session.startedAt}
         onSave={(iso) => {
-          updateSessionMutation.mutate(
+          mutations.updateSession.mutate(
             { startedAt: iso },
             { onSuccess: () => setEditingDate(false) },
           );
         }}
-        isPending={updateSessionMutation.isPending}
+        isPending={mutations.updateSession.isPending}
       />
 
-      <ConfirmDialog
+      <ConfirmActionDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         title="Delete this session?"
         description="All sets logged in this session will be permanently removed. This can't be undone."
         confirmLabel="Delete session"
+        pendingLabel="Deleting…"
         destructive
-        isPending={deleteSessionMutation.isPending}
-        onConfirm={() => deleteSessionMutation.mutate()}
+        isPending={mutations.deleteSession.isPending}
+        onConfirm={() => mutations.deleteSession.mutate()}
       />
     </div>
   );
 }
 
-type SessionDetail = NonNullable<ResultOf<typeof SessionDetailQuery>["workoutSession"]>;
+function maxPosition(session: SessionDetail): number {
+  const positions = session.workoutSessionExercises.map((we) => we.position);
+  return positions.length > 0 ? Math.max(...positions) : 0;
+}
 
 function sessionTotals(session: SessionDetail | null | undefined) {
   let sets = 0;
@@ -614,6 +623,7 @@ function SessionHeader({
   workout,
   onEditDate,
   onAddExercise,
+  addExerciseButton,
   isAdding,
 }: {
   sessionId: string;
@@ -622,6 +632,7 @@ function SessionHeader({
   workout: { id: string; name: string } | null;
   onEditDate: () => void;
   onAddExercise: () => void;
+  addExerciseButton: Ref<HTMLButtonElement>;
   isAdding: boolean;
 }) {
   const started = new Date(startedAt);
@@ -629,7 +640,7 @@ function SessionHeader({
   return (
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex min-w-0 flex-col gap-1">
-        <h2 className="text-[22px] font-bold tracking-tight">{name}</h2>
+        <h2 className="text-[22px] font-bold tracking-[-0.01em]">{name}</h2>
         <p className="text-[13px] text-muted-foreground">
           <span className="tabular-nums">
             {started.toLocaleDateString(undefined, {
@@ -642,20 +653,16 @@ function SessionHeader({
             {started.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
           </span>
           {" · "}
-          <button
-            type="button"
-            onClick={onEditDate}
-            className="font-medium text-link hover:underline"
-          >
+          <button type="button" onClick={onEditDate} className="text-link hover:underline">
             Edit date
           </button>
           {workout ? (
             <>
-              {" · from "}
+              {" · from workout "}
               <Link
                 to="/train/workouts/$workoutId"
                 params={{ workoutId: workout.id }}
-                className="font-medium text-link hover:underline"
+                className="text-link hover:underline"
               >
                 {workout.name}
               </Link>
@@ -665,7 +672,13 @@ function SessionHeader({
       </div>
       <div className="flex flex-wrap gap-2">
         <StartRestButton sessionId={sessionId} />
-        <Button type="button" variant="outline" onClick={onAddExercise} disabled={isAdding}>
+        <Button
+          ref={addExerciseButton}
+          type="button"
+          variant="outline"
+          onClick={onAddExercise}
+          disabled={isAdding}
+        >
           <Plus />
           Add exercise
         </Button>
@@ -676,29 +689,23 @@ function SessionHeader({
 
 function SessionTotals({ totals }: { totals: { sets: number; reps: number; volume: number } }) {
   const cells = [
-    ["Sets", String(totals.sets)],
-    ["Reps", String(totals.reps)],
-    ["Volume", `${volumeFormat.format(totals.volume)} kg`],
+    ["sets", String(totals.sets)],
+    ["reps", String(totals.reps)],
+    ["volume", `${volumeFormat.format(totals.volume)} kg`],
   ] as const;
   return (
-    <dl className="grid grid-cols-3 rounded-xl border bg-card">
-      {cells.map(([label, value], index) => (
-        <div key={label} className={cn("flex flex-col gap-0.5 px-4 py-3", index > 0 && "border-l")}>
+    <dl className="grid grid-cols-3 rounded-xl border bg-card py-3.5">
+      {cells.map(([label, value]) => (
+        <div
+          key={label}
+          className="flex min-w-0 flex-col items-center px-2 [&:nth-child(2)]:border-x"
+        >
           <dt className="order-2 text-[13px] text-muted-foreground">{label}</dt>
-          <dd className="whitespace-nowrap text-lg font-semibold tabular-nums sm:text-xl">
-            {value}
-          </dd>
+          <dd className="text-lg font-bold whitespace-nowrap tabular-nums sm:text-xl">{value}</dd>
         </div>
       ))}
     </dl>
   );
-}
-
-interface SetRow {
-  id: string;
-  setNumber: number;
-  reps: number;
-  weight: number | string;
 }
 
 interface PriorEntry {
@@ -719,10 +726,6 @@ interface PriorCardioEntry {
   entries: { entryNumber: number; metrics: CardioMetrics }[];
 }
 
-type SessionExerciseRow = NonNullable<
-  ResultOf<typeof SessionDetailQuery>["workoutSession"]
->["workoutSessionExercises"][number];
-
 interface ExerciseRowProps {
   we: SessionExerciseRow;
   sessionId: string;
@@ -731,19 +734,7 @@ interface ExerciseRowProps {
   priorSessionsByExercise: Map<string, PriorEntry[]>;
   priorCardioByExercise: Map<string, PriorCardioEntry[]>;
   onMutated: () => Promise<void>;
-  onConfirmRemove: (info: {
-    id: string;
-    name: string;
-    childCount: number;
-    childNoun: "set" | "entry";
-  }) => void;
-}
-
-function pluralChild(noun: "set" | "entry", count: number): string {
-  if (count === 1) {
-    return noun;
-  }
-  return noun === "entry" ? "entries" : "sets";
+  onConfirmRemove: (info: RemoveRequest) => void;
 }
 
 function ExerciseRow({
@@ -758,16 +749,6 @@ function ExerciseRow({
 }: ExerciseRowProps) {
   const isCardio = we.exercise.kind === "cardio";
   const cardioSchema = isCardio ? asCardioMetricsSchema(we.exercise.cardio?.metricsSchema) : null;
-  const childCount = isCardio
-    ? we.workoutSessionCardioEntries.length
-    : we.workoutSessionStrengthSets.length;
-  const onRequestRemove = () =>
-    onConfirmRemove({
-      id: we.id,
-      name: we.exercise.name,
-      childCount,
-      childNoun: isCardio ? "entry" : "set",
-    });
 
   // Memoize on the raw query slice so the reference stays stable when
   // react-query's structural sharing returns the same data — without this,
@@ -784,13 +765,18 @@ function ExerciseRow({
     [we.workoutSessionCardioEntries],
   );
 
-  const header = {
+  const header: CardHeaderInfo = {
     exerciseId: we.exercise.id,
     exerciseName: we.exercise.name,
     primaryMuscle: we.exercise.primaryMuscleGroup,
     image1FileId: we.exercise.image1FileId,
     image2FileId: we.exercise.image2FileId,
-    onRequestRemove,
+    onRequestRemove: () =>
+      onConfirmRemove({
+        id: we.id,
+        name: we.exercise.name,
+        isCardio,
+      }),
   };
 
   if (isCardio && cardioSchema) {
@@ -813,13 +799,13 @@ function ExerciseRow({
   // friendly placeholder + the remove control instead.
   if (isCardio) {
     return (
-      <section aria-label={we.exercise.name} className="rounded-xl border bg-card">
-        <ExerciseCardHeader {...header} meta="Cardio" />
+      <OpenCard name={we.exercise.name}>
+        <OpenCardHeader {...header} tags={<CardioTag />} />
         <p className="mx-4 mb-4 rounded-lg bg-surface-inset px-3 py-2 text-[13px] text-muted-foreground">
           This cardio exercise is missing its metrics schema, so entries can't be logged here. An
           admin needs to configure it before this exercise can be used.
         </p>
-      </section>
+      </OpenCard>
     );
   }
   return (
@@ -837,155 +823,7 @@ function ExerciseRow({
   );
 }
 
-interface ExerciseCardHeaderProps {
-  exerciseId: string;
-  exerciseName: string;
-  primaryMuscle: string;
-  image1FileId: string | null | undefined;
-  image2FileId: string | null | undefined;
-  onRequestRemove: () => void;
-  meta?: ReactNode;
-  onCollapse?: () => void;
-}
-
-function ExerciseCardHeader({
-  exerciseId,
-  exerciseName,
-  primaryMuscle,
-  image1FileId,
-  image2FileId,
-  onRequestRemove,
-  meta,
-  onCollapse,
-}: ExerciseCardHeaderProps) {
-  return (
-    <div className="flex items-center gap-3 p-4 pb-3">
-      <Link
-        to="/train/exercises/$exerciseId"
-        params={{ exerciseId }}
-        className="block size-12 shrink-0 overflow-hidden rounded-lg bg-muted"
-        tabIndex={-1}
-        aria-hidden="true"
-      >
-        <AlternatingStorageImage
-          fileIds={[image1FileId, image2FileId]}
-          alt=""
-          className="h-full w-full"
-        />
-      </Link>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Link
-          to="/train/exercises/$exerciseId"
-          params={{ exerciseId }}
-          className="truncate text-[15px] font-semibold underline-offset-2 hover:underline"
-        >
-          {exerciseName}
-        </Link>
-        <span className="truncate text-[13px] text-muted-foreground">
-          {formatMuscle(primaryMuscle)}
-          {meta ? <> · {meta}</> : null}
-        </span>
-      </div>
-      {onCollapse ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-11 shrink-0 text-muted-foreground"
-          aria-label={`Collapse ${exerciseName}`}
-          aria-expanded="true"
-          onClick={onCollapse}
-        >
-          <ChevronUp />
-        </Button>
-      ) : null}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="size-11 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        aria-label={`Remove ${exerciseName} from session`}
-        onClick={onRequestRemove}
-      >
-        <X />
-      </Button>
-    </div>
-  );
-}
-
-const STATUS_ICONS = {
-  done: { Icon: CircleCheck, label: "Done", className: "text-positive" },
-  started: { Icon: CircleDot, label: "In progress", className: "text-link" },
-  todo: { Icon: Circle, label: "Not started", className: "text-muted-foreground/60" },
-} as const;
-
-type ExerciseStatus = keyof typeof STATUS_ICONS;
-
-function StatusIcon({ status, className }: { status: ExerciseStatus; className?: string }) {
-  const { Icon, label, className: tone } = STATUS_ICONS[status];
-  return <Icon className={cn(tone, className)} aria-label={label} role="img" />;
-}
-
-/** Collapsed exercise: status, name and a one-line summary; click to open. */
-function CollapsedExercise({
-  exerciseName,
-  summary,
-  status,
-  onToggle,
-}: {
-  exerciseName: string;
-  summary: string;
-  status: ExerciseStatus;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded="false"
-      className="flex w-full items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:bg-surface-inset"
-    >
-      <StatusIcon className="size-5 shrink-0" status={status} />
-      <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-        <strong className="truncate text-[15px] font-semibold">{exerciseName}</strong>
-        <span className="truncate text-[13px] text-muted-foreground tabular-nums">{summary}</span>
-      </span>
-      <ChevronDown className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-    </button>
-  );
-}
-
-function weightLabel(weight: number): string {
-  return weight === 0 ? "BW" : `${weight} kg`;
-}
-
-/** "80 kg × 6 · 6 · 5" when the weight is constant, otherwise one pair per set. */
-function formatSetsSummary(sets: { reps: number; weight: number | string }[]): string {
-  const weights = sets.map((set) => Number(set.weight));
-  if (weights.every((weight) => weight === weights[0])) {
-    return `${weightLabel(weights[0] ?? 0)} × ${sets.map((set) => set.reps).join(" · ")}`;
-  }
-  return sets.map((set) => `${weightLabel(Number(set.weight))} × ${set.reps}`).join(" · ");
-}
-
-function formatLastTimeSet(set: { reps: number; weight: number } | undefined): string {
-  if (!set) {
-    return "—";
-  }
-  return `${set.weight === 0 ? "BW" : set.weight} × ${set.reps}`;
-}
-
-function parseWeight(value: string): number | null {
-  const weight = Number(value.replace(",", "."));
-  return value.trim() !== "" && Number.isFinite(weight) && weight >= 0 ? weight : null;
-}
-
-function parseReps(value: string): number | null {
-  const reps = Number(value);
-  return value.trim() !== "" && Number.isInteger(reps) && reps >= 0 ? reps : null;
-}
-
-interface ExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | "onCollapse"> {
+interface ExerciseLogProps extends CardHeaderInfo {
   sessionId: string;
   workoutSessionExerciseId: string;
   expanded: boolean;
@@ -996,21 +834,52 @@ interface ExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | "onCol
   onMutated: () => Promise<void>;
 }
 
-function strengthSummary(sets: SetRow[], lastTime: PriorEntry | undefined) {
-  if (sets.length > 0) {
-    return formatSetsSummary(sets);
-  }
-  if (lastTime && lastTime.sets.length > 0) {
-    return `Last time ${formatSetsSummary(lastTime.sets)}`;
-  }
-  return "No sets yet";
-}
+function useStrengthSetMutations(
+  workoutSessionExerciseId: string,
+  onMutated: () => Promise<void>,
+  onSaved: () => void,
+  onInserted: (setNumber: number) => void,
+) {
+  const insert = useMutation({
+    mutationFn: (vars: { setNumber: number; reps: number; weight: number }) =>
+      gqlRequest(InsertSetMutation, {
+        obj: {
+          workoutSessionExerciseId,
+          setNumber: vars.setNumber,
+          reps: vars.reps,
+          weight: vars.weight,
+        },
+      }),
+    onSuccess: (_result, vars) => {
+      onInserted(vars.setNumber);
+      return onMutated();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
 
-function exerciseStatus(count: number, referenceCount = 0): ExerciseStatus {
-  if (count === 0) {
-    return "todo";
-  }
-  return referenceCount > 0 && count >= referenceCount ? "done" : "started";
+  const update = useMutation({
+    mutationFn: (vars: { id: string; reps: number; weight: number }) =>
+      gqlRequest(UpdateSetMutation, {
+        id: vars.id,
+        set: { reps: vars.reps, weight: vars.weight },
+      }),
+    onSuccess: async () => {
+      await onMutated();
+      onSaved();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => gqlRequest(DeleteSetMutation, { id }),
+    onSuccess: async () => {
+      await onMutated();
+      onSaved();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  return { insert, update, remove };
 }
 
 function ExerciseLog({
@@ -1026,318 +895,93 @@ function ExerciseLog({
 }: ExerciseLogProps) {
   const { exerciseName } = header;
   const restTimer = useRestTimer();
-  const [dialog, setDialog] = useState<{ mode: "edit"; set: SetRow } | null>(null);
+  const [editing, setEditing] = useState<SetRow | null>(null);
 
   const lastTime = priorSessions[0];
   const lastSet = sets.at(-1);
   const nextSetNumber = (lastSet?.setNumber ?? 0) + 1;
 
-  const insertMutation = useMutation({
-    mutationFn: (vars: { setNumber: number; reps: number; weight: number }) =>
-      gqlRequest(InsertSetMutation, {
-        obj: {
-          workoutSessionExerciseId,
-          setNumber: vars.setNumber,
-          reps: vars.reps,
-          weight: vars.weight,
-        },
-      }),
-    onSuccess: (_result, vars) => {
-      restTimer.start({ sessionId, label: `${exerciseName} · set ${vars.setNumber + 1} next` });
-      return onMutated();
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (vars: { id: string; reps: number; weight: number }) =>
-      gqlRequest(UpdateSetMutation, {
-        id: vars.id,
-        set: { reps: vars.reps, weight: vars.weight },
-      }),
-    onSuccess: async () => {
-      await onMutated();
-      setDialog(null);
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => gqlRequest(DeleteSetMutation, { id }),
-    onSuccess: async () => {
-      await onMutated();
-      setDialog(null);
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const isPending =
-    insertMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
+  const { insert, update, remove } = useStrengthSetMutations(
+    workoutSessionExerciseId,
+    onMutated,
+    () => setEditing(null),
+    (setNumber) =>
+      restTimer.start({ sessionId, label: `${exerciseName} · set ${setNumber + 1} next` }),
+  );
+  const isPending = insert.isPending || update.isPending || remove.isPending;
 
   if (!expanded) {
     return (
       <CollapsedExercise
         exerciseName={exerciseName}
-        summary={strengthSummary(sets, lastTime)}
+        primaryMuscle={header.primaryMuscle}
+        image1FileId={header.image1FileId}
+        summary={formatSetsSummary(sets)}
+        caption={
+          formatLastTimeCaption(lastTime?.sets, { hasLoggedSets: sets.length > 0 }) ??
+          (sets.length > 0 ? null : "No sets yet")
+        }
         status={exerciseStatus(sets.length, lastTime?.sets.length)}
         onToggle={onToggle}
       />
     );
   }
 
+  const recent: RecentRow[] = priorSessions.map((entry) => ({
+    id: entry.id,
+    startedAt: entry.startedAt,
+    summary: formatSetsSummary(entry.sets, { style: "compact" }) ?? "—",
+  }));
+
   return (
-    <section aria-label={exerciseName} className="rounded-xl border bg-card">
-      <ExerciseCardHeader
+    <OpenCard name={exerciseName}>
+      <OpenCardHeader
         {...header}
-        meta={doubleWeight ? "weight per side" : undefined}
+        tags={doubleWeight ? <Tag>per side</Tag> : null}
         onCollapse={onToggle}
       />
-      <StrengthSetTable
+      <ExerciseMedia
+        exerciseName={exerciseName}
+        imageIds={[header.image1FileId, header.image2FileId]}
+        recent={recent}
+      />
+      <LoggedSetsTable sets={sets} multiplier={doubleWeight ? 2 : 1} onEdit={setEditing} />
+      <NextSetForm
         sets={sets}
-        lastTime={lastTime}
+        lastTimeSets={lastTime?.sets}
         multiplier={doubleWeight ? 2 : 1}
         nextSetNumber={nextSetNumber}
         isPending={isPending}
-        isLogging={insertMutation.isPending}
-        onEdit={(set) => setDialog({ mode: "edit", set })}
-        onLog={(weight, reps) =>
-          insertMutation.mutateAsync({ setNumber: nextSetNumber, reps, weight })
-        }
+        isLogging={insert.isPending}
+        onLog={(weight, reps) => insert.mutateAsync({ setNumber: nextSetNumber, reps, weight })}
       />
-      <div className="flex flex-col gap-2.5 px-4 pt-3 pb-4">
-        <PriorSessionsSummary entries={priorSessions} doubleWeight={doubleWeight} />
-        <p className="text-[12px] text-muted-foreground">
-          Logging a set starts the rest timer. Tap a logged set to edit or delete it.
-        </p>
-      </div>
+      <CardFootnote>
+        Logging a set starts the rest timer. Tap a logged set to edit or delete it.
+      </CardFootnote>
 
       <SetDialog
-        open={!!dialog}
+        open={!!editing}
         onOpenChange={(open) => {
           if (!open) {
-            setDialog(null);
+            setEditing(null);
           }
         }}
-        mode="edit"
-        editingSet={dialog?.set ?? null}
-        previousSet={lastSet ?? null}
+        editingSet={editing}
         doubleWeight={doubleWeight}
         exerciseName={exerciseName}
-        nextSetNumber={nextSetNumber}
         isPending={isPending}
         onSubmit={({ reps, weight }) => {
-          if (dialog) {
-            updateMutation.mutate({ id: dialog.set.id, reps, weight });
+          if (editing) {
+            update.mutate({ id: editing.id, reps, weight });
           }
         }}
-        onDelete={dialog ? () => deleteMutation.mutate(dialog.set.id) : undefined}
+        onDelete={() => {
+          if (editing) {
+            remove.mutate(editing.id);
+          }
+        }}
       />
-    </section>
-  );
-}
-
-interface StrengthSetTableProps {
-  sets: SetRow[];
-  lastTime: PriorEntry | undefined;
-  multiplier: number;
-  nextSetNumber: number;
-  isPending: boolean;
-  isLogging: boolean;
-  onEdit: (set: SetRow) => void;
-  onLog: (weight: number, reps: number) => Promise<unknown>;
-}
-
-/** Logged sets, then the next set with steppers (Enter or "Log set" logs it). */
-function StrengthSetTable({
-  sets,
-  lastTime,
-  multiplier,
-  nextSetNumber,
-  isPending,
-  isLogging,
-  onEdit,
-  onLog,
-}: StrengthSetTableProps) {
-  const [draft, setDraft] = useState<{ weight: string; reps: string } | null>(null);
-  const lastSet = sets.at(-1);
-  // Suggest this session's previous set, else the matching set from last time.
-  const suggestion = lastSet
-    ? { weight: Number(lastSet.weight), reps: lastSet.reps }
-    : (lastTime?.sets[0] ?? null);
-  const draftWeight = draft?.weight ?? (suggestion ? String(suggestion.weight) : "");
-  const draftReps = draft?.reps ?? (suggestion ? String(suggestion.reps) : "");
-  const previewWeight = parseWeight(draftWeight);
-  const previewReps = parseReps(draftReps);
-  const previewVolume =
-    previewWeight !== null && previewReps !== null
-      ? `${volumeFormat.format(previewWeight * previewReps * multiplier)} kg`
-      : "—";
-
-  function handleLog(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isPending) {
-      return;
-    }
-    if (previewWeight === null) {
-      toast.error("Weight must be a number ≥ 0");
-      return;
-    }
-    if (previewReps === null) {
-      toast.error("Reps must be a whole number ≥ 0");
-      return;
-    }
-    const submitted = { weight: draftWeight, reps: draftReps };
-    onLog(previewWeight, previewReps).then(
-      () =>
-        setDraft((current) =>
-          current === null ||
-          (current.weight === submitted.weight && current.reps === submitted.reps)
-            ? null
-            : current,
-        ),
-      () => undefined,
-    );
-  }
-
-  return (
-    <>
-      {sets.length > 0 ? (
-        <table className="w-full text-sm tabular-nums">
-          <thead>
-            <tr className="text-left text-[12px] text-muted-foreground">
-              <th scope="col" className="w-12 py-2 pl-4 font-medium">
-                Set
-              </th>
-              <th scope="col" className="font-medium">
-                Weight
-              </th>
-              <th scope="col" className="font-medium">
-                Reps
-              </th>
-              <th scope="col" className="hidden font-medium sm:table-cell">
-                Volume
-              </th>
-              <th scope="col" className="font-medium">
-                Last time
-              </th>
-              <th scope="col" className="pr-4">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sets.map((set, index) => {
-              const weight = Number(set.weight);
-              return (
-                <tr
-                  key={set.id}
-                  className="relative h-12 border-t hover:bg-surface-inset focus-within:bg-surface-inset"
-                >
-                  <td className="py-2.5 pl-4 text-muted-foreground">{set.setNumber}</td>
-                  <td className="font-medium">{weightLabel(weight)}</td>
-                  <td className="font-medium">{set.reps}</td>
-                  <td className="hidden text-muted-foreground sm:table-cell">
-                    {volumeFormat.format(weight * set.reps * multiplier)} kg
-                  </td>
-                  <td className="text-muted-foreground">
-                    {formatLastTimeSet(lastTime?.sets[index])}
-                  </td>
-                  <td className="w-14">
-                    {/* One native button spans the row without replacing its table semantics. */}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute inset-0 size-full justify-end rounded-none px-4 text-muted-foreground hover:bg-transparent dark:hover:bg-transparent"
-                      aria-label={`Edit set ${set.setNumber}`}
-                      onClick={() => onEdit(set)}
-                    >
-                      <Pencil />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      ) : null}
-      <form
-        onSubmit={handleLog}
-        aria-label={`Log set ${nextSetNumber}`}
-        className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t bg-surface-inset/70 px-4 py-3"
-      >
-        <div className="flex min-w-24 flex-col">
-          <span className="text-sm font-semibold">Set {nextSetNumber}</span>
-          <span className="text-[12px] text-muted-foreground tabular-nums">
-            Last time {formatLastTimeSet(lastTime?.sets[sets.length])}
-          </span>
-        </div>
-        <NumberStepper
-          label={`Weight in kg for set ${nextSetNumber}`}
-          value={draftWeight}
-          onChange={(weight) => setDraft({ weight, reps: draftReps })}
-          step={2.5}
-          suffix="kg"
-        />
-        <NumberStepper
-          label={`Reps for set ${nextSetNumber}`}
-          value={draftReps}
-          onChange={(reps) => setDraft({ weight: draftWeight, reps })}
-          step={1}
-          decimals={0}
-          inputMode="numeric"
-        />
-        <span className="hidden text-[13px] text-muted-foreground tabular-nums sm:inline">
-          {previewVolume}
-        </span>
-        <Button type="submit" className="ml-auto h-11" disabled={isPending}>
-          {isLogging ? <Loader2 className="animate-spin" /> : null}
-          Log set
-        </Button>
-      </form>
-    </>
-  );
-}
-
-function PriorSessionsSummary({
-  entries,
-  doubleWeight,
-}: {
-  entries: PriorEntry[];
-  doubleWeight: boolean;
-}) {
-  if (entries.length === 0) {
-    return null;
-  }
-  return (
-    <div className="flex flex-col gap-1 rounded-lg bg-surface-inset px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-        <History className="size-3.5" />
-        Recent sessions
-      </p>
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[13px] tabular-nums">
-        {entries.map((entry) => {
-          const hasWeight = entry.sets.some((s) => s.weight > 0);
-          return (
-            <Fragment key={entry.id}>
-              <dt className="text-muted-foreground">{formatPriorDate(entry.startedAt)}</dt>
-              <dd className="min-w-0 truncate">
-                {entry.sets.length === 0 ? (
-                  <span className="text-muted-foreground">no sets</span>
-                ) : (
-                  <>
-                    {entry.sets.map(formatPriorSet).join(", ")}
-                    {doubleWeight && hasWeight ? (
-                      <span className="ml-1 text-muted-foreground">/side</span>
-                    ) : null}
-                  </>
-                )}
-              </dd>
-            </Fragment>
-          );
-        })}
-      </dl>
-    </div>
+    </OpenCard>
   );
 }
 
@@ -1360,12 +1004,10 @@ function EarlierWorkoutSessions({
   if (rows.length === 0) {
     return null;
   }
+  const title = `Earlier ${workoutName} sessions`;
   return (
-    <section
-      aria-label={`Earlier ${workoutName} sessions`}
-      className="rounded-xl border bg-card p-4"
-    >
-      <h3 className="mb-2 text-sm font-semibold">Earlier {workoutName} sessions</h3>
+    <section aria-label={title} className="rounded-xl border bg-card px-4 py-1.5">
+      <h3 className="py-2 text-[13px] font-semibold text-muted-foreground">{title}</h3>
       <ul className="flex flex-col">
         {rows.map((row) => {
           let sets = 0;
@@ -1378,11 +1020,11 @@ function EarlierWorkoutSessions({
             }
           }
           return (
-            <li key={row.id} className="border-t first:border-t-0">
+            <li key={row.id} className="border-t">
               <Link
                 to="/train/sessions/$sessionId"
                 params={{ sessionId: row.id }}
-                className="flex min-h-10 items-center justify-between gap-3 text-sm hover:text-link"
+                className="flex min-h-10 items-center justify-between gap-3 text-sm tabular-nums hover:text-link"
               >
                 <span>
                   {new Date(row.startedAt).toLocaleDateString(undefined, {
@@ -1391,7 +1033,7 @@ function EarlierWorkoutSessions({
                     month: "short",
                   })}
                 </span>
-                <span className="text-muted-foreground tabular-nums">
+                <span className="text-muted-foreground">
                   {sets} {sets === 1 ? "set" : "sets"} · {volumeFormat.format(volume)} kg
                 </span>
               </Link>
@@ -1448,46 +1090,54 @@ function buildPriorCardioMap(
   return map;
 }
 
-function formatPriorDate(iso: string): string {
-  const d = new Date(iso);
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}
-
-function formatPriorSet(s: { reps: number; weight: number }): string {
-  if (s.weight === 0) {
-    return `${s.reps}×BW`;
-  }
-  return `${s.reps}×${s.weight}kg`;
+function AddExercisesDialog({
+  open,
+  onOpenChange,
+  fromWorkout,
+  alreadySelected,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  fromWorkout: boolean;
+  alreadySelected: Set<string>;
+  onConfirm: (picks: PickerSelection[]) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="md:max-w-[520px]">
+        <DialogHeader>
+          <DialogTitle>Add exercises</DialogTitle>
+          <DialogDescription>{addExercisesDescription(fromWorkout)}</DialogDescription>
+        </DialogHeader>
+        <ExercisePicker
+          alreadySelected={alreadySelected}
+          onConfirm={onConfirm}
+          onCancel={() => onOpenChange(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 interface SetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: "add" | "edit";
   editingSet: SetRow | null;
-  previousSet: SetRow | null;
   doubleWeight: boolean;
   exerciseName: string;
-  nextSetNumber: number;
   isPending: boolean;
   onSubmit: (vars: { reps: number; weight: number }) => void;
-  onDelete: (() => void) | undefined;
+  onDelete: () => void;
 }
 
+/** Tap a logged set (Web · Dialogs): weight and reps, Delete, Cancel and Save. */
 function SetDialog({
   open,
   onOpenChange,
-  mode,
   editingSet,
-  previousSet,
   doubleWeight,
   exerciseName,
-  nextSetNumber,
   isPending,
   onSubmit,
   onDelete,
@@ -1496,26 +1146,15 @@ function SetDialog({
   const [reps, setReps] = useState("");
   const weightInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Reset values when dialog opens.
+  // Reset values when the dialog opens.
   useEffect(() => {
-    if (!open) {
+    if (!(open && editingSet)) {
       return;
     }
-    if (mode === "edit" && editingSet) {
-      setWeight(String(Number(editingSet.weight)));
-      setReps(String(editingSet.reps));
-    } else if (previousSet) {
-      setWeight(String(Number(previousSet.weight)));
-      setReps(String(previousSet.reps));
-    } else {
-      setWeight("");
-      setReps("");
-    }
-    // Focus weight input after dialog mounts
+    setWeight(String(Number(editingSet.weight)));
+    setReps(String(editingSet.reps));
     requestAnimationFrame(() => weightInputRef.current?.select());
-  }, [open, mode, editingSet, previousSet]);
-
-  const submitLabel = mode === "edit" ? "Save" : "Log set";
+  }, [open, editingSet]);
 
   function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -1537,21 +1176,15 @@ function SetDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="md:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "edit"
-              ? `Edit set ${editingSet?.setNumber ?? ""}`
-              : `Add set ${nextSetNumber}`}
-          </DialogTitle>
+          <DialogTitle>Edit set {editingSet?.setNumber ?? ""}</DialogTitle>
           <DialogDescription>{exerciseName}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="set-weight" className="text-xs">
-                Weight (kg){doubleWeight ? " · per side" : ""}
-              </Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="set-weight">Weight (kg){doubleWeight ? " · per side" : ""}</Label>
               <Input
                 id="set-weight"
                 ref={weightInputRef}
@@ -1564,10 +1197,8 @@ function SetDialog({
                 placeholder="0"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="set-reps" className="text-xs">
-                Reps
-              </Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="set-reps">Reps</Label>
               <Input
                 id="set-reps"
                 type="number"
@@ -1582,21 +1213,19 @@ function SetDialog({
             </div>
           </div>
           <DialogFooter className="gap-2">
-            {mode === "edit" && onDelete ? (
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:mr-auto"
-                onClick={onDelete}
-                disabled={isPending}
-              >
-                <Trash2 className="mr-1 h-4 w-4" />
-                Delete
-              </Button>
-            ) : null}
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive sm:mr-auto"
+              onClick={onDelete}
+              disabled={isPending}
+            >
+              <Trash2 />
+              Delete
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
             >
@@ -1605,11 +1234,11 @@ function SetDialog({
             <Button type="submit" disabled={isPending}>
               {isPending ? (
                 <>
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  <Loader2 className="animate-spin" />
                   Saving…
                 </>
               ) : (
-                submitLabel
+                "Save"
               )}
             </Button>
           </DialogFooter>
@@ -1638,26 +1267,27 @@ function EditDateDialog({ open, onOpenChange, startedAt, onSave, isPending }: Ed
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="md:max-w-[420px]">
         <DialogHeader>
-          <DialogTitle>Edit session date</DialogTitle>
-          <DialogDescription>Adjust when this session started.</DialogDescription>
+          <DialogTitle>Edit session start</DialogTitle>
+          <DialogDescription>
+            Moves the session in history and in every “Last time” comparison.
+          </DialogDescription>
         </DialogHeader>
-        <div className="space-y-1.5">
-          <Label htmlFor="started-at" className="text-xs">
-            Started at
-          </Label>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="started-at">Started</Label>
           <Input
             id="started-at"
             type="datetime-local"
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            className="tabular-nums"
           />
         </div>
         <DialogFooter className="gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={isPending}
           >
@@ -1670,69 +1300,11 @@ function EditDateDialog({ open, onOpenChange, startedAt, onSave, isPending }: Ed
           >
             {isPending ? (
               <>
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                <Loader2 className="animate-spin" />
                 Saving…
               </>
             ) : (
               "Save"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface ConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description?: string;
-  confirmLabel: string;
-  destructive?: boolean;
-  isPending: boolean;
-  onConfirm: () => void;
-}
-
-function ConfirmDialog({
-  open,
-  onOpenChange,
-  title,
-  description,
-  confirmLabel,
-  destructive,
-  isPending,
-  onConfirm,
-}: ConfirmDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-        <DialogFooter className="gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isPending}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant={destructive ? "destructive" : "default"}
-            onClick={onConfirm}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                Working…
-              </>
-            ) : (
-              confirmLabel
             )}
           </Button>
         </DialogFooter>
@@ -1755,13 +1327,13 @@ function DetailSkeleton() {
       </div>
       <Skeleton className="h-[70px] w-full rounded-xl" />
       {[0, 1, 2].map((i) => (
-        <Skeleton key={i} className="h-14 w-full rounded-xl" />
+        <Skeleton key={i} className="h-[74px] w-full rounded-xl" />
       ))}
     </div>
   );
 }
 
-interface CardioExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | "onCollapse"> {
+interface CardioExerciseLogProps extends CardHeaderInfo {
   workoutSessionExerciseId: string;
   expanded: boolean;
   onToggle: () => void;
@@ -1769,6 +1341,52 @@ interface CardioExerciseLogProps extends Omit<ExerciseCardHeaderProps, "meta" | 
   entries: CardioEntryRow[];
   priorEntries: PriorCardioEntry[];
   onMutated: () => Promise<void>;
+}
+
+function useCardioEntryMutations(
+  workoutSessionExerciseId: string,
+  onMutated: () => Promise<void>,
+  onDone: () => void,
+) {
+  const insert = useMutation({
+    mutationFn: (vars: { entryNumber: number; metrics: CardioMetrics }) =>
+      gqlRequest(InsertCardioEntryMutation, {
+        obj: {
+          workoutSessionExerciseId,
+          entryNumber: vars.entryNumber,
+          metrics: vars.metrics,
+        },
+      }),
+    onSuccess: () => {
+      onMutated();
+      onDone();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const update = useMutation({
+    mutationFn: (vars: { id: string; metrics: CardioMetrics }) =>
+      gqlRequest(UpdateCardioEntryMutation, {
+        id: vars.id,
+        set: { metrics: vars.metrics },
+      }),
+    onSuccess: () => {
+      onMutated();
+      onDone();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: string) => gqlRequest(DeleteCardioEntryMutation, { id }),
+    onSuccess: () => {
+      onMutated();
+      onDone();
+    },
+    onError: (e) => toast.error(`Failed: ${e.message}`),
+  });
+
+  return { insert, update, remove };
 }
 
 function CardioExerciseLog({
@@ -1785,107 +1403,58 @@ function CardioExerciseLog({
   const [dialog, setDialog] = useState<
     { mode: "add" } | { mode: "edit"; entry: CardioEntryRow } | null
   >(null);
-
-  const insertMutation = useMutation({
-    mutationFn: (vars: { entryNumber: number; metrics: CardioMetrics }) =>
-      gqlRequest(InsertCardioEntryMutation, {
-        obj: {
-          workoutSessionExerciseId,
-          entryNumber: vars.entryNumber,
-          metrics: vars.metrics,
-        },
-      }),
-    onSuccess: () => {
-      onMutated();
-      setDialog(null);
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (vars: { id: string; metrics: CardioMetrics }) =>
-      gqlRequest(UpdateCardioEntryMutation, {
-        id: vars.id,
-        set: { metrics: vars.metrics },
-      }),
-    onSuccess: () => {
-      onMutated();
-      setDialog(null);
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => gqlRequest(DeleteCardioEntryMutation, { id }),
-    onSuccess: () => {
-      onMutated();
-      setDialog(null);
-    },
-    onError: (e) => toast.error(`Failed: ${e.message}`),
-  });
-
-  const isPending =
-    insertMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
-
-  const lastEntry = entries[entries.length - 1];
-  const previousMetrics = lastEntry?.metrics ?? null;
-  const nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
-
-  const form = (
-    <CardioMetricsForm
-      open={!!dialog}
-      onOpenChange={(open) => {
-        if (!open) {
-          setDialog(null);
-        }
-      }}
-      mode={dialog?.mode ?? "add"}
-      schema={schema}
-      exerciseName={exerciseName}
-      nextEntryNumber={nextEntryNumber}
-      editingEntryNumber={dialog?.mode === "edit" ? dialog.entry.entryNumber : null}
-      initialMetrics={dialog?.mode === "edit" ? dialog.entry.metrics : null}
-      previousMetrics={previousMetrics}
-      isPending={isPending}
-      onSubmit={(metrics) => {
-        if (dialog?.mode === "edit") {
-          updateMutation.mutate({ id: dialog.entry.id, metrics });
-        } else {
-          insertMutation.mutate({ entryNumber: nextEntryNumber, metrics });
-        }
-      }}
-      {...(dialog?.mode === "edit"
-        ? { onDelete: () => deleteMutation.mutate(dialog.entry.id) }
-        : {})}
-    />
+  const { insert, update, remove } = useCardioEntryMutations(
+    workoutSessionExerciseId,
+    onMutated,
+    () => setDialog(null),
   );
+  const isPending = insert.isPending || update.isPending || remove.isPending;
+
+  const lastEntry = entries.at(-1);
+  const nextEntryNumber = (lastEntry?.entryNumber ?? 0) + 1;
+  const loggedPrior = priorEntries.filter((entry) => entry.entries.length > 0);
 
   if (!expanded) {
-    const summary = cardioSummary(entries, schema);
+    const hasLoggedEntries = entries.length > 0;
     return (
       <CollapsedExercise
         exerciseName={exerciseName}
-        summary={summary}
+        primaryMuscle={header.primaryMuscle}
+        image1FileId={header.image1FileId}
+        summary={summarizeCardioEntries(entries, schema)}
+        caption={
+          cardioLastTimeCaption(loggedPrior[0]?.entries, schema, { hasLoggedEntries }) ??
+          (hasLoggedEntries ? null : "No entries yet")
+        }
         status={exerciseStatus(entries.length, priorEntries[0]?.entries.length)}
         onToggle={onToggle}
       />
     );
   }
 
+  const recent: RecentRow[] = loggedPrior.map((entry) => ({
+    id: entry.id,
+    startedAt: entry.startedAt,
+    summary: summarizeCardioEntries(entry.entries, schema) ?? "—",
+  }));
+
   return (
-    <section aria-label={exerciseName} className="rounded-xl border bg-card">
-      <ExerciseCardHeader {...header} meta="Cardio" onCollapse={onToggle} />
-      <div className="flex flex-col gap-2.5 px-4 pb-4">
-        <CardioEntriesList
-          entries={entries}
-          schema={schema}
-          onSelect={(entry) => setDialog({ mode: "edit", entry })}
-        />
-        <CardioPriorSummary entries={priorEntries} schema={schema} />
+    <OpenCard name={exerciseName}>
+      <OpenCardHeader {...header} tags={<CardioTag />} onCollapse={onToggle} />
+      <ExerciseMedia
+        exerciseName={exerciseName}
+        imageIds={[header.image1FileId, header.image2FileId]}
+        recent={recent}
+      />
+      <CardioEntriesList
+        entries={entries}
+        schema={schema}
+        onSelect={(entry) => setDialog({ mode: "edit", entry })}
+      />
+      <div className="px-4 pt-3 pb-4">
         <Button
           type="button"
           variant="outline"
-          className="self-start"
           onClick={() => setDialog({ mode: "add" })}
           disabled={isPending}
         >
@@ -1893,57 +1462,30 @@ function CardioExerciseLog({
           Add entry
         </Button>
       </div>
-      {form}
-    </section>
-  );
-}
-
-function cardioSummary(entries: CardioEntryRow[], schema: CardioMetricsSchema): string {
-  if (entries.length === 0) {
-    return "No entries yet";
-  }
-  const primary = iterateMetrics(schema)[0];
-  if (!primary) {
-    return `${entries.length} ${entries.length === 1 ? "entry" : "entries"}`;
-  }
-  return entries.map((entry) => formatMetricValue(entry.metrics[primary.key], primary)).join(" · ");
-}
-
-function CardioPriorSummary({
-  entries,
-  schema,
-}: {
-  entries: PriorCardioEntry[];
-  schema: CardioMetricsSchema;
-}) {
-  const filtered = entries.filter((e) => e.entries.length > 0);
-  if (filtered.length === 0) {
-    return null;
-  }
-  const specs = iterateMetrics(schema);
-  const primary = specs[0];
-  if (!primary) {
-    return null;
-  }
-  return (
-    <div className="flex flex-col gap-1 rounded-lg bg-surface-inset px-3 py-2.5">
-      <p className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-        <History className="size-3.5" />
-        Recent sessions
-      </p>
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-0.5 text-[13px] tabular-nums">
-        {filtered.map((entry) => {
-          const summary = entry.entries
-            .map((e) => formatMetricValue(e.metrics[primary.key], primary))
-            .join(", ");
-          return (
-            <Fragment key={entry.id}>
-              <dt className="text-muted-foreground">{formatPriorDate(entry.startedAt)}</dt>
-              <dd className="min-w-0 truncate">{summary}</dd>
-            </Fragment>
-          );
-        })}
-      </dl>
-    </div>
+      <CardioMetricsForm
+        open={!!dialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialog(null);
+          }
+        }}
+        mode={dialog?.mode ?? "add"}
+        schema={schema}
+        exerciseName={exerciseName}
+        nextEntryNumber={nextEntryNumber}
+        editingEntryNumber={dialog?.mode === "edit" ? dialog.entry.entryNumber : null}
+        initialMetrics={dialog?.mode === "edit" ? dialog.entry.metrics : null}
+        previousMetrics={lastEntry?.metrics ?? null}
+        isPending={isPending}
+        onSubmit={(metrics) => {
+          if (dialog?.mode === "edit") {
+            update.mutate({ id: dialog.entry.id, metrics });
+          } else {
+            insert.mutate({ entryNumber: nextEntryNumber, metrics });
+          }
+        }}
+        {...(dialog?.mode === "edit" ? { onDelete: () => remove.mutate(dialog.entry.id) } : {})}
+      />
+    </OpenCard>
   );
 }

@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { fileURLToPath } from "node:url";
 
-test("Progress charts announce endpoint trends without hiding keyboard access", () => {
+test("Progress charts announce their trends without hiding keyboard access", () => {
   const result = Bun.spawnSync(
     [
       process.execPath,
@@ -16,6 +16,6 @@ test("Progress charts announce endpoint trends without hiding keyboard access", 
     output: result.stdout.toString() + result.stderr.toString(),
   }).toEqual({
     exitCode: 0,
-    output: "All four Progress sections expose endpoint trends and retain chart keyboard access.\n",
+    output: "Progress charts announce their trends and retain chart keyboard access.\n",
   });
 }, 30_000);

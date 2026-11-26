@@ -58,11 +58,21 @@ export function StatTile({
   );
 }
 
+/**
+ * Meter fills. Macros keep their own colours: protein the accent fill, carbs
+ * the Carbs token, fat the secondary text colour. `orange` and `neutral` are
+ * the older names for the carbs and fat fills.
+ */
 const TONE_CLASS = {
   accent: "bg-primary",
-  orange: "bg-chart-2",
-  neutral: "bg-chart-3",
+  protein: "bg-primary",
+  carbs: "bg-carbs",
+  fat: "bg-muted-foreground",
+  orange: "bg-carbs",
+  neutral: "bg-muted-foreground",
 } as const;
+
+export type MeterTone = keyof typeof TONE_CLASS;
 
 /** Labelled horizontal meter (e.g. protein eaten vs planned). */
 export function MeterBar({
@@ -76,7 +86,7 @@ export function MeterBar({
   value: number;
   max: number | null;
   valueLabel: ReactNode;
-  tone?: keyof typeof TONE_CLASS;
+  tone?: MeterTone;
 }) {
   const percent = max && max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0;
   return (
@@ -116,65 +126,22 @@ export function RingMeter({
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} viewBox="0 0 104 104" role="img" aria-label={label}>
         <circle cx="52" cy="52" r={radius} fill="none" stroke="var(--muted)" strokeWidth="10" />
-        <circle
-          cx="52"
-          cy="52"
-          r={radius}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={`${ratio * circumference} ${circumference}`}
-          transform="rotate(-90 52 52)"
-        />
+        {/* A zero-length round-capped dash still paints a dot, so skip the arc at 0. */}
+        {ratio > 0 ? (
+          <circle
+            cx="52"
+            cy="52"
+            r={radius}
+            fill="none"
+            stroke="var(--link)"
+            strokeWidth="10"
+            strokeLinecap="round"
+            strokeDasharray={`${ratio * circumference} ${circumference}`}
+            transform="rotate(-90 52 52)"
+          />
+        ) : null}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">{center}</div>
     </div>
-  );
-}
-
-/** Minimal trend line; values are plotted left to right in order. */
-export function Sparkline({
-  values,
-  label,
-  className,
-}: {
-  values: number[];
-  label: string;
-  className?: string;
-}) {
-  if (values.length < 2) {
-    return null;
-  }
-  const width = 160;
-  const height = 48;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
-  const points = values
-    .map((value, index) => {
-      const x = 2 + (index * (width - 4)) / (values.length - 1);
-      const y = height - 4 - ((value - min) / range) * (height - 8);
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      width={width}
-      height={height}
-      role="img"
-      aria-label={label}
-      className={className}
-    >
-      <polyline
-        points={points}
-        fill="none"
-        stroke="var(--chart-1)"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

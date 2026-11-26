@@ -1,178 +1,109 @@
-import {
-  Area,
-  CartesianGrid,
-  ComposedChart,
-  Legend,
-  Line,
-  ResponsiveContainer,
-  Tooltip,
-  type TooltipContentProps,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { describeTrend } from "@/lib/chart-trend";
+import type { ReactNode } from "react";
+import { TrendChart } from "@/components/charts/trend-chart";
+import type { EnergyTrend } from "@/lib/energy-trend";
+import { formatKcal, formatKcalNumber, metricFormat } from "@/lib/metric-format";
 
-export interface DailyEnergyPoint {
-  /** ms since epoch — recharts time-scale axis */
-  date: number;
-  activeKcal: number | null;
-  restingKcal: number | null;
+/** "Average out · 29 full days"; just "Average out" before any full day. */
+export function averageOutLabel(fullDayCount: number): string {
+  if (fullDayCount === 0) {
+    return "Average out";
+  }
+  return `Average out · ${fullDayCount} full ${fullDayCount === 1 ? "day" : "days"}`;
 }
 
-interface DailyEnergyChartProps {
-  points: DailyEnergyPoint[];
-}
-
-const ACTIVE_COLOR = "var(--color-chart-2)";
-const RESTING_COLOR = "var(--color-chart-1)";
-
-export function DailyEnergyChart({ points }: DailyEnergyChartProps) {
-  const label = [
-    describeTrend(
-      points.map((point) => ({ date: point.date, value: point.activeKcal })),
-      { label: "Active energy", unit: "kcal" },
-    ),
-    describeTrend(
-      points.map((point) => ({ date: point.date, value: point.restingKcal })),
-      { label: "Resting energy", unit: "kcal" },
-    ),
-  ].join(" ");
-  const formatTick = (value: number) =>
-    new Date(value).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-
+/**
+ * Energy out per day (Progress › Energy): active (Chart 2, orange) and resting
+ * (Chart 1, blue) lines with a dot per day from zero; today's partial row is a
+ * dashed segment to open dots.
+ */
+export function DailyEnergyChart({
+  trend,
+  domain,
+}: {
+  trend: EnergyTrend;
+  domain: { start: string; end: string };
+}) {
   return (
-    <div className="h-56 w-full">
-      <ResponsiveContainer>
-        <ComposedChart
-          data={points}
-          aria-label={label}
-          margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
-        >
-          <CartesianGrid stroke="var(--color-border)" strokeOpacity={0.4} vertical={false} />
-          <XAxis
-            dataKey="date"
-            type="number"
-            scale="time"
-            domain={["dataMin", "dataMax"]}
-            tickFormatter={formatTick}
-            tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-            tickLine={false}
-            axisLine={false}
-            minTickGap={32}
-            interval="preserveStartEnd"
-            height={20}
-          />
-          <YAxis
-            domain={[0, "auto"]}
-            tick={{ fontSize: 10, fill: "var(--color-muted-foreground)" }}
-            tickLine={false}
-            axisLine={false}
-            width={44}
-          />
-          <Tooltip
-            cursor={{
-              stroke: "var(--color-muted-foreground)",
-              strokeOpacity: 0.4,
-              strokeDasharray: "3 3",
-            }}
-            content={<EnergyTooltip />}
-          />
-          <Legend content={<EnergyLegend />} />
-          <Area
-            name="Active (kcal)"
-            type="monotone"
-            dataKey="activeKcal"
-            fill={ACTIVE_COLOR}
-            fillOpacity={0.25}
-            // Orange is fill-only: a neutral outline keeps the trend legible in light mode.
-            stroke="var(--color-muted-foreground)"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{
-              r: 3.5,
-              fill: ACTIVE_COLOR,
-              stroke: "var(--color-muted-foreground)",
-              strokeWidth: 2,
-            }}
-            connectNulls
-            isAnimationActive={false}
-          />
-          <Line
-            name="Resting (kcal)"
-            type="monotone"
-            dataKey="restingKcal"
-            stroke={RESTING_COLOR}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{
-              r: 3.5,
-              fill: RESTING_COLOR,
-              stroke: "var(--color-background)",
-              strokeWidth: 2,
-            }}
-            connectNulls
-            isAnimationActive={false}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
-    </div>
+    <TrendChart
+      title="Active and resting energy per day"
+      domain={domain}
+      height={240}
+      axes={{ left: { includeZero: true } }}
+      series={[
+        {
+          id: "active",
+          name: "Active",
+          legendLabel: "Active (kcal)",
+          color: "chart-2",
+          points: trend.active,
+          format: metricFormat.kcal,
+        },
+        {
+          id: "resting",
+          name: "Resting",
+          legendLabel: "Resting (kcal)",
+          color: "chart-1",
+          points: trend.resting,
+          format: metricFormat.kcal,
+        },
+      ]}
+    />
   );
 }
 
-function EnergyLegend() {
+/**
+ * The Energy trend card: "Average out" over the window's full days with its
+ * resting and active split (today stays out), the period control, the chart
+ * and, when today has a row, the partial-day caption.
+ */
+export function EnergyTrendSummary({
+  trend,
+  domain,
+  periodControl,
+}: {
+  trend: EnergyTrend;
+  domain: { start: string; end: string };
+  periodControl: ReactNode;
+}) {
+  const kcal = (value: number | null) => (value === null ? "—" : formatKcal(value));
   return (
-    <ul className="flex justify-center gap-3 pt-1 text-[11px] text-foreground">
-      <li className="inline-flex items-center gap-1">
-        <span
-          aria-hidden="true"
-          className="h-2.5 w-3.5 border border-muted-foreground"
-          style={{ backgroundColor: ACTIVE_COLOR }}
-        />
-        Active (kcal)
-      </li>
-      <li className="inline-flex items-center gap-1">
-        <span
-          aria-hidden="true"
-          className="w-3.5 border-t-2"
-          style={{ borderColor: RESTING_COLOR }}
-        />
-        Resting (kcal)
-      </li>
-    </ul>
-  );
-}
-
-function EnergyTooltip({ active, payload }: Partial<TooltipContentProps<number, string>>) {
-  if (!active || !payload || payload.length === 0) {
-    return null;
-  }
-  const point = payload[0]?.payload as DailyEnergyPoint | undefined;
-  if (!point) {
-    return null;
-  }
-  const date = new Date(point.date);
-  return (
-    <div className="space-y-0.5 rounded-md border border-border bg-popover/95 px-2.5 py-1.5 text-xs shadow-md">
-      <p className="text-muted-foreground">
-        {date.toLocaleDateString(undefined, {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        })}
-      </p>
-      {point.activeKcal === null ? null : (
-        <p className="font-medium text-popover-foreground tabular-nums">
-          <span className="text-muted-foreground">Active: </span>
-          {point.activeKcal.toFixed(0)} kcal
+    <>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <dl className="m-0 flex flex-wrap gap-x-9 gap-y-3 tabular-nums">
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-[13px] text-muted-foreground">
+              {averageOutLabel(trend.fullDayCount)}
+            </dt>
+            <dd className="text-[28px] leading-tight font-semibold">
+              {trend.averageOut === null ? "—" : `${formatKcalNumber(trend.averageOut)} kcal`}
+              {trend.averageOut === null ? null : (
+                <span className="text-sm font-medium text-muted-foreground"> / day</span>
+              )}
+            </dd>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-[13px] text-muted-foreground">Resting</dt>
+            <dd className="text-lg font-semibold">{kcal(trend.averageResting)}</dd>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <dt className="text-[13px] text-muted-foreground">Active</dt>
+            <dd className="text-lg font-semibold">{kcal(trend.averageActive)}</dd>
+          </div>
+        </dl>
+        {periodControl}
+      </div>
+      {trend.days.length > 0 ? (
+        <DailyEnergyChart trend={trend} domain={domain} />
+      ) : (
+        <p className="flex h-[240px] items-center justify-center rounded-lg bg-surface-inset px-3 text-center text-sm text-muted-foreground">
+          No energy recorded in this period.
         </p>
       )}
-      {point.restingKcal === null ? null : (
-        <p className="font-medium text-popover-foreground tabular-nums">
-          <span className="text-muted-foreground">Resting: </span>
-          {point.restingKcal.toFixed(0)} kcal
+      {trend.today ? (
+        <p className="text-xs text-muted-foreground">
+          Today so far is the open dot after the dashed line.
         </p>
-      )}
-    </div>
+      ) : null}
+    </>
   );
 }

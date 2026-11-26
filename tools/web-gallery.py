@@ -22,8 +22,14 @@ def read_json(path):
 
 
 REGISTRY = read_json(REPO / "frontend/scripts/gallery/catalog.json")
+FIXTURE = read_json(REPO / "frontend/scripts/gallery/profile.json")
 AREAS = [("getting-started", "Getting started"), ("today", "Today"), ("train", "Train"),
          ("nutrition", "Nutrition"), ("progress", "Progress"), ("me", "Me")]
+
+
+def frame_names(workflow, profile):
+    override = workflow.get("layoutOverrides", {}).get(profile, {})
+    return override.get("frames", workflow["frames"])
 
 
 def layout():
@@ -49,7 +55,10 @@ def layout():
                                      "title": action.capitalize() + " a journal entry · " + profile,
                                      "images": [source + "-" + name for name in names]})
                 else:
-                    rows.append({"id": source, "source": source, "context": []})
+                    override = workflow.get("layoutOverrides", {}).get(profile, {})
+                    names = ([profile + "-" + frame for frame in override.get("context", [])]
+                             + [source + "-" + frame for frame in frame_names(workflow, profile)])
+                    rows.append({"id": source, "source": source, "images": names})
         sections.append((area, title, rows))
     return sections
 
@@ -62,7 +71,7 @@ def required_frames():
             result[source] = [source + "-root"]
         for workflow in REGISTRY["workflows"]:
             source = profile + "-" + workflow["id"]
-            result[source] = [source + "-" + frame for frame in workflow["frames"]]
+            result[source] = [source + "-" + frame for frame in frame_names(workflow, profile)]
     return result
 
 
@@ -74,8 +83,13 @@ def validate_catalog(output):
     if manifest.get("lastRun", {}).get("status") != "passed":
         raise ValueError("The latest capture attempt did not finish successfully")
     profile = manifest.get("captureProfile", {})
-    if profile.get("version") != 1 or profile.get("viewports") != REGISTRY["profiles"]:
-        raise ValueError("Unknown capture profile or viewport dimensions")
+    if (profile.get("version") != FIXTURE["version"]
+            or profile.get("fixtureVersion") != FIXTURE["fixtureVersion"]
+            or profile.get("fixtureDate") != FIXTURE["now"][:10]
+            or profile.get("fixedBrowserTime") != FIXTURE["now"]
+            or profile.get("rasterArgs") != FIXTURE["rasterArgs"]
+            or profile.get("viewports") != REGISTRY["profiles"]):
+        raise ValueError("Unknown fixed capture profile or viewport dimensions")
     workflows = {row["id"]: row for row in manifest["workflows"]}
     images = {row["id"]: row for row in manifest["screenshots"]}
     if len(workflows) != len(manifest["workflows"]) or len(images) != len(manifest["screenshots"]):
@@ -91,6 +105,10 @@ def validate_catalog(output):
         for name in names:
             if name not in images or images[name]["workflow"] != source:
                 raise ValueError("Missing or misassigned screenshot: " + name)
+    extra_workflows = workflows.keys() - required.keys()
+    extra_frames = images.keys() - {name for names in required.values() for name in names}
+    if extra_workflows or extra_frames:
+        raise ValueError("Unregistered workflows or frames: " + ", ".join(sorted(extra_workflows | extra_frames)))
     files = set()
     for name, image in images.items():
         if not re.fullmatch(r"[a-z0-9-]+", name) or image["file"] != "screenshots/" + name + ".png":
@@ -151,12 +169,12 @@ Desktop (1440 × 1000) and mobile (390 × 844) are separate walkthroughs, not re
 <p class="muted">Scroll each strip sideways. Click a frame for its original PNG. Shared context frames retain
 their original provenance and are marked “Reused view”. Browser viewport captures omit browser chrome.</p>
 <details><summary>Scope, evidence and limitations</summary>
-<p>The real frontend talks to local Nhost with fictional, private fixture data and a new account per layout.
-No production sessions, public-data writes or database resets are used. Fonts are pinned locally for capture.
-Application, Auth and server clocks remain real; history is relative to the manifest's fixture date.</p>
-<p>This initial catalog covers all 14 web section roots and representative strength logging, nutrition logging,
-journal CRUD and appearance workflows. It is not exhaustive CRUD, state, tablet or browser compatibility coverage.
-Progress Overview and native Health/Watch actions are not implemented on the web.</p>
+<p>The real frontend talks to local Nhost. Each layout resets only its reserved fictional gallery account and
+private fixtures. No production sessions, shared-data writes or database resets are used. Fonts, the browser's
+application date and the seeded history are pinned; Auth, database and provenance clocks remain real.</p>
+<p>The catalog covers every web section root and representative OTP verification, Today summaries, session logging
+and editing, exercise details, nutrition logging and editing, progress charts, journal CRUD and appearance workflows.
+It is not exhaustive CRUD, state, tablet or browser compatibility coverage. Health/Watch actions remain native-only.</p>
 <p>“Apple Health” markers are fictional fixture notes demonstrating read-only source presentation, not evidence of an import.
 Recorded backend checks do not replace the backend permission/integrity suite. Offline validation verifies retained
 evidence and file integrity; it does not rerun browser workflows.</p>
@@ -187,14 +205,21 @@ def render_workflows(output, manifest):
     lines = ["# Recorded web walkthroughs", "", "Generated from `capture-manifest.json`; do not edit by hand.", "",
              "[Gallery](gallery.html) · [Capture instructions](capture.md)", "",
              "These are retained results, not a new run of the browser workflows."]
+    row_frames = {}
+    for _, _, rows in layout():
+        for row in rows:
+            row_frames.setdefault(row["source"], set()).update(row.get("images", []))
     for workflow in manifest["workflows"]:
-        lines += ["", '<a id="' + html.escape(workflow["id"], quote=True) + '"></a>', "",
+        identifier = workflow["id"]
+        lines += ["", '<a id="' + html.escape(identifier, quote=True) + '"></a>', "",
                   "## " + workflow["title"], "", "**Status:** " + workflow["status"], ""]
         lines += [str(index) + ". " + step for index, step in enumerate(workflow["steps"], 1)]
         lines += ["", "**Verified outcomes**", ""] + ["- " + check for check in workflow["checks"]]
         lines += ["", "**Screenshots**", ""] + [
             "- [" + image["title"] + "](" + image["file"] + ")"
-            for image in manifest["screenshots"] if image["workflow"] == workflow["id"]]
+            + (" (reused view)" if image["workflow"] != identifier else "")
+            for image in manifest["screenshots"]
+            if image["workflow"] == identifier or image["id"] in row_frames[identifier]]
     (Path(output) / "workflows.md").write_text("\n".join(lines) + "\n")
 
 
@@ -209,8 +234,9 @@ def main():
         document = SHARED["render_gallery_html"](manifest, layout(), PAGE, frame_width=440, image_ratio=None)
         (args.output / "gallery.html").write_text(document)
         render_workflows(args.output, manifest)
-    print("Validated {} PNGs, {} passing walkthroughs, {} visual rows; 14 roots × 2 layouts.".format(
-        len(manifest["screenshots"]), len(manifest["workflows"]), rows))
+    print("Validated {} PNGs, {} passing walkthroughs, {} visual rows; {} roots × {} layouts.".format(
+        len(manifest["screenshots"]), len(manifest["workflows"]), rows,
+        len(REGISTRY["roots"]), len(REGISTRY["profiles"])))
 
 
 if __name__ == "__main__":

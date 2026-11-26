@@ -2,28 +2,32 @@ import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight, Play } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
-import {
-  MeterBar,
-  RingMeter,
-  SectionCard,
-  Sparkline,
-  StatTile,
-} from "@/components/patterns/metrics";
-import { PageHeader, PageShell } from "@/components/patterns/page-shell";
+import { ChartSwatch } from "@/components/charts/chart-legend";
+import { TrendChart, type TrendChartProps } from "@/components/charts/trend-chart";
+import type { ChartColor } from "@/components/charts/trend-chart-model";
+import { MeterBar, RingMeter, SectionCard, StatTile } from "@/components/patterns/metrics";
+import { ActionLabel, PageHeader, PageShell } from "@/components/patterns/page-shell";
 import { ErrorState } from "@/components/patterns/query-states";
 import { TodayEnergyEstimate } from "@/components/today-energy-estimate";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import type { TodayOverviewQuery as TodayOverviewData } from "@/gql/graphql";
-import { describeTrend } from "@/lib/chart-trend";
-import { formatDateShort, parseDateOnly } from "@/lib/dates";
+import { type BodyMetricTrend, buildBodyTrend } from "@/lib/body-trend";
+import { parseDateOnly } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import {
+  formatChartDate,
+  formatKcal,
+  formatKcalNumber,
+  formatSignedKcal,
+  metricFormat,
+} from "@/lib/metric-format";
 import { useAuth } from "@/lib/nhost/auth-provider";
 import {
   addLocalDateDays,
+  formatWholeGrams,
   groupPlanEntriesByTimeSlot,
-  localDateToDate,
   loggedMacroTotals,
   mergePlanEntriesByTime,
   normalizeNumeric,
@@ -31,12 +35,18 @@ import {
   timeToInputValue,
 } from "@/lib/nutrition";
 import { sessionDisplayName } from "@/lib/sessions";
+import { formatSetsSummary } from "@/lib/set-summary";
+import {
+  bodyWeekSummary,
+  energySplitLabel,
+  todayBalanceCaption,
+  todayBalanceSoFar,
+} from "@/lib/today-summary";
 import { useLocalToday } from "@/lib/use-local-today";
 
 const TodayOverviewQuery = graphql(`
   query TodayOverview(
     $today: date!
-    $yesterday: date!
     $bodySince: date!
     $dayStart: timestamptz!
     $dayEnd: timestamptz!
@@ -150,18 +160,11 @@ const TodayOverviewQuery = graphql(`
         snapshotSugarPer100g
       }
     }
-    yesterdayNutrition: nutritionDays(where: { logDate: { _eq: $yesterday } }, limit: 1) {
-      id
-      nutritionLogEntries {
-        id
-        grams
-        snapshotKcalPer100g
-      }
-    }
-    yesterdayEnergy: dailyEnergyEntries(where: { energyOn: { _eq: $yesterday } }, limit: 1) {
+    todayEnergy: dailyEnergyEntries(where: { energyOn: { _eq: $today } }, limit: 1) {
       id
       activeKcal
       restingKcal
+      updatedAt
     }
     bodyMeasurements(where: { measuredOn: { _gte: $bodySince } }, order_by: { measuredOn: asc }) {
       id
@@ -178,11 +181,8 @@ export const Route = createFileRoute("/_authed/today")({
 
 type Overview = TodayOverviewData;
 
-const kcalFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
-const signedKcalFormat = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 0,
-  signDisplay: "exceptZero",
-});
+/** Body readings plotted on Today: the last 21 local dates (three weeks). */
+const BODY_WINDOW_DAYS = 21;
 
 function overviewVariables(today: string) {
   const start = parseDateOnly(today) ?? new Date();
@@ -192,8 +192,7 @@ function overviewVariables(today: string) {
   weekStart.setDate(weekStart.getDate() - 6);
   return {
     today,
-    yesterday: addLocalDateDays(today, -1),
-    bodySince: addLocalDateDays(today, -20),
+    bodySince: addLocalDateDays(today, 1 - BODY_WINDOW_DAYS),
     dayStart: start.toISOString(),
     dayEnd: end.toISOString(),
     weekStart: weekStart.toISOString(),
@@ -208,6 +207,7 @@ function TodayRoute() {
     queryKey: ["today", "overview", today, user?.id],
     queryFn: () => gqlRequest(TodayOverviewQuery, variables),
     enabled: !!user,
+    // Revalidate on every visit, even inside the app-wide freshness window.
     refetchOnMount: "always",
   });
 
@@ -232,8 +232,8 @@ function TodayRoute() {
             </Button>
             <Button asChild>
               <Link to="/train/workouts">
-                <Play />
-                Start session
+                <Play className="size-3 fill-current" />
+                <ActionLabel>Start session</ActionLabel>
               </Link>
             </Button>
           </>
@@ -241,22 +241,16 @@ function TodayRoute() {
       />
 
       {query.error ? (
-        <div className="space-y-3">
-          <ErrorState title="Couldn't load today" message={query.error.message} />
-          <Button
-            type="button"
-            variant="outline"
-            className="min-h-11"
-            disabled={query.isFetching}
-            onClick={() => void query.refetch()}
-          >
-            Retry
-          </Button>
-        </div>
+        <ErrorState
+          title="Couldn't load today"
+          message={query.error.message}
+          onRetry={() => void query.refetch()}
+          isRetrying={query.isFetching}
+        />
       ) : null}
 
       {data || query.isPending ? (
-        <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(440px,100%),1fr))] items-start gap-5">
           <div className="flex min-w-0 flex-col gap-5">
             {data ? <TrainingCard data={data} /> : <CardSkeleton title="Training" />}
             {data ? <BodyCard data={data} today={today} /> : <CardSkeleton title="Body" />}
@@ -267,7 +261,11 @@ function TodayRoute() {
             ) : (
               <CardSkeleton title="Nutrition" />
             )}
-            {data ? <BalanceCard data={data} /> : <CardSkeleton title="Balance" />}
+            {data ? (
+              <BalanceCard data={data} userId={user?.id} />
+            ) : (
+              <CardSkeleton title="Balance" />
+            )}
           </div>
         </div>
       ) : null}
@@ -291,22 +289,11 @@ type TodaySession = Overview["todaySessions"][number];
 type TodaySessionExercise = TodaySession["workoutSessionExercises"][number];
 
 function setSummary(row: TodaySessionExercise): string {
-  const sets = row.workoutSessionStrengthSets;
   if (row.exercise.kind === "cardio") {
     const count = row.workoutSessionCardioEntries_aggregate.aggregate?.count ?? 0;
     return `${count} ${count === 1 ? "entry" : "entries"}`;
   }
-  if (sets.length === 0) {
-    return "No sets yet";
-  }
-  const weightLabel = (weight: number) => (weight === 0 ? "BW" : `${weight} kg`);
-  const weights = sets.map((set) => normalizeNumeric(set.weight));
-  if (weights.every((weight) => weight === weights[0])) {
-    return `${weightLabel(weights[0] ?? 0)} × ${sets.map((set) => set.reps).join(" · ")}`;
-  }
-  return sets
-    .map((set) => `${weightLabel(normalizeNumeric(set.weight))} × ${set.reps}`)
-    .join(" · ");
+  return formatSetsSummary(row.workoutSessionStrengthSets) ?? "No sets yet";
 }
 
 function sessionTotals(session: TodaySession) {
@@ -335,13 +322,17 @@ function TrainingCard({ data }: { data: Overview }) {
 
   if (data.todaySessions.length === 0) {
     return (
-      <SectionCard title="Training" link={{ label: "Sessions", to: "/train/sessions" }}>
+      <SectionCard
+        title="Training"
+        aria-label="Training"
+        link={{ label: "Sessions", to: "/train/sessions" }}
+      >
         <p className="text-sm text-muted-foreground">No session logged yet today.</p>
         {latest ? (
           <Link
             to="/train/sessions/$sessionId"
             params={{ sessionId: latest.id }}
-            className="flex items-center justify-between gap-3 rounded-lg bg-surface-inset px-3 py-2.5 text-sm hover:bg-muted"
+            className="flex items-center justify-between gap-3 rounded-[10px] bg-surface-inset px-3 py-2.5 text-sm hover:bg-muted"
           >
             <span className="min-w-0">
               <span className="text-muted-foreground">Last: </span>
@@ -369,52 +360,71 @@ function TrainingCard({ data }: { data: Overview }) {
   }
 
   return (
-    <SectionCard title="Training" link={{ label: "Sessions", to: "/train/sessions" }}>
-      {data.todaySessions.map((session) => {
-        const totals = sessionTotals(session);
-        const name = sessionDisplayName({
-          workoutName: session.workout?.name,
-          exerciseNames: session.workoutSessionExercises.map((row) => row.exercise.name),
-        });
-        return (
-          <div key={session.id} className="flex flex-col gap-4">
-            <Link
-              to="/train/sessions/$sessionId"
-              params={{ sessionId: session.id }}
-              className="group flex items-center gap-3"
-            >
-              <span className="min-w-0 flex-1">
-                <strong className="block truncate text-[15px] font-semibold">{name}</strong>
-                <span className="text-[13px] text-muted-foreground tabular-nums">
-                  {timeLabel(session.startedAt)} · {session.workoutSessionExercises.length}{" "}
-                  {session.workoutSessionExercises.length === 1 ? "exercise" : "exercises"}
-                </span>
-              </span>
-              <ChevronRight className="size-4 text-chart-muted transition-colors group-hover:text-foreground" />
-            </Link>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-              <StatTile label="Sets" value={totals.sets} />
-              <StatTile label="Reps" value={totals.reps} />
-              <StatTile label="Volume" value={`${kcalFormat.format(totals.volume)} kg`} />
-              <StatTile label="Last 7 days" value={recentCountLabel} />
-            </div>
-            <ul className="flex flex-col">
-              {session.workoutSessionExercises.map((row) => (
-                <li
-                  key={row.id}
-                  className="flex min-h-9 items-center justify-between gap-3 border-t text-sm"
-                >
-                  <span className="min-w-0 truncate">{row.exercise.name}</span>
-                  <span className="shrink-0 text-muted-foreground tabular-nums">
-                    {setSummary(row)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        );
-      })}
+    <SectionCard
+      title="Training"
+      aria-label="Training"
+      link={{ label: "Sessions", to: "/train/sessions" }}
+    >
+      {data.todaySessions.map((session) => (
+        <TrainingSession key={session.id} session={session} recentCountLabel={recentCountLabel} />
+      ))}
     </SectionCard>
+  );
+}
+
+function TrainingSession({
+  session,
+  recentCountLabel,
+}: {
+  session: TodaySession;
+  recentCountLabel: string;
+}) {
+  const totals = sessionTotals(session);
+  const name = sessionDisplayName({
+    workoutName: session.workout?.name,
+    exerciseNames: session.workoutSessionExercises.map((row) => row.exercise.name),
+  });
+  const exerciseCount = session.workoutSessionExercises.length;
+  return (
+    <div className="flex flex-col gap-4">
+      <Link
+        to="/train/sessions/$sessionId"
+        params={{ sessionId: session.id }}
+        className="group flex items-center gap-3"
+      >
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <strong className="truncate text-[15px] font-semibold">{name}</strong>
+          <span className="text-[13px] text-muted-foreground tabular-nums">
+            {timeLabel(session.startedAt)} · {exerciseCount}{" "}
+            {exerciseCount === 1 ? "exercise" : "exercises"}
+          </span>
+        </span>
+        <ChevronRight
+          aria-hidden="true"
+          className="size-4 text-chart-muted transition-colors group-hover:text-foreground"
+        />
+      </Link>
+      {/* Four tiles once the card has room for "12,435 kg", else two by two. */}
+      <div className="@container">
+        <div className="grid grid-cols-2 gap-2.5 @[30rem]:grid-cols-4">
+          <StatTile label="Sets" value={totals.sets} />
+          <StatTile label="Reps" value={totals.reps} />
+          <StatTile label="Volume" value={metricFormat.volume(totals.volume)} />
+          <StatTile label="Last 7 days" value={recentCountLabel} />
+        </div>
+      </div>
+      <ul className="flex flex-col">
+        {session.workoutSessionExercises.map((row) => (
+          <li
+            key={row.id}
+            className="flex min-h-9 items-center justify-between gap-3 border-t text-sm"
+          >
+            <span className="min-w-0 truncate">{row.exercise.name}</span>
+            <span className="shrink-0 text-muted-foreground tabular-nums">{setSummary(row)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -426,14 +436,8 @@ function currentTimeKey() {
   return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
-function NutritionCard({ data, today }: { data: Overview; today: string }) {
-  const day = data.todayNutrition[0];
-  const eaten = loggedMacroTotals(day?.nutritionLogEntries ?? []);
-  const plan = day?.nutritionPlan ?? null;
-  const planEntries = plan
-    ? mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods)
-    : [];
-  const planned = plan ? planEntriesMacroTotals(planEntries) : null;
+/** The local HH:MM, updated once a minute and when the page regains focus or visibility. */
+function useClockMinute() {
   const [now, setNow] = useState(currentTimeKey);
   useEffect(() => {
     const update = () => setNow(currentTimeKey());
@@ -447,21 +451,40 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
       document.removeEventListener("visibilitychange", update);
     };
   }, []);
+  return now;
+}
+
+function NutritionCard({ data, today }: { data: Overview; today: string }) {
+  const day = data.todayNutrition[0];
+  const eaten = loggedMacroTotals(day?.nutritionLogEntries ?? []);
+  const plan = day?.nutritionPlan ?? null;
+  const planEntries = plan
+    ? mergePlanEntriesByTime(plan.nutritionPlanMeals, plan.nutritionPlanFoods)
+    : [];
+  const planned = plan ? planEntriesMacroTotals(planEntries) : null;
+  const now = useClockMinute();
   const nextSlot = plan
     ? groupPlanEntriesByTimeSlot(planEntries).find(
         (slot) => timeToInputValue(slot.sortKey) !== "" && slot.sortKey > now,
       )
     : undefined;
 
-  const target = (value: number) => (planned ? ` / ${kcalFormat.format(value)} g` : " g");
+  const grams = (value: number, target: number | undefined) =>
+    planned
+      ? `${formatWholeGrams(value)} / ${formatWholeGrams(target ?? 0)} g`
+      : `${formatWholeGrams(value)} g`;
 
   return (
     <SectionCard
+      aria-label="Nutrition"
       title={
         <>
           Nutrition
           {plan ? (
-            <span className="font-medium text-muted-foreground"> · plan {plan.name}</span>
+            <span className="text-[13px] font-medium text-muted-foreground">
+              {" "}
+              · plan {plan.name}
+            </span>
           ) : null}
         </>
       }
@@ -473,16 +496,16 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
           max={planned?.kcal ?? null}
           label={
             planned
-              ? `${kcalFormat.format(eaten.kcal)} of ${kcalFormat.format(planned.kcal)} planned kilocalories`
-              : `${kcalFormat.format(eaten.kcal)} kilocalories logged`
+              ? `${formatKcalNumber(eaten.kcal)} of ${formatKcalNumber(planned.kcal)} planned kilocalories`
+              : `${formatKcalNumber(eaten.kcal)} kilocalories logged`
           }
           center={
             <>
-              <strong className="text-xl font-semibold tabular-nums">
-                {kcalFormat.format(eaten.kcal)}
+              <strong className="text-xl font-bold tabular-nums">
+                {formatKcalNumber(eaten.kcal)}
               </strong>
               <span className="text-[13px] text-muted-foreground tabular-nums">
-                {planned ? `of ${kcalFormat.format(planned.kcal)}` : "kcal"}
+                {planned ? `of ${formatKcalNumber(planned.kcal)}` : "kcal"}
               </span>
             </>
           }
@@ -492,21 +515,22 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
             label="Protein"
             value={eaten.protein}
             max={planned?.protein ?? null}
-            valueLabel={`${kcalFormat.format(eaten.protein)}${target(planned?.protein ?? 0)}`}
+            tone="protein"
+            valueLabel={grams(eaten.protein, planned?.protein)}
           />
           <MeterBar
             label="Carbs"
             value={eaten.carbs}
             max={planned?.carbs ?? null}
-            tone="orange"
-            valueLabel={`${kcalFormat.format(eaten.carbs)}${target(planned?.carbs ?? 0)}`}
+            tone="carbs"
+            valueLabel={grams(eaten.carbs, planned?.carbs)}
           />
           <MeterBar
             label="Fat"
             value={eaten.fat}
             max={planned?.fat ?? null}
-            tone="neutral"
-            valueLabel={`${kcalFormat.format(eaten.fat)}${target(planned?.fat ?? 0)}`}
+            tone="fat"
+            valueLabel={grams(eaten.fat, planned?.fat)}
           />
         </div>
       </div>
@@ -514,16 +538,16 @@ function NutritionCard({ data, today }: { data: Overview; today: string }) {
         <Link
           to="/nutrition/log/$date"
           params={{ date: today }}
-          className="flex items-center gap-3 rounded-lg bg-surface-inset px-3 py-2.5 hover:bg-muted"
+          className="flex items-center gap-3 rounded-[10px] bg-surface-inset px-3 py-2.5 hover:bg-muted"
         >
-          <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-[13px] text-muted-foreground">Next in plan</span>
             <strong className="text-sm font-semibold tabular-nums">
               {nextSlot.label} · {slotCountLabel(nextSlot.mealCount, nextSlot.foodCount)} ·{" "}
-              {kcalFormat.format(nextSlot.totals.kcal)} kcal
+              {formatKcal(nextSlot.totals.kcal)}
             </strong>
           </span>
-          <span className="rounded-full bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground">
+          <span className="flex h-8 items-center rounded-full bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground">
             Log
           </span>
         </Link>
@@ -545,32 +569,33 @@ function slotCountLabel(meals: number, foods: number) {
 }
 
 // ---------------------------------------------------------------------------
-// Energy balance
+// Energy balance: today so far, then the end-of-day estimate
 
-function BalanceCard({ data }: { data: Overview }) {
-  const energy = data.yesterdayEnergy[0];
-  const active = normalizeNumeric(energy?.activeKcal);
-  const resting = normalizeNumeric(energy?.restingKcal);
-  const out = active + resting;
-  const eaten = (data.yesterdayNutrition[0]?.nutritionLogEntries ?? []).reduce(
-    (total, entry) =>
-      total + (normalizeNumeric(entry.grams) / 100) * normalizeNumeric(entry.snapshotKcalPer100g),
-    0,
-  );
+function BalanceCard({ data, userId }: { data: Overview; userId: string | undefined }) {
+  const energy = data.todayEnergy[0] ?? null;
+  const caloriesIn = loggedMacroTotals(data.todayNutrition[0]?.nutritionLogEntries ?? []).kcal;
+  const balance = todayBalanceSoFar({ caloriesIn, energy });
+  const out = balance.caloriesOut;
 
   return (
-    <SectionCard title="Balance" link={{ label: "Energy", to: "/progress/energy" }}>
-      {energy ? (
+    <SectionCard
+      title="Balance"
+      aria-label="Energy balance"
+      link={{ label: "Energy", to: "/progress/energy" }}
+    >
+      {balance.net !== null && out !== null ? (
         <>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] text-muted-foreground">Yesterday</span>
-              <strong className="text-[26px] font-semibold tabular-nums">
-                {signedKcalFormat.format(eaten - out)} kcal
+              <span className="text-[13px] text-muted-foreground tabular-nums">
+                {todayBalanceCaption(balance.energyUpdatedAt)}
+              </span>
+              <strong className="text-[26px] font-bold tabular-nums">
+                {formatSignedKcal(balance.net)}
               </strong>
             </div>
             <span className="text-[13px] text-muted-foreground tabular-nums">
-              In {kcalFormat.format(eaten)} · Out {kcalFormat.format(out)}
+              In {formatKcalNumber(caloriesIn)} · Out {formatKcalNumber(out)}
             </span>
           </div>
           {out > 0 ? (
@@ -578,22 +603,39 @@ function BalanceCard({ data }: { data: Overview }) {
               <div
                 className="flex h-2.5 gap-0.5 overflow-hidden rounded-full"
                 role="img"
-                aria-label={`Energy out: resting ${kcalFormat.format(resting)}, active ${kcalFormat.format(active)} kilocalories`}
+                aria-label={energySplitLabel(balance)}
               >
-                <span className="bg-primary" style={{ flex: resting }} />
-                <span className="bg-chart-2" style={{ flex: active }} />
+                {balance.restingKcal > 0 ? (
+                  <span className="bg-chart-1" style={{ flex: balance.restingKcal }} />
+                ) : null}
+                {balance.activeKcal > 0 ? (
+                  <span className="bg-chart-2" style={{ flex: balance.activeKcal }} />
+                ) : null}
               </div>
-              <div className="flex gap-4 text-[13px] text-muted-foreground tabular-nums">
-                <Legend className="bg-primary">Resting {kcalFormat.format(resting)}</Legend>
-                <Legend className="bg-chart-2">Active {kcalFormat.format(active)}</Legend>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-muted-foreground tabular-nums">
+                <Legend className="bg-chart-1">
+                  Resting {formatKcalNumber(balance.restingKcal)}
+                </Legend>
+                <Legend className="bg-chart-2">
+                  Active {formatKcalNumber(balance.activeKcal)}
+                </Legend>
               </div>
             </>
           ) : null}
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">No energy logged for yesterday.</p>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-sm text-muted-foreground">No energy recorded yet today.</p>
+          <p className="text-[13px] text-muted-foreground tabular-nums">
+            In {formatKcal(caloriesIn)} so far
+          </p>
+        </div>
       )}
-      <TodayEnergyEstimate />
+      {/* The estimate nets the same intake and energy row as the card. */}
+      <TodayEnergyEstimate
+        variant="today"
+        {...(userId ? { balance: { userId, caloriesIn, dailyEnergy: energy } } : {})}
+      />
     </SectionCard>
   );
 }
@@ -601,91 +643,119 @@ function BalanceCard({ data }: { data: Overview }) {
 function Legend({ className, children }: { className: string; children: ReactNode }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden="true" className={`size-2 rounded-sm ${className}`} />
+      <span aria-hidden="true" className={`size-2 rounded-[2px] ${className}`} />
       {children}
     </span>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Body
+// Body: raw weight and body-fat readings on start-aligned scales, then a
+// column per metric (latest reading, 7-day average, change vs prior week)
 
-function average(values: number[]) {
-  return values.length > 0
-    ? values.reduce((total, value) => total + value, 0) / values.length
-    : null;
+function bodySeries(
+  name: string,
+  color: ChartColor,
+  metric: BodyMetricTrend,
+  format: (value: number) => string,
+): TrendChartProps["series"][number] {
+  return { id: name, name, color, points: metric.readings, format };
 }
 
 function BodyCard({ data, today }: { data: Overview; today: string }) {
-  const rows = data.bodyMeasurements;
-  const weights = rows
-    .filter((row) => row.weightKg !== null && row.weightKg !== undefined)
-    .map((row) => ({ date: row.measuredOn, value: normalizeNumeric(row.weightKg) }));
-  const latestWeight = weights.at(-1);
-  const latestFat = [...rows]
-    .reverse()
-    .find((row) => row.bodyFatPct !== null && row.bodyFatPct !== undefined);
-  const weekStart = addLocalDateDays(today, -6);
-  const priorStart = addLocalDateDays(today, -13);
-  const current = average(weights.filter((w) => w.date >= weekStart).map((w) => w.value));
-  const prior = average(
-    weights.filter((w) => w.date >= priorStart && w.date < weekStart).map((w) => w.value),
-  );
-  const rolling = weights.map((point) => {
-    const from = addLocalDateDays(point.date, -6);
-    return (
-      average(weights.filter((w) => w.date >= from && w.date <= point.date).map((w) => w.value)) ??
-      point.value
-    );
+  const body = buildBodyTrend(data.bodyMeasurements, {
+    today,
+    start: addLocalDateDays(today, 1 - BODY_WINDOW_DAYS),
   });
+  const plotted = [
+    ...(body.weight.readings.length > 0
+      ? [bodySeries("Weight", "chart-1", body.weight, metricFormat.weight)]
+      : []),
+    ...(body.bodyFat.readings.length > 0
+      ? [bodySeries("Body fat", "chart-2", body.bodyFat, metricFormat.bodyFat)]
+      : []),
+  ].map((series, index) => (index === 1 ? { ...series, axis: "right" as const } : series));
+  const dates = plotted.flatMap((series) => series.points.map((point) => point.date)).sort();
+  const first = dates[0];
+  const last = dates.at(-1);
 
   return (
-    <SectionCard title="Body" link={{ label: "Trend", to: "/progress/body" }}>
-      {latestWeight || latestFat ? (
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          {latestWeight ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] text-muted-foreground">
-                Weight · {formatDateShort(latestWeight.date)}
-              </span>
-              <strong className="text-[26px] font-semibold tabular-nums">
-                {latestWeight.value.toFixed(2)} kg
-              </strong>
-              {current === null ? null : (
-                <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
-                  7-day avg {current.toFixed(1)}
-                  {prior === null
-                    ? ""
-                    : ` · ${current - prior >= 0 ? "+" : "−"}${Math.abs(current - prior).toFixed(1)} vs prior week`}
-                </span>
-              )}
-            </div>
-          ) : null}
-          {latestFat ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[13px] text-muted-foreground">Body fat</span>
-              <strong className="text-[26px] font-semibold tabular-nums">
-                {normalizeNumeric(latestFat.bodyFatPct).toFixed(1)} %
-              </strong>
-            </div>
-          ) : null}
-          {latestWeight ? (
-            <Sparkline
-              values={rolling}
-              label={describeTrend(
-                weights.map((point, index) => ({
-                  date: localDateToDate(point.date)?.getTime() ?? Number.NaN,
-                  value: rolling[index] ?? null,
-                })),
-                { label: "Seven-day average weight", unit: "kg" },
-              )}
-              className="ml-auto"
-            />
-          ) : null}
-        </div>
-      ) : (
+    <SectionCard title="Body" aria-label="Body" link={{ label: "Trend", to: "/progress/body" }}>
+      {body.isEmpty ? (
         <p className="text-sm text-muted-foreground">No measurements in the last three weeks.</p>
+      ) : (
+        <>
+          <div className="flex flex-col gap-1">
+            <TrendChart
+              title="Weight and body fat"
+              series={plotted}
+              height={110}
+              yAxis="baseline"
+              xTicks="none"
+              legend={false}
+            />
+            {first && last ? (
+              <div
+                aria-hidden="true"
+                className="flex justify-between text-xs text-tertiary-foreground tabular-nums"
+              >
+                <span>{formatChartDate(first)}</span>
+                {last === first ? null : <span>{formatChartDate(last)}</span>}
+              </div>
+            ) : null}
+          </div>
+          <div className="grid grid-cols-2 gap-5 border-t pt-3.5">
+            {body.weight.latest ? (
+              <BodyColumn
+                name="Weight"
+                color="chart-1"
+                metric={body.weight}
+                format={metricFormat.weight}
+              />
+            ) : null}
+            {body.bodyFat.latest ? (
+              <BodyColumn
+                name="Body fat"
+                color="chart-2"
+                metric={body.bodyFat}
+                format={metricFormat.bodyFat}
+              />
+            ) : null}
+          </div>
+        </>
       )}
     </SectionCard>
+  );
+}
+
+function BodyColumn({
+  name,
+  color,
+  metric,
+  format,
+}: {
+  name: string;
+  color: ChartColor;
+  metric: BodyMetricTrend;
+  format: (value: number) => string;
+}) {
+  const latest = metric.latest;
+  if (!latest) {
+    return null;
+  }
+  const summary = bodyWeekSummary(metric);
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground tabular-nums">
+        <ChartSwatch color={color} className="w-3" />
+        {name} · {formatChartDate(latest.date)}
+      </span>
+      <strong className="text-[26px] font-bold tabular-nums">{format(latest.value)}</strong>
+      {summary ? (
+        <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
+          {summary}
+        </span>
+      ) : null}
+    </div>
   );
 }

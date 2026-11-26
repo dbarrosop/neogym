@@ -1,13 +1,17 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { z } from "zod";
-import { DailyEnergyForm, type DailyEnergyFormValues } from "@/components/daily-energy-form";
+import { DailyEnergyForm } from "@/components/daily-energy-form";
 import { FormPage } from "@/components/patterns/form-page";
 import { graphql } from "@/gql";
-import { dailyEnergyMutationErrorMessage } from "@/lib/daily-energy";
+import {
+  type DailyEnergyFormValues,
+  dailyEnergyInput,
+  dailyEnergyMutationError,
+} from "@/lib/daily-energy";
 import { parseDateOnly, todayLocalISO } from "@/lib/dates";
 import { gqlRequest } from "@/lib/graphql";
+import { useInvalidateDailyEnergy } from "@/lib/hooks/use-progress-entry-invalidation";
 
 const searchSchema = z.object({
   date: z.string().optional(),
@@ -28,24 +32,15 @@ export const Route = createFileRoute("/_authed/progress/energy/new")({
 
 function NewDailyEnergyRoute() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateDailyEnergy();
   const { date } = Route.useSearch();
   const initialEnergyOn = date && parseDateOnly(date) ? date : todayLocalISO();
 
   const createMutation = useMutation({
     mutationFn: (values: DailyEnergyFormValues) =>
-      gqlRequest(InsertDailyEnergyMutation, {
-        obj: {
-          energyOn: values.energyOn,
-          activeKcal: values.activeKcal ? values.activeKcal : null,
-          restingKcal: values.restingKcal ? values.restingKcal : null,
-          notes: values.notes ? values.notes : null,
-        },
-      }),
+      gqlRequest(InsertDailyEnergyMutation, { obj: dailyEnergyInput(values) }),
     onSuccess: (res) => {
-      queryClient.invalidateQueries({ queryKey: ["daily_energy"] });
-      queryClient.invalidateQueries({ queryKey: ["nutrition", "energy-projection"] });
-      queryClient.invalidateQueries({ queryKey: ["today"] });
+      invalidate();
       const id = res.insertDailyEnergyEntry?.id;
       if (id) {
         navigate({ to: "/progress/energy/$id", params: { id }, replace: true });
@@ -53,13 +48,10 @@ function NewDailyEnergyRoute() {
         navigate({ to: "/progress/energy", replace: true });
       }
     },
-    onError: (e) => {
-      toast.error(dailyEnergyMutationErrorMessage(e, "save"));
-    },
   });
 
   return (
-    <FormPage title="New energy day" width="2xl">
+    <FormPage title="New energy day" width="form" layout="sections">
       <DailyEnergyForm
         initialValues={{
           energyOn: initialEnergyOn,
@@ -67,8 +59,16 @@ function NewDailyEnergyRoute() {
           restingKcal: "",
           notes: "",
         }}
-        submitLabel="Save energy day"
+        submitLabel="Create energy day"
         isSubmitting={createMutation.isPending}
+        serverError={
+          createMutation.error ? dailyEnergyMutationError(createMutation.error, "save") : null
+        }
+        onEdit={() => {
+          if (createMutation.isError) {
+            createMutation.reset();
+          }
+        }}
         onSubmit={(values) => createMutation.mutate(values)}
         onCancel={() => navigate({ to: "/progress/energy", replace: true })}
       />

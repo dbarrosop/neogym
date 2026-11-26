@@ -1,9 +1,12 @@
-// Run in a subprocess so browser globals and module mocks cannot leak into other tests.
-import { mock } from "bun:test";
+// Run in a subprocess so browser globals cannot leak into other tests.
+// Renders the Body, Energy and Calories charts and checks every colour they
+// draw against both checked-in palettes: series use only Chart 1 (blue) and
+// Chart 2 (orange) by metric, never a grey series, at 3:1 against the card;
+// axis labels use tertiary text and legends secondary text at 4.5:1.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Window as TestWindow } from "happy-dom";
-import { act, type ReactNode } from "react";
+import { act } from "react";
 
 const dom = new TestWindow({ url: "http://localhost" });
 const window = dom as unknown as typeof globalThis.window;
@@ -19,29 +22,14 @@ Object.assign(globalThis, {
   IS_REACT_ACT_ENVIRONMENT: true,
 });
 
-mock.module("@tanstack/react-router", () => ({
-  Link: ({ children, className }: { children: ReactNode; className?: string }) => (
-    <a href="/" className={className}>
-      {children}
-    </a>
-  ),
-  useNavigate: () => () => undefined,
-}));
-mock.module("@/lib/hooks/use-start-session", () => ({
-  useStartSession: () => ({ isPending: false, mutate: () => undefined }),
-}));
-mock.module("@/components/storage-image", () => ({ AlternatingStorageImage: () => null }));
-mock.module("@/lib/graphql", () => ({
-  gqlRequest: () => {
-    throw new Error("Exercise detail must render the seeded query data");
-  },
-}));
-
 const { createRoot } = await import("react-dom/client");
-const { QueryClient, QueryClientProvider } = await import("@tanstack/react-query");
 const { ResponsiveContainer } = await import("recharts");
-const { BodyMetricsChart } = await import("@/components/body-metrics-chart");
-const { ExerciseDetail } = await import("@/components/exercise-detail");
+const { BodyMetricTrendColumn } = await import("@/components/body-metrics-chart");
+const { EnergyTrendSummary } = await import("@/components/daily-energy-chart");
+const { CalorieCharts } = await import("@/components/calories-card");
+const { buildBodyTrend } = await import("@/lib/body-trend");
+const { buildEnergyTrend } = await import("@/lib/energy-trend");
+const { buildCalorieTrend } = await import("@/lib/calorie-trend");
 
 // Resolve rendered token references against both checked-in palettes.
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
@@ -77,9 +65,43 @@ function palette(theme: "light" | "dark") {
   };
 }
 
-const client = new QueryClient({
-  defaultOptions: { queries: { retry: false, staleTime: Number.POSITIVE_INFINITY } },
-});
+const today = "2026-11-12";
+const domain = { start: "2026-11-01", end: today };
+const days = Array.from(
+  { length: 12 },
+  (_, index) => `2026-11-${String(index + 1).padStart(2, "0")}`,
+);
+const body = buildBodyTrend(
+  days.map((date, index) => ({
+    measuredOn: date,
+    weightKg: 72 - index * 0.1,
+    bodyFatPct: index % 3 === 0 ? null : 13 - index * 0.05,
+  })),
+  { today, ...domain },
+);
+const energy = buildEnergyTrend(
+  days.map((date, index) => ({
+    energyOn: date,
+    activeKcal: date === today ? 300 : 600 + index * 40,
+    restingKcal: date === today ? 700 : 1_800 + index * 5,
+  })),
+  { today, ...domain },
+);
+const calories = buildCalorieTrend(
+  {
+    nutritionDays: days.map((date, index) => ({
+      logDate: date,
+      nutritionLogEntries: [{ grams: 100, snapshotKcalPer100g: 2_100 + index * 20 }],
+    })),
+    dailyEnergyEntries: days.map((date, index) => ({
+      energyOn: date,
+      activeKcal: 600 + index * 40,
+      restingKcal: 1_800,
+    })),
+  },
+  { today, ...domain },
+);
+
 const container = document.createElement("div");
 document.body.append(container);
 const root = createRoot(container);
@@ -89,146 +111,125 @@ async function settle(action: () => unknown = () => undefined) {
     await new Promise((resolve) => setTimeout(resolve, 20));
   });
 }
-async function waitFor(condition: () => boolean, what: string) {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    // biome-ignore lint/performance/noAwaitInLoops: Let real Recharts resolve dimensions and state.
-    await settle();
-    if (condition()) {
-      return;
-    }
-  }
-  throw new Error(`Timed out waiting for ${what}: ${container.textContent}`);
-}
-function all(selector: string) {
-  return [...container.querySelectorAll(selector)];
+function all(selector: string, within: ParentNode = container) {
+  return [...within.querySelectorAll(selector)];
 }
 
-async function checkBodyChart() {
-  const points = [
-    { date: Date.UTC(2026, 9, 1), weightKg: 82.4, bodyFatPct: null },
-    { date: Date.UTC(2026, 9, 8), weightKg: 81.7, bodyFatPct: 18.2 },
-    { date: Date.UTC(2026, 9, 15), weightKg: 80.9, bodyFatPct: 17.5 },
-  ];
+const SERIES_COLORS = ["var(--color-chart-1)", "var(--color-chart-2)"];
+/** The chart's root (chart + legend) for the SVG whose summary starts with `title`. */
+function chartRoot(title: string) {
+  const svg = all('svg[role="application"]').find((item) =>
+    item.getAttribute("aria-label")?.startsWith(title),
+  );
+  assert(svg, `Missing chart: ${title}`);
+  const rootElement = svg.closest(".flex.min-w-0.flex-col");
+  assert(rootElement, `Missing chart root: ${title}`);
+  return rootElement;
+}
+/** Every colour a chart's series marks use: lines, reading dots, open dots, legend keys. */
+function seriesColors(within: ParentNode) {
+  return [
+    ...all(".recharts-line-curve", within).map((line) => line.getAttribute("stroke")),
+    ...all("circle.trend-chart-dot", within).map((dot) => dot.getAttribute("fill")),
+    ...all(".trend-chart-open-dot", within).map((dot) => dot.getAttribute("stroke")),
+    ...all("[data-swatch] span, [data-swatch='line']", within).map(
+      (swatch) => (swatch as HTMLElement).style.backgroundColor,
+    ),
+  ].filter((color): color is string => !!color);
+}
+
+try {
   await settle(() =>
     root.render(
-      <ResponsiveContainer width={640} height={224}>
-        <BodyMetricsChart points={points} />
+      <ResponsiveContainer width={640} height={1200}>
+        <div>
+          <BodyMetricTrendColumn kind="weight" metric={body.weight} domain={domain} />
+          <BodyMetricTrendColumn kind="bodyFat" metric={body.bodyFat} domain={domain} />
+          <EnergyTrendSummary trend={energy} domain={domain} periodControl={null} />
+          <CalorieCharts trend={calories} domain={domain} />
+        </div>
       </ResponsiveContainer>,
     ),
   );
-  await waitFor(() => all(".recharts-line-curve").length === 2, "body chart");
-  assert(!container.innerHTML.includes("chart-2"), "Body chart must not draw orange lines or text");
+  for (let attempt = 0; attempt < 50 && all('svg[role="application"]').length < 5; ) {
+    attempt += 1;
+    // biome-ignore lint/performance/noAwaitInLoops: Let Recharts resolve dimensions and state.
+    await settle();
+  }
+  assert.equal(all('svg[role="application"]').length, 5, "Body ×2, energy, consumed and net");
 
-  const lines = all(".recharts-line-curve").map((line) => line.getAttribute("stroke"));
-  assert.deepEqual(lines, ["var(--color-chart-1)", "var(--color-chart-3)"]);
-  const ticks = [
-    ...new Set(all(".recharts-cartesian-axis-tick-value").map((tick) => tick.getAttribute("fill"))),
+  // Colour follows the metric, never its position.
+  const byMetric: [string, string][] = [
+    ["Weight, daily readings", "var(--color-chart-1)"],
+    ["Body fat, daily readings", "var(--color-chart-2)"],
+    ["Calories consumed", "var(--color-chart-1)"],
+    ["Net calories", "var(--color-chart-2)"],
   ];
-  assert(ticks.includes("var(--color-chart-3)"), "Body fat axis labels follow their series");
-  const legend = all(".recharts-legend-item-text").map((item) => (item as HTMLElement).style.color);
-  assert.equal(legend.length, 2);
+  for (const [title, color] of byMetric) {
+    const colors = new Set(seriesColors(chartRoot(title)));
+    assert.deepEqual([...colors], [color], `${title} is drawn in ${color} only`);
+  }
+  const energyLines = all(".recharts-line-curve", chartRoot("Active and resting energy")).map(
+    (line) => line.getAttribute("stroke"),
+  );
+  assert.deepEqual(energyLines.slice(0, 2), ["var(--color-chart-2)", "var(--color-chart-1)"]);
+
+  // No grey series anywhere; every mark is one of the chart pair.
+  const marks = seriesColors(container);
+  assert(marks.length > 0);
+  for (const color of marks) {
+    assert(SERIES_COLORS.includes(color), `Unexpected series colour ${color}`);
+  }
+  const openDots = all(".trend-chart-open-dot");
+  assert(openDots.length >= 3, "Energy and consumed draw today's open dots");
+  assert(openDots.every((dot) => dot.getAttribute("fill") === "var(--color-card)"));
+
+  const axisLabels = [
+    ...new Set(
+      all(".recharts-yAxis-tick-labels text, .recharts-xAxis-tick-labels text").map((tick) =>
+        tick.getAttribute("fill"),
+      ),
+    ),
+  ];
+  assert.deepEqual(axisLabels, ["var(--color-tertiary-foreground)"], "Axis labels are tertiary");
+  const grid = [
+    ...new Set(all(".recharts-cartesian-grid line").map((line) => line.getAttribute("stroke"))),
+  ];
+  assert.deepEqual(grid, ["var(--color-chart-grid)"], "Grid lines use the separator token");
+  const legends = all("ul");
+  assert.equal(legends.length, 5);
+  assert(legends.every((legend) => legend.classList.contains("text-muted-foreground")));
 
   for (const theme of ["light", "dark"] as const) {
     const color = palette(theme);
     const card = color("card");
-    for (const line of lines) {
-      assert(contrast(color(line), card) >= 3, `${theme}: ${line} line contrast`);
+    for (const series of SERIES_COLORS) {
+      assert(contrast(color(series), card) >= 3, `${theme}: ${series} against the card`);
     }
-    for (const fill of ticks) {
-      assert(contrast(color(fill), card) >= 4.5, `${theme}: ${fill} axis label contrast`);
+    for (const label of axisLabels) {
+      assert(contrast(color(label), card) >= 4.5, `${theme}: ${label} axis labels`);
     }
-    for (const text of legend) {
-      assert(contrast(color(text), card) >= 4.5, `${theme}: ${text} legend contrast`);
+    assert(contrast(color("muted-foreground"), card) >= 4.5, `${theme}: legend text`);
+    assert.deepEqual(color("chart-grid"), color("border"), `${theme}: grid is the separator`);
+    for (const text of ["popover-foreground", "muted-foreground"]) {
+      assert(contrast(color(text), color("popover")) >= 4.5, `${theme}: tooltip ${text}`);
     }
-    assert(contrast(color("popover-foreground"), color("popover")) >= 4.5);
   }
 
-  const chart = container.querySelector('[role="application"]');
-  assert(chart, "Keep Recharts keyboard access");
+  // Tooltip values stay neutral text, never series-coloured.
+  const chart = all('svg[role="application"]')[0];
+  assert(chart);
   await settle(() => chart.dispatchEvent(new window.FocusEvent("focusin", { bubbles: true })));
-  await settle(() =>
-    chart.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })),
-  );
-  const tooltip = () => container.querySelector(".recharts-tooltip-wrapper")?.textContent ?? "";
-  await waitFor(() => tooltip().includes("Body fat: "), "body tooltip");
   const rows = all(".recharts-tooltip-wrapper p.font-medium");
-  assert.equal(rows.length, 2);
+  assert(rows.length > 0, "Tooltip rows render");
   for (const row of rows) {
     assert(row.classList.contains("text-popover-foreground"));
     assert.equal(row.getAttribute("style"), null, "Tooltip values use neutral text");
   }
-}
-
-async function checkExerciseProgress() {
-  const session = (id: string, startedAt: string, weight: number) => ({
-    id: `wse-${id}`,
-    workoutSession: { id, startedAt, workout: null },
-    workoutSessionStrengthSets: [1, 2, 3].map((setNumber) => ({
-      id: `${id}-${setNumber}`,
-      setNumber,
-      reps: 5,
-      weight: String(weight),
-    })),
-    workoutSessionCardioEntries: [],
-  });
-  client.setQueryData(["exercises", "detail", "bench"], {
-    exercise: {
-      id: "bench",
-      name: "Bench press",
-      instructions: [],
-      image1FileId: null,
-      image2FileId: null,
-      level: "intermediate",
-      category: "strength",
-      kind: "strength",
-      equipment: "barbell",
-      primaryMuscleGroup: "chest",
-      strength: { doubleWeight: false, force: "push", mechanic: "compound" },
-      cardio: null,
-      secondaryMuscleGroups: [],
-      workoutSessionExercises: [
-        session("s1", "2026-10-01T07:00:00Z", 80),
-        session("s2", "2026-10-08T07:00:00Z", 85),
-      ],
-    },
-  });
-  await settle(() =>
-    root.render(
-      <QueryClientProvider client={client}>
-        <ResponsiveContainer width={640} height={480}>
-          <ExerciseDetail exerciseId="bench" />
-        </ResponsiveContainer>
-      </QueryClientProvider>,
-    ),
-  );
-  await waitFor(() => all(".recharts-area-curve").length === 2, "exercise progress charts");
-
-  const strokes = all(".recharts-area-curve").map((curve) => curve.getAttribute("stroke"));
-  assert.deepEqual(strokes, ["var(--color-chart-1)", "var(--color-muted-foreground)"]);
-  const oneRmStops = all("#progress-1rm stop").map((stop) => stop.getAttribute("stop-color"));
-  assert.deepEqual(oneRmStops, ["var(--color-chart-2)", "var(--color-chart-2)"]);
-  const deltas = all("span.tabular-nums").filter((span) => span.textContent?.startsWith("+"));
-  assert.equal(deltas.length, 2);
-
-  for (const theme of ["light", "dark"] as const) {
-    const color = palette(theme);
-    const surface = color("surface-inset");
-    for (const stroke of strokes) {
-      assert(contrast(color(stroke), surface) >= 3, `${theme}: ${stroke} trend line contrast`);
-    }
-    for (const delta of deltas) {
-      assert(delta.classList.contains("text-positive"), "Favourable deltas use the positive token");
-      assert(contrast(color("positive"), surface) >= 4.5, `${theme}: delta text contrast`);
-    }
-  }
-}
-
-try {
-  await checkBodyChart();
-  await checkExerciseProgress();
 } finally {
   act(() => root.unmount());
-  client.clear();
   await dom.happyDOM.close();
 }
-console.info("Orange stays fill-only; Body and exercise trend lines and labels pass contrast.");
+console.info(
+  "Body, Energy and Calories charts colour series by metric in Chart 1/2 with legible labels; no grey series.",
+);

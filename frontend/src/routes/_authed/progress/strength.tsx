@@ -1,49 +1,34 @@
-import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { Dumbbell } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
 import { z } from "zod";
-import { Sparkline } from "@/components/patterns/metrics";
+import { TrendChart } from "@/components/charts/trend-chart";
 import { PageHeader, PageShell } from "@/components/patterns/page-shell";
-import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { EmptyState, ErrorState, SkeletonState } from "@/components/patterns/query-states";
 import { Segmented } from "@/components/patterns/segmented";
+import { ExerciseStrengthCard } from "@/components/progress/exercise-strength-card";
+import {
+  DEFAULT_PROGRESS_WEEKS,
+  PROGRESS_PERIODS,
+  type ProgressWeeks,
+  progressWeeksParam,
+  useStrengthProgress,
+} from "@/components/progress/progress-queries";
 import { AreaTabs } from "@/components/shell/area-tabs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { graphql } from "@/gql";
-import type { WebStrengthProgressQuery } from "@/gql/graphql";
-import { describeTrend } from "@/lib/chart-trend";
-import { localTimeZone } from "@/lib/dates";
-import { gqlRequest } from "@/lib/graphql";
-import { useAuth } from "@/lib/nhost/auth-provider";
-import { addLocalDateDays, localDateToDate } from "@/lib/nutrition";
-import { useLocalToday } from "@/lib/use-local-today";
-import { cn } from "@/lib/utils";
-
-const StrengthProgressQuery = graphql(`
-  query WebStrengthProgress($from: date!, $through: date!, $timeZone: String!) {
-    strengthProgress(args: { from_day: $from, through_day: $through, time_zone: $timeZone }) {
-      sessionId
-      exerciseId
-      startedAt
-      volume
-      estimatedOneRepMax
-      exercise {
-        id
-        name
-      }
-    }
-  }
-`);
-
-const PERIODS = [
-  { value: 12, label: "12 w" },
-  { value: 26, label: "6 m" },
-  { value: 52, label: "1 y" },
-] as const;
-type PeriodWeeks = (typeof PERIODS)[number]["value"];
+import { formatChartDate, metricFormat } from "@/lib/metric-format";
+import {
+  buildWeeklyStrength,
+  type ExerciseStrengthTrend,
+  RECENT_EXERCISE_DAYS,
+  recentExerciseTrends,
+  type WeeklyStrength,
+  weeklyVolumeLabel,
+} from "@/lib/strength-progress";
 
 const searchSchema = z.object({
-  weeks: z.union([z.literal(12), z.literal(26), z.literal(52)]).optional(),
+  weeks: progressWeeksParam,
 });
 
 export const Route = createFileRoute("/_authed/progress/strength")({
@@ -51,234 +36,163 @@ export const Route = createFileRoute("/_authed/progress/strength")({
   component: StrengthRoute,
 });
 
-type Row = WebStrengthProgressQuery["strengthProgress"][number];
-
-const RECENT_DAYS = 10;
-const kgFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
-
-function startOfWeek(date: Date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-  return start;
-}
-
-function compactKg(value: number): string {
-  return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : kgFormat.format(value);
-}
-
-function buildWeeks(rows: Row[], weeks: number, now: Date) {
-  const current = startOfWeek(now);
-  const buckets = Array.from({ length: weeks }, (_, index) => {
-    const start = new Date(current);
-    start.setDate(start.getDate() - (weeks - 1 - index) * 7);
-    return { start, volume: 0 };
-  });
-  for (const row of rows) {
-    const week = startOfWeek(new Date(row.startedAt)).getTime();
-    const bucket = buckets.find((candidate) => candidate.start.getTime() === week);
-    if (bucket) {
-      bucket.volume += Number(row.volume ?? 0);
-    }
-  }
-  return buckets;
-}
-
-function buildRecentExercises(rows: Row[], now: Date) {
-  const recentStart = new Date(now);
-  recentStart.setHours(0, 0, 0, 0);
-  recentStart.setDate(recentStart.getDate() - (RECENT_DAYS - 1));
-  const byExercise = new Map<string, { id: string; name: string; points: Row[] }>();
-  for (const row of rows) {
-    const entry = byExercise.get(row.exerciseId) ?? {
-      id: row.exerciseId,
-      name: row.exercise?.name ?? "Exercise",
-      points: [] as Row[],
-    };
-    entry.points.push(row);
-    byExercise.set(row.exerciseId, entry);
-  }
-  return [...byExercise.values()]
-    .filter((entry) => entry.points.some((point) => new Date(point.startedAt) >= recentStart))
-    .map((entry) => ({
-      ...entry,
-      points: entry.points.toSorted((a, b) => a.startedAt.localeCompare(b.startedAt)),
-    }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-}
-
 function StrengthRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const today = useLocalToday();
-  const { user } = useAuth();
-  const weeks: PeriodWeeks = search.weeks ?? 12;
-  const query = useQuery({
-    queryKey: ["progress", "strength", today, weeks, user?.id],
-    queryFn: () =>
-      gqlRequest(StrengthProgressQuery, {
-        from: addLocalDateDays(today, -(weeks * 7 - 1)),
-        through: today,
-        timeZone: localTimeZone(),
-      }),
-    enabled: !!user,
-  });
-
+  const weeks = search.weeks ?? DEFAULT_PROGRESS_WEEKS;
+  const { query, today } = useStrengthProgress(weeks);
   const rows = useMemo(() => query.data?.strengthProgress ?? [], [query.data]);
-  const now = useMemo(() => localDateToDate(today) ?? new Date(), [today]);
-  const weekly = useMemo(() => buildWeeks(rows, weeks, now), [rows, weeks, now]);
-  const recent = useMemo(() => buildRecentExercises(rows, now), [rows, now]);
+  const weekly = useMemo(() => buildWeeklyStrength(rows, { today }), [rows, today]);
+  const recent = useMemo(() => recentExerciseTrends(rows, { today }), [rows, today]);
+
+  function setWeeks(value: ProgressWeeks) {
+    navigate({ search: (prev) => ({ ...prev, weeks: value }), replace: true });
+  }
+
+  let content: ReactNode = null;
+  if (!query.data) {
+    content = query.error ? null : (
+      <SkeletonState className="flex flex-col gap-5">
+        <Skeleton className="h-72 w-full rounded-xl" />
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(min(460px,100%),1fr))] gap-3">
+          <Skeleton className="h-72 rounded-xl" />
+          <Skeleton className="h-72 rounded-xl" />
+        </div>
+      </SkeletonState>
+    );
+  } else if (weekly.weeks.length === 0) {
+    content = (
+      <EmptyState
+        icon={Dumbbell}
+        title="No strength sets in this period"
+        description="Log strength sets to see weekly volume and estimated one-rep max here."
+        actions={
+          <>
+            <Button asChild>
+              <Link to="/train/workouts">Browse workouts</Link>
+            </Button>
+            {weeks < 52 ? (
+              <Button variant="outline" onClick={() => setWeeks(52)}>
+                Show the last year
+              </Button>
+            ) : null}
+          </>
+        }
+      />
+    );
+  } else {
+    content = (
+      <>
+        <WeeklyVolumeCard
+          weekly={weekly}
+          weeks={weeks}
+          isUpdating={query.isPlaceholderData}
+          onPeriodChange={setWeeks}
+        />
+        <RecentExercises trends={recent} />
+      </>
+    );
+  }
 
   return (
-    <PageShell maxWidth="6xl">
+    <PageShell maxWidth="6xl" contentClassName="space-y-5">
       <PageHeader title="Progress" tabs={<AreaTabs area="progress" />} />
-      <p className="max-w-3xl text-sm text-muted-foreground">
+      <p className="max-w-[760px] text-sm leading-normal text-muted-foreground">
         Weekly strength volume (weight × reps, both sides for per-side lifts), plus estimated
-        one-rep max for exercises logged in the last {RECENT_DAYS} days.
+        one-rep max for exercises logged in the last {RECENT_EXERCISE_DAYS} days.
       </p>
       {query.error ? (
-        <ErrorState title="Couldn't load strength progress" message={query.error.message} />
+        <ErrorState
+          title="Couldn't load strength progress"
+          message={query.error.message}
+          onRetry={() => query.refetch()}
+          isRetrying={query.isFetching}
+        />
       ) : null}
-      {query.isLoading ? <Skeleton className="h-72 w-full rounded-xl" /> : null}
-      {query.data && rows.length === 0 ? (
-        <EmptyState
-          title="No strength sessions in this period"
-          description="Log strength sets to see weekly volume and estimated maxes here."
-        >
-          <Button asChild>
-            <Link to="/train/workouts">Start a session</Link>
-          </Button>
-        </EmptyState>
-      ) : null}
-      {rows.length > 0 ? (
-        <>
-          <WeeklyVolume
-            weeks={weekly}
-            period={weeks}
-            onPeriodChange={(value) =>
-              navigate({ search: (prev) => ({ ...prev, weeks: value }), replace: true })
-            }
-          />
-          <section aria-labelledby="recent-lifts" className="flex flex-col gap-3">
-            <h2 id="recent-lifts" className="text-base font-semibold">
-              Logged in the last {RECENT_DAYS} days
-            </h2>
-            {recent.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing logged in the last ten days.</p>
-            ) : (
-              <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {recent.map((exercise) => (
-                  <RecentLift key={exercise.id} exercise={exercise} />
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      ) : null}
+      {content}
     </PageShell>
   );
 }
 
-function WeeklyVolume({
+function WeeklyVolumeCard({
+  weekly,
   weeks,
-  period,
+  isUpdating,
   onPeriodChange,
 }: {
-  weeks: { start: Date; volume: number }[];
-  period: PeriodWeeks;
-  onPeriodChange: (value: PeriodWeeks) => void;
+  weekly: WeeklyStrength;
+  weeks: ProgressWeeks;
+  isUpdating: boolean;
+  onPeriodChange: (weeks: ProgressWeeks) => void;
 }) {
-  const max = Math.max(...weeks.map((week) => week.volume), 1);
-  const complete = weeks.slice(0, -1);
-  const best = complete.reduce(
-    (top, week) => (week.volume > (top?.volume ?? 0) ? week : top),
-    complete[0],
-  );
-  const label = (date: Date) =>
-    date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const best = weekly.bestWeek;
   return (
     <section
-      aria-label="Weekly volume"
-      className="flex flex-col gap-4 rounded-xl border bg-card p-5"
+      aria-labelledby="weekly-volume"
+      aria-busy={isUpdating}
+      className="flex flex-col gap-3.5 rounded-xl border bg-card p-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-base font-semibold">Weekly volume</h2>
+        <div className="flex flex-col gap-1">
+          <h2 id="weekly-volume" className="text-[15px] font-semibold">
+            Weekly volume
+          </h2>
           {best && best.volume > 0 ? (
-            <p className="text-sm text-muted-foreground tabular-nums">
-              <strong className="text-2xl font-semibold text-foreground">
-                {compactKg(best.volume)}
+            <p className="tabular-nums">
+              <strong className="text-2xl font-bold">
+                {metricFormat.weeklyVolume(best.volume)}
               </strong>{" "}
-              kg · best week, {label(best.start)}
+              <span className="text-[13px] text-muted-foreground">
+                kg · best week, {formatChartDate(best.weekStart)}
+              </span>
             </p>
           ) : null}
         </div>
-        <Segmented label="Period" options={PERIODS} value={period} onChange={onPeriodChange} />
+        <Segmented
+          label="Period"
+          options={PROGRESS_PERIODS}
+          value={weeks}
+          onChange={onPeriodChange}
+        />
       </div>
-      <ol
-        className="flex h-40 items-end gap-1 sm:gap-1.5"
-        aria-label={`Weekly volume: ${weeks
-          .map((week) => `week of ${label(week.start)} ${compactKg(week.volume)} kilograms`)
-          .join(", ")}`}
-      >
-        {weeks.map((week, index) => {
-          const isCurrent = index === weeks.length - 1;
-          return (
-            <li
-              key={week.start.toISOString()}
-              title={`Week of ${label(week.start)}: ${kgFormat.format(week.volume)} kg${isCurrent ? " (so far)" : ""}`}
-              className={cn(
-                "min-h-1 flex-1 rounded-t-md",
-                week === best ? "bg-primary" : "bg-primary/45",
-                isCurrent && "bg-primary/25",
-              )}
-              style={{ height: `${Math.max(1, (week.volume / max) * 100)}%` }}
-            />
-          );
-        })}
-      </ol>
-      <div className="flex justify-between text-[12px] text-muted-foreground tabular-nums">
-        <span>{weeks[0] ? label(weeks[0].start) : ""}</span>
-        <span>This week (so far)</span>
-      </div>
+      <TrendChart
+        title="Weekly strength volume"
+        period="week"
+        height={220}
+        legend={false}
+        series={[
+          {
+            id: "volume",
+            name: "Volume",
+            color: "chart-1",
+            points: weekly.points,
+            format: weeklyVolumeLabel,
+          },
+        ]}
+      />
     </section>
   );
 }
 
-function RecentLift({ exercise }: { exercise: { id: string; name: string; points: Row[] } }) {
-  const maxes = exercise.points
-    .map((point) => (point.estimatedOneRepMax === null ? null : Number(point.estimatedOneRepMax)))
-    .filter((value): value is number => value !== null && value > 0);
-  const volumes = exercise.points.map((point) => Number(point.volume ?? 0));
-  const useMax = maxes.length > 0;
-  const series = useMax ? maxes : volumes;
-  const latest = series.at(-1) ?? 0;
-  const best = Math.max(...series, 0);
+function RecentExercises({ trends }: { trends: ExerciseStrengthTrend[] }) {
   return (
-    <li>
-      <Link
-        to="/train/exercises/$exerciseId"
-        params={{ exerciseId: exercise.id }}
-        className="flex items-center gap-4 rounded-xl border bg-card p-4 transition-colors hover:bg-muted/40"
-      >
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <strong className="truncate text-sm font-semibold">{exercise.name}</strong>
-          <span className="text-[13px] text-muted-foreground tabular-nums">
-            {useMax ? "e1RM" : "Volume"} {kgFormat.format(latest)} kg · best {kgFormat.format(best)}
-          </span>
-        </span>
-        <Sparkline
-          values={series}
-          label={describeTrend(
-            series.map((value) => ({ value })),
-            {
-              label: `${exercise.name} ${useMax ? "estimated one-rep max" : "volume"}`,
-              unit: "kg",
-            },
-          )}
-          className="h-10 w-24 shrink-0"
-        />
-      </Link>
-    </li>
+    <section aria-labelledby="recent-lifts" className="flex flex-col gap-3">
+      <h2 id="recent-lifts" className="mt-1 text-[17px] font-semibold">
+        Logged in the last {RECENT_EXERCISE_DAYS} days
+      </h2>
+      {trends.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Nothing logged in the last {RECENT_EXERCISE_DAYS} days.
+        </p>
+      ) : (
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(460px,100%),1fr))] gap-3">
+          {trends.map((trend) => (
+            <li key={trend.id} className="min-w-0">
+              <ExerciseStrengthCard trend={trend} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

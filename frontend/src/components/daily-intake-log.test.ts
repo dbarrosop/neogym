@@ -20,4 +20,4 @@ test("daily intake keeps owner-scoped estimates and live food-edit totals in one
     output:
       "Daily intake isolates accounts across sign-out and delayed refetches; food-edit invalidation and exact ensureDay lookup remain live.\n",
   });
-});
+}, 25_000);

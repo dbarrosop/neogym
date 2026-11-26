@@ -1,18 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import Fuse from "fuse.js";
-import { Apple, ChevronRight, Globe2, Plus, Search, User, X } from "lucide-react";
-import { Fragment, useMemo } from "react";
+import { Apple, ChevronRight, Globe, Plus, SearchX, User } from "lucide-react";
+import { useMemo } from "react";
 import { z } from "zod";
-import { Badge } from "@/components/ui/badge";
+import {
+  FoodSummary,
+  formatPer100,
+  LibrarySearchField,
+  LibrarySkeleton,
+} from "@/components/nutrition-library";
+import { FilterChip } from "@/components/patterns/filter-chip";
+import { EmptyState, ErrorState } from "@/components/patterns/query-states";
+import { Tag } from "@/components/patterns/tag";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { graphql } from "@/gql";
 import { gqlRequest } from "@/lib/graphql";
 import { useIsSplit } from "@/lib/hooks/use-is-split";
-import { macroSummary, normalizeNumeric } from "@/lib/nutrition";
+import { useAuth } from "@/lib/nhost/auth-provider";
 import { cn } from "@/lib/utils";
 
 const FoodsIndexQuery = graphql(`
@@ -60,18 +65,7 @@ type Food = {
   sugarPer100g: unknown;
 };
 
-function FoodsIndexRoute() {
-  const searchParams = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const search = searchParams.q ?? "";
-  const visibility: Visibility | null = searchParams.visibility ?? null;
-
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["nutrition", "foods", "index"],
-    queryFn: () => gqlRequest(FoodsIndexQuery),
-  });
-
-  const foods = useMemo<Food[]>(() => data?.foods ?? [], [data]);
+function useFilteredFoods(foods: Food[], search: string, visibility: Visibility | null) {
   const fuse = useMemo(
     () =>
       new Fuse(foods, {
@@ -83,38 +77,46 @@ function FoodsIndexRoute() {
     [foods],
   );
 
-  const searchScores = useMemo<Map<string, number> | null>(() => {
-    const trimmed = search.trim();
-    if (!trimmed) {
-      return null;
-    }
-    const result = new Map<string, number>();
-    for (const match of fuse.search(trimmed)) {
-      result.set(match.item.id, match.score ?? 0);
-    }
-    return result;
-  }, [fuse, search]);
-
-  const filteredFoods = useMemo(() => {
+  return useMemo(() => {
     let result = foods;
     if (visibility === "mine") {
       result = result.filter((food) => !food.isPublic);
     } else if (visibility === "public") {
       result = result.filter((food) => food.isPublic);
     }
-    if (searchScores) {
-      result = result
-        .filter((food) => searchScores.has(food.id))
-        .slice()
-        .sort((a, b) => {
-          const aScore = searchScores.get(a.id) ?? Number.POSITIVE_INFINITY;
-          const bScore = searchScores.get(b.id) ?? Number.POSITIVE_INFINITY;
-          return aScore - bScore;
-        });
+    const trimmed = search.trim();
+    if (!trimmed) {
+      return result;
     }
-    return result;
-  }, [foods, searchScores, visibility]);
+    const scores = new Map<string, number>();
+    for (const match of fuse.search(trimmed)) {
+      scores.set(match.item.id, match.score ?? 0);
+    }
+    return result
+      .filter((food) => scores.has(food.id))
+      .toSorted(
+        (a, b) =>
+          (scores.get(a.id) ?? Number.POSITIVE_INFINITY) -
+          (scores.get(b.id) ?? Number.POSITIVE_INFINITY),
+      );
+  }, [foods, fuse, search, visibility]);
+}
 
+function FoodsIndexRoute() {
+  const searchParams = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const search = searchParams.q ?? "";
+  const visibility: Visibility | null = searchParams.visibility ?? null;
+
+  const { user } = useAuth();
+  const { data, isLoading, error, refetch, isFetching } = useQuery({
+    queryKey: ["nutrition", "foods", "index", user?.id],
+    enabled: Boolean(user),
+    queryFn: () => gqlRequest(FoodsIndexQuery),
+  });
+
+  const foods = useMemo<Food[]>(() => data?.foods ?? [], [data]);
+  const filteredFoods = useFilteredFoods(foods, search, visibility);
   const isFiltered = search.trim() !== "" || visibility !== null;
   const split = useIsSplit();
   const selected = split
@@ -128,9 +130,9 @@ function FoodsIndexRoute() {
     });
   }
 
-  function setVisibility(value: Visibility | null) {
+  function toggleVisibility(value: Visibility) {
     navigate({
-      search: (prev) => ({ ...prev, visibility: value ?? undefined }),
+      search: (prev) => ({ ...prev, visibility: visibility === value ? undefined : value }),
       replace: true,
     });
   }
@@ -141,161 +143,131 @@ function FoodsIndexRoute() {
 
   function renderContent() {
     if (isLoading) {
-      return <FoodsSkeleton />;
+      return <LibrarySkeleton />;
     }
-    if (error) {
-      return <ErrorCard message={error.message} />;
+    if (!data) {
+      return null;
     }
     if (filteredFoods.length === 0) {
-      return (
-        <Card className="border-dashed">
-          <CardContent className="space-y-3 py-10 text-center text-sm text-muted-foreground">
-            <p>
-              {isFiltered
-                ? "No foods match these filters."
-                : "You do not have any foods yet. Public foods will appear here when available."}
-            </p>
-            {isFiltered ? (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-xs font-medium text-link hover:underline"
-              >
-                Clear filters
-              </button>
-            ) : (
-              <Button asChild size="sm">
-                <Link to="/nutrition/foods/new">
-                  <Plus className="h-4 w-4" />
-                  Create your first food
-                </Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      return isFiltered ? (
+        <EmptyState
+          icon={SearchX}
+          title="No foods match"
+          description={
+            search.trim()
+              ? `Nothing in your foods or the public catalog matches “${search.trim()}”.`
+              : "No foods match this filter."
+          }
+          actions={
+            <Button type="button" variant="outline" onClick={clearAll}>
+              {search.trim() ? "Clear search" : "Clear filter"}
+            </Button>
+          }
+        />
+      ) : (
+        <EmptyState
+          icon={Apple}
+          title="No foods yet"
+          description="Create a private food with the per-100 g values from its package label."
+          actions={
+            <Button asChild>
+              <Link to="/nutrition/foods/new">
+                <Plus />
+                New food
+              </Link>
+            </Button>
+          }
+        />
       );
     }
     return (
       <>
-        <div className="flex items-start gap-5">
+        <div className="hidden items-start gap-5 md:flex">
           <FoodsTable foods={filteredFoods} selectedId={selected?.id} />
-          {selected ? <FoodPanel food={selected} /> : null}
+          {selected ? (
+            <aside
+              aria-label="Selected food"
+              className="sticky top-6 hidden w-[320px] shrink-0 flex-col gap-3.5 rounded-xl border bg-card p-5 md:flex"
+            >
+              <FoodSummary food={selected} variant="panel" canEdit={!selected.isPublic} />
+            </aside>
+          ) : null}
         </div>
-        <Card className="py-0 md:hidden">
-          <CardContent className="p-2">
-            <ul className="divide-y divide-border">
-              {filteredFoods.map((food) => (
-                <FoodRow key={food.id} food={food} />
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card md:hidden">
+          {filteredFoods.map((food) => (
+            <FoodRow key={food.id} food={food} />
+          ))}
+        </ul>
       </>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <p className="max-w-prose text-sm text-muted-foreground">
-            Search public foods and your private catalog.
-          </p>
-        </div>
-      </div>
+    <div className="flex flex-col gap-5">
+      <p className="max-w-[760px] text-sm leading-normal text-muted-foreground">
+        Search public foods and your private catalog.
+      </p>
 
-      <div className="space-y-3">
-        <SearchBar value={search} onChange={setSearchText} />
-        <div className="flex flex-wrap items-center gap-1.5">
-          <VisibilityPill
-            value="mine"
-            active={visibility === "mine"}
-            onClick={() => setVisibility(visibility === "mine" ? null : "mine")}
-          />
-          <VisibilityPill
-            value="public"
-            active={visibility === "public"}
-            onClick={() => setVisibility(visibility === "public" ? null : "public")}
-          />
-          {isFiltered ? (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="ml-auto text-xs font-medium text-link hover:underline"
+      <div className="flex flex-col gap-3">
+        <LibrarySearchField
+          label="Search foods"
+          placeholder="Search foods…"
+          value={search}
+          onChange={setSearchText}
+        />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <fieldset className="flex gap-2">
+            <legend className="sr-only">Show only</legend>
+            <FilterChip
+              size="sm"
+              icon={User}
+              selected={visibility === "mine"}
+              onClick={() => toggleVisibility("mine")}
             >
-              Clear all
-            </button>
+              Mine
+            </FilterChip>
+            <FilterChip
+              size="sm"
+              icon={Globe}
+              selected={visibility === "public"}
+              onClick={() => toggleVisibility("public")}
+            >
+              Public
+            </FilterChip>
+          </fieldset>
+          {isFiltered && data ? (
+            <>
+              <p aria-live="polite" className="text-[13px] text-muted-foreground tabular-nums">
+                {filteredFoods.length} {filteredFoods.length === 1 ? "match" : "matches"}
+              </p>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={clearAll}
+                className="ml-auto h-auto px-0"
+              >
+                Clear all
+              </Button>
+            </>
           ) : null}
         </div>
-        {isFiltered ? (
-          <p className="px-1 text-xs text-muted-foreground">
-            {filteredFoods.length} match{filteredFoods.length === 1 ? "" : "es"}
-          </p>
-        ) : null}
       </div>
 
+      {error ? (
+        <ErrorState
+          title="Couldn’t load foods"
+          message={error.message}
+          onRetry={() => refetch()}
+          isRetrying={isFetching}
+        />
+      ) : null}
       {renderContent()}
     </div>
   );
 }
 
-function SearchBar({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Search foods…"
-        className="h-11 rounded-xl bg-card pr-10 pl-10"
-      />
-      {value ? (
-        <button
-          type="button"
-          onClick={() => onChange("")}
-          className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
-          aria-label="Clear search"
-        >
-          <X className="h-4 w-4" />
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function VisibilityPill({
-  value,
-  active,
-  onClick,
-}: {
-  value: Visibility;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const label = value === "mine" ? "Mine" : "Public";
-  const Icon = value === "mine" ? User : Globe2;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-        active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Icon className="h-3 w-3" />
-      {label}
-    </button>
-  );
-}
-
-const per100Format = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
-
-function per100(value: unknown): string {
-  return per100Format.format(normalizeNumeric(value));
-}
+const TH = "px-3 py-2.5 font-semibold whitespace-nowrap";
 
 /**
  * Catalog from 768 px: secondary macros appear when the table itself has room,
@@ -307,26 +279,26 @@ function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string 
     <div className="@container hidden min-w-0 flex-1 overflow-hidden rounded-xl border bg-card md:block">
       <table className="w-full text-sm tabular-nums">
         <thead>
-          <tr className="text-right text-[12px] text-muted-foreground">
-            <th scope="col" className="py-2.5 pl-4 text-left font-medium">
+          <tr className="border-b text-right text-xs text-muted-foreground">
+            <th scope="col" className={cn(TH, "pl-4 text-left")}>
               Name
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               kcal
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               Protein
             </th>
-            <th scope="col" className="font-medium">
+            <th scope="col" className={TH}>
               Carbs
             </th>
-            <th scope="col" className="pr-4 font-medium @xl:pr-0">
+            <th scope="col" className={cn(TH, "pr-4 @xl:pr-3")}>
               Fat
             </th>
-            <th scope="col" className="hidden font-medium @xl:table-cell">
+            <th scope="col" className={cn(TH, "hidden @xl:table-cell")}>
               Fiber
             </th>
-            <th scope="col" className="hidden pr-4 font-medium @xl:table-cell">
+            <th scope="col" className={cn(TH, "hidden pr-4 @xl:table-cell")}>
               Sugar
             </th>
           </tr>
@@ -336,171 +308,83 @@ function FoodsTable({ foods, selectedId }: { foods: Food[]; selectedId?: string 
             <tr
               key={food.id}
               className={cn(
-                "border-t text-right hover:bg-surface-inset",
+                "border-b text-right hover:bg-surface-inset",
                 food.id === selectedId && "bg-accent-soft/60 hover:bg-accent-soft/60",
               )}
             >
-              <td className="min-w-40 max-w-0 py-2.5 pr-4 pl-4 text-left">
-                {selectedId === undefined ? (
-                  <Link
-                    to="/nutrition/foods/$foodId"
-                    params={{ foodId: food.id }}
-                    className="block wrap-break-word font-medium hover:text-link"
-                  >
-                    {food.name}
-                  </Link>
-                ) : (
-                  <Link
-                    to="/nutrition/foods"
-                    search={(prev) => ({ ...prev, selected: food.id })}
-                    replace={true}
-                    aria-current={food.id === selectedId ? "true" : undefined}
-                    className="block wrap-break-word font-medium hover:text-link"
-                  >
-                    {food.name}
-                  </Link>
-                )}
-                {food.isPublic ? (
-                  <span className="mt-1 inline-block rounded-full bg-muted px-2 text-[11px] text-muted-foreground">
-                    public
-                  </span>
-                ) : null}
+              <td className="h-[46px] min-w-40 max-w-0 py-1.5 pr-3 pl-4 text-left">
+                <FoodNameLink food={food} selectedId={selectedId} />
+                {food.isPublic ? <Tag className="mt-1">public</Tag> : null}
               </td>
-              <td className="w-16 font-semibold">{per100(food.kcalPer100g)}</td>
-              <td className="w-16">{per100(food.proteinPer100g)}</td>
-              <td className="w-16">{per100(food.carbsPer100g)}</td>
-              <td className="w-16 pr-4 @xl:pr-0">{per100(food.fatPer100g)}</td>
-              <td className="hidden w-16 text-muted-foreground @xl:table-cell">
-                {per100(food.fiberPer100g)}
+              <td className="w-16 px-3 font-semibold">{formatPer100(food.kcalPer100g)}</td>
+              <td className="w-16 px-3">{formatPer100(food.proteinPer100g)}</td>
+              <td className="w-16 px-3">{formatPer100(food.carbsPer100g)}</td>
+              <td className="w-16 pr-4 pl-3 @xl:pr-3">{formatPer100(food.fatPer100g)}</td>
+              <td className="hidden w-16 px-3 text-muted-foreground @xl:table-cell">
+                {formatPer100(food.fiberPer100g)}
               </td>
-              <td className="hidden w-16 pr-4 text-muted-foreground @xl:table-cell">
-                {per100(food.sugarPer100g)}
+              <td className="hidden w-16 pr-4 pl-3 text-muted-foreground @xl:table-cell">
+                {formatPer100(food.sugarPer100g)}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <p className="border-t px-4 py-2 text-[12px] text-muted-foreground">Values per 100 g.</p>
+      <p className="px-4 py-3 text-[13px] text-muted-foreground">Values per 100 g.</p>
     </div>
   );
 }
 
-const PANEL_MACROS = [
-  ["Protein", "proteinPer100g"],
-  ["Carbs", "carbsPer100g"],
-  ["Fat", "fatPer100g"],
-  ["Fiber", "fiberPer100g"],
-  ["Sugar", "sugarPer100g"],
-] as const;
-
-/** The selected food beside the table from 1100 px. */
-function FoodPanel({ food }: { food: Food }) {
+function FoodNameLink({ food, selectedId }: { food: Food; selectedId: string | undefined }) {
+  const className = "block wrap-break-word font-medium hover:text-link";
+  if (selectedId === undefined) {
+    return (
+      <Link to="/nutrition/foods/$foodId" params={{ foodId: food.id }} className={className}>
+        {food.name}
+      </Link>
+    );
+  }
   return (
-    <aside
-      aria-label="Selected food"
-      className="sticky top-6 hidden w-[320px] shrink-0 space-y-4 rounded-xl border border-border bg-card p-5 md:block"
+    <Link
+      to="/nutrition/foods"
+      search={(prev) => ({ ...prev, selected: food.id })}
+      replace={true}
+      aria-current={food.id === selectedId ? "true" : undefined}
+      className={className}
     >
-      <div className="space-y-1">
-        <p className="text-[13px] text-muted-foreground">
-          {food.isPublic ? "Public" : "Mine"} · per 100 g
-        </p>
-        <h2 className="text-[17px] font-semibold leading-snug">{food.name}</h2>
-      </div>
-      <p className="text-[26px] font-semibold tabular-nums">
-        {per100(food.kcalPer100g)}{" "}
-        <span className="text-sm font-medium text-muted-foreground">kcal</span>
-      </p>
-      <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-2 text-sm tabular-nums">
-        {PANEL_MACROS.map(([label, key]) => (
-          <Fragment key={key}>
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="font-semibold">{per100(food[key])} g</dd>
-          </Fragment>
-        ))}
-      </dl>
-      <div className="flex gap-2">
-        <Button asChild variant="outline" className="min-h-11 flex-1">
-          <Link to="/nutrition/foods/$foodId" params={{ foodId: food.id }}>
-            Details
-          </Link>
-        </Button>
-        {food.isPublic ? null : (
-          <Button asChild variant="outline" className="min-h-11 flex-1">
-            <Link to="/nutrition/foods/$foodId/edit" params={{ foodId: food.id }}>
-              Edit
-            </Link>
-          </Button>
-        )}
-      </div>
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        {food.isPublic
-          ? "Public foods are read-only. Create a private food to change values."
-          : "Editing a food never changes days already logged; they keep their snapshot."}
-      </p>
-    </aside>
+      {food.name}
+    </Link>
   );
 }
 
+/** Below 768 px: one title, one P · C · F line, kcal per 100 g trailing; opens the food. */
 function FoodRow({ food }: { food: Food }) {
+  const protein = formatPer100(food.proteinPer100g);
+  const carbs = formatPer100(food.carbsPer100g);
+  const fat = formatPer100(food.fatPer100g);
   return (
     <li>
       <Link
         to="/nutrition/foods/$foodId"
         params={{ foodId: food.id }}
-        className="group flex min-h-16 items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-muted/60"
+        className="flex min-h-16 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
       >
-        <span className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-md bg-accent-soft text-accent-soft-foreground">
-            <Apple className="h-4 w-4" />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="min-w-0 wrap-break-word text-[15px] font-semibold">{food.name}</span>
+            {food.isPublic ? <Tag>public</Tag> : null}
           </span>
-          <span className="min-w-0 space-y-1">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate text-sm font-medium">{food.name}</span>
-              {food.isPublic ? (
-                <Badge variant="primary" className="shrink-0 px-1.5 py-0">
-                  <Globe2 className="h-2.5 w-2.5" /> Public
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="shrink-0 px-1.5 py-0">
-                  <User className="h-2.5 w-2.5" /> Mine
-                </Badge>
-              )}
-            </span>
-            <span className="line-clamp-2 text-xs text-muted-foreground">
-              {macroSummary(food)} per 100g
-            </span>
+          <span className="text-[13px] text-muted-foreground tabular-nums">
+            <span className="sr-only">{`Protein ${protein} g, carbs ${carbs} g, fat ${fat} g`}</span>
+            <span aria-hidden="true">{`P ${protein} · C ${carbs} · F ${fat} g`}</span>
           </span>
         </span>
-        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-colors group-hover:text-foreground" />
+        <span className="flex shrink-0 flex-col items-end tabular-nums">
+          <span className="text-[15px] font-semibold">{formatPer100(food.kcalPer100g)}</span>
+          <span className="text-xs text-muted-foreground">kcal/100 g</span>
+        </span>
+        <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>
-  );
-}
-
-function FoodsSkeleton() {
-  return (
-    <Card className="py-0">
-      <CardContent className="space-y-3 p-4">
-        {[0, 1, 2, 3].map((item) => (
-          <div key={item} className="flex items-center gap-3">
-            <Skeleton className="h-9 w-9 rounded-md" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-3 w-full" />
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ErrorCard({ message }: { message: string }) {
-  return (
-    <Card className="border-destructive/30 bg-destructive/5">
-      <CardContent className="py-4">
-        <p className="text-sm text-destructive">Failed to load: {message}</p>
-      </CardContent>
-    </Card>
   );
 }

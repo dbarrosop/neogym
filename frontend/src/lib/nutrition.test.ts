@@ -11,7 +11,9 @@ import {
   formatLocalDate,
   formatLocalDateLabel,
   formatMacro,
+  formatMacroGrams,
   formatTimeOfDay,
+  formatWholeGrams,
   groupIntakeByTimeSlot,
   groupPlanDraftEntriesByTimeSlot,
   groupPlanEntriesByTimeSlot,
@@ -21,12 +23,14 @@ import {
   isFoodInUseError,
   isValidLocalDate,
   loggedMacroTotals,
+  macroLineLabel,
   macroSummary,
   macrosForGrams,
   macroTotalsSummary,
   mealMacroTotals,
   mergePlanEntriesByTime,
   movePlanDraftEntryWithinSlot,
+  NUTRIENT_FIELDS,
   normalizeMacros,
   normalizeNumeric,
   type PlanFoodEntry,
@@ -154,7 +158,42 @@ describe("nutrition numeric and macro helpers", () => {
         fiberPer100g: "2.25",
         sugarPer100g: "5",
       }),
-    ).toBe("120 kcal · 3.5 g fat · 20 g carbs · 4 g protein · 2.3 g fiber · 5 g sugar");
+    ).toBe("120 kcal · 4 g protein · 20 g carbs · 3.5 g fat · 2.3 g fiber · 5 g sugar");
+  });
+
+  it("orders nutrient inputs Energy, Protein, Carbs, Fat, Fiber, Sugar", () => {
+    expect(NUTRIENT_FIELDS.map((field) => `${field.label} ${field.suffix}`)).toEqual([
+      "Energy kcal",
+      "Protein g",
+      "Carbs g",
+      "Fat g",
+      "Fiber g",
+      "Sugar g",
+    ]);
+  });
+
+  it("formats row macro grams with one decimal below 10 g and whole grams above", () => {
+    expect(formatMacroGrams(6.8)).toBe("6.8");
+    expect(formatMacroGrams("0.5")).toBe("0.5");
+    expect(formatMacroGrams(2)).toBe("2");
+    expect(formatMacroGrams(2.04)).toBe("2");
+    expect(formatMacroGrams(0)).toBe("0");
+    expect(formatMacroGrams(6.85)).toBe("6.9");
+    expect(formatMacroGrams(9.96)).toBe("10");
+    expect(formatMacroGrams(45.4)).toBe("45");
+    expect(formatMacroGrams(10.5)).toBe("11");
+    expect(formatMacroGrams(null)).toBe("0");
+  });
+
+  it("formats slot totals in whole grams and speaks the P · C · F line", () => {
+    expect(formatWholeGrams(105.6)).toBe("106");
+    expect(formatWholeGrams("6.2")).toBe("6");
+    expect(macroLineLabel({ protein: 45.2, carbs: 105.6, fat: 6.2 })).toBe(
+      "Protein 45 grams, carbs 106 grams, fat 6 grams",
+    );
+    expect(macroLineLabel({ protein: 33, carbs: 6.8, fat: 0.5 }, "tenths")).toBe(
+      "Protein 33 grams, carbs 6.8 grams, fat 0.5 grams",
+    );
   });
 });
 
@@ -253,7 +292,7 @@ describe("nutrition macro helpers", () => {
       sugar: 4,
     });
     expect(macroTotalsSummary(totals)).toBe(
-      "140 kcal · 2 g fat · 13 g carbs · 7 g protein · 2.5 g fiber · 4 g sugar",
+      "140 kcal · 7 g protein · 13 g carbs · 2 g fat · 2.5 g fiber · 4 g sugar",
     );
   });
 });

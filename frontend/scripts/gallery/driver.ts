@@ -103,6 +103,11 @@ export async function guardNetwork(context: BrowserContext, origin: string): Pro
 }
 
 const ERROR_ALERT = /failed|couldn't|error/i;
+const PATH_UUID = /\b[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\b/gi;
+
+export function recordedPath(path: string) {
+  return path.replace(PATH_UUID, ":fixture-id");
+}
 
 function isGraphQL(url: string): boolean {
   return url === LOCAL_GRAPHQL || url === `${LOCAL_GRAPHQL}/graphql`;
@@ -162,7 +167,7 @@ export class GalleryDriver {
   }
 
   async open(path: string, heading?: string): Promise<void> {
-    this.step(`Open ${path}`);
+    this.step(`Open ${recordedPath(path)}`);
     await this.page.goto(`${this.origin}${path}`);
     if (heading) {
       await expect(
@@ -193,8 +198,10 @@ export class GalleryDriver {
       throw new Error("A screenshot requires a recorded workflow");
     }
     await this.settle();
-    // Wait for identical consecutive rendered frames rather than guessing chart
-    // animation duration. Rest countdowns may keep running between captures.
+    // Do not accidentally capture a chart hover or a network-timed success toast.
+    await this.page.mouse.move(0, 0);
+    await expect(this.page.locator("[data-sonner-toast]")).toHaveCount(0, { timeout: 12_000 });
+    // Wait for identical consecutive rendered frames, not a guessed render delay.
     let previous = "";
     let png: Buffer = Buffer.alloc(0);
     await expect
@@ -241,7 +248,7 @@ export class GalleryDriver {
     process.stdout.write(`CAPTURED ${id}\n`);
   }
 
-  async run(id: string, title: string, action: () => Promise<void>): Promise<void> {
+  async run<T>(id: string, title: string, action: () => Promise<T>): Promise<T> {
     this.current = {
       id: `${this.profile}-${id}`,
       title: `${title} · ${this.profile}`,
@@ -250,13 +257,28 @@ export class GalleryDriver {
       checks: [],
       source: this.source,
     };
+    const workflowId = this.current.id;
+    const prior = this.manifest.workflows.find((record) => record.id === workflowId);
+    const frames = () =>
+      JSON.stringify(this.manifest.screenshots.filter((frame) => frame.workflow === workflowId));
+    const before = frames();
     upsert(this.manifest.workflows, this.current);
     await saveManifest(this.output, this.manifest);
     try {
-      await action();
+      const result = await action();
       await this.settle();
       this.current.status = "passed";
       this.current.verifiedAt = new Date().toISOString();
+      if (
+        prior?.status === "passed" &&
+        prior.title === this.current.title &&
+        JSON.stringify(prior.steps) === JSON.stringify(this.current.steps) &&
+        JSON.stringify(prior.checks) === JSON.stringify(this.current.checks) &&
+        before === frames()
+      ) {
+        upsert(this.manifest.workflows, prior);
+      }
+      return result;
     } catch (error) {
       const diagnostics = resolve(this.output, "..", "web-gallery-diagnostics");
       await mkdir(diagnostics, { recursive: true });

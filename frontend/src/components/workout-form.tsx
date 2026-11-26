@@ -20,17 +20,20 @@ import { GripVertical, Plus, X } from "lucide-react";
 import { type SubmitEvent, useId, useMemo, useState } from "react";
 import { CardioTag } from "@/components/exercise-kind-tag";
 import { ExercisePicker, type PickerSelection } from "@/components/exercise-picker";
+import { ExerciseThumbnail } from "@/components/exercise-thumbnail";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
 import { FormActions } from "@/components/patterns/form-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormPageFormId } from "@/lib/form-page-context";
 import { cn, formatMuscle } from "@/lib/utils";
@@ -46,6 +49,8 @@ export interface WorkoutFormExercise {
   kind: string;
   primaryMuscleGroup: string;
   doubleWeight: boolean;
+  /** The exercise's first image, shown as the row thumbnail. */
+  image1FileId?: string | null | undefined;
 }
 
 export interface WorkoutFormValues {
@@ -84,6 +89,7 @@ export function WorkoutForm({
   const [pickerOpen, setPickerOpen] = useState(false);
   const nameId = useId();
   const descId = useId();
+  const exercisesId = useId();
 
   const sensors = useSensors(
     // Require a small drag distance before activating so taps still register as
@@ -135,12 +141,11 @@ export function WorkoutForm({
   }
 
   return (
-    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-4">
-        <div className="space-y-1.5">
-          <label htmlFor={nameId} className="text-sm font-medium">
-            Name
-          </label>
+    <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-5">
+      {/* Name and Labels side by side from 640 px, Notes full width (Web · WorkoutEditor). */}
+      <div className="grid items-start gap-4 rounded-xl border bg-card p-5 sm:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor={nameId}>Name</Label>
           <Input
             id={nameId}
             value={name}
@@ -151,43 +156,48 @@ export function WorkoutForm({
             required
           />
         </div>
-        <div className="space-y-1.5">
-          <label htmlFor={descId} className="text-sm font-medium">
-            Description
-            <span className="ml-2 text-xs font-normal text-muted-foreground">Optional</span>
-          </label>
-          <Textarea
-            id={descId}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What's this routine for?"
-            rows={5}
-          />
-          <p className="text-xs text-muted-foreground">
-            Markdown supported — use <code className="font-mono">**bold**</code>,{" "}
-            <code className="font-mono">- lists</code>, headings, and more.
-          </p>
-        </div>
         <LabelInput
           value={labels}
           onChange={setLabels}
           suggestions={labelSuggestions}
           disabled={isSubmitting}
+          optional={false}
+          hint={null}
         />
+        <div className="col-span-full flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor={descId} className="gap-1.5">
+            Notes
+            <span className="font-medium text-muted-foreground">Markdown</span>
+          </Label>
+          <Textarea
+            id={descId}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="What’s this routine for?"
+            rows={3}
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 className="text-sm font-medium">Exercises</h2>
-          <span className="text-xs text-muted-foreground">
-            {exercises.length} added{exercises.length > 1 ? " · drag to reorder" : ""}
-          </span>
+      <section aria-labelledby={exercisesId} className="rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-3.5">
+          <h2 id={exercisesId} className="text-[15px] font-semibold">
+            Exercises{" "}
+            <span className="text-[13px] font-medium text-muted-foreground tabular-nums">
+              · {exercises.length}
+            </span>
+          </h2>
+          {exercises.length > 1 ? (
+            <span className="text-[13px] text-muted-foreground">
+              Drag to change the session order
+            </span>
+          ) : null}
         </div>
 
         {exercises.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border bg-surface-inset px-4 py-6 text-center text-sm text-muted-foreground">
+          <p className="border-t px-4 py-5 text-sm text-muted-foreground">
             No exercises yet. Add one to get started.
-          </div>
+          </p>
         ) : (
           <DndContext
             sensors={sensors}
@@ -199,12 +209,11 @@ export function WorkoutForm({
               items={exercises.map((e) => e.rowId)}
               strategy={verticalListSortingStrategy}
             >
-              <ol className="space-y-1.5">
-                {exercises.map((ex, idx) => (
+              <ol className="flex flex-col">
+                {exercises.map((ex) => (
                   <SortableExerciseRow
                     key={ex.rowId}
                     exercise={ex}
-                    index={idx}
                     onRemove={() => removeExercise(ex.rowId)}
                   />
                 ))}
@@ -213,30 +222,30 @@ export function WorkoutForm({
           </DndContext>
         )}
 
-        <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full border-dashed"
-              disabled={isSubmitting}
-            >
-              <Plus className="h-4 w-4" />
-              Add exercise
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="md:max-w-xl">
-            <DialogHeader>
-              <DialogTitle>Add exercises</DialogTitle>
-            </DialogHeader>
-            <ExercisePicker
-              alreadySelected={selectedExerciseIds}
-              onConfirm={addExercises}
-              onCancel={() => setPickerOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+        <div className="border-t px-4 py-3">
+          <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline" disabled={isSubmitting}>
+                <Plus />
+                Add exercise
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="md:max-w-[520px]">
+              <DialogHeader>
+                <DialogTitle>Add exercises</DialogTitle>
+                <DialogDescription>
+                  Added to the end of the workout. Drag to reorder.
+                </DialogDescription>
+              </DialogHeader>
+              <ExercisePicker
+                alreadySelected={selectedExerciseIds}
+                onConfirm={addExercises}
+                onCancel={() => setPickerOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+      </section>
 
       <FormActions
         submitLabel={submitLabel}
@@ -251,11 +260,11 @@ export function WorkoutForm({
 
 interface SortableExerciseRowProps {
   exercise: WorkoutFormExercise;
-  index: number;
   onRemove: () => void;
 }
 
-function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowProps) {
+/** Drag handle, photo, name over muscle, CARDIO tag and remove (64 px row). */
+function SortableExerciseRow({ exercise, onRemove }: SortableExerciseRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: exercise.rowId,
   });
@@ -270,37 +279,35 @@ function SortableExerciseRow({ exercise, index, onRemove }: SortableExerciseRowP
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-2 rounded-md border border-border bg-card/80 px-2 py-2",
-        isDragging && "z-10 shadow-lg ring-2 ring-primary/40",
+        "grid min-h-16 grid-cols-[36px_48px_minmax(0,1fr)_auto_36px] items-center gap-2.5 border-t bg-card py-2 pr-3 pl-2",
+        isDragging && "relative z-10 rounded-lg shadow-lg ring-2 ring-primary/40",
       )}
     >
       <button
         type="button"
-        aria-label="Drag to reorder"
-        className="grid h-9 w-7 shrink-0 cursor-grab touch-none place-items-center rounded text-muted-foreground hover:bg-muted/60 hover:text-foreground active:cursor-grabbing"
+        aria-label={`Drag to reorder ${exercise.name}`}
+        className="grid size-9 cursor-grab touch-none place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
-        <GripVertical className="h-4 w-4" />
+        <GripVertical className="size-4" />
       </button>
-      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-muted text-[11px] font-medium text-muted-foreground tabular-nums">
-        {index + 1}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{exercise.name}</p>
-        <p className="truncate text-xs text-muted-foreground">
+      <ExerciseThumbnail fileId={exercise.image1FileId} />
+      <div className="flex min-w-0 flex-col">
+        <p className="text-[15px] font-semibold wrap-break-word">{exercise.name}</p>
+        <p className="truncate text-[13px] text-muted-foreground">
           {formatMuscle(exercise.primaryMuscleGroup)}
-          {exercise.doubleWeight ? " · two-handed" : ""}
+          {exercise.doubleWeight ? " · weight per side" : ""}
         </p>
       </div>
-      {exercise.kind === "cardio" ? <CardioTag /> : null}
+      <span>{exercise.kind === "cardio" ? <CardioTag /> : null}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${exercise.name}`}
-        className="grid h-8 w-8 shrink-0 place-items-center rounded text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        className="grid size-9 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
       >
-        <X className="h-4 w-4" />
+        <X className="size-4" />
       </button>
     </li>
   );

@@ -156,7 +156,7 @@ A standard JSON Schema 2020 document describing one entry's `metrics` jsonb. The
 
 The `x-format` value controls:
 
-- Input mode in `cardio-metrics-form.tsx` (`integer`/`numeric` keyboard vs `decimal` keyboard with comma/dot acceptance; `duration_seconds` renders a 3-field h/m/s input; `average` uses the same numeric keyboard as `integer`).
+- Input mode in `cardio-metrics-form.tsx` (`integer`/`numeric` keyboard vs `decimal` keyboard with comma/dot acceptance; `duration_seconds` renders one text field typed as `mm:ss`, or `h:mm:ss` when the maximum exceeds 3600 s, where a bare number reads as whole minutes (`parseDurationInput` / `formatDurationInput`); `average` uses the same numeric keyboard as `integer`). The dialog lists required metrics first (`orderMetricsForForm`), visibly marks optional fields, and prompts for at least one value when every metric is optional.
 - Display formatting in `formatMetricValue()` — `integer` and `average` render without decimals with the unit suffix, `decimal` allows up to two fractional digits, `duration_seconds` renders as `m:ss` / `h:mm:ss` with no unit.
 - Aggregation across entries on `/train/exercises/$id` (the per-session trend chart). `integer`, `decimal`, and `duration_seconds` are **summed** within a session (4×400m intervals total 1.6 km of `distance_km`); `average` is **averaged** (avg HR across the four intervals, not their sum, which would be meaningless). The caption under the headline number flips between "total across entries" and "average across entries" accordingly. See `aggregationForFormat()` in `cardio-schema.ts`.
 

@@ -1,7 +1,8 @@
 import { type ReactNode, type SubmitEvent, useId, useState } from "react";
 import { LabelInput, type LabelSelection, type LabelSuggestion } from "@/components/label-input";
-import { FormActions, FormSection } from "@/components/patterns/form-actions";
+import { FormActions } from "@/components/patterns/form-actions";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormPageFormId } from "@/lib/form-page-context";
 
@@ -22,6 +23,11 @@ interface JournalEntryFormProps {
   extraActions?: ReactNode;
 }
 
+/**
+ * Journal editor (Web-JournalEditor): Date and an optional Title on one row,
+ * the Markdown entry in a monospace field, then labels. Render it inside a
+ * `FormPage`, whose card and sticky bars hold the fields and Cancel/Save.
+ */
 export function JournalEntryForm({
   initialValues,
   submitLabel,
@@ -56,26 +62,24 @@ export function JournalEntryForm({
   }
 
   return (
-    <form id={formId} onSubmit={handleSubmit} className="space-y-6">
-      <FormSection>
-        <div className="space-y-1.5">
-          <label htmlFor={dateId} className="text-sm font-medium">
-            Date
-          </label>
+    <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-[18px]">
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor={dateId}>Date</Label>
           <Input
             id={dateId}
             type="date"
+            className="tabular-nums"
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
             required
           />
         </div>
-
-        <div className="space-y-1.5">
-          <label htmlFor={titleId} className="text-sm font-medium">
+        <div className="flex min-w-0 flex-col gap-1.5">
+          <Label htmlFor={titleId} className="gap-1.5">
             Title
-            <span className="ml-2 text-xs font-normal text-muted-foreground">Optional</span>
-          </label>
+            <span className="font-medium text-muted-foreground">Optional</span>
+          </Label>
           <Input
             id={titleId}
             value={title}
@@ -84,32 +88,29 @@ export function JournalEntryForm({
             maxLength={200}
           />
         </div>
+      </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor={bodyId} className="text-sm font-medium">
-            Entry
-          </label>
-          <Textarea
-            id={bodyId}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Write what's on your mind…"
-            rows={14}
-            required
-          />
-          <p className="text-xs text-muted-foreground">
-            Markdown supported — use <code className="font-mono">**bold**</code>,{" "}
-            <code className="font-mono">- lists</code>, headings, and more.
-          </p>
-        </div>
-
-        <LabelInput
-          value={labels}
-          onChange={setLabels}
-          suggestions={labelSuggestions}
-          disabled={isSubmitting}
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <Label htmlFor={bodyId}>Entry · Markdown</Label>
+        <Textarea
+          id={bodyId}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write what's on your mind…"
+          rows={14}
+          // 16 px below 768 px keeps iOS Safari from zooming the focused field.
+          className="resize-y font-mono leading-[1.6] md:text-sm"
+          required
         />
-      </FormSection>
+      </div>
+
+      <LabelInput
+        value={labels}
+        onChange={setLabels}
+        suggestions={labelSuggestions}
+        optional={false}
+        disabled={isSubmitting}
+      />
 
       <FormActions
         submitLabel={submitLabel}
