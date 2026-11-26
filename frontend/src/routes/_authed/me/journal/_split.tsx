@@ -194,7 +194,7 @@ function JournalListRow({ entry, active }: { entry: JournalListEntry; active: bo
       <span className="text-[13px] font-semibold text-muted-foreground tabular-nums">
         {formatChartDate(entry.entryDate, { weekday: true })}
       </span>
-      <strong className="text-sm leading-[1.35] font-bold">
+      <strong className="wrap-anywhere text-sm leading-[1.35] font-bold">
         {entry.title ?? "Untitled entry"}
       </strong>
       {entry.journalEntryLabels.length > 0 ? (

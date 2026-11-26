@@ -41,7 +41,7 @@ export function PWAUpdatePrompt() {
             size="icon"
             aria-label="Dismiss"
             className="text-muted-foreground"
-            onClick={() => toast.dismiss(UPDATE_TOAST_ID)}
+            onClick={() => setNeedRefresh(false)}
           >
             <X />
           </Button>

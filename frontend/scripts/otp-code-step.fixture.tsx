@@ -152,6 +152,7 @@ try {
   const resend = button("Resend code");
   assert(resend, `Resend appears after the cooldown (line: ${resendLine()})`);
   assert.equal(resendLine(), "Didn’t get it? Resend code");
+  await settle(() => typeCode("123"));
   await settle(() => resend.click());
   assert.equal(resendCalls, 1);
   assert.equal(button(SENDING_CODE)?.disabled, true, "Resend is busy while the code is requested");
@@ -160,15 +161,19 @@ try {
 
   await settle(() => pendingResends.shift()?.resolve(false));
   assert(button("Resend code"), "A failed resend leaves the link available");
+  assert.equal(codeInput().value, "123", "A failed resend does not discard entered digits");
   await settle(() => button("Resend code")?.click());
   assert.equal(resendCalls, 2);
   await settle(() => pendingResends.shift()?.resolve(true));
   assert.equal(resendLine(), "Didn’t get it? Resend in 0:01", "A sent code restarts the cooldown");
   assert.equal(document.activeElement, codeInput(), "Focus returns to the code after a resend");
+  assert.equal(codeInput().value, "", "A successful resend starts a fresh code");
 
   await settle(() => button("Change email")?.click());
   assert.equal(changeEmailCalls, 1, "Change returns to the email step");
 
+  await settle(() => typeCode("999"));
+  assert.equal(verifyCalls.length, 3, "Only a complete new code can submit after resending");
   await settle(() => typeCode("999999"));
   assert.equal(verifyCalls.at(-1), "999999");
   await settle(() => pendingVerifies.shift()?.resolve(true));

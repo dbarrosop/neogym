@@ -83,7 +83,7 @@ function JournalEntryDetailRoute() {
             </Link>
           </Button>
         </div>
-        <h2 className="max-w-[720px] text-[22px] leading-[1.25] font-bold tracking-[-0.015em] md:text-[26px]">
+        <h2 className="max-w-[720px] wrap-anywhere text-[22px] leading-[1.25] font-bold tracking-[-0.015em] md:text-[26px]">
           {entry.title ?? "Untitled entry"}
         </h2>
         {entry.journalEntryLabels.length > 0 ? (

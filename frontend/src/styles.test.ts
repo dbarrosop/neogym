@@ -71,6 +71,11 @@ for (const [theme, pattern] of [
       ).toBeGreaterThanOrEqual(4.5);
     });
 
+    test("the row menu's link-colour focus outline has 3:1 contrast", () => {
+      expect(contrast(color("link"), color("popover"))).toBeGreaterThanOrEqual(3);
+      expect(contrast(color("link"), color("accent"))).toBeGreaterThanOrEqual(3);
+    });
+
     test("selected chip and day text meets AA on the accent fill", () => {
       expect(contrast(color("primary-foreground"), color("primary"))).toBeGreaterThanOrEqual(4.5);
     });

@@ -127,7 +127,7 @@ export function RowActionsMenu({
                 item.onSelect();
               }}
               className={cn(
-                "flex min-h-11 items-center rounded-[7px] px-3 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+                "flex min-h-11 items-center rounded-[7px] px-3 text-left text-sm transition-[background-color,color] hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-link disabled:pointer-events-none disabled:opacity-50",
                 item.destructive && "text-destructive",
               )}
             >

@@ -499,6 +499,18 @@ async function requestExerciseRemoval(name: string) {
   );
   const remove = button("Remove from session", menu);
   assert.equal(document.activeElement, remove);
+  for (const action of [first, remove]) {
+    assert(action.classList.contains("focus-visible:outline-2"));
+    assert(action.classList.contains("focus-visible:outline-link"));
+  }
+  await settle(() =>
+    remove.dispatchEvent(new window.KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true })),
+  );
+  assert.equal(document.activeElement, first);
+  await settle(() =>
+    first.dispatchEvent(new window.KeyboardEvent("keydown", { key: "End", bubbles: true })),
+  );
+  assert.equal(document.activeElement, remove);
   await settle(() => remove.click());
   const dialog = document.querySelector<HTMLElement>('[role="alertdialog"]');
   assert(dialog);

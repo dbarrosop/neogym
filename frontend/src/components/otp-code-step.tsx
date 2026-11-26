@@ -117,7 +117,10 @@ export function OtpCodeStep({
           </InputOTP>
           <ResendCode
             onResend={onResend}
-            onSent={() => inputRef.current?.focus()}
+            onSent={() => {
+              setCode("");
+              inputRef.current?.focus();
+            }}
             cooldownSeconds={resendCooldownSeconds}
           />
         </fieldset>
