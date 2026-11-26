@@ -173,8 +173,9 @@ their original provenance and are marked “Reused view”. Browser viewport cap
 private fixtures. No production sessions, shared-data writes or database resets are used. Fonts, the browser's
 application date and the seeded history are pinned; Auth, database and provenance clocks remain real.</p>
 <p>The catalog covers every web section root and representative OTP verification, Today summaries, session logging
-and editing, exercise details, nutrition logging and editing, progress charts, journal CRUD and appearance workflows.
-It is not exhaustive CRUD, state, tablet or browser compatibility coverage. Health/Watch actions remain native-only.</p>
+and editing, exercise details, nutrition logging and editing, progress charts, progress photos with synthetic illustrations,
+journal CRUD and appearance workflows. It is not exhaustive CRUD, state, tablet or browser compatibility coverage.
+Health/Watch actions remain native-only.</p>
 <p>“Apple Health” markers are fictional fixture notes demonstrating read-only source presentation, not evidence of an import.
 Recorded backend checks do not replace the backend permission/integrity suite. Offline validation verifies retained
 evidence and file integrity; it does not rerun browser workflows.</p>

@@ -36,17 +36,21 @@ export const CHECK_DOCUMENTS = {
   } }`,
 };
 
-export async function captureRoots(guide: GalleryDriver): Promise<void> {
-  await catalog.roots.reduce(async (previous, root) => {
-    await previous;
-    await guide.run(`root-${root.id}`, root.title, async () => {
-      await guide.open(root.path, root.heading);
-      // Skeletons and GraphQL errors are checked by the driver, including the
-      // optional report/history reads that otherwise leave browsing usable.
-      await guide.shot("root", `${root.title}: ${guide.profile} section root`);
-      guide.check("The real route and its data requests settled without browser or GraphQL errors");
-    });
-  }, Promise.resolve());
+export async function captureRoots(guide: GalleryDriver, id?: string): Promise<void> {
+  await catalog.roots
+    .filter((root) => id === undefined || root.id === id)
+    .reduce(async (previous, root) => {
+      await previous;
+      await guide.run(`root-${root.id}`, root.title, async () => {
+        await guide.open(root.path, root.heading);
+        // Skeletons and GraphQL errors are checked by the driver, including the
+        // optional report/history reads that otherwise leave browsing usable.
+        await guide.shot("root", `${root.title}: ${guide.profile} section root`);
+        guide.check(
+          "The real route and its data requests settled without browser or GraphQL errors",
+        );
+      });
+    }, Promise.resolve());
 }
 
 export async function captureTodaySummary(guide: GalleryDriver) {

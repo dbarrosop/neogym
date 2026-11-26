@@ -15,6 +15,7 @@ import {
 import catalog from "./catalog.json";
 import { recordedPath, upsert, type WorkflowRecord } from "./driver";
 import { dateBefore, exerciseFixtures, foodFixtures, SEED_DOCUMENTS } from "./fixtures";
+import { CHECK_PHOTOS } from "./progress-photos";
 import { CHECK_DOCUMENTS } from "./workflows";
 
 const schema = buildSchema(
@@ -66,6 +67,9 @@ describe("frontend gallery safety and registry", () => {
       "/nutrition/meals/:fixture-id/edit",
     );
     expect(recordedPath("/nutrition/log/2025-01-15")).toBe("/nutrition/log/2025-01-15");
+    expect(recordedPath("/progress/body/photos/f26ac88d-4dcd-48e8-a0ae-b4248918bc1c")).toBe(
+      "/progress/body/photos/:fixture-id",
+    );
   });
 
   test("backend endpoints are fixed to the CLI's local environment", () => {
@@ -117,6 +121,7 @@ describe("frontend gallery safety and registry", () => {
 for (const [name, document] of [
   ...Object.entries(SEED_DOCUMENTS),
   ...Object.entries(CHECK_DOCUMENTS),
+  ["progress photos", CHECK_PHOTOS] as const,
 ]) {
   test(`gallery ${name} document is valid against the canonical user-role SDL`, () => {
     expect(validate(schema, parse(document)).map((error) => error.message)).toEqual([]);

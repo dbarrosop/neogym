@@ -58,12 +58,19 @@ class WebGalleryTests(unittest.TestCase):
     def test_complete_catalog_and_separate_crud_rows(self):
         manifest, sections = TOOLS["validate_catalog"](self.output)
         rows = [row for section in sections for row in section["rows"]]
-        self.assertEqual(len(manifest["workflows"]), 50)
-        self.assertEqual(len(manifest["screenshots"]), 99)
-        self.assertEqual(len(rows), 54)
+        self.assertEqual(len(manifest["workflows"]), 52)
+        self.assertEqual(len(manifest["screenshots"]), 115)
+        self.assertEqual(len(rows), 56)
         self.assertIn("mobile-root-overview", [row["id"] for row in rows])
         self.assertEqual([row["id"] for row in rows if row["id"].startswith("mobile-journal-")],
                          ["mobile-journal-create", "mobile-journal-edit", "mobile-journal-delete"])
+        for profile in ("desktop", "mobile"):
+            source = profile + "-progress-photos"
+            photo_row = next(row for row in rows if row["id"] == source)
+            self.assertEqual([image["id"] for image in photo_row["images"]], [
+                source + "-" + frame for frame in
+                ("empty", "prepared", "viewer", "duplicates", "edit", "filtered", "confirm", "deleted")
+            ])
 
     def test_desktop_today_summary_reuses_the_root_while_mobile_shows_both_cards(self):
         _, sections = TOOLS["validate_catalog"](self.output)

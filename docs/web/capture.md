@@ -66,9 +66,13 @@ request. Training, nutrition, measurements and journal fixtures are inserted
 through real user-role GraphQL, as are the subsequent app writes. The database
 can allocate fresh row IDs; walkthroughs record route shapes rather than those
 IDs, and the IDs aren’t rendered. No admin secret, production session or
-persistent credential file is used. The last layout’s
-fictional rows remain until the next capture. Do not run captures concurrently;
-a workspace lock enforces this. If the process was forcibly killed, remove
+persistent credential file is used. The last layout’s common fictional rows
+remain until the next capture. The photo walkthrough produces both illustrations
+in memory, requires an empty owner photo history, and removes its remaining
+uploads through local Storage in teardown. Reservations that never acquired a
+file use ordinary expiry. This verifies visibility and cleanup requests, not
+physical object removal. Do not run captures concurrently; a workspace lock
+enforces this. If the process was forcibly killed, remove
 `.nhost-code/tmp/web-gallery.lock` only after confirming it is no longer running.
 
 Browser traffic is allowlisted to the local frontend/Auth/GraphQL/Storage origins.
@@ -100,6 +104,10 @@ explicit operator action—not something the capture does automatically.
 # Example: rerun the session workflow in each layout
 nix develop .. --command bun run gallery:capture \
   --output ../.nhost-code/tmp/web-gallery-baseline --group session
+
+# Refresh progress photos and the Body entry point, in both layouts
+nix develop .. --command bun run gallery:capture \
+  --output ../.nhost-code/tmp/web-gallery-baseline --group progress-photos
 
 # Example: inspect just the mobile roots in a fresh diagnostic catalog
 nix develop .. --command bun run gallery:capture \

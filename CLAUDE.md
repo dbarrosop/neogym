@@ -723,12 +723,15 @@ user-role GraphQL. There is no production demo, auth bypass, admin secret,
 database reset, shared-data write or stored developer session. Browser endpoints
 are local and allowlisted. `bun run gallery:serve` uses `http://localhost:5173`,
 the origin allowed by local Constellation CORS; do not bypass browser security.
-The last layout's gallery data remains in the local DB until the next refresh.
+The last layout's common gallery data remains in the local DB until the next
+refresh. The progress-photo walkthrough uploads only generated illustrations,
+asserts the reserved account starts without photos, and removes its uploads
+through local Storage. Its capture group also refreshes the Body root.
 
 The `docs/web/` gallery covers all web roots at 1440 × 1000 and 390 × 844 plus
 representative OTP verification, strength logging/editing and exercise details,
-nutrition log and editors, Progress Overview and Calories, Journal CRUD and
-appearance. Keep the registry and captured walkthroughs in sync when those
+nutrition log and editors, Progress Overview and Calories, private progress
+photos, Journal CRUD and appearance. Keep the registry and captured walkthroughs in sync when those
 flows change. Mobile is Chromium emulation, not Safari/device validation.
 Playwright fixes its application date and explicitly advances it for rest;
 Auth, database and provenance clocks are real. Locale/time zone, scale, reduced

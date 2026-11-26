@@ -139,14 +139,19 @@ export class GalleryDriver {
         this.failures.push("GraphQL transport failed");
       }
     });
-    page.on("response", (response) => {
-      if (!isGraphQL(response.url())) {
+    // Headers alone don't mean the body arrived: navigating out of a private
+    // route can abort its requests even after the response event.
+    page.on("requestfinished", (request) => {
+      if (!isGraphQL(request.url())) {
         return;
       }
-      const request = response.request();
-      void response
-        .json()
-        .then((body: { errors?: { message: string }[] }) => {
+      void request
+        .response()
+        .then(async (response) => {
+          if (!response) {
+            throw new Error("Missing response for a finished request");
+          }
+          const body = (await response.json()) as { errors?: { message: string }[] };
           if (!response.ok() || (body.errors?.length ?? 0) > 0) {
             this.failures.push(
               `GraphQL response failed: ${body.errors?.map((error) => error.message).join("; ") ?? response.status()}`,

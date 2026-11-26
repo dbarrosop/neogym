@@ -173,6 +173,21 @@
       "frames": ["overview-energy", "consumed", "net"]
     },
     {
+      "id": "progress-photos",
+      "area": "progress",
+      "title": "Upload, filter, correct and delete private progress photos",
+      "frames": [
+        "empty",
+        "prepared",
+        "viewer",
+        "duplicates",
+        "edit",
+        "filtered",
+        "confirm",
+        "deleted"
+      ]
+    },
+    {
       "id": "journal-crud",
       "area": "me",
       "title": "Create, edit and delete a journal entry",

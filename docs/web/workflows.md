@@ -916,3 +916,67 @@ These are retained results, not a new run of the browser workflows.
 - [Account: Light appearance selected](screenshots/mobile-appearance-light.png)
 - [Today: Light appearance persists across navigation](screenshots/mobile-appearance-today.png)
 - [Account: Dark appearance restored](screenshots/mobile-appearance-dark.png)
+
+<a id="desktop-progress-photos"></a>
+
+## Upload, filter, correct and delete private progress photos · desktop
+
+**Status:** passed
+
+1. Open /progress/body
+2. Follow Progress photos from Body to the empty history
+3. Choose a synthetic PNG, select Front, backdate it and upload
+4. Upload a second illustration with the same date and angle, then return to the gallery
+5. Open the newer photo; edit its date and angle without choosing a new image
+6. Return to the gallery and set the angle filter to Back
+7. Open the filtered photo, edit it, and confirm Delete photo
+
+**Verified outcomes**
+
+- A fresh backend read contains two distinct ready files with the same backdated Front metadata; Back returns to the gallery, not the spent upload form
+- The edit changed only the date and angle, retaining the same file ID; the Back filter shows only that photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
+- The runner removed the remaining synthetic upload through Storage after capture
+
+**Screenshots**
+
+- [Progress photos: empty private history and the Add photo action](screenshots/desktop-progress-photos-empty.png)
+- [Add photo: preview a generated illustration and choose an earlier date](screenshots/desktop-progress-photos-prepared.png)
+- [Photo viewer: the uploaded illustration with its angle and date taken](screenshots/desktop-progress-photos-viewer.png)
+- [Gallery: two distinct uploads sharing the same date and angle](screenshots/desktop-progress-photos-duplicates.png)
+- [Edit photo: correct the date and angle without replacing the image](screenshots/desktop-progress-photos-edit.png)
+- [Gallery: the Back filter shows only the corrected photo](screenshots/desktop-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the selected image](screenshots/desktop-progress-photos-confirm.png)
+- [Gallery: the other Front photo remains after deletion](screenshots/desktop-progress-photos-deleted.png)
+
+<a id="mobile-progress-photos"></a>
+
+## Upload, filter, correct and delete private progress photos · mobile
+
+**Status:** passed
+
+1. Open /progress/body
+2. Follow Progress photos from Body to the empty history
+3. Choose a synthetic PNG, select Front, backdate it and upload
+4. Upload a second illustration with the same date and angle, then return to the gallery
+5. Open the newer photo; edit its date and angle without choosing a new image
+6. Return to the gallery and set the angle filter to Back
+7. Open the filtered photo, edit it, and confirm Delete photo
+
+**Verified outcomes**
+
+- A fresh backend read contains two distinct ready files with the same backdated Front metadata; Back returns to the gallery, not the spent upload form
+- The edit changed only the date and angle, retaining the same file ID; the Back filter shows only that photo
+- A fresh backend read confirms that the deleted photo is inaccessible and the other photo remains
+- The runner removed the remaining synthetic upload through Storage after capture
+
+**Screenshots**
+
+- [Progress photos: empty private history and the Add photo action](screenshots/mobile-progress-photos-empty.png)
+- [Add photo: preview a generated illustration and choose an earlier date](screenshots/mobile-progress-photos-prepared.png)
+- [Photo viewer: the uploaded illustration with its angle and date taken](screenshots/mobile-progress-photos-viewer.png)
+- [Gallery: two distinct uploads sharing the same date and angle](screenshots/mobile-progress-photos-duplicates.png)
+- [Edit photo: correct the date and angle without replacing the image](screenshots/mobile-progress-photos-edit.png)
+- [Gallery: the Back filter shows only the corrected photo](screenshots/mobile-progress-photos-filtered.png)
+- [Delete photo: explicit confirmation before removing the selected image](screenshots/mobile-progress-photos-confirm.png)
+- [Gallery: the other Front photo remains after deletion](screenshots/mobile-progress-photos-deleted.png)
