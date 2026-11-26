@@ -1,6 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import { type ReactNode, type SubmitEvent, useCallback, useId, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  type SubmitEvent,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import type { FoodPickerOption } from "@/components/food-picker";
 import type { MealPickerOption } from "@/components/meal-picker";
@@ -134,6 +143,7 @@ type MealDialogState =
 
 /** A one-field prompt for "Move to another time…" and "Edit label…". */
 interface PromptRequest {
+  entryId: string;
   title: string;
   description: string;
   field: string;
@@ -381,6 +391,8 @@ export function NutritionPlanForm({
   extraActions,
 }: NutritionPlanFormProps) {
   const formId = useFormPageFormId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const retimeFocus = useRef<{ time: string; next?: HTMLElement } | null>(null);
   const errorId = useId();
   const [name, setName] = useState(initialValues.name);
   const [description, setDescription] = useState(initialValues.description);
@@ -415,13 +427,27 @@ export function NutritionPlanForm({
     draft.entries.flatMap((entry) => toPlanEntry(entry, foodsById, mealsById) ?? []),
   );
   const slots = buildSlotViews(draft.entries, draft.pendingSlots, entryTotals);
+  useLayoutEffect(() => {
+    const focus = retimeFocus.current;
+    retimeFocus.current = null;
+    if (focus && !focus.next?.isConnected) {
+      formRef.current
+        ?.querySelector<HTMLInputElement>(`[data-plan-slot="${focus.time}"] input[type="time"]`)
+        ?.focus();
+    }
+  });
   const error = validationError(draft.entries, name.trim(), foodsById, mealsById);
   const formError = submitted ? error : null;
 
   const actions: PlanSlotActions = {
     ...draft,
+    retimeSlot: (slot, time, focus) => {
+      retimeFocus.current = focus ? { time, ...focus } : null;
+      draft.retimeSlot(slot, time);
+    },
     moveEntryToTime: (entry, entryName) =>
       setPrompt({
+        entryId: entry.clientId,
         title: `Move ${entryName}`,
         description: "Pick a time. If a slot already uses it, the entry joins that slot.",
         field: "Time",
@@ -432,6 +458,7 @@ export function NutritionPlanForm({
       }),
     editLabel: (entry, entryName) =>
       setPrompt({
+        entryId: entry.clientId,
         title: `Label for ${entryName}`,
         description: "Optional. The meal's name shows when it is empty.",
         field: "Label",
@@ -461,7 +488,7 @@ export function NutritionPlanForm({
 
   return (
     <>
-      <form id={formId} onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <form ref={formRef} id={formId} onSubmit={handleSubmit} className="flex flex-col gap-5">
         <PlanDetailsCard
           name={name}
           description={description}
@@ -518,7 +545,15 @@ export function NutritionPlanForm({
           extraActions={extraActions}
         />
       </form>
-      <PlanPromptDialog request={prompt} onClose={() => setPrompt(null)} />
+      <PlanPromptDialog
+        request={prompt}
+        onClose={() => setPrompt(null)}
+        onReturnFocus={(id) => {
+          const rows = formRef.current?.querySelectorAll<HTMLElement>("[data-plan-entry]") ?? [];
+          const row = Array.from(rows).find((element) => element.dataset["planEntry"] === id);
+          row?.querySelector<HTMLButtonElement>('button[aria-haspopup="menu"]')?.focus();
+        }}
+      />
       <NutritionPlanInlineDialogs
         foodDialog={foodDialog}
         mealDialog={mealDialog}
@@ -625,11 +660,14 @@ function PlanDetailsCard({
 function PlanPromptDialog({
   request,
   onClose,
+  onReturnFocus,
 }: {
   request: PromptRequest | null;
   onClose: () => void;
+  onReturnFocus: (entryId: string) => void;
 }) {
   const fieldId = useId();
+  const closingEntry = useRef<string | null>(null);
   const [value, setValue] = useState("");
   const [shown, setShown] = useState<PromptRequest | null>(null);
   if (request !== shown) {
@@ -638,9 +676,25 @@ function PlanPromptDialog({
   }
   const invalid = request?.type === "time" && planSlotTimeKey(value) === "";
 
+  function close() {
+    closingEntry.current = request?.entryId ?? null;
+    onClose();
+  }
+
   return (
-    <Dialog open={request !== null} onOpenChange={(open) => (open ? undefined : onClose())}>
-      <DialogContent className="md:max-w-[420px]">
+    <Dialog open={request !== null} onOpenChange={(open) => (open ? undefined : close())}>
+      <DialogContent
+        className="md:max-w-[420px]"
+        onCloseAutoFocus={(event) => {
+          const entryId = closingEntry.current;
+          closingEntry.current = null;
+          if (entryId) {
+            // The old trigger can be detached after moving the row to a new slot.
+            event.preventDefault();
+            onReturnFocus(entryId);
+          }
+        }}
+      >
         <form
           className="flex flex-col gap-[18px]"
           onSubmit={(event) => {
@@ -648,7 +702,7 @@ function PlanPromptDialog({
             event.stopPropagation();
             if (request && !invalid) {
               request.onConfirm(value);
-              onClose();
+              close();
             }
           }}
         >
@@ -669,7 +723,7 @@ function PlanPromptDialog({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
+            <Button type="button" variant="ghost" onClick={close}>
               Cancel
             </Button>
             <Button type="submit" disabled={invalid}>

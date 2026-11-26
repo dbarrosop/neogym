@@ -62,7 +62,7 @@ export interface PlanSlotView {
 }
 
 export interface PlanSlotActions {
-  retimeSlot: (slot: PlanSlotView, time: string) => void;
+  retimeSlot: (slot: PlanSlotView, time: string, focus?: { next?: HTMLElement }) => void;
   removePendingSlot: (pendingId: string) => void;
   addEntry: (slot: PlanSlotView, kind: PlanEntryDraft["kind"]) => void;
   updateEntry: (clientId: string, patch: Partial<PlanEntryDraft>) => void;
@@ -171,13 +171,17 @@ function PlanSlotCard({
 }: Omit<PlanSlotsEditorProps, "slots"> & { slot: PlanSlotView }) {
   const label = slot.time ? slot.label : "no time";
   return (
-    <section aria-label={`Time slot ${slot.label}`} className="rounded-[14px] border bg-card">
+    <section
+      aria-label={`Time slot ${slot.label}`}
+      data-plan-slot={slot.time}
+      className="rounded-[14px] border bg-card"
+    >
       <div className="flex flex-wrap items-center gap-3 px-4 py-3.5 tabular-nums">
         <SlotTimeControl
           time={slot.time}
           label={label}
           disabled={disabled}
-          onCommit={(time) => actions.retimeSlot(slot, time)}
+          onCommit={(time, focus) => actions.retimeSlot(slot, time, focus)}
         />
         <span className="flex-1" />
         {slot.pendingId ? (
@@ -267,7 +271,7 @@ function SlotTimeControl({
   time: string;
   label: string;
   disabled: boolean;
-  onCommit: (time: string) => void;
+  onCommit: (time: string, focus?: { next?: HTMLElement }) => void;
 }) {
   const id = useId();
   const hintId = useId();
@@ -277,14 +281,14 @@ function SlotTimeControl({
     setValue(time);
   }, [time]);
 
-  function commit() {
+  function commit(focus?: { next?: HTMLElement }) {
     const next = planSlotTimeKey(value);
     if (!next) {
       setValue(time);
       return;
     }
     if (next !== time) {
-      onCommit(next);
+      onCommit(next, focus);
     }
   }
 
@@ -298,11 +302,18 @@ function SlotTimeControl({
         type="time"
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        onBlur={commit}
+        onBlur={(event) => {
+          const next = event.relatedTarget;
+          const sameSlot =
+            next instanceof HTMLElement &&
+            event.currentTarget.closest("[data-plan-slot]")?.contains(next);
+          // Restore focus only if the destination is about to be replaced with this card.
+          commit(sameSlot ? { next } : undefined);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            commit();
+            commit({});
           }
         }}
         disabled={disabled}
@@ -368,6 +379,7 @@ function PlanEntryRow({
   return (
     <li
       ref={sortable.setNodeRef}
+      data-plan-entry={entry.clientId}
       style={{
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,

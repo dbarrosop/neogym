@@ -198,15 +198,28 @@ try {
   assert(container.querySelector('input[aria-label="White bread grams"]'));
   assert(slot("07:15").textContent?.includes("kcal · P"));
 
-  // Typing a time that passes through another slot's time never merges until it is committed.
-  const breakfastTime = slot("07:15").querySelector<HTMLInputElement>('input[type="time"]');
+  const originalTime = slot("07:15").querySelector<HTMLInputElement>('input[type="time"]');
+  assert(originalTime);
+  await settle(() => originalTime.focus());
+  await type(originalTime, "07:30");
+  await settle(() =>
+    originalTime.dispatchEvent(
+      new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    ),
+  );
+  const breakfastTime = slot("07:30").querySelector<HTMLInputElement>('input[type="time"]');
   assert(breakfastTime);
-  await settle(() => breakfastTime.focus());
+  assert.notEqual(breakfastTime, originalTime, "Retiming recreates the time-keyed card");
+  assert.equal(document.activeElement, breakfastTime, "Enter restores focus to the new Time input");
+  assert.equal(submissions.length, 0, "Enter commits the time without submitting the form");
+
+  // Typing a time that passes through another slot's time never merges until it is committed.
   await type(breakfastTime, "09:30");
   assert.equal(slots().length, 3, "The slot time waits for blur or Enter");
-  // Committing an existing time retimes every entry in the slot and merges after its rows.
-  await settle(() => breakfastTime.blur());
+  // Tab to a control in the departing card: its blur commits and merges the slot.
+  await settle(() => button("More actions for Jam", slot("07:30")).focus());
   await waitFor(() => slots().length === 2);
+  assert.equal(document.activeElement, slot("09:30").querySelector('input[type="time"]'));
   assert.deepEqual(rowNames(slot("09:30")), ["Kvarg naturell", "White bread", "Jam"]);
   assert.deepEqual(infos, [`Joined the ${formatTimeOfDay("09:30")} slot`]);
 
@@ -243,6 +256,7 @@ try {
   await settle(() => button("Move", prompt).click());
   await waitFor(() => !document.querySelector('[role="dialog"]'));
   assert.deepEqual(rowNames(slot("17:30")), ["Dinner", "Kvarg naturell"]);
+  assert.equal(document.activeElement, button("More actions for Kvarg naturell", slot("17:30")));
   assert.deepEqual(rowNames(slot("09:30")), ["White bread", "Jam"]);
 
   // Move down keeps the entry inside its slot.
