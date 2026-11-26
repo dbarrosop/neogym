@@ -64,28 +64,33 @@ function BodyRoute() {
         </SkeletonState>
       );
     }
-    if (query.error) {
-      return (
-        <ErrorState
-          title="Couldn't load body measurements"
-          message={query.error.message}
-          onRetry={() => query.refetch()}
-          isRetrying={query.isFetching}
-        />
-      );
+    const error = query.error ? (
+      <ErrorState
+        title="Couldn't load body measurements"
+        message={query.error.message}
+        onRetry={() => query.refetch()}
+        isRetrying={query.isFetching}
+      />
+    ) : null;
+    if (!query.data) {
+      return error;
     }
     const measurements = query.data.bodyMeasurements;
     if (measurements.length === 0) {
       return (
-        <EmptyState
-          icon={Scale}
-          title="No measurements yet"
-          description="Log weight or body fat to see your trend here."
-        />
+        <div className="flex min-w-0 flex-col gap-5">
+          {error}
+          <EmptyState
+            icon={Scale}
+            title="No measurements yet"
+            description="Log weight or body fat to see your trend here."
+          />
+        </div>
       );
     }
     return (
       <div className="flex min-w-0 flex-col gap-5">
+        {error}
         <BodyTrendCard measurements={measurements} />
         <MeasurementsTable measurements={measurements} />
       </div>

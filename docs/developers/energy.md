@@ -77,7 +77,10 @@ counting a missing component as zero; Resting and Active average the same
 days, so they add up to it. The trend reads its own date-bounded range
 (30 d · 90 d · 1 y, default 30), independent of the list, which shows seven
 days at a time with a "7 of 41 days" count from `dailyEnergyEntriesAggregate`
-and Load more over 30-row pages.
+and Load more over 30-row pages. If a next page fails, the footer offers
+Retry for that page and keeps the expanded history window and trend visible.
+Failed background refetches on web Energy and Body show Retry alongside any
+loaded data rather than clearing their charts or resetting the history window.
 
 The web Energy trend draws active (Chart 2, orange) and resting (Chart 1, blue)
 lines with a dot per day from zero, today's partial row dashed to open dots, as

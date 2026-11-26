@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { errorStateMessage } from "@/components/patterns/query-states";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,8 @@ interface ListFooterProps {
   noun: string;
   onLoadMore: () => void;
   isLoading?: boolean;
+  /** A failed next page: preserve the count and make the action retry that page. */
+  loadError?: string | undefined;
   className?: string;
 }
 
@@ -31,19 +34,25 @@ export function ListFooter({
   noun,
   onLoadMore,
   isLoading = false,
+  loadError,
   className,
 }: ListFooterProps) {
   return (
     <div
       className={cn(
-        "flex min-h-[58px] items-center justify-between gap-3 border-border border-t px-4 py-2.5",
+        "flex min-h-[58px] flex-wrap items-center justify-between gap-3 border-border border-t px-4 py-2.5",
         className,
       )}
     >
+      {loadError !== undefined && (
+        <p role="alert" className="basis-full text-sm text-destructive">
+          Couldn't load more {noun}. {errorStateMessage(loadError)}
+        </p>
+      )}
       <span className="text-[13px] text-muted-foreground tabular-nums" aria-live="polite">
         {listFooterCaption(shown, total, noun)}
       </span>
-      {shown < total ? (
+      {shown < total || loadError !== undefined ? (
         <Button
           type="button"
           variant="ghost"
@@ -52,7 +61,7 @@ export function ListFooter({
           disabled={isLoading}
         >
           {isLoading ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
-          Load more
+          {loadError === undefined ? "Load more" : "Retry"}
         </Button>
       ) : null}
     </div>

@@ -72,6 +72,16 @@ function DailyEnergyRoute() {
     />
   );
 
+  const listError =
+    list.error && !list.isFetchNextPageError ? (
+      <ErrorState
+        title="Couldn't load energy days"
+        message={list.error.message}
+        onRetry={() => list.refetch()}
+        isRetrying={list.isFetching}
+      />
+    ) : null;
+
   // Board order: energy trend, Calories, then the day list.
   function renderMain() {
     if (list.isPending) {
@@ -82,15 +92,10 @@ function DailyEnergyRoute() {
         </SkeletonState>
       );
     }
-    if (list.error) {
+    if (!list.data) {
       return (
         <>
-          <ErrorState
-            title="Couldn't load energy days"
-            message={list.error.message}
-            onRetry={() => list.refetch()}
-            isRetrying={list.isFetching}
-          />
+          {listError}
           {calories}
         </>
       );
@@ -100,6 +105,7 @@ function DailyEnergyRoute() {
     if (Math.max(total, rows.length) === 0) {
       return (
         <>
+          {listError}
           <EmptyState
             icon={Flame}
             title="No energy days yet"
@@ -111,6 +117,7 @@ function DailyEnergyRoute() {
     }
     return (
       <>
+        {listError}
         <EnergyTrendCard days={search.days ?? 30} periodControl={periodControl("days", "Period")} />
         {calories}
         <EnergyHistory
@@ -118,6 +125,7 @@ function DailyEnergyRoute() {
           total={total}
           hasMoreRemote={list.hasNextPage}
           isFetchingMore={list.isFetchingNextPage}
+          loadError={list.isFetchNextPageError ? list.error.message : undefined}
           fetchMore={() => list.fetchNextPage()}
         />
       </>
@@ -213,12 +221,14 @@ function EnergyHistory({
   total,
   hasMoreRemote,
   isFetchingMore,
+  loadError,
   fetchMore,
 }: {
   rows: EnergyRow[];
   total: number;
   hasMoreRemote: boolean;
   isFetchingMore: boolean;
+  loadError: string | undefined;
   fetchMore: () => void;
 }) {
   const [limit, setLimit] = useState(ENTRY_HISTORY_PAGE_SIZE);
@@ -287,7 +297,8 @@ function EnergyHistory({
         shown={history.shown}
         total={history.total}
         noun="days"
-        onLoadMore={loadMore}
+        onLoadMore={loadError === undefined ? loadMore : fetchMore}
+        loadError={loadError}
         isLoading={isFetchingMore}
       />
     </section>
