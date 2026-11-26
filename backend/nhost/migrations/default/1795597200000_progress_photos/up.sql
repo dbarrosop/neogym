@@ -5,11 +5,10 @@ INSERT INTO storage.buckets (
 
 CREATE TABLE public.progress_photo_labels (
   value text PRIMARY KEY CHECK (value ~ '^[a-z][a-z0-9_]*$'),
-  name text NOT NULL CHECK (btrim(name) <> ''),
-  position integer NOT NULL UNIQUE CHECK (position >= 0)
+  comment text CHECK (btrim(comment) <> '')
 );
-INSERT INTO public.progress_photo_labels (value, name, position)
-VALUES ('front', 'Front', 0), ('back', 'Back', 1);
+INSERT INTO public.progress_photo_labels (value, comment)
+VALUES ('front', 'Front'), ('back', 'Back');
 
 CREATE TABLE public.progress_photos (
   id uuid PRIMARY KEY REFERENCES storage.files(id) ON DELETE CASCADE,
